@@ -31,7 +31,7 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
   Bank-based drift inference requires the joint location covariance as a
   square matrix in `attr(fit2, "cov_location")`, ordered like the bank
   rows (or named by object), unless the bank is treated as fixed with
-  zero SEs. For a graded fit the bank must carry `attr(bank, "m")`
+  zero SEs. For a polytomous fit the bank must carry `attr(bank, "m")`
   matching the number of fitted score steps.
 
 - alpha:

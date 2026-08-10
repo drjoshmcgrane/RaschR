@@ -1,6 +1,6 @@
-# Plot graded-comparison category curves
+# Plot polytomous-comparison category curves
 
-For a graded paired-comparison fit, the probability of each response
+For a polytomous paired-comparison fit, the probability of each response
 category as a function of the location difference `beta_a - beta_b`,
 with the symmetric threshold structure marked. The display is the
 paired-comparison counterpart of the category probability curves of a
@@ -16,7 +16,7 @@ plot_btl_categories(fit, grid = seq(-4, 4, 0.05))
 
 - fit:
 
-  A graded fit from
+  A polytomous fit from
   [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) (with
   `response`).
 

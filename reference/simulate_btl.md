@@ -1,6 +1,6 @@
 # Simulate paired-comparison (BTL) data with dial-in misfit
 
-Generates dichotomous or graded paired comparisons from the
+Generates dichotomous or polytomous paired comparisons from the
 Bradley-Terry-Luce model, with optional departures each of which a
 paired-comparison diagnostic is built to detect. The result is a data
 frame ready for
@@ -14,7 +14,7 @@ simulate_btl(
   n_objects = 8,
   n_judges = 12,
   reps_per_pair = 25,
-  model = c("dichotomous", "graded"),
+  model = c("dichotomous", "polytomous", "graded"),
   n_categories = 4,
   object_sd = 1,
   second_attribute = NULL,
@@ -36,12 +36,13 @@ simulate_btl(
 
 - model:
 
-  `"dichotomous"` (a winner) or `"graded"` (a rated margin in
-  `n_categories` categories).
+  `"dichotomous"` (a winner) or `"polytomous"` (a rated margin in
+  `n_categories` categories; the pre-1.14.1 value `"graded"` is accepted
+  as an alias).
 
 - n_categories:
 
-  Categories for the graded model.
+  Categories for the polytomous model.
 
 - object_sd:
 
@@ -72,7 +73,7 @@ simulate_btl(
 ## Value
 
 A data frame of class `"rasch_sim"`: `object_a`, `object_b`, `winner`
-(or `response` when graded), `judge`, and `order` when dependence is
+(or `response` when polytomous), `judge`, and `order` when dependence is
 planted; with `attr(x, "truth")`.
 
 ## Examples

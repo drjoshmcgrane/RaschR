@@ -152,7 +152,7 @@ blanks) is treated as missing and dropped with a note. Ignored when
 
 
 <dt id="arg-response">response<a class="anchor" aria-label="anchor" href="#arg-response"></a></dt>
-<dd><p>Optional name of a column holding a graded preference
+<dd><p>Optional name of a column holding a polytomous preference
 for <code>object_a</code> over <code>object_b</code> – an ORDERED factor
 (<code>factor(..., ordered = TRUE)</code>, levels worst to best for
 <code>object_a</code>) or integer scores <code>0..m</code>; a plain factor is
@@ -171,7 +171,7 @@ adjacent-category rather than endpoint-log-odds unit.</p></dd>
 <dt id="arg-margin">margin<a class="anchor" aria-label="anchor" href="#arg-margin"></a></dt>
 <dd><p>Optional name of a column holding the extent of the win
 ("a little", "much", ...), as an ordered factor or increasing values;
-combined with <code>winner</code> it assembles the graded response without
+combined with <code>winner</code> it assembles the polytomous response without
 any orientation bookkeeping ("B by much" means the same thing
 whichever column B sits in). Winner values matching neither object
 are ties and form the middle category.</p></dd>
@@ -231,7 +231,7 @@ not silently removed as a free boundary object would be.</p></dd>
 <code>"drop"</code> (default, removed with a note), <code>"half"</code> (half a
 win each way, a common pragmatic device – flagged in the notes
 because the halves are not independent Bernoulli trials), or
-<code>"error"</code>. With graded responses, code ties as a middle
+<code>"error"</code>. With polytomous responses, code ties as a middle
 category instead.</p></dd>
 
 
@@ -251,10 +251,10 @@ response. Both modes report the component decomposition.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_btl"</code>: <code>objects</code> (location, se,
-  comparisons, wins – or the graded <code>score</code> – infit and outfit
+  comparisons, wins – or the polytomous <code>score</code> – infit and outfit
   mean squares, fit residual and its df),
   <code>pairs</code> (per pair: n, observed and expected win proportions –
-  or mean graded responses –
+  or mean polytomous responses –
   standardised residual, chi-square component – the pair chi-squares
   treat comparisons as independent and are descriptive under judge
   clustering; the object and judge fit residuals and the clustered
@@ -269,7 +269,7 @@ response. Both modes report the component decomposition.</p></dd>
   standard errors, dependence tests, DIF, and OSI) is withheld unless
   there are at least 10 judges and more judges than fitted parameters.
   Point estimates and descriptive fit remain.
-  Graded fits add <code>thresholds</code> (the symmetric threshold estimates
+  Polytomous fits add <code>thresholds</code> (the symmetric threshold estimates
   with standard errors), <code>m</code>, and <code>categories</code>. With an
   <code>order</code> column the within-judge <code>dependence</code> effects table
   carries an <code>n_informative</code> count, and <code>dependence_data</code> holds

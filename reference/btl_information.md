@@ -4,8 +4,8 @@ The paired-comparison analogue of the test-information function. The
 Fisher information a single comparison carries about the location
 difference `d = beta_a - beta_b` is, in this exponential family, the
 variance of its score – `P(1 - P)` for the dichotomous choice and the
-graded response variance `V` for the ordinal extension (the score is the
-sufficient statistic for `d`, so its variance is the information).
+polytomous response variance `V` for the ordinal extension (the score is
+the sufficient statistic for `d`, so its variance is the information).
 Weighted by each comparison's replication count and summed over the
 comparisons the design actually contains, this gives a *design
 information* for every object: how much the observed comparisons pin its

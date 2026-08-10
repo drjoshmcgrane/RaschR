@@ -65,25 +65,25 @@ btl(
 
 - response:
 
-  Optional name of a column holding a graded preference for `object_a`
-  over `object_b` – an ORDERED factor (`factor(..., ordered = TRUE)`,
-  levels worst to best for `object_a`) or integer scores `0..m`; a plain
-  factor is refused, since its alphabetical level order would silently
-  define (and can reverse) the response scale. Fits the
-  adjacent-categories ordinal extension of BTL (Tutz 1986; Agresti
-  1992): a partial-credit structure on the difference of locations with
-  thresholds constrained symmetric, `tau_k = -tau_(m+1-k)`, so the model
-  is invariant to presentation order. Two categories reproduce BTL
-  exactly. Three categories have the Davidson (1970) probability
-  structure after mapping the Davidson endpoint log-strength to
-  `2 * beta`; the reported `beta` therefore uses the adjacent-category
-  rather than endpoint-log-odds unit.
+  Optional name of a column holding a polytomous preference for
+  `object_a` over `object_b` – an ORDERED factor
+  (`factor(..., ordered = TRUE)`, levels worst to best for `object_a`)
+  or integer scores `0..m`; a plain factor is refused, since its
+  alphabetical level order would silently define (and can reverse) the
+  response scale. Fits the adjacent-categories ordinal extension of BTL
+  (Tutz 1986; Agresti 1992): a partial-credit structure on the
+  difference of locations with thresholds constrained symmetric,
+  `tau_k = -tau_(m+1-k)`, so the model is invariant to presentation
+  order. Two categories reproduce BTL exactly. Three categories have the
+  Davidson (1970) probability structure after mapping the Davidson
+  endpoint log-strength to `2 * beta`; the reported `beta` therefore
+  uses the adjacent-category rather than endpoint-log-odds unit.
 
 - margin:
 
   Optional name of a column holding the extent of the win ("a little",
   "much", ...), as an ordered factor or increasing values; combined with
-  `winner` it assembles the graded response without any orientation
+  `winner` it assembles the polytomous response without any orientation
   bookkeeping ("B by much" means the same thing whichever column B sits
   in). Winner values matching neither object are ties and form the
   middle category.
@@ -143,8 +143,8 @@ btl(
   How to treat ties in the dichotomous analysis: `"drop"` (default,
   removed with a note), `"half"` (half a win each way, a common
   pragmatic device – flagged in the notes because the halves are not
-  independent Bernoulli trials), or `"error"`. With graded responses,
-  code ties as a middle category instead.
+  independent Bernoulli trials), or `"error"`. With polytomous
+  responses, code ties as a middle category instead.
 
 - thresholds:
 
@@ -162,9 +162,9 @@ btl(
 ## Value
 
 A list of class `"rasch_btl"`: `objects` (location, se, comparisons,
-wins – or the graded `score` – infit and outfit mean squares, fit
+wins – or the polytomous `score` – infit and outfit mean squares, fit
 residual and its df), `pairs` (per pair: n, observed and expected win
-proportions – or mean graded responses – standardised residual,
+proportions – or mean polytomous responses – standardised residual,
 chi-square component – the pair chi-squares treat comparisons as
 independent and are descriptive under judge clustering; the object and
 judge fit residuals and the clustered standard errors carry the robust
@@ -178,12 +178,12 @@ convergence details, and `notes`. With judge clustering,
 covariance-based inference (including the Godambe information criteria,
 standard errors, dependence tests, DIF, and OSI) is withheld unless
 there are at least 10 judges and more judges than fitted parameters.
-Point estimates and descriptive fit remain. Graded fits add `thresholds`
-(the symmetric threshold estimates with standard errors), `m`, and
-`categories`. With an `order` column the within-judge `dependence`
-effects table carries an `n_informative` count, and `dependence_data`
-holds every comparison with its per-comparison exposure and carry-over
-covariates (see
+Point estimates and descriptive fit remain. Polytomous fits add
+`thresholds` (the symmetric threshold estimates with standard errors),
+`m`, and `categories`. With an `order` column the within-judge
+`dependence` effects table carries an `n_informative` count, and
+`dependence_data` holds every comparison with its per-comparison
+exposure and carry-over covariates (see
 [`plot_btl_dependence`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_dependence.md)).
 
 ## Details

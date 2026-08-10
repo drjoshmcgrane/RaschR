@@ -2,8 +2,8 @@
 
 The paired-comparison counterpart of the item characteristic curve: the
 model expected response for one object as a function of opponent
-location (the win probability, or the expected graded response), with
-the observed mean response against each opponent overlaid at that
+location (the win probability, or the expected polytomous response),
+with the observed mean response against each opponent overlaid at that
 opponent\\s estimated location. Observed points shrink in toward the
 curve as the model holds; an object of inconsistent quality shows points
 straying from it, exactly as a misfitting item does.

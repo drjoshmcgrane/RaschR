@@ -132,7 +132,7 @@ designs.
 - [`plot_btl()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl.md)
   : Plot Bradley-Terry-Luce object locations
 - [`plot_btl_categories()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_categories.md)
-  : Plot graded-comparison category curves
+  : Plot polytomous-comparison category curves
 - [`plot_btl_icc()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_icc.md)
   : Plot an object characteristic curve
 - [`plot_btl_dependence()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_dependence.md)
