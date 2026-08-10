@@ -515,6 +515,9 @@
 #'   families, and Holm-adjusted exploratory unit contrasts), and
 #'   \code{linking} (the linking evidence).
 #' @references
+#' Andrich, D. (1982). An extension of the Rasch model for ratings providing
+#' both location and dispersion parameters. Psychometrika, 47(1), 105--113.
+#'
 #' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
 #' Rasch model for ordered response categories using principal components.
 #' Journal of Applied Measurement, 4(3), 205--221.

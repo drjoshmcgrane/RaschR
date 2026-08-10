@@ -31,7 +31,7 @@ Description: Implements Rasch Measurement Theory for constructing and
     are weighted likelihood estimates (Warm, 1989 <doi:10.1007/BF02294627>);
     paired comparisons follow Bradley and Terry (1952)
     <doi:10.1093/biomet/39.3-4.324> as the conditional form of the
-    dichotomous Rasch model (Andrich, 1978 <doi:10.1007/BF02293814>). The
+    dichotomous Rasch model (Andrich, 1978 <doi:10.1177/014662167800200319>). The
     methods follow the measurement-theory framework described by Andrich and
     Marais (2019) <doi:10.1007/978-981-13-7496-8>.
 URL: https://drjoshmcgrane.github.io/rasch/, https://github.com/drjoshmcgrane/rasch

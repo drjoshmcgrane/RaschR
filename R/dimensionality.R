@@ -220,9 +220,9 @@ residual_pca <- function(fit, n_components = 10) {
 #' @param parallel Draw the parallel-analysis reference line.
 #' @param reps Model-simulated replicates for the reference.
 #' @return Called for its plotting side effect; invisibly the eigen table.
-#' @references Raiche, G. (2005). Critical eigenvalue sizes in standardized
-#'   residual principal components analysis. \emph{Rasch Measurement
-#'   Transactions}, 19(1), 1012.
+#' @references Raiche, G. (2005). Critical eigenvalue sizes (variances) in
+#'   standardized residual principal components analysis. \emph{Rasch
+#'   Measurement Transactions}, 19(1), 1012.
 #'
 #'   Chou, Y.-T., & Wang, W.-C. (2010). Checking dimensionality in item
 #'   response models with principal component analysis on standardized
@@ -433,7 +433,7 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
 #'   \code{c2}, \code{c}, \code{rho}, \code{A}), the subtest \code{refit},
 #'   and the design constants \code{S} and \code{K}.
 #' @references Andrich, D. (2016). Components of variance of scales with a
-#'   bifactor structure from two calculations of coefficient alpha.
+#'   bifactor subscale structure from two calculations of alpha.
 #'   Educational Measurement: Issues and Practice, 35(4), 25-30.
 #' @examples
 #' set.seed(1); N <- 500

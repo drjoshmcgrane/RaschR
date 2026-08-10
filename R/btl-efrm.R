@@ -554,7 +554,8 @@
 #'   Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
 #'   Rasch model. Journal of Applied Measurement, 9(3), 249-264.
 #'
-#'   Luce, R. D. (1959). Individual Choice Behavior. Wiley.
+#'   Luce, R. D. (1959). Individual Choice Behavior: A Theoretical
+#'   Analysis. Wiley.
 #'
 #'   Thurstone, L. L. (1927). A law of comparative judgment. Psychological
 #'   Review, 34, 273-286.

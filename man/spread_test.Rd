@@ -40,6 +40,10 @@ fit2 <- combine_items(rasch(X), list(c("I4", "I5", "I6"), c("I1", "I2", "I3")))
 spread_test(fit2)
 }
 \references{
+Andrich, D. (1985). An elaboration of Guttman scaling with Rasch models
+for measurement. In N. B. Tuma (Ed.), Sociological Methodology 1985
+(pp. 33--80). Jossey-Bass.
+
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
 }

@@ -37,9 +37,9 @@ colnames(X) <- paste0("I", 1:8)
 plot_scree(rasch(X))
 }
 \references{
-Raiche, G. (2005). Critical eigenvalue sizes in standardized
-  residual principal components analysis. \emph{Rasch Measurement
-  Transactions}, 19(1), 1012.
+Raiche, G. (2005). Critical eigenvalue sizes (variances) in
+  standardized residual principal components analysis. \emph{Rasch
+  Measurement Transactions}, 19(1), 1012.
 
   Chou, Y.-T., & Wang, W.-C. (2010). Checking dimensionality in item
   response models with principal component analysis on standardized

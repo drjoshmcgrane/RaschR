@@ -47,6 +47,6 @@ dimensionality_magnitude(fit,
 }
 \references{
 Andrich, D. (2016). Components of variance of scales with a
-  bifactor structure from two calculations of coefficient alpha.
+  bifactor subscale structure from two calculations of alpha.
   Educational Measurement: Issues and Practice, 35(4), 25-30.
 }
