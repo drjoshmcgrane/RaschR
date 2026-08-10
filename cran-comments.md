@@ -33,8 +33,8 @@ documentation and vignettes.
 
 0 errors | 0 warnings | 1 note
 
-The note states that the local check could not verify the current time; it
-is specific to the local check environment (an intermittent time service)
+The note states that the locally installed HTML Tidy is not recent enough
+to validate the HTML manual; it is specific to the local check environment
 and unrelated to the package. The PDF manual was built and checked
 successfully.
 
