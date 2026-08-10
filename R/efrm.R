@@ -211,8 +211,17 @@
   }
   Ac <- diag(G) - matrix(1 / G, G, G)
   cov_lp <- Ac %*% cov_lp %*% t(Ac)
-  cov_dt <- A_D %*% covb[seq_len(Pd), seq_len(Pd), drop = FALSE] %*% t(A_D) *
-    exp(2 * cc)
+  # dtilde_c = exp(cc) A_D beta_d, where
+  # cc = mean(log(phi)).  Because cc is estimated jointly with beta_d, the
+  # delta-method Jacobian must include its derivatives with respect to every
+  # free phi as well as the beta--phi cross-covariance. Treating cc as fixed
+  # can materially misstate the common-unit item standard errors.
+  J_dt <- matrix(0, nrow(A_D), Pd + G - 1L)
+  J_dt[, seq_len(Pd)] <- exp(cc) * A_D
+  if (G > 1L)
+    J_dt[, Pd + seq_len(G - 1L)] <-
+      outer(dtil_c, 1 / (G * phi[-1L]))
+  cov_dt <- J_dt %*% covb %*% t(J_dt)
 
   dimnames(cov_lp) <- list(glevs, glevs)
   list(dtilde = dtil_c, phi = setNames(phi_c, glevs),
@@ -357,9 +366,14 @@
 #'
 #' Estimates Humphry's extended frame of reference model, in which the unit
 #' of the latent scale differs across frames (item-set by person-group
-#' cells): the response model is
-#' \code{P(X = x) prop exp(rho_sg (x theta - sum delta))} with
-#' \code{rho_sg = alpha_s phi_g}. Within frames the partial credit model
+#' cells). For item \eqn{i} in set \eqn{s} and person \eqn{n} in group
+#' \eqn{g}, the response model is
+#' \deqn{P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
+#'   \sum_{k=1}^{x}\delta_{ik}]\}}
+#'   {\sum_{y=0}^{m_i}\exp\{\rho_{sg}[y\theta_n-
+#'   \sum_{k=1}^{y}\delta_{ik}]\}},\qquad
+#'   \rho_{sg}=\alpha_s\phi_g.}
+#' Within frames the partial credit model
 #' holds in the frame's natural unit, so item thresholds and the person
 #' group units \code{phi} are estimated by within-frame pairwise conditional
 #' maximum likelihood (the person parameter cancels; Andrich and Luo 2003),
@@ -412,14 +426,15 @@
 #' threshold covariance come from the replicate spread; slower, but captures
 #' all cross-dependencies jointly.
 #'
-#' Relation to Humphry (2005, sections 5.3 and 5.4): the two-stage
-#' architecture implemented here operationalises the estimation approach
-#' proposed in section 5.3 of the thesis (conditional estimation within
-#' frames, with the item-set units obtained through person estimates from
-#' linked sets), and retains the thesis's error-variance correction (its
-#' equation 2.29, after Andrich 1982) and its transformation of standard
-#' errors into the common unit by the inverse discrimination. The standard
-#' errors themselves go further than the thesis's section 5.4, which inverts
+#' Relation to Humphry (2005): the within-frame stage follows the thesis's
+#' conditional separation logic. The linking stage implemented here is an
+#' error-corrected method-of-moments estimator based on the true-score
+#' variance ratios in equations 2.28--2.29 (after Andrich 1982). It is not the
+#' distinct likelihood equation proposed in section 5.3. The multigroup,
+#' polytomous, and crossed-frame implementation is therefore an experimental
+#' package extension whose sampling performance should be checked for the
+#' intended design, preferably with the full person bootstrap. The standard
+#' errors go further than the thesis's section 5.4, which inverts
 #' each diagonal element of the joint-likelihood information separately and
 #' therefore conditions on the remaining parameters, including the person
 #' locations, being treated as known. Here full covariance matrices are used
@@ -496,8 +511,22 @@
 #'   parameters in the common unit), \code{score_curves} (per-group
 #'   score-to-measure curves, replacing the raw-score table),
 #'   \code{efrm_vs_rasch} (fit comparison against the equal-unit model on
-#'   the same conditional information), and \code{linking} (the linking
-#'   evidence).
+#'   the same conditional information, omnibus Wald tests for the unit
+#'   families, and Holm-adjusted exploratory unit contrasts), and
+#'   \code{linking} (the linking evidence).
+#' @references
+#' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+#' Rasch model for ordered response categories using principal components.
+#' Journal of Applied Measurement, 4(3), 205--221.
+#'
+#' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+#' Measuring in the Educational, Social and Health Sciences. Springer.
+#'
+#' Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
+#' Measurement. PhD thesis, Murdoch University.
+#'
+#' Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the Rasch
+#' model. Journal of Applied Measurement, 9(3), 249--264.
 #' @examples
 #' \donttest{
 #' set.seed(1); Np <- 400
@@ -506,8 +535,9 @@
 #' grp <- rep(c("A", "B"), each = Np / 2)
 #' phi <- c(A = 0.8, B = 1.25)
 #' d <- seq(-1.5, 1.5, length.out = 10)
+#' theta <- rnorm(Np)
 #' X <- sapply(seq_along(d), function(i) sapply(seq_len(Np), function(n)
-#'   sample(0:1, 1, prob = simP(rnorm(Np)[n], d[i], phi[grp[n]]))))
+#'   sample(0:1, 1, prob = simP(theta[n], d[i], phi[grp[n]]))))
 #' colnames(X) <- sprintf("I%02d", seq_along(d))
 #' fit <- rasch_efrm(data.frame(X, grp = grp), item_sets = list(core = colnames(X)),
 #'                   groups = "grp")
@@ -932,9 +962,12 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                                          se = se_arb, weak = weak_d)
   fit$item_arbitrary <- do.call(rbind, lapply(seq_along(items_o), function(i) {
     rows <- which(thr_items$item == i)
+    weak_i <- any(weak_d[rows])
     data.frame(item = items_o[i], set = set_of[items_o[i]],
                location = mean(delta[rows]),
-               se = sqrt(max(mean(cov_delta[rows, rows, drop = FALSE]), 0)))
+               se = if (weak_i) NA_real_ else
+                 sqrt(max(mean(cov_delta[rows, rows, drop = FALSE]), 0)),
+               weak = weak_i)
   }))
   rownames(fit$item_arbitrary) <- NULL
 
@@ -971,6 +1004,31 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   # informative about the group units (phi): the within-frame likelihood is
   # invariant to the set units (alpha), which are identified person-side, so
   # their evidence is the Wald test on log alpha.
+  wald_zero <- function(est, Sigma, term) {
+    if (length(est) < 2L || is.null(Sigma) || any(!is.finite(Sigma)))
+      return(NULL)
+    ee <- eigen((Sigma + t(Sigma)) / 2, symmetric = TRUE)
+    cut <- max(abs(ee$values)) * 1e-8
+    use <- ee$values > cut
+    if (!any(use)) return(NULL)
+    Sinv <- ee$vectors[, use, drop = FALSE] %*%
+      (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
+    W <- drop(t(est) %*% Sinv %*% est)
+    data.frame(term = term, df = sum(use), wald = W,
+               p = stats::pchisq(W, sum(use), lower.tail = FALSE))
+  }
+  Sig_phi <- if (!is.null(boot))
+    stats::cov(boot[, seq_len(G), drop = FALSE]) else sol$cov_log_phi
+  Sig_alpha <- if (S > 1L) {
+    if (!is.null(boot)) stats::cov(boot[, G + seq_len(S), drop = FALSE])
+    else if (!is.null(link$cov_link))
+      link$cov_link[seq_len(S), seq_len(S), drop = FALSE]
+    else NULL
+  } else NULL
+  unit_omnibus <- do.call(rbind, Filter(Negate(is.null), list(
+    if (G > 1L) wald_zero(log(phi), Sig_phi, "group units (phi)"),
+    if (S > 1L) wald_zero(log(alpha), Sig_alpha, "set units (alpha)"))))
+
   ut <- rbind(
     if (G > 1L) data.frame(parameter = paste0("log phi[", glevs, "]"),
                            estimate = log(fit$phi_table$phi),
@@ -981,6 +1039,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   if (!is.null(ut)) {
     ut$z <- ut$estimate / ut$se
     ut$p <- 2 * pnorm(-abs(ut$z))
+    ut$p_adj <- stats::p.adjust(ut$p, method = "holm")
+    ut$significant <- ut$p_adj < 0.05
     rownames(ut) <- NULL
   }
   fit$efrm_vs_rasch <- list(ll_efrm = sol$loglik, ll_equal = glh0$ll,
@@ -988,6 +1048,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                             extra_parameters = G - 1L,
                             informative_for = if (G > 1L) "group units (phi)"
                               else "nothing: single group, set units are identified person-side",
+                            unit_omnibus = unit_omnibus,
                             unit_tests = ut)
   grid <- seq(-6, 6, by = 0.1)
   fit$score_curves <- do.call(rbind, lapply(glevs, function(g) {
@@ -1027,8 +1088,12 @@ print.rasch_efrm <- function(x, ...) {
               x$efrm_vs_rasch$two_delta_ll, x$efrm_vs_rasch$extra_parameters))
   cat("(composite likelihood: descriptive; informative for ",
       x$efrm_vs_rasch$informative_for, ")\n", sep = "")
+  if (!is.null(x$efrm_vs_rasch$unit_omnibus)) {
+    cat("Omnibus Wald tests of equal units:\n")
+    print(.fmt_df(x$efrm_vs_rasch$unit_omnibus), row.names = FALSE)
+  }
   if (!is.null(x$efrm_vs_rasch$unit_tests)) {
-    cat("Wald tests of the units (H0: unit = 1):\n")
+    cat("Holm-adjusted exploratory unit contrasts (H0: unit = 1):\n")
     print(.fmt_df(x$efrm_vs_rasch$unit_tests), row.names = FALSE)
   }
   if (length(x$notes)) cat(sprintf("\nNotes: %s\n", paste(x$notes, collapse = "; ")))

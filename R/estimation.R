@@ -9,8 +9,8 @@
 #
 # where L_i(k) = sum_{h<=k} tau_ih is the cumulative threshold sum. The
 # pairwise conditional log-likelihood, summed over all item pairs and pair
-# totals, is maximised by Newton-Raphson. Standard errors come from the
-# observed information of the pseudo-likelihood. The rating scale model is
+# totals, is maximised by Newton-Raphson. Standard errors use the Godambe
+# sandwich covariance of the pairwise composite likelihood. The rating scale model is
 # the same likelihood under the constraint tau_ik = delta_i + kappa_k,
 # imposed through the design matrix. Dichotomous data is the special case
 # m_i = 1. Australian English; no em dashes by house style.
@@ -332,6 +332,13 @@ threshold_index <- function(m) {
 #'   threshold covariance matrix \code{cov_tau}, the pairwise conditional
 #'   log-likelihood, the iteration count, a convergence flag, \code{notes},
 #'   and the max-score vector \code{m}.
+#' @references
+#' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+#' Rasch model for ordered response categories using principal components.
+#' Journal of Applied Measurement, 4(3), 205--221.
+#'
+#' Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+#' Applied Psychological Measurement, 19(4), 369--375.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-1.5, 1.5, length.out = 6)
@@ -339,7 +346,9 @@ threshold_index <- function(m) {
 #' colnames(X) <- paste0("I", 1:6)
 #' pcml(X)$thr
 #' # anchor two items at fixed values (equating)
-#' pcml(X, anchors = data.frame(item = c("I1", "I6"), k = 1, tau = c(-1.5, 1.5)))$thr
+#' anchors <- data.frame(item = c("I1", "I6"), k = 1,
+#'                       tau = c(-1.5, 1.5))
+#' pcml(X, anchors = anchors)$thr
 #' @export
 pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
                  maxit = 60, tol = 1e-8) {
@@ -577,6 +586,13 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 #'   component), the threshold covariance matrix \code{cov_tau}, the
 #'   pairwise conditional log-likelihood, the iteration count, a convergence
 #'   flag, and the max-score vector \code{m}.
+#' @references
+#' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+#' Rasch model for ordered response categories using principal components.
+#' Journal of Applied Measurement, 4(3), 205--221.
+#'
+#' Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+#' Applied Psychological Measurement, 19(4), 369--375.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-1.5, 1.5, length.out = 6)

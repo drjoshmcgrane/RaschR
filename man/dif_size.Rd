@@ -39,6 +39,7 @@ A list of class \code{"rasch_dif_size"}: \code{levels} (resolved
   location and SE per level, with its n), \code{pairs} (per comparison:
   difference in logits, SE, z, raw and adjusted p, 95 per cent interval,
   \code{significant}, \code{practical}), the settings, and any notes.
+  Sampling-uncertainty fields are \code{NA} when person IDs repeat.
 }
 \description{
 Quantifies differential item functioning on the measurement scale
@@ -52,11 +53,13 @@ covariance of the resolved locations (for a between-person factor the
 persons behind different levels are disjoint, but the shared calibration
 of the other items still couples the estimates, so the covariance is
 used rather than assumed zero), with familywise adjustment over the
-pairs. For a within-person factor -- the same persons behind several
-levels, as in a stacked repeated-measures design -- the sandwich carries
-no person clustering, so the standard errors are conservative; a note
-says so, and \code{\link{dif_contrasts}} handles that case with
-person-level differencing. Differences
+pairs. When person identifiers repeat, as in a stacked repeated-measures
+design, the calibration sandwich treats the rows as independent and does
+not carry the covariance induced by repeated persons. The resolved point
+differences and practical flags are therefore retained, but sampling
+standard errors, confidence intervals, and Wald tests are withheld;
+\code{\link{dif_contrasts}} supplies person-level inferential tests.
+Differences
 at least \code{flag_logits} in absolute size are flagged as practically
 significant; half a logit is a common working criterion, to be weighed
 against the test's targeting and purpose.
@@ -74,4 +77,11 @@ X <- matrix(rbinom(n * 8, 1, plogis(outer(rnorm(n), d, "-") - sh)), n, 8)
 colnames(X) <- paste0("I", 1:8)
 fit <- rasch(data.frame(X, grp = g), factors = "grp")
 dif_size(fit, "I3", by = "grp")
+}
+\references{
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Holm, S. (1979). A simple sequentially rejective multiple test procedure.
+Scandinavian Journal of Statistics, 6(2), 65--70.
 }

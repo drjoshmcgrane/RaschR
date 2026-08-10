@@ -2,7 +2,7 @@
 # reduce exactly to the textbook complete-case forms, and paired-comparison
 # semantics where an unmatched winner is missing, never a tie.
 
-test_that("CTT statistics are available-case and reduce exactly when complete", {
+test_that("CTT statistics support complete- and available-case summaries", {
   set.seed(1)
   simP <- function(t, tau) {
     x <- 0:length(tau); p <- exp(x * t - c(0, cumsum(tau))); p / sum(p)
@@ -31,14 +31,42 @@ test_that("CTT statistics are available-case and reduce exactly when complete", 
   Xm <- X
   Xm[matrix(runif(length(X)) < 0.3, nrow(X))] <- NA
   Xm[1:200, 1:2] <- NA; Xm[201:400, 7:8] <- NA
-  cm <- ctt_table(rasch(Xm))
+  cc <- ctt_table(rasch(Xm))
+  expect_equal(cc$n, 0L)
+  expect_true(all(is.na(cc$table$facility)))
+
+  cm <- ctt_table(rasch(Xm), missing = "available")
   expect_equal(cm$n, 0L)
   expect_true(all(is.finite(cm$table$facility)))
   expect_true(all(is.finite(cm$table$item_total)))
   expect_true(all(cm$table$item_rest > 0.15))
-  expect_true(all(is.finite(cm$table$alpha_drop)))
+  # the linked booklets leave item pairs with NO respondents in common:
+  # their pairwise covariance does not exist, so alpha and alpha-if-deleted
+  # are withheld with the reason -- treating the unobservable covariances
+  # as zero would fabricate an alpha from invented independence
+  expect_true(all(is.na(cm$table$alpha_drop)))
+  expect_true(is.na(cm$alpha))
+  expect_match(cm$note, "alpha withheld")
   expect_true(is.na(cm$mean))          # honest: no complete responders
   expect_no_error(print(cm))
+})
+
+test_that("complete-case CTT alpha is recomputed on the reported sample", {
+  set.seed(13)
+  X <- matrix(rbinom(300 * 6, 1, 0.5), 300, 6,
+              dimnames = list(NULL, paste0("A", 1:6)))
+  Xm <- X
+  miss <- matrix(FALSE, 300, 6)
+  miss[101:300, ] <- matrix(runif(200 * 6) < 0.35, 200, 6)
+  Xm[miss] <- NA
+  fit <- rasch(Xm)
+  ct <- ctt_table(fit)
+  Xc <- Xm[complete.cases(Xm), , drop = FALSE]
+  C <- cov(Xc)
+  manual <- ncol(Xc) / (ncol(Xc) - 1) *
+    (1 - sum(diag(C)) / sum(C))
+  expect_equal(ct$n, nrow(Xc))
+  expect_equal(ct$alpha, manual, tolerance = 1e-12)
 })
 
 test_that("an unmatched winner is missing, not a tie", {

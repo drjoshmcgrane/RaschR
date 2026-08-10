@@ -21,3 +21,11 @@ locations; a clear rotational arrangement is the second attribute, a
 formless blob near the origin is noise. Point size grows with the object's
 location on the primary scale.
 }
+\examples{
+\donttest{
+d <- simulate_btl(7, 12, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+dimensions <- btl_dimensionality(fit, reps = 20)
+plot_btl_dim_map(dimensions)
+}
+}

@@ -30,13 +30,11 @@ margin in \code{n_categories} categories).}
 \item{object_sd}{Spread of the object locations (evenly spaced, sum-zero).}
 
 \item{second_attribute}{\code{NULL}, or \code{list(rho=)}: half the judges
-rank by a second object attribute correlated \code{rho} with the first --
-genuine multidimensionality. Feeds \code{\link{btl_dimensionality}} and
-\code{\link{btl_transitivity}}.}
+rank by a second object attribute correlated \code{rho} with the first.
+This introduces multidimensionality and possible intransitivity.}
 
-\item{erratic_judges}{Proportion of judges who choose at random. Feeds the
-judge fit residual, \code{\link{btl_transitivity}} consistency, and
-\code{\link{judge_surprise}}.}
+\item{erratic_judges}{Proportion of judges who choose at random. This
+affects judge fit, transitivity, and the judge-surprise diagnostics.}
 
 \item{dependence}{\code{NULL}, or \code{list(exposure=, carry_over=)}:
 within-judge order effects (a seen-before advantage and a pull from the

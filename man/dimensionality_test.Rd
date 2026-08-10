@@ -9,7 +9,8 @@ dimensionality_test(
   alpha = 0.05,
   items_positive = NULL,
   items_negative = NULL,
-  component = 1
+  component = 1,
+  min_score_points = 15L
 )
 }
 \arguments{
@@ -24,14 +25,24 @@ each), otherwise the sign of a residual component defines the split.}
 \item{component}{Which residual principal component's loading sign defines
 the default split (ignored when subsets are named). Default the first
 component.}
+
+\item{min_score_points}{Score-point threshold below which the verdict
+carries a caution. Andrich and Marais (2019) recommend subtests of
+roughly 15 score points for stable subtest estimates; shorter subsets
+(the norm for ordinary dichotomous tests) still receive a verdict, with
+a \code{caution} field noting the reduced stability.}
 }
 \value{
 A list with the proportion of significant tests, its exact
   confidence interval, the sample sizes (\code{n} used,
   \code{n_excluded_extreme}), the item split and its source, a
-  \code{multidimensional} verdict, and \code{paired_t}, the paired t-test
-  of the two subset means (the group-level comparison, which requires
-  pairing because both estimates come from the same persons).
+  \code{multidimensional} verdict, a \code{caution} note when the
+  subtests fall short of \code{min_score_points}, and \code{paired_t},
+  the paired t-test of the two subset means (the group-level comparison,
+  which requires pairing because both estimates come from the same
+  persons). When the comparison itself is unavailable (undefined split,
+  degenerate subsets, too few persons) the list carries a \code{note}
+  explaining why and \code{multidimensional = NA}.
 }
 \description{
 Estimates each person separately on two item subsets and compares the two
@@ -55,4 +66,9 @@ d <- seq(-2, 2, length.out = 8)
 X <- matrix(rbinom(500 * 8, 1, plogis(outer(rnorm(500), d, "-"))), 500, 8)
 colnames(X) <- paste0("I", 1:8)
 dimensionality_test(rasch(X))$multidimensional
+}
+\references{
+Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
+multidimensionality using item fit statistics and principal component
+analysis of residuals. Journal of Applied Measurement, 3(2), 205--231.
 }

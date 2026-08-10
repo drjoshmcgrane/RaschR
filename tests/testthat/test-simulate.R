@@ -24,7 +24,7 @@ test_that("simulate_rasch plants misfit the Rasch diagnostics detect", {
   d <- simulate_rasch(1000, 10,
                       dependence = list(pairs = list(c("I03", "I04")),
                                         strength = 2.5), seed = 4)
-  h <- residual_correlations(rasch(d))$flagged
+  h <- residual_correlations(rasch(d), flag = 0.2)$flagged
   expect_true(any((h$item_a == "I03" & h$item_b == "I04") |
                   (h$item_a == "I04" & h$item_b == "I03")))
 

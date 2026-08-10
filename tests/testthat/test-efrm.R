@@ -78,6 +78,11 @@ test_that("EFRM recovers the full unit grid (two sets x two groups)", {
   expect_equal(fr$rho, fr$alpha * fr$phi, tolerance = 1e-12)
   expect_lt(max(abs(log(fit$phi_table$phi) - log(phi_true))), 0.12)
   expect_lt(max(abs(log(fit$alpha_table$alpha) - log(alpha_true))), 0.2)
+  expect_setequal(fit$efrm_vs_rasch$unit_omnibus$term,
+                  c("group units (phi)", "set units (alpha)"))
+  expect_true(all(is.finite(fit$efrm_vs_rasch$unit_omnibus$p)))
+  expect_true(all(c("p_adj", "significant") %in%
+                    names(fit$efrm_vs_rasch$unit_tests)))
 })
 
 test_that("a single frame reduces to the ordinary rasch fit", {

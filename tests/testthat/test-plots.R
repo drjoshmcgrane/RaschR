@@ -87,8 +87,10 @@ test_that("residual components beyond the first can be inspected and tested", {
   expect_no_error(plot_pca(f, component = 3))
   expect_error(plot_pca(f, component = 99), "not available")
   # the t-test default split follows the chosen component
-  expect_match(dimensionality_test(f, component = 1)$split, "component 1")
-  expect_match(dimensionality_test(f, component = 2)$split, "component 2")
+  expect_match(dimensionality_test(f, component = 1, min_score_points = 2)$split,
+               "component 1")
+  expect_match(dimensionality_test(f, component = 2, min_score_points = 2)$split,
+               "component 2")
 })
 
 test_that("residual dependence displays generalise to MFRM and EFRM fits", {
@@ -114,6 +116,11 @@ test_that("residual dependence displays generalise to MFRM and EFRM fits", {
   expect_no_error(plot_pca_biplot(mf))
   expect_no_error(plot_resid_cor(mf, stat = "q3"))
   expect_no_error(plot_resid_cor(mf, stat = "q3star"))
+  mi <- test_information(mf, grid = c(-1, 0, 1))
+  expect_true("design" %in% names(mi))
+  expect_equal(length(unique(mi$design)), 2L)
+  expect_no_error(plot_tif(mf, grid = c(-1, 0, 1)))
+  expect_no_error(plot_tcc(mf, grid = c(-1, 0, 1)))
 
   # EFRM: one item set, two groups differing in discrimination so the sets link
   set.seed(12); per_g <- 300; glev <- c("G1", "G2")
@@ -125,6 +132,11 @@ test_that("residual dependence displays generalise to MFRM and EFRM fits", {
   ef <- rasch_efrm(data.frame(XE, g = grp),
                    item_sets = list(core = colnames(XE)), groups = "g")
   expect_false(is.null(ef$residuals))
-  expect_no_error(plot_pca_biplot(ef))
+  expect_error(plot_pca_biplot(ef), "no respondents in common")
   expect_no_error(plot_resid_cor(ef))
+  ei <- test_information(ef, grid = c(-1, 0, 1))
+  expect_equal(length(unique(ei$design)), 2L)
+  expect_equal(nrow(ei), 6L)
+  expect_no_error(plot_tif(ef, grid = c(-1, 0, 1)))
+  expect_no_error(plot_tcc(ef, grid = c(-1, 0, 1)))
 })

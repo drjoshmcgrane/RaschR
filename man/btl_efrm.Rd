@@ -15,8 +15,8 @@ btl_efrm(
   response = NULL,
   ties = c("drop", "error"),
   min_link = 20,
-  se_method = c("bootstrap", "judge_bootstrap", "conditional"),
-  boot_reps = 60,
+  se_method = c("judge_bootstrap", "bootstrap", "conditional"),
+  boot_reps = 200,
   maxit = 60,
   tol = 1e-08
 )
@@ -27,9 +27,9 @@ btl_efrm(
 \item{object_a, object_b}{Names of the columns holding the two compared
 objects.}
 
-\item{winner}{Name of the column holding the winner; its value must equal
-the row's \code{object_a} or \code{object_b} entry, \code{"tie"} or
-\code{"draw"} marks a tie, and anything else is treated as missing.}
+\item{winner}{Name of the winner column. A value must match one of the two
+objects in that row. \code{"tie"} and \code{"draw"} mark ties; other
+values are treated as missing.}
 
 \item{judge}{Name of the judge column (clusters the stage-one standard
 errors and defines the panels when \code{panels} is a judge attribute).}
@@ -49,19 +49,18 @@ winner data only. Supplying it raises an informative error.}
 supply to be used for linking; sets not reachable from the reference set
 through sufficient cross-set pairs raise an error.}
 
-\item{se_method}{\code{"bootstrap"} (the default): a parametric bootstrap;
-\code{"judge_bootstrap"}: judges resampled with replacement within
-panels, carrying within-judge dependence;
-of the ENTIRE two-stage pipeline -- winners resampled from the fitted
-probabilities, both stages refitted \code{boot_reps} times -- so the
-reported standard errors carry every source of sampling variability,
-including the stage-one uncertainty that flows into the linking.
-\code{"conditional"}: the fast analytic errors, exact for \code{beta} and
-\code{phi} but conditional on stage one for \code{alpha} and
-\code{kappa}, which they therefore UNDERSTATE (verified by simulation);
-for quick inspection only.}
+\item{se_method}{Method used for standard errors. The default,
+\code{"judge_bootstrap"}, resamples judges within panels and retains
+dependence among a judge's comparisons. \code{"bootstrap"} instead
+draws independent outcomes from fitted probabilities. Both stages are
+refitted. \code{"conditional"} uses
+analytic stage-one standard errors for \code{beta} and \code{phi}, and
+inverse observed information for \code{alpha} and \code{kappa}
+conditional on the stage-one estimates. It is faster, but does not
+propagate stage-one uncertainty into the linking parameters.}
 
-\item{boot_reps}{Bootstrap replicates for \code{se_method = "bootstrap"}.}
+\item{boot_reps}{Number of replicates for \code{se_method = "bootstrap"}
+or \code{"judge_bootstrap"}.}
 
 \item{maxit, tol}{Newton iteration cap and convergence tolerance.}
 }
@@ -71,10 +70,13 @@ An object of class \code{"rasch_btl_efrm"}: \code{objects} (object,
   standard error), \code{phi_table} (panel units with Wald tests against
   \code{log phi = 0}), \code{alpha_table} and \code{kappa_table} (set units
   and origins with Wald tests; the reference set carries \code{alpha = 1},
-  \code{kappa = 0} with no standard error), \code{frames} (panel by set:
+  \code{kappa = 0} with no standard error), \code{unit_omnibus} (joint
+  Wald tests of equal panel units, set units, and set origins),
+  \code{frames} (panel by set:
   common-scale discrimination \code{rho = phi / alpha} (the within-set
   logit is \code{phi (beta_a - beta_b)} with \code{beta = (v - kappa) /
-  alpha}), comparison count, pooled fit residual),
+  alpha}), comparison count, pooled fit residual and its allocated
+  \code{df_fit}),
   \code{equal_unit} (the descriptive single-unit comparison), \code{n_cross}
   (cross-set comparison counts per set pair), \code{notes} and
   \code{converged}.
@@ -116,7 +118,7 @@ low-dimensional maximum likelihood in \code{(log alpha, kappa)} for the
 non-reference sets, with \code{alpha_1 = 1} and \code{kappa_1 = 0} fixing
 the reference set (the first, alphabetically).
 
-The set units are identified here WITHIN the conditional framework: the
+The set units are identified within the conditional framework: the
 cross-set linking uses only comparison outcomes and makes no distributional
 assumption about the objects. This is the substantive difference from the
 persons-by-items EFRM, whose item-set units can only be identified from the
@@ -128,31 +130,26 @@ Andrich (2008) for the theory of the unit, and Thurstone (1927) and David
 frame-dependent unit descends. The paired-comparison form is this package's
 extension of Humphry's model.
 
-The ESTIMATES are always the staged conditional estimator: the within-frame
+Estimates always use the staged conditional estimator: the within-frame
 calibrations are invariant to the linking data (the frame-of-reference
 property), a deliberate trade of some efficiency for invariance, exactly as
-anchored equating trades. Inference defaults to a parametric bootstrap of
-the whole pipeline (\code{se_method = "bootstrap"}): winners are resampled
-from the fitted probabilities and both stages refitted, so the standard
+anchored equating trades. Inference defaults to a judge bootstrap of
+the whole pipeline (\code{se_method = "judge_bootstrap"}): judges are
+resampled within panels and both stages refitted, so the standard
 errors of \code{phi}, \code{alpha}, \code{kappa}, \code{beta} and the
-common-scale \code{v} carry every stage's sampling variability -- verified
-by simulation to restore nominal coverage where the conditional errors
-cover at a third of their nominal rate on linked designs. The
+common-scale \code{v} reflect sampling variability from both stages. The
 \code{"conditional"} option keeps the fast analytic errors (judge-clustered
 sandwich for stage one, inverse observed information for stage two,
-conditional on stage one) for quick inspection; its \code{alpha} and
-\code{kappa} errors understate, and the fit says so.
+conditional on stage one) for quick inspection. Because uncertainty from
+stage one is not propagated to stage two, the resulting standard errors for
+\code{alpha} and \code{kappa} do not represent total pipeline uncertainty.
 
-Two honesty notes on the bootstrap. The default is model-based:
-replicates are drawn as independent Bernoulli outcomes at the fitted
-probabilities, which is self-consistent (the model has no judge
-parameter) but does not carry extra-model dependence within judges. When
-judges plausibly carry idiosyncratic preferences across their
-comparisons, use \code{se_method = "judge_bootstrap"}: judges are
-redrawn with replacement within each panel and the whole pipeline is
-refitted, so the errors carry both the stage-one uncertainty and the
-within-judge dependence (it needs enough judges per panel to resample
-stably; failed replicates are counted and reported). And a parameter that reaches
+The optional parametric bootstrap draws independent Bernoulli outcomes at
+the fitted probabilities. It is a useful model-based sensitivity analysis,
+but it does not carry extra-model dependence within judges and is therefore
+not the default for repeated judgements. The judge bootstrap needs enough
+judges per panel to resample stably; failed replicates are counted and
+reported. A parameter that reaches
 its boundary in some replicates (a set unit driven to zero when a resampled
 within-set order flips against the cross-set evidence, the signature of a
 two-object set with a near-even internal pair) has no normal sampling
@@ -171,8 +168,8 @@ the same data. The equal-unit (single-unit) comparison refits plain
 \code{\link{btl}} on all comparisons pooled and reports the descriptive
 composite log-likelihood difference against the frames model; because that
 comparison is a composite likelihood, the inference on the units is carried
-by the Wald tests on \code{log phi_g} and \code{log alpha_s} in
-\code{phi_table} and \code{alpha_table}.
+by omnibus Wald tests of the unit families. Individual unit and origin
+contrasts are exploratory and Holm-adjusted.
 }
 \examples{
 \donttest{
@@ -181,7 +178,8 @@ d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
                        seed = 1)
 fit <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                 judge = "judge", panels = "panel",
-                object_sets = attr(d, "truth")$object_sets)
+                object_sets = attr(d, "truth")$object_sets,
+                se_method = "conditional")
 fit$alpha_table
 }
 }

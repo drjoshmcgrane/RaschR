@@ -23,14 +23,16 @@ A list of class \code{"rasch_btl_transitivity"}: \code{summary} (one
   and \code{notes}.
 }
 \description{
-The single-dimension analogue for paired comparisons of the
-unidimensionality question. A Bradley-Terry-Luce scale implies that
+Tests whether paired comparisons support one consistent order. A
+Bradley-Terry-Luce scale implies that
 preferences stack into one consistent order: if A beats B and B beats C
 then A should beat C. A \emph{circular triad} (A beats B, B beats C, C
 beats A) is a local contradiction, like rock-paper-scissors. A few are
-sampling noise; many, systematically, mean the comparisons are not being
-driven by a single attribute. The rate of circular triads is compared with
-the value expected from pure guessing (one quarter of triples), and, when
+sampling noise; many can indicate that comparisons are not being driven by
+one consistent order. The one-quarter rate is the descriptive benchmark
+for a random tournament, not the expected circular rate under a fitted BTL
+model with unequal object locations. Accordingly this function is a Kendall
+consistency summary, not a calibrated BTL goodness-of-fit test. When
 every pair has been compared, Kendall's coefficient of consistency is
 reported (Kendall & Babington Smith 1940). With judges, each judge's own
 consistency is reported too, flagging judges whose choices approach chance.

@@ -69,6 +69,24 @@ test_that("CL-ICs detect a planted BTL position effect and reject an absent one"
   expect_equal(cmp0$label[which.min(cmp0$cl_bic)], "plain")
 })
 
+test_that("BTL covariance inference and CL-ICs are withheld with few judges", {
+  set.seed(74)
+  K <- 6; n <- 600; beta <- seq(-1, 1, length.out = K)
+  ia <- sample(K, n, TRUE)
+  ib <- (ia + sample(K - 1L, n, TRUE) - 1L) %% K + 1L
+  win <- rbinom(n, 1, plogis(beta[ia] - beta[ib]))
+  d <- data.frame(a = paste0("O", ia), b = paste0("O", ib),
+                  winner = paste0("O", ifelse(win == 1L, ia, ib)),
+                  judge = sample(paste0("J", 1:6), n, TRUE))
+  f <- btl(d, "a", "b", "winner", judge = "judge")
+  expect_false(f$cl$inference_available)
+  expect_true(all(is.na(f$objects$se)))
+  expect_true(is.na(f$osi$PSI))
+  cmp <- compare_fits(a = f, b = f)
+  expect_true(all(is.na(cmp$cl_aic)) && all(is.na(cmp$cl_bic)))
+  expect_match(attr(cmp, "note"), "too few independent clusters")
+})
+
 test_that("mixtures are refused; MFRM fits get NA ICs with the reason noted", {
   X <- gen_pcm(150, seq(-1, 1, length.out = 5),
                matrix(rep(c(-0.5, 0.5), each = 5), 5, 2), 9)

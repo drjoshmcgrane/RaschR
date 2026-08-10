@@ -4,31 +4,48 @@
 \alias{equate_tests}
 \title{Equate two test calibrations through their common items}
 \usage{
-equate_tests(fit, reference, shift = c("mean", "none"))
+equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
 \item{reference}{A second \code{\link{rasch}} fit, or a data frame with
-columns \code{item}, \code{location}, and optionally \code{se}.}
+columns \code{item}, \code{location}, and optionally \code{se}. Item
+names must be unique and locations finite. For bank-based drift inference,
+attach the bank's joint item-location covariance as a square matrix in
+\code{attr(reference, "cov_location")}, ordered like the bank rows (or
+named by item); marginal SEs alone do not carry the centring covariance.
+A bank treated as fixed may instead have zero SEs. A polytomous bank must
+also include \code{max}, the maximum item score.}
 
 \item{shift}{\code{"mean"} (default) allows a scale shift between the two
 analyses; \code{"none"} compares raw locations, appropriate when both
 analyses are already on a shared (anchored) scale.}
+
+\item{independent}{Whether the two calibrations use independent sampling
+units. For two fitted objects this must be stated explicitly: the default
+\code{NULL} withholds drift tests because cross-fit covariance is
+otherwise unknown. A bank table is treated as independent unless
+\code{FALSE} is supplied. When \code{FALSE}, descriptive equating is
+returned but inferential drift columns are withheld.}
 }
 \value{
 A list with the comparison \code{table} (locations, standard
   errors, difference, t, raw and BH-adjusted p, drift flag), the
   estimated \code{shift},
   the location \code{correlation}, the root mean square difference after
-  shifting (\code{rmsd}), and the number of common items \code{n}.
+  shifting (\code{rmsd}), the number of common items \code{n_common}, the
+  number with usable standard errors \code{n}, and whether drift inference
+  was available (\code{inferential}).
 }
 \description{
 Compares the item locations of a fit with those of a second fit (or a
 reference table such as an item bank), matched by item name. A scale
 shift between the two origins is estimated by the precision-weighted mean
-difference, and each common item is then tested against the shifted
-identity line; flagged items show drift and weaken the equating link.
+difference. When the calibrations use independent sampling units and at
+least three common items have standard errors, each common item is tested
+against the shifted identity line; otherwise the link is returned
+descriptively and drift inference is withheld.
 }
 \examples{
 set.seed(1); d <- seq(-1.5, 1.5, length.out = 8)
@@ -36,6 +53,6 @@ mk <- function() {
   X <- matrix(rbinom(400 * 8, 1, plogis(outer(rnorm(400), d, "-"))), 400, 8)
   colnames(X) <- paste0("I", 1:8); rasch(X)
 }
-eq <- equate_tests(mk(), mk())
+eq <- equate_tests(mk(), mk(), independent = TRUE)
 eq$table
 }

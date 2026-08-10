@@ -11,7 +11,7 @@ dimensionality_magnitude(fit, subtests)
 
 \item{subtests}{A list of character vectors assigning \emph{every} item
 of the fit to one subscale (at least two subscales of two or more
-items). Unequal subscale sizes use their mean as \eqn{K}.}
+items). The published magnitude formula requires equal subscale sizes.}
 }
 \value{
 A list of class \code{"rasch_dim_magnitude"}: the comparison

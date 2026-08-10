@@ -15,9 +15,9 @@ sim_apply(batch, FUN, ...)
 \item{...}{Further arguments passed to \code{FUN}.}
 }
 \value{
-A vector of the per-replicate statistics (\code{NA} where
-  \code{FUN} failed), with attributes \code{n_failed} and
-  \code{failure_messages}.
+A vector of per-replicate statistics, with \code{NA} where the
+  function failed. Attribute \code{n_failed} gives the failure count;
+  \code{failure_messages} contains the distinct messages.
 }
 \description{
 Applies \code{FUN} to each replicate of a \code{\link{sim_replicate}}

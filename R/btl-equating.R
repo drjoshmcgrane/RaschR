@@ -9,9 +9,9 @@
 # centred on the mean of a different collection. Equating therefore estimates
 # the scale shift between the origins (the precision-weighted mean difference
 # over the common objects) and then tests each common object against the
-# shifted identity line:
-#
-#   t_i = (b1_i - b2_i - shift) / sqrt(se1_i^2 + se2_i^2)
+# shifted identity line. Its variance includes both the covariance induced by
+# each sum-zero calibration and estimation of the shift from those same
+# objects; it is not the naive sum of two marginal variances.
 #
 # Objects that survive define the equating link and carry the second panel's
 # whole scale onto the first; objects that fail show drift -- a script the two
@@ -34,13 +34,46 @@
     reference <- as.data.frame(reference, stringsAsFactors = FALSE)
     if (!all(c("object", "location") %in% names(reference)))
       stop("a bank needs columns 'object' and 'location' (and ideally 'se')")
-    if (is.null(reference$se)) reference$se <- 0
-    return(data.frame(object = as.character(reference$object),
-                      location = as.numeric(reference$location),
-                      se = as.numeric(reference$se),
-                      stringsAsFactors = FALSE))
+    se_supplied <- "se" %in% names(reference)
+    if (!"se" %in% names(reference)) reference$se <- NA_real_
+    out <- data.frame(object = trimws(as.character(reference$object)),
+                      location = suppressWarnings(as.numeric(reference$location)),
+                      se = suppressWarnings(as.numeric(reference$se)),
+                      stringsAsFactors = FALSE)
+    if (anyNA(out$object) || any(!nzchar(out$object)))
+      stop("bank object names must be non-missing and non-empty")
+    if (anyDuplicated(out$object))
+      stop("bank object names must be unique: ",
+           paste(unique(out$object[duplicated(out$object)]), collapse = ", "))
+    if (any(!is.finite(out$location)))
+      stop("bank object locations must be finite")
+    if (any(!is.na(out$se) & (!is.finite(out$se) | out$se < 0)))
+      stop("bank standard errors must be non-negative finite values or NA")
+    attr(out, "se_supplied") <- se_supplied
+    return(out)
   }
   stop("`fit2` must be a btl fit or a bank data frame (object, location, se)")
+}
+
+.btl_equate_bank_cov <- function(reference, ids) {
+  C <- attr(reference, "cov_location", exact = TRUE)
+  if (is.null(C)) return(NULL)
+  if (!is.matrix(C) || !is.numeric(C) || any(!is.finite(C)) ||
+      !identical(dim(C), c(length(ids), length(ids))))
+    stop("attr(fit2, 'cov_location') must be a finite numeric square matrix ",
+         "with one row and column per bank object")
+  if (!isTRUE(all.equal(C, t(C), tolerance = 1e-8)))
+    stop("attr(fit2, 'cov_location') must be symmetric")
+  if (!is.null(rownames(C)) || !is.null(colnames(C))) {
+    if (is.null(rownames(C)) || is.null(colnames(C)) ||
+        anyNA(match(ids, rownames(C))) || anyNA(match(ids, colnames(C))))
+      stop("named bank covariance rows and columns must match every bank object")
+    C <- C[ids, ids, drop = FALSE]
+  }
+  ev <- eigen((C + t(C)) / 2, symmetric = TRUE, only.values = TRUE)$values
+  if (min(ev) < -1e-8 * max(1, max(abs(ev))))
+    stop("attr(fit2, 'cov_location') must be positive semidefinite")
+  C
 }
 
 #' Equate two paired-comparison calibrations through their common objects
@@ -77,10 +110,21 @@
 #' @param fit1 A fitted object from \code{\link{btl}}: the calibration whose
 #'   scale (origin) the equating targets.
 #' @param fit2 A second \code{\link{btl}} fit, or a bank: a data frame with
-#'   columns \code{object}, \code{location}, and optionally \code{se}.
+#'   columns \code{object}, \code{location}, and optionally \code{se}; object
+#'   names must be unique and locations finite. Bank-based drift inference
+#'   requires the joint location covariance as a square matrix in
+#'   \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
+#'   object), unless the bank is treated as fixed with zero SEs. For a graded
+#'   fit the bank must carry
+#'   \code{attr(bank, "m")} matching the number of fitted score steps.
 #' @param alpha Significance level for the (multiplicity-adjusted) drift tests.
-#' @param p_adjust Multiple-comparison adjustment across the common objects,
-#'   passed to \code{\link[stats]{p.adjust}} (default \code{"holm"}).
+#' @param p_adjust Adjustment for the common-object tests, passed to
+#'   \code{stats::p.adjust}. The default is \code{"holm"}.
+#' @param independent Whether the calibrations have independent judges and
+#'   comparisons. For two fitted objects the default \code{NULL} withholds
+#'   drift tests until independence is stated explicitly. Bank tables are
+#'   treated as independent unless \code{FALSE} is supplied. Dependent
+#'   calibrations require a joint or paired bootstrap for inference.
 #' @return A list of class \code{"rasch_btl_equate"}: the comparison
 #'   \code{table} (per common object: object, both locations and standard
 #'   errors, their \code{difference}, the \code{shifted_difference} against the
@@ -88,7 +132,9 @@
 #'   \code{p}, and the \code{drifting} flag); the estimated \code{shift} and
 #'   its \code{shift_se}; \code{equated}, the second calibration's full object
 #'   table re-expressed on \code{fit1}'s scale; the number of common objects
-#'   \code{n_common}; \code{alpha}; \code{p_adjust}; and \code{notes}.
+#'   \code{n_common}; the number usable for inference \code{n_inference};
+#'   whether inference was available \code{inferential}; \code{alpha};
+#'   \code{p_adjust}; and \code{notes}.
 #' @references Bramley, T. (2007). Paired comparison methods. In P. Newton,
 #'   J. Baird, H. Goldstein, H. Patrick, & P. Tymms (Eds.), \emph{Techniques
 #'   for monitoring the comparability of examination standards} (pp. 246-294).
@@ -102,10 +148,19 @@
 #'   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
 #'   btl(d, "a", "b", "win")
 #' }
-#' eq <- btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)))
+#' eq <- btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)),
+#'                   independent = TRUE)
 #' eq$table
 #' @export
-btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm") {
+btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
+                       independent = NULL) {
+  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
+    stop("alpha must be one probability strictly between 0 and 1")
+  if (length(p_adjust) != 1L || !p_adjust %in% stats::p.adjust.methods)
+    stop("p_adjust must name a method in stats::p.adjust.methods")
+  if (!is.null(independent) && (length(independent) != 1L ||
+      is.na(independent) || !is.logical(independent)))
+    stop("independent must be NULL, TRUE, or FALSE")
   if (!inherits(fit1, "rasch_btl"))
     stop("`fit1` must be a paired-comparison (btl) fit")
   # equating a non-converged calibration carries its unidentified locations
@@ -118,6 +173,21 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm") {
            "the drift statistics would inherit boundary estimates and ",
            "understated standard errors", call. = FALSE)
   }
+  if (inherits(fit2, "rasch_btl")) {
+    if (!identical(fit1$m, fit2$m) ||
+        !identical(as.character(fit1$categories),
+                   as.character(fit2$categories)) ||
+        !identical(fit1$thr_structure, fit2$thr_structure))
+      stop("the paired-comparison calibrations use incompatible response ",
+           "scales or threshold structures; shift-only equating requires ",
+           "the same model and category scale")
+  } else if (fit1$m > 1L) {
+    fm <- attr(fit2, "m", exact = TRUE)
+    if (is.null(fm) || !identical(as.integer(fm), as.integer(fit1$m)))
+      stop("a graded-comparison bank must carry attr(bank, 'm') matching ",
+           "the fitted number of score steps; otherwise scale compatibility ",
+           "cannot be established")
+  }
   cur <- data.frame(object = as.character(fit1$objects$object),
                     location = fit1$objects$location,
                     se = fit1$objects$se, stringsAsFactors = FALSE)
@@ -127,41 +197,74 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm") {
     stop("need at least three common objects to equate paired-comparison scales")
   a <- cur[match(common, cur$object), ]
   b <- ref[match(common, ref$object), ]
+  bank_cov <- if (inherits(fit2, "rasch_btl")) NULL else
+    .btl_equate_bank_cov(fit2, ref$object)
+  if (!is.null(bank_cov)) {
+    cov_se <- sqrt(pmax(diag(bank_cov), 0))
+    stated <- is.finite(ref$se)
+    if (any(stated & abs(ref$se - cov_se) >
+            1e-6 * pmax(1, ref$se, cov_se)))
+      stop("the bank standard errors must agree with the diagonal of ",
+           "attr(fit2, 'cov_location')")
+    if (!isTRUE(attr(ref, "se_supplied", exact = TRUE)))
+      ref$se <- cov_se
+    b <- ref[match(common, ref$object), ]
+  }
   d <- a$location - b$location
   v <- a$se^2 + b$se^2
-  w <- 1 / pmax(v, 1e-10)
+  usable <- is.finite(d) & is.finite(v)
+  independent_ok <- if (is.null(independent)) !inherits(fit2, "rasch_btl")
+                    else isTRUE(independent)
+  joint_cov_ok <- inherits(fit2, "rasch_btl") || !is.null(bank_cov) ||
+    all(b$se[usable] == 0)
+  inferential <- independent_ok && sum(usable) >= 3L && joint_cov_ok
+  w <- if (sum(usable) >= 3L) 1 / pmax(v[usable], 1e-10) else numeric(0)
   # precision-weighted mean difference: the shift between the two sum-zero
   # origins, best estimated where both calibrations are most certain
-  c0 <- sum(w * d) / sum(w)
+  c0 <- if (length(w)) sum(w * d[usable]) / sum(w)
+        else mean(d[is.finite(d)])
   # the common objects' location estimates are CORRELATED within each
   # sum-zero calibration, so Var(c0) = u' (Sigma1 + Sigma2) u with
-  # u = w / sum(w), taken from the stored sandwich covariances (a bank
-  # supplies no covariance and contributes diag(se^2) -- conservative)
+  # u = w / sum(w), taken from the stored sandwich covariances. A bank
+  # contributes an explicitly attached joint covariance; without it,
+  # inference is withheld unless the bank is fixed (all SEs zero).
   covsub <- function(fit, objs_c) {
     if (inherits(fit, "rasch_btl") && !is.null(fit$cov_beta)) {
       i <- match(objs_c, as.character(fit$objects$object))
       fit$cov_beta[i, i, drop = FALSE]
-    } else NULL
+    } else {
+      C <- .btl_equate_bank_cov(fit, ref$object)
+      if (is.null(C)) NULL else {
+        ii <- match(objs_c, ref$object)
+        C[ii, ii, drop = FALSE]
+      }
+    }
   }
-  u <- w / sum(w)
-  S1 <- covsub(fit1, common)
-  S2 <- covsub(fit2, common)
-  if (is.null(S1)) S1 <- diag(a$se^2, length(common))
-  if (is.null(S2)) S2 <- diag(b$se^2, length(common))
-  shift_se <- sqrt(max(drop(t(u) %*% (S1 + S2) %*% u), 0))
+  shift_se <- NA_real_; se_diff <- t <- p <- p_adj <-
+    rep(NA_real_, length(common)); drifting <- rep(NA, length(common))
+  if (inferential) {
+    u <- w / sum(w)
+    S1all <- covsub(fit1, common)
+    S1 <- if (is.null(S1all)) diag(a$se[usable]^2, sum(usable))
+          else S1all[usable, usable, drop = FALSE]
+    S2all <- covsub(fit2, common)
+    S2 <- if (is.null(S2all)) diag(b$se[usable]^2, sum(usable))
+          else S2all[usable, usable, drop = FALSE]
+    shift_se <- sqrt(max(drop(t(u) %*% (S1 + S2) %*% u), 0))
   # each drift test compares d_i - c0, and c0 is estimated from the SAME
   # common objects: Var(d_i - c0) = [(I - 1u') Sigma (I - u 1')]_ii
   #   = Sigma_ii - 2 (Sigma u)_i + u' Sigma u,
   # not the naive Sigma_ii -- ignoring the estimated shift (and the
   # within-calibration covariance) mis-states every drift p-value
-  Sg <- S1 + S2
-  Su <- drop(Sg %*% u)
-  var_d <- pmax(diag(Sg) - 2 * Su + drop(t(u) %*% Su), 1e-10)
-  se_diff <- sqrt(var_d)
-  t <- (d - c0) / se_diff
-  p <- 2 * pnorm(-abs(t))
-  p_adj <- p.adjust(p, method = p_adjust)
-  drifting <- p_adj < alpha
+    Sg <- S1 + S2
+    Su <- drop(Sg %*% u)
+    var_d <- pmax(diag(Sg) - 2 * Su + drop(t(u) %*% Su), 1e-10)
+    se_diff[usable] <- sqrt(var_d)
+    t[usable] <- (d[usable] - c0) / se_diff[usable]
+    p[usable] <- 2 * pnorm(-abs(t[usable]))
+    p_adj[usable] <- p.adjust(p[usable], method = p_adjust)
+    drifting[usable] <- p_adj[usable] < alpha
+  }
   tab <- data.frame(object = common,
                     location_1 = a$location, se_1 = a$se,
                     location_2 = b$location, se_2 = b$se,
@@ -177,13 +280,37 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm") {
   notes <- sprintf(paste0("Origins differ because each calibration is sum-zero ",
                           "over its own object set; a shift of %.3f logits ",
                           "aligns fit2 to fit1."), c0)
-  if (any(drifting))
+  if (any(!usable))
+    notes <- c(notes, paste0(
+      "Drift tests unavailable for objects without standard errors: ",
+      paste(common[!usable], collapse = ", "), "."))
+  if (is.null(independent) && inherits(fit2, "rasch_btl"))
+    notes <- c(notes, paste(
+      "Drift tests withheld because independence between fitted",
+      "calibrations was not stated; set independent = TRUE only for",
+      "independent judges and comparisons."))
+  if (identical(independent, FALSE))
+    notes <- c(notes, paste(
+      "Drift tests withheld for dependent calibrations because cross-fit",
+      "covariance is unavailable; use a joint or paired bootstrap."))
+  if (independent_ok && sum(usable) >= 3L && !joint_cov_ok)
+    notes <- c(notes, paste(
+      "Drift tests withheld because a bank with non-zero marginal SEs",
+      "needs its joint object-location covariance in",
+      "attr(fit2, 'cov_location'); marginal SEs do not carry the",
+      "calibration-origin covariance."))
+  if (independent_ok && sum(usable) < 3L)
+    notes <- c(notes, paste(
+      "Drift tests withheld because at least three common objects with",
+      "standard errors are required."))
+  if (any(drifting %in% TRUE))
     notes <- c(notes, sprintf(
       "%d common object(s) drift beyond the shifted link: %s",
-      sum(drifting), paste(common[drifting], collapse = ", ")))
+      sum(drifting %in% TRUE), paste(common[drifting %in% TRUE], collapse = ", ")))
   structure(class = "rasch_btl_equate",
             list(table = tab, shift = c0, shift_se = shift_se,
                  equated = equated, n_common = length(common),
+                 n_inference = sum(usable), inferential = inferential,
                  alpha = alpha, p_adjust = p_adjust, notes = notes))
 }
 
@@ -211,7 +338,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm") {
 #'   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
 #'   btl(d, "a", "b", "win")
 #' }
-#' plot_btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)))
+#' plot_btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)),
+#'                  independent = TRUE)
 #' @export
 plot_btl_equate <- function(fit1, fit2, ...) {
   eq <- btl_equate(fit1, fit2, ...)
@@ -225,17 +353,22 @@ plot_btl_equate <- function(fit1, fit2, ...) {
                    grid_x = TRUE)
   on.exit(par(op))
   abline(eq$shift, 1, col = .rr$ink, lwd = 2)
-  band <- 1.96 * sqrt(mean(tab$se_1^2 + tab$se_2^2))
-  abline(eq$shift + band, 1, lty = 3, col = .rr$soft)
-  abline(eq$shift - band, 1, lty = 3, col = .rr$soft)
-  segments(tab$location_2, tab$location_1 - 1.96 * tab$se_1,
-           tab$location_2, tab$location_1 + 1.96 * tab$se_1,
+  band <- 1.96 * sqrt(mean(tab$se_1^2 + tab$se_2^2, na.rm = TRUE))
+  if (is.finite(band)) {
+    abline(eq$shift + band, 1, lty = 3, col = .rr$soft)
+    abline(eq$shift - band, 1, lty = 3, col = .rr$soft)
+  }
+  hs <- is.finite(tab$se_1)
+  segments(tab$location_2[hs], tab$location_1[hs] - 1.96 * tab$se_1[hs],
+           tab$location_2[hs], tab$location_1[hs] + 1.96 * tab$se_1[hs],
            col = paste0(.rr$soft, "88"))
   points(tab$location_2, tab$location_1, pch = 21, cex = 1.6,
-         bg = ifelse(tab$drifting, .rr$red, .rr$blue), col = "white", lwd = 1.2)
-  if (any(tab$drifting))
-    text(tab$location_2[tab$drifting], tab$location_1[tab$drifting],
-         tab$object[tab$drifting], pos = 3, offset = 0.5, cex = 0.75,
+         bg = ifelse(tab$drifting %in% TRUE, .rr$red, .rr$blue),
+         col = "white", lwd = 1.2)
+  dr <- tab$drifting %in% TRUE
+  if (any(dr))
+    text(tab$location_2[dr], tab$location_1[dr],
+         tab$object[dr], pos = 3, offset = 0.5, cex = 0.75,
          col = .rr$red)
   invisible(eq)
 }
@@ -244,15 +377,18 @@ plot_btl_equate <- function(fit1, fit2, ...) {
 print.rasch_btl_equate <- function(x, ...) {
   tab <- x$table
   cat(sprintf(paste0("Common-object equating over %d object(s): shift %.3f ",
-                     "(SE %.3f), correlation %.3f, RMSD %.3f\n"),
-              x$n_common, x$shift, x$shift_se,
+                     "(SE %s), correlation %.3f, RMSD %.3f\n"),
+              x$n_common, x$shift,
+              if (is.finite(x$shift_se)) sprintf("%.3f", x$shift_se) else "withheld",
               stats::cor(tab$location_1, tab$location_2),
               sqrt(mean(tab$shifted_difference^2))))
   core <- c("object", "location_1", "location_2", "shifted_difference", "t",
             "p_adj", "drifting")
   print(.fmt_df(tab[, intersect(core, names(tab))]), row.names = FALSE)
-  cat(sprintf("%d object(s) drift beyond the %s-adjusted %.0f%% level.\n",
-              sum(tab$drifting), x$p_adjust, 100 * (1 - x$alpha)))
+  if (isTRUE(x$inferential))
+    cat(sprintf("%d object(s) drift beyond the %s-adjusted %.0f%% level.\n",
+                sum(tab$drifting %in% TRUE), x$p_adjust, 100 * (1 - x$alpha)))
+  else cat("Drift inference withheld; see $notes.\n")
   cat("(standard errors and unadjusted columns on $table; fit2 on fit1's scale in $equated)\n")
   invisible(x)
 }

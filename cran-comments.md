@@ -1,80 +1,51 @@
-# CRAN comments for rasch 1.11.7
+# CRAN comments for rasch 1.14.1
 
-## Note on this submission
+## Summary of this update
 
-This submission replaces rasch_1.11.2 (currently in the newbies queue,
-past the automated pretest) and the earlier rasch_1.10.2. Since the
-1.11.2 upload, five further rounds of external code review found and
-fixed input-validation and edge-case issues (fractional and factor
-scores silently altered by lower-level entry points, an exponent
-overflow in the category-probability function, unvalidated simulation
-specifications, and label/migration polish); the final round reported no
-actionable issues. Every fix is locked in by regression tests. We would
-much rather the human review read this final version; apologies again
-for the replacement, and this is the last one.
+This is the first update since rasch 1.11.7 was accepted on 2026-07-30.
 
-## Summary
+It arrives promptly because post-release auditing identified statistical
+correctness issues that should not remain in the released version: some
+standard errors and significance flags could be reported for parameters the
+data did not identify (for example differential-item-functioning magnitudes
+resting on near-empty categories, and information curves pooled over item
+sets no respondent took together). These are corrected, alongside checks
+for connectedness, separation, rank, and weakly identified parameters
+across all model families.
 
-rasch provides pairwise conditional maximum likelihood estimation of
-dichotomous and polytomous Rasch models (partial credit and rating scale),
-with a comprehensive diagnostic suite following Andrich & Marais (2019)
-(fit residuals, item-trait interaction, dimensionality, DIF, local
-dependence), anchored equating, the many-facet Rasch model, the
-Bradley-Terry-Luce model for paired comparisons, the extended frame of
-reference model (Humphry, 2005) in both its persons-by-items and
-paired-comparison forms, model comparison by composite-likelihood
-information criteria, and a data simulator for every model family. It is
-implemented from published measurement theory in base R, with no
-dependence on other estimation engines, and includes a 'shiny' interface
-and a one-call exporter for every table and plot.
+The update also extends differential item functioning analysis to multiple
+between-person and within-person factors (factorial terms with the
+appropriate repeated-measures error structure), expands the many-facet,
+extended frame of reference, and paired-comparison model families, adds
+simulation and recovery tools, and adds five vignettes covering the main
+analysis workflows.
 
-References in the Description carry DOIs where the venue assigns them;
-the remaining citations (Journal of Applied Measurement articles, books,
-and theses) have no DOI.
+The package title and short description have been revised to state the
+purpose more directly. Technical details remain in the function
+documentation and vignettes.
 
 ## Test environments
 
 * local: macOS (aarch64-apple-darwin20), R 4.5.1
-* GitHub Actions (r-lib actions): macos-latest (release),
-  windows-latest (release), ubuntu-latest (devel, release, oldrel-1)
-* win-builder (devel)
+* GitHub Actions: macOS, Windows and Ubuntu; R devel, release and oldrel
 
 ## R CMD check results
 
-0 errors | 0 warnings | 2 notes
+0 errors | 0 warnings | 1 note
 
-* checking CRAN incoming feasibility ... NOTE
-  New submission. This is the first submission of this package to CRAN.
+The note states that the local check could not verify the current time; it
+is specific to the local check environment (an intermittent time service)
+and unrelated to the package. The PDF manual was built and checked
+successfully.
 
-* checking HTML version of manual ... NOTE (local only)
-  "Skipping checking HTML validation: 'tidy' doesn't look like recent
-  enough HTML Tidy." This reflects the local machine's 2006-era macOS
-  HTML Tidy, not the package; it is not expected on CRAN's check machines.
+The package was built from source with its six vignettes before checking.
+Simulation-intensive and bootstrap-calibration tests use `skip_on_cran()`;
+they run locally and in continuous integration.
 
-### Possibly mis-spelled words in DESCRIPTION
+## Current CRAN status
 
-All flagged words are correctly spelled: surnames of the statisticians
-whose methods are implemented (Rasch, Andrich, Luo, Zwinderman, Godambe,
-Pedler, Warm, Marais, Kreiner, Humphry, Linacre, Guttman, Varin, Vidoni)
-and standard psychometric terminology (reparameterises [British spelling,
-used consistently], infit, familywise, DIF, multidimensionality, subscale,
-subtest, distractor(s), rescoring, scalogram).
+Version 1.11.7 is currently OK on all CRAN check flavours.
 
-## Timings
+## Reverse dependencies
 
-The full --as-cran check runs in about 4 minutes locally; the slowest
-example is under 2s. Heavy Monte-Carlo recovery and bootstrap-calibration
-tests are wrapped in skip_on_cran() (they run locally and on CI, where the
-suite is 1100+ assertions).
-
-## External validation
-
-The estimators are cross-validated in the test suite against independent
-implementations whenever those packages are installed (all in Suggests):
-eRm (full conditional likelihood), sirt (pairwise), and psychotools
-(Bradley-Terry). These tests are skipped via skip_if_not_installed() when
-the packages are absent.
-
-## Downstream dependencies
-
-This is a new package; there are no reverse dependencies.
+There are no known reverse dependencies.

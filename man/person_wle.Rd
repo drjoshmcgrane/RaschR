@@ -24,3 +24,7 @@ likelihood estimate.
 \examples{
 person_wle(list(c(-1, 0), c(-0.5, 0.5), c(0, 1)))
 }
+\references{
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. Psychometrika, 54(3), 427--450.
+}

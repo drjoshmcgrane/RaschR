@@ -13,14 +13,38 @@
 # null-coalescing helper (package-internal; base R gained %||% only in 4.4)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+.sim_count <- function(x, name, min = 1L) {
+  if (length(x) != 1L || !is.finite(x) || x != floor(x) || x < min)
+    stop(name, " must be one whole number >= ", min)
+  as.integer(x)
+}
+
+.sim_scalar <- function(x, name, lower = -Inf, upper = Inf,
+                        lower_open = FALSE, upper_open = FALSE) {
+  ok <- length(x) == 1L && is.finite(x) &&
+    if (lower_open) x > lower else x >= lower
+  ok <- ok && if (upper_open) x < upper else x <= upper
+  if (!ok) {
+    left <- if (lower_open) "(" else "["
+    right <- if (upper_open) ")" else "]"
+    stop(name, " must be one finite value in ", left, lower, ", ", upper, right)
+  }
+  as.numeric(x)
+}
+
 # person locations from one of a few distributions
 .sim_theta <- function(n, mean, sd, dist = "normal") {
+  n <- .sim_count(n, "n")
+  mean <- .sim_scalar(mean, "mean")
+  sd <- .sim_scalar(sd, "sd", lower = 0)
+  if (sd == 0) return(rep(mean, n))
   z <- switch(dist,
     normal  = stats::rnorm(n),
     uniform = stats::runif(n, -sqrt(3), sqrt(3)),
     skew    = { u <- stats::rgamma(n, 2, 1); (u - 2) / sqrt(2) },
     bimodal = { s <- sample(c(-1, 1), n, TRUE); s * 1.1 + stats::rnorm(n, 0, 0.5) },
     stats::rnorm(n))
+  if (n == 1L) return(mean)
   mean + sd * as.numeric(scale(z))
 }
 
@@ -28,6 +52,12 @@
 # item's thresholds (length m; dichotomous m = 1). disc scales the whole
 # exponent (a departure when != 1); guess is a lower asymptote (dichotomous).
 .sim_item <- function(theta, tau, disc = 1, guess = 0) {
+  if (!length(theta) || any(!is.finite(theta)) ||
+      !length(tau) || any(!is.finite(tau)))
+    stop("theta and tau must contain finite values")
+  disc <- .sim_scalar(disc, "disc", lower = 0, lower_open = TRUE)
+  guess <- .sim_scalar(guess, "guess", lower = 0, upper = 1,
+                       upper_open = TRUE)
   m <- length(tau); xs <- 0:m
   cum <- c(0, cumsum(tau))
   eta <- disc * (outer(theta, xs) - matrix(cum, length(theta), m + 1L, byrow = TRUE))
@@ -72,13 +102,15 @@
 #'   differ by location only); under \code{"PCM"} each item's threshold
 #'   spacings and span are drawn afresh, as the partial credit model allows.
 #' @param n_categories Response categories for polytomous models (>= 3).
-#' @param theta_mean,theta_sd,theta_dist Person distribution: mean, SD, and
-#'   shape (\code{"normal"}, \code{"uniform"}, \code{"skew"}, \code{"bimodal"}).
-#' @param difficulty Two numbers giving the item-location range (evenly
-#'   spaced), or a length-\code{n_items} vector of locations.
+#' @param theta_mean,theta_sd Mean and standard deviation of the person
+#'   distribution.
+#' @param theta_dist Shape of the person distribution: \code{"normal"},
+#'   \code{"uniform"}, \code{"skew"}, or \code{"bimodal"}.
+#' @param difficulty Either the two endpoints of an evenly spaced location
+#'   range, or one location per item.
 #' @param threshold_spread Half-range of the category thresholds about each
 #'   item location (polytomous).
-#' @param discrimination Scalar or length-\code{n_items}: the slope of each
+#' @param discrimination The item slope, supplied as one value or one per
 #'   item. Values above 1 over-discriminate (Guttman-like, negative fit
 #'   residual); below 1 under-discriminate (noisy, positive residual). Feeds
 #'   infit/outfit and the item-fit F.
@@ -89,8 +121,8 @@
 #'   load on a second trait correlated \code{rho} with the first. Feeds
 #'   \code{\link{dimensionality_test}}.
 #' @param dependence \code{NULL}, or \code{list(pairs=, strength=)}: each pair's
-#'   second item responds partly to the first (response dependence). Feeds
-#'   \code{\link{residual_correlations}} / \code{\link{dependence_magnitude}}.
+#'   second item responds partly to the first. This departure feeds the
+#'   residual-dependence diagnostics.
 #' @param dif \code{NULL}, or \code{list(items=, uniform=, nonuniform=)}: the
 #'   named items function differently for the last person group -- a location
 #'   shift (\code{uniform}) and/or a slope change (\code{nonuniform}). Needs
@@ -136,8 +168,21 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
                            n_groups = 1, missing = 0, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   model <- match.arg(model)
+  N <- .sim_count(n_persons, "n_persons", 2L)
+  I <- .sim_count(n_items, "n_items", 2L)
+  n_groups <- .sim_count(n_groups, "n_groups")
+  if (n_groups > N) stop("n_groups cannot exceed n_persons")
+  theta_mean <- .sim_scalar(theta_mean, "theta_mean")
+  theta_sd <- .sim_scalar(theta_sd, "theta_sd", lower = 0)
+  threshold_spread <- .sim_scalar(threshold_spread, "threshold_spread",
+                                  lower = 0, lower_open = TRUE)
+  careless <- .sim_scalar(careless, "careless", lower = 0, upper = 1)
+  speeded <- .sim_scalar(speeded, "speeded", lower = 0, upper = 1)
+  missing <- .sim_scalar(missing, "missing", lower = 0, upper = 1)
+  theta_dist <- match.arg(theta_dist, c("normal", "uniform", "skew", "bimodal"))
+  if (model != "dichotomous")
+    n_categories <- .sim_count(n_categories, "n_categories", 3L)
   m <- if (model == "dichotomous") 1L else as.integer(n_categories) - 1L
-  I <- as.integer(n_items); N <- as.integer(n_persons)
   inm <- sprintf("I%02d", seq_len(I))
   as_idx <- function(x) {
     if (is.null(x) || !length(x)) return(integer(0))
@@ -152,10 +197,18 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   }
 
   # item locations, thresholds, slopes, guessing (with per-item overrides)
+  if (!(length(difficulty) %in% c(2L, I)) || any(!is.finite(difficulty)))
+    stop("difficulty must contain two finite endpoints or one finite value per item")
   delta <- setNames(if (length(difficulty) == I) difficulty
                     else seq(difficulty[1], difficulty[2], length.out = I), inm)
   disc <- if (length(discrimination) == I) discrimination else rep(discrimination[1], I)
   guess <- if (length(guessing) == I) guessing else rep(guessing[1], I)
+  if (!(length(discrimination) %in% c(1L, I)) ||
+      any(!is.finite(disc) | disc <= 0))
+    stop("discrimination must be positive and have length 1 or n_items")
+  if (!(length(guessing) %in% c(1L, I)) ||
+      any(!is.finite(guess) | guess < 0 | guess >= 1))
+    stop("guessing must be in [0, 1) and have length 1 or n_items")
   if (m > 1L && any(guess > 0)) {
     warning("guessing applies to dichotomous items only; ignored for ", model)
     guess[] <- 0
@@ -203,6 +256,13 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   dif_items <- as_idx(if (is.null(dif)) NULL else dif$items)
   if (length(dif_items) && n_groups < 2L)
     stop("dif needs n_groups >= 2 (the last group carries the DIF)")
+  if (!is.null(dif)) {
+    du <- .sim_scalar(dif$uniform %||% 0, "dif$uniform")
+    dn <- .sim_scalar(dif$nonuniform %||% 0, "dif$nonuniform")
+    if (length(dif_items) && any(disc[dif_items] + dn <= 0))
+      stop("dif$nonuniform makes a planted item discrimination non-positive")
+    dif$uniform <- du; dif$nonuniform <- dn
+  }
   dif_grp <- if (n_groups > 1L) levels(group)[n_groups] else NA
 
   # every regeneration of an item must honour that item's OWN generating
@@ -244,9 +304,13 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   # the regeneration keeps i2's own DIF / second-dimension structure
   dep_pairs <- list()
   if (!is.null(dependence)) {
-    d_str <- dependence$strength %||% 1
+    d_str <- .sim_scalar(dependence$strength %||% 1,
+                         "dependence$strength")
     for (pp in dependence$pairs) {
-      ij <- as_idx(pp); i1 <- ij[1]; i2 <- ij[2]
+      ij <- as_idx(pp)
+      if (length(ij) != 2L || ij[1L] == ij[2L])
+        stop("each dependence pair must name two different items")
+      i1 <- ij[1]; i2 <- ij[2]
       # the expectation must match X1's actual generating structure
       # (guessing, DIF, second dimension), or the "residual" x1 - E1 has a
       # systematic mean and leaks an unplanted shift into the second item
@@ -261,10 +325,16 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   # probabilities keep each item's own structure (trait, DIF) per person
   style_idx <- integer(0)
   if (!is.null(response_style) && m >= 2L) {
-    style_idx <- sample(N, round((response_style$prop %||% 0.15) * N))
-    ss <- response_style$strength %||% 1.6; mid <- m / 2
+    stype <- match.arg(response_style$type %||% "extreme",
+                       c("extreme", "middle"))
+    sprop <- .sim_scalar(response_style$prop %||% 0.15,
+                         "response_style$prop", lower = 0, upper = 1)
+    style_idx <- sample(N, round(sprop * N))
+    ss <- .sim_scalar(response_style$strength %||% 1.6,
+                      "response_style$strength", lower = 0)
+    mid <- m / 2
     dev2 <- ((0:m - mid) / mid)^2
-    w <- if ((response_style$type %||% "extreme") == "extreme") exp(ss * dev2)
+    w <- if (stype == "extreme") exp(ss * dev2)
          else exp(-ss * dev2)
     for (p in style_idx) for (i in seq_len(I)) {
       if (is.na(X[p, i])) next
@@ -373,12 +443,10 @@ print.rasch_sim <- function(x, ...) {
 #' @param n_categories Categories for the graded model.
 #' @param object_sd Spread of the object locations (evenly spaced, sum-zero).
 #' @param second_attribute \code{NULL}, or \code{list(rho=)}: half the judges
-#'   rank by a second object attribute correlated \code{rho} with the first --
-#'   genuine multidimensionality. Feeds \code{\link{btl_dimensionality}} and
-#'   \code{\link{btl_transitivity}}.
-#' @param erratic_judges Proportion of judges who choose at random. Feeds the
-#'   judge fit residual, \code{\link{btl_transitivity}} consistency, and
-#'   \code{\link{judge_surprise}}.
+#'   rank by a second object attribute correlated \code{rho} with the first.
+#'   This introduces multidimensionality and possible intransitivity.
+#' @param erratic_judges Proportion of judges who choose at random. This
+#'   affects judge fit, transitivity, and the judge-surprise diagnostics.
 #' @param dependence \code{NULL}, or \code{list(exposure=, carry_over=)}:
 #'   within-judge order effects (a seen-before advantage and a pull from the
 #'   judge's own earlier verdicts). Adds an \code{order} column. Feeds the
@@ -399,8 +467,15 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
                          erratic_judges = 0, dependence = NULL, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   model <- match.arg(model)
+  K <- .sim_count(n_objects, "n_objects", 3L)
+  J <- .sim_count(n_judges, "n_judges", 2L)
+  reps_per_pair <- .sim_count(reps_per_pair, "reps_per_pair")
+  object_sd <- .sim_scalar(object_sd, "object_sd", lower = 0)
+  erratic_judges <- .sim_scalar(erratic_judges, "erratic_judges",
+                                lower = 0, upper = 1)
+  if (model == "graded")
+    n_categories <- .sim_count(n_categories, "n_categories", 3L)
   m <- if (model == "graded") as.integer(n_categories) - 1L else 1L
-  K <- as.integer(n_objects); J <- as.integer(n_judges)
   objs <- sprintf("O%d", seq_len(K)); jids <- sprintf("J%d", seq_len(J))
   beta <- setNames(as.numeric(scale(seq_len(K))) * object_sd, objs)
   tau <- if (m > 1L) .sim_thresholds(0, m, 1.2) else NULL
@@ -409,6 +484,7 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
   beta2 <- NULL; camp <- NULL
   if (!is.null(second_attribute)) {
     rho <- second_attribute$rho %||% 0.3
+    rho <- .sim_scalar(rho, "second_attribute$rho", lower = -1, upper = 1)
     beta2 <- setNames(rho * beta + sqrt(1 - rho^2) *
       as.numeric(scale(stats::rnorm(K))) * object_sd, objs)
     camp <- setNames(rep(c("a", "b"), length.out = J), jids)
@@ -435,7 +511,8 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
     seen <- new.env(parent = emptyenv()); hs <- new.env(parent = emptyenv())
     hc <- new.env(parent = emptyenv())
     g0 <- function(e, k) if (is.null(v <- e[[k]])) 0 else v
-    exq <- dependence$exposure %||% 0; cry <- dependence$carry_over %||% 0
+    exq <- .sim_scalar(dependence$exposure %||% 0, "dependence$exposure")
+    cry <- .sim_scalar(dependence$carry_over %||% 0, "dependence$carry_over")
     resp <- integer(nrow(d))
     for (r in seq_len(nrow(d))) {
       j <- d$judge[r]; a <- d$object_a[r]; b <- d$object_b[r]
@@ -521,8 +598,18 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
                           rater_severity_sd = 0.6, erratic_raters = 0,
                           interaction = NULL, halo = 0, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
-  m <- as.integer(n_categories) - 1L
-  N <- as.integer(n_persons); I <- as.integer(n_items); R <- as.integer(n_raters)
+  N <- .sim_count(n_persons, "n_persons", 2L)
+  I <- .sim_count(n_items, "n_items", 2L)
+  R <- .sim_count(n_raters, "n_raters", 2L)
+  n_categories <- .sim_count(n_categories, "n_categories", 2L)
+  theta_sd <- .sim_scalar(theta_sd, "theta_sd", lower = 0)
+  item_sd <- .sim_scalar(item_sd, "item_sd", lower = 0)
+  rater_severity_sd <- .sim_scalar(rater_severity_sd, "rater_severity_sd",
+                                   lower = 0)
+  erratic_raters <- .sim_scalar(erratic_raters, "erratic_raters",
+                                lower = 0, upper = 1)
+  halo <- .sim_scalar(halo, "halo", lower = 0, upper = 1)
+  m <- n_categories - 1L
   pids <- sprintf("P%03d", seq_len(N)); iids <- sprintf("I%d", seq_len(I))
   rids <- sprintf("R%d", seq_len(R))
   theta <- .sim_theta(N, 0, theta_sd)
@@ -538,8 +625,13 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
     pool[seq_len(min(length(pool), round(halo * R)))]
   } else character(0)
   int_bias <- matrix(0, I, R, dimnames = list(iids, rids))
-  if (!is.null(interaction))
+  if (!is.null(interaction)) {
+    if (length(interaction$item) != 1L || !(interaction$item %in% iids) ||
+        length(interaction$rater) != 1L || !(interaction$rater %in% rids))
+      stop("interaction$item and interaction$rater must each name one generated level")
+    interaction$bias <- .sim_scalar(interaction$bias, "interaction$bias")
     int_bias[interaction$item, interaction$rater] <- interaction$bias
+  }
 
   grid <- expand.grid(p = seq_len(N), i = seq_len(I), r = seq_len(R))
   score <- integer(nrow(grid))
@@ -590,9 +682,9 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
 #'   units across their levels (1 = equal units, i.e. an ordinary Rasch fit).
 #' @param theta_sd Spread of person ability.
 #' @param seed Optional RNG seed.
-#' @return A wide data frame of class \code{"rasch_sim"} (\code{id}, item
-#'   columns, \code{group}) with \code{attr(x, "truth")$item_sets} the set map
-#'   to pass to \code{\link{rasch_efrm}}.
+#' @return A wide data frame of class \code{"rasch_sim"}, containing an ID,
+#'   item columns, and group. Its truth attribute contains the item-set map
+#'   required by \code{\link{rasch_efrm}}.
 #' @examples
 #' d <- simulate_efrm(300, 8, set_unit_ratio = 1.3, seed = 1)
 #' tr <- attr(d, "truth")
@@ -603,8 +695,15 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
                           n_groups = 2, set_unit_ratio = 1.3,
                           group_unit_ratio = 1, theta_sd = 1.3, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
-  S <- as.integer(n_sets); G <- as.integer(n_groups); K <- as.integer(items_per_set)
-  npg <- as.integer(n_per_group)
+  S <- .sim_count(n_sets, "n_sets")
+  G <- .sim_count(n_groups, "n_groups")
+  K <- .sim_count(items_per_set, "items_per_set", 2L)
+  npg <- .sim_count(n_per_group, "n_per_group", 2L)
+  set_unit_ratio <- .sim_scalar(set_unit_ratio, "set_unit_ratio",
+                                lower = 0, lower_open = TRUE)
+  group_unit_ratio <- .sim_scalar(group_unit_ratio, "group_unit_ratio",
+                                  lower = 0, lower_open = TRUE)
+  theta_sd <- .sim_scalar(theta_sd, "theta_sd", lower = 0)
   # set and group units span the ratio geometrically, normalised to mean 1
   gspan <- function(ratio, n) { u <- exp(seq(0, log(ratio), length.out = n)); u / exp(mean(log(u))) }
   alpha <- gspan(set_unit_ratio, S)
@@ -663,9 +762,12 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
 #' mean(flagged, na.rm = TRUE)
 #' @export
 sim_replicate <- function(FUN, n, ..., seed = NULL) {
-  base <- if (is.null(seed)) sample.int(1e6, 1L) else as.integer(seed)
+  if (!is.function(FUN)) stop("FUN must be a simulation function")
+  n <- .sim_count(n, "n")
+  base <- if (is.null(seed)) sample.int(1e6, 1L)
+          else .sim_count(seed, "seed", 0L)
   reps <- lapply(seq_len(n), function(k) FUN(..., seed = base + k - 1L))
-  structure(reps, class = "rasch_sim_batch", n = as.integer(n),
+  structure(reps, class = "rasch_sim_batch", n = n,
             layout = attr(reps[[1]], "truth")$layout)
 }
 
@@ -682,9 +784,9 @@ sim_replicate <- function(FUN, n, ..., seed = NULL) {
 #'   (or any list of datasets).
 #' @param FUN A function of one dataset returning a scalar statistic.
 #' @param ... Further arguments passed to \code{FUN}.
-#' @return A vector of the per-replicate statistics (\code{NA} where
-#'   \code{FUN} failed), with attributes \code{n_failed} and
-#'   \code{failure_messages}.
+#' @return A vector of per-replicate statistics, with \code{NA} where the
+#'   function failed. Attribute \code{n_failed} gives the failure count;
+#'   \code{failure_messages} contains the distinct messages.
 #' @examples
 #' batch <- sim_replicate(simulate_rasch, 10, n_persons = 300, n_items = 8,
 #'                        seed = 1)
@@ -692,9 +794,17 @@ sim_replicate <- function(FUN, n, ..., seed = NULL) {
 #' mean(psi, na.rm = TRUE)
 #' @export
 sim_apply <- function(batch, FUN, ...) {
+  if (!is.list(batch) || !length(batch)) stop("batch must be a non-empty list")
+  if (!is.function(FUN)) stop("FUN must be a function")
   res <- lapply(batch, function(d)
     tryCatch(list(ok = TRUE, v = FUN(d, ...)),
              error = function(e) list(ok = FALSE, v = NA, msg = conditionMessage(e))))
+  valid <- vapply(res, function(r)
+    isTRUE(r$ok) && !is.null(r$v) && length(r$v) == 1L, TRUE)
+  for (i in which(!valid & vapply(res, `[[`, logical(1), "ok"))) {
+    res[[i]]$ok <- FALSE
+    res[[i]]$msg <- "FUN must return one scalar value"
+  }
   ok <- vapply(res, `[[`, logical(1), "ok")
   vals <- lapply(res, function(r) {
     v <- r$v; if (is.null(v) || length(v) != 1L) NA else v[[1]]
@@ -796,6 +906,8 @@ sim_recovery <- function(fit, sim) {
   # only up to an origin/scale convention: it is not identifiable, so report
   # NA rather than a misleading ~0. Correlation and RMSE (scatter about the
   # aligned scale) remain meaningful.
+  if (!length(pieces))
+    stop("the fit and simulation truth have no comparable parameters")
   summ <- do.call(rbind, lapply(pieces, function(d) {
     nm <- d$parameter[1]
     data.frame(
@@ -827,6 +939,12 @@ print.rasch_recovery <- function(x, ...) {
 #' @param x A \code{"rasch_recovery"} object.
 #' @param ... Unused.
 #' @return Called for its plotting side effect.
+#' @examples
+#' \donttest{
+#' d <- simulate_rasch(300, 8, seed = 1)
+#' fit <- rasch(d, id = "id")
+#' plot_recovery(sim_recovery(fit, d))
+#' }
 #' @export
 plot_recovery <- function(x, ...) {
   stopifnot(inherits(x, "rasch_recovery"))
@@ -894,17 +1012,26 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
                               panel_units = NULL, set_units = NULL,
                               set_origins = NULL, object_sd = 1, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
-  S <- as.integer(n_sets); G <- as.integer(n_panels)
-  Kp <- as.integer(n_objects_per_set); Jp <- as.integer(n_judges_per_panel)
+  S <- .sim_count(n_sets, "n_sets")
+  G <- .sim_count(n_panels, "n_panels")
+  Kp <- .sim_count(n_objects_per_set, "n_objects_per_set", 2L)
+  Jp <- .sim_count(n_judges_per_panel, "n_judges_per_panel")
+  reps_within <- .sim_count(reps_within, "reps_within")
+  reps_cross <- .sim_count(reps_cross, "reps_cross")
+  object_sd <- .sim_scalar(object_sd, "object_sd", lower = 0,
+                           lower_open = TRUE)
 
   phi <- if (is.null(panel_units)) rep(1, G) else as.numeric(panel_units)
-  if (length(phi) != G) stop("panel_units must have length n_panels")
+  if (length(phi) != G || any(!is.finite(phi) | phi <= 0))
+    stop("panel_units must contain n_panels positive finite values")
   phi <- phi / exp(mean(log(phi)))                    # geometric mean one
   alpha <- if (is.null(set_units)) rep(1, S) else as.numeric(set_units)
-  if (length(alpha) != S) stop("set_units must have length n_sets")
+  if (length(alpha) != S || any(!is.finite(alpha) | alpha <= 0))
+    stop("set_units must contain n_sets positive finite values")
   alpha <- alpha / alpha[1]                            # alpha_1 = 1
   kappa <- if (is.null(set_origins)) rep(0, S) else as.numeric(set_origins)
-  if (length(kappa) != S) stop("set_origins must have length n_sets")
+  if (length(kappa) != S || any(!is.finite(kappa)))
+    stop("set_origins must contain n_sets finite values")
   kappa <- kappa - kappa[1]                            # kappa_1 = 0
 
   set_nm <- sprintf("set%d", seq_len(S))

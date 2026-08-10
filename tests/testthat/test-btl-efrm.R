@@ -67,6 +67,11 @@ test_that("planted set units (alpha) and origins (kappa) are recovered", {
   expect_gt(cor(vhat, tr$v[names(vhat)]), 0.99)
   # the frames model fits the differing-unit data better than one unit
   expect_gt(fit$equal_unit$difference, 0)
+  expect_setequal(fit$unit_omnibus$term,
+                  c("panel units (phi)", "set units (alpha)",
+                    "set origins (kappa)"))
+  expect_true(all(c("p_adj", "significant") %in%
+                    names(fit$alpha_table)))
 })
 
 test_that("units are not spuriously flagged under the null", {

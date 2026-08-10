@@ -4,10 +4,16 @@
 \alias{ctt_table}
 \title{Traditional (classical test theory) statistics}
 \usage{
-ctt_table(fit)
+ctt_table(fit, missing = c("complete", "available"))
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
+
+\item{missing}{\code{"complete"} (default) computes the classical table on
+respondents who answered every item, matching the textbook total-score
+definitions. \code{"available"} retains itemwise and pairwise available
+cases as an explicitly exploratory summary; respondents answering
+different item sets need not be comparable.}
 }
 \value{
 A list of class \code{"rasch_ctt"}: the per-item \code{table}
@@ -33,4 +39,8 @@ d <- seq(-2, 2, length.out = 8)
 X <- matrix(rbinom(400 * 8, 1, plogis(outer(rnorm(400), d, "-"))), 400, 8)
 colnames(X) <- paste0("I", 1:8)
 ctt_table(rasch(X))
+}
+\references{
+Cronbach, L. J. (1951). Coefficient alpha and the internal structure of
+tests. Psychometrika, 16, 297--334.
 }

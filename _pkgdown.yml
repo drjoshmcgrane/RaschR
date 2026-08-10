@@ -14,21 +14,19 @@ template:
     pkgdown-nav-height: 72px
 
 home:
-  title: rasch — Rasch Measurement Theory in R
+  title: "rasch: An R Implementation of Rasch Measurement Theory"
   description: >
-    Pairwise conditional estimation of the Rasch model family — partial
-    credit, rating scale, many-facet, extended frame of reference, and
-    Bradley-Terry-Luce paired comparisons — with the complete diagnostic
-    apparatus of published Rasch Measurement Theory and a Shiny interface
-    that attaches reproducing R code to every output.
+    Rasch Measurement Theory in R, with models and diagnostics organised
+    around the properties of sufficiency and invariance, plus a guided
+    point-and-click Shiny app for analysts who prefer a graphical workflow.
   sidebar:
     structure: [links, license, citation, authors, dev]
     components:
-      # custom links: this package is not on CRAN, and pkgdown's automatic
-      # "View on CRAN" would point at an unrelated package of the same name
       links:
         title: Links
         text: |
+          [View on CRAN](https://CRAN.R-project.org/package=rasch)
+
           [Browse source code](https://github.com/drjoshmcgrane/rasch)
 
           [Report a bug](https://github.com/drjoshmcgrane/rasch/issues)
@@ -46,18 +44,23 @@ navbar:
       href: news/index.html
 
 news:
-  cran_dates: false
+  cran_dates: true
 
 articles:
 - title: Articles
   contents:
+  - rasch-workflow
+  - dif-repeated-measures
+  - many-facet
+  - extended-frame-reference
+  - paired-comparisons
   - plant-and-detect
 
 reference:
 - title: Estimation
   desc: >
-    Pairwise conditional estimation of the Rasch model family, with Godambe
-    sandwich standard errors and Warm person measures.
+    Fit the principal Rasch model families and estimate item and person
+    parameters.
   contents:
   - rasch
   - rasch_mfrm
@@ -69,8 +72,7 @@ reference:
 
 - title: Test of fit and comparison
   desc: >
-    The fit-residual and chi-square apparatus, targeting and reliability,
-    and model comparison.
+    Assess fit, targeting and reliability, and compare fitted models.
   contents:
   - fit_summary_table
   - targeting_table
@@ -88,8 +90,8 @@ reference:
 
 - title: Invariance and DIF
   desc: >
-    Differential item functioning over any number of person factors, DIF
-    magnitudes in logits, resolution by item splitting, and equating.
+    Examine invariance across groups and occasions, quantify DIF, split items,
+    and equate calibrations.
   contents:
   - dif_anova
   - dif_contrasts
@@ -101,8 +103,8 @@ reference:
 
 - title: Independence and dimensionality
   desc: >
-    Residual principal components, the Smith t-test with magnitude
-    estimation, Q3 local dependence, and the structural remedies.
+    Examine dimensionality and local response dependence and apply structural
+    remedies where appropriate.
   contents:
   - residual_correlations
   - residual_pca
@@ -122,10 +124,8 @@ reference:
 
 - title: Paired comparisons
   desc: >
-    The Bradley-Terry-Luce model as the conditional form of the dichotomous
-    Rasch model, with judge diagnostics, within-judge dependence, judge-group
-    DIF, and the pair-structure analogues of the independence diagnostics
-    (transitivity and the residual bimension decomposition).
+    Fit Bradley-Terry-Luce and extended frame of reference models for paired
+    comparisons, with diagnostics for objects, judges and comparison designs.
   contents:
   - btl
   - btl_dif
@@ -157,9 +157,8 @@ reference:
 
 - title: Data simulation
   desc: >
-    Generate data from each model family with dial-in departures from it, so a
-    known pathology can be planted and the matching diagnostic watched as it
-    fires. The true parameters are attached to every result.
+    Generate data from each model family, with optional known departures for
+    evaluating estimation and diagnostic performance.
   contents:
   - simulate_rasch
   - simulate_btl
@@ -167,10 +166,13 @@ reference:
   - simulate_efrm
   - simulate_btl_efrm
   - sim_replicate
+  - sim_apply
   - sim_recovery
   - plot_recovery
 
 - title: Export and interface
+  desc: >
+    Export results or launch the guided point-and-click Shiny application.
   contents:
   - save_outputs
   - save_item_plots

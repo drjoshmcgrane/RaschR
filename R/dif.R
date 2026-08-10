@@ -282,14 +282,47 @@
 #' class interval always among them), so results do not depend on the
 #' order factors are given.
 #'
+#' @details
+#' Whenever person identifiers repeat, persons rather than rows are the units
+#' of analysis. Residuals are first averaged within each person-by-within-cell,
+#' and the class interval is defined at the person level. Between-person terms
+#' use Type II sums of squares. In a mixed or incomplete panel, each within
+#' cell is centred within class interval before its values are averaged for the
+#' between-person analysis. This removes common within-cell effects, including
+#' effects that vary over the trait, which could otherwise appear as uniform
+#' or non-uniform DIF when within-cell coverage differs between groups.
+#'
+#' Within-person terms are evaluated from orthonormal contrasts of the
+#' person-by-cell means. The degrees-of-freedom correction of Greenhouse and
+#' Geisser is applied for factors with more than two levels; persons without every
+#' required within cell are excluded from that within-person test. Factors
+#' that vary within person must be declared through \code{within}, or are
+#' detected automatically when identifiers repeat.
+#'
+#' The joint multi-factor and mixed-design analysis is an extension of the
+#' conventional single-factor residual analysis of variance of Andrich and
+#' Marais (2019). It preserves the
+#' same uniform (factor) and non-uniform (factor-by-class-interval) questions,
+#' but uses the appropriate between-person and within-person error strata.
+#' Its F references remain approximate diagnostic tests; substantively
+#' important designs should be checked by simulation at the observed cell
+#' sizes and missingness pattern.
+#'
+#' For an EFRM fit, factors used to define the frame structure are excluded.
+#' Each frame has its own virtual items, so a frame-defining factor has only
+#' one observed level for any such item and is not a separate DIF contrast.
+#' Other person factors may still be tested. For an MFRM fit, residuals are
+#' pooled to underlying items by default; use \code{pool_facets = FALSE} to
+#' inspect the virtual item-by-facet cells instead.
+#'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param factors A vector (one factor), a data frame of person factors, or a
 #'   character vector naming factor columns nominated in the fit. Defaults to
 #'   every factor stored in the fit.
-#' @param n_groups Number of trait class intervals. By default set from
-#'   the smallest factor-combination cell so every interval-by-cell count
-#'   keeps about 30 expected responses (between 2 and 10 intervals); the
-#'   value used is returned in \code{n_groups}.
+#' @param n_groups Number of trait class intervals. The default uses the
+#'   smallest joint factor cell to retain about 30 expected responses per
+#'   interval and cell, with between 2 and 10 intervals. The selected value is
+#'   returned in \code{n_groups}.
 #' @param p_adjust Multiplicity adjustment across items within each term;
 #'   default \code{"BH"}.
 #' @param alpha Significance level applied to the adjusted probabilities.
@@ -297,25 +330,12 @@
 #'   (each factor's main effect and its class-interval interaction, but no
 #'   factor-by-factor terms); \code{"factorial"} also crosses the factors
 #'   with each other. Immaterial with a single factor.
-#' @param id,within Person identifier and within-subject factor names for
-#'   stacked repeated-measures designs, auto-detected from the fit's person
-#'   identifier. Whenever ids repeat, PERSONS are the units of analysis:
-#'   residuals are aggregated to one mean per person (per within-subject
-#'   cell), so duplicated or stacked observations cannot manufacture
-#'   information, and the class interval is taken at the person level.
-#'   Between-person terms are tested with order-invariant Type II sums of
-#'   squares -- every term adjusted for every term not containing it, the
-#'   class interval always among them, so entry order cannot decide which
-#'   correlated factor absorbs shared or trait variance. Within-person
-#'   terms are tested on the person-by-cell means through orthonormal
-#'   contrasts with the Greenhouse-Geisser epsilon correction (Maxwell and
-#'   Delaney 2004), so multi-level within factors are valid without the
-#'   sphericity assumption; persons missing any within cell are dropped
-#'   from the within-stratum tests. A factor that varies within persons
-#'   must be declared (or auto-detected) as within-subject; treating it as
-#'   between-subjects is refused. The BH adjustment is applied across
-#'   items separately within each term: each term is read as its own
-#'   prespecified family, not as one pooled screen across all terms.
+#' @param id Person identifier for stacked or repeated-measures data. It may
+#'   be a column name stored in the fit or a vector with one value per row;
+#'   by default the identifier carried by the fit is used.
+#' @param within Names of within-person factors. With repeated identifiers,
+#'   varying factors are detected automatically when this is omitted. See
+#'   Details for the mixed-design analysis.
 #' @param pool_facets For MFRM fits: pool residuals to the underlying
 #'   items (the default), so DIF is tested per item rather than per
 #'   item-by-facet virtual cell; \code{FALSE} tests the virtual items.
@@ -343,6 +363,17 @@
 #'   \code{sizes} holds the logit DIF magnitudes per item, term, and level
 #'   pair (two-level main effects included, since the single difference is
 #'   exactly the DIF size).
+#' @references
+#' Benjamini, Y. and Hochberg, Y. (1995). Controlling the false discovery
+#' rate: a practical and powerful approach to multiple testing. Journal of
+#' the Royal Statistical Society: Series B, 57(1), 289--300.
+#'
+#' Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
+#' differential item functioning in health research using the Rasch model.
+#' Health and Quality of Life Outcomes, 15, 181.
+#'
+#' Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
+#' Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.
 #' @examples
 #' set.seed(1); n <- 800
 #' d <- seq(-1.5, 1.5, length.out = 6)
@@ -353,6 +384,26 @@
 #' colnames(X) <- paste0("I", 1:6)
 #' fit <- rasch(data.frame(X, g1 = g1, g2 = g2), factors = c("g1", "g2"))
 #' dif_anova(fit)$summary
+#'
+#' \donttest{
+#' # Mixed design: group is between persons and occasion is within persons.
+#' N <- 320; theta <- rnorm(N); group <- rep(c("A", "B"), each = N / 2)
+#' make_wave <- function(occasion_shift) {
+#'   shift <- matrix(0, N, 6)
+#'   shift[group == "B", 2] <- 0.9
+#'   shift[, 5] <- occasion_shift
+#'   matrix(rbinom(N * 6, 1,
+#'          plogis(outer(theta, d, "-") - shift)), N, 6)
+#' }
+#' Xm <- rbind(make_wave(0), make_wave(1.0))
+#' colnames(Xm) <- paste0("I", 1:6)
+#' repeated <- data.frame(Xm, group = rep(group, 2),
+#'                        occasion = rep(c("T1", "T2"), each = N))
+#' mixed_fit <- rasch(repeated, id = rep(seq_len(N), 2),
+#'                    factors = c("group", "occasion"))
+#' mixed_dif <- dif_anova(mixed_fit, within = "occasion")
+#' subset(mixed_dif$summary, uniform_DIF | nonuniform_DIF)
+#' }
 #' @export
 dif_anova <- function(fit, factors = NULL, n_groups = NULL,
                                 p_adjust = "BH", alpha = 0.05,
@@ -369,15 +420,21 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
       !is.null(fit$virtual_map)) {
     vm <- fit$virtual_map
     items_u <- unique(vm$item)
-    Zp <- vapply(items_u, function(it)
-      rowMeans(Z[, vm$vkey[vm$item == it], drop = FALSE], na.rm = TRUE),
-      numeric(nrow(Z)))
+    Zp <- vapply(items_u, function(it) {
+      zz <- Z[, vm$vkey[vm$item == it], drop = FALSE]
+      nn <- rowSums(is.finite(zz))
+      out <- rowSums(zz, na.rm = TRUE) / sqrt(pmax(nn, 1L))
+      out[nn == 0L] <- NA_real_
+      out
+    }, numeric(nrow(Z)))
     Zp[!is.finite(Zp)] <- NA_real_
     colnames(Zp) <- items_u
     Z <- Zp; L <- ncol(Z)
     pooled_note <- paste(
-      "MFRM residuals pooled to the underlying items (mean over each",
-      "item's facet cells); pool_facets = FALSE tests the virtual items")
+      "MFRM residuals pooled to the underlying items (standardised sum over",
+      "each item's observed facet cells, so rows with different facet",
+      "coverage retain comparable null variance); pool_facets = FALSE tests",
+      "the virtual items")
   }
   factors <- .dif_factors(fit, factors)
   # the EFRM frame group IS the frame structure: each frame has its own
@@ -784,11 +841,13 @@ print.rasch_dif <- function(x, ...) {
 #' persons behind different levels are disjoint, but the shared calibration
 #' of the other items still couples the estimates, so the covariance is
 #' used rather than assumed zero), with familywise adjustment over the
-#' pairs. For a within-person factor -- the same persons behind several
-#' levels, as in a stacked repeated-measures design -- the sandwich carries
-#' no person clustering, so the standard errors are conservative; a note
-#' says so, and \code{\link{dif_contrasts}} handles that case with
-#' person-level differencing. Differences
+#' pairs. When person identifiers repeat, as in a stacked repeated-measures
+#' design, the calibration sandwich treats the rows as independent and does
+#' not carry the covariance induced by repeated persons. The resolved point
+#' differences and practical flags are therefore retained, but sampling
+#' standard errors, confidence intervals, and Wald tests are withheld;
+#' \code{\link{dif_contrasts}} supplies person-level inferential tests.
+#' Differences
 #' at least \code{flag_logits} in absolute size are flagged as practically
 #' significant; half a logit is a common working criterion, to be weighed
 #' against the test's targeting and purpose.
@@ -813,6 +872,13 @@ print.rasch_dif <- function(x, ...) {
 #'   location and SE per level, with its n), \code{pairs} (per comparison:
 #'   difference in logits, SE, z, raw and adjusted p, 95 per cent interval,
 #'   \code{significant}, \code{practical}), the settings, and any notes.
+#'   Sampling-uncertainty fields are \code{NA} when person IDs repeat.
+#' @references
+#' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+#' Measuring in the Educational, Social and Health Sciences. Springer.
+#'
+#' Holm, S. (1979). A simple sequentially rejective multiple test procedure.
+#' Scandinavian Journal of Statistics, 6(2), 65--70.
 #' @examples
 #' set.seed(1); n <- 600
 #' d <- seq(-2, 2, length.out = 8); g <- rep(c("a", "b"), each = n / 2)
@@ -841,19 +907,20 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   grp <- if (ncol(factors) == 1L) factor(factors[[1]])
          else interaction(factors, sep = ":", drop = TRUE)
   notes <- character(0)
-  # the same person appearing behind several levels (a stacked
-  # repeated-measures factor) couples the resolved locations within person;
-  # the sandwich carries no person clustering, so the Wald tests are
-  # conservative there
+  # Repeated persons couple the resolved locations. The calibration sandwich
+  # treats rows as independent, so it is not a sampling covariance for this
+  # design and cannot support Wald inference.
+  repeated_person <- FALSE
   if (!is.null(fit$person$id)) {
     idv <- as.character(fit$person$id)
     seen <- !is.na(grp)
-    if (anyDuplicated(unique(data.frame(id = idv[seen],
-                                        g = as.character(grp[seen])))$id))
+    repeated_person <- anyDuplicated(idv[seen]) > 0L
+    if (repeated_person)
       notes <- c(notes, paste(
-        "the same persons appear at several levels (within-person factor):",
-        "standard errors are conservative; see dif_contrasts for",
-        "person-level differencing"))
+        "person identifiers repeat across response rows: resolved point",
+        "differences remain descriptive, but sampling SEs, confidence",
+        "intervals and Wald tests are withheld; use dif_contrasts for",
+        "person-level inference or a whole-person bootstrap"))
   }
 
   # drop levels too thin on this item to resolve
@@ -904,6 +971,7 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   }
   n_item <- as.integer(table(grp[obs_i & !is.na(grp)])[levs])
   lev_se <- sqrt(pmax(diag(vloc), 0)); lev_se[weak_lev] <- NA_real_
+  if (repeated_person) lev_se[] <- NA_real_
   levels_df <- data.frame(level = levs, location = loc,
                           se = lev_se, weak = unname(weak_lev), n = n_item)
 
@@ -917,12 +985,14 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   # a pair touching a weakly-identified level carries no trustworthy
   # magnitude: withhold its SE and every SE-derived verdict
   pairs$se[pair_weak] <- NA_real_
+  if (repeated_person) pairs$se[] <- NA_real_
   pairs$z <- pairs$difference / pairs$se
   pairs$p <- 2 * pnorm(-abs(pairs$z))
   pairs$p_adj <- p.adjust(pairs$p, method = p_adjust)
   pairs$lower <- pairs$difference - qnorm(0.975) * pairs$se
   pairs$upper <- pairs$difference + qnorm(0.975) * pairs$se
-  pairs$significant <- ifelse(pair_weak, NA, pairs$p_adj < alpha)
+  pairs$significant <- ifelse(pair_weak | repeated_person, NA,
+                              pairs$p_adj < alpha)
   pairs$practical <- ifelse(pair_weak, NA, abs(pairs$difference) >= flag_logits)
 
   out <- list(item = item, by = paste(names(factors), collapse = ":"),
@@ -1238,8 +1308,10 @@ print.rasch_dif_size <- function(x, ...) {
 #' against zero; a between-subjects contrast is tested on person-mean
 #' residuals; and a between-by-within interaction tests the person contrast
 #' scores across the between groups. Logit estimates are still reported from
-#' the resolved locations; their standard errors treat rows as independent
-#' and are conservative for within-subject differences.
+#' the resolved locations. Their covariance cannot be recovered from the
+#' row-independent calibration without a person-level bootstrap, so the
+#' logit standard errors and intervals are withheld in repeated-person
+#' analyses rather than presented as repeated-measures uncertainty.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param factors A data frame of person factors, a character vector naming
@@ -1257,8 +1329,8 @@ print.rasch_dif_size <- function(x, ...) {
 #'   by the design-cell labels (factor levels joined by \code{":"}).
 #'   Weights are rescaled so the positive and negative parts each sum to
 #'   one.
-#' @param p_adjust Familywise adjustment over the whole family (items by
-#'   contrasts); default \code{"holm"}.
+#' @param p_adjust Familywise adjustment across items and contrasts. The
+#'   default is \code{"holm"}.
 #' @param alpha Significance level for the adjusted probabilities.
 #' @param flag_logits Absolute estimate flagged as practically significant.
 #' @param min_n Cells with fewer responders to an item are dropped from that
@@ -1418,6 +1490,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
                               w_full / 2)
         if (!is.null(wc)) { stat <- -wc$stat; df <- wc$df; p <- wc$p }
       }
+      if (paired) se <- NA_real_
       rows[[length(rows) + 1L]] <- data.frame(
         item = item, contrast = nm, within = isTRUE(mt$within),
         estimate = est, se = se, statistic = stat, df = df, p = p)
@@ -1456,7 +1529,7 @@ print.rasch_dif_contrasts <- function(x, ...) {
                 if (x$family$within[r]) "  [within subjects]" else ""))
   if (x$paired)
     cat("Stacked design: tests use person-level residual scores;",
-        "logit SEs are conservative for within contrasts.\n")
+        "logit SEs and intervals are withheld.\n")
   cat("\n")
   tab <- x$table
   show <- tab[, c("item", "contrast", "estimate", "se", "statistic", "p_adj",

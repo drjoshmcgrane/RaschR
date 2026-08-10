@@ -409,14 +409,75 @@ chisq_detail <- function(fit, item) {
        prop_above = mean(th > max(thresholds$tau)))
 }
 
+# Administrable virtual-item blocks of a fit: one per design a person
+# could actually take. Ordinary fits: the whole test. EFRM: one block per
+# person group AND per item-set administration pattern observed in that
+# group. MFRM: one block per observed facet design. Shared by
+# test_information() and the test-level curve plots so they cannot
+# disagree.
+.design_blocks <- function(fit) {
+  L <- length(fit$tau_list)
+  blocks <- list(test = seq_len(L))
+  if (inherits(fit, "rasch_efrm")) {
+    # a group's virtual block can span item sets that were only PARTIALLY
+    # administered within the group (a linking design: most persons take
+    # one set, a linking subsample takes several). Summing all the group's
+    # sets would describe a form nobody in the majority sub-population
+    # ever took, understating their SEM -- so split each group by the
+    # distinct set-administration patterns actually observed
+    vm <- fit$virtual_map
+    blocks <- list(); ord <- character(0)
+    for (g in unique(vm$group)) {
+      gcols <- which(vm$group == g)
+      grows <- rowSums(!is.na(fit$X[, gcols, drop = FALSE])) > 0
+      if (!any(grows)) next
+      sets_of_col <- vm$set[gcols]
+      # per person: which of the group's sets they answered at all
+      pat <- apply(!is.na(fit$X[grows, gcols, drop = FALSE]), 1, function(r)
+        paste(sort(unique(sets_of_col[r])), collapse = "+"))
+      for (p in unique(pat)) {
+        psets <- strsplit(p, "+", fixed = TRUE)[[1]]
+        lab <- paste0("group=", g, if (length(unique(vm$set)) > 1L)
+          paste0(", sets=", p) else "")
+        if (!lab %in% names(blocks)) {
+          blocks[[lab]] <- gcols[sets_of_col %in% psets]
+          ord <- c(ord, lab)
+        }
+      }
+    }
+    blocks <- blocks[ord]
+  } else if (inherits(fit, "rasch_mfrm")) {
+    vm <- fit$virtual_map
+    fs <- fit$facet_spec
+    key <- interaction(vm[, fs, drop = FALSE], drop = TRUE, sep = ", ")
+    blocks <- split(seq_len(nrow(vm)), key)
+    labs <- vapply(blocks, function(ii)
+      paste(paste0(fs, "=", unlist(vm[ii[1L], fs, drop = FALSE])),
+            collapse = ", "), "")
+    names(blocks) <- labs
+  }
+  blocks
+}
+
 #' Test information function
 #'
-#' Fisher information of the whole test over a grid of person locations, with
-#' the corresponding standard error of measurement.
+#' Fisher information over a grid of person locations, with the corresponding
+#' standard error of measurement. Ordinary Rasch fits return one whole-test
+#' curve. EFRM fits return one curve per person group and per item-set
+#' administration pattern actually observed within that group (in a linking
+#' design, persons who took only the core set get a core-only curve, and the
+#' linking subsample gets the pooled one), and MFRM fits return one curve per
+#' observed facet design; mutually exclusive virtual-item blocks, and item
+#' sets no single person took together, are never added together.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param grid Logit grid over which to evaluate the information.
-#' @return A data frame with \code{theta}, \code{info}, and \code{sem}.
+#' @return A data frame with \code{theta}, \code{info}, and \code{sem}. For
+#'   EFRM and MFRM fits it also contains a \code{design} column identifying
+#'   the administrable group or facet design.
+#' @references
+#' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+#' Measuring in the Educational, Social and Health Sciences. Springer.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-1.5, 1.5, length.out = 6)
@@ -425,10 +486,24 @@ chisq_detail <- function(fit, item) {
 #' head(test_information(rasch(X)))
 #' @export
 test_information <- function(fit, grid = seq(-6, 6, by = 0.1)) {
+  if (!inherits(fit, "rasch")) stop("test_information needs a rasch fit")
+  if (!is.numeric(grid) || !length(grid) || any(!is.finite(grid)))
+    stop("grid must contain finite numeric person locations")
   L <- length(fit$tau_list)
   disc <- if (is.null(fit$disc)) rep(1, L) else fit$disc
-  info <- vapply(grid, function(th)
-    sum(vapply(seq_len(L), function(i)
-      disc[i]^2 * item_moments(th, fit$tau_list[[i]], disc = disc[i])$V, 0)), 0)
-  data.frame(theta = grid, info = info, sem = 1 / sqrt(info))
+  blocks <- .design_blocks(fit)
+  ans <- lapply(seq_along(blocks), function(j) {
+    ii <- blocks[[j]]
+    info <- vapply(grid, function(th)
+      sum(vapply(ii, function(i)
+        disc[i]^2 * item_moments(th, fit$tau_list[[i]],
+                                 disc = disc[i])$V, 0)), 0)
+    out <- data.frame(theta = grid, info = info, sem = 1 / sqrt(info))
+    if (length(blocks) > 1L || names(blocks)[j] != "test")
+      out$design <- names(blocks)[j]
+    out
+  })
+  out <- do.call(rbind, ans)
+  rownames(out) <- NULL
+  out
 }

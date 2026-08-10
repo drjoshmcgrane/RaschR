@@ -23,7 +23,9 @@ A new \code{\link{rasch}} fit on the combined structure, with the
 Forms one polytomous super-item from each nominated group of items (its
 score is the member sum; missing if any member is missing), keeps all other
 items as they are, and refits the model with the same settings. The usual
-treatment for item pairs flagged by \code{\link{residual_correlations}}.
+treatment for item pairs identified for investigation from
+\code{\link{residual_correlations}} (whose optional binary threshold is a
+heuristic screen, not a calibrated test).
 }
 \examples{
 set.seed(1); Np <- 500; L <- 8

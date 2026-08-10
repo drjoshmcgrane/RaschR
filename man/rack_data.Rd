@@ -19,8 +19,9 @@ stack_data(data, person, time, items)
 \value{
 \code{rack_data}: a wide data frame with one row per person and
   \code{length(items) * n_times} item columns. \code{stack_data}: a data
-  frame with one row per person-time (\code{id} column), the original
-  item columns, and \code{time} as a factor column for DIF analysis.
+  frame with one row per person-time, the repeated original \code{id}, a
+  unique \code{row_id}, the original item columns, and \code{time} as a
+  factor column for repeated-measures DIF analysis.
 }
 \description{
 Repeated measurements (the same persons and items at two or more time
@@ -28,9 +29,11 @@ points) enter a Rasch analysis in one of two designs (Andrich & Marais
 2019, ch. 26). \emph{Racking} keeps one row per person and duplicates
 the items per time point (columns \code{item@time}), so change over time
 shows in the item estimates. \emph{Stacking} keeps one column per item
-and duplicates the persons per time point (rows \code{person@time}), so
+and duplicates the persons per time point (rows), so
 change shows in the person estimates and DIF of items over time can be
-examined with \code{time} as a person factor.
+examined with \code{time} as a within-person factor. The returned
+\code{id} is the original person identifier and therefore repeats across
+occasions; \code{row_id} uniquely identifies each person-occasion row.
 }
 \examples{
 d <- data.frame(pid = rep(1:100, 2), t = rep(1:2, each = 100),
@@ -39,4 +42,8 @@ racked <- rack_data(d, person = "pid", time = "t", items = c("Q1", "Q2"))
 names(racked)
 stacked <- stack_data(d, person = "pid", time = "t", items = c("Q1", "Q2"))
 head(stacked)
+# the follow-up analysis assigns every reshaped column a role: the
+# repeated person id, time as a within-person factor, and the items
+fit <- rasch(stacked, id = "id", factors = "time",
+             items = c("Q1", "Q2"))
 }

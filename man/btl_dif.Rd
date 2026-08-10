@@ -20,8 +20,9 @@ btl_dif(
 \arguments{
 \item{fit}{An object from \code{\link{btl}}.}
 
-\item{factors}{A judge factor, or a named list of them, each either one
-value per row of \code{fit$comparisons} or a vector named by judge.}
+\item{factors}{One judge factor, or a named list containing several. Each
+factor may have one value per comparison row or be a vector named by
+judge.}
 
 \item{objects}{Objects to test; all by default.}
 
@@ -51,7 +52,8 @@ A list of class \code{"rasch_btl_dif"}: \code{summary} (one row per
   \code{nonuniform_DIF} and \code{superseded} flags); \code{terms} (the
   full per-object analysis-of-variance table); \code{levels} (resolved
   location and SE per object, term and cell); \code{sizes} (per object,
-  term and cell pair: difference in logits, SE, z, adjusted p, significance
+  term and cell pair: difference in logits, SE, t, degrees of freedom,
+  adjusted p, significance
   and practical flags); \code{effects}, \code{factors}, and \code{notes}.
 }
 \description{
@@ -83,8 +85,10 @@ pseudo-replicate (a null simulation with judge heterogeneity and
 arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
 judge-level design is calibrated, and its power grows with the number of
 judges per group, not the number of comparisons. Each factor level needs
-at least two judges, and an object at least four judges overall, to be
-testable.
+at least two judges. Confirmatory output is withheld unless the base fit
+has at least ten judge clusters and more clusters than fitted parameters;
+this avoids treating a rank-deficient or very small-cluster sandwich as a
+valid sampling covariance.
 
 Each object is resolved against the other objects' common locations. When
 several objects carry real DIF, resolving them one at a time can spread a

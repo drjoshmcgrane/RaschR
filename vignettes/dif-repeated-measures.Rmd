@@ -1,0 +1,110 @@
+---
+title: "DIF with several person factors and repeated measures"
+author: "Josh McGrane"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DIF with several person factors and repeated measures}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(digits = 4)
+```
+
+```{r library}
+library(rasch)
+```
+
+## Design the analysis around the person
+
+When several person factors are relevant, they should enter one model. Testing
+them one at a time can assign shared variation according to the order of the
+analyses. Repeated observations require a further distinction: group is a
+between-person factor, whereas occasion varies within person.
+
+The following dataset has two observations per person. Item I03 has a group
+shift and item I06 has an occasion shift.
+
+```{r data}
+set.seed(21)
+N <- 240
+difficulty <- seq(-1.5, 1.5, length.out = 8)
+theta <- rnorm(N)
+group <- rep(c("A", "B"), each = N / 2)
+
+make_wave <- function(occasion_shift) {
+  shift <- matrix(0, N, 8)
+  shift[group == "B", 3] <- 0.8
+  shift[, 6] <- occasion_shift
+  matrix(rbinom(N * 8, 1,
+                plogis(outer(theta, difficulty, "-") - shift)), N, 8)
+}
+
+X <- rbind(make_wave(0), make_wave(0.9))
+colnames(X) <- sprintf("I%02d", 1:8)
+dat <- data.frame(
+  pid = rep(sprintf("P%03d", seq_len(N)), 2),
+  X,
+  group = rep(group, 2),
+  occasion = rep(c("T1", "T2"), each = N)
+)
+```
+
+## Fit once and test both factors
+
+The repeated person identifier is carried into the fit. `dif_anova` detects
+occasion as within-person; it can also be declared explicitly. Persons, not
+stacked rows, are the units of analysis. Between-person tests use Type II sums
+of squares. Within-person tests use person-level contrasts, with a
+Greenhouse--Geisser correction when a factor has more than two levels.
+This joint multi-factor, mixed-design implementation extends the conventional
+single-factor residual analysis of variance of Andrich and Marais (2019).
+Its F references remain approximate,
+so consequential or sparse designs should also be checked by simulation at
+their observed cell sizes and missingness pattern.
+
+```{r analysis}
+fit <- rasch(dat, id = "pid", factors = c("group", "occasion"),
+             items = sprintf("I%02d", 1:8))
+da <- dif_anova(fit, within = "occasion")
+da$summary
+```
+
+At this seed the two planted effects are flagged clearly: I03 by group and
+I06 by occasion. A third, weaker occasion flag appears on I05 (adjusted p
+just under 0.05): no effect was planted there, and a borderline extra flag
+of this kind is exactly what a 5 per cent criterion over many item-by-term
+tests produces from time to time -- read isolated marginal flags with the
+magnitude estimates below before acting on them.
+
+The multiplicity adjustment is applied across items separately within each
+term. Uniform DIF is a factor effect that is stable over the trait; a
+factor-by-class-interval effect is non-uniform DIF. If person-factor
+interactions are substantively required, use `effects = "factorial"` and
+interpret a significant higher-order term before its component main effects.
+
+## Quantify the departure
+
+ANOVA identifies evidence against invariance; it does not state the size of
+the departure in logits. `dif_size` resolves an item by a between-person
+factor. `dif_contrasts` is the corresponding planned-contrast approach and
+uses person-level differencing for within-person questions.
+
+```{r magnitude}
+dif_size(fit, "I03", by = "group")
+dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion",
+                    id = fit$person$id)
+dc$table
+```
+
+For repeated-person contrasts, significance comes from person-level residual
+contrast scores. The resolved logit difference remains the magnitude, but its
+row-independent calibration covariance is not a repeated-measures standard
+error; the package therefore withholds the logit SE and interval in this case.
+
+A statistical flag should be considered with the logit magnitude, targeting,
+item content, and the intended use of the scale. Resolving an item changes the
+measurement model and should follow a substantive account of why the item is
+not invariant.

@@ -50,8 +50,8 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   X <- rbind(gen(0), gen(0.6)); colnames(X) <- paste0("I", 1:8)
   dat <- data.frame(X, time = rep(c("1", "2"), each = n),
                     gender = rep(gender, 2))
-  fit <- rasch(dat, factors = c("time", "gender"))
   id <- rep(sprintf("P%03d", 1:n), 2)
+  fit <- rasch(dat, factors = c("time", "gender"), id = id)
   dc <- dif_contrasts(fit, items = c("I4", "I6"), id = id)
 
   # time varies within id, so it is detected as within-subject
@@ -62,11 +62,20 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   # paired t (df = persons - 1), significant, positive drift, sign-aligned
   expect_equal(w4$df, n - 1)
   expect_true(w4$significant && w4$estimate > 0.4 && w4$statistic > 0)
+  expect_true(all(is.na(t$se)))
+  expect_true(all(is.na(t$lower)) && all(is.na(t$upper)))
   # clean item, null gender effect, null interaction all stay quiet
   expect_false(any(t$significant[t$item == "I6"]))
   expect_false(t$significant[t$item == "I4" & t$contrast == "gender: m - f"])
   expect_false(t$significant[t$item == "I4" &
                              t$contrast == "time(2 - 1) x gender(m - f)"])
+  # The resolved point size remains available, but its row-independent
+  # calibration covariance is not a repeated-person sampling covariance.
+  ds <- dif_size(fit, "I4", by = "time")
+  expect_true(any(abs(ds$pairs$difference) > 0.3))
+  expect_true(all(is.na(ds$levels$se)))
+  expect_true(all(is.na(ds$pairs$se)) && all(is.na(ds$pairs$significant)))
+  expect_match(paste(ds$notes, collapse = " "), "sampling SEs")
   # within requires id
   expect_error(dif_contrasts(fit, items = "I4", within = "time"), "id")
 })

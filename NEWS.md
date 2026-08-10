@@ -1,8 +1,91 @@
 # rasch 1.14.1
 
-Completes the audit follow-up: the one finding deferred in 1.14.0.
+This release brings together changes developed since CRAN version 1.11.7.
+It extends DIF analysis, expands the facet and paired-comparison models, and
+strengthens identification and uncertainty checks. Final release testing also
+resolved the following edge cases:
 
-Post-audit verification also closed five edge cases in the 1.14 changes:
+A verification audit of the release candidate corrected the following:
+
+* Exporting and reporting an extended-frame fit no longer fails: the
+  residual-PCA refusal for structurally disjoint columns is carried as a
+  note through `dimensionality_test()`, `save_outputs()`, and
+  `report_html()` instead of aborting them.
+* `test_information()` (and `plot_tcc()`, through a shared design-block
+  computation) splits an extended-frame group by the item-set
+  administration patterns actually observed, so a linking design's
+  core-only majority receives its own information and SEM curve rather
+  than a pooled curve describing a form nobody took.
+* The many-facet item-by-facet omnibus test uses a Hotelling-style
+  F(q, n - q) reference with persons as the units (null rejection 5.7%
+  at n = 50 and 4.0% at n = 400, against ~13% under the previous
+  chi-square reference); the per-cell follow-ups use a t reference.
+* `dimensionality_test()` again returns a verdict for ordinary short
+  dichotomous tests: subtests below the recommended 15 score points
+  carry a `caution` note instead of an NA verdict, degenerate subsets
+  return an explanatory note instead of a raw error, and the automatic
+  split's unavailability is reported, not thrown.
+* `tailored_analysis()` defaults to 999 bootstrap replicates and warns
+  when the sign-count p-value floor (2m/(B+1) after Holm) makes
+  detection impossible at the chosen settings.
+* `rasch()` refuses to score a numeric identifier-like column
+  (`id`, `row_id`, `time`, `person`) as an item when no role is
+  assigned, closing the `stack_data()` follow-up footgun; simulated
+  datasets auto-assign their own `id`.
+* Available-case `ctt_table()` withholds alpha (with the reason) when
+  the pairwise covariance is not a valid covariance matrix, instead of
+  printing an absurd value.
+* `btl()` withholds the composite-likelihood effective parameter count
+  whenever clustered inference is withheld, as documented; and
+  `btl_information()` no longer claims the clustered SE sits above the
+  design-only `se_naive` "as a rule" (it can sit on either side; the
+  ratio is a descriptive design comparison).
+* Test-level curve plots recycle the palette beyond eight designs
+  instead of silently dropping curves.
+* Vignette and example corrections: the repeated-measures DIF vignette
+  discusses every flag its own seed produces; the paired-comparisons
+  and plant-and-detect prose match their computed output; the
+  extended-frame vignette notes the finite-sample bias its own design
+  exhibits; the mixed-design `dif_anova()` example now demonstrates
+  both planted effects.
+
+The final statistical audit made the following changes to inference and
+diagnostics:
+
+* Repeated-measures DIF now separates the descriptive logit contrast from
+  inference. `dif_size()` reports the magnitude but withholds row-independent
+  Wald uncertainty; `dif_contrasts()` tests the same effects from person-level
+  residual contrasts.
+* EFRM covariance transformation now includes all derivatives created by the
+  common-unit constraint. EFRM and BTL-EFRM results include unit-level omnibus
+  Wald tests before adjusted follow-up contrasts.
+* Judge-clustered BTL inference is withheld when there are fewer than ten
+  independent judges, or no residual cluster degrees of freedom. Point
+  estimates remain available, but standard errors, DIF tests, OSI and
+  composite-likelihood information criteria are not reported as inferential.
+* BTL-EFRM defaults to a judge bootstrap for unconditional uncertainty.
+  Conditional standard errors remain available when their narrower
+  interpretation is appropriate.
+* MFRM item-by-facet interactions now have a primary omnibus Wald test and
+  Holm-adjusted cell follow-ups.
+* Common-item and common-object drift tests require independent calibrations
+  and the joint covariance of a bank's locations. Marginal bank standard
+  errors alone cannot reproduce the covariance induced by its fitted origin;
+  such links are descriptive unless the bank is fixed.
+* Residual PCA and dimensionality diagnostics now withhold conclusions when
+  the score ranges are too thin, when the BTL comparison order is confounded,
+  or when the fitted model cannot be reproduced by the reference simulation.
+  Q3 thresholds are explicitly heuristic and opt-in.
+* Test information is reported for the actual design: one curve for an
+  ordinary test, by person group for EFRM, and by facet design for MFRM.
+* Classical statistics use complete responders by default. Available-case
+  item summaries are still available, but are labelled exploratory.
+* Tailored-analysis item shifts are descriptive by default. Optional
+  person-bootstrap inference repeats the full tailoring and anchor-selection
+  procedure.
+* Equating, simulation, Guttman, dependence and dimensionality functions now
+  reject incompatible model structures and invalid or underidentified inputs
+  rather than returning apparently precise results.
 
 * BTL subset-separation detection now evaluates movement along weak
   information directions and is invariant to a translated anchor origin;
@@ -25,7 +108,7 @@ Post-audit verification also closed five edge cases in the 1.14 changes:
   locations -- and withholds the second-dimension verdict
   (`above_reference` = NA, with a note) instead of reporting the
   confounded false positive (previously flagged a second dimension in
-  ~93%% of such designs). Detection is from the concentration of pairs
+  about 93% of such designs). Detection is from the concentration of pairs
   at each sequence position across judges; when the order varies across
   judges the fixed-estimate reference is well calibrated and the verdict
   is given as before (that path is unchanged). Refitting the reference
@@ -35,20 +118,16 @@ Post-audit verification also closed five edge cases in the 1.14 changes:
 
 # rasch 1.14.0
 
-Full-package adversarial audit (2026-07-21): a multi-agent sweep of every
-subsystem plus a cross-feature interaction round, each finding
-reproduced by an executed probe before fixing. Development branch only;
-the CRAN submission of 1.11.7 is untouched. The confirmed defects fell
-into a few root causes, several of which one fix closes across files.
+Identification and robustness checks across the package led to the following
+changes.
 
-Identification and honesty (the recurring review theme -- refuse or
-declare, never fabricate):
+Identification and uncertainty reporting:
 
-* The weak-category NA-SE honesty now reaches the DIF consumers.
+* Weak-category NA standard errors now carry through to the DIF functions.
   `dif_size()` and `.dif_resolve()` detect a resolved level whose split
   copy rests on a near-empty category (already flagged weak, se = NA by
   `split_items()`) and withhold that level's SE, significance, and
-  practical flag instead of recomputing a fabricated finite SE from the
+  practical flag instead of recomputing an unsupported finite SE from the
   ridged covariance. `resolve_dif()` confirms a uniform flag with
   `dif_size()` before splitting, so it no longer chases a thin-cell
   ANOVA artifact into an item split (nonuniform flags are untouched).
@@ -65,7 +144,7 @@ declare, never fabricate):
 * `btl_efrm()` detects (quasi-)complete cross-set separation directly
   from the fitted probabilities and refuses it on both the conditional
   and bootstrap paths, instead of reporting a boundary alpha/kappa with
-  a fabricated tiny bootstrap SE.
+  an unsupported small bootstrap SE.
 
 Comparison, simulation, and diagnostics:
 
@@ -85,7 +164,7 @@ Comparison, simulation, and diagnostics:
   extreme-score persons, and person fit excludes extreme items --
   matching the convention the log-of-mean-square fit residual already
   used, and standard Rasch fit reporting. This raises an item's
-  mean-squares toward their honest value (extreme persons' boundary
+  mean-squares toward their intended value (extreme persons' boundary
   residuals no longer deflate them). Textbook item-fit agreement is
   preserved.
 * `plot_icc()`'s observed class-interval overlay uses the same
@@ -117,11 +196,10 @@ Input handling (silent coercion and collision -> informative errors):
 
 # rasch 1.13.3
 
-Sixteenth review round: two identification edge cases beneath the
-1.13.2 checks, and one policy refinement. Development branch only; the
-CRAN submission of 1.11.7 is untouched.
+Further identification checks and one refinement to the treatment of weakly
+identified EFRM units.
 
-* Connectivity now counts only INFORMATIVE response pairs. A pair whose
+* Connectivity now counts only informative response pairs. A pair whose
   every observed total is 0 or the maximum has a single feasible
   conditional allocation and carries no information, so one respondent
   scoring (0, 0) across two otherwise disjoint item blocks no longer
@@ -132,12 +210,12 @@ CRAN submission of 1.11.7 is untouched.
 * As the review prescribed, the graph test is now backed by a
   rank/conditioning check of the projected information at the solution
   in the shared solver. This also catches what no graph can see: a
-  block bridged by a SINGLE informative response is perfect separation
+  block bridged by a single informative response is perfect separation
   in the conditional pair logit -- the pair estimate runs to the
   boundary and the information vanishes there -- and previously
   returned converged fits with zero standard errors.
 * The Ford (1957) check now respects anchors. Strong connectivity is
-  the existence condition for the FREE model only; an anchored fit
+  the existence condition for the free model only; an anchored fit
   requires each free object to be tied to an anchor in both win
   directions (reachability to and from the anchor set over the points
   digraph -- the constrained recession-direction condition). Two
@@ -145,24 +223,22 @@ CRAN submission of 1.11.7 is untouched.
   anchors is now correctly accepted, while removing one anchor still
   errors.
 * EFRM: the practical weak-identification cutoff (SE of log phi above
-  5) is now a loud warning plus a note with the estimates RETAINED,
+  5) now produces a warning and a note while retaining the estimates,
   supporting reproducible sensitivity analyses; the error is reserved
   for structural non-identification (a flat direction of the joint
   information), where no estimate exists to retain.
 
 # rasch 1.13.2
 
-Fifteenth review round: the 1.13.1 identification guards were the right
-idea executed too weakly (or, in one case, too strongly), and this
-release replaces heuristics with information-based checks throughout.
-Development branch only; the CRAN submission of 1.11.7 is untouched.
+Information-based identification checks replace earlier heuristics in the
+EFRM, MFRM and paired-comparison models.
 
 * EFRM: the threshold-spread heuristic is gone. Group units are now
   checked on the joint information itself -- a flat direction loading on
   a unit, or a unit whose analytic SE exceeds 5 log-units (uncertain
   beyond a factor of ~150), is refused with an error naming the group,
   since every common-unit quantity would silently depend on it. Weakly
-  identified units with real spread are KEPT with their honest large
+  identified units with real spread are retained with their large
   SEs; the previous heuristic wrongly replaced some of them with NA.
 * MFRM: full column rank of the structural design is necessary but not
   sufficient. The fit now also checks that no between-block shift of
@@ -179,7 +255,7 @@ Development branch only; the CRAN submission of 1.11.7 is untouched.
   screened out of the panel-unit reconciliation (refit at the
   reconciled units) or, when no ratio information remains anywhere,
   the fit stops.
-* btl_efrm stage 2: rank failures are now CLASSIFIED by where the
+* btl_efrm stage 2: rank failures are classified by where the
   information fails. A flat direction confined to a set's log-unit --
   its within-set locations are indistinguishable, so the unit has
   nothing to scale -- refits with that unit fixed at the conventional
@@ -200,16 +276,14 @@ Development branch only; the CRAN submission of 1.11.7 is untouched.
 * MFRM input: rows dropped for missing person/item/facet identifiers
   now drop from `factors` too (both the column-name and data-frame
   forms), instead of failing with an internal length error.
-* Test honesty: the wide-MFRM factor-equivalence test compared a
+* Tests: the wide-MFRM factor-equivalence test compared a
   nonexistent `$table` component (NULL == NULL, vacuously true); it now
   compares the `$summary` F and p columns, on a properly linked design
   -- the equivalence itself was verified to hold.
 
 # rasch 1.13.1
 
-Fourteenth review round: three defects in the 1.13.0 additions and the
-review's nine-item identification backlog. Development branch only; the
-CRAN submission of 1.11.7 is untouched.
+Corrections to the 1.13.0 additions and further identification checks.
 
 Defects in the new code:
 
@@ -219,14 +293,14 @@ Defects in the new code:
   to the wrong cells (a pure-noise 2x2 gave a spurious region effect at
   p = 2e-5). Cells are now matched by label throughout.
 * MFRM `dif_size()` no longer lets facet severity leak into a
-  between-group magnitude: the joint split now pools over the COMMON
+  between-group magnitude: the joint split now pools over the common
   observed cells with common precision weights, so severity differences
   cancel by construction. A design that previously manufactured a
   -1.75-logit phantom effect (z = -6.5) now reports -0.11 (ns) while a
   planted 0.7 effect is still recovered.
 * `phi_factorial` was a diagonally-weighted fit with coefficient-wise
   z tests; it is now a generalised least-squares decomposition on the
-  JOINT covariance of the cell log-units (bootstrap draws when
+  joint covariance of the cell log-units (bootstrap draws when
   available, otherwise the solver's centred covariance, inverted
   spectrally along its identified directions, intercept excluded as
   inestimable under the centring), with multi-degree-of-freedom Wald
@@ -272,8 +346,7 @@ Identification and input-handling backlog:
 
 # rasch 1.13.0
 
-The three capability extensions from the review wishlist. Development
-branch only; the CRAN submission of 1.11.7 is untouched.
+Three extensions to the facet, EFRM and DIF functions.
 
 * MFRM DIF pools to the underlying items by default: `dif_anova()` on
   an MFRM fit now answers "does item A show DIF" by pooling residuals
@@ -299,9 +372,8 @@ branch only; the CRAN submission of 1.11.7 is untouched.
 
 # rasch 1.12.3
 
-Thirteenth review round: the BTL, EFRM, and MFRM analogues of the DIF
-and identification work. Development branch only; the CRAN submission
-of 1.11.7 is untouched.
+Identification checks for the BTL, EFRM and MFRM functions, together with
+extensions to DIF analysis for these models.
 
 * `btl_dif()` runs on the same order-invariant machinery as the person
   DIF ANOVA: between-judge terms by Type II sums of squares on
@@ -316,7 +388,7 @@ of 1.11.7 is untouched.
   `pcml()`) and alpha identification (cross-set comparisons must touch
   at least two objects of every non-reference set; one object
   identifies only the origin).
-* `rasch_efrm()` group linkage requires at least two SHARED ITEMS of a
+* `rasch_efrm()` group linkage requires at least two shared items of a
   common set between groups: sharing a set label with disjoint item
   subsets left the unit ratio unidentified but was accepted.
 * `dif_anova()` works on EFRM fits: the frame group is excluded (it is
@@ -335,11 +407,10 @@ of 1.11.7 is untouched.
 
 # rasch 1.12.2
 
-Twelfth review round: the incomplete-panel edges of the DIF engine.
-Development branch only; the CRAN submission of 1.11.7 is untouched.
+Corrections for incomplete panels in the DIF analysis.
 
-* Between-person margins are centred within each within-cell BY CLASS
-  INTERVAL (falling back to the cell mean where a combination is
+* Between-person margins are centred within each within-cell by class
+  interval (falling back to the cell mean where a combination is
   empty): cell-only centring removed common occasion effects but not
   occasion-by-trait structure, which with differential missingness
   masqueraded as non-uniform group DIF at F = 214.7; it now reads
@@ -357,13 +428,11 @@ Development branch only; the CRAN submission of 1.11.7 is untouched.
 
 # rasch 1.12.1
 
-Eleventh review round on the rebuilt DIF engine: five findings, all
-verified and closed. Development branch only; the CRAN submission of
-1.11.7 is untouched.
+Further corrections to the rebuilt DIF analysis.
 
 * Multi-within contrast alignment. `interaction()` orders cells with
-  the FIRST factor fastest while the Kronecker contrast matrices assume
-  the LAST fastest; with two within factors a pure w1 effect therefore
+  the first factor fastest while the Kronecker contrast matrices assume
+  the last fastest; with two within factors a pure w1 effect therefore
   loaded onto w1:w2 (F 7.4 on the interaction, 3.2 on w1). The within
   cells are now built in Kronecker order; the same effect reads
   F = 16.9 on w1 and 0.35 on the interaction.
@@ -384,17 +453,15 @@ verified and closed. Development branch only; the CRAN submission of
 
 # rasch 1.12.0
 
-The multi-factor DIF ANOVA engine rebuilt for statistical validity
-(tenth review round; three P1 findings, every one reproduced before
-fixing). This release is on the development branch only -- it does NOT
-supersede the CRAN submission of 1.11.7.
+The multi-factor DIF ANOVA has been rebuilt to support statistically valid
+between-person, within-person and mixed designs.
 
 * Order-invariant tests. Between-person terms now use Type II sums of
   squares on person-level residual means: every term is adjusted for
   every term not containing it, with the class interval always among
   them. The old sequential (Type I) tests with factors entered first
   let entry order decide which of two correlated factors flagged -- in
-  the reproduction, reversing the order LOST a planted 0.8-logit DIF
+  the reproduction, reversing the order lost a planted 0.8-logit DIF
   entirely -- and let a group factor absorb pure trait variance
   (reported p = 2e-25 where the adjusted test gives p = 0.83). Verified
   exactly order-invariant.
@@ -413,8 +480,8 @@ supersede the CRAN submission of 1.11.7.
   dropped from the within tests explicitly rather than projected
   murkily. The two-level case still agrees with its paired-t gold
   standard.
-* Input honesty: unknown `within` names error; declaring a factor
-  within-subject with no repeated ids errors; and a factor that VARIES
+* Input checks: unknown `within` names error; declaring a factor
+  within-subject with no repeated ids errors; and a factor that varies
   within persons can no longer be forced between-subjects (the old
   row-level treatment pseudo-replicated).
 * The BH family choice (per term, across items) is now documented
@@ -1017,7 +1084,9 @@ comparison procedures, with fixes throughout.
   class-interval crossing no longer supersedes it (so `resolve_dif()` again
   splits items with both uniform and non-uniform DIF); mixed designs say
   plainly that Tukey comparisons are unavailable; and `dif_size()` notes
-  when a within-person factor makes its standard errors conservative.
+  when a within-person factor makes its standard errors conservative. This
+  was the 1.3.0 behaviour; from 1.14.1, repeated-person logit uncertainty is
+  withheld and person-level `dif_contrasts()` provides the inferential route.
 * `plot_scree()`'s parallel-analysis reference is now model-simulated
   (responses drawn from the calibrated model, persons re-estimated), so
   model-true data sits at the reference instead of always "showing

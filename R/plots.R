@@ -133,15 +133,17 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param item Item name or column index.
 #' @param grid Logit grid over which to draw the curves.
-#' @param observed Overlay the observed category proportions per class
-#'   interval (Andrich and Marais 2019, ch. 20).
+#' @param observed Whether to add category proportions by class interval
+#'   (Andrich and Marais 2019, ch. 20).
 #' @param n_groups Class intervals for the observed points.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
 #' simP <- function(th, t) { x <- 0:length(t); p <- exp(x * th - c(0, cumsum(t))); p / sum(p) }
 #' th <- rnorm(400)
-#' X <- sapply(1:4, function(i) sapply(th, function(t) sample(0:3, 1, prob = simP(t, c(-1, 0, 1)))))
+#' X <- sapply(1:4, function(i)
+#'   sapply(th, function(t)
+#'     sample(0:3, 1, prob = simP(t, c(-1, 0, 1)))))
 #' colnames(X) <- sprintf("P%02d", 1:4)
 #' plot_ccc(rasch(X), "P01", observed = TRUE)
 #' @export
@@ -203,7 +205,9 @@ plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
 #' set.seed(1)
 #' simP <- function(th, t) { x <- 0:length(t); p <- exp(x * th - c(0, cumsum(t))); p / sum(p) }
 #' th <- rnorm(400)
-#' X <- sapply(1:4, function(i) sapply(th, function(t) sample(0:3, 1, prob = simP(t, c(-1, 0, 1)))))
+#' X <- sapply(1:4, function(i)
+#'   sapply(th, function(t)
+#'     sample(0:3, 1, prob = simP(t, c(-1, 0, 1)))))
 #' colnames(X) <- sprintf("P%02d", 1:4)
 #' plot_threshold_prob(rasch(X), "P01")
 #' @export
@@ -435,15 +439,21 @@ plot_threshold_map <- function(fit, order_by_location = TRUE) {
 #' plot_tcc(rasch(X))
 #' @export
 plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
-  Etot <- vapply(grid, function(th)
-    sum(vapply(seq_along(fit$tau_list), function(i)
-      item_moments(th, fit$tau_list[[i]], disc = .disc_of(fit, i))$E, 0)), 0)
-  Smax <- sum(fit$m)
+  # the same administrable design blocks as test_information(), so the two
+  # displays can never disagree about which items form a curve
+  blocks <- .design_blocks(fit)
+  curves <- lapply(blocks, function(ii) vapply(grid, function(th)
+    sum(vapply(ii, function(i)
+      item_moments(th, fit$tau_list[[i]], disc = .disc_of(fit, i))$E, 0)), 0))
+  Smax <- max(vapply(blocks, function(ii) sum(fit$m[ii]), 0))
   op <- .rr_canvas(range(grid), c(0, Smax), "Person location (logits)",
                    "Expected total score")
   on.exit(par(op))
-  lines(grid, Etot, lwd = 3, col = .rr$blue)
+  cols <- rep_len(.rr$pal, length(curves))
+  for (j in seq_along(curves)) lines(grid, curves[[j]], lwd = 3, col = cols[j])
   abline(h = c(0, Smax), lty = 3, col = .rr$soft)
+  if (length(curves) > 1L)
+    .rr_legend("topleft", names(curves), lwd = 3, col = cols)
   invisible(NULL)
 }
 
@@ -464,6 +474,20 @@ plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
 #' @export
 plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
   ti <- test_information(fit, grid)
+  if ("design" %in% names(ti)) {
+    des <- unique(ti$design)
+    cols <- rep_len(.rr$pal, length(des))
+    ymax <- max(ti$info, na.rm = TRUE) * 1.1
+    op <- .rr_canvas(range(grid), c(0, ymax), "Person location (logits)",
+                     "Test information")
+    on.exit(par(op))
+    for (j in seq_along(des)) {
+      z <- ti$design == des[j]
+      lines(ti$theta[z], ti$info[z], lwd = 3, col = cols[j])
+    }
+    .rr_legend("topleft", des, lwd = 3, col = cols)
+    return(invisible(NULL))
+  }
   op <- .rr_canvas(range(grid), c(0, max(ti$info) * 1.1),
                    "Person location (logits)", "Test information",
                    right = 3.6)
@@ -572,9 +596,10 @@ plot_person_fit <- function(fit, band = 2.5) {
 #' and warm colour marks dependence; with \code{stat = "q3"} the raw residual
 #' correlation is coloured, white at zero. The scale saturates at \code{cap}
 #' rather than the +/-1 of an ordinary correlation: a residual correlation
-#' seldom reaches even 0.5 under a fitting model (the conventional flag is Q3*
-#' above 0.2; Christensen, Makransky and Horton 2017), so the colour is spent
-#' where the values actually discriminate.
+#' seldom reaches even 0.5 under a fitting model, so the colour is spent where
+#' the values actually discriminate. A Q3* value of 0.2 is sometimes used as
+#' a heuristic screen, but it is not a universal critical value (Christensen,
+#' Makransky and Horton 2017).
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param stat Which statistic to colour: \code{"q3star"} (adjusted Q3, the
@@ -725,7 +750,9 @@ plot_pca_biplot <- function(fit) {
 #' set.seed(1)
 #' simP <- function(th, t) { x <- 0:length(t); p <- exp(x * th - c(0, cumsum(t))); p / sum(p) }
 #' th <- rnorm(400)
-#' X <- sapply(1:4, function(i) sapply(th, function(t) sample(0:3, 1, prob = simP(t, c(-1, 0, 1)))))
+#' X <- sapply(1:4, function(i)
+#'   sapply(th, function(t)
+#'     sample(0:3, 1, prob = simP(t, c(-1, 0, 1)))))
 #' colnames(X) <- sprintf("P%02d", 1:4)
 #' plot_catfreq(rasch(X), "P01")
 #' @export

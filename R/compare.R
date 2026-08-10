@@ -29,7 +29,8 @@
 # Godambe matrices (MFRM and EFRM assemble their own estimation structures).
 .cl_ic <- function(f) {
   if (inherits(f, "rasch_btl")) {
-    if (is.null(f$cl)) return(c(eff = NA_real_, aic = NA_real_, bic = NA_real_))
+    if (is.null(f$cl) || !isTRUE(f$cl$inference_available))
+      return(c(eff = NA_real_, aic = NA_real_, bic = NA_real_))
     eff <- f$cl$eff_params; n <- f$cl$n_units; ll <- f$loglik
   } else {
     est <- f$est
@@ -78,9 +79,8 @@
 #' freedom, item and person fit residual SDs (ideal 1), PSI, and alpha
 #' (OSI for paired comparisons).
 #'
-#' @param ... Two or more fitted objects, ideally named
-#'   (\code{compare_fits(PCM = f1, RSM = f2)}). Either all Rasch-family
-#'   fits or all \code{btl} fits; for \code{btl}, fits of the same
+#' @param ... Two or more fitted objects, preferably named. Supply either all
+#'   Rasch-family fits or all \code{btl} fits. For \code{btl}, fits of the same
 #'   comparison data (same objects, comparisons, and judges) support the
 #'   likelihood columns -- e.g. free versus principal-component thresholds,
 #'   with and without a position effect or within-judge dependence.
@@ -95,12 +95,18 @@
 #'   \code{btl}).
 #' @examples
 #' set.seed(1)
-#' simP <- function(th, tau) { x <- 0:length(tau); p <- exp(x * th - c(0, cumsum(tau))); p / sum(p) }
+#' simP <- function(th, tau) {
+#'   x <- 0:length(tau)
+#'   p <- exp(x * th - c(0, cumsum(tau)))
+#'   p / sum(p)
+#' }
 #' th <- rnorm(400)
 #' X <- sapply(seq(-1, 1, length.out = 6), function(b)
-#'   sapply(th, function(t) sample(0:3, 1, prob = simP(t, b + c(-0.8, 0, 0.8)))))
+#'   sapply(th, function(t)
+#'     sample(0:3, 1, prob = simP(t, b + c(-0.8, 0, 0.8)))))
 #' colnames(X) <- paste0("R", 1:6)
-#' compare_fits(PCM = rasch(X, model = "PCM"), RSM = rasch(X, model = "RSM"))
+#' compare_fits(PCM = rasch(X, model = "PCM"),
+#'              RSM = rasch(X, model = "RSM"))
 #' @export
 compare_fits <- function(..., reference = 1) {
   fits <- list(...)
@@ -220,7 +226,9 @@ compare_fits <- function(..., reference = 1) {
     "valid across models of the same data",
     if (any(!vapply(fits, function(f)
       is.finite(.cl_ic(f)["eff"]), TRUE)))
-      " (NA for MFRM/EFRM fits, which do not carry their Godambe matrices)"
+      paste0(" (NA for MFRM/EFRM fits without the required Godambe ",
+             "matrices, and for judge-clustered BTL fits with too few ",
+             "independent clusters)")
     else "",
     ". two_delta_ll is the raw composite difference against the reference, ",
     "descriptive only. Across different data preparations compare ",

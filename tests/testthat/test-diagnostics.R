@@ -4,7 +4,7 @@ test_that("dimensionality test separates 1D from 2D data", {
   set.seed(1); Np <- 1500; L <- 20
   d <- scale(seq(-2, 2, length.out = L), scale = FALSE)[, 1]; th <- rnorm(Np, 0, 1.4)
   X1 <- matrix(rbinom(Np * L, 1, plogis(outer(th, d, "-"))), Np, L); colnames(X1) <- sprintf("U%02d", 1:L)
-  dt1 <- dimensionality_test(rasch(X1, model = "PCM"))
+  dt1 <- dimensionality_test(rasch(X1, model = "PCM"), min_score_points = 2)
   expect_false(dt1$multidimensional)
 
   set.seed(2)
@@ -12,9 +12,32 @@ test_that("dimensionality test separates 1D from 2D data", {
   XA <- matrix(rbinom(Np * 10, 1, plogis(outer(thA, d[1:10], "-"))), Np, 10)
   XB <- matrix(rbinom(Np * 10, 1, plogis(outer(thB, d[11:20], "-"))), Np, 10)
   X2 <- cbind(XA, XB); colnames(X2) <- sprintf("D%02d", 1:20)
-  dt2 <- dimensionality_test(rasch(X2, model = "PCM"))
+  dt2 <- dimensionality_test(rasch(X2, model = "PCM"), min_score_points = 2)
   expect_true(dt2$multidimensional)
   expect_gt(dt2$prop_significant, dt1$prop_significant)
+})
+
+test_that("dimensionality gives short subtests a verdict with a caution", {
+  set.seed(11)
+  X <- matrix(rbinom(500 * 12, 1, 0.5), 500, 12,
+              dimnames = list(NULL, paste0("S", 1:12)))
+  dt <- dimensionality_test(rasch(X))
+  # short subtests are the norm for ordinary dichotomous tests: the verdict
+  # is computed, and the Andrich-Marais ~15-score-point guidance is carried
+  # as a caution about subtest stability, not an NA-withhold
+  expect_true(dt$multidimensional %in% c(TRUE, FALSE))
+  expect_match(dt$caution, "score points")
+  expect_true(all(dt$score_points < 15))
+})
+
+test_that("Q3 binary flags require an explicit heuristic", {
+  set.seed(12)
+  X <- matrix(rbinom(500 * 8, 1, 0.5), 500, 8,
+              dimnames = list(NULL, paste0("Q", 1:8)))
+  rc <- residual_correlations(rasch(X))
+  expect_true(all(is.na(rc$pairs$flagged)))
+  expect_equal(nrow(rc$flagged), 0L)
+  expect_match(rc$note, "withheld")
 })
 
 test_that("local dependence is flagged for a near-duplicated item", {

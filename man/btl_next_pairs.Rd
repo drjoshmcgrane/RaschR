@@ -17,10 +17,11 @@ orders candidate pairs sensibly but the implied variance reductions are
 not exact sandwich updates. Treat the ordering, not the magnitudes, as
 the output.}
 
-\item{weight_se}{Rank by the one-step total-variance reduction (default
-\code{TRUE}; falls back to \code{expected_information * (se_a^2 +
-se_b^2)} if the fit carries no covariance). When \code{FALSE}, pairs are
-ranked by expected information alone (pure closeness).}
+\item{weight_se}{If \code{TRUE} (the default), rank pairs by their one-step
+reduction in total location variance. When the fit has no covariance,
+the fallback priority is expected information multiplied by the sum of
+the two squared standard errors. If \code{FALSE}, rank pairs by expected
+information alone.}
 }
 \value{
 A data frame of the top \code{n} candidate pairs, each oriented to
@@ -46,7 +47,7 @@ covariance it is a scoring device, consistent with the ranking-heuristic
 status described below.
 }
 \details{
-Two honest cautions. This is a \emph{greedy} rule that scores each pair on
+This is a \emph{greedy} rule that scores each pair on
 its own immediate one-step gain (an A-optimality step at the current
 estimates, taking the clustered covariance as the state); it is not a full
 optimal design and can be beaten by one that plans several comparisons

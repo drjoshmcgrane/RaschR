@@ -355,6 +355,7 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   expect_true(s6$significant && s6$practical)
   expect_lt(abs(abs(s6$difference) - 1), 3 * s6$se)
   expect_equal(sum(dif$sizes$significant), 1L)
+  expect_output(print(dif), "Resolved locations")
   # grouped characteristic curve renders
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_btl_icc(f, "S06", group = grp))
@@ -978,6 +979,16 @@ test_that("position and order covariates are estimated together", {
   pos <- f$dependence[f$dependence$effect == "position", ]
   expect_equal(pos$n_informative, f$n_comparisons)
   expect_gt(pos$t, 2)   # the planted first-position advantage is detected
+  # Surprise diagnostics must use the complete fitted predictor, not only
+  # the object-location difference.
+  mo <- .btl_fitted_moments(f, f$comparisons)
+  bl <- setNames(f$objects$location, f$objects$object)
+  Z <- as.matrix(f$comparisons[, f$dependence$effect, drop = FALSE])
+  expected_lp <- bl[f$comparisons$object_a] - bl[f$comparisons$object_b] +
+    drop(Z %*% f$dependence$estimate)
+  expect_equal(mo$lp, unname(expected_lp), tolerance = 1e-12)
+  expect_gt(max(abs(mo$lp -
+    (bl[f$comparisons$object_a] - bl[f$comparisons$object_b]))), 0.1)
 })
 
 test_that("count-weighted rows give the SAME standard errors as expanded rows", {

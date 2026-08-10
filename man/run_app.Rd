@@ -2,7 +2,7 @@
 % Please edit documentation in R/app.R
 \name{run_app}
 \alias{run_app}
-\title{Launch the rasch graphical interface}
+\title{Launch the rasch point-and-click graphical interface}
 \usage{
 run_app(...)
 }
@@ -13,9 +13,12 @@ run_app(...)
 Called for its side effect of launching the app.
 }
 \description{
-Opens the Shiny application: data upload with ID, person-factor, and item
-column nomination; the full analysis; interactive tables and
-plots; and one-click export of every table and plot.
+Opens the guided Shiny application for users who prefer a graphical
+workflow. The app supports data import; assignment of item, person, group,
+rater, and comparison roles; model selection and fitting; interactive
+diagnostics, tables, and plots; and one-click export. The corresponding R
+call is shown for each analysis, but users do not need to write R analysis
+code to use the principal workflows.
 }
 \examples{
 if (interactive()) run_app()

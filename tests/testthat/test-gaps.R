@@ -54,17 +54,23 @@ test_that("equate_tests flags drifted common items only", {
     colnames(X) <- sprintf("I%02d", 1:L); rasch(X)
   }
   f1 <- mk()
-  eq0 <- equate_tests(f1, mk())
+  eq_dep <- equate_tests(f1, mk())
+  expect_false(eq_dep$inferential)
+  expect_true(all(is.na(eq_dep$table$p)))
+  expect_match(eq_dep$note, "independence")
+  eq0 <- equate_tests(f1, mk(), independent = TRUE)
   expect_equal(sum(eq0$table$drift), 0)
   expect_gt(eq0$correlation, 0.99)
 
-  eq1 <- equate_tests(f1, mk(drift = 0.8))
+  eq1 <- equate_tests(f1, mk(drift = 0.8), independent = TRUE)
   expect_identical(eq1$table$item[eq1$table$drift], "I04")
 
   # reference table path (item bank style)
   bank <- data.frame(item = sprintf("I%02d", 1:L), location = d - mean(d), se = 0.05)
   eqb <- equate_tests(f1, bank)
   expect_equal(eqb$n, L)
+  expect_false(eqb$inferential)
+  expect_match(eqb$note, "joint item-location covariance")
   expect_error(equate_tests(f1, data.frame(item = "ZZ", location = 0)),
                "at least two common items")
 })
@@ -92,6 +98,10 @@ test_that("interactive facet mode recovers a planted item-by-rater effect", {
   top <- ie[which.max(abs(ie$gamma)), ]
   expect_identical(top$item, "B"); expect_identical(top$level, "R2")
   expect_equal(top$gamma, 0.9 * (1 - 1/4 - 1/4 + 1/16), tolerance = 0.2)
+  expect_equal(fit$interaction_test$df, (4 - 1) * (4 - 1))
+  expect_true(is.finite(fit$interaction_test$p))
+  expect_true(all(c("p_adj", "significant") %in%
+                    names(fit$interaction_effects)))
   expect_error(rasch_mfrm(d, "person", "item", "score", facets = "rater",
                           interaction = "nope"), "must name one of the facets")
 })
@@ -221,7 +231,7 @@ test_that("dimensionality: 10-component PCA, scree, manual subsets, exact CI", {
   expect_equal(nrow(et), 10)
 
   # default split detects the planted second dimension; exact CI fields present
-  dt <- dimensionality_test(fit)
+  dt <- dimensionality_test(fit, min_score_points = 2)
   expect_true(dt$multidimensional)
   expect_identical(dt$split, "residual component 1")
   expect_true(dt$ci[1] >= 0 && dt$ci[2] <= 1 && dt$ci[1] < dt$ci[2])
@@ -229,7 +239,8 @@ test_that("dimensionality: 10-component PCA, scree, manual subsets, exact CI", {
 
   # manual subsets matching the true structure also detect it
   dtm <- dimensionality_test(fit, items_positive = sprintf("D%02d", 1:8),
-                             items_negative = sprintf("D%02d", 9:16))
+                             items_negative = sprintf("D%02d", 9:16),
+                             min_score_points = 2)
   expect_true(dtm$multidimensional)
   expect_identical(dtm$split, "manual")
   expect_gt(dtm$prop_significant, 0.05)

@@ -18,3 +18,10 @@ Called for its plotting side effect.
 One true-versus-estimated panel per parameter type, with the identity line
 and the correlation and RMSE.
 }
+\examples{
+\donttest{
+d <- simulate_rasch(300, 8, seed = 1)
+fit <- rasch(d, id = "id")
+plot_recovery(sim_recovery(fit, d))
+}
+}

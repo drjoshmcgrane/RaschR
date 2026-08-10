@@ -1128,8 +1128,10 @@ panel_facets <- nav_panel("Facets", value = "p_facets", icon = bs_icon("person-b
         controls = cols_switch("facets_full"),
         footer = uiOutput("facet_structure_note")),
       conditionalPanel("output.has_interaction == true",
+        tableCard("facet_int_omnibus", "Item-by-facet omnibus test",
+                  "Joint Wald test of the complete interaction family. Read this before the Holm-adjusted exploratory cell contrasts."),
         tableCard("facet_int_tbl", "Item-by-facet interactions",
-                  "Estimated because the interactive facet structure was chosen in the data roles; gamma is the extra severity of a level on a particular item, and significant terms qualify the invariance of the facet's severities across items.")),
+                  "Estimated because the interactive facet structure was chosen in the data roles; gamma is the extra severity of a level on a particular item. Cell p-values are Holm-adjusted and are exploratory follow-ups to the omnibus test.")),
       plotCard("facet_plot", "Severity caterpillar plot")
     )
   )
@@ -1142,14 +1144,16 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
     conditionalPanel("output.is_btl == true",
       layout_sidebar(
         sidebar = sidebar(width = 300, open = "always",
-          fileInput("bt_eq_file", "Reference calibration (CSV: object, location, se)",
+          fileInput("bt_eq_file", "Reference calibration (CSV: object, location, se[, m])",
                     accept = ".csv"),
+          checkboxInput("bt_eq_independent",
+                        "Independent judges/comparisons", TRUE),
           uiOutput("btl_eq_summary"),
           p(class = "text-muted small mt-2",
-            "Common objects (matched by name) are tested against the shifted identity line; objects that drift were valued differently by the two calibrations and weaken the equating link. The standards-maintenance use of comparative judgement across panels or years (Bramley 2007).")),
+            "Common objects are linked by name. A CSV bank provides marginal standard errors but not their joint covariance, so its origin alignment is descriptive. Drift inference requires independent judges and comparisons plus the full covariance (or a fixed bank with zero standard errors). A graded bank must include a constant m column giving its score steps.")),
         layout_columns(col_widths = 12,
           tableCard("btl_eq_tbl", "Common-object comparison",
-            info = "Each common object is tested against the shifted identity line after the precision-weighted origin shift (the two sum-zero scales are centred on different object sets). A drifting object weakens the link; p_adj is the multiplicity-adjusted drift p-value, shown red below 0.05."),
+            info = "Each common object is compared with the shifted identity line after the precision-weighted origin shift (the two sum-zero scales are centred on different object sets). Inferential columns are withheld unless the reference carries its joint covariance or is fixed. Where available, p_adj is the multiplicity-adjusted drift p-value, shown red below 0.05."),
           plotCard("btl_eq_plot", "Equating plot",
             info = "The two calibrations' common-object locations against the shifted identity line, with per-object error bars and a dotted guide band at the average pooled precision; objects that drift after the multiplicity adjustment are highlighted and labelled.",
             hover = TRUE))
@@ -1162,18 +1166,22 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
                      c("Uploaded calibration CSV" = "csv",
                        "A kept fit from Compare" = "kept")),
         conditionalPanel("input.eq_source == 'csv'",
-          fileInput("eq_file", "Reference calibration (CSV: item,location,se)",
-                    accept = ".csv")),
+          fileInput("eq_file", "Reference calibration (CSV: item,location,se,max)",
+                    accept = ".csv"),
+          checkboxInput("eq_csv_independent",
+                        "Independent sampling units", TRUE)),
         conditionalPanel("input.eq_source == 'kept'",
           selectizeInput("eq_kept", "Kept fit", NULL,
-                         options = list(placeholder = "keep a fit on the Compare page"))),
+                         options = list(placeholder = "keep a fit on the Compare page")),
+          checkboxInput("eq_kept_independent",
+                        "Independent sampling units", FALSE)),
         radioButtons("eq_shift", "Scale alignment",
                      c("Allow a shift between origins" = "mean",
                        "Compare raw locations (anchored scales)" = "none")),
         downloadButton("dl_calib", "Save current calibration (CSV)",
                        class = "btn-outline-secondary w-100"),
         p(class = "text-muted small mt-2",
-          "Common items (matched by name) are tested against the shifted identity line; flagged items show drift and weaken the equating link. Save a calibration now to equate a future analysis against it.")),
+          "Common items are linked by name. Drift tests require independent sampling units, at least three common items, and the joint location covariance. A CSV carries only marginal standard errors, so CSV-bank alignment is descriptive unless the bank is fixed with zero standard errors. Kept fits retain the covariance needed for inference.")),
       card(
         full_screen = TRUE,
         card_header_bar("Common-item comparison",
@@ -1398,7 +1406,7 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
     accordion(id = "ld_acc", open = "ld_cormat",
       accordion_panel("Residual Correlations (Q3 statistics)", value = "ld_cormat",
         p(class = "text-muted small",
-          "Yen's (1984) Q3 is the correlation of the standardised residuals for an item pair; Q3* subtracts the average off-diagonal Q3, so 0 is the local-independence baseline and a pair well above it signals response dependence. Each matrix shows the lower triangle only, beside its heatmap. A pair is shown in red when it clears the flag threshold under its own rule: |Q3| for the raw matrix (Yen 1993) and Q3* for the adjusted matrix (Christensen, Makransky & Horton 2017); 0.2 is conventional for both."),
+          "Yen's (1984) Q3 is the correlation of the standardised residuals for an item pair; Q3* subtracts the average off-diagonal Q3, so 0 is the local-independence baseline and a pair well above it signals response dependence. Each matrix shows the lower triangle only, beside its heatmap. A pair is shown in red when it clears the analyst-selected screen under its own rule: |Q3| for the raw matrix and Q3* for the adjusted matrix. No threshold is a universal critical value; 0.2 is supplied only as a common heuristic starting point."),
         numericInput("ld_flag",
                      "Flag threshold (|Q3| or Q3* at or above this value)",
                      value = 0.2, min = 0.05, max = 0.9, step = 0.05,
@@ -1478,15 +1486,19 @@ panel_guess <- nav_panel("Guessing", value = "p_guess", icon = bs_icon("question
         selectizeInput("guess_anchors", "Anchor items (common origin)", NULL,
                        multiple = TRUE,
                        options = list(placeholder = "automatic: least-affected third")),
+        checkboxInput("guess_bootstrap", "Person-bootstrap inference", FALSE),
+        conditionalPanel("input.guess_bootstrap == true",
+          numericInput("guess_boot_reps", "Bootstrap replicates", 200,
+                       min = 50, step = 50)),
         input_task_button("run_guess", "Run tailored analysis",
                           type = "primary", class = "w-100"),
         p(class = "text-muted small mt-2",
-          "The tailored procedure of Andrich, Marais and Humphry (2012): every response whose modelled success probability falls below the chance level is set to missing and the test is re-calibrated on a common origin. Difficult items becoming harder in the tailored calibration signals guessing. Dichotomous analyses only.")),
+          "The tailored procedure of Andrich, Marais and Humphry (2012): every response whose modelled success probability falls below the chance level is set to missing and the test is re-calibrated on a common origin. Item shifts are descriptive unless the whole procedure is repeated in a person bootstrap. Dichotomous analyses only.")),
       layout_columns(col_widths = 12,
         card(card_header("Tailored analysis"),
              card_body(verbatimTextOutput("guess_txt"))),
         tableCard("guess_tbl", "Initial vs tailored calibration",
-                  "shift = tailored minus origin-equated location; z > 1.96 flags items significantly harder after tailoring (a guessing signature).")),
+                  "shift = tailored minus origin-equated location. Shifts are descriptive by default; bootstrap percentile intervals and Holm-adjusted p-values appear only when person-bootstrap inference is selected.")),
       plotCard("guess_plot", "Tailored vs origin-equated calibrations", hover = TRUE)
     )
   )
@@ -1553,7 +1565,7 @@ panel_export <- nav_panel("Export", value = "p_export", icon = bs_icon("download
         card_body(tags$ul(
           tags$li("Item statistics with the item ANOVA fit table, thresholds with SEs, person estimates (with ID and factors), score-to-measure table with score frequencies"),
           tags$li("Chi-square class-interval detail for every item, traditional (CTT) statistics, and the principal components table when estimated"),
-          tags$li("Residual correlations, flagged dependent pairs, PCA loadings, category frequencies, DIF ANOVA for every factor"),
+          tags$li("Residual-correlation tables, PCA loadings, category frequencies, DIF ANOVA for every factor"),
           tags$li("Person-item distribution, threshold map, TCC, TIF, item and person fit maps, item and person fit residual distributions, residual heatmap, PCA plot"),
           tags$li("Per-item ICC, category curves, threshold curves, and frequency charts"),
           tags$li("For many-facet analyses: facet severities with SEs and fit, structural item thresholds, and severity caterpillar plots"),
@@ -3650,7 +3662,11 @@ server <- function(input, output, session) {
                 code = function() paste0("plot_tcc(fit", ts_code_arg(), ")"))
   register_plot("tif",    function() plot_tif(fit(), grid = ts_grid()),
                 code = function() paste0("plot_tif(fit", ts_code_arg(), ")"))
-  register_plot("guttman", function() plot_guttman(fit()), h = 7,
+  register_plot("guttman", function() {
+    validate(need(all(fit()$m == 1L),
+                  "The whole-item Guttman scalogram is available for dichotomous items only."))
+    plot_guttman(fit())
+  }, h = 7,
                 code = function() "plot_guttman(fit)")
   # hover identification for the Guttman scalogram: neither axis is labelled
   # (persons are thinned to at most 80 rows and never named; items are
@@ -3661,6 +3677,8 @@ server <- function(input, output, session) {
   # as image() lays the matrix out: x is the item column left-to-right, y is
   # the person row flipped top-to-bottom -- see R/guttman.R.
   guttman_res <- reactive({
+    validate(need(all(fit()$m == 1L),
+                  "The whole-item Guttman scalogram is available for dichotomous items only."))
     g <- guttman_table(fit())
     G <- g$matrix
     N <- nrow(G)
@@ -4219,20 +4237,26 @@ server <- function(input, output, session) {
                        type = "warning")
       return(NULL)
     }
+    if ("m" %in% names(a) && length(unique(a$m[is.finite(a$m)])) == 1L)
+      attr(a, "m") <- as.integer(unique(a$m[is.finite(a$m)]))
     a
   })
   bt_equate <- reactive({
     bank <- bt_eq_bank()
     validate(need(!is.null(bank),
                   "Upload a reference calibration to test drift against it."))
-    tryCatch(btl_equate(bfit(), bank), error = function(e) e)
+    tryCatch(btl_equate(bfit(), bank,
+                        independent = isTRUE(input$bt_eq_independent)),
+             error = function(e) e)
   })
   output$btl_eq_summary <- renderUI({
     req(!is.null(bt_eq_bank()))
     r <- bt_equate(); req(!inherits(r, "error"))
     p(class = "text-muted small mb-0 mt-2",
-      sprintf("Shift %.3f ± %.3f logits over %d common object%s.",
-              r$shift, r$shift_se, r$n_common,
+      sprintf("Shift %.3f ± %s logits over %d common object%s.",
+              r$shift,
+              if (is.finite(r$shift_se)) sprintf("%.3f", r$shift_se) else "withheld",
+              r$n_common,
               if (r$n_common == 1L) "" else "s"))
   })
   # surface a failed btl_equate() as its own message. need()'s `message` is
@@ -4250,14 +4274,17 @@ server <- function(input, output, session) {
     d <- bt_eq_ok()$table
     style_lo_red(num_dt(d), d, "p_adj", 0.05)
   }, code = function()
-    sprintf('bank <- read.csv(%s)  # columns: object, location, se\nbtl_equate(bt, bank)$table',
-            qstr(input$bt_eq_file$name %||% "reference.csv")))
+    sprintf('bank <- read.csv(%s)  # columns: object, location, se\nbtl_equate(bt, bank, independent = %s)$table',
+            qstr(input$bt_eq_file$name %||% "reference.csv"),
+            if (isTRUE(input$bt_eq_independent)) "TRUE" else "FALSE"))
   register_plot("btl_eq_plot", function() {
     bt_eq_ok()
-    plot_btl_equate(bfit(), bt_eq_bank())
+    plot_btl_equate(bfit(), bt_eq_bank(),
+                    independent = isTRUE(input$bt_eq_independent))
   }, w = 8, h = 6, code = function()
-    sprintf('bank <- read.csv(%s)\nplot_btl_equate(bt, bank)',
-            qstr(input$bt_eq_file$name %||% "reference.csv")))
+    sprintf('bank <- read.csv(%s)\nplot_btl_equate(bt, bank, independent = %s)',
+            qstr(input$bt_eq_file$name %||% "reference.csv"),
+            if (isTRUE(input$bt_eq_independent)) "TRUE" else "FALSE"))
   # hover identification for the equating plot: only drifting objects are
   # text-labelled (see plot_btl_equate(), R/btl-equating.R); bt_equate()$table
   # is the exact table plot_btl_equate() draws from (same fit1/fit2, no extra
@@ -4524,9 +4551,16 @@ server <- function(input, output, session) {
   })
   register_table("facet_int_tbl", function() facet_int(), function() {
     d <- facet_int()
-    d$significant <- ifelse(abs(d$gamma) > 1.96 * d$se, "*", "")
+    d$significant <- ifelse(d$significant %in% TRUE, "*", "")
     num_dt(d)
   }, code = function() "fit$interaction_effects")
+  register_table("facet_int_omnibus", function() {
+    f <- fit()
+    validate(need(inherits(f, "rasch_mfrm") && !is.null(f$interaction_test),
+                  "No interaction omnibus test is available."))
+    f$interaction_test
+  }, function() num_dt(fit()$interaction_test),
+  code = function() "fit$interaction_test")
 
   # ----------------------------------------------------------------- equating --
   eq_ref <- reactive({
@@ -4552,19 +4586,25 @@ server <- function(input, output, session) {
       eq_ref()
     }
   })
-  eq_res <- reactive(equate_tests(fit(), eq_reference(), shift = input$eq_shift))
+  eq_independent <- reactive(if (identical(input$eq_source, "kept"))
+    isTRUE(input$eq_kept_independent) else isTRUE(input$eq_csv_independent))
+  eq_res <- reactive(equate_tests(fit(), eq_reference(), shift = input$eq_shift,
+                                  independent = eq_independent()))
   register_table("eq_tbl", function() eq_res()$table, function() {
     d <- curate(eq_res()$table, "equate", full = isTRUE(input$eq_full))
     if ("drift" %in% names(d)) d$drift <- ifelse(d$drift, "*", "")
     num_dt(d)
   }, code = function()
-    sprintf('eq <- equate_tests(fit, reference, shift = "%s")\neq$table  # reference: data.frame(item, location, se) or another fit',
-            input$eq_shift %||% "mean"))
+    sprintf('eq <- equate_tests(fit, reference, shift = "%s", independent = %s)\neq$table  # reference: data.frame(item, location, se, max) or another fit',
+            input$eq_shift %||% "mean",
+            if (eq_independent()) "TRUE" else "FALSE"))
   register_plot("eq_plot", function()
-    plot_equate(fit(), eq_reference(), shift = input$eq_shift),
+    plot_equate(fit(), eq_reference(), shift = input$eq_shift,
+                independent = eq_independent()),
     code = function()
-      sprintf('plot_equate(fit, reference, shift = "%s")',
-              input$eq_shift %||% "mean"))
+      sprintf('plot_equate(fit, reference, shift = "%s", independent = %s)',
+              input$eq_shift %||% "mean",
+              if (eq_independent()) "TRUE" else "FALSE"))
   # hover identification for the equating plot: only drifting items are
   # text-labelled (see plot_equate(), R/equating.R); eq_res()$table is the
   # exact table plot_equate() draws from (same fit/reference/shift), so
@@ -4587,7 +4627,8 @@ server <- function(input, output, session) {
     content = function(file) {
       f <- fit()
       write.csv(data.frame(item = f$items$item, location = f$items$location,
-                           se = f$items$se), file, row.names = FALSE)
+                           se = f$items$se, max = f$items$max),
+                file, row.names = FALSE)
     })
 
   # ---------------------------------------------------------------- frames --
@@ -4859,6 +4900,7 @@ server <- function(input, output, session) {
     cat(sprintf("Verdict: %s\n", if (dt$multidimensional)
       "lower CI exceeds 5% - unidimensionality is questionable"
       else "consistent with unidimensionality"))
+    if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
     if (!is.null(dt$paired_t))
       cat(sprintf("Paired t-test of subset means: mean difference %.3f, t = %.2f (df %.0f), p = %s\n",
                   dt$paired_t$mean_difference, dt$paired_t$t,
@@ -4994,7 +5036,7 @@ server <- function(input, output, session) {
   register_hover_cormat("rcor_q3", q3_mat, "Q3")
   register_hover_cormat("rcor_q3s", q3s_mat, "Q3*")
   # the flag threshold (shared by both matrices' red highlighting); defaults to
-  # the conventional Q3* > 0.2 (Christensen, Makransky & Horton 2017)
+  # a heuristic starting value; there is no universal Q3* critical value
   ld_flag <- reactive({
     fl <- input$ld_flag
     if (is.null(fl) || is.na(fl) || fl <= 0) 0.2 else fl
@@ -5076,8 +5118,11 @@ server <- function(input, output, session) {
     anc <- if (length(input$guess_anchors)) input$guess_anchors else NULL
     r <- withProgress(message = "Tailored analysis (three re-analyses)…",
                       value = 0.3,
-                      tryCatch(tailored_analysis(f, chance = ch,
-                                                 anchor_items = anc),
+                      tryCatch(tailored_analysis(
+                        f, chance = ch, anchor_items = anc,
+                        se_method = if (isTRUE(input$guess_bootstrap))
+                          "bootstrap" else "none",
+                        boot_reps = as.integer(input$guess_boot_reps %||% 200)),
                                error = function(e) e))
     if (inherits(r, "error"))
       showNotification(paste("Tailored analysis failed:", conditionMessage(r)),
@@ -5094,11 +5139,13 @@ server <- function(input, output, session) {
                 r$chance, r$n_removed))
     cat("Anchor items for the common origin:",
         paste(r$anchor_items, collapse = ", "), "\n")
-    up <- sum(r$table$z > 1.96, na.rm = TRUE)
-    cat(sprintf("Items significantly harder in the tailored analysis (z > 1.96): %d of %d\n",
-                up, nrow(r$table)))
-    cat("Verdict:", if (up > 0) "guessing indicated"
-        else "no guessing signature", "\n")
+    if (identical(r$se_method, "bootstrap")) {
+      up <- sum(r$table$significant %in% TRUE & r$table$shift > 0)
+      cat(sprintf("Holm-adjusted positive shifts: %d of %d (%d usable bootstrap draws)\n",
+                  up, nrow(r$table), r$boot_reps_used))
+    } else {
+      cat("Item shifts are descriptive; enable the person bootstrap for uncertainty.\n")
+    }
   })
   register_table("guess_tbl", function() {
     r <- guess_res(); req(!is.null(r)); r$table
@@ -5109,22 +5156,26 @@ server <- function(input, output, session) {
     validate(need(!is.null(r), "Run the tailored analysis to see the comparison."))
     num_dt(r$table)
   }, code = function()
-    sprintf("ta <- tailored_analysis(fit, chance = %s)\nta$table",
-            clamp01(input$guess_chance, 0.25)))
+    sprintf("ta <- tailored_analysis(fit, chance = %s, se_method = \"%s\", boot_reps = %d)\nta$table",
+            clamp01(input$guess_chance, 0.25),
+            if (isTRUE(input$guess_bootstrap)) "bootstrap" else "none",
+            as.integer(input$guess_boot_reps %||% 200)))
   register_plot("guess_plot", function() {
     validate(need(max(fit()$m) == 1L,
                   "Run a dichotomous (multiple-choice) analysis to use the tailored guessing procedure."))
     r <- guess_res()
     validate(need(!is.null(r), "Run the tailored analysis to see the equating plot."))
-    plot_equate(r$tailored, r$origin_equated, shift = "none")
+    plot_equate(r$tailored, r$origin_equated, shift = "none",
+                independent = FALSE)
   }, code = function()
-    'plot_equate(ta$tailored, ta$origin_equated, shift = "none")')
+    'plot_equate(ta$tailored, ta$origin_equated, shift = "none", independent = FALSE)')
   # hover identification: same equate_tests() table plot_equate() computes
   # internally from ta$tailored vs ta$origin_equated (shift = "none"); only
   # drifting items are text-labelled on the plot.
   guess_eq_res <- reactive({
     r <- guess_res(); req(!is.null(r))
-    equate_tests(r$tailored, r$origin_equated, shift = "none")
+    equate_tests(r$tailored, r$origin_equated, shift = "none",
+                 independent = FALSE)
   })
   register_hover_tip("guess_plot", function() guess_eq_res()$table,
     "location_2", "location_1", function(np)

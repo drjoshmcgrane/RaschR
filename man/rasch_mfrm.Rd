@@ -54,6 +54,8 @@ negative score is also treated as missing.}
 \code{gamma[item, level]} with double sum-to-zero constraints on top of
 the additive severities, so each level may be more or less severe on
 particular items; estimates are returned in \code{interaction_effects}.
+The joint family is tested in \code{interaction_test}; cell p-values in
+\code{interaction_effects} are Holm-adjusted exploratory follow-ups.
 The interactive model remains in the Rasch class (all discriminations
 equal one and the parameters are additive), but a significant
 interaction qualifies specific objectivity in practice: comparisons of
@@ -71,12 +73,14 @@ item-by-facet interaction (\code{interaction=}).}
 }
 \value{
 An object of classes \code{"rasch_mfrm"} and \code{"rasch"}. In
-  addition to every component of a \code{\link{rasch}} fit (computed over
-  the virtual items), it carries \code{facet_effects} (per facet: level,
+  addition to the standard \code{\link{rasch}} components (computed
+  over the virtual items), it carries \code{facet_effects} (per facet: level,
   severity, standard error, observation count, pooled fit),
   \code{item_effects} (underlying item locations and pooled fit),
   \code{item_thresholds} (the structural \code{delta_ik} with standard
-  errors), and \code{facet_spec}. Two fit residuals are reported per
+  errors), and \code{facet_spec}. Interactive fits add the omnibus
+  family test in \code{interaction_test}, with the Holm-adjusted
+  exploratory cells in \code{interaction_effects}. Two fit residuals are reported per
   facet level and per underlying item. \code{fit_resid} is the
   facet-margin statistic of the published three-facet fit tables
   (Andrich and Marais 2019, ch. 26 and app. C), the mean of the
@@ -101,9 +105,48 @@ errors and pooled fit statistics; the returned object is also a full
 \code{\link{rasch}} fit at the virtual-item level, so every diagnostic
 table and plot in the package applies to it.
 }
+\details{
+For person \eqn{n}, item \eqn{i}, and facet levels
+\eqn{f_1,\ldots,f_Q}, the additive model is
+\deqn{P(X_{ni\boldsymbol f}=x)=\frac{\exp\{x\theta_n-
+  \sum_{k=1}^{x}[\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}]\}}
+  {\sum_{y=0}^{m_i}\exp\{y\theta_n-
+  \sum_{k=1}^{y}[\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}]\}}.}
+Positive facet values therefore denote greater severity. The item
+thresholds have a common sum-zero origin and the levels of each facet sum
+to zero. If \code{interaction} is requested, an item-by-level term is
+added with both its item and facet margins constrained to sum to zero.
+
+Estimation constructs one virtual item for every observed item-by-facet
+combination. Its thresholds equal the corresponding item thresholds plus
+the relevant facet severities and, where requested, the interaction term.
+This structural mapping is imposed directly in pairwise conditional maximum
+likelihood; person parameters cancel before estimation. The reported item,
+facet, and interaction parameters are recovered from the fitted structural
+coefficients. Their covariance is the Godambe sandwich covariance from the
+pairwise likelihood, transformed through the same structural mapping.
+
+Identification requires more than the presence of every nominal level.
+Facet levels must share items and persons with the rest of the design, and
+informative co-observations must connect the virtual-item blocks. A facet
+nested within an item or within a person-disjoint block can be confounded
+with item location even when every level has observations. The function
+checks the rank of the structural design and whether disconnected response
+blocks admit an unidentified relative shift, and stops rather than report
+an arbitrary decomposition.
+
+Item-by-facet interaction does not introduce unequal discriminations, but
+it makes comparisons among levels of the interacting facet item-dependent.
+A material interaction therefore qualifies the practical claim of
+invariance and should be reported as such.
+}
 \examples{
 set.seed(1)
-simP <- function(th, tau) { x <- 0:length(tau); p <- exp(x * th - c(0, cumsum(tau))); p / sum(p) }
+simP <- function(th, tau) {
+  x <- 0:length(tau)
+  p <- exp(x * th - c(0, cumsum(tau)))
+  p / sum(p)
+}
 persons <- sprintf("P\%03d", 1:120); raters <- paste0("R", 1:4)
 th <- setNames(rnorm(120, 0, 1.3), persons)
 rho <- setNames(c(-0.6, -0.2, 0.2, 0.6), raters)
@@ -111,8 +154,15 @@ tau <- list(A = c(-1, 1), B = c(-0.5, 1.2), C = c(-1.2, 0.4))
 d <- expand.grid(person = persons, item = names(tau), rater = raters,
                  stringsAsFactors = FALSE)
 d$score <- mapply(function(p, i, r)
-  sample(0:2, 1, prob = simP(th[p], tau[[i]] + rho[r])), d$person, d$item, d$rater)
+  sample(0:2, 1, prob = simP(th[p], tau[[i]] + rho[r])),
+  d$person, d$item, d$rater)
 fit <- rasch_mfrm(d, person = "person", item = "item", score = "score",
                   facets = "rater")
 fit$facet_effects$rater
+}
+\references{
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Linacre, J. M. (1989). Many-Facet Rasch Measurement. Chicago: MESA Press.
 }

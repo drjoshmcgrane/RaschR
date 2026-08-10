@@ -189,16 +189,25 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                   check.names = FALSE), "residual_correlations")
   wtab(rc$pairs, "q3_statistics")
   if (nrow(rc$flagged)) wtab(rc$flagged, "local_dependence_flagged")
-  pc <- residual_pca(fit)
-  wtab(pc$loadings_matrix, "pca_loadings")
-  wtab(pc$eigen_table, "residual_eigenvalues")
+  # residual PCA refuses structurally disjoint designs (extended-frame
+  # groups, facet cells) -- record the reason instead of failing the export
+  pc <- tryCatch(residual_pca(fit), error = function(e)
+    structure(list(msg = conditionMessage(e)), class = "rr_pca_refusal"))
+  if (inherits(pc, "rr_pca_refusal")) {
+    wtab(data.frame(note = pc$msg), "pca_loadings")
+  } else {
+    wtab(pc$loadings_matrix, "pca_loadings")
+    wtab(pc$eigen_table, "residual_eigenvalues")
+  }
   cf <- do.call(rbind, lapply(fit$thresholds_diag, function(d)
     data.frame(item = d$item, category = seq_along(d$category_counts) - 1L,
                count = d$category_counts)))
   wtab(cf, "category_frequencies")
-  gt <- guttman_table(fit)
-  wtab(data.frame(id = rownames(gt$matrix), gt$matrix, check.names = FALSE),
-       "guttman_ordered_responses")
+  if (all(fit$m == 1L)) {
+    gt <- guttman_table(fit)
+    wtab(data.frame(id = rownames(gt$matrix), gt$matrix, check.names = FALSE),
+         "guttman_ordered_responses")
+  }
   if (!is.null(fit$mc)) wtab(distractor_analysis(fit), "distractor_analysis")
   if (inherits(fit, "rasch_mfrm")) {
     wtab(fit$item_effects, "item_effects")
@@ -240,9 +249,10 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     cat(sprintf("\nUnidimensionality t-test: %.1f%% significant (exact 95%% CI %.1f%% to %.1f%%), %s\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
                 if (dt$multidimensional) "MULTIDIMENSIONAL" else "consistent with one dimension"))
-  }
-  cat(sprintf("Average residual correlation: %.3f; %d flagged dependent pair(s)\n",
-              rc$average, nrow(rc$flagged)))
+    if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
+  } else cat("\nUnidimensionality t-test:", dt$note, "\n")
+  cat(sprintf("Average residual correlation: %.3f; binary Q3 flags withheld (no universal critical value)\n",
+              rc$average))
   if (!is.null(ctt))
     cat(sprintf("Traditional statistics (complete cases n = %d): raw mean %.2f, SD %.2f, alpha %.3f, SEM %.2f\n",
                 ctt$n, ctt$mean, ctt$sd, ctt$alpha, ctt$sem))
@@ -262,7 +272,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   sp(function() plot_resid_cor(fit), "residual_correlations")
   sp(function() plot_pca(fit), "pca_loadings")
   sp(function() plot_scree(fit), "scree")
-  sp(function() plot_guttman(fit), "guttman_scalogram")
+  if (all(fit$m == 1L))
+    sp(function() plot_guttman(fit), "guttman_scalogram")
   sp(function() plot_resid_dist(fit, "items"), "item_residual_distribution")
   sp(function() plot_resid_dist(fit, "persons"), "person_residual_distribution")
   if (inherits(fit, "rasch_mfrm")) {
@@ -444,10 +455,12 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   rc <- residual_correlations(fit)
   dt <- dimensionality_test(fit)
   dim_html <- if (is.null(dt$note))
-    sprintf("<p>%.1f%% of person subset t-tests significant (95%% CI %.1f-%.1f%%): %s.</p>",
+    paste0(sprintf("<p>%.1f%% of person subset t-tests significant (95%% CI %.1f-%.1f%%): %s.</p>",
             100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
             if (dt$multidimensional) "<span class='flag'>evidence of multidimensionality</span>"
-            else "consistent with one dimension")
+            else "consistent with one dimension"),
+           if (!is.null(dt$caution))
+             sprintf("<p class='note'>%s</p>", esc(dt$caution)) else "")
   else sprintf("<p class='note'>%s</p>", esc(dt$note))
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
 
@@ -491,8 +504,9 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     "<h2>Dimensionality</h2>", dim_html,
     shot(function() plot_scree(fit), "scree"),
     "<h2>Local dependence</h2>",
-    sprintf("<p>Average residual correlation %.3f; %d flagged pair(s).</p>",
-            rc$average, nrow(rc$flagged)),
+    sprintf(paste0("<p>Average residual correlation %.3f; binary Q3 flags ",
+                   "withheld because there is no universal critical value.</p>"),
+            rc$average),
     if (nrow(rc$flagged)) .html_table(rc$flagged) else "",
     shot(function() plot_resid_cor(fit), "residcor"),
     if (!is.null(ctt)) s("<h2>Classical companions</h2>",

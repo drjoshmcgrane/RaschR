@@ -30,9 +30,9 @@ units across their levels (1 = equal units, i.e. an ordinary Rasch fit).}
 \item{seed}{Optional RNG seed.}
 }
 \value{
-A wide data frame of class \code{"rasch_sim"} (\code{id}, item
-  columns, \code{group}) with \code{attr(x, "truth")$item_sets} the set map
-  to pass to \code{\link{rasch_efrm}}.
+A wide data frame of class \code{"rasch_sim"}, containing an ID,
+  item columns, and group. Its truth attribute contains the item-set map
+  required by \code{\link{rasch_efrm}}.
 }
 \description{
 Generates data whose latent unit differs across item-set by person-group

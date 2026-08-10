@@ -2,9 +2,9 @@
 % Please edit documentation in R/btl-independence.R
 \name{btl_dimensionality}
 \alias{btl_dimensionality}
-\title{Residual dimensionality of paired comparisons}
+\title{Experimental residual dimensionality of paired comparisons}
 \usage{
-btl_dimensionality(fit, reps = 50L)
+btl_dimensionality(fit, reps = 200L)
 }
 \arguments{
 \item{fit}{A paired-comparison fit from \code{\link{btl}}.}
@@ -29,8 +29,10 @@ rotational planes -- Gower's (1977) bimensions -- rather than the ordinary
 components of a symmetric residual-correlation matrix. A dominant leading
 bimension is a coherent \dQuote{swirl} in the residuals (A over-beats B, B
 over-beats C, C over-beats A): a second attribute steering some contests. A
-flat spectrum is noise: the single scale suffices. The leading bimension is
-judged against a reference built by simulating unidimensional data from the
+flat spectrum is compatible with the conditional reference. This is an
+experimental diagnostic extension rather than a published calibrated BTL
+dimensionality test. The leading bimension is compared with a reference
+built by simulating unidimensional data from the
 fitted model with the observed pair counts (a parametric bootstrap, as in
 \code{\link{plot_scree}}); an observed strength above the reference is
 structure the one-dimensional model does not explain. For graded fits the
@@ -40,7 +42,7 @@ carries the same construction, so the test stays calibrated (verified
 mildly conservative on model-true graded data) rather than anticonservative.
 Likewise, when the fit carries within-judge dependence effects
 (\code{order}), the reference is simulated sequentially through each
-judge's comparisons WITH the fitted exposure and carry-over coefficients:
+judge's comparisons with the fitted exposure and carry-over coefficients:
 order effects push the marginal pair rates around in a structured way, and
 a reference without them would read that structure as a second attribute.
 The price is power: carry-over and a judge-camp second attribute are
@@ -49,20 +51,22 @@ so with \code{order} modelled the test is conservative about attributing
 the ambiguous share to a second dimension.
 The reference simulates from the point estimates without refitting each
 replicate, so it carries sampling noise in the responses but not
-estimation noise in the parameters -- adequate for the screening use
-here, slightly liberal in tiny designs.
+estimation noise in the parameters. Results are therefore descriptive and
+conditional on the fitted point estimates. A categorical verdict is also
+withheld when any object pair is unseen, because assigning zero residual to
+an unobserved pair would confuse missing information with model fit.
 }
 \details{
 Shared comparison order and \code{order} effects. The order-aware
 reference is trustworthy only when the comparison order varies across
-judges. If every judge is given the SAME fixed comparison sequence (a
+judges. If every judge is given the same fixed comparison sequence (a
 standard printed booklet, a fixed competition running order), a real
 within-judge order effect is confounded with the object locations -- the
 fitted order coefficient attenuates, the locations absorb the structured
 order signal, and the reference reads the residue as a second dimension.
 This is detected automatically (from the concentration of pairs at each
 sequence position across judges) and the second-dimension verdict is
-WITHHELD (\code{above_reference} is \code{NA}, with a note), because the
+withheld (\code{above_reference} is \code{NA}, with a note), because the
 design does not identify a second dimension separately from the order
 effect. Randomise the comparison order across judges to test
 dimensionality with an order effect present.

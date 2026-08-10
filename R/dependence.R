@@ -148,6 +148,9 @@ print.rasch_dependence <- function(x, ...) {
 #'   \code{lub} (available for maximum scores 2 to 8), \code{z} =
 #'   (spread - lub)/se, and \code{dependent} = spread below the bound.
 #'   Dichotomous items carry no spread and are omitted.
+#' @references
+#' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+#' Measuring in the Educational, Social and Health Sciences. Springer.
 #' @examples
 #' set.seed(1); N <- 600
 #' d0 <- seq(-1.5, 1.5, length.out = 8)

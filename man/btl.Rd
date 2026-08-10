@@ -44,7 +44,10 @@ adjacent-categories ordinal extension of BTL (Tutz 1986; Agresti
 1992): a partial-credit structure on the difference of locations with
 thresholds constrained symmetric, \code{tau_k = -tau_(m+1-k)}, so the
 model is invariant to presentation order. Two categories reproduce
-BTL exactly; three give the Davidson (1970) ties model.}
+BTL exactly. Three categories have the Davidson (1970) probability
+structure after mapping the Davidson endpoint log-strength to
+\code{2 * beta}; the reported \code{beta} therefore uses the
+adjacent-category rather than endpoint-log-odds unit.}
 
 \item{margin}{Optional name of a column holding the extent of the win
 ("a little", "much", ...), as an ordered factor or increasing values;
@@ -123,7 +126,11 @@ A list of class \code{"rasch_btl"}: \code{objects} (location, se,
   \code{osi}, \code{loglik}, \code{cl} (the composite-likelihood
   information ingredients used by \code{\link{compare_fits}}: the Godambe
   effective parameter count and the independent-unit count),
-  convergence details, and \code{notes}.
+  convergence details, and \code{notes}. With judge clustering,
+  covariance-based inference (including the Godambe information criteria,
+  standard errors, dependence tests, DIF, and OSI) is withheld unless
+  there are at least 10 judges and more judges than fitted parameters.
+  Point estimates and descriptive fit remain.
   Graded fits add \code{thresholds} (the symmetric threshold estimates
   with standard errors), \code{m}, and \code{categories}. With an
   \code{order} column the within-judge \code{dependence} effects table

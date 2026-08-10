@@ -19,3 +19,11 @@ Bimension strengths against the model-simulated noise reference (its mean
 and 95th percentile band). A leading bar clearing the band is structured
 residual dependence -- a likely second attribute.
 }
+\examples{
+\donttest{
+d <- simulate_btl(7, 12, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+dimensions <- btl_dimensionality(fit, reps = 20)
+plot_btl_scree(dimensions)
+}
+}

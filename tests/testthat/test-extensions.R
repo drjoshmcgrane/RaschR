@@ -124,6 +124,15 @@ test_that("Guttman reproducibility is high for near-deterministic data", {
   expect_equal(colnames(g$matrix), rasch(X)$items$item[order(rasch(X)$items$location)])
 })
 
+test_that("the whole-item Guttman display rejects polytomous scales", {
+  set.seed(101)
+  X <- matrix(sample(0:2, 600, replace = TRUE), 100, 6,
+              dimnames = list(NULL, paste0("P", 1:6)))
+  fit <- rasch(X)
+  expect_error(guttman_table(fit), "dichotomous items only")
+  expect_error(plot_guttman(fit), "dichotomous items only")
+})
+
 test_that("subtests absorb local dependence", {
   set.seed(1); Np <- 1200; L <- 12
   dl <- scale(seq(-2, 2, length.out = L), scale = FALSE)[, 1]
@@ -133,14 +142,14 @@ test_that("subtests absorb local dependence", {
   X[, 5] <- ifelse(runif(Np) < 0.9, X[, 4], X[, 5])
 
   fit <- rasch(X)
-  fl <- residual_correlations(fit)$flagged
+  fl <- residual_correlations(fit, flag = 0.2)$flagged
   expect_true(any(fl$item_a == "U04" & fl$item_b == "U05"))
 
   fit2 <- combine_items(fit, list(c("U04", "U05")))
   expect_true("U04+U05" %in% fit2$items$item)
   expect_equal(ncol(fit2$X), L - 1)
   expect_equal(fit2$items$max[fit2$items$item == "U04+U05"], 2)
-  fl2 <- residual_correlations(fit2)$flagged
+  fl2 <- residual_correlations(fit2, flag = 0.2)$flagged
   expect_false(any(grepl("U04", fl2$item_a) | grepl("U04", fl2$item_b)))
   expect_true(any(grepl("subtest formed", fit2$notes)))
   expect_error(combine_items(fit, list("U01")), "at least two")

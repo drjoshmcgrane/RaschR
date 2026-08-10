@@ -29,3 +29,10 @@ the object the judge's verdict favoured, hollow the other -- so an upset is a
 red segment on the left with its filled dot at the lower end. The rug marks
 every object's location.
 }
+\examples{
+\donttest{
+d <- simulate_btl(6, 10, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+plot_btl_judge_map(fit, judge = "J1")
+}
+}

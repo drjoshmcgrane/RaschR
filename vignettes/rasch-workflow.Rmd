@@ -1,0 +1,112 @@
+---
+title: "A Rasch analysis workflow"
+author: "Josh McGrane"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{A Rasch analysis workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.width = 7, fig.height = 4.2)
+options(digits = 4)
+```
+
+```{r library}
+library(rasch)
+```
+
+The same principal workflow is available through the package's point-and-click
+Shiny application. Run `rasch::run_app()` after installation to import data,
+choose a model, inspect diagnostics, and export results without writing R
+analysis code. The application shows the corresponding R call for each
+analysis; this article explains the same decisions in their command-line form.
+
+## Fit the model required by the scoring structure
+
+`rasch` fits the partial credit model by default. Dichotomous data are its
+one-threshold special case. Set `model = "RSM"` only when the same category
+threshold structure is intended to hold across items.
+
+The example uses simulated data so that the complete workflow is reproducible.
+With observed data, inspect the coding and frequency of every category before
+fitting the model. Negative scores are read as missing; valid categories begin
+at zero.
+
+```{r fit}
+d <- simulate_rasch(n_persons = 400, n_items = 10, seed = 17)
+fit <- rasch(d, id = "id")
+fit
+```
+
+## Read fit and targeting together
+
+Item fit is not a single pass-or-fail decision. Examine the direction and size
+of residual misfit, the item-trait interaction, category thresholds, and the
+substantive content of an item. Targeting determines how much information the
+scale supplies over the observed person distribution.
+
+```{r summaries}
+fit_summary_table(fit)
+targeting_table(fit)
+fit$threshold_diagnostics
+head(test_information(fit))
+```
+
+```{r targeting, fig.alt = "Person and item distributions on the common logit scale."}
+plot_pimap(fit)
+```
+
+## Check invariance, independence, and dimensionality
+
+Person factors should be nominated in the fit and tested jointly with
+`dif_anova`. Residual correlations and the dimensionality test address local
+independence and the adequacy of one measurement dimension. They are evidence
+to investigate, not automatic instructions to delete or combine items.
+
+```{r structure}
+head(residual_correlations(fit))
+dimensionality_test(fit)
+```
+
+Binary residual-correlation flags require an analyst-supplied heuristic
+threshold because adjusted Q3 has no universal critical value. The
+dimensionality test also withholds a categorical verdict unless each opposed
+subtest contains at least 15 score points; this is preferable to treating a
+short, low-information split as evidence for or against one dimension.
+
+## Link calibrations through common items
+
+Two separately fitted tests can be aligned through their common items. Drift
+tests are meaningful only when the calibrations use independent sampling
+units; state this rather than allowing the software to assume it.
+
+```{r equating-example, eval = FALSE}
+eq <- equate_tests(current_fit, reference_fit, independent = TRUE)
+eq$table
+```
+
+A saved item bank needs more than marginal standard errors for drift
+inference. Its joint item-location covariance carries the dependence created
+by the fitted origin and is attached as `attr(bank, "cov_location")`, in bank
+row order or named by item. Without that matrix, the package still estimates
+the origin shift and reports the link descriptively. A bank intended to be
+fixed may instead use zero standard errors. For polytomous items, include the
+maximum score in a `max` column so that scoring-scale compatibility can be
+checked.
+
+## Report the final calibration
+
+After any substantively defensible change, refit and repeat the diagnostic
+sequence. A report should state the model, scoring and missing-data rules,
+sample and item exclusions, targeting, item and person fit, threshold
+functioning, dependence, dimensionality, DIF, reliability, and the uncertainty
+of person estimates. The score table supplies the complete-response conversion
+from raw score to logits.
+
+```{r reporting}
+score_table(fit)
+fit$psi
+```

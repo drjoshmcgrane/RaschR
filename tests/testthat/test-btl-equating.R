@@ -27,7 +27,11 @@ test_that("btl_equate recovers the origin shift and flags nothing when no object
 
   f1 <- sim_panel(set1, beta)
   f2 <- sim_panel(set2, beta)
-  eq <- btl_equate(f1, f2)
+  withheld <- btl_equate(f1, f2)
+  expect_false(withheld$inferential)
+  expect_true(all(is.na(withheld$table$p)))
+  expect_match(paste(withheld$notes, collapse = " "), "independence")
+  eq <- btl_equate(f1, f2, independent = TRUE)
 
   expect_s3_class(eq, "rasch_btl_equate")
   expect_equal(eq$n_common, 7L)
@@ -67,7 +71,7 @@ test_that("btl_equate flags a planted drift and essentially only that object", {
 
   f1 <- sim_panel(set1, beta)
   f2 <- sim_panel(set2, beta2)
-  eq <- btl_equate(f1, f2)
+  eq <- btl_equate(f1, f2, independent = TRUE)
 
   drift <- setNames(eq$table$drifting, eq$table$object)
   expect_true(drift["O4"])                       # the planted object flags
@@ -76,7 +80,7 @@ test_that("btl_equate flags a planted drift and essentially only that object", {
   expect_equal(eq$table$object[which.max(abs(eq$table$t))], "O4")
 })
 
-test_that("a bank built from fit1's own objects equates to a zero shift with no drift", {
+test_that("a bank link is descriptive without its joint covariance", {
   set.seed(22)
   objs <- paste0("O", 1:8)
   beta <- setNames(seq(-1.8, 1.8, length.out = 8), objs)
@@ -92,8 +96,16 @@ test_that("a bank built from fit1's own objects equates to a zero shift with no 
   eq <- btl_equate(f1, bank)
 
   expect_lt(abs(eq$shift), 1e-8)
-  expect_equal(sum(eq$table$drifting), 0L)
+  expect_false(eq$inferential)
+  expect_true(all(is.na(eq$table$drifting)))
+  expect_match(paste(eq$notes, collapse = " "), "joint object-location covariance")
   expect_equal(eq$n_common, nrow(f1$objects))
+
+  # A separately calibrated bank can carry the full covariance explicitly.
+  attr(bank, "cov_location") <- f1$cov_beta
+  eq_cov <- btl_equate(f1, bank, independent = TRUE)
+  expect_true(eq_cov$inferential)
+  expect_equal(sum(eq_cov$table$drifting), 0L)
 })
 
 test_that("btl_equate guards fewer than three common objects and non-btl input", {
@@ -111,6 +123,14 @@ test_that("btl_equate guards fewer than three common objects and non-btl input",
                       location = c(-1, -0.5, 0.5, 1),
                       se = rep(0.2, 4), stringsAsFactors = FALSE)
   expect_error(btl_equate(f1, bank2), "three common")
+
+  bank_dup <- rbind(
+    data.frame(object = f1$objects$object, location = f1$objects$location,
+               se = f1$objects$se),
+    data.frame(object = f1$objects$object[1], location = 0, se = 0.2))
+  expect_error(btl_equate(f1, bank_dup), "must be unique")
+  expect_error(btl_equate(f1, bank_dup[!duplicated(bank_dup$object), ],
+                           independent = 1), "NULL, TRUE, or FALSE")
 
   # non-btl fit1
   expect_error(btl_equate(42, bank2), "btl")
@@ -138,7 +158,7 @@ test_that("plot_btl_equate draws without error", {
 
   pdf(NULL)
   on.exit(dev.off())
-  res <- plot_btl_equate(f1, f2)
+  res <- plot_btl_equate(f1, f2, independent = TRUE)
   expect_s3_class(res, "rasch_btl_equate")
 
   # print method exercises its formatting path too

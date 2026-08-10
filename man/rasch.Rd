@@ -23,7 +23,8 @@ rasch(
 \arguments{
 \item{data}{Persons-by-items integer score matrix (categories from 0), or a
 data frame also containing ID and person-factor columns. Missing values
-are allowed.}
+are allowed subject to the identification and ignorability conditions
+described above.}
 
 \item{model}{Either \code{"PCM"} (partial credit) or \code{"RSM"} (rating
 scale).}
@@ -78,29 +79,22 @@ evidence-based proposal. Raw responses are retained in \code{fit$mc}
 for \code{\link{distractor_analysis}} and
 \code{\link{plot_distractors}}.}
 
-\item{pc_components}{\code{NULL} (default) estimates every PCM threshold
-freely. An integer 1 to 4 instead estimates each item's thresholds
-through the Andrich principal-components reparameterisation (see
-\code{\link{pcml_pc}}): 1 = location only, 2 = + spread (the dispersion
-model of Andrich 1982), 3 = + skewness, 4 = + kurtosis (the full
-principal-components model; Pedler 1987). Useful when some categories are sparsely
-populated; the component estimates are returned in
-\code{fit$est$components}. PCM only, and not combinable with anchors.}
+\item{pc_components}{\code{NULL} (the default) estimates all PCM thresholds
+freely. Values from 1 to 4 use the principal-components form in
+\code{\link{pcml_pc}}: location, then spread, skewness, and kurtosis.
+This can stabilise sparse categories. Component estimates are stored in
+the estimation details. Available for PCM fits without anchors.}
 
 \item{maxit, tol}{Newton-Raphson iteration cap and convergence
 tolerance of the pairwise conditional estimation.}
 }
 \value{
-An object of class \code{"rasch"}: a list with the item summary
-  (\code{items}), \code{thresholds} (with standard errors), the person
-  table (\code{person}, including ID and factors), the score table,
-  residuals, reliability (\code{psi}, \code{psi_noext}, the item
-  separation index \code{isi}, \code{alpha}), targeting, item-trait
-  statistics (\code{item_trait}, \code{item_anova}), the
-  summary distribution block (\code{summary_stats}: location and fit
-  residual mean/SD/skewness/kurtosis, fit-location correlations, and the
-  cell degrees-of-freedom factor), threshold diagnostics, and estimation
-  details (\code{est}).
+An object of class \code{"rasch"}. Its principal components are
+  the item summary, threshold table, person table, score table, residuals,
+  reliability, targeting, item-trait statistics, threshold diagnostics,
+  and estimation details. The component \code{summary_stats} contains the
+  distribution summaries, fit-location correlations, and the cell
+  degrees-of-freedom factor.
 }
 \description{
 Runs a complete Rasch analysis: Andrich and Luo pairwise conditional
@@ -142,6 +136,15 @@ flagging misfit -- not exactly calibrated hypothesis tests; where exact
 calibration matters, use the simulation tools
 (\code{\link{sim_replicate}}) to build parametric-bootstrap reference
 distributions for the observed design.
+
+Missing responses are omitted from the pairwise contributions and person
+estimates are computed for each observed item pattern. This supports
+planned linked designs and ignorable response missingness when the
+co-observation graph identifies one scale. It does not make informative
+missingness harmless: if response availability depends on an unmodelled
+response or person process, item and person estimates can be biased. The
+missingness mechanism and design connectedness therefore remain part of
+the substantive analysis.
 }
 \examples{
 set.seed(1)
@@ -151,4 +154,15 @@ colnames(X) <- paste0("I", 1:8)
 fit <- rasch(X, model = "PCM")
 fit$items
 fit$psi$PSI
+}
+\references{
+Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205--221.
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. Psychometrika, 54(3), 427--450.
 }

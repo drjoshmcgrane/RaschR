@@ -20,12 +20,20 @@
 #' unlike the Rasch SE is one value for all persons.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
+#' @param missing \code{"complete"} (default) computes the classical table on
+#'   respondents who answered every item, matching the textbook total-score
+#'   definitions. \code{"available"} retains itemwise and pairwise available
+#'   cases as an explicitly exploratory summary; respondents answering
+#'   different item sets need not be comparable.
 #' @return A list of class \code{"rasch_ctt"}: the per-item \code{table}
 #'   (\code{item}, \code{n}, \code{min}, \code{max}, \code{facility},
 #'   \code{item_total}, \code{item_rest}, \code{di}, \code{alpha_drop}), and
 #'   the scalars
 #'   \code{alpha}, \code{n} (complete cases), \code{mean}, \code{sd}, and
 #'   \code{sem}.
+#' @references
+#' Cronbach, L. J. (1951). Coefficient alpha and the internal structure of
+#' tests. Psychometrika, 16, 297--334.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-2, 2, length.out = 8)
@@ -33,27 +41,62 @@
 #' colnames(X) <- paste0("I", 1:8)
 #' ctt_table(rasch(X))
 #' @export
-ctt_table <- function(fit) {
-  X <- fit$X
+ctt_table <- function(fit, missing = c("complete", "available")) {
+  missing <- match.arg(missing)
+  Xall <- fit$X
+  X <- if (missing == "complete")
+    Xall[stats::complete.cases(Xall), , drop = FALSE] else Xall
   L <- ncol(X)
   n_i <- colSums(!is.na(X))
-  if (all(n_i < 3)) stop("fewer than 3 responses per item: no traditional statistics")
-  # available-case statistics: each person's total is their proportion of
-  # the maximum over the items they answered, so persons with different
-  # answered sets remain comparable; with complete data every statistic
-  # reduces exactly to its textbook complete-case form
+  if (all(n_i < 3)) {
+    tab <- data.frame(item = colnames(X), n = n_i, min = NA_real_,
+                      max = fit$m, facility = NA_real_, item_total = NA_real_,
+                      item_rest = NA_real_, di = NA_real_,
+                      alpha_drop = NA_real_)
+    out <- list(table = tab, alpha = NA_real_, n = nrow(X),
+                n_range = range(n_i), mean = NA_real_, sd = NA_real_,
+                sem = NA_real_, missing = missing,
+                note = if (missing == "complete")
+                  "fewer than 3 complete responders: classical statistics withheld"
+                else "fewer than 3 usable responses per item: classical statistics withheld")
+    class(out) <- "rasch_ctt"
+    return(out)
+  }
+  # Under available-case mode, total proportions and pairwise covariances are
+  # exploratory because different answered sets can differ in difficulty.
   Mmat <- matrix(rep(fit$m, each = nrow(X)), nrow(X), L)
   Mmat[is.na(X)] <- NA
   tot_p <- rowSums(X, na.rm = TRUE) / rowSums(Mmat, na.rm = TRUE)
-  thirds <- cut(rank(tot_p, ties.method = "first"), 3, labels = FALSE)
-  alpha <- fit$alpha$alpha
+  thirds <- rep(NA_integer_, nrow(X))
+  has_total <- is.finite(tot_p)
+  if (sum(has_total) >= 3L)
+    thirds[has_total] <- cut(rank(tot_p[has_total], ties.method = "first"),
+                             3, labels = FALSE)
   # pairwise covariance carries the alpha-if-deleted computation under
-  # missing data (equal to the variance form when data are complete)
+  # missing data (equal to the variance form when data are complete). A
+  # pairwise-complete covariance need not be positive semidefinite, and a
+  # near-zero total covariance turns the alpha formula into an absurd
+  # number (an observed case printed alpha = -257): alpha is a ratio of
+  # variances, so it is only reported when C is a valid covariance matrix
+  # with a non-degenerate total
   C <- suppressWarnings(stats::cov(X, use = "pairwise.complete.obs"))
+  csum <- sum(C, na.rm = TRUE)
+  dsum <- sum(diag(C), na.rm = TRUE)
+  C_ok <- !anyNA(C) && {
+    ev <- eigen((C + t(C)) / 2, symmetric = TRUE, only.values = TRUE)$values
+    # tolerate the small numerical non-PSD-ness ordinary pairwise deletion
+    # produces; refuse MATERIAL indefiniteness (and, via anyNA, any pair
+    # with no respondents in common, whose covariance does not exist)
+    min(ev) >= -1e-2 * max(1, max(abs(ev)))
+  } && is.finite(csum) && csum > 0.05 * dsum
+  alpha <- if (L > 1L && C_ok)
+    L / (L - 1L) * (1 - dsum / csum) else NA_real_
   min_i <- suppressWarnings(vapply(seq_len(L), function(i)
     if (n_i[i] == 0) NA_real_ else min(X[, i], na.rm = TRUE), 0))
+  facility <- colMeans(X, na.rm = TRUE) / fit$m
+  facility[n_i == 0L] <- NA_real_
   tab <- data.frame(item = colnames(X), n = n_i, min = min_i, max = fit$m,
-                    facility = colMeans(X, na.rm = TRUE) / fit$m,
+                    facility = facility,
                     item_total = NA_real_, item_rest = NA_real_,
                     di = NA_real_, alpha_drop = NA_real_)
   for (i in seq_len(L)) {
@@ -67,10 +110,10 @@ ctt_table <- function(fit) {
       if (sum(hi) >= 2 && sum(lo) >= 2)
         tab$di[i] <- mean(x[hi]) / fit$m[i] - mean(x[lo]) / fit$m[i]
     }
-    if (L > 2) {
+    if (L > 2 && C_ok) {
       Cr <- C[-i, -i, drop = FALSE]
       sr <- sum(Cr, na.rm = TRUE)
-      if (is.finite(sr) && sr > 0)
+      if (is.finite(sr) && sr > 0.05 * sum(diag(Cr)))
         tab$alpha_drop[i] <- (L - 1) / (L - 2) *
           (1 - sum(diag(Cr), na.rm = TRUE) / sr)
     }
@@ -82,16 +125,28 @@ ctt_table <- function(fit) {
               n_range = range(n_i),
               mean = if (sum(cc) >= 3) mean(tot_cc) else NA_real_,
               sd = if (sum(cc) >= 3) stats::sd(tot_cc) else NA_real_,
-              sem = if (is.finite(alpha) && sum(cc) >= 3)
-                stats::sd(tot_cc) * sqrt(1 - alpha) else NA_real_)
+              sem = if (is.finite(alpha) && alpha <= 1 && sum(cc) >= 3)
+                stats::sd(tot_cc) * sqrt(1 - alpha) else NA_real_,
+              missing = missing,
+              note = {
+                nt <- c(
+                  if (missing == "available") paste(
+                    "available-case item statistics are exploratory; persons",
+                    "answering different item sets are not necessarily comparable"),
+                  if (missing == "available" && !C_ok) paste(
+                    "alpha withheld: the pairwise covariance under this",
+                    "missingness is not a valid (positive semidefinite,",
+                    "non-degenerate) covariance matrix"))
+                if (length(nt)) paste(nt, collapse = "; ") else NULL
+              })
   class(out) <- "rasch_ctt"
   out
 }
 
 #' @export
 print.rasch_ctt <- function(x, ...) {
-  cat(sprintf("Traditional statistics (available cases; item n %d-%d; %d complete)\n",
-              x$n_range[1], x$n_range[2], x$n))
+  cat(sprintf("Traditional statistics (%s cases; item n %d-%d; %d complete)\n",
+              x$missing, x$n_range[1], x$n_range[2], x$n))
   if (is.finite(x$mean))
     cat(sprintf("Raw score mean %.2f, SD %.2f (complete responders); alpha %.3f; SEM %.2f\n",
                 x$mean, x$sd, x$alpha, x$sem))
@@ -102,6 +157,7 @@ print.rasch_ctt <- function(x, ...) {
   num <- vapply(y, is.numeric, TRUE)
   y[num] <- lapply(y[num], round, 3)
   print(y, row.names = FALSE)
+  if (!is.null(x$note)) cat("Note:", x$note, "\n")
   invisible(x)
 }
 
@@ -112,17 +168,20 @@ print.rasch_ctt <- function(x, ...) {
 #' 2019, ch. 26). \emph{Racking} keeps one row per person and duplicates
 #' the items per time point (columns \code{item@time}), so change over time
 #' shows in the item estimates. \emph{Stacking} keeps one column per item
-#' and duplicates the persons per time point (rows \code{person@time}), so
+#' and duplicates the persons per time point (rows), so
 #' change shows in the person estimates and DIF of items over time can be
-#' examined with \code{time} as a person factor.
+#' examined with \code{time} as a within-person factor. The returned
+#' \code{id} is the original person identifier and therefore repeats across
+#' occasions; \code{row_id} uniquely identifies each person-occasion row.
 #'
 #' @param data A long data frame with one measurement per row.
 #' @param person,time Names of the person and time-point columns.
 #' @param items Character vector naming the item columns.
 #' @return \code{rack_data}: a wide data frame with one row per person and
 #'   \code{length(items) * n_times} item columns. \code{stack_data}: a data
-#'   frame with one row per person-time (\code{id} column), the original
-#'   item columns, and \code{time} as a factor column for DIF analysis.
+#'   frame with one row per person-time, the repeated original \code{id}, a
+#'   unique \code{row_id}, the original item columns, and \code{time} as a
+#'   factor column for repeated-measures DIF analysis.
 #' @examples
 #' d <- data.frame(pid = rep(1:100, 2), t = rep(1:2, each = 100),
 #'                 Q1 = rbinom(200, 1, 0.6), Q2 = rbinom(200, 1, 0.5))
@@ -130,6 +189,10 @@ print.rasch_ctt <- function(x, ...) {
 #' names(racked)
 #' stacked <- stack_data(d, person = "pid", time = "t", items = c("Q1", "Q2"))
 #' head(stacked)
+#' # the follow-up analysis assigns every reshaped column a role: the
+#' # repeated person id, time as a within-person factor, and the items
+#' fit <- rasch(stacked, id = "id", factors = "time",
+#'              items = c("Q1", "Q2"))
 #' @export
 rack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
@@ -161,9 +224,13 @@ stack_data <- function(data, person, time, items) {
     stop("column not found: ", col)
   bad <- setdiff(items, names(data))
   if (length(bad)) stop("item column(s) not found: ", paste(bad, collapse = ", "))
-  out <- data.frame(id = paste0(data[[person]], "@", data[[time]]),
+  key <- interaction(data[[person]], data[[time]], drop = TRUE, lex.order = TRUE)
+  if (anyDuplicated(key))
+    stop("more than one row for a person at the same time point")
+  out <- data.frame(id = data[[person]],
+                    row_id = paste0(data[[person]], "@", data[[time]]),
                     time = factor(data[[time]]),
-                    data[, items, drop = FALSE])
+                    data[, items, drop = FALSE], check.names = FALSE)
   rownames(out) <- NULL
   out
 }

@@ -52,5 +52,15 @@ X <- matrix(rbinom(400 * 6, 1, plogis(outer(rnorm(400), d, "-"))), 400, 6)
 colnames(X) <- paste0("I", 1:6)
 pcml(X)$thr
 # anchor two items at fixed values (equating)
-pcml(X, anchors = data.frame(item = c("I1", "I6"), k = 1, tau = c(-1.5, 1.5)))$thr
+anchors <- data.frame(item = c("I1", "I6"), k = 1,
+                      tau = c(-1.5, 1.5))
+pcml(X, anchors = anchors)$thr
+}
+\references{
+Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205--221.
+
+Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+Applied Psychological Measurement, 19(4), 369--375.
 }

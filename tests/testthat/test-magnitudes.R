@@ -83,6 +83,9 @@ test_that("tailored_analysis shows the guessing signature", {
   colnames(X) <- paste0("I", 1:10)
   ta <- tailored_analysis(rasch(X), chance = 0.25)
   expect_gt(ta$n_removed, 50)
+  expect_identical(ta$se_method, "none")
+  expect_true(all(is.na(ta$table$se)))
+  expect_true(all(is.na(ta$table$p_adj)))
   # the hardest items become harder under tailoring, on the common origin,
   # and clearly more so than the easy items
   hard <- order(ta$table$initial, decreasing = TRUE)[1:2]
@@ -99,6 +102,36 @@ test_that("tailored_analysis shows the guessing signature", {
   ta0 <- tailored_analysis(rasch(X0), chance = 0.25)
   expect_lt(mean(ta0$table$shift[order(ta0$table$initial,
                                        decreasing = TRUE)[1:2]]), 0.3)
+  expect_error(tailored_analysis(rasch(X), chance = c(0.2, 0.25)),
+               "chance must be one")
+  expect_error(tailored_analysis(rasch(X), chance = 1),
+               "strictly between")
+  expect_error(tailored_analysis(rasch(X), chance = 0.25,
+                                 se_method = "bootstrap", boot_reps = 49),
+               "at least 50")
+})
+
+test_that("tailored_analysis bootstrap repeats the complete procedure", {
+  set.seed(812)
+  N <- 220L
+  d0 <- seq(-1.5, 1.8, length.out = 6)
+  th <- rnorm(N)
+  P <- 0.25 + 0.75 * plogis(outer(th, d0, "-"))
+  X <- matrix(rbinom(N * 6, 1, P), N, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  # at 50 replicates and 6 items the Holm-adjusted p floor (2m/(B+1))
+  # exceeds 0.05, and tailored_analysis must SAY so -- the warning is part
+  # of the contract being tested here, not noise to suppress
+  expect_warning(
+    ta <- tailored_analysis(rasch(X), chance = 0.25,
+                            se_method = "bootstrap", boot_reps = 50),
+    "smallest achievable")
+  expect_identical(ta$se_method, "bootstrap")
+  expect_gte(ta$boot_reps_used, 30L)
+  expect_true(all(is.finite(ta$table$se)))
+  expect_true(all(is.finite(ta$table$ci_low)))
+  expect_true(all(is.finite(ta$table$ci_high)))
+  expect_true(all(is.finite(ta$table$p_adj)))
 })
 
 test_that("ctt_table reports the classical companions", {
@@ -129,9 +162,13 @@ test_that("rack_data and stack_data reshape repeated measurements", {
   expect_equal(nrow(s), 150)
   expect_true(is.factor(s$time))
   expect_equal(s$Q1, d$Q1)
+  expect_identical(s$id, d$pid)
+  expect_equal(length(unique(s$row_id)), nrow(s))
   # duplicate person-time rows are an error when racking
   expect_error(rack_data(rbind(d, d[1, ]), "pid", "t", c("Q1", "Q2")),
                "more than one row")
+  expect_error(stack_data(rbind(d, d[1, ]), "pid", "t", c("Q1", "Q2")),
+               "same time point")
 })
 
 test_that("the new displays draw without error", {
@@ -149,7 +186,7 @@ test_that("the new displays draw without error", {
   expect_no_error(plot_resid_dist(fit, "items"))
   expect_no_error(plot_resid_dist(fit, "persons", "natural"))
   # paired t-test is part of the dimensionality report
-  dt <- dimensionality_test(fit)
+  dt <- dimensionality_test(fit, min_score_points = 2)
   expect_true(is.list(dt$paired_t))
   expect_true(is.finite(dt$paired_t$p))
 })

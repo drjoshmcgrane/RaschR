@@ -4,15 +4,18 @@
 \alias{plot_equate}
 \title{Plot a test-equating comparison}
 \usage{
-plot_equate(fit, reference, shift = c("mean", "none"))
+plot_equate(fit, reference, shift = c("mean", "none"), independent = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
 \item{reference}{A second \code{\link{rasch}} fit, or a data frame with
-columns \code{item}, \code{location}, and optionally \code{se}.}
+columns \code{item}, \code{location}, and optionally \code{se}; a
+polytomous bank also needs \code{max}.}
 
 \item{shift}{Passed to \code{\link{equate_tests}}.}
+
+\item{independent}{Passed to \code{\link{equate_tests}}.}
 }
 \value{
 Called for its plotting side effect; invisibly the
@@ -29,5 +32,5 @@ mk <- function() {
   X <- matrix(rbinom(400 * 8, 1, plogis(outer(rnorm(400), d, "-"))), 400, 8)
   colnames(X) <- paste0("I", 1:8); rasch(X)
 }
-plot_equate(mk(), mk())
+plot_equate(mk(), mk(), independent = TRUE)
 }

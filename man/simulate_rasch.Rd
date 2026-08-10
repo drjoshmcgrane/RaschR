@@ -38,16 +38,19 @@ spacings and span are drawn afresh, as the partial credit model allows.}
 
 \item{n_categories}{Response categories for polytomous models (>= 3).}
 
-\item{theta_mean, theta_sd, theta_dist}{Person distribution: mean, SD, and
-shape (\code{"normal"}, \code{"uniform"}, \code{"skew"}, \code{"bimodal"}).}
+\item{theta_mean, theta_sd}{Mean and standard deviation of the person
+distribution.}
 
-\item{difficulty}{Two numbers giving the item-location range (evenly
-spaced), or a length-\code{n_items} vector of locations.}
+\item{theta_dist}{Shape of the person distribution: \code{"normal"},
+\code{"uniform"}, \code{"skew"}, or \code{"bimodal"}.}
+
+\item{difficulty}{Either the two endpoints of an evenly spaced location
+range, or one location per item.}
 
 \item{threshold_spread}{Half-range of the category thresholds about each
 item location (polytomous).}
 
-\item{discrimination}{Scalar or length-\code{n_items}: the slope of each
+\item{discrimination}{The item slope, supplied as one value or one per
 item. Values above 1 over-discriminate (Guttman-like, negative fit
 residual); below 1 under-discriminate (noisy, positive residual). Feeds
 infit/outfit and the item-fit F.}
@@ -61,8 +64,8 @@ load on a second trait correlated \code{rho} with the first. Feeds
 \code{\link{dimensionality_test}}.}
 
 \item{dependence}{\code{NULL}, or \code{list(pairs=, strength=)}: each pair's
-second item responds partly to the first (response dependence). Feeds
-\code{\link{residual_correlations}} / \code{\link{dependence_magnitude}}.}
+second item responds partly to the first. This departure feeds the
+residual-dependence diagnostics.}
 
 \item{dif}{\code{NULL}, or \code{list(items=, uniform=, nonuniform=)}: the
 named items function differently for the last person group -- a location

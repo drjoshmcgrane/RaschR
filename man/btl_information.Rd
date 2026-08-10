@@ -36,13 +36,15 @@ the informative ones.
 }
 \details{
 The design information inverts to \code{se_naive = 1 / sqrt(information)}:
-the error the object's comparisons would give if its location were the
-ONLY free parameter -- a single-parameter lower bound, useful for reading
-which objects the design serves well. It is not the model's standard
-error even with independent comparisons (every location is estimated
-jointly with the others, and the fit's own \code{se} is additionally the
-judge-clustered Godambe sandwich), so \code{se} sits above
-\code{se_naive} as a rule; treat their ratio as descriptive, not as a
+the error the object's own comparisons would give if its location were
+treated in isolation -- a design-only yardstick for reading which objects
+the comparison plan serves well. It is not the model's standard error,
+and it is not a bound: the fitted \code{se} comes from joint estimation
+under the sum-zero constraint (which typically REDUCES an object's
+variance relative to the isolated calculation) with judge-clustered
+Godambe covariance (which can move it in either direction), so \code{se}
+can sit below or above \code{se_naive}. Treat their ratio as a
+descriptive comparison of design coverage, not as a bound or a
 clustering test.
 }
 \examples{

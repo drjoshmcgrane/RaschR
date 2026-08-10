@@ -25,3 +25,11 @@ lens, a judge-fit analogue. With \code{by = "object"}, plots each object's
 circular-triad involvement instead: the structural lens, showing which
 objects sit in the most contradictions.
 }
+\examples{
+\donttest{
+d <- simulate_btl(6, 10, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+tr <- btl_transitivity(fit)
+plot_btl_transitivity(tr)
+}
+}

@@ -40,8 +40,8 @@ by the design-cell labels (factor levels joined by \code{":"}).
 Weights are rescaled so the positive and negative parts each sum to
 one.}
 
-\item{p_adjust}{Familywise adjustment over the whole family (items by
-contrasts); default \code{"holm"}.}
+\item{p_adjust}{Familywise adjustment across items and contrasts. The
+default is \code{"holm"}.}
 
 \item{alpha}{Significance level for the adjusted probabilities.}
 
@@ -90,8 +90,10 @@ example a trend over time) becomes one contrast score per person, tested
 against zero; a between-subjects contrast is tested on person-mean
 residuals; and a between-by-within interaction tests the person contrast
 scores across the between groups. Logit estimates are still reported from
-the resolved locations; their standard errors treat rows as independent
-and are conservative for within-subject differences.
+the resolved locations. Their covariance cannot be recovered from the
+row-independent calibration without a person-level bootstrap, so the
+logit standard errors and intervals are withheld in repeated-person
+analyses rather than presented as repeated-measures uncertainty.
 }
 \examples{
 set.seed(1); n <- 600

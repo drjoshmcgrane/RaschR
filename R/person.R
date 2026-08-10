@@ -39,6 +39,9 @@ item_moments <- function(theta, tau_i, disc = 1) {
 #' @param disc Common discrimination (frame unit) of the items; with a
 #'   constant discrimination the raw score remains sufficient.
 #' @return A list with \code{theta} and \code{se}, each named by raw score.
+#' @references
+#' Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+#' response theory. Psychometrika, 54(3), 427--450.
 #' @examples
 #' person_wle(list(c(-1, 0), c(-0.5, 0.5), c(0, 1)))
 #' @export
@@ -138,13 +141,19 @@ person_wle <- function(tau_list, disc = 1) {
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param method \code{"wle"} (Warm, default) or \code{"mle"}.
-#' @param extremes \code{"model"} keeps the estimator's own extreme-score
-#'   values (\code{NA} for MLE); \code{"extrapolated"} applies the geometric
-#'   extrapolation.
+#' @param extremes Treatment of the extreme scores. \code{"model"} keeps the
+#'   estimator's own values; these are \code{NA} for MLE.
+#'   \code{"extrapolated"} applies the geometric extrapolation.
 #' @return A data frame with \code{score}, \code{theta}, \code{se},
 #'   \code{freq}, \code{cum_pct} (omitted when no complete responders
 #'   exist), and \code{extrapolated}; \code{NULL} for
 #'   fits without a common raw-score metric (EFRM).
+#' @references
+#' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+#' Measuring in the Educational, Social and Health Sciences. Springer.
+#'
+#' Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+#' response theory. Psychometrika, 54(3), 427--450.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-1.5, 1.5, length.out = 6)

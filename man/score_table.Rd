@@ -15,9 +15,9 @@ score_table(
 
 \item{method}{\code{"wle"} (Warm, default) or \code{"mle"}.}
 
-\item{extremes}{\code{"model"} keeps the estimator's own extreme-score
-values (\code{NA} for MLE); \code{"extrapolated"} applies the geometric
-extrapolation.}
+\item{extremes}{Treatment of the extreme scores. \code{"model"} keeps the
+estimator's own values; these are \code{NA} for MLE.
+\code{"extrapolated"} applies the geometric extrapolation.}
 }
 \value{
 A data frame with \code{score}, \code{theta}, \code{se},
@@ -53,4 +53,11 @@ d <- seq(-1.5, 1.5, length.out = 6)
 X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300), d, "-"))), 300, 6)
 colnames(X) <- paste0("I", 1:6)
 score_table(rasch(X), method = "mle", extremes = "extrapolated")
+}
+\references{
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. Psychometrika, 54(3), 427--450.
 }

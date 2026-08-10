@@ -4,19 +4,31 @@
 \alias{btl_equate}
 \title{Equate two paired-comparison calibrations through their common objects}
 \usage{
-btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm")
+btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
 }
 \arguments{
 \item{fit1}{A fitted object from \code{\link{btl}}: the calibration whose
 scale (origin) the equating targets.}
 
 \item{fit2}{A second \code{\link{btl}} fit, or a bank: a data frame with
-columns \code{object}, \code{location}, and optionally \code{se}.}
+columns \code{object}, \code{location}, and optionally \code{se}; object
+names must be unique and locations finite. Bank-based drift inference
+requires the joint location covariance as a square matrix in
+\code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
+object), unless the bank is treated as fixed with zero SEs. For a graded
+fit the bank must carry
+\code{attr(bank, "m")} matching the number of fitted score steps.}
 
 \item{alpha}{Significance level for the (multiplicity-adjusted) drift tests.}
 
-\item{p_adjust}{Multiple-comparison adjustment across the common objects,
-passed to \code{\link[stats]{p.adjust}} (default \code{"holm"}).}
+\item{p_adjust}{Adjustment for the common-object tests, passed to
+\code{stats::p.adjust}. The default is \code{"holm"}.}
+
+\item{independent}{Whether the calibrations have independent judges and
+comparisons. For two fitted objects the default \code{NULL} withholds
+drift tests until independence is stated explicitly. Bank tables are
+treated as independent unless \code{FALSE} is supplied. Dependent
+calibrations require a joint or paired bootstrap for inference.}
 }
 \value{
 A list of class \code{"rasch_btl_equate"}: the comparison
@@ -26,7 +38,9 @@ A list of class \code{"rasch_btl_equate"}: the comparison
   \code{p}, and the \code{drifting} flag); the estimated \code{shift} and
   its \code{shift_se}; \code{equated}, the second calibration's full object
   table re-expressed on \code{fit1}'s scale; the number of common objects
-  \code{n_common}; \code{alpha}; \code{p_adjust}; and \code{notes}.
+  \code{n_common}; the number usable for inference \code{n_inference};
+  whether inference was available \code{inferential}; \code{alpha};
+  \code{p_adjust}; and \code{notes}.
 }
 \description{
 Compares the object locations of a Bradley-Terry-Luce fit with those of a
@@ -68,7 +82,8 @@ sim <- function(objs) {
   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
   btl(d, "a", "b", "win")
 }
-eq <- btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)))
+eq <- btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)),
+                  independent = TRUE)
 eq$table
 }
 \references{

@@ -12,12 +12,16 @@
 #' independence the off-diagonal values sit near \code{-1/(L-1)}; large
 #' positive values flag local dependence between item pairs. Following
 #' Christensen, Makransky and Horton (2017), each Q3 is also reported
-#' relative to the average off-diagonal value (\code{q3_star}), and a pair
-#' is flagged when that excess passes \code{flag}.
+#' relative to the average off-diagonal value (\code{q3_star}). There is no
+#' universal adjusted-Q3 critical value: it depends on sample size, test
+#' length, category structure, and missingness. The default therefore reports
+#' the statistics without a binary flag. A user-supplied \code{flag} is an
+#' explicitly heuristic screening threshold, not a calibrated significance
+#' test.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
-#' @param flag Excess above the average off-diagonal Q3 at which a pair is
-#'   flagged as dependent.
+#' @param flag Optional heuristic excess above the average off-diagonal Q3 at
+#'   which a pair is flagged. The default \code{NULL} withholds binary flags.
 #' @return A list with the Q3 \code{matrix}, the adjusted-Q3
 #'   \code{star_matrix} (each Q3 less the average off-diagonal value, diagonal
 #'   empty), the \code{average} off-diagonal value, \code{pairs} (every item
@@ -38,7 +42,9 @@
 #' colnames(X) <- paste0("I", 1:8)
 #' residual_correlations(rasch(X))$average
 #' @export
-residual_correlations <- function(fit, flag = 0.2) {
+residual_correlations <- function(fit, flag = NULL) {
+  if (!is.null(flag) && (length(flag) != 1L || !is.finite(flag) || flag <= 0))
+    stop("flag must be NULL or one positive finite heuristic threshold")
   Z <- fit$residuals
   R <- cor(Z, use = "pairwise.complete.obs")
   off <- R[upper.tri(R)]; avg <- mean(off, na.rm = TRUE)
@@ -46,7 +52,8 @@ residual_correlations <- function(fit, flag = 0.2) {
   pairs <- data.frame(item_a = colnames(Z)[idx[, 1]],
                       item_b = colnames(Z)[idx[, 2]],
                       q3 = R[idx], q3_star = R[idx] - avg,
-                      flagged = (R[idx] - avg) > flag)
+                      flagged = if (is.null(flag)) NA else
+                        (R[idx] - avg) > flag)
   pairs <- pairs[!is.na(pairs$q3), ]
   pairs <- pairs[order(-pairs$q3), ]
   rownames(pairs) <- NULL
@@ -55,7 +62,12 @@ residual_correlations <- function(fit, flag = 0.2) {
   # carry no dependence, so the diagonal is left empty.
   star <- R - avg; diag(star) <- NA
   list(matrix = R, star_matrix = star, average = avg, pairs = pairs,
-       flagged = pairs[pairs$flagged, ])
+       flagged = if (is.null(flag)) pairs[FALSE, ] else
+         pairs[pairs$flagged %in% TRUE, ],
+       flag = flag,
+       note = if (is.null(flag))
+         "binary Q3 flags withheld: no universal critical value"
+       else "binary flags use a user-supplied heuristic, not a calibrated test")
 }
 
 #' Principal components of the residual correlations
@@ -66,8 +78,8 @@ residual_correlations <- function(fit, flag = 0.2) {
 #' inspection beyond the first component.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
-#' @param n_components Number of leading components to return loadings and
-#'   eigenvalue rows for (capped at the number of items).
+#' @param n_components Number of leading components to return, capped at the
+#'   number of items.
 #' @return A list with the residual \code{eigenvalues}, their
 #'   \code{prop}ortions, the first-component \code{loadings} (sorted), the
 #'   \code{loadings_matrix} for the leading components, the
@@ -81,10 +93,34 @@ residual_correlations <- function(fit, flag = 0.2) {
 #' residual_pca(rasch(X))$first_eigen
 #' @export
 residual_pca <- function(fit, n_components = 10) {
+  if (length(n_components) != 1L || !is.finite(n_components) ||
+      n_components < 1L || n_components != floor(n_components))
+    stop("n_components must be one positive whole number")
+  n_components <- as.integer(n_components)
   R <- cor(fit$residuals, use = "pairwise.complete.obs")
-  # column pairs with no overlapping persons (for example item-by-group
-  # columns from different groups) carry no dependence information
-  R[is.na(R)] <- 0; diag(R) <- 1
+  no_overlap <- is.na(R) & row(R) != col(R)
+  if (any(no_overlap)) {
+    ij <- which(no_overlap, arr.ind = TRUE)[1L, ]
+    stop("residual PCA is undefined because some item columns have no ",
+         "respondents in common (for example ", colnames(R)[ij[1L]], " and ",
+         colnames(R)[ij[2L]], "). This happens for structurally disjoint ",
+         "designs (item-by-group columns of an extended-frame fit, facet ",
+         "cells of a many-facet fit) and equally for sparse or booklet ",
+         "missing data; analyse an observable design block, or persons who ",
+         "share items, rather than treating non-overlap as zero correlation")
+  }
+  if (anyNA(R)) stop("residual PCA is undefined for a constant residual column")
+  diag(R) <- 1
+  ev0 <- eigen(R, symmetric = TRUE)
+  adjusted <- min(ev0$values) < -1e-8
+  if (adjusted) {
+    # Pairwise-complete correlations need not be positive semidefinite. Use
+    # the nearest spectral positive-semidefinite correlation approximation
+    # rather than clipping eigenvalues only after the decomposition.
+    Rp <- ev0$vectors %*% (pmax(ev0$values, 0) * t(ev0$vectors))
+    ds <- sqrt(pmax(diag(Rp), 1e-12))
+    R <- Rp / outer(ds, ds); diag(R) <- 1
+  }
   ev <- eigen(R, symmetric = TRUE)
   k <- min(n_components, ncol(R))
   loadings <- ev$vectors[, 1] * sqrt(pmax(ev$values[1], 0))
@@ -97,6 +133,10 @@ residual_pca <- function(fit, n_components = 10) {
   # so the cumulative share cannot exceed one
   tot <- sum(pmax(ev$values, 0))
   list(eigenvalues = ev$values, prop = pmax(ev$values, 0) / tot,
+       correlation = R, correlation_adjusted = adjusted,
+       note = if (adjusted)
+         "pairwise correlation matrix projected to a positive-semidefinite correlation matrix"
+       else NULL,
        loadings = ld[order(-ld$pc1_loading), ],
        loadings_matrix = data.frame(item = colnames(fit$residuals), lm),
        eigen_table = data.frame(component = seq_len(k),
@@ -112,81 +152,64 @@ residual_pca <- function(fit, n_components = 10) {
 # within a person (off-diagonal correlations near -1/(L-1)), so a random
 # normal reference sits systematically BELOW the null first eigenvalue and
 # would call structure on model-true data. The reference therefore simulates
-# responses from the calibrated model (fixed thresholds, the estimated person
-# locations, the observed missingness), re-estimates every person, and
-# recomputes the residual eigenvalues - the same estimation chain the
-# observed eigenvalues went through (the parametric-bootstrap logic of
-# Raiche 2005 and Chou & Wang 2010).
+# responses from the calibrated model at the estimated person locations and
+# observed missingness, then refits both item and person parameters before
+# recomputing the residual eigenvalues. This carries calibration variability
+# through the same estimation chain as the observed eigenvalues.
 .scree_reference <- function(fit, k, reps) {
-  tau_list <- fit$tau_list
-  L <- length(tau_list)
+  if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
+    stop("parallel residual reference is not available for mutually exclusive ",
+         "EFRM/MFRM virtual designs; fit and analyse an observable design block")
+  if (length(reps) != 1L || !is.finite(reps) || reps < 2L)
+    stop("reps must be at least 2")
+  reps <- as.integer(reps)
+  tau_list <- fit$tau_list; L <- length(tau_list)
   disc_v <- if (is.null(fit$disc)) rep(1, L) else fit$disc
-  if (length(disc_v) == 1L) disc_v <- rep(disc_v, L)
+  if (any(abs(disc_v - 1) > 1e-12))
+    stop("full-refit scree reference currently requires a common Rasch unit")
   keep <- !is.na(fit$person$theta)
   X <- fit$X[keep, , drop = FALSE]
   th0 <- fit$person$theta[keep]
   obs <- !is.na(X); N <- nrow(X)
-  ctau <- lapply(tau_list, function(t) c(0, cumsum(t)))
-  # per-item model probabilities at locations th, as an N x (m+1) matrix
-  probs <- function(i, th) {
+  probs <- function(i) {
     m <- length(tau_list[[i]]); xc <- 0:m
-    eta <- disc_v[i] * (outer(th, xc) -
-                          matrix(rep(ctau[[i]], each = N), N, m + 1L))
+    eta <- outer(th0, xc) -
+      matrix(rep(c(0, cumsum(tau_list[[i]])), each = N), N, m + 1L)
     eta <- eta - apply(eta, 1, max)
     P <- exp(eta); P / rowSums(P)
   }
-  # cumulative tables at the calibrated locations, for the simulation draws
   cumP <- lapply(seq_len(L), function(i) {
-    P <- probs(i, th0); m <- ncol(P) - 1L
+    P <- probs(i); m <- ncol(P) - 1L
     t(apply(P, 1, cumsum))[, seq_len(m), drop = FALSE]
   })
-  # vectorised Warm estimation over all persons at once (damped Newton on
-  # the weighted-likelihood score, as person_wle solves per raw score)
-  wle_all <- function(Xr) {
-    th <- th0
-    for (iter in 1:8) {
-      g <- info <- m3s <- numeric(N)
-      for (i in seq_len(L)) {
-        P <- probs(i, th); m <- ncol(P) - 1L; xc <- 0:m
-        E <- drop(P %*% xc); V <- pmax(drop(P %*% xc^2) - E^2, 1e-12)
-        m3 <- drop(P %*% xc^3) - 3 * E * drop(P %*% xc^2) + 2 * E^3
-        oi <- obs[, i]
-        g[oi] <- g[oi] + disc_v[i] * (Xr[oi, i] - E[oi])
-        info[oi] <- info[oi] + disc_v[i]^2 * V[oi]
-        m3s[oi] <- m3s[oi] + disc_v[i]^3 * m3[oi]
-      }
-      info <- pmax(info, 1e-12)
-      th <- th + pmin(pmax((g + m3s / (2 * info)) / info, -1), 1)
-    }
-    th
-  }
-  sim <- replicate(reps, {
+  draws <- lapply(seq_len(reps), function(r) {
     Xr <- X
     for (i in seq_len(L)) {
       u <- stats::runif(N)
       Xr[, i] <- rowSums(u > cumP[[i]])
     }
     Xr[!obs] <- NA
-    th <- wle_all(Xr)
-    Zr <- X * NA_real_
-    for (i in seq_len(L)) {
-      P <- probs(i, th); m <- ncol(P) - 1L; xc <- 0:m
-      E <- drop(P %*% xc); V <- pmax(drop(P %*% xc^2) - E^2, 1e-12)
-      Zr[, i] <- (Xr[, i] - E) / sqrt(V)
-    }
-    Rr <- stats::cor(Zr, use = "pairwise.complete.obs")
-    Rr[is.na(Rr)] <- 0; diag(Rr) <- 1
-    eigen(Rr, symmetric = TRUE, only.values = TRUE)$values[seq_len(k)]
+    colnames(Xr) <- colnames(X)
+    fr <- tryCatch(suppressWarnings(
+      rasch(Xr, model = fit$model, n_groups = fit$n_groups)),
+      error = function(e) NULL)
+    if (is.null(fr) || ncol(fr$X) != L) return(rep(NA_real_, k))
+    tryCatch(residual_pca(fr, n_components = k)$eigenvalues[seq_len(k)],
+             error = function(e) rep(NA_real_, k))
   })
-  rowMeans(sim)
+  sim <- do.call(rbind, draws)
+  if (sum(stats::complete.cases(sim)) < ceiling(reps / 2))
+    stop("fewer than half the full-refit scree replicates were estimable")
+  colMeans(sim, na.rm = TRUE)
 }
 
 #' Scree plot of the residual components with parallel analysis
 #'
 #' Eigenvalues of the residual correlation matrix for the leading components,
 #' with a model-simulated parallel-analysis reference: responses are simulated
-#' from the calibrated model (observed missingness kept), every person is
-#' re-estimated, and the residual eigenvalues recomputed. Because estimating
+#' from the calibrated model (observed missingness kept), the item calibration
+#' and every person are re-estimated, and the residual eigenvalues recomputed.
+#' Because estimating
 #' the person locations couples the residuals within a person, this reference
 #' sits above the classical random-normal one and is calibrated under the
 #' fitted model (Raiche 2005; Chou & Wang 2010). Observed eigenvalues above
@@ -212,7 +235,7 @@ residual_pca <- function(fit, n_components = 10) {
 #' colnames(X) <- paste0("I", 1:8)
 #' plot_scree(rasch(X))
 #' @export
-plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 20) {
+plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
   pc <- residual_pca(fit, n_components)
   k <- nrow(pc$eigen_table)
   obs <- pc$eigen_table$eigenvalue
@@ -258,12 +281,25 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 20) {
 #' @param component Which residual principal component's loading sign defines
 #'   the default split (ignored when subsets are named). Default the first
 #'   component.
+#' @param min_score_points Score-point threshold below which the verdict
+#'   carries a caution. Andrich and Marais (2019) recommend subtests of
+#'   roughly 15 score points for stable subtest estimates; shorter subsets
+#'   (the norm for ordinary dichotomous tests) still receive a verdict, with
+#'   a \code{caution} field noting the reduced stability.
 #' @return A list with the proportion of significant tests, its exact
 #'   confidence interval, the sample sizes (\code{n} used,
 #'   \code{n_excluded_extreme}), the item split and its source, a
-#'   \code{multidimensional} verdict, and \code{paired_t}, the paired t-test
-#'   of the two subset means (the group-level comparison, which requires
-#'   pairing because both estimates come from the same persons).
+#'   \code{multidimensional} verdict, a \code{caution} note when the
+#'   subtests fall short of \code{min_score_points}, and \code{paired_t},
+#'   the paired t-test of the two subset means (the group-level comparison,
+#'   which requires pairing because both estimates come from the same
+#'   persons). When the comparison itself is unavailable (undefined split,
+#'   degenerate subsets, too few persons) the list carries a \code{note}
+#'   explaining why and \code{multidimensional = NA}.
+#' @references
+#' Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
+#' multidimensionality using item fit statistics and principal component
+#' analysis of residuals. Journal of Applied Measurement, 3(2), 205--231.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-2, 2, length.out = 8)
@@ -272,10 +308,29 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 20) {
 #' dimensionality_test(rasch(X))$multidimensional
 #' @export
 dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
-                                items_negative = NULL, component = 1) {
+                                items_negative = NULL, component = 1,
+                                min_score_points = 15L) {
+  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
+    stop("alpha must be one probability strictly between 0 and 1")
+  if (length(component) != 1L || !is.finite(component) || component < 1L ||
+      component != floor(component))
+    stop("component must be one positive whole number")
+  if (length(min_score_points) != 1L || !is.finite(min_score_points) ||
+      min_score_points < 1L || min_score_points != floor(min_score_points))
+    stop("min_score_points must be one positive whole number")
+  component <- as.integer(component)
+  min_score_points <- as.integer(min_score_points)
   X <- fit$X
   manual <- !is.null(items_positive) || !is.null(items_negative)
-  pca <- residual_pca(fit)
+  # the PCA is needed only to derive the automatic split; when it is
+  # undefined (structurally disjoint columns, sparse overlap) that is a
+  # reason to report, not an error to crash every downstream consumer
+  pca <- if (manual) NULL else
+    tryCatch(residual_pca(fit), error = function(e)
+      structure(list(msg = conditionMessage(e)), class = "rr_pca_refusal"))
+  if (inherits(pca, "rr_pca_refusal"))
+    return(list(note = paste0("dimensionality split unavailable: ", pca$msg),
+                multidimensional = NA))
   if (manual) {
     if (is.null(items_positive) || is.null(items_negative))
       stop("supply both item subsets, or neither")
@@ -299,6 +354,16 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   }
   if (length(pos) < 2 || length(neg) < 2)
     return(list(note = "need >= 2 items in each subset"))
+  score_points <- c(positive = sum(fit$m[pos]), negative = sum(fit$m[neg]))
+  # Andrich & Marais (2019) recommend subtests of roughly 15 score points
+  # for STABLE subtest estimates. Short subtests make the person-level
+  # comparison noisier, not undefined -- so the verdict is still computed,
+  # with a caution, rather than withheld for every ordinary short test
+  caution <- if (any(score_points < min_score_points)) sprintf(
+    paste0("subtests carry only %d and %d score points (fewer than the ~%d ",
+           "recommended for stable subtest estimates); read the verdict ",
+           "cautiously"),
+    score_points[1], score_points[2], as.integer(min_score_points)) else NULL
   est_sub <- function(cols) {
     d <- if (is.null(fit$disc)) rep(1, ncol(X)) else fit$disc
     if (length(unique(d[cols])) == 1L)
@@ -317,15 +382,27 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   bt <- stats::binom.test(n_sig, n, p = alpha)
   # paired t-test of the two subset means (the group-level comparison: the
   # two estimates come from the same persons, so the means need pairing;
-  # Andrich & Marais 2019, ch. 24)
+  # Andrich & Marais 2019, ch. 24). Degenerate subsets (e.g. two-item
+  # manual subtests where every usable person has the same difference)
+  # would crash t.test with a raw error: report the degeneracy instead
   dd <- a$theta[ok] - b$theta[ok]
+  if (!is.finite(stats::sd(dd)) || stats::sd(dd) < 1e-12)
+    return(list(note = paste0(
+      "dimensionality verdict withheld: the subset person estimates are ",
+      "degenerate (no variation in the paired differences) -- the subsets ",
+      "are too short or too sparsely answered for the comparison"),
+      multidimensional = NA, split = split_source,
+      items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
+      score_points = score_points))
   pt <- stats::t.test(dd)
   list(prop_significant = n_sig / n, ci = as.numeric(bt$conf.int), n = n,
        n_excluded_extreme = sum(usable) - n,
        multidimensional = bt$conf.int[1] > alpha,
        split = split_source,
+       score_points = score_points,
+       caution = caution,
        items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
-       first_eigenvalue = pca$first_eigen,
+       first_eigenvalue = if (is.null(pca)) NA_real_ else pca$first_eigen,
        paired_t = list(mean_difference = mean(dd),
                        t = unname(pt$statistic), df = unname(pt$parameter),
                        p = pt$p.value))
@@ -350,7 +427,7 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param subtests A list of character vectors assigning \emph{every} item
 #'   of the fit to one subscale (at least two subscales of two or more
-#'   items). Unequal subscale sizes use their mean as \eqn{K}.
+#'   items). The published magnitude formula requires equal subscale sizes.
 #' @return A list of class \code{"rasch_dim_magnitude"}: the comparison
 #'   \code{table} (rows PSI and alpha; columns \code{run1}, \code{subtest},
 #'   \code{c2}, \code{c}, \code{rho}, \code{A}), the subtest \code{refit},
@@ -376,8 +453,10 @@ dimensionality_magnitude <- function(fit, subtests) {
   allit <- unlist(subtests)
   if (!setequal(allit, fit$items$item) || anyDuplicated(allit))
     stop("subtests must assign every item of the fit to exactly one subscale")
+  if (length(unique(lengths(subtests))) != 1L)
+    stop("the Andrich (2016) magnitude formula requires equal subscale sizes")
   S <- length(subtests)
-  K <- mean(lengths(subtests))
+  K <- lengths(subtests)[1L]
   g <- S * (K - 1) / (S * K - 1)
   refit <- combine_items(fit, subtests)
   ratio <- function(r1, r2) {
@@ -402,7 +481,7 @@ dimensionality_magnitude <- function(fit, subtests) {
 
 #' @export
 print.rasch_dim_magnitude <- function(x, ...) {
-  cat(sprintf("Magnitude of multidimensionality (Andrich 2016): %d subscales, mean %.1f items\n",
+  cat(sprintf("Magnitude of multidimensionality (Andrich 2016): %d subscales, %.0f items each\n",
               x$S, x$K))
   tab <- x$table
   num <- vapply(tab, is.numeric, TRUE)

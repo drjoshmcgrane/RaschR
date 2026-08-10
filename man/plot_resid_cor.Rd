@@ -25,9 +25,10 @@ correlation -- so white marks the value expected under local independence
 and warm colour marks dependence; with \code{stat = "q3"} the raw residual
 correlation is coloured, white at zero. The scale saturates at \code{cap}
 rather than the +/-1 of an ordinary correlation: a residual correlation
-seldom reaches even 0.5 under a fitting model (the conventional flag is Q3*
-above 0.2; Christensen, Makransky and Horton 2017), so the colour is spent
-where the values actually discriminate.
+seldom reaches even 0.5 under a fitting model, so the colour is spent where
+the values actually discriminate. A Q3* value of 0.2 is sometimes used as
+a heuristic screen, but it is not a universal critical value (Christensen,
+Makransky and Horton 2017).
 }
 \examples{
 set.seed(1)

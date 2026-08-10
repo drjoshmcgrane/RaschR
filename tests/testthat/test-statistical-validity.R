@@ -76,7 +76,7 @@ test_that("equating drift tests are calibrated under the null", {
   }
   rej <- 0; tot <- 0
   for (r in 1:80) {
-    eq <- equate_tests(mk(), mk())
+    eq <- equate_tests(mk(), mk(), independent = TRUE)
     rej <- rej + sum(eq$table$p < 0.05, na.rm = TRUE)
     tot <- tot + sum(is.finite(eq$table$p))
   }
@@ -209,7 +209,7 @@ test_that("half-tie weights no longer break the dimensionality reference", {
   expect_gt(dm$reference$mean, 0.5)
 })
 
-test_that("judge bootstrap refuses a single-judge panel", {
+test_that("BTL-EFRM inference refuses an inadequately clustered panel", {
   d <- simulate_btl_efrm(n_objects_per_set = 5, n_sets = 2, n_panels = 2,
                          n_judges_per_panel = 4, reps_within = 15,
                          reps_cross = 15, seed = 3)
@@ -219,7 +219,7 @@ test_that("judge bootstrap refuses a single-judge panel", {
   expect_error(
     btl_efrm(d[keep, ], "object_a", "object_b", "winner", "judge", "panel",
              os, se_method = "judge_bootstrap", boot_reps = 20),
-    "at least 2 judges in every panel")
+    "at least 10 judges|more judge clusters than parameters")
 })
 
 test_that("clustered covariance notes rank deficiency (judges <= parameters)", {
@@ -972,4 +972,102 @@ test_that("btl_dimensionality withholds the verdict under a shared fixed order",
   dr <- suppressWarnings(btl_dimensionality(fr, reps = 30))
   expect_false(is.na(dr$bimensions$above_reference[1]))
   expect_false(any(grepl("withheld", dr$notes)))
+})
+
+test_that("EFRM fits export and report despite the residual-PCA refusal", {
+  skip_on_cran()
+  set.seed(1); Np <- 240
+  simP <- function(th, tau, r) { x <- 0:length(tau)
+    p <- exp(r * (x * th - c(0, cumsum(tau)))); p / sum(p) }
+  grp <- rep(c("A", "B"), each = Np / 2); phi <- c(A = 0.8, B = 1.25)
+  d <- seq(-1.5, 1.5, length.out = 8); theta <- rnorm(Np)
+  X <- sapply(seq_along(d), function(i) sapply(seq_len(Np), function(n)
+    sample(0:1, 1, prob = simP(theta[n], d[i], phi[grp[n]]))))
+  colnames(X) <- sprintf("I%02d", seq_along(d))
+  fit <- rasch_efrm(data.frame(X, grp = grp),
+                    item_sets = list(core = colnames(X)), groups = "grp")
+  out <- file.path(tempdir(), "efrm-export-regression")
+  expect_no_error(save_outputs(fit, out, formats = "png"))
+  expect_no_error(report_html(fit, file.path(tempdir(), "efrm-rep.html")))
+  # dimensionality_test carries the refusal as its standard note, not a crash
+  dt <- dimensionality_test(fit)
+  expect_true(is.na(dt$multidimensional))
+  expect_true(grepl("split unavailable", dt$note))
+})
+
+test_that("dimensionality_test gives a verdict for ordinary short tests", {
+  set.seed(1); N <- 500; L <- 10
+  d <- seq(-2, 2, length.out = L)
+  X <- matrix(rbinom(N * L, 1, plogis(outer(rnorm(N), d, "-"))), N, L)
+  colnames(X) <- paste0("I", 1:L)
+  dt <- dimensionality_test(rasch(as.data.frame(X)))
+  # the verdict is computed (short subtests caution, not NA-withhold)
+  expect_true(dt$multidimensional %in% c(TRUE, FALSE))
+  expect_true(!is.null(dt$caution) && grepl("score points", dt$caution))
+})
+
+test_that("test_information splits EFRM groups by administration pattern", {
+  skip_on_cran()
+  set.seed(7)
+  simP <- function(th, tau, r) { x <- 0:length(tau)
+    ln <- c(0, cumsum(r * (th - tau))); p <- exp(ln - max(ln)); p / sum(p) }
+  d10 <- seq(-1.5, 1.5, length.out = 10)
+  nA1 <- 199; nA2 <- 40; nB <- 400
+  mk <- function(th, phi) t(sapply(th, function(t)
+    sapply(d10, function(x) sample(0:1, 1, prob = simP(t, x, phi)))))
+  thA1 <- rnorm(nA1); thA2 <- rnorm(nA2); thB <- rnorm(nB)
+  core <- rbind(mk(thA1, 0.8), mk(thA2, 0.8), mk(thB, 1.3))
+  extra <- rbind(matrix(NA_integer_, nA1, 10), mk(thA2, 0.8), mk(thB, 1.3))
+  colnames(core) <- sprintf("C%02d", 1:10); colnames(extra) <- sprintf("E%02d", 1:10)
+  grp <- c(rep("A", nA1 + nA2), rep("B", nB))
+  fit <- rasch_efrm(data.frame(core, extra, grp = grp, check.names = FALSE),
+                    item_sets = list(core = colnames(core),
+                                     extra = colnames(extra)),
+                    groups = "grp", se_method = "hybrid")
+  ti <- test_information(fit)
+  des <- unique(ti$design)
+  # the core-only majority of group A gets its own honest curve
+  expect_true(any(grepl("group=A, sets=core$", des)))
+  expect_true(any(grepl("group=A, sets=core\\+extra", des)))
+  sem_core <- ti$sem[grepl("group=A, sets=core$", ti$design) & ti$theta == 0]
+  sem_both <- ti$sem[grepl("group=A, sets=core\\+extra", ti$design) & ti$theta == 0]
+  expect_gt(sem_core, sem_both)          # fewer items -> larger SEM, honestly
+})
+
+test_that("MFRM interaction omnibus uses the Hotelling-style F reference", {
+  set.seed(31)
+  simP <- function(th, tau) { x <- 0:length(tau)
+    p <- exp(x * th - c(0, cumsum(tau))); p / sum(p) }
+  persons <- sprintf("P%03d", 1:120); raters <- paste0("R", 1:3)
+  items <- paste0("I", 1:4)
+  th <- setNames(rnorm(120, 0, 1.3), persons)
+  rho <- setNames(c(-0.5, 0, 0.5), raters)
+  d <- expand.grid(person = persons, item = items, rater = raters,
+                   stringsAsFactors = FALSE)
+  d$score <- mapply(function(p, i, r)
+    sample(0:2, 1, prob = simP(th[p], c(-0.4, 0.4) + rho[r])),
+    d$person, d$item, d$rater)
+  fit <- rasch_mfrm(d, person = "person", item = "item", score = "score",
+                    facets = "rater", interaction = "rater")
+  it <- fit$interaction_test
+  expect_true(all(c("f", "df2") %in% names(it)))
+  # the F reference is strictly more conservative than the old chi-square
+  p_chisq <- pchisq(it$wald, it$df, lower.tail = FALSE)
+  expect_gte(it$p, p_chisq)
+  # cells use a t reference (p >= the normal-reference p)
+  ie <- fit$interaction_effects
+  expect_true(all(ie$p >= 2 * pnorm(-abs(ie$z)) - 1e-12))
+})
+
+test_that("btl eff_params is withheld with clustered inference", {
+  set.seed(3)
+  K <- 6; b <- seq(-1, 1, length.out = K); n <- 200
+  ia <- sample(K, n, TRUE); ib <- (ia + sample(K - 1, n, TRUE) - 1L) %% K + 1L
+  d <- data.frame(a = paste0("O", ia), b = paste0("O", ib),
+                  winner = paste0("O", ifelse(
+                    rbinom(n, 1, plogis(b[ia] - b[ib])) == 1, ia, ib)),
+                  judge = sample(sprintf("J%d", 1:4), n, TRUE))
+  f <- suppressWarnings(btl(d, "a", "b", "winner", judge = "judge"))
+  expect_false(isTRUE(f$cl$inference_available))
+  expect_true(is.na(f$cl$eff_params))
 })

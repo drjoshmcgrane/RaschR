@@ -51,13 +51,15 @@
 #' the informative ones.
 #'
 #' The design information inverts to \code{se_naive = 1 / sqrt(information)}:
-#' the error the object's comparisons would give if its location were the
-#' ONLY free parameter -- a single-parameter lower bound, useful for reading
-#' which objects the design serves well. It is not the model's standard
-#' error even with independent comparisons (every location is estimated
-#' jointly with the others, and the fit's own \code{se} is additionally the
-#' judge-clustered Godambe sandwich), so \code{se} sits above
-#' \code{se_naive} as a rule; treat their ratio as descriptive, not as a
+#' the error the object's own comparisons would give if its location were
+#' treated in isolation -- a design-only yardstick for reading which objects
+#' the comparison plan serves well. It is not the model's standard error,
+#' and it is not a bound: the fitted \code{se} comes from joint estimation
+#' under the sum-zero constraint (which typically REDUCES an object's
+#' variance relative to the isolated calculation) with judge-clustered
+#' Godambe covariance (which can move it in either direction), so \code{se}
+#' can sit below or above \code{se_naive}. Treat their ratio as a
+#' descriptive comparison of design coverage, not as a bound or a
 #' clustering test.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
@@ -141,8 +143,8 @@ btl_information <- function(fit) {
   notes <- paste0(
     "se is the ", if (fit$clustered) "judge-clustered " else "",
     "Godambe sandwich standard error; se_naive = 1/sqrt(information) is a ",
-    "single-parameter lower bound (as if the object's location were the ",
-    "only free parameter), so se sits above it as a rule")
+    "design-only yardstick (the object's comparisons treated in ",
+    "isolation), not a bound -- the fitted se can sit below or above it")
 
   out <- list(objects = objects, pairs = pairs, comparisons = comparisons,
               total = sum(Iw), m = m, clustered = fit$clustered,
@@ -257,7 +259,7 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' covariance it is a scoring device, consistent with the ranking-heuristic
 #' status described below.
 #'
-#' Two honest cautions. This is a \emph{greedy} rule that scores each pair on
+#' This is a \emph{greedy} rule that scores each pair on
 #' its own immediate one-step gain (an A-optimality step at the current
 #' estimates, taking the clustered covariance as the state); it is not a full
 #' optimal design and can be beaten by one that plans several comparisons
@@ -277,10 +279,11 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' not exact sandwich updates. Treat the ordering, not the magnitudes, as
 #' the output.
 #'
-#' @param weight_se Rank by the one-step total-variance reduction (default
-#'   \code{TRUE}; falls back to \code{expected_information * (se_a^2 +
-#'   se_b^2)} if the fit carries no covariance). When \code{FALSE}, pairs are
-#'   ranked by expected information alone (pure closeness).
+#' @param weight_se If \code{TRUE} (the default), rank pairs by their one-step
+#'   reduction in total location variance. When the fit has no covariance,
+#'   the fallback priority is expected information multiplied by the sum of
+#'   the two squared standard errors. If \code{FALSE}, rank pairs by expected
+#'   information alone.
 #' @return A data frame of the top \code{n} candidate pairs, each oriented to
 #'   its stronger object: \code{object_a}, \code{object_b}, the location
 #'   \code{gap}, \code{n_existing} (replications already observed for the

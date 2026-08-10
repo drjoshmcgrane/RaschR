@@ -126,7 +126,10 @@
 #'   1992): a partial-credit structure on the difference of locations with
 #'   thresholds constrained symmetric, \code{tau_k = -tau_(m+1-k)}, so the
 #'   model is invariant to presentation order. Two categories reproduce
-#'   BTL exactly; three give the Davidson (1970) ties model.
+#'   BTL exactly. Three categories have the Davidson (1970) probability
+#'   structure after mapping the Davidson endpoint log-strength to
+#'   \code{2 * beta}; the reported \code{beta} therefore uses the
+#'   adjacent-category rather than endpoint-log-odds unit.
 #' @param judge Optional name of a judge column; enables the judge fit
 #'   table and clusters the sandwich standard errors by judge.
 #' @param order Optional name of a column giving each judge's judgment
@@ -182,7 +185,11 @@
 #'   \code{osi}, \code{loglik}, \code{cl} (the composite-likelihood
 #'   information ingredients used by \code{\link{compare_fits}}: the Godambe
 #'   effective parameter count and the independent-unit count),
-#'   convergence details, and \code{notes}.
+#'   convergence details, and \code{notes}. With judge clustering,
+#'   covariance-based inference (including the Godambe information criteria,
+#'   standard errors, dependence tests, DIF, and OSI) is withheld unless
+#'   there are at least 10 judges and more judges than fitted parameters.
+#'   Point estimates and descriptive fit remain.
 #'   Graded fits add \code{thresholds} (the symmetric threshold estimates
 #'   with standard errors), \code{m}, and \code{categories}. With an
 #'   \code{order} column the within-judge \code{dependence} effects table
@@ -521,15 +528,18 @@ print.rasch_btl <- function(x, ...) {
 plot_btl <- function(fit, band = 2.5) {
   d <- fit$objects[order(fit$objects$location), ]
   k <- nrow(d)
-  xlim <- range(c(d$location - 1.96 * d$se, d$location + 1.96 * d$se))
+  xerr <- c(d$location - 1.96 * d$se, d$location + 1.96 * d$se)
+  xlim <- if (any(is.finite(xerr))) range(xerr, na.rm = TRUE)
+          else range(d$location)
   op <- .rr_canvas(xlim + c(-0.15, 0.15) * diff(xlim), c(0.5, k + 0.5),
                    "Location (logits)", "", grid_y = FALSE, grid_x = TRUE,
                    yaxis = FALSE)
   on.exit(par(op))
   mis <- !is.na(d$fit_resid) & abs(d$fit_resid) > band
-  segments(d$location - 1.96 * d$se, seq_len(k),
-           d$location + 1.96 * d$se, seq_len(k),
-           col = ifelse(mis, .rr$red, .rr$soft), lwd = 2.2)
+  has_se <- is.finite(d$se)
+  segments(d$location[has_se] - 1.96 * d$se[has_se], which(has_se),
+           d$location[has_se] + 1.96 * d$se[has_se], which(has_se),
+           col = ifelse(mis[has_se], .rr$red, .rr$soft), lwd = 2.2)
   points(d$location, seq_len(k), pch = 21, cex = 1.6, lwd = 1.2,
          bg = ifelse(mis, .rr$red, .rr$blue), col = "white")
   text(d$location, seq_len(k), d$object, pos = 3, offset = 0.55, cex = 0.8,
@@ -547,8 +557,9 @@ plot_btl <- function(fit, band = 2.5) {
 # better"); category probabilities follow a partial-credit structure on the
 # difference beta_a - beta_b with thresholds constrained symmetric,
 # tau_k = -tau_{m+1-k}, so the model is invariant to presentation order and
-# judge tendencies cancel. m = 1 is exactly BTL; m = 2 is the Davidson
-# (1970) ties model. Estimation, identification, sandwich errors, and fit
+# judge tendencies cancel. m = 1 is exactly BTL; m = 2 has the Davidson
+# (1970) ties structure after the endpoint log-strength is mapped to 2*beta.
+# Estimation, identification, sandwich errors, and fit
 # follow the package conventions established in btl().
 # ---------------------------------------------------------------------------
 .btl_graded <- function(a, b, x, jd, w, cats, maxit, tol, notes,
@@ -882,9 +893,6 @@ plot_btl <- function(fit, band = 2.5) {
       stop("judge-clustered standard errors need at least 2 judges (got ",
            nc, "); with a single judge drop judge= so comparisons are ",
            "treated as independent, or supply more judges")
-    if (nc < 10L)
-      notes <- c(notes, sprintf(
-        "only %d judge clusters: judge-clustered standard errors are likely to understate with so few clusters", nc))
   }
   Gm <- matrix(0, nc, np, dimnames = list(ucl, NULL))
   # beta block: per-cluster sums of resE into the winner / loser slots,
@@ -929,29 +937,45 @@ plot_btl <- function(fit, band = 2.5) {
          "zero-information direction. Add comparisons that place the ",
          "affected object(s), or anchor them", call. = FALSE)
   Hi <- solve(H)
-  # CR1 small-sample factor: with G clusters the empirical meat understates
-  # by ~G/(G-1); the correction is standard practice and matters exactly
-  # where few-cluster inference is already fragile (a note fires below 10)
+  # CR1 removes the leading finite-cluster scale bias, but it cannot make a
+  # rank-deficient meat estimable and is not a substitute for a small-cluster
+  # variance correction. With fewer than ten judges, or no more judges than
+  # fitted parameters, retain the point estimates and descriptive fit but
+  # withhold covariance-based inference.
   cr1 <- if (!is.null(jd) && nc > 1L) nc / (nc - 1) else 1
-  # with fewer clusters than parameters the empirical meat is singular by
-  # construction: no scalar correction repairs that, so say so
   rank_deficient <- !is.null(jd) && nc <= np
-  if (rank_deficient)
+  cluster_inference <- is.null(jd) || (nc >= 10L && !rank_deficient)
+  if (!cluster_inference)
     notes <- c(notes, sprintf(
-      "%d judge clusters for %d parameters: the clustered covariance is rank-deficient; marginal SEs are reported as consistent but understating estimates, dependence t/p should be read as descriptive, and the OSI is withheld (understated SEs would overstate it) -- reliable clustered inference needs more judges than parameters", nc, np))
+      paste0("%d judge clusters for %d parameters: cluster-robust inference ",
+             "is withheld%s; point estimates and fit summaries remain ",
+             "descriptive -- use at least 10 judges and more judges than ",
+             "fitted parameters, or a design-level bootstrap"), nc, np,
+      if (rank_deficient) " because the empirical covariance is rank-deficient"
+      else " because the cluster count is too small"))
   covth <- Hi %*% (crossprod(Gm) * cr1) %*% Hi
   # composite-likelihood information ingredients: tr(H^-1 J) = tr(covth H)
   # is the effective parameter count of the Godambe penalty (Varin & Vidoni
   # 2005); abs() makes it sign-convention free (the eigenvalues of H^-1 J
   # share one sign). Independent units are judges when clustered, else the
   # count-weighted comparisons.
-  cl_info <- list(eff_params = abs(sum(diag(covth %*% H))),
+  # when clustered inference is withheld (few clusters), the Godambe meat
+  # is rank-deficient by construction, so the effective parameter count --
+  # and any information criterion built on it -- is withheld with it,
+  # exactly as the documentation states
+  cl_info <- list(eff_params = if (cluster_inference)
+                    abs(sum(diag(covth %*% H))) else NA_real_,
                   n_units = if (is.null(jd)) sum(w) else length(ucl),
-                  n_parameters = np)
+                  n_parameters = np,
+                  inference_available = cluster_inference)
   # anchored objects have a zero row in Bmat, so their location variance is
   # structurally zero (se == 0): the location is a fixed constant, not an estimate
   cov_beta <- Bmat %*% covth[1:nb, 1:nb, drop = FALSE] %*% t(Bmat)
   se <- sqrt(pmax(diag(cov_beta), 0))
+  if (!cluster_inference) {
+    se[] <- NA_real_
+    if (length(anch_idx)) se[anch_idx] <- 0
+  }
   # (quasi-)separation of an object subset: inspect the weak eigendirections
   # of the information and ask whether the fitted locations have run at
   # least 3 logits ALONG one of those directions. Absolute locations cannot
@@ -995,6 +1019,7 @@ plot_btl <- function(fit, band = 2.5) {
   if (pz) {
     zi <- (nb + q + 1L):np
     dse <- sqrt(pmax(diag(covth)[zi], 0))
+    if (!cluster_inference) dse[] <- NA_real_
     # clustered: the z statistics get a t reference with G - 1 degrees of
     # freedom (the standard few-cluster correction) rather than normal
     # theory, so five judges give honestly wide p-values
@@ -1015,6 +1040,7 @@ plot_btl <- function(fit, band = 2.5) {
     cov_tau <- Cmat %*% covth[ti, ti, drop = FALSE] %*% t(Cmat)
     thresholds <- data.frame(threshold = seq_len(m), tau = tau,
                              se = sqrt(pmax(diag(cov_tau), 0)))
+    if (!cluster_inference) thresholds$se[] <- NA_real_
     # principal-component decomposition of the threshold structure: the
     # odd components (spread; kurtosis from five thresholds up) carry the
     # symmetric structure, the even skewness component is structurally
@@ -1109,7 +1135,7 @@ plot_btl <- function(fit, band = 2.5) {
   total_chisq <- sum(pairs$chisq[used])
   total_df <- sum(used) - np
   if (total_df < 1L) { total_chisq <- NA_real_; total_df <- NA_integer_ }
-  osi <- if (rank_deficient)
+  osi <- if (!cluster_inference)
     list(PSI = NA_real_, separation = NA_real_, strata = NA_real_,
          var_theta = NA_real_, mean_error_var = NA_real_, n = 0L)
   else .psi(objects$location, objects$se)
@@ -1135,6 +1161,11 @@ plot_btl <- function(fit, band = 2.5) {
     # position), added by name so any subset works
     for (cn in colnames(Zfull)) dd[[cn]] <- Zfull[, cn]
     dd <- dd[order(dd$judge, dd$order), ]; rownames(dd) <- NULL; dd
+  }
+  if (!cluster_inference) {
+    if (!is.null(components)) components$se[] <- NA_real_
+    cov_beta[,] <- NA_real_
+    if (length(anch_idx)) cov_beta[anch_idx, anch_idx] <- 0
   }
   out <- list(objects = objects, thresholds = thresholds,
               components = components, thr_structure = thr,
@@ -1475,8 +1506,10 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
 #' judge-level design is calibrated, and its power grows with the number of
 #' judges per group, not the number of comparisons. Each factor level needs
-#' at least two judges, and an object at least four judges overall, to be
-#' testable.
+#' at least two judges. Confirmatory output is withheld unless the base fit
+#' has at least ten judge clusters and more clusters than fitted parameters;
+#' this avoids treating a rank-deficient or very small-cluster sandwich as a
+#' valid sampling covariance.
 #'
 #' Each object is resolved against the other objects' common locations. When
 #' several objects carry real DIF, resolving them one at a time can spread a
@@ -1486,8 +1519,9 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' first and re-running.
 #'
 #' @param fit An object from \code{\link{btl}}.
-#' @param factors A judge factor, or a named list of them, each either one
-#'   value per row of \code{fit$comparisons} or a vector named by judge.
+#' @param factors One judge factor, or a named list containing several. Each
+#'   factor may have one value per comparison row or be a vector named by
+#'   judge.
 #' @param objects Objects to test; all by default.
 #' @param effects \code{"main"} (default) models several factors additively
 #'   (each factor's main effect and its band interaction); \code{"factorial"}
@@ -1508,7 +1542,8 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   \code{nonuniform_DIF} and \code{superseded} flags); \code{terms} (the
 #'   full per-object analysis-of-variance table); \code{levels} (resolved
 #'   location and SE per object, term and cell); \code{sizes} (per object,
-#'   term and cell pair: difference in logits, SE, z, adjusted p, significance
+#'   term and cell pair: difference in logits, SE, t, degrees of freedom,
+#'   adjusted p, significance
 #'   and practical flags); \code{effects}, \code{factors}, and \code{notes}.
 #' @references Andrich, D., & Hagquist, C. (2012). Real and artificial
 #'   differential item functioning. \emph{Journal of Educational and
@@ -1539,6 +1574,12 @@ btl_dif <- function(fit, factors, objects = NULL,
   effects <- match.arg(effects)
   cm <- fit$comparisons
   if (is.null(cm)) stop("the fit carries no comparisons")
+  if (all(is.na(cm$judge)))
+    stop("btl_dif needs judge identifiers: judges are the independent units")
+  if (!isTRUE(fit$cl$inference_available))
+    stop("the base fit does not support cluster-robust inference; btl_dif ",
+         "requires at least 10 judges and more judges than fitted ",
+         "parameters")
   # a single grouping is promoted to a one-factor list; several judge factors
   # are modelled jointly (main effects by default, interactions if asked)
   if (!is.list(factors)) factors <- list(group = factors)
@@ -1837,8 +1878,9 @@ btl_dif <- function(fit, factors, objects = NULL,
   levels_df <- if (length(lev_rows)) do.call(rbind, lev_rows) else NULL
   sizes <- if (length(sz_rows)) do.call(rbind, sz_rows) else NULL
   if (!is.null(sizes)) {
-    sizes$z <- sizes$difference / sizes$se
-    sizes$p <- 2 * pnorm(-abs(sizes$z))
+    sizes$t <- sizes$difference / sizes$se
+    sizes$df <- length(unique(cm$judge[!is.na(cm$judge)])) - 1L
+    sizes$p <- 2 * stats::pt(-abs(sizes$t), df = sizes$df)
     sizes$p_adj <- p.adjust(sizes$p, method = p_adjust)
     sizes$significant <- sizes$p_adj < alpha
     sizes$practical <- abs(sizes$difference) >= flag_logits
@@ -1874,9 +1916,10 @@ print.rasch_btl_dif <- function(x, ...) {
   if (!is.null(x$sizes)) {
     cat(sprintf("\nResolved locations (logits; %s over %d comparison(s); practical %.2f)\n",
                 x$p_adjust, nrow(x$sizes), x$flag_logits))
-    print(.fmt_df(x$sizes[, c("object", "term", "level_a", "level_b",
-                              "difference", "se", "z", "p_adj", "significant",
-                              "practical")]), row.names = FALSE)
+    cols <- c("object", "term", "level_a", "level_b", "difference", "se",
+              "t", "df", "p_adj", "significant", "practical")
+    print(.fmt_df(x$sizes[, intersect(cols, names(x$sizes)), drop = FALSE]),
+          row.names = FALSE)
   }
   if (length(x$notes)) cat("Notes:", paste(x$notes, collapse = "; "), "\n")
   invisible(x)

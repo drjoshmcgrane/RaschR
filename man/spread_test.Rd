@@ -39,3 +39,7 @@ colnames(X) <- paste0("I", 1:8)
 fit2 <- combine_items(rasch(X), list(c("I4", "I5", "I6"), c("I1", "I2", "I3")))
 spread_test(fit2)
 }
+\references{
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+}

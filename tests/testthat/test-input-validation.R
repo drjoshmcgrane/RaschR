@@ -58,6 +58,9 @@ test_that("equating excludes unusable items instead of returning all NA", {
   ref <- data.frame(item = paste0("I", 1:8),
                     location = f$items$location + 0.3,
                     se = f$items$se)
+  # Treat this as an independently calibrated bank and supply its joint
+  # location covariance; marginal SEs alone are not enough after re-centring.
+  attr(ref, "cov_location") <- .equate_loc_cov(f, ref$item)
   ref$se[2] <- NA                       # e.g. a weakly determined item
   eq <- equate_tests(f, ref)
   expect_true(is.finite(eq$shift) && is.finite(eq$rmsd))
@@ -66,8 +69,21 @@ test_that("equating excludes unusable items instead of returning all NA", {
   expect_equal(sum(is.finite(eq$table$t)), 7L)
   expect_match(eq$note, "I2")
   expect_no_error(plot_equate(f, ref))
-  ref$se[1:7] <- NA                     # fewer than two usable -> error
-  expect_error(equate_tests(f, ref), "fewer than two common items")
+  ref$se[1:7] <- NA                     # too few usable -> descriptive link
+  eq2 <- equate_tests(f, ref)
+  expect_false(eq2$inferential)
+  expect_equal(eq2$n, 1L)
+  expect_true(all(is.na(eq2$table$t)))
+  expect_match(eq2$note, "at least three common items")
+  bad_max <- ref
+  bad_max$se <- f$items$se
+  bad_max$max <- f$items$max
+  bad_max$max[1] <- bad_max$max[1] + 1L
+  expect_error(equate_tests(f, bad_max), "different maximum scores")
+  dup <- rbind(ref, ref[1, ])
+  expect_error(equate_tests(f, dup), "must be unique")
+  expect_error(equate_tests(f, ref, independent = "yes"),
+               "NULL, TRUE, or FALSE")
 })
 
 test_that("report_html escapes data-derived text", {
@@ -140,7 +156,7 @@ test_that("OSI is withheld when the clustered covariance is rank-deficient", {
                   judge = sample(sprintf("J%d", 1:5), n, TRUE))
   f <- btl(d, "object_a", "object_b", "winner", judge = "judge")
   expect_true(is.na(f$osi$PSI))
-  expect_true(any(grepl("OSI is withheld", f$notes)))
+  expect_true(any(grepl("cluster-robust inference is withheld", f$notes)))
 })
 
 test_that("alpha is NA, not -Inf, when the total score is constant", {
@@ -179,13 +195,13 @@ test_that("clustered dependence tests use a t reference with G - 1 df", {
   d <- data.frame(object_a = paste0("O", ia), object_b = paste0("O", ib),
                   winner = paste0("O", ifelse(
                     rbinom(n, 1, plogis(b[ia] - b[ib] + 0.4)) == 1, ia, ib)),
-                  judge = sample(sprintf("J%d", 1:6), n, TRUE))
+                  judge = sample(sprintf("J%d", 1:20), n, TRUE))
   f <- btl(d, "object_a", "object_b", "winner", judge = "judge",
            position = TRUE)
   dp <- f$dependence
-  expect_equal(unique(dp$df), 5L)
+  expect_equal(unique(dp$df), 19L)
   expect_true("t" %in% names(dp))                   # labelled for its reference
-  expect_equal(dp$p, 2 * pt(-abs(dp$t), df = 5), tolerance = 1e-12)
+  expect_equal(dp$p, 2 * pt(-abs(dp$t), df = 19), tolerance = 1e-12)
   expect_true(all(dp$p >= 2 * pnorm(-abs(dp$t))))   # wider than normal theory
 })
 
@@ -226,6 +242,28 @@ test_that("simulator rejects malformed second-dimension specifications", {
   expect_error(simulate_rasch(50, 6, second_dim = list(items = 4:6,
                                                        rho = c(.5, .6))),
                "single correlation")
+})
+
+test_that("simulators reject malformed counts, effects, and dependence pairs", {
+  expect_error(simulate_btl(n_objects = 2), "n_objects")
+  expect_error(simulate_btl(n_judges = 1), "n_judges")
+  expect_error(simulate_rasch(50, 6,
+    dependence = list(pairs = list("I01"), strength = 1)),
+    "two different items")
+  expect_error(simulate_rasch(50, 6,
+    dependence = list(pairs = list(c("I01", "I02")), strength = Inf)),
+    "finite value")
+  expect_error(simulate_mfrm(interaction = list(
+    item = "I99", rater = "R1", bias = 1)), "generated level")
+  expect_error(simulate_btl_efrm(panel_units = c(1, -1)),
+               "positive finite")
+})
+
+test_that("sim_apply counts non-scalar results as failed replicates", {
+  out <- sim_apply(list(1, 2), function(x) c(x, x))
+  expect_equal(attr(out, "n_failed"), 2L)
+  expect_true(all(is.na(out)))
+  expect_match(attr(out, "failure_messages"), "one scalar")
 })
 
 test_that("fits saved before the t rename still print their dependence", {
@@ -538,4 +576,61 @@ test_that("mc scoring refuses NA keys and warns on unmatched key items", {
   expect_error(rasch(X, key = c(I1 = "A", I2 = NA)), "missing \\(NA\\) key")
   expect_warning(rasch(X, key = c(I1 = "A", I2 = "B", I99 = "C")),
                  "no matching data column")
+})
+
+test_that("rasch refuses to score a numeric identifier column as an item", {
+  set.seed(1)
+  d <- data.frame(pid = rep(1:100, 2), t = rep(1:2, each = 100),
+                  Q1 = rbinom(200, 1, 0.6), Q2 = rbinom(200, 1, 0.5),
+                  Q3 = rbinom(200, 1, 0.4), Q4 = rbinom(200, 1, 0.5))
+  st <- stack_data(d, person = "pid", time = "t", items = paste0("Q", 1:4))
+  # bare call: the numeric id column must not become a many-category item
+  expect_error(rasch(st), "identifier-like")
+  # the documented full-role call works and keeps the repeated ids
+  f <- rasch(st, id = "id", factors = "time", items = paste0("Q", 1:4))
+  expect_true(anyDuplicated(f$person$id) > 0)
+  expect_equal(sort(f$items$item), sort(paste0("Q", 1:4)))
+})
+
+test_that("available-case ctt alpha is withheld when the covariance is invalid", {
+  set.seed(9)
+  # sparse crossing: most item pairs share almost no respondents
+  X <- matrix(NA_integer_, 30, 8)
+  colnames(X) <- paste0("I", 1:8)
+  for (i in 1:8) {
+    rows <- ((i - 1) * 3 + 1):min(i * 3 + 6, 30)
+    X[rows, i] <- rbinom(length(rows), 1, 0.5)
+  }
+  X[1, ] <- rbinom(8, 1, 0.5)          # one bridge person for connectivity
+  X[2, ] <- 1L - X[1, ]
+  f <- tryCatch(rasch(as.data.frame(X)), error = function(e) NULL)
+  skip_if(is.null(f), "sparse fixture unidentified under current guards")
+  ct <- ctt_table(f, missing = "available")
+  # either a valid alpha or an explicit withholding -- never an absurd value
+  expect_true(is.na(ct$alpha) || (ct$alpha > -1 && ct$alpha <= 1))
+  if (is.na(ct$alpha)) expect_true(grepl("alpha withheld", ct$note))
+})
+
+test_that("tailored_analysis warns when its p-value floor blocks detection", {
+  set.seed(1); N <- 250; L <- 10
+  d <- seq(-2, 2, length.out = L)
+  X <- matrix(rbinom(N * L, 1, plogis(outer(rnorm(N), d, "-"))), N, L)
+  colnames(X) <- paste0("I", 1:L)
+  f <- rasch(as.data.frame(X))
+  expect_warning(tailored_analysis(f, se_method = "bootstrap", boot_reps = 100),
+                 "smallest achievable")
+})
+
+test_that("btl_information no longer claims se sits above se_naive", {
+  set.seed(5)
+  K <- 7; b <- seq(-1.2, 1.2, length.out = K); n <- 420
+  ia <- sample(K, n, TRUE); ib <- (ia + sample(K - 1, n, TRUE) - 1L) %% K + 1L
+  d <- data.frame(a = paste0("O", ia), b = paste0("O", ib),
+                  winner = paste0("O", ifelse(
+                    rbinom(n, 1, plogis(b[ia] - b[ib])) == 1, ia, ib)),
+                  judge = sample(sprintf("J%d", 1:12), n, TRUE))
+  f <- btl(d, "a", "b", "winner", judge = "judge")
+  bi <- btl_information(f)
+  expect_false(any(grepl("as a rule", bi$notes)))
+  expect_true(any(grepl("not a bound", bi$notes)))
 })

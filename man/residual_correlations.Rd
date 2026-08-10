@@ -4,13 +4,13 @@
 \alias{residual_correlations}
 \title{Residual correlations for local dependence (Yen's Q3)}
 \usage{
-residual_correlations(fit, flag = 0.2)
+residual_correlations(fit, flag = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
-\item{flag}{Excess above the average off-diagonal Q3 at which a pair is
-flagged as dependent.}
+\item{flag}{Optional heuristic excess above the average off-diagonal Q3 at
+which a pair is flagged. The default \code{NULL} withholds binary flags.}
 }
 \value{
 A list with the Q3 \code{matrix}, the adjusted-Q3
@@ -25,8 +25,12 @@ Yen's (1984) Q3 statistics. Under unidimensionality and local
 independence the off-diagonal values sit near \code{-1/(L-1)}; large
 positive values flag local dependence between item pairs. Following
 Christensen, Makransky and Horton (2017), each Q3 is also reported
-relative to the average off-diagonal value (\code{q3_star}), and a pair
-is flagged when that excess passes \code{flag}.
+relative to the average off-diagonal value (\code{q3_star}). There is no
+universal adjusted-Q3 critical value: it depends on sample size, test
+length, category structure, and missingness. The default therefore reports
+the statistics without a binary flag. A user-supplied \code{flag} is an
+explicitly heuristic screening threshold, not a calibrated significance
+test.
 }
 \examples{
 set.seed(1)

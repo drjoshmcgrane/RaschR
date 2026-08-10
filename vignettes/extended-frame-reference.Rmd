@@ -1,0 +1,100 @@
+---
+title: "The extended frame of reference model"
+author: "Josh McGrane"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The extended frame of reference model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(digits = 4)
+```
+
+```{r library}
+library(rasch)
+```
+
+## Frames and units
+
+The extended frame of reference model allows the unit to differ across linked
+item-set by person-group frames. Within each frame, the partial credit model
+holds in that frame's natural unit. This is a different claim from ordinary
+DIF: a frame-defining factor sets the scale unit and cannot also be tested as
+a separate DIF factor on the frame's own virtual items.
+
+The model should be used when a frame-dependent unit is part of the
+substantive measurement account, not simply because an equal-unit model fits
+poorly.
+
+```{r simulate}
+d <- simulate_efrm(n_per_group = 300, items_per_set = 8,
+                   set_unit_ratio = 1.30, group_unit_ratio = 1.10,
+                   seed = 12)
+truth <- attr(d, "truth")
+```
+
+## Fit and inspect the links
+
+```{r fit}
+fit <- rasch_efrm(
+  d,
+  item_sets = truth$item_sets,
+  groups = "group",
+  id = "id",
+  boot_reps = 60
+)
+fit
+```
+
+`phi_table` reports person-group units, `alpha_table` reports item-set units,
+and `set_table` reports the linked set locations. Units are positive and are
+most naturally compared as ratios. The linking tables and notes should be read
+before interpreting common-unit item or person estimates.
+
+```{r tables}
+fit$phi_table
+fit$alpha_table
+fit$set_table
+fit$linking
+```
+
+The group units are obtained from within-frame pairwise conditional
+calibrations. Set units and locations require persons common to the linked
+sets. A disconnected or weakly linked design cannot establish a common unit;
+increasing the number of responses within an isolated frame does not repair
+the missing link.
+
+The person-side set-linking step is an error-corrected method-of-moments
+implementation based on the true-score variance-ratio argument in Humphry
+(2005), rather than the separate likelihood proposal in section 5.3 of that
+thesis. The crossed, multigroup and polytomous implementation is an
+experimental extension. Its sampling behaviour should be checked for the
+intended design, preferably with the full person bootstrap. At this
+vignette's design and sample size, for example, the recovered set-unit
+ratio runs a modest few per cent above the planted value across
+replications -- a finite-sample bias of the moments-based link, not
+sampling noise alone -- which is exactly the kind of behaviour such a
+check reveals before the estimates are interpreted substantively.
+
+## Uncertainty and comparison with equal units
+
+The default hybrid standard errors combine the pairwise sandwich covariance,
+a person bootstrap for the set-linking stage, and delta-method propagation.
+The example uses 60 replicates to keep the vignette quick; a final analysis
+should use enough replicates to stabilise its reported standard errors. Set
+`se_method = "bootstrap"` to refit the complete pipeline on each person
+resample.
+
+```{r comparison}
+fit$frames
+fit$efrm_vs_rasch
+```
+
+The raw equal-unit composite-likelihood difference is descriptive. Inference
+is carried by the omnibus Wald tests in `efrm_vs_rasch$unit_omnibus`;
+individual unit contrasts are exploratory and Holm-adjusted. None of these is
+a substitute for checking frame-level fit, targeting, link strength, and the
+defensibility of the frame interpretation.
