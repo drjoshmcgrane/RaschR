@@ -41,9 +41,9 @@ Called for its plotting side effect; invisibly the eigen table.
 
 ## References
 
-Raiche, G. (2005). Critical eigenvalue sizes in standardized residual
-principal components analysis. *Rasch Measurement Transactions*, 19(1),
-1012.
+Raiche, G. (2005). Critical eigenvalue sizes (variances) in standardized
+residual principal components analysis. *Rasch Measurement
+Transactions*, 19(1), 1012.
 
 Chou, Y.-T., & Wang, W.-C. (2010). Checking dimensionality in item
 response models with principal component analysis on standardized

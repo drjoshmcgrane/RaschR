@@ -65,6 +65,17 @@ Journal of Applied Measurement, 4(3), 205–221.
 Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
 Applied Psychological Measurement, 19(4), 369–375.
 
+Andrich, D. (1978). A rating formulation for ordered response
+categories. Psychometrika, 43(4), 561–573.
+
+Andrich, D. (1985). An elaboration of Guttman scaling with Rasch models
+for measurement. In N. B. Tuma (Ed.), Sociological Methodology 1985 (pp.
+33–80). Jossey-Bass.
+
+Pedler, P. J. (1987). Accounting for psychometric dependence with a
+class of latent trait models. PhD thesis, University of Western
+Australia.
+
 ## Examples
 
 ``` r

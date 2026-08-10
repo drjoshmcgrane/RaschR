@@ -41,6 +41,10 @@ bound. Dichotomous items carry no spread and are omitted.
 
 ## References
 
+Andrich, D. (1985). An elaboration of Guttman scaling with Rasch models
+for measurement. In N. B. Tuma (Ed.), Sociological Methodology 1985 (pp.
+33–80). Jossey-Bass.
+
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
 

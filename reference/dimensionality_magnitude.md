@@ -42,7 +42,7 @@ subtest `refit`, and the design constants `S` and `K`.
 ## References
 
 Andrich, D. (2016). Components of variance of scales with a bifactor
-structure from two calculations of coefficient alpha. Educational
+subscale structure from two calculations of alpha. Educational
 Measurement: Issues and Practice, 35(4), 25-30.
 
 ## Examples
