@@ -265,7 +265,7 @@
 #' For each item the standardised residuals are analysed by the nominated
 #' person factor(s) crossed with the trait class interval. A term not
 #' involving the class interval is uniform DIF; a term crossing it is
-#' non-uniform DIF (Hagquist and Marais 2019, ch. 16). With one factor this
+#' non-uniform DIF (Andrich and Marais 2019, ch. 16). With one factor this
 #' is a one-way analysis, \code{z ~ g * ci}. With several factors they are
 #' modelled jointly -- the statistically correct treatment, rather than one
 #' factor at a time -- with main effects by default
