@@ -14,7 +14,8 @@ Description: Pairwise conditional estimation (Zwinderman, 1995
     reliability, and simulation, with person measurement by weighted
     likelihood (Warm, 1989 <doi:10.1007/BF02294627>), following the
     framework of Andrich and Marais (2019) <doi:10.1007/978-981-13-7496-8>.
-    Includes a point-and-click 'shiny' application.
+    Includes a point-and-click 'shiny' app that covers the full
+    functionality of the package.
 URL: https://drjoshmcgrane.github.io/rasch/, https://github.com/drjoshmcgrane/rasch
 BugReports: https://github.com/drjoshmcgrane/rasch/issues
 License: MIT + file LICENSE
