@@ -1,0 +1,9 @@
+bibentry(
+  bibtype = "Manual",
+  title   = "{rasch}: Models and Diagnostics for Rasch Measurement Theory",
+  author  = person("Josh", "McGrane"),
+  year    = format(Sys.Date(), "%Y"),
+  note    = paste("R package version", meta$Version),
+  url     = "https://CRAN.R-project.org/package=rasch",
+  header  = "To cite the rasch package in publications use:"
+)
