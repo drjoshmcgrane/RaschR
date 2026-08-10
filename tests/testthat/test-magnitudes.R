@@ -26,6 +26,30 @@ test_that("dependence_magnitude recovers a simulated dichotomous d", {
   expect_error(dependence_magnitude(fit, "I5", "I5"), "different items")
 })
 
+test_that("dependence_magnitude se uses the joint covariance of the refit", {
+  set.seed(11); N <- 900
+  d0 <- seq(-1.2, 1.2, length.out = 10)
+  X <- matrix(rbinom(N * 10, 1, plogis(outer(rnorm(N), d0, "-"))), N, 10)
+  colnames(X) <- paste0("I", 1:10)
+  dm <- dependence_magnitude(rasch(X), dependent = "I6", independent = "I5")
+  rf <- dm$refit
+  thr <- rf$thresholds
+  item_of <- rf$items$item[thr$item]
+  lo <- thr[item_of == "I6|I5=0" & thr$k == 1, ]
+  hi <- thr[item_of == "I6|I5=1" & thr$k == 1, ]
+  cv <- rf$est$cov_tau
+  # the reported se is the delta-method contrast from the sandwich
+  # covariance, not the independence pooling of A&M eqs. 24.9-24.11
+  se_joint <- sqrt((cv[lo$id, lo$id] + cv[hi$id, hi$id] -
+                    2 * cv[lo$id, hi$id]) / 4)
+  se_pooled <- sqrt((lo$se^2 + hi$se^2) / 4)
+  expect_equal(dm$se, se_joint, tolerance = 1e-10)
+  # the resolved locations are negatively correlated through the shared
+  # comparators, so the joint se must exceed the independence pooling
+  expect_gt(dm$se, se_pooled)
+  expect_equal(dm$thresholds$se_k, se_joint, tolerance = 1e-10)
+})
+
 test_that("spread_test flags a dependent subtest by the LUB", {
   set.seed(5); N <- 800
   d0 <- rep(c(-0.5, 0, 0.5), 3)[1:9]

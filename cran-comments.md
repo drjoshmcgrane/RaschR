@@ -1,4 +1,4 @@
-# CRAN comments for rasch 1.14.1
+# CRAN comments for rasch 1.14.2
 
 ## Summary of this update
 
@@ -11,7 +11,12 @@ data did not identify (for example differential-item-functioning magnitudes
 resting on near-empty categories, and information curves pooled over item
 sets no respondent took together). These are corrected, alongside checks
 for connectedness, separation, rank, and weakly identified parameters
-across all model families.
+across all model families. A release-wide simulation validation battery
+(recovery, standard error calibration, null rates, and power for every
+model family and diagnostic, under complete and missing data) was run
+before submission; the one defect it found, an understated standard error
+in the response-dependence magnitude estimate, is corrected in this
+version.
 
 The update also extends differential item functioning analysis to multiple
 between-person and within-person factors (factorial terms with the

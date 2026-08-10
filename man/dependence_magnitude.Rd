@@ -33,11 +33,13 @@ for category \eqn{x_i} is shifted by \eqn{-d} when \eqn{k \le x_i} and
 \eqn{+d} otherwise, so each threshold yields
 \eqn{\hat d_k = (\hat\delta_{ji(k)}(x_i = k-1) - \hat\delta_{ji(k)}(x_i = k))/2}
 and \eqn{\hat d} is their mean (eq. 24.7 of Andrich and Marais 2019).
-Because the resolved items are answered by disjoint persons, the
-estimates are independent, and the standard error pools the threshold
-variances: \eqn{\hat\sigma^2_k = (\hat\sigma^2_{(k)(k-1)} +
-\hat\sigma^2_{(k)(k)})/4}, with \eqn{V[\hat d] = \bar{\hat\sigma^2_k}/m}
-(eqs. 24.9-24.11).
+Disjoint persons answer the resolved items, but their estimates come
+from one joint fit and are negatively correlated through the shared
+comparator items, so the independence pooling of eqs. 24.9-24.11
+understates the standard error (with ten items, a null rejection rate
+near 7.5\% at \eqn{\alpha = .05} in simulation). The standard error is
+therefore computed from the full sandwich covariance of the resolved
+thresholds, which calibrates the test to the nominal rate.
 }
 \examples{
 set.seed(1); N <- 700
