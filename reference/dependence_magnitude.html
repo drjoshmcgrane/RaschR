@@ -11,11 +11,13 @@ for category \(x_i\) is shifted by \(-d\) when \(k \le x_i\) and
 \(+d\) otherwise, so each threshold yields
 \(\hat d_k = (\hat\delta_{ji(k)}(x_i = k-1) - \hat\delta_{ji(k)}(x_i = k))/2\)
 and \(\hat d\) is their mean (eq. 24.7 of Andrich and Marais 2019).
-Because the resolved items are answered by disjoint persons, the
-estimates are independent, and the standard error pools the threshold
-variances: \(\hat\sigma^2_k = (\hat\sigma^2_{(k)(k-1)} +
-\hat\sigma^2_{(k)(k)})/4\), with \(V[\hat d] = \bar{\hat\sigma^2_k}/m\)
-(eqs. 24.9-24.11)."><meta property="og:description" content="Quantifies how strongly a dependent item's response follows an
+Disjoint persons answer the resolved items, but their estimates come
+from one joint fit and are negatively correlated through the shared
+comparator items, so the independence pooling of eqs. 24.9-24.11
+understates the standard error (with ten items, a null rejection rate
+near 7.5% at \(\alpha = .05\) in simulation). The standard error is
+therefore computed from the full sandwich covariance of the resolved
+thresholds, which calibrates the test to the nominal rate."><meta property="og:description" content="Quantifies how strongly a dependent item's response follows an
 independent item's response, in logits, by the resolution method of
 Andrich and Kreiner (2010; polytomous generalisation Andrich, Humphry
 and Marais 2012), by resolution of the dependent item. The
@@ -27,11 +29,13 @@ for category \(x_i\) is shifted by \(-d\) when \(k \le x_i\) and
 \(+d\) otherwise, so each threshold yields
 \(\hat d_k = (\hat\delta_{ji(k)}(x_i = k-1) - \hat\delta_{ji(k)}(x_i = k))/2\)
 and \(\hat d\) is their mean (eq. 24.7 of Andrich and Marais 2019).
-Because the resolved items are answered by disjoint persons, the
-estimates are independent, and the standard error pools the threshold
-variances: \(\hat\sigma^2_k = (\hat\sigma^2_{(k)(k-1)} +
-\hat\sigma^2_{(k)(k)})/4\), with \(V[\hat d] = \bar{\hat\sigma^2_k}/m\)
-(eqs. 24.9-24.11)."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+Disjoint persons answer the resolved items, but their estimates come
+from one joint fit and are negatively correlated through the shared
+comparator items, so the independence pooling of eqs. 24.9-24.11
+understates the standard error (with ten items, a null rejection rate
+near 7.5% at \(\alpha = .05\) in simulation). The standard error is
+therefore computed from the full sandwich covariance of the resolved
+thresholds, which calibrates the test to the nominal rate."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -39,7 +43,7 @@ variances: \(\hat\sigma^2_k = (\hat\sigma^2_{(k)(k-1)} +
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,11 +88,13 @@ for category \(x_i\) is shifted by \(-d\) when \(k \le x_i\) and
 \(+d\) otherwise, so each threshold yields
 \(\hat d_k = (\hat\delta_{ji(k)}(x_i = k-1) - \hat\delta_{ji(k)}(x_i = k))/2\)
 and \(\hat d\) is their mean (eq. 24.7 of Andrich and Marais 2019).
-Because the resolved items are answered by disjoint persons, the
-estimates are independent, and the standard error pools the threshold
-variances: \(\hat\sigma^2_k = (\hat\sigma^2_{(k)(k-1)} +
-\hat\sigma^2_{(k)(k)})/4\), with \(V[\hat d] = \bar{\hat\sigma^2_k}/m\)
-(eqs. 24.9-24.11).</p>
+Disjoint persons answer the resolved items, but their estimates come
+from one joint fit and are negatively correlated through the shared
+comparator items, so the independence pooling of eqs. 24.9-24.11
+understates the standard error (with ten items, a null rejection rate
+near 7.5% at \(\alpha = .05\) in simulation). The standard error is
+therefore computed from the full sandwich covariance of the resolved
+thresholds, which calibrates the test to the nominal rate.</p>
     </div>
 
     <div class="section level2">
@@ -137,7 +143,7 @@ score (the formalisation requires it).</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">dependence_magnitude</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, dependent <span class="op">=</span> <span class="st">"I5"</span>, independent <span class="op">=</span> <span class="st">"I4"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Response dependence of I5 on I4 (Andrich &amp; Kreiner resolution)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   d = 1.992 logits (se 0.126), z = 15.81, p = &lt; 0.001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   d = 1.992 logits (se 0.142), z = 14.01, p = &lt; 0.001</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

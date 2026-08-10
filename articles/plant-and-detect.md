@@ -223,7 +223,7 @@ threshold displacement read off.
 
 dependence_magnitude(fit4, dependent = "I05", independent = "I04")
 #> Response dependence of I05 on I04 (Andrich & Kreiner resolution)
-#>   d = 0.760 logits (se 0.126), z = 6.04, p = < 0.001
+#>   d = 0.760 logits (se 0.139), z = 5.48, p = < 0.001
 ```
 
 The estimated dependence is around three quarters of a logit and highly
@@ -328,6 +328,35 @@ of the time. Ten replicates suffice to demonstrate the loop, not to pin
 the number down — the Monte Carlo error on ten draws is large — but the
 same six lines, run with a few hundred replicates and swept over sample
 size and effect, are a complete power study.
+
+## 8. Validation studies
+
+The simulators above are also the package’s own test bench. Each release
+is validated by a simulation battery that runs every model family — the
+dichotomous model, the polytomous models, many-facet models, the
+extended frame of reference model, and the comparative judgement models
+— against its full set of diagnostics, under complete data, 25% random
+missingness, and linked structural designs: some 240 checks in all.
+Parameter recovery is checked against the planted values; reported
+standard errors against the empirical sampling variability of the
+estimates (all calibration ratios fall within 0.85–1.20, most within a
+few percent of 1); significance tests against their nominal rates under
+model-true data; and every diagnostic against its planted departure for
+power. The identification guards are exercised in both directions:
+connected linked designs fit and recover well, while genuinely
+disconnected designs are refused rather than fitted.
+
+One correction came out of the battery. `dependence_magnitude` followed
+Andrich and Marais (2019, eqs. 24.9–24.11) in pooling the two resolved
+items’ variances as if their estimates were independent, on the grounds
+that disjoint persons answer them. In the joint refit, however, the two
+estimates are negatively correlated through the shared comparator items,
+and the pooled standard error is too small: with ten items, the null
+rejection rate was 7.5% at a nominal 5% over 1,200 replicates. Since
+release 1.14.2 the standard error is the delta-method contrast over the
+fit’s sandwich covariance, which restores the nominal rate (5.4%
+observed) and carries over unchanged to the polytomous case. The
+estimate of *d* itself is unaffected.
 
 ## References
 

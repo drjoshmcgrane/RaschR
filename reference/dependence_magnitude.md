@@ -11,12 +11,14 @@ dependence of magnitude \\d\\, threshold \\k\\ of the resolved item for
 category \\x_i\\ is shifted by \\-d\\ when \\k \le x_i\\ and \\+d\\
 otherwise, so each threshold yields \\\hat d_k =
 (\hat\delta\_{ji(k)}(x_i = k-1) - \hat\delta\_{ji(k)}(x_i = k))/2\\ and
-\\\hat d\\ is their mean (eq. 24.7 of Andrich and Marais 2019). Because
-the resolved items are answered by disjoint persons, the estimates are
-independent, and the standard error pools the threshold variances:
-\\\hat\sigma^2_k = (\hat\sigma^2\_{(k)(k-1)} +
-\hat\sigma^2\_{(k)(k)})/4\\, with \\V\[\hat d\] =
-\bar{\hat\sigma^2_k}/m\\ (eqs. 24.9-24.11).
+\\\hat d\\ is their mean (eq. 24.7 of Andrich and Marais 2019). Disjoint
+persons answer the resolved items, but their estimates come from one
+joint fit and are negatively correlated through the shared comparator
+items, so the independence pooling of eqs. 24.9-24.11 understates the
+standard error (with ten items, a null rejection rate near 7.5% at
+\\\alpha = .05\\ in simulation). The standard error is therefore
+computed from the full sandwich covariance of the resolved thresholds,
+which calibrates the test to the nominal rate.
 
 ## Usage
 
@@ -63,5 +65,5 @@ X[, 5] <- ifelse(runif(N) < 0.75, X[, 4], X[, 5])   # I5 follows I4
 colnames(X) <- paste0("I", 1:8)
 dependence_magnitude(rasch(X), dependent = "I5", independent = "I4")
 #> Response dependence of I5 on I4 (Andrich & Kreiner resolution)
-#>   d = 1.992 logits (se 0.126), z = 15.81, p = < 0.001
+#>   d = 1.992 logits (se 0.142), z = 14.01, p = < 0.001
 ```

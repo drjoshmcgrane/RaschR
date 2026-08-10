@@ -1,5 +1,27 @@
 # Changelog
 
+## rasch 1.14.2
+
+A release-wide simulation validation battery (every model family and
+diagnostic, under complete data, 25% random missingness, and linked
+structural designs; some 240 checks) confirmed parameter recovery,
+standard error calibration, nominal test rates, detection power, and the
+identification guards, and caught one defect, corrected here:
+
+- [`dependence_magnitude()`](https://drjoshmcgrane.github.io/rasch/reference/dependence_magnitude.md)
+  computes its standard error as a delta-method contrast over the
+  sandwich covariance of the resolved thresholds, rather than pooling
+  the two variances as if the estimates were independent (Andrich and
+  Marais 2019, eqs. 24.9-24.11). The resolved items are answered by
+  disjoint persons, but in the joint refit their estimates are
+  negatively correlated through the shared comparator items, so the
+  pooled standard error was too small: over 1,200 null replicates at ten
+  items the z-test rejected at 7.5% instead of the nominal 5%. The
+  corrected standard error calibrates at 4.8% (dichotomous) and 3.5%
+  (partial credit); the estimate d is unchanged.
+- The plant-and-detect vignette closes with a summary of the validation
+  battery.
+
 ## rasch 1.14.1
 
 This release brings together changes developed since CRAN version
