@@ -33,7 +33,7 @@ alpha signals multidimensionality."><meta property="og:image" content="https://d
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,7 +89,8 @@ proportion of significant tests is reported with an exact
 <span>  alpha <span class="op">=</span> <span class="fl">0.05</span>,</span>
 <span>  items_positive <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  items_negative <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  component <span class="op">=</span> <span class="fl">1</span></span>
+<span>  component <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  min_score_points <span class="op">=</span> <span class="fl">15L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -116,15 +117,33 @@ each), otherwise the sign of a residual component defines the split.</p></dd>
 the default split (ignored when subsets are named). Default the first
 component.</p></dd>
 
+
+<dt id="arg-min-score-points">min_score_points<a class="anchor" aria-label="anchor" href="#arg-min-score-points"></a></dt>
+<dd><p>Score-point threshold below which the verdict
+carries a caution. Andrich and Marais (2019) recommend subtests of
+roughly 15 score points for stable subtest estimates; shorter subsets
+(the norm for ordinary dichotomous tests) still receive a verdict, with
+a <code>caution</code> field noting the reduced stability.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with the proportion of significant tests, its exact
   confidence interval, the sample sizes (<code>n</code> used,
   <code>n_excluded_extreme</code>), the item split and its source, a
-  <code>multidimensional</code> verdict, and <code>paired_t</code>, the paired t-test
-  of the two subset means (the group-level comparison, which requires
-  pairing because both estimates come from the same persons).</p>
+  <code>multidimensional</code> verdict, a <code>caution</code> note when the
+  subtests fall short of <code>min_score_points</code>, and <code>paired_t</code>,
+  the paired t-test of the two subset means (the group-level comparison,
+  which requires pairing because both estimates come from the same
+  persons). When the comparison itself is unavailable (undefined split,
+  degenerate subsets, too few persons) the list carries a <code>note</code>
+  explaining why and <code>multidimensional = NA</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
+multidimensionality using item fit statistics and principal component
+analysis of residuals. Journal of Applied Measurement, 3(2), 205–231.</p>
     </div>
 
     <div class="section level2">

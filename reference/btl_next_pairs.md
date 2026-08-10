@@ -38,10 +38,11 @@ btl_next_pairs(fit, n = 10, weight_se = TRUE)
 
 - weight_se:
 
-  Rank by the one-step total-variance reduction (default `TRUE`; falls
-  back to `expected_information * (se_a^2 + se_b^2)` if the fit carries
-  no covariance). When `FALSE`, pairs are ranked by expected information
-  alone (pure closeness).
+  If `TRUE` (the default), rank pairs by their one-step reduction in
+  total location variance. When the fit has no covariance, the fallback
+  priority is expected information multiplied by the sum of the two
+  squared standard errors. If `FALSE`, rank pairs by expected
+  information alone.
 
 ## Value
 
@@ -53,15 +54,15 @@ by `priority` (or by `expected_information` when `weight_se = FALSE`).
 
 ## Details
 
-Two honest cautions. This is a *greedy* rule that scores each pair on
-its own immediate one-step gain (an A-optimality step at the current
-estimates, taking the clustered covariance as the state); it is not a
-full optimal design and can be beaten by one that plans several
-comparisons jointly. And adaptive selection is known to inflate a
-separation (scale) reliability computed naively afterwards, because the
-design concentrates comparisons where they shrink the errors most:
-report reliability from an independent or non-adaptive subset, or treat
-an adaptive reliability as an upper bound (Bramley 2015).
+This is a *greedy* rule that scores each pair on its own immediate
+one-step gain (an A-optimality step at the current estimates, taking the
+clustered covariance as the state); it is not a full optimal design and
+can be beaten by one that plans several comparisons jointly. And
+adaptive selection is known to inflate a separation (scale) reliability
+computed naively afterwards, because the design concentrates comparisons
+where they shrink the errors most: report reliability from an
+independent or non-adaptive subset, or treat an adaptive reliability as
+an upper bound (Bramley 2015).
 
 ## References
 

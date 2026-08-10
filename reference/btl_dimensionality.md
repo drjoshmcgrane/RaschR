@@ -1,4 +1,4 @@
-# Residual dimensionality of paired comparisons
+# Experimental residual dimensionality of paired comparisons
 
 The residual-PCA analogue for paired comparisons. The fitted model
 predicts how often each object should beat each other from their
@@ -8,10 +8,12 @@ decomposes into rotational planes – Gower's (1977) bimensions – rather
 than the ordinary components of a symmetric residual-correlation matrix.
 A dominant leading bimension is a coherent “swirl” in the residuals (A
 over-beats B, B over-beats C, C over-beats A): a second attribute
-steering some contests. A flat spectrum is noise: the single scale
-suffices. The leading bimension is judged against a reference built by
-simulating unidimensional data from the fitted model with the observed
-pair counts (a parametric bootstrap, as in
+steering some contests. A flat spectrum is compatible with the
+conditional reference. This is an experimental diagnostic extension
+rather than a published calibrated BTL dimensionality test. The leading
+bimension is compared with a reference built by simulating
+unidimensional data from the fitted model with the observed pair counts
+(a parametric bootstrap, as in
 [`plot_scree`](https://drjoshmcgrane.github.io/rasch/reference/plot_scree.md));
 an observed strength above the reference is structure the
 one-dimensional model does not explain. For graded fits the residual
@@ -21,7 +23,7 @@ the same construction, so the test stays calibrated (verified mildly
 conservative on model-true graded data) rather than anticonservative.
 Likewise, when the fit carries within-judge dependence effects
 (`order`), the reference is simulated sequentially through each judge's
-comparisons WITH the fitted exposure and carry-over coefficients: order
+comparisons with the fitted exposure and carry-over coefficients: order
 effects push the marginal pair rates around in a structured way, and a
 reference without them would read that structure as a second attribute.
 The price is power: carry-over and a judge-camp second attribute are
@@ -29,13 +31,16 @@ partially confounded (both appear as consistent within-judge deviation),
 so with `order` modelled the test is conservative about attributing the
 ambiguous share to a second dimension. The reference simulates from the
 point estimates without refitting each replicate, so it carries sampling
-noise in the responses but not estimation noise in the parameters –
-adequate for the screening use here, slightly liberal in tiny designs.
+noise in the responses but not estimation noise in the parameters.
+Results are therefore descriptive and conditional on the fitted point
+estimates. A categorical verdict is also withheld when any object pair
+is unseen, because assigning zero residual to an unobserved pair would
+confuse missing information with model fit.
 
 ## Usage
 
 ``` r
-btl_dimensionality(fit, reps = 50L)
+btl_dimensionality(fit, reps = 200L)
 ```
 
 ## Arguments
@@ -58,6 +63,22 @@ clears-the-reference flag are reported for the leading bimension and
 bimension plane, for the residual map); `leading_structured` (whether
 bimension 1 clears its reference); `residual_matrix`; and `notes`.
 
+## Details
+
+Shared comparison order and `order` effects. The order-aware reference
+is trustworthy only when the comparison order varies across judges. If
+every judge is given the same fixed comparison sequence (a standard
+printed booklet, a fixed competition running order), a real within-judge
+order effect is confounded with the object locations – the fitted order
+coefficient attenuates, the locations absorb the structured order
+signal, and the reference reads the residue as a second dimension. This
+is detected automatically (from the concentration of pairs at each
+sequence position across judges) and the second-dimension verdict is
+withheld (`above_reference` is `NA`, with a note), because the design
+does not identify a second dimension separately from the order effect.
+Randomise the comparison order across judges to test dimensionality with
+an order effect present.
+
 ## References
 
 Gower, J. C. (1977). The analysis of asymmetry and orthogonality. In J.
@@ -73,5 +94,5 @@ d <- data.frame(a = rep(pr[, 1], each = 30), b = rep(pr[, 2], each = 30))
 d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
 btl_dimensionality(btl(d, "a", "b", "win"), reps = 20)
 #> Paired-comparison residual dimensionality: 3 bimension(s)
-#> Leading bimension strength 1.370 (91% of residual; reference 95%: 2.440) -> within noise (one scale suffices)
+#> Leading bimension strength 1.370 (91% of residual; reference 95%: 2.440) -> within the conditional reference
 ```

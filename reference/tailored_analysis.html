@@ -31,7 +31,7 @@ plot_equate on the two calibrations show it directly."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,13 @@ analysis than in the origin-equated one; the comparison table and
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tailored_analysis</span><span class="op">(</span><span class="va">fit</span>, chance <span class="op">=</span> <span class="fl">0.25</span>, anchor_items <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tailored_analysis</span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  chance <span class="op">=</span> <span class="fl">0.25</span>,</span>
+<span>  anchor_items <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  se_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"bootstrap"</span><span class="op">)</span>,</span>
+<span>  boot_reps <span class="op">=</span> <span class="fl">999L</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -104,14 +110,32 @@ least affected by tailoring – fewest responses removed, ties broken
 towards the easier tailored location – which are the easy items the
 procedure trusts.</p></dd>
 
+
+<dt id="arg-se-method">se_method<a class="anchor" aria-label="anchor" href="#arg-se-method"></a></dt>
+<dd><p><code>"none"</code> (default) reports the item shifts
+descriptively. <code>"bootstrap"</code> resamples persons and repeats the
+complete four-step procedure, including automatic anchor selection, to
+obtain standard errors, percentile intervals, and Holm-adjusted tests.</p></dd>
+
+
+<dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
+<dd><p>Person-bootstrap replicates when
+<code>se_method = "bootstrap"</code>; at least 50, default 999. The
+sign-count bootstrap p-value has resolution floor <code>2/(boot_reps
++ 1)</code>, so after the Holm adjustment across m items the smallest
+achievable adjusted p is <code>2m/(boot_reps + 1)</code>; a warning fires
+when that floor exceeds 0.05 (detection would be impossible).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_tailored"</code>: <code>tailored</code>,
   <code>origin_equated</code>, and <code>anchored</code> fits, the comparison
   <code>table</code> (initial, tailored, origin-equated locations, the
-  tailored-minus-equated <code>shift</code>, and its <code>z</code>), the number of
-  responses removed, and the anchor items used.</p>
+  tailored-minus-equated <code>shift</code>; bootstrap uncertainty columns when
+  requested), the number of
+  responses removed, the anchor items used, <code>se_method</code>, and the
+  number of usable bootstrap replicates <code>boot_reps_used</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -133,17 +157,28 @@ procedure trusts.</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">ta</span> <span class="op">&lt;-</span> <span class="fu">tailored_analysis</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, chance <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">ta</span><span class="op">$</span><span class="va">table</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     item    initial    tailored origin_equated removed      shift         z</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I1    I1 -1.6725135 -1.77025037    -1.77025037       0 0.00000000 0.0000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I2    I2 -1.2209361 -1.35953938    -1.35953938       0 0.00000000 0.0000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I3    I3 -0.7506180 -0.82611031    -0.82611031       7 0.00000000 0.0000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I4    I4 -0.3397033 -0.40510059    -0.40510059      33 0.00000000 0.0000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I5    I5  0.1120400  0.04827271     0.02317712      33 0.02509559 0.2161692</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I6    I6  0.2715352  0.26473095     0.18275306      90 0.08197789 0.7059928</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I7    I7  0.5422752  0.51272210     0.45362192      90 0.05910019 0.5167861</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I8    I8  0.9005334  0.88296336     0.81230152     206 0.07066184 0.5786044</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I9    I9  1.0370971  1.28376521     0.94890015     206 0.33486506 2.6189468</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> I10  I10  1.1202901  1.36854631     1.03204123     206 0.33650508 2.5838021</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     item    initial    tailored origin_equated removed      shift se ci_low</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I1    I1 -1.6725135 -1.77025037    -1.77025037       0 0.00000000 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I2    I2 -1.2209361 -1.35953938    -1.35953938       0 0.00000000 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I3    I3 -0.7506180 -0.82611031    -0.82611031       7 0.00000000 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I4    I4 -0.3397033 -0.40510059    -0.40510059      33 0.00000000 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I5    I5  0.1120400  0.04827271     0.02317712      33 0.02509559 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I6    I6  0.2715352  0.26473095     0.18275306      90 0.08197789 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I7    I7  0.5422752  0.51272210     0.45362192      90 0.05910019 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I8    I8  0.9005334  0.88296336     0.81230152     206 0.07066184 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I9    I9  1.0370971  1.28376521     0.94890015     206 0.33486506 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I10  I10  1.1202901  1.36854631     1.03204123     206 0.33650508 NA     NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     ci_high  p p_adj significant</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I1       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I2       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I3       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I4       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I5       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I6       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I7       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I8       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I9       NA NA    NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> I10      NA NA    NA          NA</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -1,4 +1,4 @@
-# Planting misfit and watching the diagnostics fire
+# Simulation-based checks of Rasch diagnostics
 
 ``` r
 
@@ -7,18 +7,15 @@ library(rasch)
 
 ## 1. Why simulate
 
-A diagnostic is only trustworthy if it fires when it should and stays
-quiet when it should not. The surest way to check that is to
-*manufacture* the fault it is meant to detect and confirm that the
-statistic responds. The package ships a family of simulators
-(`simulate_rasch`, `simulate_btl`, `simulate_mfrm`, `simulate_efrm`)
-built around exactly this plant-and-detect loop: each generates data
-from the appropriate member of the Rasch family and lets a *known*
-departure from the model be dialled in, so the matching diagnostic can
-be watched as it responds.
+Simulation provides a direct way to examine whether an estimator
+recovers known parameters and whether a diagnostic responds to the
+departure it is intended to detect. The package therefore includes
+simulators for the main model families: `simulate_rasch`,
+`simulate_btl`, `simulate_mfrm`, and `simulate_efrm`. Each can generate
+model-conforming data or introduce a known departure from the model.
 
-Every simulator returns data ready for its fit function, with the
-generating parameters and the planted departures carried on the object
+Every simulator returns data ready for its fitting function, with the
+generating parameters and any specified departures carried on the object
 as `attr(x, "truth")`. The print method reports what was planted, so a
 dataset never becomes anonymous once it leaves the call that made it.
 
@@ -36,21 +33,20 @@ names(attr(d, "truth"))            # the truth travels with the data
 #> [17] "planted"
 ```
 
-With no departures requested the data conform to the model, and the
-print method says so. The rest of this vignette plants one fault at a
-time and runs the diagnostic built to find it. The diagnostics
-themselves follow the conventions of Andrich and Marais (2019); the
-simulators exist to test them.
+With no departures requested, the data conform to the model. The
+remaining sections introduce one departure at a time and examine the
+corresponding diagnostic. The diagnostic conventions follow Andrich and
+Marais (2019).
 
-## 2. A clean baseline
+## 2. A model-conforming baseline
 
-Before planting anything, it is worth seeing what recovery looks like
-when the model holds exactly, so that later departures are read against
-an honest null. `sim_recovery` compares the parameters a fit recovers
-against the ones the simulator planted (mean-centring the locations,
-which the model identifies only up to an origin), and `plot_recovery`
-draws each true-versus-estimated panel with its correlation and
-root-mean-square error.
+It is useful to begin with parameter recovery when the model holds, so
+that later departures can be interpreted against a model-conforming
+reference. `sim_recovery` compares the parameters a fit recovers against
+the ones the simulator planted (mean-centring the locations, which the
+model identifies only up to an origin), and `plot_recovery` draws each
+true-versus-estimated panel with its correlation and root-mean-square
+error.
 
 ``` r
 
@@ -58,8 +54,8 @@ fit <- rasch(d, id = "id")
 rec <- sim_recovery(fit, d)
 rec
 #> Parameter recovery (planted vs recovered):
-#>   item difficulty  n=10   r=0.998  RMSE=0.108  bias=-0.000
-#>   person ability   n=400  r=0.761  RMSE=0.826  bias=+0.000
+#>   item difficulty  n=10   r=0.998  RMSE=0.108  bias=NA
+#>   person ability   n=400  r=0.761  RMSE=0.826  bias=NA
 ```
 
 ``` r
@@ -77,9 +73,11 @@ difficulty pools evidence from all 400 persons, so it is recovered
 tightly: the correlation is near unity and the error is around a tenth
 of a logit. Each person ability, by contrast, rests on only the ten
 items that person answered, so its weighted likelihood estimate (Warm
-1989) carries a standard error near seven tenths of a logit; the
+1989) carries a standard error of roughly eight tenths of a logit; the
 recovery correlation is correspondingly lower and the root-mean-square
-error much larger. The bias is negligible in both. A short test measures
+error much larger. (The bias column reads NA by design: locations are
+identified only up to the scale origin, so a mean difference from the
+planted values is not an estimable quantity.) A short test measures
 persons imprecisely *even when the model is exactly true* — a point
 worth holding onto before reading any person-level result from a
 ten-item scale.
@@ -100,16 +98,16 @@ d2  <- simulate_rasch(400, 10, discrimination = disc, seed = 21)
 fit2 <- rasch(d2, id = "id")
 fit2$items[, c("item", "location", "infit_ms", "outfit_ms")]
 #>    item location infit_ms outfit_ms
-#> 1   I01  -2.5220   0.8925    0.7644
-#> 2   I02  -1.8851   1.0353    0.9297
-#> 3   I03  -1.5071   1.0077    0.8833
-#> 4   I04  -0.7011   1.0496    0.9758
-#> 5   I05  -0.3867   0.9119    0.8356
-#> 6   I06   0.2056   1.2609    1.2194
-#> 7   I07   0.7730   1.0431    1.0290
-#> 8   I08   1.4631   1.0807    0.9292
-#> 9   I09   2.1031   1.0103    0.8246
-#> 10  I10   2.4572   1.0346    0.7546
+#> 1   I01  -2.5220   0.8994    0.7716
+#> 2   I02  -1.8851   1.0412    0.9415
+#> 3   I03  -1.5071   1.0119    0.8956
+#> 4   I04  -0.7011   1.0517    0.9912
+#> 5   I05  -0.3867   0.9134    0.8490
+#> 6   I06   0.2056   1.2625    1.2397
+#> 7   I07   0.7730   1.0445    1.0459
+#> 8   I08   1.4631   1.0828    0.9437
+#> 9   I09   2.1031   1.0133    0.8363
+#> 10  I10   2.4572   1.0382    0.7645
 ```
 
 The two planted items depart from the pack in opposite directions, as
@@ -164,9 +162,9 @@ and Marais 2019, ch. 16).
 
 dif_size(fit3, "I06", by = "group")
 #> DIF size for I06 by group (resolved locations, logits)
-#>  level location    se   n
-#>     g1    0.262 0.140 250
-#>     g2    1.266 0.162 250
+#>  level location    se weak   n
+#>     g1    0.262 0.140    0 250
+#>     g2    1.266 0.162    0 250
 #>  level_a level_b difference    se      z p p_adj  lower  upper significant
 #>       g1      g2     -1.004 0.234 -4.287 0     0 -1.463 -0.545           *
 #>  practical
@@ -188,8 +186,9 @@ should raise the residual correlation of the planted pair above the
 small negative value expected under local independence.
 `residual_correlations` returns Yen’s (1984) Q3 and, following
 Christensen, Makransky and Horton (2017), the adjusted Q3\* (each Q3
-less the average off-diagonal value), flagging pairs whose excess passes
-a threshold.
+less the average off-diagonal value). There is no universal critical
+value for adjusted Q3, so binary flagging is available only when the
+analyst supplies a screening threshold and remains heuristic.
 
 ``` r
 
@@ -197,7 +196,7 @@ d4   <- simulate_rasch(500, 10,
                        dependence = list(pairs = list(c("I04", "I05")),
                                          strength = 1.8), seed = 41)
 fit4 <- rasch(d4, id = "id")
-rc   <- residual_correlations(fit4)
+rc   <- residual_correlations(fit4, flag = 0.20)
 rc$average                          # near -1/(L-1) under independence
 #> [1] -0.09841
 head(rc$pairs, 3)                   # the planted pair leads the table
@@ -210,13 +209,14 @@ rc$flagged
 #> 1    I04    I05 0.1703  0.2688    TRUE
 ```
 
-The planted I04–I05 pair sits at the top of the sorted table and is the
-only one flagged; the average off-diagonal value is close to the
-$`-1/(L-1)`$ expected when the items are locally independent. As with
-DIF, flagging is one thing and magnitude another. `dependence_magnitude`
-puts the effect on the logit scale by the resolution method of Andrich
-and Kreiner (2010): the dependent item is split by the category of the
-item it follows, refitted, and the threshold displacement read off.
+The planted I04–I05 pair sits at the top of the sorted table and clears
+the chosen heuristic screen; the average off-diagonal value is close to
+the $`-1/(L-1)`$ expected when the items are locally independent. As
+with DIF, screening is one thing and magnitude another.
+`dependence_magnitude` puts the effect on the logit scale by the
+resolution method of Andrich and Kreiner (2010): the dependent item is
+split by the category of the item it follows, refitted, and the
+threshold displacement read off.
 
 ``` r
 
@@ -321,12 +321,12 @@ mean(flagged)                       # proportion of runs that flagged I04
 
 The estimate is the proportion of the ten runs in which the planted item
 was flagged after adjustment. A shift of 0.8 logits split over two
-groups of 200 is detected in a majority of runs but by no means all: a
-real departure of moderate size against a modest sample is caught only
-some of the time. Ten replicates suffice to demonstrate the loop, not to
-pin the number down — the Monte Carlo error on ten draws is large — but
-the same six lines, run with a few hundred replicates and swept over
-sample size and effect, are a complete power study.
+groups of 200 is detected in only about half of these runs: a real
+departure of moderate size against a modest sample is caught only some
+of the time. Ten replicates suffice to demonstrate the loop, not to pin
+the number down — the Monte Carlo error on ten draws is large — but the
+same six lines, run with a few hundred replicates and swept over sample
+size and effect, are a complete power study.
 
 ## References
 

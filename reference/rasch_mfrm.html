@@ -25,7 +25,7 @@ table and plot in the package applies to it."><meta property="og:image" content=
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -145,6 +145,8 @@ negative score is also treated as missing.</p></dd>
 <code>gamma[item, level]</code> with double sum-to-zero constraints on top of
 the additive severities, so each level may be more or less severe on
 particular items; estimates are returned in <code>interaction_effects</code>.
+The joint family is tested in <code>interaction_test</code>; cell p-values in
+<code>interaction_effects</code> are Holm-adjusted exploratory follow-ups.
 The interactive model remains in the Rasch class (all discriminations
 equal one and the parameters are additive), but a significant
 interaction qualifies specific objectivity in practice: comparisons of
@@ -168,12 +170,14 @@ item-by-facet interaction (<code>interaction=</code>).</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of classes <code>"rasch_mfrm"</code> and <code>"rasch"</code>. In
-  addition to every component of a <code><a href="rasch.html">rasch</a></code> fit (computed over
-  the virtual items), it carries <code>facet_effects</code> (per facet: level,
+  addition to the standard <code><a href="rasch.html">rasch</a></code> components (computed
+  over the virtual items), it carries <code>facet_effects</code> (per facet: level,
   severity, standard error, observation count, pooled fit),
   <code>item_effects</code> (underlying item locations and pooled fit),
   <code>item_thresholds</code> (the structural <code>delta_ik</code> with standard
-  errors), and <code>facet_spec</code>. Two fit residuals are reported per
+  errors), and <code>facet_spec</code>. Interactive fits add the omnibus
+  family test in <code>interaction_test</code>, with the Holm-adjusted
+  exploratory cells in <code>interaction_effects</code>. Two fit residuals are reported per
   facet level and per underlying item. <code>fit_resid</code> is the
   facet-margin statistic of the published three-facet fit tables
   (Andrich and Marais 2019, ch. 26 and app. C), the mean of the
@@ -186,11 +190,54 @@ item-by-facet interaction (<code>interaction=</code>).</p></dd>
   powerful statistic when misfit is spread evenly over the level's
   cells.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>For person \(n\), item \(i\), and facet levels
+\(f_1,\ldots,f_Q\), the additive model is
+$$P(X_{ni\boldsymbol f}=x)=\frac{\exp\{x\theta_n-
+  \sum_{k=1}^{x}[\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}]\}}
+  {\sum_{y=0}^{m_i}\exp\{y\theta_n-
+  \sum_{k=1}^{y}[\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}]\}}.$$
+Positive facet values therefore denote greater severity. The item
+thresholds have a common sum-zero origin and the levels of each facet sum
+to zero. If <code>interaction</code> is requested, an item-by-level term is
+added with both its item and facet margins constrained to sum to zero.</p>
+<p>Estimation constructs one virtual item for every observed item-by-facet
+combination. Its thresholds equal the corresponding item thresholds plus
+the relevant facet severities and, where requested, the interaction term.
+This structural mapping is imposed directly in pairwise conditional maximum
+likelihood; person parameters cancel before estimation. The reported item,
+facet, and interaction parameters are recovered from the fitted structural
+coefficients. Their covariance is the Godambe sandwich covariance from the
+pairwise likelihood, transformed through the same structural mapping.</p>
+<p>Identification requires more than the presence of every nominal level.
+Facet levels must share items and persons with the rest of the design, and
+informative co-observations must connect the virtual-item blocks. A facet
+nested within an item or within a person-disjoint block can be confounded
+with item location even when every level has observations. The function
+checks the rank of the structural design and whether disconnected response
+blocks admit an unidentified relative shift, and stops rather than report
+an arbitrary decomposition.</p>
+<p>Item-by-facet interaction does not introduce unequal discriminations, but
+it makes comparisons among levels of the interacting facet item-dependent.
+A material interaction therefore qualifies the practical claim of
+invariance and should be reported as such.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.</p>
+<p>Linacre, J. M. (1989). Many-Facet Rasch Measurement. Chicago: MESA Press.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">simP</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">th</span>, <span class="va">tau</span><span class="op">)</span> <span class="op">{</span> <span class="va">x</span> <span class="op">&lt;-</span> <span class="fl">0</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tau</span><span class="op">)</span>; <span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span> <span class="op">*</span> <span class="va">th</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="va">tau</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>; <span class="va">p</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">p</span><span class="op">)</span> <span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">simP</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">th</span>, <span class="va">tau</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">x</span> <span class="op">&lt;-</span> <span class="fl">0</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tau</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span> <span class="op">*</span> <span class="va">th</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="va">tau</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">p</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">p</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-in"><span><span class="va">persons</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P%03d"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">120</span><span class="op">)</span>; <span class="va">raters</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"R"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">th</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span>, <span class="fl">0</span>, <span class="fl">1.3</span><span class="op">)</span>, <span class="va">persons</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">rho</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.2</span>, <span class="fl">0.6</span><span class="op">)</span>, <span class="va">raters</span><span class="op">)</span></span></span>
@@ -198,7 +245,8 @@ item-by-facet interaction (<code>interaction=</code>).</p></dd>
 <span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid</a></span><span class="op">(</span>person <span class="op">=</span> <span class="va">persons</span>, item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tau</span><span class="op">)</span>, rater <span class="op">=</span> <span class="va">raters</span>,</span></span>
 <span class="r-in"><span>                 stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">score</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">p</span>, <span class="va">i</span>, <span class="va">r</span><span class="op">)</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fl">0</span><span class="op">:</span><span class="fl">2</span>, <span class="fl">1</span>, prob <span class="op">=</span> <span class="fu">simP</span><span class="op">(</span><span class="va">th</span><span class="op">[</span><span class="va">p</span><span class="op">]</span>, <span class="va">tau</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span> <span class="va">rho</span><span class="op">[</span><span class="va">r</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>, <span class="va">d</span><span class="op">$</span><span class="va">person</span>, <span class="va">d</span><span class="op">$</span><span class="va">item</span>, <span class="va">d</span><span class="op">$</span><span class="va">rater</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fl">0</span><span class="op">:</span><span class="fl">2</span>, <span class="fl">1</span>, prob <span class="op">=</span> <span class="fu">simP</span><span class="op">(</span><span class="va">th</span><span class="op">[</span><span class="va">p</span><span class="op">]</span>, <span class="va">tau</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">+</span> <span class="va">rho</span><span class="op">[</span><span class="va">r</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  <span class="va">d</span><span class="op">$</span><span class="va">person</span>, <span class="va">d</span><span class="op">$</span><span class="va">item</span>, <span class="va">d</span><span class="op">$</span><span class="va">rater</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">rasch_mfrm</span><span class="op">(</span><span class="va">d</span>, person <span class="op">=</span> <span class="st">"person"</span>, item <span class="op">=</span> <span class="st">"item"</span>, score <span class="op">=</span> <span class="st">"score"</span>,</span></span>
 <span class="r-in"><span>                  facets <span class="op">=</span> <span class="st">"rater"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">facet_effects</span><span class="op">$</span><span class="va">rater</span></span></span>

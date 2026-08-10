@@ -50,19 +50,13 @@ simulate_btl(
 - second_attribute:
 
   `NULL`, or `list(rho=)`: half the judges rank by a second object
-  attribute correlated `rho` with the first – genuine
-  multidimensionality. Feeds
-  [`btl_dimensionality`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
-  and
-  [`btl_transitivity`](https://drjoshmcgrane.github.io/rasch/reference/btl_transitivity.md).
+  attribute correlated `rho` with the first. This introduces
+  multidimensionality and possible intransitivity.
 
 - erratic_judges:
 
-  Proportion of judges who choose at random. Feeds the judge fit
-  residual,
-  [`btl_transitivity`](https://drjoshmcgrane.github.io/rasch/reference/btl_transitivity.md)
-  consistency, and
-  [`judge_surprise`](https://drjoshmcgrane.github.io/rasch/reference/judge_surprise.md).
+  Proportion of judges who choose at random. This affects judge fit,
+  transitivity, and the judge-surprise diagnostics.
 
 - dependence:
 

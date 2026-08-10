@@ -51,5 +51,6 @@ sim <- function(objs) {
   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
   btl(d, "a", "b", "win")
 }
-plot_btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)))
+plot_btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)),
+                 independent = TRUE)
 ```

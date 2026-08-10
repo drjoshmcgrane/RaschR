@@ -39,7 +39,7 @@ comparisons enter all tests with their weights."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -116,8 +116,9 @@ comparisons enter all tests with their weights.</p>
 
 
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
-<dd><p>A judge factor, or a named list of them, each either one
-value per row of <code>fit$comparisons</code> or a vector named by judge.</p></dd>
+<dd><p>One judge factor, or a named list containing several. Each
+factor may have one value per comparison row or be a vector named by
+judge.</p></dd>
 
 
 <dt id="arg-objects">objects<a class="anchor" aria-label="anchor" href="#arg-objects"></a></dt>
@@ -163,7 +164,8 @@ dropped from its resolution, with a note.</p></dd>
   <code>nonuniform_DIF</code> and <code>superseded</code> flags); <code>terms</code> (the
   full per-object analysis-of-variance table); <code>levels</code> (resolved
   location and SE per object, term and cell); <code>sizes</code> (per object,
-  term and cell pair: difference in logits, SE, z, adjusted p, significance
+  term and cell pair: difference in logits, SE, t, degrees of freedom,
+  adjusted p, significance
   and practical flags); <code>effects</code>, <code>factors</code>, and <code>notes</code>.</p>
     </div>
     <div class="section level2">
@@ -177,8 +179,10 @@ pseudo-replicate (a null simulation with judge heterogeneity and
 arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
 judge-level design is calibrated, and its power grows with the number of
 judges per group, not the number of comparisons. Each factor level needs
-at least two judges, and an object at least four judges overall, to be
-testable.</p>
+at least two judges. Confirmatory output is withheld unless the base fit
+has at least ten judge clusters and more clusters than fitted parameters;
+this avoids treating a rank-deficient or very small-cluster sandwich as a
+valid sampling covariance.</p>
 <p>Each object is resolved against the other objects' common locations. When
 several objects carry real DIF, resolving them one at a time can spread a
 large effect onto clean objects as compensating, opposite-signed artificial
@@ -219,8 +223,8 @@ first and re-running.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Resolved locations (logits; BH over 1 comparison(s); practical 0.50)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  object  term level_a level_b difference    se     z   p_adj significant</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       C group      g1      g2      1.404 0.283 4.965 &lt; 0.001           *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  object  term level_a level_b difference    se     t df   p_adj significant</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       C group      g1      g2      1.404 0.283 4.965 11 &lt; 0.001           *</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  practical</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          *</span>
 </code></pre></div>

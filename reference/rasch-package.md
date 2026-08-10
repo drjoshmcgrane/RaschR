@@ -1,19 +1,80 @@
-# rasch: Pairwise Conditional Rasch Measurement Analysis and Diagnostics
+# rasch: An R Implementation of Rasch Measurement Theory
 
-Pairwise conditional maximum likelihood estimation of dichotomous and
-polytomous Rasch models (partial credit and rating scale) after Andrich
-and Luo (2003) and Zwinderman (1995), with Warm weighted likelihood
-person estimates and a comprehensive diagnostic suite: item and person
-fit residuals, the item-trait interaction chi-square and class interval
-ANOVA, the person separation index, Cronbach's alpha, targeting, test
-information, the score-to-measure table, threshold and category
-diagnostics, residual-component dimensionality testing, local dependence
-by residual correlation, and differential item functioning by two-way
-residual analysis of variance over multiple person factors. Includes a
-modern Shiny interface
-([`run_app`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md))
-and a one-call exporter
-([`save_outputs`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md)).
+Implements Rasch Measurement Theory for the construction and evaluation
+of measurement scales. The package is organised around sufficiency and
+invariance: the relevant score contains the information required for
+person measurement, and comparisons between persons and items should
+remain stable across relevant samples and conditions.
+
+## Details
+
+The model suite includes the dichotomous Rasch model, partial credit and
+rating scale models, many-facet Rasch models, the extended frame of
+reference model, and Bradley-Terry-Luce models for paired comparisons.
+Functions are provided for item and person estimation, fit, targeting,
+dimensionality, local response dependence, differential item
+functioning, threshold functioning, reliability, equating, repeated
+measurements, simulation, and graphical reporting. See
+[`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
+[`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
+[`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md),
+and [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) for
+the principal fitting functions. Results can be exported with
+[`save_outputs`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md).
+
+## Point-and-click graphical interface
+
+The package includes a guided Shiny application, launched with
+[`run_app`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md).
+It supports data import, assignment of item, person, group, rater, and
+comparison roles, model fitting, diagnostics, plots, and export through
+a graphical interface. R is needed to install the package and launch the
+application, but users can then complete the principal analyses without
+writing R code. The app displays the corresponding R call for each
+analysis so that work conducted through the interface remains
+transparent and reproducible.
+
+## Choosing a model
+
+Use [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+for persons responding to a common set of items. Dichotomous data are a
+special case of its partial credit model; set `model = "RSM"` when the
+same category-threshold structure is to be shared across items. Use
+[`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
+when observations also contain facets such as raters, tasks, or
+occasions whose additive severity is part of the measurement model. Use
+[`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
+only when the substantive model allows the unit itself to differ across
+linked item-set by person-group frames. For paired-comparison data, use
+[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md);
+[`btl_efrm`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
+supplies the corresponding linked-frame extension.
+
+These models address different designs and invariance claims; they are
+not a ladder of progressively better-fitting alternatives. In
+particular, person factors ordinarily belong in an invariance analysis
+with
+[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md),
+whereas rating facets belong in the MFRM and frame-defining factors
+belong in the EFRM.
+
+## Typical workflow
+
+Begin by checking coding, category use, missingness, and design
+connectedness. Missing responses can be accommodated when the observed
+response graph identifies a common scale and the missingness process is
+ignorable for the model; informative missingness requires an explicit
+sensitivity analysis. Fit the model required by the design, then examine
+targeting, item and person fit, threshold ordering, local response
+dependence, and dimensionality. Test invariance across all relevant
+person factors jointly; repeated-measures factors should be identified
+as within-person in
+[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md).
+Investigate the size and substantive meaning of a departure before
+modifying the scale. Refit after any defensible change and report the
+final model, exclusions or resolutions, uncertainty, targeting, and
+remaining limitations. The package vignettes give worked workflows for
+each main model family.
 
 ## See also
 

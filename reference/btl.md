@@ -74,7 +74,10 @@ btl(
   1992): a partial-credit structure on the difference of locations with
   thresholds constrained symmetric, `tau_k = -tau_(m+1-k)`, so the model
   is invariant to presentation order. Two categories reproduce BTL
-  exactly; three give the Davidson (1970) ties model.
+  exactly. Three categories have the Davidson (1970) probability
+  structure after mapping the Davidson endpoint log-strength to
+  `2 * beta`; the reported `beta` therefore uses the adjacent-category
+  rather than endpoint-log-odds unit.
 
 - margin:
 
@@ -171,8 +174,12 @@ separation index `osi`, `loglik`, `cl` (the composite-likelihood
 information ingredients used by
 [`compare_fits`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md):
 the Godambe effective parameter count and the independent-unit count),
-convergence details, and `notes`. Graded fits add `thresholds` (the
-symmetric threshold estimates with standard errors), `m`, and
+convergence details, and `notes`. With judge clustering,
+covariance-based inference (including the Godambe information criteria,
+standard errors, dependence tests, DIF, and OSI) is withheld unless
+there are at least 10 judges and more judges than fitted parameters.
+Point estimates and descriptive fit remain. Graded fits add `thresholds`
+(the symmetric threshold estimates with standard errors), `m`, and
 `categories`. With an `order` column the within-judge `dependence`
 effects table carries an `n_informative` count, and `dependence_data`
 holds every comparison with its per-comparison exposure and carry-over

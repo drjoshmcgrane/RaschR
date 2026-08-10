@@ -23,12 +23,11 @@ compare_fits(..., reference = 1)
 
 - ...:
 
-  Two or more fitted objects, ideally named
-  (`compare_fits(PCM = f1, RSM = f2)`). Either all Rasch-family fits or
-  all `btl` fits; for `btl`, fits of the same comparison data (same
-  objects, comparisons, and judges) support the likelihood columns –
-  e.g. free versus principal-component thresholds, with and without a
-  position effect or within-judge dependence.
+  Two or more fitted objects, preferably named. Supply either all
+  Rasch-family fits or all `btl` fits. For `btl`, fits of the same
+  comparison data (same objects, comparisons, and judges) support the
+  likelihood columns – e.g. free versus principal-component thresholds,
+  with and without a position effect or within-judge dependence.
 
 - reference:
 
@@ -71,12 +70,18 @@ for paired comparisons).
 
 ``` r
 set.seed(1)
-simP <- function(th, tau) { x <- 0:length(tau); p <- exp(x * th - c(0, cumsum(tau))); p / sum(p) }
+simP <- function(th, tau) {
+  x <- 0:length(tau)
+  p <- exp(x * th - c(0, cumsum(tau)))
+  p / sum(p)
+}
 th <- rnorm(400)
 X <- sapply(seq(-1, 1, length.out = 6), function(b)
-  sapply(th, function(t) sample(0:3, 1, prob = simP(t, b + c(-0.8, 0, 0.8)))))
+  sapply(th, function(t)
+    sample(0:3, 1, prob = simP(t, b + c(-0.8, 0, 0.8)))))
 colnames(X) <- paste0("R", 1:6)
-compare_fits(PCM = rasch(X, model = "PCM"), RSM = rasch(X, model = "RSM"))
+compare_fits(PCM = rasch(X, model = "PCM"),
+             RSM = rasch(X, model = "RSM"))
 #> Model comparison (reference: PCM)
 #> 
 #>  label model persons items eff_params   cl_aic   cl_bic two_delta_ll

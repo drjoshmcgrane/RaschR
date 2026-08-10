@@ -88,7 +88,7 @@ bt <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                judge = "judge", panels = "panel",
                object_sets = attr(d, "truth")$object_sets)
 bt$alpha_table   # recovers the ~1.4 set unit
-#>    set    alpha se_log_alpha       z          p
-#> 1 set1 1.000000           NA      NA         NA
-#> 2 set2 1.457189    0.1818235 2.07074 0.03838314
+#>    set    alpha se_log_alpha        z          p      p_adj significant
+#> 1 set1 1.000000           NA       NA         NA         NA          NA
+#> 2 set2 1.457189     0.165698 2.272261 0.02307077 0.02307077        TRUE
 ```

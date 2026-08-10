@@ -51,7 +51,7 @@ unanchored cluster, and the same error results)."><meta property="og:image" cont
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -162,7 +162,10 @@ adjacent-categories ordinal extension of BTL (Tutz 1986; Agresti
 1992): a partial-credit structure on the difference of locations with
 thresholds constrained symmetric, <code>tau_k = -tau_(m+1-k)</code>, so the
 model is invariant to presentation order. Two categories reproduce
-BTL exactly; three give the Davidson (1970) ties model.</p></dd>
+BTL exactly. Three categories have the Davidson (1970) probability
+structure after mapping the Davidson endpoint log-strength to
+<code>2 * beta</code>; the reported <code>beta</code> therefore uses the
+adjacent-category rather than endpoint-log-odds unit.</p></dd>
 
 
 <dt id="arg-margin">margin<a class="anchor" aria-label="anchor" href="#arg-margin"></a></dt>
@@ -261,7 +264,11 @@ response. Both modes report the component decomposition.</p></dd>
   <code>osi</code>, <code>loglik</code>, <code>cl</code> (the composite-likelihood
   information ingredients used by <code><a href="compare_fits.html">compare_fits</a></code>: the Godambe
   effective parameter count and the independent-unit count),
-  convergence details, and <code>notes</code>.
+  convergence details, and <code>notes</code>. With judge clustering,
+  covariance-based inference (including the Godambe information criteria,
+  standard errors, dependence tests, DIF, and OSI) is withheld unless
+  there are at least 10 judges and more judges than fitted parameters.
+  Point estimates and descriptive fit remain.
   Graded fits add <code>thresholds</code> (the symmetric threshold estimates
   with standard errors), <code>m</code>, and <code>categories</code>. With an
   <code>order</code> column the within-judge <code>dependence</code> effects table

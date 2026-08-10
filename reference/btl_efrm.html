@@ -29,7 +29,7 @@ phi_g (v_a - v_b), which places the sets on one common scale."><meta property="o
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,8 +89,8 @@ origin cancels and the set unit is confounded with the spread of
 <span>  response <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"drop"</span>, <span class="st">"error"</span><span class="op">)</span>,</span>
 <span>  min_link <span class="op">=</span> <span class="fl">20</span>,</span>
-<span>  se_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"bootstrap"</span>, <span class="st">"judge_bootstrap"</span>, <span class="st">"conditional"</span><span class="op">)</span>,</span>
-<span>  boot_reps <span class="op">=</span> <span class="fl">60</span>,</span>
+<span>  se_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"judge_bootstrap"</span>, <span class="st">"bootstrap"</span>, <span class="st">"conditional"</span><span class="op">)</span>,</span>
+<span>  boot_reps <span class="op">=</span> <span class="fl">200</span>,</span>
 <span>  maxit <span class="op">=</span> <span class="fl">60</span>,</span>
 <span>  tol <span class="op">=</span> <span class="fl">1e-08</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -110,9 +110,9 @@ objects.</p></dd>
 
 
 <dt id="arg-winner">winner<a class="anchor" aria-label="anchor" href="#arg-winner"></a></dt>
-<dd><p>Name of the column holding the winner; its value must equal
-the row's <code>object_a</code> or <code>object_b</code> entry, <code>"tie"</code> or
-<code>"draw"</code> marks a tie, and anything else is treated as missing.</p></dd>
+<dd><p>Name of the winner column. A value must match one of the two
+objects in that row. <code>"tie"</code> and <code>"draw"</code> mark ties; other
+values are treated as missing.</p></dd>
 
 
 <dt id="arg-judge">judge<a class="anchor" aria-label="anchor" href="#arg-judge"></a></dt>
@@ -146,21 +146,20 @@ through sufficient cross-set pairs raise an error.</p></dd>
 
 
 <dt id="arg-se-method">se_method<a class="anchor" aria-label="anchor" href="#arg-se-method"></a></dt>
-<dd><p><code>"bootstrap"</code> (the default): a parametric bootstrap;
-<code>"judge_bootstrap"</code>: judges resampled with replacement within
-panels, carrying within-judge dependence;
-of the ENTIRE two-stage pipeline – winners resampled from the fitted
-probabilities, both stages refitted <code>boot_reps</code> times – so the
-reported standard errors carry every source of sampling variability,
-including the stage-one uncertainty that flows into the linking.
-<code>"conditional"</code>: the fast analytic errors, exact for <code>beta</code> and
-<code>phi</code> but conditional on stage one for <code>alpha</code> and
-<code>kappa</code>, which they therefore UNDERSTATE (verified by simulation);
-for quick inspection only.</p></dd>
+<dd><p>Method used for standard errors. The default,
+<code>"judge_bootstrap"</code>, resamples judges within panels and retains
+dependence among a judge's comparisons. <code>"bootstrap"</code> instead
+draws independent outcomes from fitted probabilities. Both stages are
+refitted. <code>"conditional"</code> uses
+analytic stage-one standard errors for <code>beta</code> and <code>phi</code>, and
+inverse observed information for <code>alpha</code> and <code>kappa</code>
+conditional on the stage-one estimates. It is faster, but does not
+propagate stage-one uncertainty into the linking parameters.</p></dd>
 
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
-<dd><p>Bootstrap replicates for <code>se_method = "bootstrap"</code>.</p></dd>
+<dd><p>Number of replicates for <code>se_method = "bootstrap"</code>
+or <code>"judge_bootstrap"</code>.</p></dd>
 
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
@@ -174,10 +173,13 @@ for quick inspection only.</p></dd>
   standard error), <code>phi_table</code> (panel units with Wald tests against
   <code>log phi = 0</code>), <code>alpha_table</code> and <code>kappa_table</code> (set units
   and origins with Wald tests; the reference set carries <code>alpha = 1</code>,
-  <code>kappa = 0</code> with no standard error), <code>frames</code> (panel by set:
+  <code>kappa = 0</code> with no standard error), <code>unit_omnibus</code> (joint
+  Wald tests of equal panel units, set units, and set origins),
+  <code>frames</code> (panel by set:
   common-scale discrimination <code>rho = phi / alpha</code> (the within-set
   logit is <code>phi (beta_a - beta_b)</code> with <code>beta = (v - kappa) /
-  alpha</code>), comparison count, pooled fit residual),
+  alpha</code>), comparison count, pooled fit residual and its allocated
+  <code>df_fit</code>),
   <code>equal_unit</code> (the descriptive single-unit comparison), <code>n_cross</code>
   (cross-set comparison counts per set pair), <code>notes</code> and
   <code>converged</code>.</p>
@@ -204,7 +206,7 @@ geometric mean one. In stage two the cross-set comparisons are a
 low-dimensional maximum likelihood in <code>(log alpha, kappa)</code> for the
 non-reference sets, with <code>alpha_1 = 1</code> and <code>kappa_1 = 0</code> fixing
 the reference set (the first, alphabetically).</p>
-<p>The set units are identified here WITHIN the conditional framework: the
+<p>The set units are identified within the conditional framework: the
 cross-set linking uses only comparison outcomes and makes no distributional
 assumption about the objects. This is the substantive difference from the
 persons-by-items EFRM, whose item-set units can only be identified from the
@@ -215,30 +217,25 @@ Andrich (2008) for the theory of the unit, and Thurstone (1927) and David
 (1988) for the varying-discriminal-dispersion lineage from which the
 frame-dependent unit descends. The paired-comparison form is this package's
 extension of Humphry's model.</p>
-<p>The ESTIMATES are always the staged conditional estimator: the within-frame
+<p>Estimates always use the staged conditional estimator: the within-frame
 calibrations are invariant to the linking data (the frame-of-reference
 property), a deliberate trade of some efficiency for invariance, exactly as
-anchored equating trades. Inference defaults to a parametric bootstrap of
-the whole pipeline (<code>se_method = "bootstrap"</code>): winners are resampled
-from the fitted probabilities and both stages refitted, so the standard
+anchored equating trades. Inference defaults to a judge bootstrap of
+the whole pipeline (<code>se_method = "judge_bootstrap"</code>): judges are
+resampled within panels and both stages refitted, so the standard
 errors of <code>phi</code>, <code>alpha</code>, <code>kappa</code>, <code>beta</code> and the
-common-scale <code>v</code> carry every stage's sampling variability – verified
-by simulation to restore nominal coverage where the conditional errors
-cover at a third of their nominal rate on linked designs. The
+common-scale <code>v</code> reflect sampling variability from both stages. The
 <code>"conditional"</code> option keeps the fast analytic errors (judge-clustered
 sandwich for stage one, inverse observed information for stage two,
-conditional on stage one) for quick inspection; its <code>alpha</code> and
-<code>kappa</code> errors understate, and the fit says so.</p>
-<p>Two honesty notes on the bootstrap. The default is model-based:
-replicates are drawn as independent Bernoulli outcomes at the fitted
-probabilities, which is self-consistent (the model has no judge
-parameter) but does not carry extra-model dependence within judges. When
-judges plausibly carry idiosyncratic preferences across their
-comparisons, use <code>se_method = "judge_bootstrap"</code>: judges are
-redrawn with replacement within each panel and the whole pipeline is
-refitted, so the errors carry both the stage-one uncertainty and the
-within-judge dependence (it needs enough judges per panel to resample
-stably; failed replicates are counted and reported). And a parameter that reaches
+conditional on stage one) for quick inspection. Because uncertainty from
+stage one is not propagated to stage two, the resulting standard errors for
+<code>alpha</code> and <code>kappa</code> do not represent total pipeline uncertainty.</p>
+<p>The optional parametric bootstrap draws independent Bernoulli outcomes at
+the fitted probabilities. It is a useful model-based sensitivity analysis,
+but it does not carry extra-model dependence within judges and is therefore
+not the default for repeated judgements. The judge bootstrap needs enough
+judges per panel to resample stably; failed replicates are counted and
+reported. A parameter that reaches
 its boundary in some replicates (a set unit driven to zero when a resampled
 within-set order flips against the cross-set evidence, the signature of a
 two-object set with a near-even internal pair) has no normal sampling
@@ -256,8 +253,8 @@ the same data. The equal-unit (single-unit) comparison refits plain
 <code><a href="btl.html">btl</a></code> on all comparisons pooled and reports the descriptive
 composite log-likelihood difference against the frames model; because that
 comparison is a composite likelihood, the inference on the units is carried
-by the Wald tests on <code>log phi_g</code> and <code>log alpha_s</code> in
-<code>phi_table</code> and <code>alpha_table</code>.</p>
+by omnibus Wald tests of the unit families. Individual unit and origin
+contrasts are exploratory and Holm-adjusted.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -282,11 +279,12 @@ by the Wald tests on <code>log phi_g</code> and <code>log alpha_s</code> in
 <span class="r-in"><span>                       seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">btl_efrm</span><span class="op">(</span><span class="va">d</span>, <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, winner <span class="op">=</span> <span class="st">"winner"</span>,</span></span>
 <span class="r-in"><span>                judge <span class="op">=</span> <span class="st">"judge"</span>, panels <span class="op">=</span> <span class="st">"panel"</span>,</span></span>
-<span class="r-in"><span>                object_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">$</span><span class="va">object_sets</span><span class="op">)</span></span></span>
+<span class="r-in"><span>                object_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">$</span><span class="va">object_sets</span>,</span></span>
+<span class="r-in"><span>                se_method <span class="op">=</span> <span class="st">"conditional"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">alpha_table</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    set    alpha se_log_alpha        z          p</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 set1 1.000000           NA       NA         NA</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 set2 1.606727    0.1908155 2.485119 0.01295081</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    set    alpha se_log_alpha        z            p        p_adj significant</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 set1 1.000000           NA       NA           NA           NA          NA</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 set2 1.606727   0.07723586 6.139626 8.271587e-10 8.271587e-10        TRUE</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

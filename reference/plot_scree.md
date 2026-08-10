@@ -3,17 +3,17 @@
 Eigenvalues of the residual correlation matrix for the leading
 components, with a model-simulated parallel-analysis reference:
 responses are simulated from the calibrated model (observed missingness
-kept), every person is re-estimated, and the residual eigenvalues
-recomputed. Because estimating the person locations couples the
-residuals within a person, this reference sits above the classical
-random-normal one and is calibrated under the fitted model (Raiche 2005;
-Chou & Wang 2010). Observed eigenvalues above the reference suggest
-structure beyond what the model itself produces.
+kept), the item calibration and every person are re-estimated, and the
+residual eigenvalues recomputed. Because estimating the person locations
+couples the residuals within a person, this reference sits above the
+classical random-normal one and is calibrated under the fitted model
+(Raiche 2005; Chou & Wang 2010). Observed eigenvalues above the
+reference suggest structure beyond what the model itself produces.
 
 ## Usage
 
 ``` r
-plot_scree(fit, n_components = 10, parallel = TRUE, reps = 20)
+plot_scree(fit, n_components = 10, parallel = TRUE, reps = 50)
 ```
 
 ## Arguments

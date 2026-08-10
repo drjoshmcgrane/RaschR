@@ -31,7 +31,7 @@ status described below."><meta property="og:image" content="https://drjoshmcgran
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -103,10 +103,11 @@ the output.</p></dd>
 
 
 <dt id="arg-weight-se">weight_se<a class="anchor" aria-label="anchor" href="#arg-weight-se"></a></dt>
-<dd><p>Rank by the one-step total-variance reduction (default
-<code>TRUE</code>; falls back to <code>expected_information * (se_a^2 +
-se_b^2)</code> if the fit carries no covariance). When <code>FALSE</code>, pairs are
-ranked by expected information alone (pure closeness).</p></dd>
+<dd><p>If <code>TRUE</code> (the default), rank pairs by their one-step
+reduction in total location variance. When the fit has no covariance,
+the fallback priority is expected information multiplied by the sum of
+the two squared standard errors. If <code>FALSE</code>, rank pairs by expected
+information alone.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -120,7 +121,7 @@ ranked by expected information alone (pure closeness).</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Two honest cautions. This is a <em>greedy</em> rule that scores each pair on
+    <p>This is a <em>greedy</em> rule that scores each pair on
 its own immediate one-step gain (an A-optimality step at the current
 estimates, taking the clustered covariance as the state); it is not a full
 optimal design and can be beaten by one that plans several comparisons

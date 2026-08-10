@@ -15,7 +15,7 @@ true parameters attached as attr(x, &quot;truth&quot;)."><meta property="og:imag
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,14 +101,19 @@ spacings and span are drawn afresh, as the partial credit model allows.</p></dd>
 <dd><p>Response categories for polytomous models (&gt;= 3).</p></dd>
 
 
-<dt id="arg-theta-mean-theta-sd-theta-dist">theta_mean, theta_sd, theta_dist<a class="anchor" aria-label="anchor" href="#arg-theta-mean-theta-sd-theta-dist"></a></dt>
-<dd><p>Person distribution: mean, SD, and
-shape (<code>"normal"</code>, <code>"uniform"</code>, <code>"skew"</code>, <code>"bimodal"</code>).</p></dd>
+<dt id="arg-theta-mean-theta-sd">theta_mean, theta_sd<a class="anchor" aria-label="anchor" href="#arg-theta-mean-theta-sd"></a></dt>
+<dd><p>Mean and standard deviation of the person
+distribution.</p></dd>
+
+
+<dt id="arg-theta-dist">theta_dist<a class="anchor" aria-label="anchor" href="#arg-theta-dist"></a></dt>
+<dd><p>Shape of the person distribution: <code>"normal"</code>,
+<code>"uniform"</code>, <code>"skew"</code>, or <code>"bimodal"</code>.</p></dd>
 
 
 <dt id="arg-difficulty">difficulty<a class="anchor" aria-label="anchor" href="#arg-difficulty"></a></dt>
-<dd><p>Two numbers giving the item-location range (evenly
-spaced), or a length-<code>n_items</code> vector of locations.</p></dd>
+<dd><p>Either the two endpoints of an evenly spaced location
+range, or one location per item.</p></dd>
 
 
 <dt id="arg-threshold-spread">threshold_spread<a class="anchor" aria-label="anchor" href="#arg-threshold-spread"></a></dt>
@@ -117,7 +122,7 @@ item location (polytomous).</p></dd>
 
 
 <dt id="arg-discrimination">discrimination<a class="anchor" aria-label="anchor" href="#arg-discrimination"></a></dt>
-<dd><p>Scalar or length-<code>n_items</code>: the slope of each
+<dd><p>The item slope, supplied as one value or one per
 item. Values above 1 over-discriminate (Guttman-like, negative fit
 residual); below 1 under-discriminate (noisy, positive residual). Feeds
 infit/outfit and the item-fit F.</p></dd>
@@ -137,8 +142,8 @@ load on a second trait correlated <code>rho</code> with the first. Feeds
 
 <dt id="arg-dependence">dependence<a class="anchor" aria-label="anchor" href="#arg-dependence"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(pairs=, strength=)</code>: each pair's
-second item responds partly to the first (response dependence). Feeds
-<code><a href="residual_correlations.html">residual_correlations</a></code> / <code><a href="dependence_magnitude.html">dependence_magnitude</a></code>.</p></dd>
+second item responds partly to the first. This departure feeds the
+residual-dependence diagnostics.</p></dd>
 
 
 <dt id="arg-dif">dif<a class="anchor" aria-label="anchor" href="#arg-dif"></a></dt>
@@ -203,18 +208,18 @@ is added when &gt; 1, for DIF).</p></dd>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">d</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">items</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span><span class="op">)</span><span class="op">]</span>   <span class="co"># item 1 misfits</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    item  infit_ms outfit_ms</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1   I01 1.0129467 0.4265500</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   I02 1.0434044 0.9527288</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   I03 0.9820669 0.8193981</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4   I04 1.0541616 1.1210207</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5   I05 1.0402727 0.9429850</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6   I06 1.0909707 1.1305319</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7   I07 1.0264347 0.9907582</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8   I08 1.1123775 1.1226994</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9   I09 1.0439933 1.0497987</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10  I10 1.0452768 0.9465806</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11  I11 1.0341611 0.9823771</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12  I12 0.9830431 0.7799822</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1   I01 1.0129673 0.4276359</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   I02 1.0434529 0.9552952</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   I03 0.9821247 0.8216242</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   I04 1.0542503 1.1240877</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5   I05 1.0403856 0.9455574</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6   I06 1.0912200 1.1335211</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7   I07 1.0266441 0.9933927</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8   I08 1.1127883 1.1255372</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9   I09 1.0445976 1.0522776</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10  I10 1.0460971 0.9486632</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11  I11 1.0356288 0.9841202</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12  I12 0.9849557 0.7809060</span>
 <span class="r-in"><span><span class="fu"><a href="dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span>                           <span class="co"># item 6 flags</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    item  term   F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1   I01 group  4.83171573 2.853237e-02  1.151575e-01 1.233110e-02       FALSE</span>

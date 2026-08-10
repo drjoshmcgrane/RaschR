@@ -39,6 +39,11 @@ estimate and its `se`, the bound `lub` (available for maximum scores 2
 to 8), `z` = (spread - lub)/se, and `dependent` = spread below the
 bound. Dichotomous items carry no spread and are omitted.
 
+## References
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
 ## Examples
 
 ``` r

@@ -13,7 +13,7 @@ ready for btl, with the truth attached."><meta property="og:image" content="http
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,15 +95,13 @@ margin in <code>n_categories</code> categories).</p></dd>
 
 <dt id="arg-second-attribute">second_attribute<a class="anchor" aria-label="anchor" href="#arg-second-attribute"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(rho=)</code>: half the judges
-rank by a second object attribute correlated <code>rho</code> with the first –
-genuine multidimensionality. Feeds <code><a href="btl_dimensionality.html">btl_dimensionality</a></code> and
-<code><a href="btl_transitivity.html">btl_transitivity</a></code>.</p></dd>
+rank by a second object attribute correlated <code>rho</code> with the first.
+This introduces multidimensionality and possible intransitivity.</p></dd>
 
 
 <dt id="arg-erratic-judges">erratic_judges<a class="anchor" aria-label="anchor" href="#arg-erratic-judges"></a></dt>
-<dd><p>Proportion of judges who choose at random. Feeds the
-judge fit residual, <code><a href="btl_transitivity.html">btl_transitivity</a></code> consistency, and
-<code><a href="judge_surprise.html">judge_surprise</a></code>.</p></dd>
+<dd><p>Proportion of judges who choose at random. This
+affects judge fit, transitivity, and the judge-surprise diagnostics.</p></dd>
 
 
 <dt id="arg-dependence">dependence<a class="anchor" aria-label="anchor" href="#arg-dependence"></a></dt>

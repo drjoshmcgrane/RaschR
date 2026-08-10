@@ -26,6 +26,11 @@ person_wle(tau_list, disc = 1)
 
 A list with `theta` and `se`, each named by raw score.
 
+## References
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. Psychometrika, 54(3), 427–450.
+
 ## Examples
 
 ``` r

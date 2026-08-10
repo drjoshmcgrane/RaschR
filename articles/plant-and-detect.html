@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Planting misfit and watching the diagnostics fire • rasch</title>
+<title>Simulation-based checks of Rasch diagnostics • rasch</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -17,7 +17,7 @@
 <link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Planting misfit and watching the diagnostics fire">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Simulation-based checks of Rasch diagnostics">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,8 +65,9 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.svg" class="logo" alt=""><h1>Planting misfit and watching the diagnostics fire</h1>
-                        <h4 data-toc-skip class="author">rasch</h4>
+      <img src="../logo.svg" class="logo" alt=""><h1>Simulation-based checks of Rasch diagnostics</h1>
+                        <h4 data-toc-skip class="author">Josh
+McGrane</h4>
             
       
       <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/vignettes/plant-and-detect.Rmd" class="external-link"><code>vignettes/plant-and-detect.Rmd</code></a></small>
@@ -80,18 +81,15 @@
 <div class="section level2">
 <h2 id="why-simulate">1. Why simulate<a class="anchor" aria-label="anchor" href="#why-simulate"></a>
 </h2>
-<p>A diagnostic is only trustworthy if it fires when it should and stays
-quiet when it should not. The surest way to check that is to
-<em>manufacture</em> the fault it is meant to detect and confirm that
-the statistic responds. The package ships a family of simulators
-(<code>simulate_rasch</code>, <code>simulate_btl</code>,
-<code>simulate_mfrm</code>, <code>simulate_efrm</code>) built around
-exactly this plant-and-detect loop: each generates data from the
-appropriate member of the Rasch family and lets a <em>known</em>
-departure from the model be dialled in, so the matching diagnostic can
-be watched as it responds.</p>
-<p>Every simulator returns data ready for its fit function, with the
-generating parameters and the planted departures carried on the object
+<p>Simulation provides a direct way to examine whether an estimator
+recovers known parameters and whether a diagnostic responds to the
+departure it is intended to detect. The package therefore includes
+simulators for the main model families: <code>simulate_rasch</code>,
+<code>simulate_btl</code>, <code>simulate_mfrm</code>, and
+<code>simulate_efrm</code>. Each can generate model-conforming data or
+introduce a known departure from the model.</p>
+<p>Every simulator returns data ready for its fitting function, with the
+generating parameters and any specified departures carried on the object
 as <code>attr(x, "truth")</code>. The print method reports what was
 planted, so a dataset never becomes anonymous once it leaves the call
 that made it.</p>
@@ -106,18 +104,17 @@ that made it.</p>
 <span><span class="co">#&gt;  [9] "thresholds"     "discrimination" "guessing"       "groups"        </span></span>
 <span><span class="co">#&gt; [13] "dim_items"      "dif_items"      "careless_idx"   "style_idx"     </span></span>
 <span><span class="co">#&gt; [17] "planted"</span></span></code></pre></div>
-<p>With no departures requested the data conform to the model, and the
-print method says so. The rest of this vignette plants one fault at a
-time and runs the diagnostic built to find it. The diagnostics
-themselves follow the conventions of Andrich and Marais (2019); the
-simulators exist to test them.</p>
+<p>With no departures requested, the data conform to the model. The
+remaining sections introduce one departure at a time and examine the
+corresponding diagnostic. The diagnostic conventions follow Andrich and
+Marais (2019).</p>
 </div>
 <div class="section level2">
-<h2 id="a-clean-baseline">2. A clean baseline<a class="anchor" aria-label="anchor" href="#a-clean-baseline"></a>
+<h2 id="a-model-conforming-baseline">2. A model-conforming baseline<a class="anchor" aria-label="anchor" href="#a-model-conforming-baseline"></a>
 </h2>
-<p>Before planting anything, it is worth seeing what recovery looks like
-when the model holds exactly, so that later departures are read against
-an honest null. <code>sim_recovery</code> compares the parameters a fit
+<p>It is useful to begin with parameter recovery when the model holds,
+so that later departures can be interpreted against a model-conforming
+reference. <code>sim_recovery</code> compares the parameters a fit
 recovers against the ones the simulator planted (mean-centring the
 locations, which the model identifies only up to an origin), and
 <code>plot_recovery</code> draws each true-versus-estimated panel with
@@ -127,8 +124,8 @@ its correlation and root-mean-square error.</p>
 <span><span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_recovery.html">sim_recovery</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">d</span><span class="op">)</span></span>
 <span><span class="va">rec</span></span>
 <span><span class="co">#&gt; Parameter recovery (planted vs recovered):</span></span>
-<span><span class="co">#&gt;   item difficulty  n=10   r=0.998  RMSE=0.108  bias=-0.000</span></span>
-<span><span class="co">#&gt;   person ability   n=400  r=0.761  RMSE=0.826  bias=+0.000</span></span></code></pre></div>
+<span><span class="co">#&gt;   item difficulty  n=10   r=0.998  RMSE=0.108  bias=NA</span></span>
+<span><span class="co">#&gt;   person ability   n=400  r=0.761  RMSE=0.826  bias=NA</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_recovery.html">plot_recovery</a></span><span class="op">(</span><span class="va">rec</span><span class="op">)</span></span></code></pre></div>
 <p><img src="plant-and-detect_files/figure-html/baseline-plot-1.png" class="r-plt" alt="Recovery scatter plots of planted against recovered item difficulty and person ability." width="672"></p>
@@ -138,9 +135,11 @@ difficulty pools evidence from all 400 persons, so it is recovered
 tightly: the correlation is near unity and the error is around a tenth
 of a logit. Each person ability, by contrast, rests on only the ten
 items that person answered, so its weighted likelihood estimate (Warm
-1989) carries a standard error near seven tenths of a logit; the
+1989) carries a standard error of roughly eight tenths of a logit; the
 recovery correlation is correspondingly lower and the root-mean-square
-error much larger. The bias is negligible in both. A short test measures
+error much larger. (The bias column reads NA by design: locations are
+identified only up to the scale origin, so a mean difference from the
+planted values is not an estimable quantity.) A short test measures
 persons imprecisely <em>even when the model is exactly true</em> — a
 point worth holding onto before reading any person-level result from a
 ten-item scale.</p>
@@ -160,16 +159,16 @@ central item is given a slope of 2.5 and another a slope of 0.4.</p>
 <span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d2</span>, id <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
 <span><span class="va">fit2</span><span class="op">$</span><span class="va">items</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"location"</span>, <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    item location infit_ms outfit_ms</span></span>
-<span><span class="co">#&gt; 1   I01  -2.5220   0.8925    0.7644</span></span>
-<span><span class="co">#&gt; 2   I02  -1.8851   1.0353    0.9297</span></span>
-<span><span class="co">#&gt; 3   I03  -1.5071   1.0077    0.8833</span></span>
-<span><span class="co">#&gt; 4   I04  -0.7011   1.0496    0.9758</span></span>
-<span><span class="co">#&gt; 5   I05  -0.3867   0.9119    0.8356</span></span>
-<span><span class="co">#&gt; 6   I06   0.2056   1.2609    1.2194</span></span>
-<span><span class="co">#&gt; 7   I07   0.7730   1.0431    1.0290</span></span>
-<span><span class="co">#&gt; 8   I08   1.4631   1.0807    0.9292</span></span>
-<span><span class="co">#&gt; 9   I09   2.1031   1.0103    0.8246</span></span>
-<span><span class="co">#&gt; 10  I10   2.4572   1.0346    0.7546</span></span></code></pre></div>
+<span><span class="co">#&gt; 1   I01  -2.5220   0.8994    0.7716</span></span>
+<span><span class="co">#&gt; 2   I02  -1.8851   1.0412    0.9415</span></span>
+<span><span class="co">#&gt; 3   I03  -1.5071   1.0119    0.8956</span></span>
+<span><span class="co">#&gt; 4   I04  -0.7011   1.0517    0.9912</span></span>
+<span><span class="co">#&gt; 5   I05  -0.3867   0.9134    0.8490</span></span>
+<span><span class="co">#&gt; 6   I06   0.2056   1.2625    1.2397</span></span>
+<span><span class="co">#&gt; 7   I07   0.7730   1.0445    1.0459</span></span>
+<span><span class="co">#&gt; 8   I08   1.4631   1.0828    0.9437</span></span>
+<span><span class="co">#&gt; 9   I09   2.1031   1.0133    0.8363</span></span>
+<span><span class="co">#&gt; 10  I10   2.4572   1.0382    0.7645</span></span></code></pre></div>
 <p>The two planted items depart from the pack in opposite directions, as
 the log-of-mean-square fit statistics (Andrich and Marais 2019, ch. 23)
 require. The over-discriminating item (I05) produces standardised
@@ -218,9 +217,9 @@ the resolved locations in logits (Andrich and Marais 2019, ch. 16).</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/dif_size.html">dif_size</a></span><span class="op">(</span><span class="va">fit3</span>, <span class="st">"I06"</span>, by <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; DIF size for I06 by group (resolved locations, logits)</span></span>
-<span><span class="co">#&gt;  level location    se   n</span></span>
-<span><span class="co">#&gt;     g1    0.262 0.140 250</span></span>
-<span><span class="co">#&gt;     g2    1.266 0.162 250</span></span>
+<span><span class="co">#&gt;  level location    se weak   n</span></span>
+<span><span class="co">#&gt;     g1    0.262 0.140    0 250</span></span>
+<span><span class="co">#&gt;     g2    1.266 0.162    0 250</span></span>
 <span><span class="co">#&gt;  level_a level_b difference    se      z p p_adj  lower  upper significant</span></span>
 <span><span class="co">#&gt;       g1      g2     -1.004 0.234 -4.287 0     0 -1.463 -0.545           *</span></span>
 <span><span class="co">#&gt;  practical</span></span>
@@ -241,14 +240,16 @@ strength. It should raise the residual correlation of the planted pair
 above the small negative value expected under local independence.
 <code>residual_correlations</code> returns Yen’s (1984) Q3 and,
 following Christensen, Makransky and Horton (2017), the adjusted Q3*
-(each Q3 less the average off-diagonal value), flagging pairs whose
-excess passes a threshold.</p>
+(each Q3 less the average off-diagonal value). There is no universal
+critical value for adjusted Q3, so binary flagging is available only
+when the analyst supplies a screening threshold and remains
+heuristic.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d4</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">10</span>,</span>
 <span>                       dependence <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>pairs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I04"</span>, <span class="st">"I05"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>                                         strength <span class="op">=</span> <span class="fl">1.8</span><span class="op">)</span>, seed <span class="op">=</span> <span class="fl">41</span><span class="op">)</span></span>
 <span><span class="va">fit4</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d4</span>, id <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
-<span><span class="va">rc</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit4</span><span class="op">)</span></span>
+<span><span class="va">rc</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit4</span>, flag <span class="op">=</span> <span class="fl">0.20</span><span class="op">)</span></span>
 <span><span class="va">rc</span><span class="op">$</span><span class="va">average</span>                          <span class="co"># near -1/(L-1) under independence</span></span>
 <span><span class="co">#&gt; [1] -0.09841</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rc</span><span class="op">$</span><span class="va">pairs</span>, <span class="fl">3</span><span class="op">)</span>                   <span class="co"># the planted pair leads the table</span></span>
@@ -259,10 +260,11 @@ excess passes a threshold.</p>
 <span><span class="va">rc</span><span class="op">$</span><span class="va">flagged</span></span>
 <span><span class="co">#&gt;   item_a item_b     q3 q3_star flagged</span></span>
 <span><span class="co">#&gt; 1    I04    I05 0.1703  0.2688    TRUE</span></span></code></pre></div>
-<p>The planted I04–I05 pair sits at the top of the sorted table and is
-the only one flagged; the average off-diagonal value is close to the
+<p>The planted I04–I05 pair sits at the top of the sorted table and
+clears the chosen heuristic screen; the average off-diagonal value is
+close to the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>L</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-1/(L-1)</annotation></semantics></math>
-expected when the items are locally independent. As with DIF, flagging
+expected when the items are locally independent. As with DIF, screening
 is one thing and magnitude another. <code>dependence_magnitude</code>
 puts the effect on the logit scale by the resolution method of Andrich
 and Kreiner (2010): the dependent item is split by the category of the
@@ -359,12 +361,12 @@ to <code>dif_anova</code>.</p>
 <span><span class="co">#&gt; [1] 0.5</span></span></code></pre></div>
 <p>The estimate is the proportion of the ten runs in which the planted
 item was flagged after adjustment. A shift of 0.8 logits split over two
-groups of 200 is detected in a majority of runs but by no means all: a
-real departure of moderate size against a modest sample is caught only
-some of the time. Ten replicates suffice to demonstrate the loop, not to
-pin the number down — the Monte Carlo error on ten draws is large — but
-the same six lines, run with a few hundred replicates and swept over
-sample size and effect, are a complete power study.</p>
+groups of 200 is detected in only about half of these runs: a real
+departure of moderate size against a modest sample is caught only some
+of the time. Ten replicates suffice to demonstrate the loop, not to pin
+the number down — the Monte Carlo error on ten draws is large — but the
+same six lines, run with a few hundred replicates and swept over sample
+size and effect, are a complete power study.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

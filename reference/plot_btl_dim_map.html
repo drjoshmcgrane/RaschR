@@ -15,7 +15,7 @@ location on the primary scale."><meta property="og:image" content="https://drjos
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,6 +77,17 @@ location on the primary scale.</p>
     <p>Called for its plotting side effect.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="simulate_btl.html">simulate_btl</a></span><span class="op">(</span><span class="fl">7</span>, <span class="fl">12</span>, reps_per_pair <span class="op">=</span> <span class="fl">20</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="btl.html">btl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, winner <span class="op">=</span> <span class="st">"winner"</span>, judge <span class="op">=</span> <span class="st">"judge"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">dimensions</span> <span class="op">&lt;-</span> <span class="fu"><a href="btl_dimensionality.html">btl_dimensionality</a></span><span class="op">(</span><span class="va">fit</span>, reps <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">plot_btl_dim_map</span><span class="op">(</span><span class="va">dimensions</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="plot_btl_dim_map-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

@@ -15,7 +15,7 @@ tau_ik = delta_i + kappa_k through the design matrix."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -104,6 +104,14 @@ recentring is applied. PCM only.</p></dd>
   log-likelihood, the iteration count, a convergence flag, <code>notes</code>,
   and the max-score vector <code>m</code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205–221.</p>
+<p>Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+Applied Psychological Measurement, 19(4), 369–375.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -120,7 +128,9 @@ recentring is applied. PCM only.</p></dd>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 5  5    5 1  0.7889434 0.1105680    FALSE FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 6  6    6 1  1.3442630 0.1221786    FALSE FALSE</span>
 <span class="r-in"><span><span class="co"># anchor two items at fixed values (equating)</span></span></span>
-<span class="r-in"><span><span class="fu">pcml</span><span class="op">(</span><span class="va">X</span>, anchors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I6"</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">1</span>, tau <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">thr</span></span></span>
+<span class="r-in"><span><span class="va">anchors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I6"</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">1</span>,</span></span>
+<span class="r-in"><span>                      tau <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">pcml</span><span class="op">(</span><span class="va">X</span>, anchors <span class="op">=</span> <span class="va">anchors</span><span class="op">)</span><span class="op">$</span><span class="va">thr</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   id item k        tau        se anchored  weak</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1  1    1 1 -1.5000000 0.0000000     TRUE FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2  2    2 1 -0.6880959 0.1613982    FALSE FALSE</span>

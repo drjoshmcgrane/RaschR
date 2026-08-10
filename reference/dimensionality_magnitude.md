@@ -30,8 +30,8 @@ dimensionality_magnitude(fit, subtests)
 - subtests:
 
   A list of character vectors assigning *every* item of the fit to one
-  subscale (at least two subscales of two or more items). Unequal
-  subscale sizes use their mean as \\K\\.
+  subscale (at least two subscales of two or more items). The published
+  magnitude formula requires equal subscale sizes.
 
 ## Value
 

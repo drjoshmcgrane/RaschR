@@ -45,10 +45,10 @@ dif_anova(
 
 - n_groups:
 
-  Number of trait class intervals. By default set from the smallest
-  factor-combination cell so every interval-by-cell count keeps about 30
-  expected responses (between 2 and 10 intervals); the value used is
-  returned in `n_groups`.
+  Number of trait class intervals. The default uses the smallest joint
+  factor cell to retain about 30 expected responses per interval and
+  cell, with between 2 and 10 intervals. The selected value is returned
+  in `n_groups`.
 
 - p_adjust:
 
@@ -75,27 +75,17 @@ dif_anova(
   adjustment and the practical-significance flag. Each size involves a
   re-analysis, so this costs one refit per flagged item-term.
 
-- id, within:
+- id:
 
-  Person identifier and within-subject factor names for stacked
-  repeated-measures designs, auto-detected from the fit's person
-  identifier. Whenever ids repeat, PERSONS are the units of analysis:
-  residuals are aggregated to one mean per person (per within-subject
-  cell), so duplicated or stacked observations cannot manufacture
-  information, and the class interval is taken at the person level.
-  Between-person terms are tested with order-invariant Type II sums of
-  squares – every term adjusted for every term not containing it, the
-  class interval always among them, so entry order cannot decide which
-  correlated factor absorbs shared or trait variance. Within-person
-  terms are tested on the person-by-cell means through orthonormal
-  contrasts with the Greenhouse-Geisser epsilon correction (Maxwell and
-  Delaney 2004), so multi-level within factors are valid without the
-  sphericity assumption; persons missing any within cell are dropped
-  from the within-stratum tests. A factor that varies within persons
-  must be declared (or auto-detected) as within-subject; treating it as
-  between-subjects is refused. The BH adjustment is applied across items
-  separately within each term: each term is read as its own prespecified
-  family, not as one pooled screen across all terms.
+  Person identifier for stacked or repeated-measures data. It may be a
+  column name stored in the fit or a vector with one value per row; by
+  default the identifier carried by the fit is used.
+
+- within:
+
+  Names of within-person factors. With repeated identifiers, varying
+  factors are detected automatically when this is omitted. See Details
+  for the mixed-design analysis.
 
 - pool_facets:
 
@@ -128,6 +118,54 @@ each significant, non-superseded group term. Sums of squares are Type II
 (each term adjusted for every term not containing it, the class interval
 always among them), so results do not depend on the order factors are
 given.
+
+Whenever person identifiers repeat, persons rather than rows are the
+units of analysis. Residuals are first averaged within each
+person-by-within-cell, and the class interval is defined at the person
+level. Between-person terms use Type II sums of squares. In a mixed or
+incomplete panel, each within cell is centred within class interval
+before its values are averaged for the between-person analysis. This
+removes common within-cell effects, including effects that vary over the
+trait, which could otherwise appear as uniform or non-uniform DIF when
+within-cell coverage differs between groups.
+
+Within-person terms are evaluated from orthonormal contrasts of the
+person-by-cell means. The degrees-of-freedom correction of Greenhouse
+and Geisser is applied for factors with more than two levels; persons
+without every required within cell are excluded from that within-person
+test. Factors that vary within person must be declared through `within`,
+or are detected automatically when identifiers repeat.
+
+The joint multi-factor and mixed-design analysis is an extension of the
+conventional single-factor residual analysis of variance of Andrich and
+Marais (2019). It preserves the same uniform (factor) and non-uniform
+(factor-by-class-interval) questions, but uses the appropriate
+between-person and within-person error strata. Its F references remain
+approximate diagnostic tests; substantively important designs should be
+checked by simulation at the observed cell sizes and missingness
+pattern.
+
+For an EFRM fit, factors used to define the frame structure are
+excluded. Each frame has its own virtual items, so a frame-defining
+factor has only one observed level for any such item and is not a
+separate DIF contrast. Other person factors may still be tested. For an
+MFRM fit, residuals are pooled to underlying items by default; use
+`pool_facets = FALSE` to inspect the virtual item-by-facet cells
+instead.
+
+## References
+
+Benjamini, Y. and Hochberg, Y. (1995). Controlling the false discovery
+rate: a practical and powerful approach to multiple testing. Journal of
+the Royal Statistical Society: Series B, 57(1), 289–300.
+
+Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
+differential item functioning in health research using the Rasch model.
+Health and Quality of Life Outcomes, 15, 181.
+
+Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
+Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence
+Erlbaum.
 
 ## Examples
 
@@ -180,4 +218,36 @@ dif_anova(fit)$summary
 #> 10      FALSE
 #> 11      FALSE
 #> 12      FALSE
+
+# \donttest{
+# Mixed design: group is between persons and occasion is within persons.
+N <- 320; theta <- rnorm(N); group <- rep(c("A", "B"), each = N / 2)
+make_wave <- function(occasion_shift) {
+  shift <- matrix(0, N, 6)
+  shift[group == "B", 2] <- 0.9
+  shift[, 5] <- occasion_shift
+  matrix(rbinom(N * 6, 1,
+         plogis(outer(theta, d, "-") - shift)), N, 6)
+}
+Xm <- rbind(make_wave(0), make_wave(1.0))
+colnames(Xm) <- paste0("I", 1:6)
+repeated <- data.frame(Xm, group = rep(group, 2),
+                       occasion = rep(c("T1", "T2"), each = N))
+mixed_fit <- rasch(repeated, id = rep(seq_len(N), 2),
+                   factors = c("group", "occasion"))
+mixed_dif <- dif_anova(mixed_fit, within = "occasion")
+subset(mixed_dif$summary, uniform_DIF | nonuniform_DIF)
+#>    item     term F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF
+#> 3    I2    group 24.646183 1.153580e-06  6.921478e-06   0.07545223        TRUE
+#> 9    I5    group  6.589918 1.073731e-02  3.221193e-02   0.02135494        TRUE
+#> 10   I5 occasion 19.701863 1.270410e-05  7.622462e-05   0.06124261        TRUE
+#>    F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
+#> 3     1.3680556    0.2449523        0.9489444     0.017797453          FALSE
+#> 9     0.1794123    0.9489444        0.9489444     0.002370688          FALSE
+#> 10    0.1960145    0.9403641        0.9403641     0.002589496          FALSE
+#>    superseded
+#> 3       FALSE
+#> 9       FALSE
+#> 10      FALSE
+# }
 ```

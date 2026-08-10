@@ -5,13 +5,17 @@ Yen's (1984) Q3 statistics. Under unidimensionality and local
 independence the off-diagonal values sit near `-1/(L-1)`; large positive
 values flag local dependence between item pairs. Following Christensen,
 Makransky and Horton (2017), each Q3 is also reported relative to the
-average off-diagonal value (`q3_star`), and a pair is flagged when that
-excess passes `flag`.
+average off-diagonal value (`q3_star`). There is no universal
+adjusted-Q3 critical value: it depends on sample size, test length,
+category structure, and missingness. The default therefore reports the
+statistics without a binary flag. A user-supplied `flag` is an
+explicitly heuristic screening threshold, not a calibrated significance
+test.
 
 ## Usage
 
 ``` r
-residual_correlations(fit, flag = 0.2)
+residual_correlations(fit, flag = NULL)
 ```
 
 ## Arguments
@@ -23,8 +27,8 @@ residual_correlations(fit, flag = 0.2)
 
 - flag:
 
-  Excess above the average off-diagonal Q3 at which a pair is flagged as
-  dependent.
+  Optional heuristic excess above the average off-diagonal Q3 at which a
+  pair is flagged. The default `NULL` withholds binary flags.
 
 ## Value
 

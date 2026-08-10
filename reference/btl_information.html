@@ -31,7 +31,7 @@ the informative ones."><meta property="og:image" content="https://drjoshmcgrane.
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -106,13 +106,15 @@ the informative ones.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The design information inverts to <code>se_naive = 1 / sqrt(information)</code>:
-the error the object's comparisons would give if its location were the
-ONLY free parameter – a single-parameter lower bound, useful for reading
-which objects the design serves well. It is not the model's standard
-error even with independent comparisons (every location is estimated
-jointly with the others, and the fit's own <code>se</code> is additionally the
-judge-clustered Godambe sandwich), so <code>se</code> sits above
-<code>se_naive</code> as a rule; treat their ratio as descriptive, not as a
+the error the object's own comparisons would give if its location were
+treated in isolation – a design-only yardstick for reading which objects
+the comparison plan serves well. It is not the model's standard error,
+and it is not a bound: the fitted <code>se</code> comes from joint estimation
+under the sum-zero constraint (which typically REDUCES an object's
+variance relative to the isolated calculation) with judge-clustered
+Godambe covariance (which can move it in either direction), so <code>se</code>
+can sit below or above <code>se_naive</code>. Treat their ratio as a
+descriptive comparison of design coverage, not as a bound or a
 clustering test.</p>
     </div>
     <div class="section level2">
@@ -140,7 +142,7 @@ clustering test.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       B   -0.354 0.186            90      17.100    0.242</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       C    0.448 0.180            90      17.030    0.242</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       D    1.144 0.209            90      13.463    0.273</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Note: se is the Godambe sandwich standard error; se_naive = 1/sqrt(information) is a single-parameter lower bound (as if the object's location were the only free parameter), so se sits above it as a rule</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Note: se is the Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

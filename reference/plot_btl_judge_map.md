@@ -40,3 +40,14 @@ plot_btl_judge_map(fit, judge, min_n = 1L, flag_z = 1.96, ...)
 
 Called for its plotting side effect; invisibly the
 `rasch_btl_judge_pairs` object.
+
+## Examples
+
+``` r
+# \donttest{
+d <- simulate_btl(6, 10, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+plot_btl_judge_map(fit, judge = "J1")
+
+# }
+```

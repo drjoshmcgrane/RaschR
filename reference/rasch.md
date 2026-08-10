@@ -37,7 +37,8 @@ rasch(
 
   Persons-by-items integer score matrix (categories from 0), or a data
   frame also containing ID and person-factor columns. Missing values are
-  allowed.
+  allowed subject to the identification and ignorability conditions
+  described above.
 
 - model:
 
@@ -51,7 +52,8 @@ rasch(
 - factors:
 
   Optional character vector of person-factor column names in `data` (for
-  DIF analysis), or a data frame of factors.
+  DIF analysis), a data frame of factors, or one grouping vector with
+  one entry per data row.
 
 - items:
 
@@ -112,15 +114,12 @@ rasch(
 
 - pc_components:
 
-  `NULL` (default) estimates every PCM threshold freely. An integer 1 to
-  4 instead estimates each item's thresholds through the Andrich
-  principal-components reparameterisation (see
-  [`pcml_pc`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md)):
-  1 = location only, 2 = + spread (the dispersion model of Andrich
-  1982), 3 = + skewness, 4 = + kurtosis (the full principal-components
-  model; Pedler 1987). Useful when some categories are sparsely
-  populated; the component estimates are returned in
-  `fit$est$components`. PCM only, and not combinable with anchors.
+  `NULL` (the default) estimates all PCM thresholds freely. Values from
+  1 to 4 use the principal-components form in
+  [`pcml_pc`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md):
+  location, then spread, skewness, and kurtosis. This can stabilise
+  sparse categories. Component estimates are stored in the estimation
+  details. Available for PCM fits without anchors.
 
 - maxit, tol:
 
@@ -129,15 +128,12 @@ rasch(
 
 ## Value
 
-An object of class `"rasch"`: a list with the item summary (`items`),
-`thresholds` (with standard errors), the person table (`person`,
-including ID and factors), the score table, residuals, reliability
-(`psi`, `psi_noext`, the item separation index `isi`, `alpha`),
-targeting, item-trait statistics (`item_trait`, `item_anova`), the
-summary distribution block (`summary_stats`: location and fit residual
-mean/SD/skewness/kurtosis, fit-location correlations, and the cell
-degrees-of-freedom factor), threshold diagnostics, and estimation
-details (`est`).
+An object of class `"rasch"`. Its principal components are the item
+summary, threshold table, person table, score table, residuals,
+reliability, targeting, item-trait statistics, threshold diagnostics,
+and estimation details. The component `summary_stats` contains the
+distribution summaries, fit-location correlations, and the cell
+degrees-of-freedom factor.
 
 ## Details
 
@@ -169,6 +165,27 @@ calibration matters, use the simulation tools
 to build parametric-bootstrap reference distributions for the observed
 design.
 
+Missing responses are omitted from the pairwise contributions and person
+estimates are computed for each observed item pattern. This supports
+planned linked designs and ignorable response missingness when the
+co-observation graph identifies one scale. It does not make informative
+missingness harmless: if response availability depends on an unmodelled
+response or person process, item and person estimates can be biased. The
+missingness mechanism and design connectedness therefore remain part of
+the substantive analysis.
+
+## References
+
+Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205–221.
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. Psychometrika, 54(3), 427–450.
+
 ## Examples
 
 ``` r
@@ -179,23 +196,23 @@ colnames(X) <- paste0("I", 1:8)
 fit <- rasch(X, model = "PCM")
 fit$items
 #>   item max   location         se  fit_resid df_fit natural_resid  infit_ms
-#> 1   I1   1 -2.1604709 0.14430225  0.1666750  423.5     0.1695416 1.0175589
-#> 2   I2   1 -1.3518390 0.11268892 -0.5756998  423.5    -0.5548927 1.0232863
-#> 3   I3   1 -0.8944690 0.10569675 -1.4271840  423.5    -1.3314617 0.9991795
-#> 4   I4   1 -0.2525755 0.09842604 -0.6843318  423.5    -0.6675975 1.0560293
-#> 5   I5   1  0.3908159 0.09808533  0.8675845  423.5     0.8959149 1.1551913
-#> 6   I6   1  0.8900794 0.10034984 -0.5631943  423.5    -0.5486780 1.0677814
-#> 7   I7   1  1.4679700 0.11257588  0.1864529  423.5     0.1887381 1.0962765
-#> 8   I8   1  1.9104891 0.12794128  0.2287863  423.5     0.2332503 0.9877807
-#>   outfit_ms       infit_z    outfit_z     chisq df          p     p_adj
-#> 1 0.9656714  0.2292642388 -0.10652343  5.367357  6 0.49763112 0.5687213
-#> 2 0.8940697  0.3978631415 -0.80938097  8.360771  6 0.21284560 0.5687213
-#> 3 0.8499775  0.0008857027 -1.53389144 13.543617  6 0.03517114 0.2813691
-#> 4 0.9443024  1.3119157175 -0.70309136  7.579412  6 0.27056336 0.5687213
-#> 5 1.0590841  3.5516550010  0.76045287  2.836605  6 0.82905758 0.8290576
-#> 6 0.9345140  1.4295369932 -0.66157031  5.525811  6 0.47834263 0.5687213
-#> 7 0.9906992  1.6184015308 -0.02736870  5.760869  6 0.45050380 0.5687213
-#> 8 0.9880019 -0.1486702923 -0.01628983  6.873008  6 0.33275124 0.5687213
+#> 1   I1   1 -2.1604709 0.14430225  0.1666750  423.5     0.1695416 1.0268996
+#> 2   I2   1 -1.3518390 0.11268892 -0.5756998  423.5    -0.5548927 1.0304617
+#> 3   I3   1 -0.8944690 0.10569675 -1.4271840  423.5    -1.3314617 1.0045536
+#> 4   I4   1 -0.2525755 0.09842604 -0.6843318  423.5    -0.6675975 1.0605330
+#> 5   I5   1  0.3908159 0.09808533  0.8675845  423.5     0.8959149 1.1604892
+#> 6   I6   1  0.8900794 0.10034984 -0.5631943  423.5    -0.5486780 1.0739741
+#> 7   I7   1  1.4679700 0.11257588  0.1864529  423.5     0.1887381 1.1051993
+#> 8   I8   1  1.9104891 0.12794128  0.2287863  423.5     0.2332503 0.9970331
+#>   outfit_ms     infit_z     outfit_z     chisq df          p     p_adj
+#> 1 0.9882788  0.33225795 -0.006659097  5.367357  6 0.49763112 0.5687213
+#> 2 0.9200216  0.51421357 -0.694204299  8.360771  6 0.21284560 0.5687213
+#> 3 0.8764090  0.10655603 -1.472784349 13.543617  6 0.03517114 0.2813691
+#> 4 0.9752165  1.42357529 -0.372765909  7.579412  6 0.27056336 0.5687213
+#> 5 1.0935539  3.69355737  1.432422372  2.836605  6 0.82905758 0.8290576
+#> 6 0.9633468  1.56569054 -0.429193066  5.525811  6 0.47834263 0.5687213
+#> 7 1.0181545  1.76661209  0.196435036  5.760869  6 0.45050380 0.5687213
+#> 8 1.0119034 -0.01774722  0.129649879  6.873008  6 0.33275124 0.5687213
 #>      p_bonf   F_anova    p_anova
 #> 1 1.0000000 0.5500185 0.77003278
 #> 2 1.0000000 1.3872863 0.21785564

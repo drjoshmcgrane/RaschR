@@ -1,7 +1,14 @@
 # Test information function
 
-Fisher information of the whole test over a grid of person locations,
-with the corresponding standard error of measurement.
+Fisher information over a grid of person locations, with the
+corresponding standard error of measurement. Ordinary Rasch fits return
+one whole-test curve. EFRM fits return one curve per person group and
+per item-set administration pattern actually observed within that group
+(in a linking design, persons who took only the core set get a core-only
+curve, and the linking subsample gets the pooled one), and MFRM fits
+return one curve per observed facet design; mutually exclusive
+virtual-item blocks, and item sets no single person took together, are
+never added together.
 
 ## Usage
 
@@ -22,7 +29,14 @@ test_information(fit, grid = seq(-6, 6, by = 0.1))
 
 ## Value
 
-A data frame with `theta`, `info`, and `sem`.
+A data frame with `theta`, `info`, and `sem`. For EFRM and MFRM fits it
+also contains a `design` column identifying the administrable group or
+facet design.
+
+## References
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
 
 ## Examples
 

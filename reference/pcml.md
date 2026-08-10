@@ -52,6 +52,15 @@ covariance matrix `cov_tau`, the pairwise conditional log-likelihood,
 the iteration count, a convergence flag, `notes`, and the max-score
 vector `m`.
 
+## References
+
+Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205–221.
+
+Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+Applied Psychological Measurement, 19(4), 369–375.
+
 ## Examples
 
 ``` r
@@ -68,7 +77,9 @@ pcml(X)$thr
 #> 5  5    5 1  0.7889434 0.1105680    FALSE FALSE
 #> 6  6    6 1  1.3442630 0.1221786    FALSE FALSE
 # anchor two items at fixed values (equating)
-pcml(X, anchors = data.frame(item = c("I1", "I6"), k = 1, tau = c(-1.5, 1.5)))$thr
+anchors <- data.frame(item = c("I1", "I6"), k = 1,
+                      tau = c(-1.5, 1.5))
+pcml(X, anchors = anchors)$thr
 #>   id item k        tau        se anchored  weak
 #> 1  1    1 1 -1.5000000 0.0000000     TRUE FALSE
 #> 2  2    2 1 -0.6880959 0.1613982    FALSE FALSE

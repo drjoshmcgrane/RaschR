@@ -1,9 +1,9 @@
 # Plot the Guttman scalogram
 
-Displays the Guttman-ordered response matrix as a heatmap (dark for high
-categories), with persons sorted by location down the rows and items by
-location across the columns. The coefficient of reproducibility is shown
-in the subtitle.
+Displays the dichotomous Guttman-ordered response matrix as a heatmap
+(dark for a score of one), with persons sorted by location down the rows
+and items by location across the columns. The coefficient of
+reproducibility is shown in the subtitle.
 
 ## Usage
 

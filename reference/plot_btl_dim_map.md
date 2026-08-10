@@ -25,3 +25,15 @@ plot_btl_dim_map(x, ...)
 ## Value
 
 Called for its plotting side effect.
+
+## Examples
+
+``` r
+# \donttest{
+d <- simulate_btl(7, 12, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+dimensions <- btl_dimensionality(fit, reps = 20)
+plot_btl_dim_map(dimensions)
+
+# }
+```

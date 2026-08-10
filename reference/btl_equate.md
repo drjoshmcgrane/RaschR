@@ -11,7 +11,7 @@ land on a single scale.
 ## Usage
 
 ``` r
-btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm")
+btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
 ```
 
 ## Arguments
@@ -27,7 +27,12 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm")
   A second
   [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fit,
   or a bank: a data frame with columns `object`, `location`, and
-  optionally `se`.
+  optionally `se`; object names must be unique and locations finite.
+  Bank-based drift inference requires the joint location covariance as a
+  square matrix in `attr(fit2, "cov_location")`, ordered like the bank
+  rows (or named by object), unless the bank is treated as fixed with
+  zero SEs. For a graded fit the bank must carry `attr(bank, "m")`
+  matching the number of fitted score steps.
 
 - alpha:
 
@@ -35,9 +40,17 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm")
 
 - p_adjust:
 
-  Multiple-comparison adjustment across the common objects, passed to
-  [`p.adjust`](https://rdrr.io/r/stats/p.adjust.html) (default
-  `"holm"`).
+  Adjustment for the common-object tests, passed to
+  [`stats::p.adjust`](https://rdrr.io/r/stats/p.adjust.html). The
+  default is `"holm"`.
+
+- independent:
+
+  Whether the calibrations have independent judges and comparisons. For
+  two fitted objects the default `NULL` withholds drift tests until
+  independence is stated explicitly. Bank tables are treated as
+  independent unless `FALSE` is supplied. Dependent calibrations require
+  a joint or paired bootstrap for inference.
 
 ## Value
 
@@ -47,7 +60,9 @@ the `shifted_difference` against the estimated origin, the pooled
 `se_diff`, `t`, raw and adjusted `p`, and the `drifting` flag); the
 estimated `shift` and its `shift_se`; `equated`, the second
 calibration's full object table re-expressed on `fit1`'s scale; the
-number of common objects `n_common`; `alpha`; `p_adjust`; and `notes`.
+number of common objects `n_common`; the number usable for inference
+`n_inference`; whether inference was available `inferential`; `alpha`;
+`p_adjust`; and `notes`.
 
 ## Details
 
@@ -91,7 +106,8 @@ sim <- function(objs) {
   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
   btl(d, "a", "b", "win")
 }
-eq <- btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)))
+eq <- btl_equate(sim(paste0("O", 1:7)), sim(paste0("O", 2:8)),
+                  independent = TRUE)
 eq$table
 #>   object location_1      se_1 location_2      se_2 difference
 #> 1     O2 -1.0161822 0.1424913 -1.4290667 0.1437563  0.4128844

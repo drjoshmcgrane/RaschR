@@ -29,7 +29,7 @@ interpret the highest-order significant terms.'><meta property="og:image" conten
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -107,10 +107,10 @@ every factor stored in the fit.</p></dd>
 
 
 <dt id="arg-n-groups">n_groups<a class="anchor" aria-label="anchor" href="#arg-n-groups"></a></dt>
-<dd><p>Number of trait class intervals. By default set from
-the smallest factor-combination cell so every interval-by-cell count
-keeps about 30 expected responses (between 2 and 10 intervals); the
-value used is returned in <code>n_groups</code>.</p></dd>
+<dd><p>Number of trait class intervals. The default uses the
+smallest joint factor cell to retain about 30 expected responses per
+interval and cell, with between 2 and 10 intervals. The selected value is
+returned in <code>n_groups</code>.</p></dd>
 
 
 <dt id="arg-p-adjust">p_adjust<a class="anchor" aria-label="anchor" href="#arg-p-adjust"></a></dt>
@@ -138,26 +138,16 @@ adjustment and the practical-significance flag. Each size involves a
 re-analysis, so this costs one refit per flagged item-term.</p></dd>
 
 
-<dt id="arg-id-within">id, within<a class="anchor" aria-label="anchor" href="#arg-id-within"></a></dt>
-<dd><p>Person identifier and within-subject factor names for
-stacked repeated-measures designs, auto-detected from the fit's person
-identifier. Whenever ids repeat, PERSONS are the units of analysis:
-residuals are aggregated to one mean per person (per within-subject
-cell), so duplicated or stacked observations cannot manufacture
-information, and the class interval is taken at the person level.
-Between-person terms are tested with order-invariant Type II sums of
-squares – every term adjusted for every term not containing it, the
-class interval always among them, so entry order cannot decide which
-correlated factor absorbs shared or trait variance. Within-person
-terms are tested on the person-by-cell means through orthonormal
-contrasts with the Greenhouse-Geisser epsilon correction (Maxwell and
-Delaney 2004), so multi-level within factors are valid without the
-sphericity assumption; persons missing any within cell are dropped
-from the within-stratum tests. A factor that varies within persons
-must be declared (or auto-detected) as within-subject; treating it as
-between-subjects is refused. The BH adjustment is applied across
-items separately within each term: each term is read as its own
-prespecified family, not as one pooled screen across all terms.</p></dd>
+<dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
+<dd><p>Person identifier for stacked or repeated-measures data. It may
+be a column name stored in the fit or a vector with one value per row;
+by default the identifier carried by the fit is used.</p></dd>
+
+
+<dt id="arg-within">within<a class="anchor" aria-label="anchor" href="#arg-within"></a></dt>
+<dd><p>Names of within-person factors. With repeated identifiers,
+varying factors are detected automatically when this is omitted. See
+Details for the mixed-design analysis.</p></dd>
 
 
 <dt id="arg-pool-facets">pool_facets<a class="anchor" aria-label="anchor" href="#arg-pool-facets"></a></dt>
@@ -195,6 +185,46 @@ each significant, non-superseded group term. Sums of squares are
 Type II (each term adjusted for every term not containing it, the
 class interval always among them), so results do not depend on the
 order factors are given.</p>
+
+<p>Whenever person identifiers repeat, persons rather than rows are the units
+of analysis. Residuals are first averaged within each person-by-within-cell,
+and the class interval is defined at the person level. Between-person terms
+use Type II sums of squares. In a mixed or incomplete panel, each within
+cell is centred within class interval before its values are averaged for the
+between-person analysis. This removes common within-cell effects, including
+effects that vary over the trait, which could otherwise appear as uniform
+or non-uniform DIF when within-cell coverage differs between groups.</p>
+<p>Within-person terms are evaluated from orthonormal contrasts of the
+person-by-cell means. The degrees-of-freedom correction of Greenhouse and
+Geisser is applied for factors with more than two levels; persons without every
+required within cell are excluded from that within-person test. Factors
+that vary within person must be declared through <code>within</code>, or are
+detected automatically when identifiers repeat.</p>
+<p>The joint multi-factor and mixed-design analysis is an extension of the
+conventional single-factor residual analysis of variance of Andrich and
+Marais (2019). It preserves the
+same uniform (factor) and non-uniform (factor-by-class-interval) questions,
+but uses the appropriate between-person and within-person error strata.
+Its F references remain approximate diagnostic tests; substantively
+important designs should be checked by simulation at the observed cell
+sizes and missingness pattern.</p>
+<p>For an EFRM fit, factors used to define the frame structure are excluded.
+Each frame has its own virtual items, so a frame-defining factor has only
+one observed level for any such item and is not a separate DIF contrast.
+Other person factors may still be tested. For an MFRM fit, residuals are
+pooled to underlying items by default; use <code>pool_facets = FALSE</code> to
+inspect the virtual item-by-facet cells instead.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Benjamini, Y. and Hochberg, Y. (1995). Controlling the false discovery
+rate: a practical and powerful approach to multiple testing. Journal of
+the Royal Statistical Society: Series B, 57(1), 289–300.</p>
+<p>Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
+differential item functioning in health research using the Rasch model.
+Health and Quality of Life Outcomes, 15, 181.</p>
+<p>Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
+Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.</p>
     </div>
 
     <div class="section level2">
@@ -247,6 +277,38 @@ order factors are given.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 10      FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11      FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12      FALSE</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="co"># Mixed design: group is between persons and occasion is within persons.</span></span></span>
+<span class="r-in"><span><span class="va">N</span> <span class="op">&lt;-</span> <span class="fl">320</span>; <span class="va">theta</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">N</span><span class="op">)</span>; <span class="va">group</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">N</span> <span class="op">/</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">make_wave</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">occasion_shift</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">shift</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">N</span>, <span class="fl">6</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">shift</span><span class="op">[</span><span class="va">group</span> <span class="op">==</span> <span class="st">"B"</span>, <span class="fl">2</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0.9</span></span></span>
+<span class="r-in"><span>  <span class="va">shift</span><span class="op">[</span>, <span class="fl">5</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">occasion_shift</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">N</span> <span class="op">*</span> <span class="fl">6</span>, <span class="fl">1</span>,</span></span>
+<span class="r-in"><span>         <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">theta</span>, <span class="va">d</span>, <span class="st">"-"</span><span class="op">)</span> <span class="op">-</span> <span class="va">shift</span><span class="op">)</span><span class="op">)</span>, <span class="va">N</span>, <span class="fl">6</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">Xm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu">make_wave</span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>, <span class="fu">make_wave</span><span class="op">(</span><span class="fl">1.0</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Xm</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">repeated</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="va">Xm</span>, group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">group</span>, <span class="fl">2</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                       occasion <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"T1"</span>, <span class="st">"T2"</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">N</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mixed_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">repeated</span>, id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">N</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                   factors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"group"</span>, <span class="st">"occasion"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mixed_dif</span> <span class="op">&lt;-</span> <span class="fu">dif_anova</span><span class="op">(</span><span class="va">mixed_fit</span>, within <span class="op">=</span> <span class="st">"occasion"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">mixed_dif</span><span class="op">$</span><span class="va">summary</span>, <span class="va">uniform_DIF</span> <span class="op">|</span> <span class="va">nonuniform_DIF</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    item     term F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3    I2    group 24.646183 1.153580e-06  6.921478e-06   0.07545223        TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9    I5    group  6.589918 1.073731e-02  3.221193e-02   0.02135494        TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10   I5 occasion 19.701863 1.270410e-05  7.622462e-05   0.06124261        TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3     1.3680556    0.2449523        0.9489444     0.017797453          FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9     0.1794123    0.9489444        0.9489444     0.002370688          FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10    0.1960145    0.9403641        0.9403641     0.002589496          FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    superseded</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3       FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9       FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10      FALSE</span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

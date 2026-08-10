@@ -1,9 +1,11 @@
 # Guttman-ordered response matrix and reproducibility
 
-Orders persons by location (descending) and items by location
-(ascending), the Guttman scalogram arrangement, and computes the
-coefficient of reproducibility against the deterministic Guttman pattern
-implied by each person's total score.
+Orders persons by descending location and dichotomous items by ascending
+location (the Guttman scalogram arrangement), computing the
+reproducibility coefficient against the deterministic pattern implied by
+each person's total score. PCM category steps can interleave across
+items, so polytomous fits are rejected rather than forced into an
+invalid whole-item deterministic order.
 
 ## Usage
 
@@ -23,6 +25,11 @@ guttman_table(fit)
 A list with the ordered score matrix `matrix` (persons by items, row and
 column names carrying the ID and item labels), the person and item
 orderings, and the coefficient of reproducibility `CR`.
+
+## References
+
+Guttman, L. (1944). A basis for scaling qualitative data. American
+Sociological Review, 9(2), 139–150.
 
 ## Examples
 

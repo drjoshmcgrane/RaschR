@@ -7,7 +7,7 @@ identity line and per-item 95 per cent bands; drifting items
 ## Usage
 
 ``` r
-plot_equate(fit, reference, shift = c("mean", "none"))
+plot_equate(fit, reference, shift = c("mean", "none"), independent = NULL)
 ```
 
 ## Arguments
@@ -22,9 +22,14 @@ plot_equate(fit, reference, shift = c("mean", "none"))
   A second
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
   fit, or a data frame with columns `item`, `location`, and optionally
-  `se`.
+  `se`; a polytomous bank also needs `max`.
 
 - shift:
+
+  Passed to
+  [`equate_tests`](https://drjoshmcgrane.github.io/rasch/reference/equate_tests.md).
+
+- independent:
 
   Passed to
   [`equate_tests`](https://drjoshmcgrane.github.io/rasch/reference/equate_tests.md).
@@ -43,5 +48,5 @@ mk <- function() {
   X <- matrix(rbinom(400 * 8, 1, plogis(outer(rnorm(400), d, "-"))), 400, 8)
   colnames(X) <- paste0("I", 1:8); rasch(X)
 }
-plot_equate(mk(), mk())
+plot_equate(mk(), mk(), independent = TRUE)
 ```

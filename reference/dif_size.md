@@ -10,12 +10,14 @@ compared with a Wald test using the full sandwich covariance of the
 resolved locations (for a between-person factor the persons behind
 different levels are disjoint, but the shared calibration of the other
 items still couples the estimates, so the covariance is used rather than
-assumed zero), with familywise adjustment over the pairs. For a
-within-person factor – the same persons behind several levels, as in a
-stacked repeated-measures design – the sandwich carries no person
-clustering, so the standard errors are conservative; a note says so, and
+assumed zero), with familywise adjustment over the pairs. When person
+identifiers repeat, as in a stacked repeated-measures design, the
+calibration sandwich treats the rows as independent and does not carry
+the covariance induced by repeated persons. The resolved point
+differences and practical flags are therefore retained, but sampling
+standard errors, confidence intervals, and Wald tests are withheld;
 [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
-handles that case with person-level differencing. Differences at least
+supplies person-level inferential tests. Differences at least
 `flag_logits` in absolute size are flagged as practically significant;
 half a logit is a common working criterion, to be weighed against the
 test's targeting and purpose.
@@ -73,7 +75,8 @@ dif_size(
 A list of class `"rasch_dif_size"`: `levels` (resolved location and SE
 per level, with its n), `pairs` (per comparison: difference in logits,
 SE, z, raw and adjusted p, 95 per cent interval, `significant`,
-`practical`), the settings, and any notes.
+`practical`), the settings, and any notes. Sampling-uncertainty fields
+are `NA` when person IDs repeat.
 
 ## Details
 
@@ -81,6 +84,14 @@ For an interaction, supply several factor names: levels are then the
 factor-combination cells, which is the post-hoc follow-up to a
 significant factor-by-factor term in
 [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md).
+
+## References
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Holm, S. (1979). A simple sequentially rejective multiple test
+procedure. Scandinavian Journal of Statistics, 6(2), 65–70.
 
 ## Examples
 
@@ -93,9 +104,9 @@ colnames(X) <- paste0("I", 1:8)
 fit <- rasch(data.frame(X, grp = g), factors = "grp")
 dif_size(fit, "I3", by = "grp")
 #> DIF size for I3 by grp (resolved locations, logits)
-#>  level location    se   n
-#>      a   -0.890 0.133 300
-#>      b    0.018 0.126 300
+#>  level location    se weak   n
+#>      a   -0.890 0.133    0 300
+#>      b    0.018 0.126    0 300
 #>  level_a level_b difference    se      z p p_adj  lower  upper significant
 #>        a       b     -0.907 0.204 -4.441 0     0 -1.308 -0.507           *
 #>  practical

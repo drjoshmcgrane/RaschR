@@ -4,16 +4,20 @@ points) enter a Rasch analysis in one of two designs (Andrich &amp;amp; Marais
 2019, ch. 26). Racking keeps one row per person and duplicates
 the items per time point (columns item@time), so change over time
 shows in the item estimates. Stacking keeps one column per item
-and duplicates the persons per time point (rows person@time), so
+and duplicates the persons per time point (rows), so
 change shows in the person estimates and DIF of items over time can be
-examined with time as a person factor."><meta property="og:description" content="Repeated measurements (the same persons and items at two or more time
+examined with time as a within-person factor. The returned
+id is the original person identifier and therefore repeats across
+occasions; row_id uniquely identifies each person-occasion row."><meta property="og:description" content="Repeated measurements (the same persons and items at two or more time
 points) enter a Rasch analysis in one of two designs (Andrich &amp;amp; Marais
 2019, ch. 26). Racking keeps one row per person and duplicates
 the items per time point (columns item@time), so change over time
 shows in the item estimates. Stacking keeps one column per item
-and duplicates the persons per time point (rows person@time), so
+and duplicates the persons per time point (rows), so
 change shows in the person estimates and DIF of items over time can be
-examined with time as a person factor."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+examined with time as a within-person factor. The returned
+id is the original person identifier and therefore repeats across
+occasions; row_id uniquely identifies each person-occasion row."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -21,7 +25,7 @@ examined with time as a person factor."><meta property="og:image" content="https
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,9 +63,11 @@ points) enter a Rasch analysis in one of two designs (Andrich &amp; Marais
 2019, ch. 26). <em>Racking</em> keeps one row per person and duplicates
 the items per time point (columns <code>item@time</code>), so change over time
 shows in the item estimates. <em>Stacking</em> keeps one column per item
-and duplicates the persons per time point (rows <code>person@time</code>), so
+and duplicates the persons per time point (rows), so
 change shows in the person estimates and DIF of items over time can be
-examined with <code>time</code> as a person factor.</p>
+examined with <code>time</code> as a within-person factor. The returned
+<code>id</code> is the original person identifier and therefore repeats across
+occasions; <code>row_id</code> uniquely identifies each person-occasion row.</p>
     </div>
 
     <div class="section level2">
@@ -91,8 +97,9 @@ examined with <code>time</code> as a person factor.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>rack_data</code>: a wide data frame with one row per person and
   <code>length(items) * n_times</code> item columns. <code>stack_data</code>: a data
-  frame with one row per person-time (<code>id</code> column), the original
-  item columns, and <code>time</code> as a factor column for DIF analysis.</p>
+  frame with one row per person-time, the repeated original <code>id</code>, a
+  unique <code>row_id</code>, the original item columns, and <code>time</code> as a
+  factor column for repeated-measures DIF analysis.</p>
     </div>
 
     <div class="section level2">
@@ -104,13 +111,17 @@ examined with <code>time</code> as a person factor.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "id"   "Q1@1" "Q2@1" "Q1@2" "Q2@2"</span>
 <span class="r-in"><span><span class="va">stacked</span> <span class="op">&lt;-</span> <span class="fu">stack_data</span><span class="op">(</span><span class="va">d</span>, person <span class="op">=</span> <span class="st">"pid"</span>, time <span class="op">=</span> <span class="st">"t"</span>, items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q1"</span>, <span class="st">"Q2"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">stacked</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    id time Q1 Q2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 1@1    1  0  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 2@1    1  0  0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3 3@1    1  1  0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4 4@1    1  0  1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5 5@1    1  1  0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6 6@1    1  1  1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   id row_id time Q1 Q2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1    1@1    1  0  1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  2    2@1    1  0  0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  3    3@1    1  1  0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  4    4@1    1  0  1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  5    5@1    1  1  0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6  6    6@1    1  1  1</span>
+<span class="r-in"><span><span class="co"># the follow-up analysis assigns every reshaped column a role: the</span></span></span>
+<span class="r-in"><span><span class="co"># repeated person id, time as a within-person factor, and the items</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">stacked</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"time"</span>,</span></span>
+<span class="r-in"><span>             items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q1"</span>, <span class="st">"Q2"</span><span class="op">)</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

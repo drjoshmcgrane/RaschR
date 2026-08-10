@@ -52,15 +52,19 @@ simulate_rasch(
 
   Response categories for polytomous models (\>= 3).
 
-- theta_mean, theta_sd, theta_dist:
+- theta_mean, theta_sd:
 
-  Person distribution: mean, SD, and shape (`"normal"`, `"uniform"`,
-  `"skew"`, `"bimodal"`).
+  Mean and standard deviation of the person distribution.
+
+- theta_dist:
+
+  Shape of the person distribution: `"normal"`, `"uniform"`, `"skew"`,
+  or `"bimodal"`.
 
 - difficulty:
 
-  Two numbers giving the item-location range (evenly spaced), or a
-  length-`n_items` vector of locations.
+  Either the two endpoints of an evenly spaced location range, or one
+  location per item.
 
 - threshold_spread:
 
@@ -69,7 +73,7 @@ simulate_rasch(
 
 - discrimination:
 
-  Scalar or length-`n_items`: the slope of each item. Values above 1
+  The item slope, supplied as one value or one per item. Values above 1
   over-discriminate (Guttman-like, negative fit residual); below 1
   under-discriminate (noisy, positive residual). Feeds infit/outfit and
   the item-fit F.
@@ -89,10 +93,8 @@ simulate_rasch(
 - dependence:
 
   `NULL`, or `list(pairs=, strength=)`: each pair's second item responds
-  partly to the first (response dependence). Feeds
-  [`residual_correlations`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md)
-  /
-  [`dependence_magnitude`](https://drjoshmcgrane.github.io/rasch/reference/dependence_magnitude.md).
+  partly to the first. This departure feeds the residual-dependence
+  diagnostics.
 
 - dif:
 
@@ -157,18 +159,18 @@ d <- simulate_rasch(400, 12, discrimination = c(3, rep(1, 11)),
 fit <- rasch(d, id = "id", factors = "group")
 fit$items[c("item", "infit_ms", "outfit_ms")]   # item 1 misfits
 #>    item  infit_ms outfit_ms
-#> 1   I01 1.0129467 0.4265500
-#> 2   I02 1.0434044 0.9527288
-#> 3   I03 0.9820669 0.8193981
-#> 4   I04 1.0541616 1.1210207
-#> 5   I05 1.0402727 0.9429850
-#> 6   I06 1.0909707 1.1305319
-#> 7   I07 1.0264347 0.9907582
-#> 8   I08 1.1123775 1.1226994
-#> 9   I09 1.0439933 1.0497987
-#> 10  I10 1.0452768 0.9465806
-#> 11  I11 1.0341611 0.9823771
-#> 12  I12 0.9830431 0.7799822
+#> 1   I01 1.0129673 0.4276359
+#> 2   I02 1.0434529 0.9552952
+#> 3   I03 0.9821247 0.8216242
+#> 4   I04 1.0542503 1.1240877
+#> 5   I05 1.0403856 0.9455574
+#> 6   I06 1.0912200 1.1335211
+#> 7   I07 1.0266441 0.9933927
+#> 8   I08 1.1127883 1.1255372
+#> 9   I09 1.0445976 1.0522776
+#> 10  I10 1.0460971 0.9486632
+#> 11  I11 1.0356288 0.9841202
+#> 12  I12 0.9849557 0.7809060
 dif_anova(fit)$summary                           # item 6 flags
 #>    item  term   F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF
 #> 1   I01 group  4.83171573 2.853237e-02  1.151575e-01 1.233110e-02       FALSE

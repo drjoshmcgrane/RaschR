@@ -1,8 +1,13 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://drjoshmcgrane.github.io/rasch/404.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/LICENSE-text.html</loc></url>
+<url><loc>https://drjoshmcgrane.github.io/rasch/articles/dif-repeated-measures.html</loc></url>
+<url><loc>https://drjoshmcgrane.github.io/rasch/articles/extended-frame-reference.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/articles/index.html</loc></url>
+<url><loc>https://drjoshmcgrane.github.io/rasch/articles/many-facet.html</loc></url>
+<url><loc>https://drjoshmcgrane.github.io/rasch/articles/paired-comparisons.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/articles/plant-and-detect.html</loc></url>
+<url><loc>https://drjoshmcgrane.github.io/rasch/articles/rasch-workflow.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/authors.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/index.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/news/index.html</loc></url>
@@ -88,6 +93,7 @@
 <url><loc>https://drjoshmcgrane.github.io/rasch/reference/save_outputs.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/reference/save_person_plots.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/reference/score_table.html</loc></url>
+<url><loc>https://drjoshmcgrane.github.io/rasch/reference/sim_apply.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.html</loc></url>
 <url><loc>https://drjoshmcgrane.github.io/rasch/reference/simulate_btl.html</loc></url>

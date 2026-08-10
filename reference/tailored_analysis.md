@@ -18,7 +18,13 @@ on the two calibrations show it directly.
 ## Usage
 
 ``` r
-tailored_analysis(fit, chance = 0.25, anchor_items = NULL)
+tailored_analysis(
+  fit,
+  chance = 0.25,
+  anchor_items = NULL,
+  se_method = c("none", "bootstrap"),
+  boot_reps = 999L
+)
 ```
 
 ## Arguments
@@ -41,12 +47,29 @@ tailored_analysis(fit, chance = 0.25, anchor_items = NULL)
   the easier tailored location – which are the easy items the procedure
   trusts.
 
+- se_method:
+
+  `"none"` (default) reports the item shifts descriptively.
+  `"bootstrap"` resamples persons and repeats the complete four-step
+  procedure, including automatic anchor selection, to obtain standard
+  errors, percentile intervals, and Holm-adjusted tests.
+
+- boot_reps:
+
+  Person-bootstrap replicates when `se_method = "bootstrap"`; at least
+  50, default 999. The sign-count bootstrap p-value has resolution floor
+  `2/(boot_reps + 1)`, so after the Holm adjustment across m items the
+  smallest achievable adjusted p is `2m/(boot_reps + 1)`; a warning
+  fires when that floor exceeds 0.05 (detection would be impossible).
+
 ## Value
 
 A list of class `"rasch_tailored"`: `tailored`, `origin_equated`, and
 `anchored` fits, the comparison `table` (initial, tailored,
-origin-equated locations, the tailored-minus-equated `shift`, and its
-`z`), the number of responses removed, and the anchor items used.
+origin-equated locations, the tailored-minus-equated `shift`; bootstrap
+uncertainty columns when requested), the number of responses removed,
+the anchor items used, `se_method`, and the number of usable bootstrap
+replicates `boot_reps_used`.
 
 ## References
 
@@ -68,15 +91,26 @@ X <- matrix(rbinom(N * 10, 1, P), N, 10)
 colnames(X) <- paste0("I", 1:10)
 ta <- tailored_analysis(rasch(X), chance = 0.25)
 ta$table
-#>     item    initial    tailored origin_equated removed      shift         z
-#> I1    I1 -1.6725135 -1.77025037    -1.77025037       0 0.00000000 0.0000000
-#> I2    I2 -1.2209361 -1.35953938    -1.35953938       0 0.00000000 0.0000000
-#> I3    I3 -0.7506180 -0.82611031    -0.82611031       7 0.00000000 0.0000000
-#> I4    I4 -0.3397033 -0.40510059    -0.40510059      33 0.00000000 0.0000000
-#> I5    I5  0.1120400  0.04827271     0.02317712      33 0.02509559 0.2161692
-#> I6    I6  0.2715352  0.26473095     0.18275306      90 0.08197789 0.7059928
-#> I7    I7  0.5422752  0.51272210     0.45362192      90 0.05910019 0.5167861
-#> I8    I8  0.9005334  0.88296336     0.81230152     206 0.07066184 0.5786044
-#> I9    I9  1.0370971  1.28376521     0.94890015     206 0.33486506 2.6189468
-#> I10  I10  1.1202901  1.36854631     1.03204123     206 0.33650508 2.5838021
+#>     item    initial    tailored origin_equated removed      shift se ci_low
+#> I1    I1 -1.6725135 -1.77025037    -1.77025037       0 0.00000000 NA     NA
+#> I2    I2 -1.2209361 -1.35953938    -1.35953938       0 0.00000000 NA     NA
+#> I3    I3 -0.7506180 -0.82611031    -0.82611031       7 0.00000000 NA     NA
+#> I4    I4 -0.3397033 -0.40510059    -0.40510059      33 0.00000000 NA     NA
+#> I5    I5  0.1120400  0.04827271     0.02317712      33 0.02509559 NA     NA
+#> I6    I6  0.2715352  0.26473095     0.18275306      90 0.08197789 NA     NA
+#> I7    I7  0.5422752  0.51272210     0.45362192      90 0.05910019 NA     NA
+#> I8    I8  0.9005334  0.88296336     0.81230152     206 0.07066184 NA     NA
+#> I9    I9  1.0370971  1.28376521     0.94890015     206 0.33486506 NA     NA
+#> I10  I10  1.1202901  1.36854631     1.03204123     206 0.33650508 NA     NA
+#>     ci_high  p p_adj significant
+#> I1       NA NA    NA          NA
+#> I2       NA NA    NA          NA
+#> I3       NA NA    NA          NA
+#> I4       NA NA    NA          NA
+#> I5       NA NA    NA          NA
+#> I6       NA NA    NA          NA
+#> I7       NA NA    NA          NA
+#> I8       NA NA    NA          NA
+#> I9       NA NA    NA          NA
+#> I10      NA NA    NA          NA
 ```

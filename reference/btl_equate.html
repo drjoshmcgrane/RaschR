@@ -19,7 +19,7 @@ scale."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,7 +63,7 @@ scale.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">btl_equate</span><span class="op">(</span><span class="va">fit1</span>, <span class="va">fit2</span>, alpha <span class="op">=</span> <span class="fl">0.05</span>, p_adjust <span class="op">=</span> <span class="st">"holm"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">btl_equate</span><span class="op">(</span><span class="va">fit1</span>, <span class="va">fit2</span>, alpha <span class="op">=</span> <span class="fl">0.05</span>, p_adjust <span class="op">=</span> <span class="st">"holm"</span>, independent <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -77,7 +77,13 @@ scale (origin) the equating targets.</p></dd>
 
 <dt id="arg-fit-">fit2<a class="anchor" aria-label="anchor" href="#arg-fit-"></a></dt>
 <dd><p>A second <code><a href="btl.html">btl</a></code> fit, or a bank: a data frame with
-columns <code>object</code>, <code>location</code>, and optionally <code>se</code>.</p></dd>
+columns <code>object</code>, <code>location</code>, and optionally <code>se</code>; object
+names must be unique and locations finite. Bank-based drift inference
+requires the joint location covariance as a square matrix in
+<code>attr(fit2, "cov_location")</code>, ordered like the bank rows (or named by
+object), unless the bank is treated as fixed with zero SEs. For a graded
+fit the bank must carry
+<code>attr(bank, "m")</code> matching the number of fitted score steps.</p></dd>
 
 
 <dt id="arg-alpha">alpha<a class="anchor" aria-label="anchor" href="#arg-alpha"></a></dt>
@@ -85,8 +91,16 @@ columns <code>object</code>, <code>location</code>, and optionally <code>se</cod
 
 
 <dt id="arg-p-adjust">p_adjust<a class="anchor" aria-label="anchor" href="#arg-p-adjust"></a></dt>
-<dd><p>Multiple-comparison adjustment across the common objects,
-passed to <code><a href="https://rdrr.io/r/stats/p.adjust.html" class="external-link">p.adjust</a></code> (default <code>"holm"</code>).</p></dd>
+<dd><p>Adjustment for the common-object tests, passed to
+<code><a href="https://rdrr.io/r/stats/p.adjust.html" class="external-link">stats::p.adjust</a></code>. The default is <code>"holm"</code>.</p></dd>
+
+
+<dt id="arg-independent">independent<a class="anchor" aria-label="anchor" href="#arg-independent"></a></dt>
+<dd><p>Whether the calibrations have independent judges and
+comparisons. For two fitted objects the default <code>NULL</code> withholds
+drift tests until independence is stated explicitly. Bank tables are
+treated as independent unless <code>FALSE</code> is supplied. Dependent
+calibrations require a joint or paired bootstrap for inference.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -98,7 +112,9 @@ passed to <code><a href="https://rdrr.io/r/stats/p.adjust.html" class="external-
   <code>p</code>, and the <code>drifting</code> flag); the estimated <code>shift</code> and
   its <code>shift_se</code>; <code>equated</code>, the second calibration's full object
   table re-expressed on <code>fit1</code>'s scale; the number of common objects
-  <code>n_common</code>; <code>alpha</code>; <code>p_adjust</code>; and <code>notes</code>.</p>
+  <code>n_common</code>; the number usable for inference <code>n_inference</code>;
+  whether inference was available <code>inferential</code>; <code>alpha</code>;
+  <code>p_adjust</code>; and <code>notes</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -140,7 +156,8 @@ locations are not independent).</p>
 <span class="r-in"><span>  <span class="va">d</span><span class="op">$</span><span class="va">win</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="va">beta</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">a</span><span class="op">]</span> <span class="op">-</span> <span class="va">beta</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">b</span><span class="op">]</span><span class="op">)</span>, <span class="va">d</span><span class="op">$</span><span class="va">a</span>, <span class="va">d</span><span class="op">$</span><span class="va">b</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="btl.html">btl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"win"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-in"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu">btl_equate</span><span class="op">(</span><span class="fu">sim</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"O"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">7</span><span class="op">)</span><span class="op">)</span>, <span class="fu">sim</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"O"</span>, <span class="fl">2</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu">btl_equate</span><span class="op">(</span><span class="fu">sim</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"O"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">7</span><span class="op">)</span><span class="op">)</span>, <span class="fu">sim</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"O"</span>, <span class="fl">2</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                  independent <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">eq</span><span class="op">$</span><span class="va">table</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   object location_1      se_1 location_2      se_2 difference</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1     O2 -1.0161822 0.1424913 -1.4290667 0.1437563  0.4128844</span>

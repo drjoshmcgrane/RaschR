@@ -23,7 +23,8 @@ dimensionality_test(
   alpha = 0.05,
   items_positive = NULL,
   items_negative = NULL,
-  component = 1
+  component = 1,
+  min_score_points = 15L
 )
 ```
 
@@ -49,13 +50,31 @@ dimensionality_test(
   Which residual principal component's loading sign defines the default
   split (ignored when subsets are named). Default the first component.
 
+- min_score_points:
+
+  Score-point threshold below which the verdict carries a caution.
+  Andrich and Marais (2019) recommend subtests of roughly 15 score
+  points for stable subtest estimates; shorter subsets (the norm for
+  ordinary dichotomous tests) still receive a verdict, with a `caution`
+  field noting the reduced stability.
+
 ## Value
 
 A list with the proportion of significant tests, its exact confidence
 interval, the sample sizes (`n` used, `n_excluded_extreme`), the item
-split and its source, a `multidimensional` verdict, and `paired_t`, the
+split and its source, a `multidimensional` verdict, a `caution` note
+when the subtests fall short of `min_score_points`, and `paired_t`, the
 paired t-test of the two subset means (the group-level comparison, which
 requires pairing because both estimates come from the same persons).
+When the comparison itself is unavailable (undefined split, degenerate
+subsets, too few persons) the list carries a `note` explaining why and
+`multidimensional = NA`.
+
+## References
+
+Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
+multidimensionality using item fit statistics and principal component
+analysis of residuals. Journal of Applied Measurement, 3(2), 205–231.
 
 ## Examples
 

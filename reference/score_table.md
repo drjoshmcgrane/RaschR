@@ -28,8 +28,9 @@ score_table(
 
 - extremes:
 
-  `"model"` keeps the estimator's own extreme-score values (`NA` for
-  MLE); `"extrapolated"` applies the geometric extrapolation.
+  Treatment of the extreme scores. `"model"` keeps the estimator's own
+  values; these are `NA` for MLE. `"extrapolated"` applies the geometric
+  extrapolation.
 
 ## Value
 
@@ -52,6 +53,14 @@ zero. The standard error at an extrapolated location is
 \\1/\sqrt{I(\theta)}\\ evaluated there. With `method = "wle"` the
 extrapolation replaces the finite Warm estimates at the extremes, giving
 the extrapolated form of the conversion table from a WLE analysis.
+
+## References
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. Psychometrika, 54(3), 427–450.
 
 ## Examples
 

@@ -47,8 +47,8 @@ btl_dif(
 
 - factors:
 
-  A judge factor, or a named list of them, each either one value per row
-  of `fit$comparisons` or a vector named by judge.
+  One judge factor, or a named list containing several. Each factor may
+  have one value per comparison row or be a vector named by judge.
 
 - objects:
 
@@ -91,8 +91,9 @@ term itself – the non-uniform ones – the term crossed with the opponent
 band – plus `uniform_DIF`, `nonuniform_DIF` and `superseded` flags);
 `terms` (the full per-object analysis-of-variance table); `levels`
 (resolved location and SE per object, term and cell); `sizes` (per
-object, term and cell pair: difference in logits, SE, z, adjusted p,
-significance and practical flags); `effects`, `factors`, and `notes`.
+object, term and cell pair: difference in logits, SE, t, degrees of
+freedom, adjusted p, significance and practical flags); `effects`,
+`factors`, and `notes`.
 
 ## Details
 
@@ -105,8 +106,10 @@ pseudo-replicate (a null simulation with judge heterogeneity and
 arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
 judge-level design is calibrated, and its power grows with the number of
 judges per group, not the number of comparisons. Each factor level needs
-at least two judges, and an object at least four judges overall, to be
-testable.
+at least two judges. Confirmatory output is withheld unless the base fit
+has at least ten judge clusters and more clusters than fitted
+parameters; this avoids treating a rank-deficient or very small-cluster
+sandwich as a valid sampling covariance.
 
 Each object is resolved against the other objects' common locations.
 When several objects carry real DIF, resolving them one at a time can
@@ -149,8 +152,8 @@ btl_dif(f, grp, objects = "C")
 #>                
 #> 
 #> Resolved locations (logits; BH over 1 comparison(s); practical 0.50)
-#>  object  term level_a level_b difference    se     z   p_adj significant
-#>       C group      g1      g2      1.404 0.283 4.965 < 0.001           *
+#>  object  term level_a level_b difference    se     t df   p_adj significant
+#>       C group      g1      g2      1.404 0.283 4.965 11 < 0.001           *
 #>  practical
 #>          *
 ```

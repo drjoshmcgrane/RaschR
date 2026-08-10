@@ -4,14 +4,22 @@ Yen's (1984) Q3 statistics. Under unidimensionality and local
 independence the off-diagonal values sit near -1/(L-1); large
 positive values flag local dependence between item pairs. Following
 Christensen, Makransky and Horton (2017), each Q3 is also reported
-relative to the average off-diagonal value (q3_star), and a pair
-is flagged when that excess passes flag."><meta property="og:description" content="The pairwise correlations of the standardised response residuals are
+relative to the average off-diagonal value (q3_star). There is no
+universal adjusted-Q3 critical value: it depends on sample size, test
+length, category structure, and missingness. The default therefore reports
+the statistics without a binary flag. A user-supplied flag is an
+explicitly heuristic screening threshold, not a calibrated significance
+test."><meta property="og:description" content="The pairwise correlations of the standardised response residuals are
 Yen's (1984) Q3 statistics. Under unidimensionality and local
 independence the off-diagonal values sit near -1/(L-1); large
 positive values flag local dependence between item pairs. Following
 Christensen, Makransky and Horton (2017), each Q3 is also reported
-relative to the average off-diagonal value (q3_star), and a pair
-is flagged when that excess passes flag."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+relative to the average off-diagonal value (q3_star). There is no
+universal adjusted-Q3 critical value: it depends on sample size, test
+length, category structure, and missingness. The default therefore reports
+the statistics without a binary flag. A user-supplied flag is an
+explicitly heuristic screening threshold, not a calibrated significance
+test."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -19,7 +27,7 @@ is flagged when that excess passes flag."><meta property="og:image" content="htt
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,13 +65,17 @@ Yen's (1984) Q3 statistics. Under unidimensionality and local
 independence the off-diagonal values sit near <code>-1/(L-1)</code>; large
 positive values flag local dependence between item pairs. Following
 Christensen, Makransky and Horton (2017), each Q3 is also reported
-relative to the average off-diagonal value (<code>q3_star</code>), and a pair
-is flagged when that excess passes <code>flag</code>.</p>
+relative to the average off-diagonal value (<code>q3_star</code>). There is no
+universal adjusted-Q3 critical value: it depends on sample size, test
+length, category structure, and missingness. The default therefore reports
+the statistics without a binary flag. A user-supplied <code>flag</code> is an
+explicitly heuristic screening threshold, not a calibrated significance
+test.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">residual_correlations</span><span class="op">(</span><span class="va">fit</span>, flag <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">residual_correlations</span><span class="op">(</span><span class="va">fit</span>, flag <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -75,8 +87,8 @@ is flagged when that excess passes <code>flag</code>.</p>
 
 
 <dt id="arg-flag">flag<a class="anchor" aria-label="anchor" href="#arg-flag"></a></dt>
-<dd><p>Excess above the average off-diagonal Q3 at which a pair is
-flagged as dependent.</p></dd>
+<dd><p>Optional heuristic excess above the average off-diagonal Q3 at
+which a pair is flagged. The default <code>NULL</code> withholds binary flags.</p></dd>
 
 </dl></div>
     <div class="section level2">

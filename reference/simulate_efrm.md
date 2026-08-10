@@ -50,8 +50,9 @@ simulate_efrm(
 
 ## Value
 
-A wide data frame of class `"rasch_sim"` (`id`, item columns, `group`)
-with `attr(x, "truth")$item_sets` the set map to pass to
+A wide data frame of class `"rasch_sim"`, containing an ID, item
+columns, and group. Its truth attribute contains the item-set map
+required by
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
 
 ## Examples

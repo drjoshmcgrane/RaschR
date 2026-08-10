@@ -38,13 +38,15 @@ and the pair's `information`); `comparisons` (per comparison: the signed
 ## Details
 
 The design information inverts to `se_naive = 1 / sqrt(information)`:
-the error the object's comparisons would give if its location were the
-ONLY free parameter – a single-parameter lower bound, useful for reading
-which objects the design serves well. It is not the model's standard
-error even with independent comparisons (every location is estimated
-jointly with the others, and the fit's own `se` is additionally the
-judge-clustered Godambe sandwich), so `se` sits above `se_naive` as a
-rule; treat their ratio as descriptive, not as a clustering test.
+the error the object's own comparisons would give if its location were
+treated in isolation – a design-only yardstick for reading which objects
+the comparison plan serves well. It is not the model's standard error,
+and it is not a bound: the fitted `se` comes from joint estimation under
+the sum-zero constraint (which typically REDUCES an object's variance
+relative to the isolated calculation) with judge-clustered Godambe
+covariance (which can move it in either direction), so `se` can sit
+below or above `se_naive`. Treat their ratio as a descriptive comparison
+of design coverage, not as a bound or a clustering test.
 
 ## References
 
@@ -72,5 +74,5 @@ btl_information(btl(d, "a", "b", "win"))
 #>       B   -0.354 0.186            90      17.100    0.242
 #>       C    0.448 0.180            90      17.030    0.242
 #>       D    1.144 0.209            90      13.463    0.273
-#> Note: se is the Godambe sandwich standard error; se_naive = 1/sqrt(information) is a single-parameter lower bound (as if the object's location were the only free parameter), so se sits above it as a rule
+#> Note: se is the Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it
 ```

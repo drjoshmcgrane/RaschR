@@ -30,3 +30,15 @@ plot_btl_transitivity(x, by = c("auto", "judge", "object"), ...)
 ## Value
 
 Called for its plotting side effect.
+
+## Examples
+
+``` r
+# \donttest{
+d <- simulate_btl(6, 10, reps_per_pair = 20, seed = 1)
+fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+tr <- btl_transitivity(fit)
+plot_btl_transitivity(tr)
+
+# }
+```

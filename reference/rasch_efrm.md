@@ -2,18 +2,20 @@
 
 Estimates Humphry's extended frame of reference model, in which the unit
 of the latent scale differs across frames (item-set by person-group
-cells): the response model is
-`P(X = x) prop exp(rho_sg (x theta - sum delta))` with
-`rho_sg = alpha_s phi_g`. Within frames the partial credit model holds
-in the frame's natural unit, so item thresholds and the person group
-units `phi` are estimated by within-frame pairwise conditional maximum
-likelihood (the person parameter cancels; Andrich and Luo 2003), jointly
-across frames through the sets shared by several groups. Item-set units
-`alpha` and set locations are then estimated from persons common to
-pairs of sets, using error-corrected true-score variances, and
-reconciled over the linking graph by weighted least squares. Everything
-is reported in a common arbitrary unit, and the returned object is also
-a full
+cells). For item \\i\\ in set \\s\\ and person \\n\\ in group \\g\\, the
+response model is \$\$P(X\_{ni}=x)=\frac{\exp\\\rho\_{sg}\[x\theta_n-
+\sum\_{k=1}^{x}\delta\_{ik}\]\\}
+{\sum\_{y=0}^{m_i}\exp\\\rho\_{sg}\[y\theta_n-
+\sum\_{k=1}^{y}\delta\_{ik}\]\\},\qquad \rho\_{sg}=\alpha_s\phi_g.\$\$
+Within frames the partial credit model holds in the frame's natural
+unit, so item thresholds and the person group units `phi` are estimated
+by within-frame pairwise conditional maximum likelihood (the person
+parameter cancels; Andrich and Luo 2003), jointly across frames through
+the sets shared by several groups. Item-set units `alpha` and set
+locations are then estimated from persons common to pairs of sets, using
+error-corrected true-score variances, and reconciled over the linking
+graph by weighted least squares. Everything is reported in a common
+arbitrary unit, and the returned object is also a full
 [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) fit
 at the item-by-group level, so the package's diagnostic tables and plots
 apply.
@@ -114,8 +116,9 @@ hybrid fallback combines the stagewise errors as if uncorrelated),
 `thresholds_arbitrary` (the structural parameters in the common unit),
 `score_curves` (per-group score-to-measure curves, replacing the
 raw-score table), `efrm_vs_rasch` (fit comparison against the equal-unit
-model on the same conditional information), and `linking` (the linking
-evidence).
+model on the same conditional information, omnibus Wald tests for the
+unit families, and Holm-adjusted exploratory unit contrasts), and
+`linking` (the linking evidence).
 
 ## Details
 
@@ -160,15 +163,16 @@ all stages are re-estimated on `boot_reps` person resamples and every
 standard error and the threshold covariance come from the replicate
 spread; slower, but captures all cross-dependencies jointly.
 
-Relation to Humphry (2005, sections 5.3 and 5.4): the two-stage
-architecture implemented here operationalises the estimation approach
-proposed in section 5.3 of the thesis (conditional estimation within
-frames, with the item-set units obtained through person estimates from
-linked sets), and retains the thesis's error-variance correction (its
-equation 2.29, after Andrich 1982) and its transformation of standard
-errors into the common unit by the inverse discrimination. The standard
-errors themselves go further than the thesis's section 5.4, which
-inverts each diagonal element of the joint-likelihood information
+Relation to Humphry (2005): the within-frame stage follows the thesis's
+conditional separation logic. The linking stage implemented here is an
+error-corrected method-of-moments estimator based on the true-score
+variance ratios in equations 2.28–2.29 (after Andrich 1982). It is not
+the distinct likelihood equation proposed in section 5.3. The
+multigroup, polytomous, and crossed-frame implementation is therefore an
+experimental package extension whose sampling performance should be
+checked for the intended design, preferably with the full person
+bootstrap. The standard errors go further than the thesis's section 5.4,
+which inverts each diagonal element of the joint-likelihood information
 separately and therefore conditions on the remaining parameters,
 including the person locations, being treated as known. Here full
 covariance matrices are used throughout; the item-side covariance
@@ -193,6 +197,21 @@ distributional information; and person measures rest on weighted-score
 sufficiency with estimated weights, whose uncertainty is propagated
 rather than ignored.
 
+## References
+
+Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205–221.
+
+Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences. Springer.
+
+Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
+Measurement. PhD thesis, Murdoch University.
+
+Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
+Rasch model. Journal of Applied Measurement, 9(3), 249–264.
+
 ## Examples
 
 ``` r
@@ -203,14 +222,15 @@ simP <- function(th, tau, r) { x <- 0:length(tau)
 grp <- rep(c("A", "B"), each = Np / 2)
 phi <- c(A = 0.8, B = 1.25)
 d <- seq(-1.5, 1.5, length.out = 10)
+theta <- rnorm(Np)
 X <- sapply(seq_along(d), function(i) sapply(seq_len(Np), function(n)
-  sample(0:1, 1, prob = simP(rnorm(Np)[n], d[i], phi[grp[n]]))))
+  sample(0:1, 1, prob = simP(theta[n], d[i], phi[grp[n]]))))
 colnames(X) <- sprintf("I%02d", seq_along(d))
 fit <- rasch_efrm(data.frame(X, grp = grp), item_sets = list(core = colnames(X)),
                   groups = "grp")
 fit$phi_table
 #>   group       phi se_log_phi
-#> 1     A 0.8353562 0.04924023
-#> 2     B 1.1970941 0.04924023
+#> 1     A 0.8422988 0.04222911
+#> 2     B 1.1872271 0.04222911
 # }
 ```

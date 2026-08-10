@@ -2,8 +2,8 @@
 
 ## Estimation
 
-Pairwise conditional estimation of the Rasch model family, with Godambe
-sandwich standard errors and Warm person measures.
+Fit the principal Rasch model families and estimate item and person
+parameters.
 
 - [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
   : Fit and diagnose a Rasch model by pairwise conditional estimation
@@ -23,8 +23,7 @@ sandwich standard errors and Warm person measures.
 
 ## Test of fit and comparison
 
-The fit-residual and chi-square apparatus, targeting and reliability,
-and model comparison.
+Assess fit, targeting and reliability, and compare fitted models.
 
 - [`fit_summary_table()`](https://drjoshmcgrane.github.io/rasch/reference/fit_summary_table.md)
   : Test-of-fit summary as a table
@@ -53,8 +52,8 @@ and model comparison.
 
 ## Invariance and DIF
 
-Differential item functioning over any number of person factors, DIF
-magnitudes in logits, resolution by item splitting, and equating.
+Examine invariance across groups and occasions, quantify DIF, split
+items, and equate calibrations.
 
 - [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
   : Differential item functioning by residual analysis of variance
@@ -73,8 +72,8 @@ magnitudes in logits, resolution by item splitting, and equating.
 
 ## Independence and dimensionality
 
-Residual principal components, the Smith t-test with magnitude
-estimation, Q3 local dependence, and the structural remedies.
+Examine dimensionality and local response dependence and apply
+structural remedies where appropriate.
 
 - [`residual_correlations()`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md)
   : Residual correlations for local dependence (Yen's Q3)
@@ -105,10 +104,9 @@ estimation, Q3 local dependence, and the structural remedies.
 
 ## Paired comparisons
 
-The Bradley-Terry-Luce model as the conditional form of the dichotomous
-Rasch model, with judge diagnostics, within-judge dependence,
-judge-group DIF, and the pair-structure analogues of the independence
-diagnostics (transitivity and the residual bimension decomposition).
+Fit Bradley-Terry-Luce and extended frame of reference models for paired
+comparisons, with diagnostics for objects, judges and comparison
+designs.
 
 - [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) :
   Fit the Bradley-Terry-Luce model to paired comparisons
@@ -119,7 +117,7 @@ diagnostics (transitivity and the residual bimension decomposition).
 - [`btl_transitivity()`](https://drjoshmcgrane.github.io/rasch/reference/btl_transitivity.md)
   : Transitivity of paired comparisons
 - [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
-  : Residual dimensionality of paired comparisons
+  : Experimental residual dimensionality of paired comparisons
 - [`btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/btl_equate.md)
   : Equate two paired-comparison calibrations through their common
   objects
@@ -211,9 +209,8 @@ One plotting function per display, all base graphics.
 
 ## Data simulation
 
-Generate data from each model family with dial-in departures from it, so
-a known pathology can be planted and the matching diagnostic watched as
-it fires. The true parameters are attached to every result.
+Generate data from each model family, with optional known departures for
+evaluating estimation and diagnostic performance.
 
 - [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md)
   : Simulate person-by-item Rasch data with dial-in misfit
@@ -227,12 +224,16 @@ it fires. The true parameters are attached to every result.
   : Simulate paired-comparison EFRM data with differing frame units
 - [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md)
   : Replicate a simulation for Monte Carlo studies
+- [`sim_apply()`](https://drjoshmcgrane.github.io/rasch/reference/sim_apply.md)
+  : Apply a statistic across a simulation batch, resiliently
 - [`sim_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.md)
   : Parameter recovery of a fit against the simulation truth
 - [`plot_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/plot_recovery.md)
   : Recovery scatter of planted against recovered parameters
 
 ## Export and interface
+
+Export results or launch the guided point-and-click Shiny application.
 
 - [`save_outputs()`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md)
   : Save every output of a Rasch analysis to a folder
@@ -243,4 +244,4 @@ it fires. The true parameters are attached to every result.
 - [`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md)
   : Write a self-contained HTML report of a Rasch analysis
 - [`run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
-  : Launch the rasch graphical interface
+  : Launch the rasch point-and-click graphical interface

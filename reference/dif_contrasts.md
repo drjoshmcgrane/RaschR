@@ -68,8 +68,8 @@ dif_contrasts(
 
 - p_adjust:
 
-  Familywise adjustment over the whole family (items by contrasts);
-  default `"holm"`.
+  Familywise adjustment across items and contrasts. The default is
+  `"holm"`.
 
 - alpha:
 
@@ -111,8 +111,10 @@ example a trend over time) becomes one contrast score per person, tested
 against zero; a between-subjects contrast is tested on person-mean
 residuals; and a between-by-within interaction tests the person contrast
 scores across the between groups. Logit estimates are still reported
-from the resolved locations; their standard errors treat rows as
-independent and are conservative for within-subject differences.
+from the resolved locations. Their covariance cannot be recovered from
+the row-independent calibration without a person-level bootstrap, so the
+logit standard errors and intervals are withheld in repeated-person
+analyses rather than presented as repeated-measures uncertainty.
 
 ## References
 

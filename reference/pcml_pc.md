@@ -56,6 +56,15 @@ threshold covariance matrix `cov_tau`, the pairwise conditional
 log-likelihood, the iteration count, a convergence flag, and the
 max-score vector `m`.
 
+## References
+
+Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+Journal of Applied Measurement, 4(3), 205–221.
+
+Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+Applied Psychological Measurement, 19(4), 369–375.
+
 ## Examples
 
 ``` r

@@ -20,8 +20,7 @@ residual_pca(fit, n_components = 10)
 
 - n_components:
 
-  Number of leading components to return loadings and eigenvalue rows
-  for (capped at the number of items).
+  Number of leading components to return, capped at the number of items.
 
 ## Value
 

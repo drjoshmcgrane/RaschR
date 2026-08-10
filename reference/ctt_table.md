@@ -13,7 +13,7 @@ value for all persons.
 ## Usage
 
 ``` r
-ctt_table(fit)
+ctt_table(fit, missing = c("complete", "available"))
 ```
 
 ## Arguments
@@ -23,11 +23,24 @@ ctt_table(fit)
   A fitted object from
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
 
+- missing:
+
+  `"complete"` (default) computes the classical table on respondents who
+  answered every item, matching the textbook total-score definitions.
+  `"available"` retains itemwise and pairwise available cases as an
+  explicitly exploratory summary; respondents answering different item
+  sets need not be comparable.
+
 ## Value
 
 A list of class `"rasch_ctt"`: the per-item `table` (`item`, `n`, `min`,
 `max`, `facility`, `item_total`, `item_rest`, `di`, `alpha_drop`), and
 the scalars `alpha`, `n` (complete cases), `mean`, `sd`, and `sem`.
+
+## References
+
+Cronbach, L. J. (1951). Coefficient alpha and the internal structure of
+tests. Psychometrika, 16, 297–334.
 
 ## Examples
 
@@ -37,7 +50,7 @@ d <- seq(-2, 2, length.out = 8)
 X <- matrix(rbinom(400 * 8, 1, plogis(outer(rnorm(400), d, "-"))), 400, 8)
 colnames(X) <- paste0("I", 1:8)
 ctt_table(rasch(X))
-#> Traditional statistics (available cases; item n 400-400; 400 complete)
+#> Traditional statistics (complete cases; item n 400-400; 400 complete)
 #> Raw score mean 4.08, SD 1.71 (complete responders); alpha 0.529; SEM 1.17
 #>  item   n min max facility item_total item_rest    di alpha_drop
 #>    I1 400   0   1    0.848      0.370     0.169 0.298      0.519

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>rasch — Rasch Measurement Theory in R • rasch</title>
+<title>rasch: An R Implementation of Rasch Measurement Theory • rasch</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -17,10 +17,10 @@
 <link href="deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="rasch — Rasch Measurement Theory in R">
-<meta name="description" content="Pairwise conditional estimation of the Rasch model family — partial credit, rating scale, many-facet, extended frame of reference, and Bradley-Terry-Luce paired comparisons — with the complete diagnostic apparatus of published Rasch Measurement Theory and a Shiny interface that attaches reproducing R code to every output.
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="rasch: An R Implementation of Rasch Measurement Theory">
+<meta name="description" content="Rasch Measurement Theory in R, with models and diagnostics organised around the properties of sufficiency and invariance, plus a guided point-and-click Shiny app for analysts who prefer a graphical workflow.
 ">
-<meta property="og:description" content="Pairwise conditional estimation of the Rasch model family — partial credit, rating scale, many-facet, extended frame of reference, and Bradley-Terry-Luce paired comparisons — with the complete diagnostic apparatus of published Rasch Measurement Theory and a Shiny interface that attaches reproducing R code to every output.
+<meta property="og:description" content="Rasch Measurement Theory in R, with models and diagnostics organised around the properties of sufficiency and invariance, plus a guided point-and-click Shiny app for analysts who prefer a graphical workflow.
 ">
 <meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg">
 </head>
@@ -32,7 +32,7 @@
 
     <a class="navbar-brand me-2" href="index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.13.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,221 +67,166 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header">
-<img src="logo.svg" class="logo" alt=""><h1 id="rasch--rasch-measurement-theory-in-r-">rasch — Rasch Measurement Theory in R <a class="anchor" aria-label="anchor" href="#rasch--rasch-measurement-theory-in-r-"></a>
+<img src="logo.svg" class="logo" alt=""><h1 id="rasch-an-r-implementation-of-rasch-measurement-theory-">rasch: An R Implementation of Rasch Measurement Theory <a class="anchor" aria-label="anchor" href="#rasch-an-r-implementation-of-rasch-measurement-theory-"></a>
 </h1>
 </div>
 <!-- badges: start -->
 
-<p><strong>rasch</strong> is a Rasch Measurement Theory engine for R, built entirely from published measurement theory. Items are estimated by pairwise conditional maximum likelihood (Andrich &amp; Luo 2003; Zwinderman 1995) with Godambe sandwich standard errors, persons by Warm’s (1989) weighted likelihood, and the complete diagnostic apparatus follows the conventions of Andrich &amp; Marais (2019). A modern Shiny interface exposes every analysis with the reproducing R code attached to every output.</p>
-<p><strong>Documentation:</strong> <a href="https://drjoshmcgrane.github.io/rasch/" class="uri">https://drjoshmcgrane.github.io/rasch/</a></p>
-<p align="center">
-<img src="reference/figures/app-trait.png" alt="The rasch Shiny interface: residual principal components with loadings table and biplot" width="90%"></p>
-<div class="section level2">
-<h2 id="highlights">Highlights<a class="anchor" aria-label="anchor" href="#highlights"></a>
-</h2>
+<p><code>rasch</code> implements Rasch Measurement Theory in R. It provides a common set of models and diagnostics for constructing measurement scales and examining whether the requirements of the Rasch model are supported by the data.</p>
+<p>The package is organised around two defining properties of Rasch measurement:</p>
 <ul>
 <li>
-<strong>Models.</strong> Dichotomous, partial credit, and rating scale Rasch models; the many-facet model (Linacre 1989); the extended frame of reference model (Humphry 2005) — to our knowledge its first software implementation; and the Bradley–Terry–Luce model for paired comparisons as the conditional form of the dichotomous Rasch model, with graded preferences, judge diagnostics, judge-group DIF, and within-judge dependence (order and carry-over) effects.</li>
+<strong>Sufficiency:</strong> the relevant score contains the information required for person measurement.</li>
 <li>
-<strong>Estimation.</strong> Person-free pairwise conditioning throughout; sum-zero identification; sandwich standard errors (judge-clustered where judges exist); anchored estimation for equating; a principal-components threshold parameterisation for sparse categories.</li>
-<li>
-<strong>Test of fit.</strong> The log-of-mean-square fit residual with apportioned degrees of freedom, infit and outfit, the item-trait chi-square over automatically sized class intervals with its per-interval detail table, the class-interval ANOVA item F, threshold ordering diagnostics, and a calibrated composite likelihood-ratio test of PCM against RSM.</li>
-<li>
-<strong>Independence.</strong> Residual principal components with a model-simulated parallel-analysis reference, Smith’s person t-test with magnitude estimation (Andrich 2016), Yen’s Q3 and adjusted Q3* residual correlations, response-dependence magnitude in logits (Andrich &amp; Kreiner 2010), subtests, and spread tests.</li>
-<li>
-<strong>Invariance.</strong> DIF by residual analysis of variance over any number of person factors — jointly, with main effects or full interactions, and proper within-subject (repeated-measures) error strata — DIF magnitudes in logits by the resolved-item method, planned contrasts, automatic iterative resolution of artificial DIF (Andrich &amp; Hagquist 2012), and common-item equating tests.</li>
-<li>
-<strong>Everything exports.</strong> Every table to CSV, every plot to PNG and PDF, a one-file HTML report of the whole analysis, and the exact R call reproducing each output shown alongside it.</li>
+<strong>Invariance:</strong> comparisons between persons and items should remain stable across relevant samples and conditions.</li>
 </ul>
+<p>The package therefore treats estimation and the assessment of model requirements as parts of the same analysis. It provides item and person estimates, but also the fit, dimensionality, local dependence and differential item functioning analyses needed to determine whether those estimates support an invariant measurement scale.</p>
+<p><strong>Documentation:</strong> <a href="https://drjoshmcgrane.github.io/rasch/" class="uri">https://drjoshmcgrane.github.io/rasch/</a></p>
+<div class="section level2">
+<h2 id="point-and-click-shiny-app">Point-and-click Shiny app<a class="anchor" aria-label="anchor" href="#point-and-click-shiny-app"></a>
+</h2>
+<p><code>rasch</code> includes a complete graphical interface for analysts who do not normally work in R. After the package is installed, launch it with one command:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The app guides the user through importing data, assigning item, person, group, rater and comparison roles, selecting the appropriate model, fitting the analysis, and examining the resulting diagnostics. Tables, plots and reports can be downloaded directly. The corresponding R call is shown alongside each analysis, so the graphical workflow remains transparent and reproducible.</p>
+<p>R is needed to install the package and launch the app, but the analysis itself can then be completed through the point-and-click interface without writing R code.</p>
+<p align="center">
+<img src="reference/figures/app-trait.png" alt="The rasch Shiny interface showing residual component results" width="90%"></p>
+</div>
+<div class="section level2">
+<h2 id="models">Models<a class="anchor" aria-label="anchor" href="#models"></a>
+</h2>
+<p>The model suite includes:</p>
+<ul>
+<li>the dichotomous Rasch model;</li>
+<li>the partial credit model;</li>
+<li>the rating scale model;</li>
+<li>many-facet Rasch models;</li>
+<li>the extended frame of reference model; and</li>
+<li>Bradley–Terry–Luce models for dichotomous and graded paired comparisons.</li>
+</ul>
+<p>The standard item models use pairwise conditional estimation, with person measurement based on weighted likelihood. Anchored estimation is available for equating. Planned missingness and linked designs are supported where the observed response graph identifies a common scale. Informative response missingness is not made ignorable by the estimator and should be examined separately.</p>
+</div>
+<div class="section level2">
+<h2 id="what-can-be-examined">What can be examined<a class="anchor" aria-label="anchor" href="#what-can-be-examined"></a>
+</h2>
+<p><code>rasch</code> provides functions for:</p>
+<ul>
+<li>item, person and category fit;</li>
+<li>threshold functioning and category ordering;</li>
+<li>targeting, reliability and test information;</li>
+<li>residual dimensionality and local response dependence;</li>
+<li>differential item functioning over one or more person factors;</li>
+<li>between-person and within-person factor designs;</li>
+<li>DIF magnitude, planned contrasts and item splitting;</li>
+<li>common-item equating and anchored calibration;</li>
+<li>repeated-measures data in racked or stacked form;</li>
+<li>multiple-choice distractor analysis;</li>
+<li>simulation and parameter recovery; and</li>
+<li>export of tables, plots and HTML reports.</li>
+</ul>
+<p>Where the data do not identify an estimate, the fitting functions stop or withhold the affected result and provide an explanatory note.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<p>Install the released version from CRAN:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"rasch"</span><span class="op">)</span></span></code></pre></div>
+<p>Install the development version from GitHub:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"drjoshmcgrane/rasch"</span><span class="op">)</span></span></code></pre></div>
-<p>The analysis engine is base R only (<code>stats</code>, <code>graphics</code>, <code>grDevices</code>, <code>utils</code>). The Shiny interface additionally uses <code>shiny</code>, <code>bslib</code>, and <code>DT</code>.</p>
+<p>The analysis functions depend only on base and recommended R packages. The interactive interface uses packages listed under <code>Suggests</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://drjoshmcgrane.github.io/rasch/">rasch</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># a persons-by-items data frame; item names, an ID column, and person</span></span>
-<span><span class="co"># factors carry through the whole analysis</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">responses</span>, model <span class="op">=</span> <span class="st">"PCM"</span>,</span>
-<span>             id <span class="op">=</span> <span class="st">"person_id"</span>, factors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gender"</span>, <span class="st">"site"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># Example data with a person factor for DIF analysis</span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span></span>
+<span>  n_persons <span class="op">=</span> <span class="fl">500</span>,</span>
+<span>  n_items <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  n_groups <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">1</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>          <span class="co"># the full test-of-fit report</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">items</span>             <span class="co"># locations, SEs, fit residuals, infit/outfit, chi-square</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">person</span>            <span class="co"># WLE person measures with SEs and person fit</span></span>
-<span><span class="fu"><a href="reference/score_table.html">score_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>      <span class="co"># raw score to measure conversion</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d</span>, model <span class="op">=</span> <span class="st">"PCM"</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"Q05"</span>, group <span class="op">=</span> <span class="st">"gender"</span><span class="op">)</span>   <span class="co"># the graphical DIF display</span></span>
-<span><span class="fu"><a href="reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                          <span class="co"># person-item threshold distribution</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">fit</span><span class="op">$</span><span class="va">items</span></span>
+<span><span class="va">fit</span><span class="op">$</span><span class="va">person</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>              <span class="co"># DIF over all factors jointly (main effects;</span></span>
-<span>                            <span class="co"># effects = "factorial" adds interactions)</span></span>
-<span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>    <span class="co"># Smith's residual-component t-test</span></span>
-<span><span class="fu"><a href="reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>  <span class="co"># Yen's Q3 / Q3* local dependence</span></span>
+<span><span class="fu"><a href="reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I05"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/save_outputs.html">save_outputs</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"results/"</span><span class="op">)</span>   <span class="co"># every table and plot, in one call</span></span></code></pre></div>
-<p>Missing data is allowed everywhere: estimation is pairwise and person measures use each person’s observed items. Empty categories are collapsed and constant items dropped, with notes recorded on the fit.</p>
+<span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/score_table.html">score_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/save_outputs.html">save_outputs</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"rasch-results"</span><span class="op">)</span></span></code></pre></div>
+<p>For short scales the dimensionality test may deliberately return an indeterminate result: each opposed subtest needs at least 15 score points. Residual-correlation tables are always available, but binary adjusted-Q3 flags require an analyst-supplied heuristic threshold.</p>
+<p>For an observed data frame, supply item columns together with optional ID and person-factor columns:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span></span>
+<span>  <span class="va">responses</span>,</span>
+<span>  model <span class="op">=</span> <span class="st">"PCM"</span>,</span>
+<span>  id <span class="op">=</span> <span class="st">"person_id"</span>,</span>
+<span>  factors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gender"</span>, <span class="st">"site"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="the-shiny-interface">The Shiny interface<a class="anchor" aria-label="anchor" href="#the-shiny-interface"></a>
+<h2 id="other-model-families">Other model families<a class="anchor" aria-label="anchor" href="#other-model-families"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>A guided bslib (Bootstrap 5) workflow: one-tap example datasets, grouped run settings, status badges once a fit exists, and dark mode. Every plot and table lives in a full-screen-capable card with downloads; master–detail explorers drive the item, person, and DIF pages; dynamic notes summarise each table’s verdict in words; and an “R code for this analysis” panel shows the exact <code>rasch</code> call reproducing the current run. Wide, long (rated), frame-of-reference, and paired-comparison data layouts are all supported, including anchor upload for equating and one-click structural remedies (subtests, item splitting, automatic DIF resolution) with in-place reset.</p>
-<p align="center">
-<img src="reference/figures/app-dif.png" alt="Judge-group DIF for paired comparisons: joint factors with the characteristic curves of the selected term" width="90%"></p>
-<details><summary><strong>Capability tour — the full API by example</strong>
-</summary><div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># ------------------------------------------------------------- test of fit --</span></span>
-<span><span class="fu"><a href="reference/chisq_detail.html">chisq_detail</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"Q05"</span><span class="op">)</span>     <span class="co"># per-class-interval chi-square detail</span></span>
-<span><span class="fu"><a href="reference/ctt_table.html">ctt_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>               <span class="co"># classical companions: facility, item-total r,</span></span>
-<span>                             <span class="co"># discrimination index, alpha, classical SEM</span></span>
-<span><span class="fu"><a href="reference/lr_test.html">lr_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>                 <span class="co"># PCM vs RSM: raw + Kent-calibrated composite LR</span></span>
-<span><span class="fu"><a href="reference/compare_fits.html">compare_fits</a></span><span class="op">(</span>PCM <span class="op">=</span> <span class="va">fit</span>, RSM <span class="op">=</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">responses</span>, model <span class="op">=</span> <span class="st">"RSM"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/guttman_table.html">guttman_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>           <span class="co"># scalogram with coefficient of reproducibility</span></span>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Many-facet Rasch model</span></span>
+<span><span class="va">mf</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span></span>
+<span>  <span class="va">ratings</span>,</span>
+<span>  person <span class="op">=</span> <span class="st">"person"</span>,</span>
+<span>  item <span class="op">=</span> <span class="st">"criterion"</span>,</span>
+<span>  score <span class="op">=</span> <span class="st">"score"</span>,</span>
+<span>  facets <span class="op">=</span> <span class="st">"rater"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># ---------------------------------------------------------------- persons --</span></span>
-<span><span class="fu"><a href="reference/score_table.html">score_table</a></span><span class="op">(</span><span class="va">fit</span>, method <span class="op">=</span> <span class="st">"mle"</span>, extremes <span class="op">=</span> <span class="st">"extrapolated"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/person_extrapolated.html">person_extrapolated</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>     <span class="co"># geometric extreme-score extrapolation</span></span>
-<span>                             <span class="co"># (Andrich &amp; Marais 2019, ch. 10)</span></span>
+<span><span class="co"># Extended frame of reference model</span></span>
+<span><span class="va">ef</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span></span>
+<span>  <span class="va">responses</span>,</span>
+<span>  item_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>numeracy <span class="op">=</span> <span class="va">numeracy_items</span>,</span>
+<span>                   literacy <span class="op">=</span> <span class="va">literacy_items</span><span class="op">)</span>,</span>
+<span>  groups <span class="op">=</span> <span class="st">"group"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># ----------------------------------------------------------- independence --</span></span>
-<span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span>, component <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>   <span class="co"># any residual component's split</span></span>
-<span><span class="fu"><a href="reference/dimensionality_magnitude.html">dimensionality_magnitude</a></span><span class="op">(</span><span class="va">fit</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">setA</span>, <span class="va">setB</span><span class="op">)</span><span class="op">)</span></span>
-<span>                             <span class="co"># Andrich (2016): c, rho = 1/(1+c^2), and A</span></span>
-<span><span class="fu"><a href="reference/plot_pca_biplot.html">plot_pca_biplot</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>         <span class="co"># PC1 x PC2 loadings biplot</span></span>
-<span><span class="fu"><a href="reference/plot_scree.html">plot_scree</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>              <span class="co"># eigenvalues with a model-simulated reference</span></span>
-<span><span class="fu"><a href="reference/plot_resid_cor.html">plot_resid_cor</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>          <span class="co"># Q3* heatmap (stat = "q3" for raw Q3)</span></span>
-<span><span class="fu"><a href="reference/dependence_magnitude.html">dependence_magnitude</a></span><span class="op">(</span><span class="va">fit</span>, dependent <span class="op">=</span> <span class="st">"Q05"</span>, independent <span class="op">=</span> <span class="st">"Q04"</span><span class="op">)</span></span>
-<span>                             <span class="co"># Andrich &amp; Kreiner d in logits, with SE</span></span>
-<span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/combine_items.html">combine_items</a></span><span class="op">(</span><span class="va">fit</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q04"</span>, <span class="st">"Q05"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>   <span class="co"># subtest remedy</span></span>
-<span><span class="fu"><a href="reference/spread_test.html">spread_test</a></span><span class="op">(</span><span class="va">fit2</span><span class="op">)</span>            <span class="co"># spread against the binomial least upper bound</span></span>
-<span></span>
-<span><span class="co"># ------------------------------------------------------------- invariance --</span></span>
-<span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span>, sizes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># all factors jointly; within-subject factors</span></span>
-<span>                             <span class="co"># get proper repeated-measures error strata</span></span>
-<span><span class="fu"><a href="reference/dif_contrasts.html">dif_contrasts</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>           <span class="co"># planned one-df questions with familywise control</span></span>
-<span><span class="fu"><a href="reference/dif_size.html">dif_size</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"Q05"</span>, by <span class="op">=</span> <span class="st">"gender"</span><span class="op">)</span>   <span class="co"># DIF magnitude in logits</span></span>
-<span><span class="va">fit3</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/split_items.html">split_items</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"Q05"</span>, by <span class="op">=</span> <span class="st">"gender"</span><span class="op">)</span>      <span class="co"># resolve one item</span></span>
-<span><span class="fu"><a href="reference/resolve_dif.html">resolve_dif</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>             <span class="co"># split iteratively, largest effect first,</span></span>
-<span>                             <span class="co"># until no significant DIF remains</span></span>
-<span><span class="fu"><a href="reference/tailored_analysis.html">tailored_analysis</a></span><span class="op">(</span><span class="va">fit</span>, chance <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span> <span class="co"># four-step guessing procedure</span></span>
-<span></span>
-<span><span class="co"># ---------------------------------------------------------------- equating --</span></span>
-<span><span class="va">fit_eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">responses</span>, anchors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q01"</span>, <span class="st">"Q10"</span><span class="op">)</span>,</span>
-<span>                                                k <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="cn">NA</span><span class="op">)</span>, tau <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.2</span>, <span class="fl">0.9</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/equate_tests.html">equate_tests</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">fit_eq</span><span class="op">)</span>  <span class="co"># drift tests through the common items</span></span>
-<span><span class="fu"><a href="reference/plot_equate.html">plot_equate</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">fit_eq</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># -------------------------------------------------------------- many-facet --</span></span>
-<span><span class="va">mf</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span><span class="va">ratings</span>, person <span class="op">=</span> <span class="st">"person"</span>, item <span class="op">=</span> <span class="st">"criterion"</span>,</span>
-<span>                 score <span class="op">=</span> <span class="st">"score"</span>, facets <span class="op">=</span> <span class="st">"rater"</span><span class="op">)</span></span>
-<span><span class="va">mf</span><span class="op">$</span><span class="va">facet_effects</span><span class="op">$</span><span class="va">rater</span>       <span class="co"># severities with SEs and pooled fit</span></span>
-<span><span class="fu"><a href="reference/plot_facets.html">plot_facets</a></span><span class="op">(</span><span class="va">mf</span><span class="op">)</span></span>
-<span><span class="va">mfi</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span><span class="va">ratings</span>, person <span class="op">=</span> <span class="st">"person"</span>, item <span class="op">=</span> <span class="st">"criterion"</span>,</span>
-<span>                  score <span class="op">=</span> <span class="st">"score"</span>, facets <span class="op">=</span> <span class="st">"rater"</span>, interaction <span class="op">=</span> <span class="st">"rater"</span><span class="op">)</span></span>
-<span><span class="va">mfi</span><span class="op">$</span><span class="va">interaction_effects</span>      <span class="co"># item-by-rater interactions</span></span>
-<span></span>
-<span><span class="co"># --------------------------------------------------------- multiple choice --</span></span>
-<span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">responses_raw</span>, key <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>Q1 <span class="op">=</span> <span class="st">"A"</span>, Q2 <span class="op">=</span> <span class="st">"C"</span>, Q3 <span class="op">=</span> <span class="st">"B"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/distractor_analysis.html">distractor_analysis</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span>      <span class="co"># per option: n, proportion, location, pt-biserial</span></span>
-<span><span class="va">prop</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/distractor_rescore.html">distractor_rescore</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span>          <span class="co"># propose polytomous option scores</span></span>
-<span><span class="va">mc2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">responses_raw</span>, key <span class="op">=</span> <span class="va">prop</span><span class="op">$</span><span class="va">option_scores</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># ------------------------------------------------- extended frame of reference --</span></span>
-<span><span class="va">ef</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span><span class="va">responses</span>, item_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>numeracy <span class="op">=</span> <span class="va">num_items</span>,</span>
-<span>                                             literacy <span class="op">=</span> <span class="va">lit_items</span><span class="op">)</span>,</span>
-<span>                 groups <span class="op">=</span> <span class="st">"year_group"</span><span class="op">)</span></span>
-<span><span class="va">ef</span><span class="op">$</span><span class="va">phi_table</span>; <span class="va">ef</span><span class="op">$</span><span class="va">alpha_table</span> <span class="co"># group and item-set units with SEs</span></span>
-<span><span class="fu"><a href="reference/plot_frames.html">plot_frames</a></span><span class="op">(</span><span class="va">ef</span><span class="op">)</span>; <span class="fu"><a href="reference/plot_icc_frames.html">plot_icc_frames</a></span><span class="op">(</span><span class="va">ef</span>, <span class="st">"Q07"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># ------------------------------------------------------- paired comparisons --</span></span>
-<span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/btl.html">btl</a></span><span class="op">(</span><span class="va">comparisons</span>, object_a <span class="op">=</span> <span class="st">"left"</span>, object_b <span class="op">=</span> <span class="st">"right"</span>,</span>
-<span>          winner <span class="op">=</span> <span class="st">"preferred"</span>, judge <span class="op">=</span> <span class="st">"judge"</span>, order <span class="op">=</span> <span class="st">"sequence"</span><span class="op">)</span></span>
-<span><span class="va">bt</span><span class="op">$</span><span class="va">objects</span>; <span class="va">bt</span><span class="op">$</span><span class="va">judges</span>        <span class="co"># locations + fit; erratic judges flag</span></span>
-<span><span class="va">bt</span><span class="op">$</span><span class="va">dependence</span>                <span class="co"># within-judge exposure and carry-over, in logits</span></span>
-<span><span class="fu"><a href="reference/plot_btl_dependence.html">plot_btl_dependence</a></span><span class="op">(</span><span class="va">bt</span>, <span class="st">"carry_over"</span><span class="op">)</span>   <span class="co"># interrogate a dependence effect</span></span>
-<span><span class="fu"><a href="reference/btl_transitivity.html">btl_transitivity</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span>         <span class="co"># preference loops: is one scale enough?</span></span>
-<span><span class="fu"><a href="reference/btl_dimensionality.html">btl_dimensionality</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span>       <span class="co"># residual "swirl" (bimensions) = a 2nd attribute?</span></span>
-<span><span class="fu"><a href="reference/plot_btl_scree.html">plot_btl_scree</a></span><span class="op">(</span><span class="fu"><a href="reference/btl_dimensionality.html">btl_dimensionality</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span><span class="op">)</span>  <span class="co"># bimension scree vs a noise reference</span></span>
-<span><span class="fu"><a href="reference/btl.html">btl</a></span><span class="op">(</span><span class="va">comparisons</span>, <span class="va">...</span>, position <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># first-position (order) advantage</span></span>
-<span><span class="fu"><a href="reference/btl.html">btl</a></span><span class="op">(</span><span class="va">comparisons</span>, <span class="va">...</span>, anchors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>S07 <span class="op">=</span> <span class="fl">0.42</span><span class="op">)</span><span class="op">)</span>  <span class="co"># anchored, for equating</span></span>
-<span><span class="fu"><a href="reference/btl_equate.html">btl_equate</a></span><span class="op">(</span><span class="va">bt</span>, <span class="va">bt_lastyear</span><span class="op">)</span>  <span class="co"># common-object drift tests across panels/years</span></span>
-<span><span class="fu"><a href="reference/btl_information.html">btl_information</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span>          <span class="co"># design information per object (targeting)</span></span>
-<span><span class="fu"><a href="reference/btl_next_pairs.html">btl_next_pairs</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span>           <span class="co"># adaptive next comparisons (Pollitt 2012)</span></span>
-<span><span class="fu"><a href="reference/btl_dif.html">btl_dif</a></span><span class="op">(</span><span class="va">bt</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>panel <span class="op">=</span> <span class="va">panel_map</span>, experience <span class="op">=</span> <span class="va">exp_map</span><span class="op">)</span><span class="op">)</span></span>
-<span>                             <span class="co"># judge-group DIF, factors modelled jointly</span></span>
-<span><span class="fu"><a href="reference/plot_btl_icc.html">plot_btl_icc</a></span><span class="op">(</span><span class="va">bt</span>, <span class="st">"E04"</span>, group <span class="op">=</span> <span class="va">panel_map</span><span class="op">)</span>   <span class="co"># curves by judge group</span></span>
-<span></span>
-<span><span class="co"># ------------------------------------------------------- repeated measures --</span></span>
-<span><span class="fu"><a href="reference/rack_data.html">stack_data</a></span><span class="op">(</span><span class="va">t1</span>, <span class="va">t2</span><span class="op">)</span>           <span class="co"># change-in-persons: DIF over time</span></span>
-<span><span class="fu"><a href="reference/rack_data.html">rack_data</a></span><span class="op">(</span><span class="va">t1</span>, <span class="va">t2</span><span class="op">)</span>            <span class="co"># change-in-items</span></span></code></pre></div>
-</details><details><summary><strong>What it implements, in detail</strong>
-</summary><ul>
-<li>Pairwise conditional maximum likelihood (Andrich &amp; Luo 2003; Zwinderman 1995): the person parameter cancels within every item pair and the conditional likelihood is maximised by Newton–Raphson (<code>pcml</code>). Standard errors come from a Godambe sandwich estimator, which corrects the over-optimism of the naive pairwise information.</li>
-<li>Partial credit (PCM) and rating scale (RSM) models; dichotomous data is the special case. An optional estimator (<code>pcml_pc</code>) reparameterises each item’s thresholds as Andrich’s (1978, 1985) orthogonal-polynomial principal components — location, spread, skewness, kurtosis (Pedler
-<ol start="1987" style="list-style-type: decimal">
-<li>— to stabilise sparsely observed categories.</li>
-</ol>
-</li>
-<li>Warm (1989) weighted likelihood person estimates, finite at extreme scores, computed per missing-data pattern; the geometric extrapolation of extreme-score measures (Andrich &amp; Marais 2019, ch. 10), verified against the worked example.</li>
-<li>The fit residual exactly as derived in Andrich &amp; Marais (2019, ch. 23): squared standardised residuals over the observed cells of non-extreme persons, equally apportioned model-testing degrees of freedom, and the log-of-mean-square transform with model-based variance. Infit and outfit are reported alongside, with distribution summaries and fit-location correlations.</li>
-<li>The item-trait chi-square over automatically sized class intervals with per-item degrees of freedom, Benjamini–Hochberg and Bonferroni adjustments, the per-interval detail printout, and the class-interval ANOVA item F.</li>
-<li>PSI with and without extremes, item separation, person strata, Cronbach’s alpha, targeting, power of the test of fit, the test information function, and classical-test-theory companions.</li>
-<li>A likelihood-ratio test of PCM against RSM reporting both the raw pairwise-composite chi-square and a Kent (1982) calibrated version whose eigenvalue adjustment comes from the same Godambe matrices as the sandwich standard errors: simulation shows the raw test is severely anticonservative while the calibrated one holds size.</li>
-<li>Residual-PCA dimensionality (Smith 2002) with a model-simulated parallel-analysis reference for the scree (simulate from the calibrated model, re-estimate persons, recompute eigenvalues — an independent-noise reference sits below the null and would call structure on model-true data), plus Andrich’s (2016) magnitude of multidimensionality.</li>
-<li>Local dependence by Yen’s Q3 and the adjusted Q3* (Christensen, Makransky &amp; Horton 2017), response-dependence magnitude by the Andrich &amp; Kreiner
-<ol start="2010" style="list-style-type: decimal">
-<li>resolution method, subtests, and Andrich’s (1985) spread bounds.</li>
-</ol>
-</li>
-<li>A complete DIF procedure extending the residual ANOVA of Hagquist &amp; Andrich (2017): all person factors modelled jointly (main effects or full interactions, with interaction precedence), proper within-subject error strata for stacked repeated-measures designs, Tukey post-hocs, planned contrasts, DIF magnitude in logits by the resolved-item method, and automatic iterative resolution of artificial DIF (Andrich &amp; Hagquist 2012).</li>
-<li>Anchored estimation and common-item equating tests with drift flags.</li>
-<li>The many-facet Rasch model (Linacre 1989) by the same pairwise conditional likelihood, with additive severities or item-by-facet interactions.</li>
-<li>Multiple choice: keys (including double keying), distractor analysis on rest measures, and polytomous option rescoring (Andrich &amp; Styles 2011).</li>
-<li>The extended frame of reference model (<code>rasch_efrm</code>; Humphry 2005; Humphry &amp; Andrich 2008): frames are item-set by person-group cells with units rho = alpha_set × phi_group; person-group units come from person-free within-frame pairwise conditioning, item-set units from persons common to the sets, reconciled over the linking graph.</li>
-<li>The Bradley–Terry–Luce model (<code>btl</code>) as a member of the same family — <code><a href="reference/btl.html">btl()</a></code> on the pair-conditional comparisons extracted from Rasch data reproduces <code><a href="reference/pcml.html">pcml()</a></code>’s item locations to solver tolerance. Dichotomous or graded preferences (symmetric thresholds, so the model is invariant to presentation order), judge-clustered sandwich standard errors, object and judge fit, pairwise goodness of fit, within-judge dependence effects (exposure and carry-over, estimated jointly with the locations, with a per-comparison audit trail and a partial-residual display), and judge-group DIF with factors modelled jointly and resolved magnitudes in logits.</li>
-</ul></details>
+<span><span class="co"># Paired comparisons</span></span>
+<span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/btl.html">btl</a></span><span class="op">(</span></span>
+<span>  <span class="va">comparisons</span>,</span>
+<span>  object_a <span class="op">=</span> <span class="st">"left"</span>,</span>
+<span>  object_b <span class="op">=</span> <span class="st">"right"</span>,</span>
+<span>  winner <span class="op">=</span> <span class="st">"preferred"</span>,</span>
+<span>  judge <span class="op">=</span> <span class="st">"judge"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The <a href="https://drjoshmcgrane.github.io/rasch/reference/index.html">function reference</a> documents the input structures, identification requirements and output for each model.</p>
 </div>
 <div class="section level2">
-<h2 id="measurement-theoretic-status">Measurement-theoretic status<a class="anchor" aria-label="anchor" href="#measurement-theoretic-status"></a>
+<h2 id="documentation-and-validation">Documentation and validation<a class="anchor" aria-label="anchor" href="#documentation-and-validation"></a>
 </h2>
-<p>Everything in the package that claims to be Rasch measurement is conditionally estimated, sufficiency-respecting, and invariance-preserving: item comparisons are person-free by pairwise conditioning, and the partial credit, rating scale, and additive many-facet models are members of the Rasch class. The diagnostics (fit residuals, item-trait chi-square, residual components, DIF analysis of variance, threshold ordering) exist to police the theory’s requirements, and the structural remedies (subtests, item splitting, anchoring) are orthodox practice that restore rather than parameterise away invariance.</p>
-<p>Departures from the classical model are deliberate and labelled. Warm’s weighted likelihood adds a penalty beyond the conditional likelihood (this is what makes extreme-score estimates finite). Cronbach’s alpha and the distractor point-biserials are classical-test-theory companions, reported as descriptives only. Interactive facet mode remains in the Rasch class but a significant item-by-facet interaction qualifies specific objectivity in practice. The extended frame of reference model is strictly Rasch within every frame; across frames it is an argued extension of the theory of the unit (Humphry 2005; Humphry &amp; Andrich 2008) whose status the literature still debates, and its item-set units are necessarily identified from the person side — a departure from purely distribution-free comparison that belongs to the model, not the implementation.</p>
+<p>The package documentation gives the estimator definitions, standard errors, identification checks and diagnostic conventions used by each function. The article <a href="https://drjoshmcgrane.github.io/rasch/articles/plant-and-detect.html">Simulation-based checks of Rasch diagnostics</a> shows how known model departures can be introduced and assessed.</p>
+<p>The test suite includes parameter-recovery, null-calibration, adversarial identification and cross-package comparison tests. Current CRAN check results are available from the <a href="https://CRAN.R-project.org/package=rasch" class="external-link">CRAN package page</a>.</p>
 </div>
 <div class="section level2">
-<h2 id="case-study-wording-effects-as-frame-units">Case study: wording effects as frame units<a class="anchor" aria-label="anchor" href="#case-study-wording-effects-as-frame-units"></a>
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<p><code>inst/casestudies/wording_units_selfesteem.R</code> applies the extended frame of reference model to the public Rosenberg Self-Esteem Scale dataset of the Open Source Psychometrics Project, treating positively and negatively worded items as two item sets. The positively worded items carry a unit about 27 per cent larger than the reverse-scored negative items (alpha ratio 1.266, 95% CI 1.246–1.286), and it matters: persons with identical raw scores differ by up to 0.85 logits once the wording units are modelled, and the male–female gap is understated by about 10 per cent under equal units. A free-slope model agrees at the set level, and sensitivity analysis localises part of the effect to the scale’s well-known ambivalent item.</p>
-</div>
-<div class="section level2">
-<h2 id="case-study-party-blocs-and-crisis-concern-as-frames">Case study: party blocs and crisis concern as frames<a class="anchor" aria-label="anchor" href="#case-study-party-blocs-and-crisis-concern-as-frames"></a>
-</h2>
-<p><code>inst/casestudies/party_blocs_crisis.R</code> applies the paired-comparison form to the Tübingen 2009 party-preference data shipped with <code>psychotools</code> (Strobl, Wickelmaier &amp; Zeileis 2011): ideological blocs as object sets, concern about the 2008–9 economic crisis as judge panels. Crisis-affected respondents judge party contests with a unit about a third smaller than the unaffected — less decisively, not more — though the contrast stays short of significance by either standard error, and it exceeds anything gender or education produces; the right bloc’s origin sits firmly below the left’s in this university-town sample. The study doubles as a design clinic: a two-object set whose single internal pair splits nearly evenly identifies neither its panel-ratio contribution nor its own unit, and the fit now screens the set out of the unit reconciliation, reports the boundary-unstable set unit as <code>NA</code>, and names both in notes rather than diverging — the honest answers to questions such a design cannot support.</p>
-</div>
-<div class="section level2">
-<h2 id="validation">Validation<a class="anchor" aria-label="anchor" href="#validation"></a>
-</h2>
-<p>Every estimation and diagnostic component is validated against simulated data with known parameters in <code>tests/testthat</code> (990+ tests): parameter recovery for every model; sandwich standard errors against empirical sampling variability; DIF detected on planted items only — including within-subject, factorial, and judge-group designs — with adversarial cases for artificial DIF; dimensionality verdicts on one- and two-dimensional data with a calibrated null; dependence effects recovered from sequentially simulated judgments; and the published conventions reproduced directly against the worked examples they come from. <code>R CMD check</code> runs clean.</p>
-<p>The estimators are also cross-validated against independent implementations, at the level of agreement each comparison licenses: <code><a href="https://rdrr.io/pkg/sirt/man/rasch.pairwise.html" class="external-link">sirt::rasch.pairwise</a></code> estimates the same pairwise conditional family and agrees to near-identity; <code>eRm</code> fits the full Andersen conditional likelihood — a different consistent estimator of the same parameters — and agrees to sampling precision, with our judge-robust sandwich standard errors sitting just above eRm’s CML errors (the documented efficiency price of pairwise conditioning); and <code><a href="reference/btl.html">btl()</a></code> reproduces <code><a href="https://rdrr.io/pkg/psychotools/man/btmodel.html" class="external-link">psychotools::btmodel</a></code> to machine precision, as it must (same likelihood). These checks run in the test suite whenever the packages are installed.</p>
-</div>
-<div class="section level2">
-<h2 id="methodological-references">Methodological references<a class="anchor" aria-label="anchor" href="#methodological-references"></a>
-</h2>
-<p>Andrich &amp; Luo (2003) and Zwinderman (1995), conditional pairwise estimation; Andrich (1978, 1985) and Pedler (1987), principal-components thresholds; Warm (1989), weighted likelihood; Smith (2002), residual-component dimensionality; Raiche (2005) and Chou &amp; Wang (2010), eigenvalue references; Andrich (2016), multidimensionality magnitude; Yen (1984, 1993) and Christensen, Makransky &amp; Horton (2017), residual correlations; Andrich &amp; Kreiner (2010) and Andrich, Humphry &amp; Marais (2012), response dependence; Waller (1989) and Andrich, Marais &amp; Humphry (2012), tailored analysis of guessing; Hagquist &amp; Andrich (2017), DIF by residual ANOVA; Andrich &amp; Hagquist (2012, 2015), artificial DIF; Maxwell &amp; Delaney (2004), planned contrasts; Linacre (1989), many-facet measurement; Humphry (2005) and Humphry &amp; Andrich (2008), the unit and the extended frame of reference; Bradley &amp; Terry (1952), Luce (1959), and Davidson &amp; Beaver (1977), paired comparisons and order effects; Dittrich, Hatzinger &amp; Katzenbeisser (1998), judge covariates; Kent (1982) and Varin, Reid &amp; Firth (2011), composite likelihood-ratio calibration; Andrich &amp; Marais (2019), the output conventions followed throughout.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"rasch"</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
 <li>
+<p><a href="https://CRAN.R-project.org/package=rasch" class="external-link">View on CRAN</a></p>
 <p><a href="https://github.com/drjoshmcgrane/rasch" class="external-link">Browse source code</a></p>
 <p><a href="https://github.com/drjoshmcgrane/rasch/issues" class="external-link">Report a bug</a></p>
 </li>
@@ -314,6 +259,7 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
+<li><a href="https://CRAN.R-project.org/package=rasch" class="external-link"><img src="https://www.r-pkg.org/badges/version/rasch" alt="CRAN status"></a></li>
 <li><a href="https://github.com/drjoshmcgrane/rasch/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/drjoshmcgrane/rasch/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 <li><a href="https://drjoshmcgrane.github.io/rasch/"><img src="https://github.com/drjoshmcgrane/rasch/actions/workflows/pkgdown.yaml/badge.svg" alt="pkgdown"></a></li>
 </ul>

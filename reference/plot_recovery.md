@@ -22,3 +22,14 @@ plot_recovery(x, ...)
 ## Value
 
 Called for its plotting side effect.
+
+## Examples
+
+``` r
+# \donttest{
+d <- simulate_rasch(300, 8, seed = 1)
+fit <- rasch(d, id = "id")
+plot_recovery(sim_recovery(fit, d))
+
+# }
+```
