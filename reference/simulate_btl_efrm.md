@@ -86,9 +86,10 @@ common-scale values `v`, the per-set `beta`, the units `phi`, `alpha`,
 d <- simulate_btl_efrm(6, 2, set_units = c(1, 1.4), seed = 1)
 bt <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                judge = "judge", panels = "panel",
-               object_sets = attr(d, "truth")$object_sets)
+               object_sets = attr(d, "truth")$object_sets,
+               se_method = "conditional")
 bt$alpha_table   # recovers the ~1.4 set unit
-#>    set    alpha se_log_alpha        z          p      p_adj significant
-#> 1 set1 1.000000           NA       NA         NA         NA          NA
-#> 2 set2 1.457189     0.165698 2.272261 0.02307077 0.02307077        TRUE
+#>    set    alpha se_log_alpha        z            p        p_adj significant
+#> 1 set1 1.000000           NA       NA           NA           NA          NA
+#> 2 set2 1.457189   0.07926414 4.750055 2.033612e-06 2.033612e-06        TRUE
 ```

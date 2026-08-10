@@ -36,8 +36,8 @@ A list of class `"rasch_sim_batch"`, one simulated dataset per element.
 ## Examples
 
 ``` r
-# 20 datasets with a planted DIF item; how often is it flagged?
-batch <- sim_replicate(simulate_rasch, 20, n_persons = 400, n_items = 10,
+# 8 datasets with a planted DIF item; how often is it flagged?
+batch <- sim_replicate(simulate_rasch, 8, n_persons = 400, n_items = 10,
                        dif = list(items = "I05", uniform = 0.8), n_groups = 2,
                        seed = 1)
 # sim_apply() is resilient: a replicate the estimator refuses (e.g. a
@@ -45,5 +45,5 @@ batch <- sim_replicate(simulate_rasch, 20, n_persons = 400, n_items = 10,
 flagged <- sim_apply(batch, function(d)
   dif_anova(rasch(d, id = "id", factors = "group"))$summary$uniform_DIF[5])
 mean(flagged, na.rm = TRUE)
-#> [1] 0.85
+#> [1] 0.75
 ```
