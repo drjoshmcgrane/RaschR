@@ -25,8 +25,8 @@ seeds, returning the datasets as a list -- for power, Type-I, or
 parameter-recovery studies.
 }
 \examples{
-# 20 datasets with a planted DIF item; how often is it flagged?
-batch <- sim_replicate(simulate_rasch, 20, n_persons = 400, n_items = 10,
+# 8 datasets with a planted DIF item; how often is it flagged?
+batch <- sim_replicate(simulate_rasch, 8, n_persons = 400, n_items = 10,
                        dif = list(items = "I05", uniform = 0.8), n_groups = 2,
                        seed = 1)
 # sim_apply() is resilient: a replicate the estimator refuses (e.g. a

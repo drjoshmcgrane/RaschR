@@ -65,6 +65,7 @@ The planted panel units, set units and origins are recovered by
 d <- simulate_btl_efrm(6, 2, set_units = c(1, 1.4), seed = 1)
 bt <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                judge = "judge", panels = "panel",
-               object_sets = attr(d, "truth")$object_sets)
+               object_sets = attr(d, "truth")$object_sets,
+               se_method = "conditional")
 bt$alpha_table   # recovers the ~1.4 set unit
 }

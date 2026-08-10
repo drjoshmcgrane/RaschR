@@ -756,8 +756,8 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
 #' @return A list of class \code{"rasch_sim_batch"}, one simulated dataset per
 #'   element.
 #' @examples
-#' # 20 datasets with a planted DIF item; how often is it flagged?
-#' batch <- sim_replicate(simulate_rasch, 20, n_persons = 400, n_items = 10,
+#' # 8 datasets with a planted DIF item; how often is it flagged?
+#' batch <- sim_replicate(simulate_rasch, 8, n_persons = 400, n_items = 10,
 #'                        dif = list(items = "I05", uniform = 0.8), n_groups = 2,
 #'                        seed = 1)
 #' # sim_apply() is resilient: a replicate the estimator refuses (e.g. a
@@ -1008,7 +1008,8 @@ plot_recovery <- function(x, ...) {
 #' d <- simulate_btl_efrm(6, 2, set_units = c(1, 1.4), seed = 1)
 #' bt <- btl_efrm(d, "object_a", "object_b", winner = "winner",
 #'                judge = "judge", panels = "panel",
-#'                object_sets = attr(d, "truth")$object_sets)
+#'                object_sets = attr(d, "truth")$object_sets,
+#'                se_method = "conditional")
 #' bt$alpha_table   # recovers the ~1.4 set unit
 #' @export
 simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,

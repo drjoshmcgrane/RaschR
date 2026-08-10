@@ -233,7 +233,7 @@ residual_pca <- function(fit, n_components = 10) {
 #' d <- seq(-2, 2, length.out = 8)
 #' X <- matrix(rbinom(500 * 8, 1, plogis(outer(rnorm(500), d, "-"))), 500, 8)
 #' colnames(X) <- paste0("I", 1:8)
-#' plot_scree(rasch(X))
+#' plot_scree(rasch(X), reps = 20)
 #' @export
 plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
   pc <- residual_pca(fit, n_components)
