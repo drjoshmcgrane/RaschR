@@ -7,9 +7,10 @@ library(rasch)
 
 ## When to use the MFRM
 
-Use `rasch_mfrm` when a response is jointly indexed by a person, an
-item, and one or more measurement facets such as rater, task, or
-occasion. A positive facet parameter denotes greater severity.
+The many-facet Rasch model (Linacre 1989) extends the Rasch model (Rasch
+1960) to responses jointly indexed by a person, an item, and one or more
+measurement facets such as rater, task, or occasion. Use `rasch_mfrm`
+for such designs. A positive facet parameter denotes greater severity.
 Person-group variables such as sex or treatment are not facets: carry
 them as person factors and assess them with `dif_anova`.
 
@@ -135,3 +136,17 @@ remain available. MFRM margin tables additionally report an equal-cell
 fit residual and a response-weighted pooled residual. Their weighting
 differs, so both the design and the location of any misfit should guide
 interpretation.
+
+## References
+
+Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
+Theory: Measuring in the Educational, Social and Health Sciences*.
+Springer.
+
+Linacre, J. M. (1989). *Many-Facet Rasch Measurement*. Chicago: MESA
+Press.
+
+Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
+Attainment Tests*. Copenhagen: Danish Institute for Educational
+Research. (Expanded edition, 1980, Chicago: University of Chicago
+Press.)

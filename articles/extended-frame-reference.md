@@ -7,12 +7,14 @@ library(rasch)
 
 ## Frames and units
 
-The extended frame of reference model allows the unit to differ across
-linked item-set by person-group frames. Within each frame, the partial
-credit model holds in that frame’s natural unit. This is a different
-claim from ordinary DIF: a frame-defining factor sets the scale unit and
-cannot also be tested as a separate DIF factor on the frame’s own
-virtual items.
+Rasch’s criterion of invariant comparison holds within a specified frame
+of reference (Rasch 1961). The extended frame of reference model
+(Humphry 2005; Humphry and Andrich 2008) makes the frame explicit: it
+allows the unit to differ across linked item-set by person-group frames.
+Within each frame, the partial credit model holds in that frame’s
+natural unit. This is a different claim from ordinary DIF: a
+frame-defining factor sets the scale unit and cannot also be tested as a
+separate DIF factor on the frame’s own virtual items.
 
 The model should be used when a frame-dependent unit is part of the
 substantive measurement account, not simply because an equal-unit model
@@ -178,3 +180,25 @@ Inference is carried by the omnibus Wald tests in
 and Holm-adjusted. None of these is a substitute for checking
 frame-level fit, targeting, link strength, and the defensibility of the
 frame interpretation.
+
+## References
+
+Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
+Theory: Measuring in the Educational, Social and Health Sciences*.
+Springer.
+
+Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
+Measurement*. PhD thesis, Murdoch University.
+
+Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
+Rasch model. *Journal of Applied Measurement*, 9(3), 249–264.
+
+Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
+Attainment Tests*. Copenhagen: Danish Institute for Educational
+Research. (Expanded edition, 1980, Chicago: University of Chicago
+Press.)
+
+Rasch, G. (1961). On general laws and the meaning of measurement in
+psychology. In *Proceedings of the Fourth Berkeley Symposium on
+Mathematical Statistics and Probability* (Vol. 4, pp. 321–333).
+Berkeley: University of California Press.

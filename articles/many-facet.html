@@ -81,11 +81,13 @@ McGrane</h4>
 <div class="section level2">
 <h2 id="when-to-use-the-mfrm">When to use the MFRM<a class="anchor" aria-label="anchor" href="#when-to-use-the-mfrm"></a>
 </h2>
-<p>Use <code>rasch_mfrm</code> when a response is jointly indexed by a
-person, an item, and one or more measurement facets such as rater, task,
-or occasion. A positive facet parameter denotes greater severity.
-Person-group variables such as sex or treatment are not facets: carry
-them as person factors and assess them with <code>dif_anova</code>.</p>
+<p>The many-facet Rasch model (Linacre 1989) extends the Rasch model
+(Rasch 1960) to responses jointly indexed by a person, an item, and one
+or more measurement facets such as rater, task, or occasion. Use
+<code>rasch_mfrm</code> for such designs. A positive facet parameter
+denotes greater severity. Person-group variables such as sex or
+treatment are not facets: carry them as person factors and assess them
+with <code>dif_anova</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_mfrm.html">simulate_mfrm</a></span><span class="op">(</span>n_persons <span class="op">=</span> <span class="fl">60</span>, n_items <span class="op">=</span> <span class="fl">4</span>, n_raters <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                   rater_severity_sd <span class="op">=</span> <span class="fl">0.7</span>, seed <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
@@ -196,6 +198,19 @@ plotting functions remain available. MFRM margin tables additionally
 report an equal-cell fit residual and a response-weighted pooled
 residual. Their weighting differs, so both the design and the location
 of any misfit should guide interpretation.</p>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<p>Andrich, D., and Marais, I. (2019). <em>A Course in Rasch Measurement
+Theory: Measuring in the Educational, Social and Health Sciences</em>.
+Springer.</p>
+<p>Linacre, J. M. (1989). <em>Many-Facet Rasch Measurement</em>.
+Chicago: MESA Press.</p>
+<p>Rasch, G. (1960). <em>Probabilistic Models for Some Intelligence and
+Attainment Tests</em>. Copenhagen: Danish Institute for Educational
+Research. (Expanded edition, 1980, Chicago: University of Chicago
+Press.)</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

@@ -10,9 +10,10 @@ library(rasch)
 Simulation provides a direct way to examine whether an estimator
 recovers known parameters and whether a diagnostic responds to the
 departure it is intended to detect. The package therefore includes
-simulators for the main model families: `simulate_rasch`,
-`simulate_btl`, `simulate_mfrm`, and `simulate_efrm`. Each can generate
-model-conforming data or introduce a known departure from the model.
+simulators for the main model families of Rasch Measurement Theory
+(Rasch 1960): `simulate_rasch`, `simulate_btl`, `simulate_mfrm`, and
+`simulate_efrm`. Each can generate model-conforming data or introduce a
+known departure from the model.
 
 Every simulator returns data ready for its fitting function, with the
 generating parameters and any specified departures carried on the object
@@ -346,6 +347,11 @@ differential item functioning in health research using the Rasch model.
 
 Kendall, M. G., and Babington Smith, B. (1940). On the method of paired
 comparisons. *Biometrika*, 31, 324–345.
+
+Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
+Attainment Tests*. Copenhagen: Danish Institute for Educational
+Research. (Expanded edition, 1980, Chicago: University of Chicago
+Press.)
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54, 427–450.

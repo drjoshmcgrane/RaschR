@@ -5,6 +5,11 @@
 library(rasch)
 ```
 
+This vignette walks through the standard analysis sequence of Rasch
+Measurement Theory (Rasch 1960, 1961; Andrich and Marais 2019): fit by
+pairwise conditional estimation, then examine whether the data meet the
+model’s requirements before the measures are interpreted.
+
 The same principal workflow is available through the package’s
 point-and-click Shiny application. Run
 [`rasch::run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
@@ -349,3 +354,26 @@ fit$psi
 #> $n
 #> [1] 400
 ```
+
+## References
+
+Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
+Theory: Measuring in the Educational, Social and Health Sciences*.
+Springer.
+
+Andrich, D., and Luo, G. (2003). Conditional pairwise estimation in the
+Rasch model for ordered response categories using principal components.
+*Journal of Applied Measurement*, 4(3), 205–221.
+
+Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
+Attainment Tests*. Copenhagen: Danish Institute for Educational
+Research. (Expanded edition, 1980, Chicago: University of Chicago
+Press.)
+
+Rasch, G. (1961). On general laws and the meaning of measurement in
+psychology. In *Proceedings of the Fourth Berkeley Symposium on
+Mathematical Statistics and Probability* (Vol. 4, pp. 321–333).
+Berkeley: University of California Press.
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. *Psychometrika*, 54(3), 427–450.

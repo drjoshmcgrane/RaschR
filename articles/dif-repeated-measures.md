@@ -7,11 +7,13 @@ library(rasch)
 
 ## Design the analysis around the person
 
-When several person factors are relevant, they should enter one model.
-Testing them one at a time can assign shared variation according to the
-order of the analyses. Repeated observations require a further
-distinction: group is a between-person factor, whereas occasion varies
-within person.
+Differential item functioning is a violation of the Rasch model’s
+requirement of invariant comparison: item locations should not depend on
+which persons respond (Rasch 1961). When several person factors are
+relevant, they should enter one model. Testing them one at a time can
+assign shared variation according to the order of the analyses. Repeated
+observations require a further distinction: group is a between-person
+factor, whereas occasion varies within person.
 
 The following dataset has two observations per person. Item I03 has a
 group shift and item I06 has an occasion shift.
@@ -177,3 +179,30 @@ A statistical flag should be considered with the logit magnitude,
 targeting, item content, and the intended use of the scale. Resolving an
 item changes the measurement model and should follow a substantive
 account of why the item is not invariant.
+
+## References
+
+Andrich, D., and Hagquist, C. (2012). Real and artificial differential
+item functioning. *Journal of Educational and Behavioral Statistics*,
+37(3), 387–416.
+
+Andrich, D., and Hagquist, C. (2015). Real and artificial differential
+item functioning in polytomous items. *Educational and Psychological
+Measurement*, 75(2), 185–207.
+
+Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
+Theory: Measuring in the Educational, Social and Health Sciences*.
+Springer.
+
+Hagquist, C., and Andrich, D. (2017). Recent advances in analysis of
+differential item functioning in health research using the Rasch model.
+*Health and Quality of Life Outcomes*, 15, 181.
+
+Maxwell, S. E., and Delaney, H. D. (2004). *Designing Experiments and
+Analyzing Data: A Model Comparison Perspective* (2nd ed.). Lawrence
+Erlbaum.
+
+Rasch, G. (1961). On general laws and the meaning of measurement in
+psychology. In *Proceedings of the Fourth Berkeley Symposium on
+Mathematical Statistics and Probability* (Vol. 4, pp. 321–333).
+Berkeley: University of California Press.

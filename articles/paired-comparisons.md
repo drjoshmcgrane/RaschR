@@ -8,10 +8,11 @@ library(rasch)
 ## Fit the Bradley–Terry–Luce model
 
 Paired-comparison data record two objects and an observed preference. In
-the Bradley–Terry–Luce model, the log odds of choosing object A over
-object B are their location difference. The comparison graph must
-connect all objects; otherwise their relative locations are not
-identified.
+the Bradley–Terry–Luce model (Bradley and Terry 1952; Luce 1959), the
+log odds of choosing object A over object B are their location
+difference – the conditional form of the dichotomous Rasch model (Rasch
+1960; Andrich 1978). The comparison graph must connect all objects;
+otherwise their relative locations are not identified.
 
 ``` r
 
@@ -180,3 +181,24 @@ model-based sensitivity analysis. The conditional option used above is a
 fast inspection method and does not propagate stage-one uncertainty into
 the set-linking parameters. Read the omnibus unit tests before the
 Holm-adjusted individual unit contrasts.
+
+## References
+
+Andrich, D. (1978). Relationships between the Thurstone and Rasch
+approaches to item scaling. *Applied Psychological Measurement*, 2,
+451–462.
+
+Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete
+block designs: I. The method of paired comparisons. *Biometrika*, 39,
+324–345.
+
+Kendall, M. G., and Babington Smith, B. (1940). On the method of paired
+comparisons. *Biometrika*, 31(3/4), 324–345.
+
+Luce, R. D. (1959). *Individual Choice Behavior: A Theoretical
+Analysis*. Wiley.
+
+Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
+Attainment Tests*. Copenhagen: Danish Institute for Educational
+Research. (Expanded edition, 1980, Chicago: University of Chicago
+Press.)
