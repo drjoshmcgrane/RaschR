@@ -60,24 +60,16 @@ points](reference/figures/app-items.png)
 The model suite includes:
 
 - the dichotomous Rasch model;
-- the partial credit model;
-- the rating scale model;
+- the polytomous Rasch models;
 - many-facet Rasch models;
-- the extended frame of reference model; and
-- Comparative judgement models (Bradley–Terry–Luce, the conditional form
-  of the dichotomous Rasch model) for dichotomous and polytomous
+- extended frame of reference model; and
+- comparative judgement models for dichotomous and polytomous pairwise
   comparisons.
 
 The standard item models use pairwise conditional estimation, with
 person measurement based on weighted likelihood. Anchored estimation is
 available for equating, and planned missing-data designs (linked
-booklets, rotated forms) are supported whenever the design connects all
-items to one scale – the package checks this and refuses designs it
-cannot identify. (Missingness that depends on the unobserved responses
-themselves is a property of the data collection, not something any
-estimator can absorb; see
-[`?rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) for
-the full statement.)
+booklets, rotated forms).
 
 ## What can be examined
 
