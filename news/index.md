@@ -17,8 +17,9 @@ identification guards, and caught one defect, corrected here:
   negatively correlated through the shared comparator items, so the
   pooled standard error was too small: over 1,200 null replicates at ten
   items the z-test rejected at 7.5% instead of the nominal 5%. The
-  corrected standard error calibrates at 4.8% (dichotomous) and 3.5%
-  (partial credit); the estimate d is unchanged.
+  corrected standard error calibrates at 4.8% (dichotomous, 400 fresh
+  replicates; 5.4% on the 1,200 diagnostic replicates) and 3.5% (partial
+  credit); the estimate d is unchanged.
 - The plant-and-detect vignette closes with a summary of the validation
   battery.
 
