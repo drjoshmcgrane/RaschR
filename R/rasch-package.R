@@ -7,9 +7,9 @@
 #' estimation; and, within a specified frame of reference, comparisons
 #' between persons do not depend on which items are used, while comparisons
 #' between items do not depend on which persons respond -- Rasch's criterion
-#' of invariant comparison (specific objectivity). These are requirements
-#' the data must meet for measurement, and the diagnostic suite examines
-#' whether they do.
+#' of invariant comparison (specific objectivity; Rasch 1961, 1977). These
+#' are requirements the data must meet for measurement, and the diagnostic
+#' suite examines whether they do.
 #'
 #' The model suite includes the dichotomous Rasch model, partial credit and
 #' rating scale models, many-facet Rasch models, the extended frame of reference
@@ -69,4 +69,21 @@
 #' @import graphics
 #' @import grDevices
 #' @importFrom utils write.csv combn
+#'
+#' @references
+#' Rasch, G. (1960). Probabilistic Models for Some Intelligence and
+#' Attainment Tests. Copenhagen: Danish Institute for Educational Research.
+#' (Expanded edition, 1980, Chicago: University of Chicago Press.)
+#'
+#' Rasch, G. (1961). On general laws and the meaning of measurement in
+#' psychology. In Proceedings of the Fourth Berkeley Symposium on
+#' Mathematical Statistics and Probability (Vol. 4, pp. 321--333).
+#' Berkeley: University of California Press.
+#'
+#' Rasch, G. (1977). On specific objectivity: An attempt at formalizing the
+#' request for generality and validity of scientific statements. Danish
+#' Yearbook of Philosophy, 14, 58--94.
+#'
+#' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
+#' Measuring in the Educational, Social and Health Sciences. Springer.
 "_PACKAGE"

@@ -156,6 +156,15 @@ fit$items
 fit$psi$PSI
 }
 \references{
+Rasch, G. (1960). Probabilistic Models for Some Intelligence and
+Attainment Tests. Copenhagen: Danish Institute for Educational Research.
+(Expanded edition, 1980, Chicago: University of Chicago Press.)
+
+Rasch, G. (1961). On general laws and the meaning of measurement in
+psychology. In Proceedings of the Fourth Berkeley Symposium on
+Mathematical Statistics and Probability (Vol. 4, pp. 321--333).
+Berkeley: University of California Press.
+
 Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
 Rasch model for ordered response categories using principal components.
 Journal of Applied Measurement, 4(3), 205--221.

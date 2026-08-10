@@ -4,8 +4,9 @@ Title: Models and Diagnostics for Rasch Measurement Theory
 Version: 1.14.1
 Authors@R: person("Josh", "McGrane", role = c("aut", "cre"),
     email = "drjoshmcgrane@gmail.com")
-Description: Implements Rasch Measurement Theory for constructing and
-    evaluating measurement scales. The package is organised around the two
+Description: Implements Rasch Measurement Theory (Rasch, 1960,
+    <ISBN:9780226705538>; 1961, <https://projecteuclid.org/euclid.bsmsp/1200512895>)
+    for constructing and evaluating measurement scales. The package is organised around the two
     defining properties of Rasch measurement: sufficiency, whereby the total
     score carries all the information in the data about a person's measure,
     permitting person and item parameters to be separated in conditional
