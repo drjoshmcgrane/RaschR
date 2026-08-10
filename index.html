@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>rasch: An R Implementation of Rasch Measurement Theory • rasch</title>
+<title>rasch: Models and Diagnostics for Rasch Measurement Theory • rasch</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -17,7 +17,7 @@
 <link href="deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="rasch: An R Implementation of Rasch Measurement Theory">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="rasch: Models and Diagnostics for Rasch Measurement Theory">
 <meta name="description" content="Rasch Measurement Theory in R, with models and diagnostics organised around the properties of sufficiency and invariance, plus a guided point-and-click Shiny app for analysts who prefer a graphical workflow.
 ">
 <meta property="og:description" content="Rasch Measurement Theory in R, with models and diagnostics organised around the properties of sufficiency and invariance, plus a guided point-and-click Shiny app for analysts who prefer a graphical workflow.
@@ -67,7 +67,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header">
-<img src="logo.svg" class="logo" alt=""><h1 id="rasch-an-r-implementation-of-rasch-measurement-theory-">rasch: An R Implementation of Rasch Measurement Theory <a class="anchor" aria-label="anchor" href="#rasch-an-r-implementation-of-rasch-measurement-theory-"></a>
+<img src="logo.svg" class="logo" alt=""><h1 id="rasch-models-and-diagnostics-for-rasch-measurement-theory-">rasch: Models and Diagnostics for Rasch Measurement Theory <a class="anchor" aria-label="anchor" href="#rasch-models-and-diagnostics-for-rasch-measurement-theory-"></a>
 </h1>
 </div>
 <!-- badges: start -->
@@ -91,7 +91,7 @@
 <p>The app guides the user through importing data, assigning item, person, group, rater and comparison roles, selecting the appropriate model, fitting the analysis, and examining the resulting diagnostics. Tables, plots and reports can be downloaded directly. The corresponding R call is shown alongside each analysis, so the graphical workflow remains transparent and reproducible.</p>
 <p>R is needed to install the package and launch the app, but the analysis itself can then be completed through the point-and-click interface without writing R code.</p>
 <p align="center">
-<img src="reference/figures/app-trait.png" alt="The rasch Shiny interface showing residual component results" width="90%"></p>
+<img src="reference/figures/app-items.png" alt="The rasch Shiny interface: the item statistics table (locations, fit residuals, infit and outfit, adjusted chi-square p) beside the selected item's characteristic curve with observed class-interval points" width="90%"></p>
 </div>
 <div class="section level2">
 <h2 id="models">Models<a class="anchor" aria-label="anchor" href="#models"></a>

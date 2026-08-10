@@ -1,4 +1,4 @@
-# rasch: An R Implementation of Rasch Measurement Theory
+# rasch: Models and Diagnostics for Rasch Measurement Theory
 
 `rasch` implements Rasch Measurement Theory in R. It provides a common
 set of models and diagnostics for constructing measurement scales and
@@ -43,8 +43,10 @@ R is needed to install the package and launch the app, but the analysis
 itself can then be completed through the point-and-click interface
 without writing R code.
 
-![The rasch Shiny interface showing residual component
-results](reference/figures/app-trait.png)
+![The rasch Shiny interface: the item statistics table (locations, fit
+residuals, infit and outfit, adjusted chi-square p) beside the selected
+item's characteristic curve with observed class-interval
+points](reference/figures/app-items.png)
 
 ## Models
 
