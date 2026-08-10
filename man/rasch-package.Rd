@@ -7,9 +7,14 @@
 \description{
 Implements Rasch Measurement Theory for the construction and evaluation of
 measurement scales. The package is organised around sufficiency and
-invariance: the relevant score contains the information required for person
-measurement, and comparisons between persons and items should remain stable
-across relevant samples and conditions.
+invariance: the total score is sufficient for the person parameter, which
+permits person and item parameters to be separated in conditional
+estimation; and, within a specified frame of reference, comparisons
+between persons do not depend on which items are used, while comparisons
+between items do not depend on which persons respond -- Rasch's criterion
+of invariant comparison (specific objectivity). These are requirements
+the data must meet for measurement, and the diagnostic suite examines
+whether they do.
 }
 \details{
 The model suite includes the dichotomous Rasch model, partial credit and

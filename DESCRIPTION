@@ -6,10 +6,13 @@ Authors@R: person("Josh", "McGrane", role = c("aut", "cre"),
     email = "drjoshmcgrane@gmail.com")
 Description: Implements Rasch Measurement Theory for constructing and
     evaluating measurement scales. The package is organised around the two
-    defining properties of Rasch measurement: sufficiency, whereby the
-    relevant score contains the information required for person measurement,
-    and invariance, whereby comparisons between persons and items are intended
-    to remain stable across relevant samples and conditions. Models include
+    defining properties of Rasch measurement: sufficiency, whereby the total
+    score carries all the information in the data about a person's measure,
+    permitting person and item parameters to be separated in conditional
+    estimation; and invariance, whereby, within a specified frame of
+    reference, comparisons between persons do not depend on which items are
+    used and comparisons between items do not depend on which persons
+    respond (Rasch's criterion of invariant comparison). Models include
     the dichotomous Rasch model, partial credit and rating scale models,
     many-facet Rasch models, the extended frame of reference model, and
     Bradley-Terry-Luce models for paired comparisons. Tools are provided for
