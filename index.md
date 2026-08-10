@@ -8,16 +8,23 @@ the data.
 The package is organised around two defining properties of Rasch
 measurement:
 
-- **Sufficiency:** the relevant score contains the information required
-  for person measurement.
-- **Invariance:** comparisons between persons and items should remain
-  stable across relevant samples and conditions.
+- **Sufficiency:** the total score on the relevant items carries all the
+  information in the data about a person’s measure (and the item margins
+  all the information about the items) – the property that allows person
+  and item parameters to be separated in conditional estimation.
+- **Invariance:** within a specified frame of reference, comparisons
+  between persons do not depend on which items are used, and comparisons
+  between items do not depend on which persons respond – Rasch’s
+  criterion of invariant comparison (specific objectivity).
 
-The package therefore treats estimation and the assessment of model
-requirements as parts of the same analysis. It provides item and person
-estimates, but also the fit, dimensionality, local dependence and
-differential item functioning analyses needed to determine whether those
-estimates support an invariant measurement scale.
+These are requirements the data must meet for measurement, not
+assumptions taken on trust. The package therefore treats estimation and
+the assessment of these requirements as parts of the same analysis: it
+provides item and person estimates, and with them the fit,
+dimensionality, local dependence and differential item functioning
+analyses that examine whether the data sustain invariant comparisons –
+differential item functioning, for example, is precisely a violation of
+invariance across person groups.
 
 **Documentation:** <https://drjoshmcgrane.github.io/rasch/>
 
