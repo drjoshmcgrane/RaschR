@@ -4,20 +4,17 @@ Title: Models and Diagnostics for Rasch Measurement Theory
 Version: 1.14.2
 Authors@R: person("Josh", "McGrane", role = c("aut", "cre"),
     email = "drjoshmcgrane@gmail.com")
-Description: Fits the models of Rasch Measurement Theory (Rasch, 1960
-    <ISBN:9780226705538>; 1961 <https://projecteuclid.org/euclid.bsmsp/1200512895>):
-    the dichotomous Rasch model, the polytomous Rasch models, many-facet
-    Rasch models, the extended frame of reference model, and comparative
-    judgement models for dichotomous and polytomous pairwise comparisons.
-    Estimation is by pairwise conditional maximum likelihood (Zwinderman,
-    1995 <doi:10.1177/014662169501900406>) with person measures by weighted
-    likelihood (Warm, 1989 <doi:10.1007/BF02294627>); anchored estimation
-    and planned missing-data designs are supported. Diagnostics include
-    tests of fit, targeting, dimensionality, local response dependence,
-    differential item functioning, threshold functioning, reliability, and
-    equating, following Andrich and Marais (2019)
-    <doi:10.1007/978-981-13-7496-8>. Also provides simulation tools and an
-    interactive 'shiny' interface.
+Description: Pairwise conditional estimation (Zwinderman, 1995
+    <doi:10.1177/014662169501900406>) for the models of Rasch Measurement
+    Theory (Rasch, 1960 <ISBN:9780226705538>): the dichotomous and
+    polytomous Rasch models, many-facet models, the extended frame of
+    reference model, and comparative judgement models for dichotomous and
+    polytomous pairwise comparisons. Provides fit and invariance
+    diagnostics, differential item functioning analysis, equating,
+    reliability, and simulation, with person measurement by weighted
+    likelihood (Warm, 1989 <doi:10.1007/BF02294627>), following the
+    framework of Andrich and Marais (2019) <doi:10.1007/978-981-13-7496-8>.
+    Includes a point-and-click 'shiny' application.
 URL: https://drjoshmcgrane.github.io/rasch/, https://github.com/drjoshmcgrane/rasch
 BugReports: https://github.com/drjoshmcgrane/rasch/issues
 License: MIT + file LICENSE
