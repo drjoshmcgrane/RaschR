@@ -431,16 +431,17 @@ print.rasch_sim <- function(x, ...) {
 
 #' Simulate paired-comparison (BTL) data with dial-in misfit
 #'
-#' Generates dichotomous or graded paired comparisons from the
+#' Generates dichotomous or polytomous paired comparisons from the
 #' Bradley-Terry-Luce model, with optional departures each of which a
 #' paired-comparison diagnostic is built to detect. The result is a data frame
 #' ready for \code{\link{btl}}, with the truth attached.
 #'
 #' @param n_objects,n_judges Objects to scale and judges comparing them.
 #' @param reps_per_pair Comparisons made of each object pair.
-#' @param model \code{"dichotomous"} (a winner) or \code{"graded"} (a rated
-#'   margin in \code{n_categories} categories).
-#' @param n_categories Categories for the graded model.
+#' @param model \code{"dichotomous"} (a winner) or \code{"polytomous"} (a rated
+#'   margin in \code{n_categories} categories; the pre-1.14.1 value
+#'   \code{"graded"} is accepted as an alias).
+#' @param n_categories Categories for the polytomous model.
 #' @param object_sd Spread of the object locations (evenly spaced, sum-zero).
 #' @param second_attribute \code{NULL}, or \code{list(rho=)}: half the judges
 #'   rank by a second object attribute correlated \code{rho} with the first.
@@ -453,7 +454,7 @@ print.rasch_sim <- function(x, ...) {
 #'   dependence effects of \code{\link{btl}}.
 #' @param seed Optional RNG seed.
 #' @return A data frame of class \code{"rasch_sim"}: \code{object_a},
-#'   \code{object_b}, \code{winner} (or \code{response} when graded),
+#'   \code{object_b}, \code{winner} (or \code{response} when polytomous),
 #'   \code{judge}, and \code{order} when dependence is planted; with
 #'   \code{attr(x, "truth")}.
 #' @examples
@@ -462,20 +463,24 @@ print.rasch_sim <- function(x, ...) {
 #' bt$judges          # the erratic judges carry large fit residuals
 #' @export
 simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
-                         model = c("dichotomous", "graded"), n_categories = 4,
+                         model = c("dichotomous", "polytomous", "graded"),
+                         n_categories = 4,
                          object_sd = 1, second_attribute = NULL,
                          erratic_judges = 0, dependence = NULL, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   model <- match.arg(model)
+  # "graded" is the pre-1.14.1 name for the polytomous comparison model,
+  # kept as a working alias for released user code
+  if (model == "graded") model <- "polytomous"
   K <- .sim_count(n_objects, "n_objects", 3L)
   J <- .sim_count(n_judges, "n_judges", 2L)
   reps_per_pair <- .sim_count(reps_per_pair, "reps_per_pair")
   object_sd <- .sim_scalar(object_sd, "object_sd", lower = 0)
   erratic_judges <- .sim_scalar(erratic_judges, "erratic_judges",
                                 lower = 0, upper = 1)
-  if (model == "graded")
+  if (model == "polytomous")
     n_categories <- .sim_count(n_categories, "n_categories", 3L)
-  m <- if (model == "graded") as.integer(n_categories) - 1L else 1L
+  m <- if (model == "polytomous") as.integer(n_categories) - 1L else 1L
   objs <- sprintf("O%d", seq_len(K)); jids <- sprintf("J%d", seq_len(J))
   beta <- setNames(as.numeric(scale(seq_len(K))) * object_sd, objs)
   tau <- if (m > 1L) .sim_thresholds(0, m, 1.2) else NULL

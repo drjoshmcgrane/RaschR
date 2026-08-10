@@ -68,9 +68,9 @@ if (requireNamespace("rasch", quietly = TRUE)) {
 
 # paired-comparison demo: 8 essays compared pairwise by 10 judges, with
 # judge J09 answering at random (discoverable in the judge fit table).
-# Besides the winner column it carries a graded `preference` column (four
+# Besides the winner column it carries a polytomous `preference` column (four
 # ordered categories) simulated from the same object locations, so the
-# graded-response role can be pointed at it, and a `margin` column ("a
+# polytomous-response role can be pointed at it, and a `margin` column ("a
 # little" < "much") derived from the preference for the winner + margin
 # entry path.
 .demo_btl <- function(seed = 47, reps = 26) {
@@ -577,11 +577,11 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                 selectizeInput("bt_margin", "Margin of win (optional)", NULL,
                                options = list(placeholder = "none — dichotomous")),
                 p(class = "text-muted small",
-                  "The extent of the win (e.g. a little / much) as an ordered factor or increasing values; with the winner column it forms graded categories with no orientation bookkeeping. A winner value of \"tie\" or \"draw\" marks a tie (middle category); any other value matching neither object is treated as missing and the row dropped.")),
-              selectizeInput("bt_response", "Graded response (optional)", NULL,
+                  "The extent of the win (e.g. a little / much) as an ordered factor or increasing values; with the winner column it forms polytomous categories with no orientation bookkeeping. A winner value of \"tie\" or \"draw\" marks a tie (middle category); any other value matching neither object is treated as missing and the row dropped.")),
+              selectizeInput("bt_response", "Polytomous response (optional)", NULL,
                              options = list(placeholder = "none — use winner")),
               p(class = "text-muted small",
-                "A graded preference for the first object (e.g. much worse … much better), as an ordered factor or scores 0..m; overrides the winner column. Ties belong in a middle category."),
+                "A polytomous preference for the first object (e.g. much worse … much better), as an ordered factor or scores 0..m; overrides the winner column. Ties belong in a middle category."),
               selectInput("bt_judge", "Judge column (optional)", NONE_CH),
               conditionalPanel("input.bt_judge && input.bt_judge != '(none)'",
                 selectizeInput("bt_order", "Judgment order (optional)", NULL,
@@ -868,27 +868,27 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
                   "Click a row to plot that object on the right. Conditional (person-free) estimation with sum-zero identification and sandwich standard errors; infit and outfit are the information-weighted and unweighted mean squares over each object's comparisons, and the fit residual is the log mean square (Andrich & Marais 2019).",
           info = "Cells are flagged where a statistic indicates misfit: outfit mean square outside 0.7-1.3, infit outside the tighter 0.8-1.2, and |fit residual| > 2.5."),
         plotCard("btl_occ", "Object characteristic curve",
-          info = "The paired-comparison counterpart of the item characteristic curve: the model expected response for the selected object against opponent location (the win probability, or the expected graded response), with the observed mean response per opponent overlaid at that opponent's location. Opponents met too few times (sparse designs) are omitted. Points straying from the curve flag inconsistent quality, exactly as a misfitting item does.",
+          info = "The paired-comparison counterpart of the item characteristic curve: the model expected response for the selected object against opponent location (the win probability, or the expected polytomous response), with the observed mean response per opponent overlaid at that opponent's location. Opponents met too few times (sparse designs) are omitted. Points straying from the curve flag inconsistent quality, exactly as a misfitting item does.",
           extra = downloadButton("btl_occ_all_pdf", "PDF (all objects)",
                                  class = "btn-outline-secondary btn-xs"))),
       accordion(id = "btl_items_acc", open = "btl_caterpillar",
                 class = "mt-3 mb-3",
         accordion_panel("Object caterpillar", value = "btl_caterpillar",
           plotCard("btl_plot")),
-        # graded (ordinal) fits only: hidden entirely for dichotomous fits
+        # polytomous (ordinal) fits only: hidden entirely for dichotomous fits
         conditionalPanel("output.btl_graded == true",
           accordion_panel("Symmetric thresholds", value = "btl_thresholds",
             tableCard("btl_thr_tbl",
-                      note = "Adjacent-categories thresholds of the graded structure, constrained symmetric (tau_k = -tau_(m+1-k)) so the model is invariant to presentation order.")),
+                      note = "Adjacent-categories thresholds of the polytomous structure, constrained symmetric (tau_k = -tau_(m+1-k)) so the model is invariant to presentation order.")),
           accordion_panel("Threshold components", value = "btl_components",
             tableCard("btl_comp_tbl",
                       note = "Spread is the linear component; the skewness component is structurally zero under presentation-order symmetry. Under the PC structure kurtosis is constrained to zero.")),
           accordion_panel("Category probability curves", value = "btl_catcurves",
             plotCard("btl_cats",
-              info = "The probability of each graded response category as a function of the location difference between the two objects; the paired-comparison counterpart of a polytomous item's category curves."))),
+              info = "The probability of each polytomous response category as a function of the location difference between the two objects; the paired-comparison counterpart of a polytomous item's category curves."))),
         accordion_panel("Pairwise fit", value = "btl_pairs",
           tableCard("btl_pairs_tbl",
-                    note = "Observed against expected win proportions (mean graded responses for a graded fit) for every pair; the total chi-square tests the BTL structure."))))
+                    note = "Observed against expected win proportions (mean polytomous responses for a polytomous fit) for every pair; the total chi-square tests the BTL structure."))))
   )
 
 # -------------------------------------------------------------- PERSONS --
@@ -1150,7 +1150,7 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
                         "Independent judges/comparisons", TRUE),
           uiOutput("btl_eq_summary"),
           p(class = "text-muted small mt-2",
-            "Common objects are linked by name. A CSV bank provides marginal standard errors but not their joint covariance, so its origin alignment is descriptive. Drift inference requires independent judges and comparisons plus the full covariance (or a fixed bank with zero standard errors). A graded bank must include a constant m column giving its score steps.")),
+            "Common objects are linked by name. A CSV bank provides marginal standard errors but not their joint covariance, so its origin alignment is descriptive. Drift inference requires independent judges and comparisons plus the full covariance (or a fixed bank with zero standard errors). A polytomous bank must include a constant m column giving its score steps.")),
         layout_columns(col_widths = 12,
           tableCard("btl_eq_tbl", "Common-object comparison",
             info = "Each common object is compared with the shifted identity line after the precision-weighted origin shift (the two sum-zero scales are centred on different object sets). Inferential columns are withheld unless the reference carries its joint covariance or is fixed. Where available, p_adj is the multiplicity-adjusted drift p-value, shown red below 0.05."),
@@ -1630,8 +1630,8 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         sliderInput("sb_judges", "Judges", 3, 30, 12, 1),
         sliderInput("sb_reps", "Comparisons per pair", 5, 60, 25, 5),
         radioButtons("sb_model", "Verdict", inline = TRUE,
-          c("Winner" = "dichotomous", "Graded margin" = "graded")),
-        conditionalPanel("input.sb_model == 'graded'",
+          c("Winner" = "dichotomous", "Polytomous margin" = "polytomous")),
+        conditionalPanel("input.sb_model == 'polytomous'",
           sliderInput("sb_cats", "Categories", 3, 6, 4, 1)),
         sliderInput("sb_objsd", "Object-location spread", 0.5, 2.5, 1, 0.1),
         accordion(open = FALSE, accordion_panel(
@@ -1882,7 +1882,7 @@ server <- function(input, output, session) {
       },
       btl = sprintf('simulate_btl(%d, %d, %d, model = "%s"%s, object_sd = %s%s%s%s,\n  seed = %d)',
         input$sb_objects, input$sb_judges, input$sb_reps, input$sb_model,
-        if (identical(input$sb_model, "graded"))
+        if (identical(input$sb_model, "polytomous"))
           sprintf(", n_categories = %d", input$sb_cats %||% 4L) else "",
         input$sb_objsd,
         if (input$sb_erratic > 0) sprintf(", erratic_judges = %s", input$sb_erratic) else "",
@@ -2042,8 +2042,8 @@ server <- function(input, output, session) {
                       selected = if (!is.na(g_b)) g_b else NONE)
     updateSelectInput(session, "bt_win", choices = c(NONE_CH, nm),
                       selected = if (!is.na(g_w)) g_w else NONE)
-    # graded margin column, if present (a winner and a response are mutually
-    # exclusive; auto-detecting the response keeps graded data one-click)
+    # polytomous margin column, if present (a winner and a response are mutually
+    # exclusive; auto-detecting the response keeps polytomous data one-click)
     g_resp <- nm[grepl("^response$|^grade$|^rating$", tolower(nm))][1]
     updateSelectizeInput(session, "bt_response", choices = c("", nm),
                          selected = if (!is.na(g_resp)) g_resp else "")
@@ -2287,9 +2287,9 @@ server <- function(input, output, session) {
     withProgress(message = "Estimating (pairwise conditional ML)…", value = 0.3, {
       fit <- tryCatch({
         if (identical(input$model_type, "btl")) {
-          # a graded response column overrides the winner column (and the
-          # ties rule: graded ties belong in a middle category); otherwise a
-          # margin column combines with the winner into the graded response
+          # a polytomous response column overrides the winner column (and the
+          # ties rule: polytomous ties belong in a middle category); otherwise a
+          # margin column combines with the winner into the polytomous response
           # (winner values matching neither object = ties = middle category)
           bt_graded <- !is.null(input$bt_response) && nzchar(input$bt_response)
           bt_marg <- !bt_graded && !is.null(input$bt_margin) &&
@@ -2309,7 +2309,7 @@ server <- function(input, output, session) {
             setNames(bt_anc_df$location, bt_anc_df$object) else NULL
           if (any(c(input$bt_a, input$bt_b) == NONE) ||
               (!bt_graded && identical(input$bt_win, NONE)))
-            stop("nominate the object A, object B, and winner (or graded response) columns")
+            stop("nominate the object A, object B, and winner (or polytomous response) columns")
           code_call <- paste0("bt <- btl(dat,\n  ", paste(c(
             paste0("object_a = ", qstr(input$bt_a)),
             paste0("object_b = ", qstr(input$bt_b)),
@@ -2330,7 +2330,7 @@ server <- function(input, output, session) {
             if ((bt_graded || bt_marg) && identical(bt_thr, "pc"))
               'thresholds = "pc"',
             code_est), collapse = ",\n  "), ")")
-          # one shared argument list; the entry path (graded response,
+          # one shared argument list; the entry path (polytomous response,
           # winner + margin, winner only) contributes its own arguments
           bt_args <- c(
             list(df, object_a = input$bt_a, object_b = input$bt_b,
@@ -3951,9 +3951,9 @@ server <- function(input, output, session) {
     csv_name = "fit_summary.csv",
     ui_fun = function() {
       f <- bfit()
-      graded <- !is.null(f$m) && f$m > 1L
-      model_lab <- if (graded)
-        sprintf("Graded paired comparisons (%d categories)", f$m + 1L)
+      polytomous <- !is.null(f$m) && f$m > 1L
+      model_lab <- if (polytomous)
+        sprintf("Polytomous paired comparisons (%d categories)", f$m + 1L)
       else "Paired comparisons (BTL)"
       conv <- if (isTRUE(f$converged))
         sprintf("converged in %d iterations", f$iterations)
@@ -3982,7 +3982,7 @@ server <- function(input, output, session) {
           stat_row("Object separation index",
                    if (finite1(f$osi$PSI)) sprintf("%.3f", f$osi$PSI)
                    else "—"),
-          if (graded && !is.null(f$thr_structure))
+          if (polytomous && !is.null(f$thr_structure))
             stat_row("Threshold structure",
                      if (identical(f$thr_structure, "pc"))
                        "principal components (spread)"
@@ -4056,7 +4056,7 @@ server <- function(input, output, session) {
   register_plot("btl_plot", function() plot_btl(bfit()),
                 code = function() "# bt from the Data page\nplot_btl(bt)")
   # object characteristic curve: model expected response against opponent
-  # location with per-opponent observed means (dichotomous and graded fits)
+  # location with per-opponent observed means (dichotomous and polytomous fits)
   observeEvent(btl_fit(), {
     b <- btl_fit()
     if (!is.null(b)) {
@@ -4088,7 +4088,7 @@ server <- function(input, output, session) {
           text(0.5, 0.5, sprintf("%s: %s", o, conditionMessage(e)))
         })
     })
-  # graded (ordinal) fits carry thresholds and category curves; the flag
+  # polytomous (ordinal) fits carry thresholds and category curves; the flag
   # hides both cards entirely for dichotomous fits
   output$btl_graded <- reactive({
     b <- btl_fit()
@@ -4724,7 +4724,7 @@ server <- function(input, output, session) {
     if (is.null(input$bt_win) || !nzchar(input$bt_win %||% "") ||
         identical(input$bt_win, NONE) || !input$bt_win %in% names(df)) {
       showNotification(paste("Paired-comparison frames fit dichotomous winner data only;",
-                             "nominate a Winner column on the Data page (not a graded response)."),
+                             "nominate a Winner column on the Data page (not a polytomous response)."),
                        type = "error", duration = 10)
       btlef_res(NULL); return()
     }

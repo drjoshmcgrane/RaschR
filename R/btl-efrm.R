@@ -581,8 +581,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   se_method <- match.arg(se_method)
   if (!is.null(response))
     stop("btl_efrm fits dichotomous winner data only in this first ",
-         "implementation; a graded `response` is not supported. Reduce the ",
-         "graded margins to a winner, or use btl() for a single-frame graded ",
+         "implementation; a polytomous `response` is not supported. Reduce the ",
+         "polytomous margins to a winner, or use btl() for a single-frame polytomous ",
          "analysis.")
   data <- as.data.frame(data)
   for (col in c(object_a, object_b, winner, judge))

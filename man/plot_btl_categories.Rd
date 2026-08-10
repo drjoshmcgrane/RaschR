@@ -2,12 +2,12 @@
 % Please edit documentation in R/btl.R
 \name{plot_btl_categories}
 \alias{plot_btl_categories}
-\title{Plot graded-comparison category curves}
+\title{Plot polytomous-comparison category curves}
 \usage{
 plot_btl_categories(fit, grid = seq(-4, 4, 0.05))
 }
 \arguments{
-\item{fit}{A graded fit from \code{\link{btl}} (with \code{response}).}
+\item{fit}{A polytomous fit from \code{\link{btl}} (with \code{response}).}
 
 \item{grid}{Difference grid, in logits.}
 }
@@ -15,7 +15,7 @@ plot_btl_categories(fit, grid = seq(-4, 4, 0.05))
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-For a graded paired-comparison fit, the probability of each response
+For a polytomous paired-comparison fit, the probability of each response
 category as a function of the location difference
 \code{beta_a - beta_b}, with the symmetric threshold structure marked.
 The display is the paired-comparison counterpart of the category

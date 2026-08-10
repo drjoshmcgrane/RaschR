@@ -15,7 +15,7 @@ columns \code{object}, \code{location}, and optionally \code{se}; object
 names must be unique and locations finite. Bank-based drift inference
 requires the joint location covariance as a square matrix in
 \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
-object), unless the bank is treated as fixed with zero SEs. For a graded
+object), unless the bank is treated as fixed with zero SEs. For a polytomous
 fit the bank must carry
 \code{attr(bank, "m")} matching the number of fitted score steps.}
 

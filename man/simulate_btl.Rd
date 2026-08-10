@@ -8,7 +8,7 @@ simulate_btl(
   n_objects = 8,
   n_judges = 12,
   reps_per_pair = 25,
-  model = c("dichotomous", "graded"),
+  model = c("dichotomous", "polytomous", "graded"),
   n_categories = 4,
   object_sd = 1,
   second_attribute = NULL,
@@ -22,10 +22,11 @@ simulate_btl(
 
 \item{reps_per_pair}{Comparisons made of each object pair.}
 
-\item{model}{\code{"dichotomous"} (a winner) or \code{"graded"} (a rated
-margin in \code{n_categories} categories).}
+\item{model}{\code{"dichotomous"} (a winner) or \code{"polytomous"} (a rated
+margin in \code{n_categories} categories; the pre-1.14.1 value
+\code{"graded"} is accepted as an alias).}
 
-\item{n_categories}{Categories for the graded model.}
+\item{n_categories}{Categories for the polytomous model.}
 
 \item{object_sd}{Spread of the object locations (evenly spaced, sum-zero).}
 
@@ -45,12 +46,12 @@ dependence effects of \code{\link{btl}}.}
 }
 \value{
 A data frame of class \code{"rasch_sim"}: \code{object_a},
-  \code{object_b}, \code{winner} (or \code{response} when graded),
+  \code{object_b}, \code{winner} (or \code{response} when polytomous),
   \code{judge}, and \code{order} when dependence is planted; with
   \code{attr(x, "truth")}.
 }
 \description{
-Generates dichotomous or graded paired comparisons from the
+Generates dichotomous or polytomous paired comparisons from the
 Bradley-Terry-Luce model, with optional departures each of which a
 paired-comparison diagnostic is built to detect. The result is a data frame
 ready for \code{\link{btl}}, with the truth attached.

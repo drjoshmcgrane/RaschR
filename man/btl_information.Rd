@@ -24,7 +24,7 @@ The paired-comparison analogue of the test-information function. The
 Fisher information a single comparison carries about the location
 difference \code{d = beta_a - beta_b} is, in this exponential family, the
 variance of its score -- \code{P(1 - P)} for the dichotomous choice and
-the graded response variance \code{V} for the ordinal extension (the
+the polytomous response variance \code{V} for the ordinal extension (the
 score is the sufficient statistic for \code{d}, so its variance is the
 information). Weighted by each comparison's replication count and summed
 over the comparisons the design actually contains, this gives a

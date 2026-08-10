@@ -35,11 +35,11 @@ dimensionality test. The leading bimension is compared with a reference
 built by simulating unidimensional data from the
 fitted model with the observed pair counts (a parametric bootstrap, as in
 \code{\link{plot_scree}}); an observed strength above the reference is
-structure the one-dimensional model does not explain. For graded fits the
+structure the one-dimensional model does not explain. For polytomous fits the
 residual log-odds are taken on the points-proportion scale, whose model
 mean is not exactly \code{plogis(beta_i - beta_j)}; the simulated reference
 carries the same construction, so the test stays calibrated (verified
-mildly conservative on model-true graded data) rather than anticonservative.
+mildly conservative on model-true polytomous data) rather than anticonservative.
 Likewise, when the fit carries within-judge dependence effects
 (\code{order}), the reference is simulated sequentially through each
 judge's comparisons with the fitted exposure and carry-over coefficients:

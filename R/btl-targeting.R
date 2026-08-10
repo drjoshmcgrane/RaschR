@@ -5,7 +5,7 @@
 # same of a comparison design. The Fisher information one comparison carries
 # about the location difference d = beta_a - beta_b is, in this exponential
 # family, exactly the variance of its score: P(1 - P) for the dichotomous
-# choice, and the graded response variance V for the ordinal extension (the
+# choice, and the polytomous response variance V for the ordinal extension (the
 # score IS the sufficient statistic for d, so its variance IS the
 # information). Summing per-comparison information over the comparisons a
 # design actually contains gives a DESIGN information for every object -- the
@@ -21,9 +21,9 @@
 
 # per-comparison Fisher information about the location difference d: the
 # variance of the (sufficient) score. Dichotomous P(1-P) is vectorised;
-# the graded variance comes from item_moments, one difference at a time.
+# the polytomous variance comes from item_moments, one difference at a time.
 # The variance is symmetric in the orientation of the pair (symmetric
-# thresholds make the graded model presentation-order invariant), so a
+# thresholds make the polytomous model presentation-order invariant), so a
 # comparison carries the same information about each of its two objects.
 .btl_info_of_d <- function(d, m, tau) {
   if (m == 1L) {
@@ -40,7 +40,7 @@
 #' Fisher information a single comparison carries about the location
 #' difference \code{d = beta_a - beta_b} is, in this exponential family, the
 #' variance of its score -- \code{P(1 - P)} for the dichotomous choice and
-#' the graded response variance \code{V} for the ordinal extension (the
+#' the polytomous response variance \code{V} for the ordinal extension (the
 #' score is the sufficient statistic for \code{d}, so its variance is the
 #' information). Weighted by each comparison's replication count and summed
 #' over the comparisons the design actually contains, this gives a
@@ -160,7 +160,7 @@ print.rasch_btl_info <- function(x, ...) {
     nrow(x$objects), x$total))
   cat(sprintf("One-comparison Fisher information about the location gap %s\n",
               if (x$m == 1L) "(dichotomous: P(1 - P))"
-              else sprintf("(graded, %d categories: response variance)",
+              else sprintf("(polytomous, %d categories: response variance)",
                            x$m + 1L)))
   print(.fmt_df(x$objects), row.names = FALSE)
   if (length(x$notes)) cat(sprintf("Note: %s\n", x$notes))

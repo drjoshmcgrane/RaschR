@@ -114,7 +114,7 @@
 #'   names must be unique and locations finite. Bank-based drift inference
 #'   requires the joint location covariance as a square matrix in
 #'   \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
-#'   object), unless the bank is treated as fixed with zero SEs. For a graded
+#'   object), unless the bank is treated as fixed with zero SEs. For a polytomous
 #'   fit the bank must carry
 #'   \code{attr(bank, "m")} matching the number of fitted score steps.
 #' @param alpha Significance level for the (multiplicity-adjusted) drift tests.
@@ -184,7 +184,7 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   } else if (fit1$m > 1L) {
     fm <- attr(fit2, "m", exact = TRUE)
     if (is.null(fm) || !identical(as.integer(fm), as.integer(fit1$m)))
-      stop("a graded-comparison bank must carry attr(bank, 'm') matching ",
+      stop("a polytomous-comparison bank must carry attr(bank, 'm') matching ",
            "the fitted number of score steps; otherwise scale compatibility ",
            "cannot be established")
   }

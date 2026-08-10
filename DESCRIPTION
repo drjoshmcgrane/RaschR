@@ -16,7 +16,8 @@ Description: Implements Rasch Measurement Theory (Rasch, 1960,
     respond (Rasch's criterion of invariant comparison). Models include
     the dichotomous Rasch model, partial credit and rating scale models,
     many-facet Rasch models, the extended frame of reference model, and
-    Bradley-Terry-Luce models for paired comparisons. Tools are provided for
+    comparative judgement models for paired comparisons
+    (Bradley-Terry-Luce). Tools are provided for
     item and person estimation, tests of fit, targeting, dimensionality, local
     response dependence, differential item functioning, threshold functioning,
     reliability, equating, and the investigation and resolution of violations

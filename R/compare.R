@@ -158,7 +158,7 @@ compare_fits <- function(..., reference = 1) {
       data.frame(
         label = labs[i], converged = conv,
         model = paste0("BTL (", if (max(f$m) > 1L)
-          paste0("graded, ", f$thr_structure, " thresholds") else
+          paste0("polytomous, ", f$thr_structure, " thresholds") else
             "dichotomous", dep, ")"),
         judges = if (is.null(f$judges)) NA_integer_ else nrow(f$judges),
         objects = nrow(f$objects), comparisons = f$n_comparisons,

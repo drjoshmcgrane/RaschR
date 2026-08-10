@@ -34,7 +34,7 @@ value must equal the row's \code{object_a} or \code{object_b} entry;
 blanks) is treated as missing and dropped with a note. Ignored when
 \code{response} is given.}
 
-\item{response}{Optional name of a column holding a graded preference
+\item{response}{Optional name of a column holding a polytomous preference
 for \code{object_a} over \code{object_b} -- an ORDERED factor
 (\code{factor(..., ordered = TRUE)}, levels worst to best for
 \code{object_a}) or integer scores \code{0..m}; a plain factor is
@@ -51,7 +51,7 @@ adjacent-category rather than endpoint-log-odds unit.}
 
 \item{margin}{Optional name of a column holding the extent of the win
 ("a little", "much", ...), as an ordered factor or increasing values;
-combined with \code{winner} it assembles the graded response without
+combined with \code{winner} it assembles the polytomous response without
 any orientation bookkeeping ("B by much" means the same thing
 whichever column B sits in). Winner values matching neither object
 are ties and form the middle category.}
@@ -99,7 +99,7 @@ not silently removed as a free boundary object would be.}
 \code{"drop"} (default, removed with a note), \code{"half"} (half a
 win each way, a common pragmatic device -- flagged in the notes
 because the halves are not independent Bernoulli trials), or
-\code{"error"}. With graded responses, code ties as a middle
+\code{"error"}. With polytomous responses, code ties as a middle
 category instead.}
 
 \item{thresholds}{\code{"free"} (default) estimates every symmetric
@@ -113,10 +113,10 @@ response. Both modes report the component decomposition.}
 }
 \value{
 A list of class \code{"rasch_btl"}: \code{objects} (location, se,
-  comparisons, wins -- or the graded \code{score} -- infit and outfit
+  comparisons, wins -- or the polytomous \code{score} -- infit and outfit
   mean squares, fit residual and its df),
   \code{pairs} (per pair: n, observed and expected win proportions --
-  or mean graded responses --
+  or mean polytomous responses --
   standardised residual, chi-square component -- the pair chi-squares
   treat comparisons as independent and are descriptive under judge
   clustering; the object and judge fit residuals and the clustered
@@ -131,7 +131,7 @@ A list of class \code{"rasch_btl"}: \code{objects} (location, se,
   standard errors, dependence tests, DIF, and OSI) is withheld unless
   there are at least 10 judges and more judges than fitted parameters.
   Point estimates and descriptive fit remain.
-  Graded fits add \code{thresholds} (the symmetric threshold estimates
+  Polytomous fits add \code{thresholds} (the symmetric threshold estimates
   with standard errors), \code{m}, and \code{categories}. With an
   \code{order} column the within-judge \code{dependence} effects table
   carries an \code{n_informative} count, and \code{dependence_data} holds

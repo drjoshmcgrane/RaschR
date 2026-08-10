@@ -106,7 +106,7 @@
 #'   \code{response} is given.
 #' @param margin Optional name of a column holding the extent of the win
 #'   ("a little", "much", ...), as an ordered factor or increasing values;
-#'   combined with \code{winner} it assembles the graded response without
+#'   combined with \code{winner} it assembles the polytomous response without
 #'   any orientation bookkeeping ("B by much" means the same thing
 #'   whichever column B sits in). Winner values matching neither object
 #'   are ties and form the middle category.
@@ -116,7 +116,7 @@
 #'   threshold structure, whose even skewness component is structurally
 #'   zero here -- so thinly used categories borrow strength from every
 #'   response. Both modes report the component decomposition.
-#' @param response Optional name of a column holding a graded preference
+#' @param response Optional name of a column holding a polytomous preference
 #'   for \code{object_a} over \code{object_b} -- an ORDERED factor
 #'   (\code{factor(..., ordered = TRUE)}, levels worst to best for
 #'   \code{object_a}) or integer scores \code{0..m}; a plain factor is
@@ -168,14 +168,14 @@
 #'   \code{"drop"} (default, removed with a note), \code{"half"} (half a
 #'   win each way, a common pragmatic device -- flagged in the notes
 #'   because the halves are not independent Bernoulli trials), or
-#'   \code{"error"}. With graded responses, code ties as a middle
+#'   \code{"error"}. With polytomous responses, code ties as a middle
 #'   category instead.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
 #' @return A list of class \code{"rasch_btl"}: \code{objects} (location, se,
-#'   comparisons, wins -- or the graded \code{score} -- infit and outfit
+#'   comparisons, wins -- or the polytomous \code{score} -- infit and outfit
 #'   mean squares, fit residual and its df),
 #'   \code{pairs} (per pair: n, observed and expected win proportions --
-#'   or mean graded responses --
+#'   or mean polytomous responses --
 #'   standardised residual, chi-square component -- the pair chi-squares
 #'   treat comparisons as independent and are descriptive under judge
 #'   clustering; the object and judge fit residuals and the clustered
@@ -190,7 +190,7 @@
 #'   standard errors, dependence tests, DIF, and OSI) is withheld unless
 #'   there are at least 10 judges and more judges than fitted parameters.
 #'   Point estimates and descriptive fit remain.
-#'   Graded fits add \code{thresholds} (the symmetric threshold estimates
+#'   Polytomous fits add \code{thresholds} (the symmetric threshold estimates
 #'   with standard errors), \code{m}, and \code{categories}. With an
 #'   \code{order} column the within-judge \code{dependence} effects table
 #'   carries an \code{n_informative} count, and \code{dependence_data} holds
@@ -235,7 +235,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   thresholds <- match.arg(thresholds)
   data <- as.data.frame(data)
   if (is.null(winner) && is.null(response))
-    stop("give either `winner` (dichotomous) or `response` (graded)")
+    stop("give either `winner` (dichotomous) or `response` (polytomous)")
   if (!is.null(margin) && is.null(winner))
     stop("`margin` requires `winner`")
   if (!is.null(order) && is.null(judge))
@@ -282,18 +282,18 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       # a plain factor's alphabetical level order would silently define the
       # response scale (and can reverse it); the order must be explicit
       if (!is.ordered(xr))
-        stop("a graded response factor must be ORDERED ",
+        stop("a polytomous response factor must be ORDERED ",
              "(factor(..., ordered = TRUE) with levels from worst to ",
              "best), or supply integer scores 0..m: an unordered ",
              "factor's alphabetical levels would silently define -- and ",
              "can reverse -- the response scale")
       cats <- levels(xr); x <- as.integer(xr) - 1L
     } else {
-      .check_integer_scores(xr, "the graded response")
+      .check_integer_scores(xr, "the polytomous response")
       xn <- suppressWarnings(as.numeric(as.character(xr)))
       x <- as.integer(xn)
       if (any(x < 0, na.rm = TRUE))
-        stop("graded responses must be non-negative integers 0..m")
+        stop("polytomous responses must be non-negative integers 0..m")
       cats <- as.character(0:max(x, na.rm = TRUE))
     }
     keep <- !is.na(a) & !is.na(b) & !is.na(x) & a != b & !is.na(w) & w > 0
@@ -316,11 +316,11 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   }
 
   if (!is.null(margin)) {
-    # winner + margin entry: orientation-free by construction. The graded
+    # winner + margin entry: orientation-free by construction. The polytomous
     # response is assembled from "who won" and "by how much"; a winner value
     # matching neither object is a tie and becomes the middle category.
     mg <- data[[margin]]
-    # the margin's level order defines the graded scale, so it must be
+    # the margin's level order defines the polytomous scale, so it must be
     # explicit: an ordered factor (smallest to largest margin) or a numeric
     # magnitude. A plain factor's -- or a character column's -- alphabetical
     # order can silently reverse which margin counts as the big win.
@@ -391,7 +391,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   if (!length(a)) stop("no usable comparisons")
   if (!is.null(ord) && ties == "half")
     stop("exposure analysis is incompatible with ties = 'half';",
-         " drop ties or code them as a graded middle category")
+         " drop ties or code them as a polytomous middle category")
 
   # outcome: 1 = a wins, 0 = b wins; an explicit "tie"/"draw" entry is a
   # tie; anything else matching neither object is missing, not a tie
@@ -429,7 +429,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   }
 
   if (!is.null(ord) || isTRUE(position)) {
-    # exposure/position covariates route through the graded engine, whose two-
+    # exposure/position covariates route through the polytomous engine, whose two-
     # category case reproduces the dichotomous analysis exactly
     Z <- if (is.null(ord)) NULL else
       .btl_exposure(a, b, as.integer(y), 1L, jd, ord, w)
@@ -439,7 +439,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
                        anchors = anchors))
   }
 
-  # the two-category graded engine IS the dichotomous conditional model
+  # the two-category polytomous engine IS the dichotomous conditional model
   # (their equivalence is tested to machine precision), so one estimator
   # serves both routes; m == 1 results are presented as wins / win
   # proportions inside .btl_graded
@@ -484,7 +484,7 @@ print.rasch_btl <- function(x, ...) {
     }
   }
   if (!is.null(x$thresholds)) {
-    cat(sprintf("Graded comparisons in %d categories%s; symmetric thresholds: %s\n",
+    cat(sprintf("Polytomous comparisons in %d categories%s; symmetric thresholds: %s\n",
                 x$m + 1L,
                 if (!is.null(x$categories) &&
                     !all(x$categories == as.character(0:x$m)))
@@ -551,7 +551,7 @@ plot_btl <- function(fit, band = 2.5) {
 }
 
 # ---------------------------------------------------------------------------
-# Graded paired comparisons: the adjacent-categories (Rasch-type) ordinal
+# Polytomous paired comparisons: the adjacent-categories (Rasch-type) ordinal
 # extension of BTL (Tutz 1986; Agresti 1992). The response is one of m+1
 # ordered categories from object_a's perspective ("much worse" ... "much
 # better"); category probabilities follow a partial-credit structure on the
@@ -565,7 +565,7 @@ plot_btl <- function(fit, band = 2.5) {
 .btl_graded <- function(a, b, x, jd, w, cats, maxit, tol, notes,
                         thr = "free", Z = NULL, ord = NULL, anchors = NULL) {
   m <- length(cats) - 1L
-  if (m < 1L) stop("graded responses need at least two categories")
+  if (m < 1L) stop("polytomous responses need at least two categories")
   # identifiability: empty EXTREME categories leave no finite spread (the
   # data are evidence of infinite spread, as a zero raw score is of an
   # infinite person location); empty interior categories are unidentified
@@ -1076,7 +1076,7 @@ plot_btl <- function(fit, band = 2.5) {
                   fit_resid = NA_real_, df = NA_real_, n = sum(w[sel])))
     y2 <- sum(w[sel] * z[sel]^2); f <- f_cell * sum(w[sel])
     # information-weighted infit, as in the dichotomous path but over the
-    # graded response variance
+    # polytomous response variance
     wv <- sum(w[sel] * mo$V[sel])
     infit <- if (wv > 1e-12)
       sum(w[sel] * z[sel]^2 * mo$V[sel]) / (f_cell * wv) else NA_real_
@@ -1142,7 +1142,7 @@ plot_btl <- function(fit, band = 2.5) {
 
   # two categories ARE the dichotomous conditional model, so an m == 1 fit is
   # presented in dichotomous terms: the score is the win count and the mean
-  # graded responses are win proportions (one estimator serves both routes)
+  # polytomous responses are win proportions (one estimator serves both routes)
   if (m == 1L) {
     names(objects)[names(objects) == "score"] <- "wins"
     names(pairs)[names(pairs) == "obs_mean"] <- "obs_prop"
@@ -1194,15 +1194,15 @@ plot_btl <- function(fit, band = 2.5) {
   out
 }
 
-#' Plot graded-comparison category curves
+#' Plot polytomous-comparison category curves
 #'
-#' For a graded paired-comparison fit, the probability of each response
+#' For a polytomous paired-comparison fit, the probability of each response
 #' category as a function of the location difference
 #' \code{beta_a - beta_b}, with the symmetric threshold structure marked.
 #' The display is the paired-comparison counterpart of the category
 #' probability curves of a polytomous item.
 #'
-#' @param fit A graded fit from \code{\link{btl}} (with \code{response}).
+#' @param fit A polytomous fit from \code{\link{btl}} (with \code{response}).
 #' @param grid Difference grid, in logits.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
@@ -1217,7 +1217,7 @@ plot_btl <- function(fit, band = 2.5) {
 #' @export
 plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
   if (is.null(fit$m) || fit$m < 2L)
-    stop("category curves need a graded fit (three or more categories)")
+    stop("category curves need a polytomous fit (three or more categories)")
   tau <- fit$thresholds$tau
   P <- vapply(grid, function(d) item_moments(d, tau)$P, numeric(fit$m + 1L))
   op <- .rr_canvas(range(grid), c(0, 1),
@@ -1238,7 +1238,7 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 #'
 #' The paired-comparison counterpart of the item characteristic curve: the
 #' model expected response for one object as a function of opponent
-#' location (the win probability, or the expected graded response), with
+#' location (the win probability, or the expected polytomous response), with
 #' the observed mean response against each opponent overlaid at that
 #' opponent\'s estimated location. Observed points shrink in toward the
 #' curve as the model holds; an object of inconsistent quality shows
@@ -1304,7 +1304,7 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     n = as.numeric(tapply(wt, opp, sum)))
   op <- .rr_canvas(range(grid), c(0, m), "Opponent location (logits)",
                    if (m == 1L) "Probability preferred" else
-                     "Expected graded response",
+                     "Expected polytomous response",
                    sprintf("%s  (location %.3f)", object, b_o))
   on.exit(par(op))
   lines(grid, Ecurve, lwd = 3, col = .rr$ink)
