@@ -1,0 +1,6 @@
+source("helpers.R")
+d <- sim_mfrm_dif(150, 6, 6, dif_item = "I3", dif_shift = 1.0, seed = 1)
+mf <- rasch_mfrm(d, person="person", item="item", score="score", facets="rater", factors="group")
+ds <- dif_size(mf, "I3", by="group")
+print(ds$notes)
+print(ds$levels)

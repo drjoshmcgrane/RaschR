@@ -1,0 +1,5 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+d <- simulate_btl(n_objects=8, n_judges=12, reps_per_pair=25, seed=6001)
+f <- btl(d, "object_a","object_b", winner="winner", judge="judge")
+cat("total_df:", f$total_df, " pairs_used:", sum(f$pairs$n>=2), " K:", nrow(f$objects), "\n")
+cat("K-1:", nrow(f$objects)-1, " matches total_df - pairs_used + ... :", sum(f$pairs$n>=2) - f$total_df, "\n")

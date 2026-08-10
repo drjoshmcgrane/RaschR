@@ -1,0 +1,23 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+t0 <- Sys.time()
+d <- simulate_btl(n_objects=8, n_judges=12, reps_per_pair=25, seed=1)
+f <- btl(d, "object_a","object_b", winner="winner", judge="judge")
+t1 <- Sys.time()
+cat("one sim+fit (dichotomous, K=8,J=12):", as.numeric(t1-t0,units="secs"), "s\n")
+cat("n_comparisons:", f$n_comparisons, "\n")
+
+t0 <- Sys.time()
+dg <- simulate_btl(n_objects=8, n_judges=12, reps_per_pair=25, model="graded", n_categories=4, seed=1)
+fg <- btl(dg, "object_a","object_b", response="response", judge="judge")
+t1 <- Sys.time()
+cat("one sim+fit (graded,K=8,J=12):", as.numeric(t1-t0,units="secs"), "s\n")
+
+t0 <- Sys.time()
+td <- btl_transitivity(f)
+tt1 <- Sys.time()
+cat("transitivity:", as.numeric(tt1-t0,units="secs"),"\n")
+
+t0 <- Sys.time()
+bd <- btl_dimensionality(f, reps=50)
+t1 <- Sys.time()
+cat("dimensionality reps=50:", as.numeric(t1-t0,units="secs"),"\n")

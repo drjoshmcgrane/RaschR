@@ -11,7 +11,8 @@
 # replicates -- redrawing the truth each replicate folds between-replicate
 # truth variation into the "empirical SD" and fakes a calibration failure.
 
-suppressWarnings(pkgload::load_all("/Users/josh/Documents/Claude_Code/rmt", quiet=TRUE))
+# run from the package root: Rscript tools/calibration.R
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 ok <- function(l,v) cat(sprintf("%-64s %s\n", l, v))
 
 ## A. pcml dichotomous item-location SEs, 150 reps (band should be tight)

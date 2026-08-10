@@ -1,0 +1,6 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+d2 <- simulate_rasch(1200, 20, difficulty = c(-2.5, 2.5), theta_sd = 1.2, missing = 0.25, seed = 201)
+f2 <- rasch(d2, id = "id")
+r2 <- sim_recovery(f2, d2)
+print(r2$summary)
+cat("mean n_items observed per person:", mean(f2$person$n_items), "of 20\n")

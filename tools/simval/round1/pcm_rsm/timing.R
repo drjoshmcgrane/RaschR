@@ -1,0 +1,12 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+t0 <- Sys.time()
+d <- simulate_rasch(n_persons=500, n_items=8, model="PCM", n_categories=4, seed=1)
+fit <- rasch(d, model="PCM")
+t1 <- Sys.time()
+cat("PCM 500x8 m3:", as.numeric(t1-t0, units="secs"), "s\n")
+
+t0 <- Sys.time()
+d2 <- simulate_rasch(n_persons=800, n_items=10, model="RSM", n_categories=4, seed=1)
+fit2 <- rasch(d2, model="RSM")
+t1 <- Sys.time()
+cat("RSM 800x10 m3:", as.numeric(t1-t0, units="secs"), "s\n")

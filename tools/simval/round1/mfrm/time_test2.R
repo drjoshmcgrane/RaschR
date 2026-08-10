@@ -1,0 +1,7 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+t0 <- Sys.time()
+d <- simulate_mfrm(120, 6, 8, n_categories=4, rater_severity_sd=0.7, seed=1)
+mf <- rasch_mfrm(d, person="person", item="item", score="score", facets="rater", interaction="rater")
+t1 <- Sys.time()
+cat("interaction fit time:", as.numeric(t1-t0, units="secs"), "s\n")
+print(mf$interaction_test)

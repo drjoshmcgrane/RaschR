@@ -1,0 +1,10 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+set.seed(9)
+d <- simulate_btl(n_objects=12, n_judges=16, reps_per_pair=40,
+                   second_attribute=list(rho=0.0), seed=9)
+f <- btl(d, "object_a","object_b", winner="winner", judge="judge")
+bd <- btl_dimensionality(f, reps=150)
+print(bd$bimensions)
+cat("leading_structured:", bd$leading_structured, "\n")
+tr <- attr(d,"truth")
+cat("cor(location,location2):", cor(tr$location, tr$location2), "\n")

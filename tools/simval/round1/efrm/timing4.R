@@ -1,0 +1,7 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+set.seed(5)
+d <- simulate_efrm(300, 8, n_sets=3, n_groups=3, set_unit_ratio=1.3, group_unit_ratio=1.3, seed=5)
+t1 <- system.time(fit <- rasch_efrm(d, item_sets=attr(d,"truth")$item_sets, groups="group", se_method="hybrid"))
+print(t1)
+print(fit$alpha_table)
+print(fit$phi_table)

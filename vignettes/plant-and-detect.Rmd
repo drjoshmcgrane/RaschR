@@ -261,7 +261,10 @@ within 0.85--1.20, most within a few percent of 1); significance tests
 against their nominal rates under model-true data; and every diagnostic
 against its planted departure for power. The identification guards are
 exercised in both directions: connected linked designs fit and recover well,
-while genuinely disconnected designs are refused rather than fitted.
+while genuinely disconnected designs are refused rather than fitted. The
+battery's scripts (seeds inline) and its per-check result table are kept in
+the package sources under `tools/simval/`, so every number is reproducible
+from the repository.
 
 One correction came out of the battery. `dependence_magnitude` followed
 Andrich and Marais (2019, eqs. 24.9--24.11) in pooling the two resolved
@@ -271,8 +274,11 @@ are negatively correlated through the shared comparator items, and the
 pooled standard error is too small: with ten items, the null rejection rate
 was 7.5% at a nominal 5% over 1,200 replicates. Since release 1.14.2 the
 standard error is the delta-method contrast over the fit's sandwich
-covariance, which restores the nominal rate (5.4% observed) and carries over
-unchanged to the polytomous case. The estimate of *d* itself is unaffected.
+covariance, which restores the nominal rate: 4.8% over 400 fresh-seed
+replicates (Monte Carlo error about 1 percentage point), 3.5% for the
+partial credit case, and 5.4% when the corrected formula is applied to the
+original 1,200 diagnostic replicates. The estimate of *d* itself is
+unaffected.
 
 ## References
 

@@ -21,3 +21,4 @@
 ^Rplots\.pdf$
 ^tests/testthat/_problems$
 ^figure$
+^tools/simval$

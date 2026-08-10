@@ -1,0 +1,7 @@
+source("helpers.R")
+t0<-Sys.time()
+d <- sim_mfrm_dif(200, 6, 6, dif_item="I3", dif_shift=0, seed=1)
+mf <- rasch_mfrm(d, person="person", item="item", score="score", facets="rater", factors="group")
+da <- dif_anova(mf)
+t1<-Sys.time()
+cat("total time:", as.numeric(t1-t0,units="secs"),"\n")

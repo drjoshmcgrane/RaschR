@@ -1,0 +1,18 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+t0 <- Sys.time()
+d <- simulate_rasch(500, 15, seed=1)
+fit <- rasch(d, id="id")
+t1 <- Sys.time()
+cat("rasch fit time:", as.numeric(t1-t0,units="secs"), "\n")
+
+t0 <- Sys.time()
+d2 <- simulate_btl(8, 12, reps_per_pair=25, seed=1)
+bt <- btl(d2, "object_a","object_b", winner="winner", judge="judge")
+t1 <- Sys.time()
+cat("btl fit time:", as.numeric(t1-t0,units="secs"), "\n")
+
+t0 <- Sys.time()
+d3 <- simulate_rasch(250, 8, seed=1)
+fit3 <- rasch(d3, id="id")
+t1 <- Sys.time()
+cat("small rasch fit time:", as.numeric(t1-t0,units="secs"), "\n")

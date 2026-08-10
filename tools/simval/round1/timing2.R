@@ -1,0 +1,13 @@
+suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+set.seed(1)
+N <- 250
+d <- seq(-2, 2.5, length.out = 8); th <- rnorm(N)
+P <- plogis(outer(th, d, "-"))
+X <- matrix(rbinom(N * 8, 1, P), N, 8)
+colnames(X) <- paste0("I", 1:8)
+fit <- rasch(X)
+t0 <- Sys.time()
+ta <- tailored_analysis(fit, chance=0.25, se_method="bootstrap", boot_reps=50)
+t1 <- Sys.time()
+cat("50 boot reps time:", as.numeric(t1-t0,units="secs"), "\n")
+print(ta$n_removed)

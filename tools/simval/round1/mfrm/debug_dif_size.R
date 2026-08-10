@@ -1,0 +1,5 @@
+source("helpers.R")
+d <- sim_mfrm_dif(150, 6, 6, dif_item = "I3", dif_shift = 1.0, seed = 1)
+mf <- rasch_mfrm(d, person="person", item="item", score="score", facets="rater", factors="group")
+cat("length person id:", length(mf$person$id), " unique:", length(unique(mf$person$id)), "\n")
+cat(anyDuplicated(mf$person$id), "\n")
