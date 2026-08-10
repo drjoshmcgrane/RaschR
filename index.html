@@ -72,13 +72,13 @@
 </div>
 <!-- badges: start -->
 
-<p><code>rasch</code> implements Rasch Measurement Theory in R. It provides a common set of models and diagnostics for constructing measurement scales and examining whether the requirements of the Rasch model are supported by the data.</p>
+<p><code>rasch</code> implements Rasch Measurement Theory (Rasch 1960, 1961) in R. It provides a common set of models and diagnostics for constructing measurement scales and examining whether the requirements of the Rasch model are supported by the data.</p>
 <p>The package is organised around two defining properties of Rasch measurement:</p>
 <ul>
 <li>
 <strong>Sufficiency:</strong> the total score on the relevant items carries all the information in the data about a person’s measure (and the item margins all the information about the items) – the property that allows person and item parameters to be separated in conditional estimation.</li>
 <li>
-<strong>Invariance:</strong> within a specified frame of reference, comparisons between persons do not depend on which items are used, and comparisons between items do not depend on which persons respond – Rasch’s criterion of invariant comparison (specific objectivity).</li>
+<strong>Invariance:</strong> within a specified frame of reference, comparisons between persons do not depend on which items are used, and comparisons between items do not depend on which persons respond – Rasch’s criterion of invariant comparison, or specific objectivity (Rasch 1961).</li>
 </ul>
 <p>These are requirements the data must meet for measurement, not assumptions taken on trust. The package therefore treats estimation and the assessment of these requirements as parts of the same analysis: it provides item and person estimates, and with them the fit, dimensionality, local dependence and differential item functioning analyses that examine whether the data sustain invariant comparisons – differential item functioning, for example, is precisely a violation of invariance across person groups.</p>
 <p><strong>Documentation:</strong> <a href="https://drjoshmcgrane.github.io/rasch/" class="uri">https://drjoshmcgrane.github.io/rasch/</a></p>

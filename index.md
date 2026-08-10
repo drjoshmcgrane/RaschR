@@ -1,9 +1,9 @@
 # rasch: Models and Diagnostics for Rasch Measurement Theory
 
-`rasch` implements Rasch Measurement Theory in R. It provides a common
-set of models and diagnostics for constructing measurement scales and
-examining whether the requirements of the Rasch model are supported by
-the data.
+`rasch` implements Rasch Measurement Theory (Rasch 1960, 1961) in R. It
+provides a common set of models and diagnostics for constructing
+measurement scales and examining whether the requirements of the Rasch
+model are supported by the data.
 
 The package is organised around two defining properties of Rasch
 measurement:
@@ -15,7 +15,8 @@ measurement:
 - **Invariance:** within a specified frame of reference, comparisons
   between persons do not depend on which items are used, and comparisons
   between items do not depend on which persons respond – Rasch’s
-  criterion of invariant comparison (specific objectivity).
+  criterion of invariant comparison, or specific objectivity (Rasch
+  1961).
 
 These are requirements the data must meet for measurement, not
 assumptions taken on trust. The package therefore treats estimation and
