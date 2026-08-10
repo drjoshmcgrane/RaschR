@@ -1,4 +1,4 @@
-#' rasch: An R Implementation of Rasch Measurement Theory
+#' rasch: Models and Diagnostics for Rasch Measurement Theory
 #'
 #' Implements Rasch Measurement Theory for the construction and evaluation of
 #' measurement scales. The package is organised around sufficiency and

@@ -14,7 +14,7 @@ template:
     pkgdown-nav-height: 72px
 
 home:
-  title: "rasch: An R Implementation of Rasch Measurement Theory"
+  title: "rasch: Models and Diagnostics for Rasch Measurement Theory"
   description: >
     Rasch Measurement Theory in R, with models and diagnostics organised
     around the properties of sufficiency and invariance, plus a guided

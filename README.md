@@ -1,4 +1,4 @@
-# rasch: An R Implementation of Rasch Measurement Theory <img src="man/figures/logo.png" align="right" height="139" alt="rasch hex logo" />
+# rasch: Models and Diagnostics for Rasch Measurement Theory <img src="man/figures/logo.png" align="right" height="139" alt="rasch hex logo" />
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/rasch)](https://CRAN.R-project.org/package=rasch)
@@ -45,7 +45,7 @@ can then be completed through the point-and-click interface without writing R
 code.
 
 <p align="center">
-  <img src="man/figures/app-trait.png" alt="The rasch Shiny interface showing residual component results" width="90%" />
+  <img src="man/figures/app-items.png" alt="The rasch Shiny interface: the item statistics table (locations, fit residuals, infit and outfit, adjusted chi-square p) beside the selected item's characteristic curve with observed class-interval points" width="90%" />
 </p>
 
 ## Models

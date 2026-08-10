@@ -3,7 +3,7 @@
 \docType{package}
 \name{rasch-package}
 \alias{rasch-package}
-\title{rasch: An R Implementation of Rasch Measurement Theory}
+\title{rasch: Models and Diagnostics for Rasch Measurement Theory}
 \description{
 Implements Rasch Measurement Theory for the construction and evaluation of
 measurement scales. The package is organised around sufficiency and
