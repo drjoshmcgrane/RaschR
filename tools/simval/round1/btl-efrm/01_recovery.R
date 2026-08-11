@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 t_start <- Sys.time()
 
 run_condition <- function(label, panel_units, set_units, set_origins, n_rep = 60, seed0 = 1000) {

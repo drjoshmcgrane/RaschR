@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(2)
 for (disc in c(2.8, 4, 6, 8, 12)) {
   fr <- replicate(25, {

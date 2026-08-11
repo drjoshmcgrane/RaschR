@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 make_booklet <- function(d) {
   N <- nrow(d)
   grp <- sample(c("A","B"), N, replace = TRUE)

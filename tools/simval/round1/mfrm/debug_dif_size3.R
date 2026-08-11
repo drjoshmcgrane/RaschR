@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 for (shift in c(0.4, 0.6, 0.8)) {
   d <- sim_mfrm_dif(200, 6, 6, dif_item = "I3", dif_shift = shift, seed = 1)
   mf <- rasch_mfrm(d, person="person", item="item", score="score", facets="rater", factors="group")

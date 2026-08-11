@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(42)
 d <- simulate_rasch(n_persons=600, n_items=10, model="PCM", n_categories=4,
                      difficulty=c(-2,2), threshold_spread=1.3, seed=42)

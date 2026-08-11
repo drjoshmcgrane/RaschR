@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 # ---- NULL: unidimensional, short test (8 dichotomous items -> caution expected) ----
 NREPS <- 300

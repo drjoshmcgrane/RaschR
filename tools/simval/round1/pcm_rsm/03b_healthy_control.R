@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 healthy_rate <- c()
 for (r in seq_len(60)) {
   d <- simulate_rasch(n_persons = 1000, n_items = 5, model = "PCM",

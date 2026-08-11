@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 REPS_NULL <- if (length(args) >= 1) as.integer(args[1]) else 100
@@ -49,5 +49,5 @@ cat(sprintf("  P(reject at alpha=.05) = %.4f (MC se %.4f), n=%d\n",
 
 saveRDS(list(null_rate = null_rate, n_null = length(p_null),
             power_rate = power_rate, n_power = length(p_pow)),
-        "check3_results.rds")
+        "tools/simval/round1/mfrm/check3_results.rds")
 cat("\n=== DONE check3 ===\n")

@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 flag_z <- 2.5   # same threshold the package's own print.rasch_btl uses
 

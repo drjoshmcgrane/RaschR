@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 ## --- (2a) graded threshold recovery: free thresholds -----------------------
 set.seed(21)

@@ -634,3 +634,31 @@ test_that("btl_information no longer claims se sits above se_naive", {
   expect_false(any(grepl("as a rule", bi$notes)))
   expect_true(any(grepl("not a bound", bi$notes)))
 })
+
+test_that("clustered inference requires effective, not just nominal, judges", {
+  set.seed(4); K <- 6
+  objs <- paste0("O", 1:K)
+  beta <- setNames(seq(-1, 1, length.out = K), objs)
+  pr <- t(utils::combn(objs, 2))
+  gen <- function(J, share) {
+    jids <- paste0("J", seq_len(J))
+    d <- data.frame(object_a = rep(pr[, 1], each = 30),
+                    object_b = rep(pr[, 2], each = 30))
+    prob <- if (is.na(share)) rep(1/J, J) else c(share, rep((1-share)/(J-1), J-1))
+    d$judge <- sample(jids, nrow(d), replace = TRUE, prob = prob)
+    lp <- beta[d$object_a] - beta[d$object_b]
+    d$winner <- ifelse(rbinom(nrow(d), 1, plogis(lp)) == 1, d$object_a, d$object_b)
+    d
+  }
+  # balanced 12 judges: inference on, no concentration caution
+  fb <- btl(gen(12, NA), "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_true(fb$cl$inference_available)
+  expect_gt(fb$cl$n_units_effective, 8.5)
+  expect_false(any(grepl("uneven", fb$notes)))
+  # one judge does ~55% of comparisons among 20: withheld for concentration
+  fs <- btl(gen(20, 0.55), "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_false(fs$cl$inference_available)
+  expect_lt(fs$cl$n_units_effective, 6)
+  expect_true(any(grepl("concentrat", fs$notes)))
+  expect_true(all(is.na(fs$objects$se)))
+})

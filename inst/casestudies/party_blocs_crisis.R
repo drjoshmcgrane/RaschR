@@ -110,7 +110,7 @@ cat(sprintf("se(log phi): bootstrap %.3f, judge-clustered conditional %.3f\n",
             f$phi_table$se_log_phi[1], fc$phi_table$se_log_phi[1]))
 cat(sprintf("phi ratio %.2f: z = %.2f (bootstrap), %.2f (conditional)\n",
             max(f$phi_table$phi) / min(f$phi_table$phi),
-            abs(f$phi_table$z[1]), abs(fc$phi_table$z[1])))
+            abs(f$phi_table$t[1]), abs(fc$phi_table$t[1])))
 
 # sensitivity: other panel definitions ---------------------------------------
 # Neither gender nor education (university versus school-level, the sample's
@@ -127,7 +127,7 @@ for (pv in c("gender", "educ")) {
   cat(sprintf("%s: phi = %s; |z| = %.2f\n", pv,
               paste(sprintf("%.2f (%s)", fs$phi_table$phi,
                             fs$phi_table$panel), collapse = ", "),
-              abs(fs$phi_table$z[1])))
+              abs(fs$phi_table$t[1])))
 }
 
 # the visual: one unit per frame ---------------------------------------------

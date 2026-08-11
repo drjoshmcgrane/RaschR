@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 REPS_NULL <- if (length(args) >= 1) as.integer(args[1]) else 80
@@ -75,5 +75,5 @@ cat(sprintf("  recovered B-A magnitude: mean=%.3f (true=%.2f), sd=%.3f, MC se of
 saveRDS(list(null_rate = null_rate, n_null = length(flag_null),
             power_rate = power_rate, n_power = length(flag_pow),
             mag_mean = mag_mean, mag_sd = mag_sd, mag_se = mag_se, n_mag = length(diffs)),
-        "check4_results.rds")
+        "tools/simval/round1/mfrm/check4_results.rds")
 cat("\n=== DONE check4 ===\n")

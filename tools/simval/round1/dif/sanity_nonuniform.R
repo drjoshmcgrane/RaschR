@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 target_item <- "I06"
 for (shift in c(0.6, 1.0, 1.5, 2.0)) {
   flags <- c()

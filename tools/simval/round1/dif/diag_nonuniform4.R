@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 target_item <- "I10"
 for (N in c(1500)) {
  for (shift in c(1.5, 2.5)) {

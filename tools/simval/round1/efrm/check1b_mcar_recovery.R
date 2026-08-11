@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 t0 <- Sys.time()
 
 apply_mcar <- function(d, p, seed) {

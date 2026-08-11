@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 t0 <- Sys.time()
 d <- simulate_rasch(500, 20, dif = list(items = "I06", uniform = 0.7),

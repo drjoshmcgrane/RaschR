@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 source("tools/simval/round1/efrm/sim_crossed.R")
 t0 <- Sys.time()
 

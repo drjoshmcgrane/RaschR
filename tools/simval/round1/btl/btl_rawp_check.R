@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 sim_btl_beta <- function(beta, n_judges = 12, reps_per_pair = 25, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   objs <- names(beta); K <- length(objs)

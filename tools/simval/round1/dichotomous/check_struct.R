@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 d <- simulate_rasch(300, 10, difficulty=c(-2,2), seed=1)
 f <- rasch(d, id="id")
 r <- sim_recovery(f, d)

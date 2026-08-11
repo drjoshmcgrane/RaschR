@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 pick_pcm <- function(n_persons, spread, nrep, seed0) {
   hits <- 0; ok <- 0
   for (r in seq_len(nrep)) {

@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 I <- 15; N <- 500
 delta0 <- seq(-2.5, 2.5, length.out = I)
 set.seed(51)

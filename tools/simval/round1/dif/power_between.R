@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 t_start <- Sys.time()
 
 N <- 500; n_items <- 20; reps <- 250

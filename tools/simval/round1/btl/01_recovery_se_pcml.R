@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(1)
 
 ## --- (1a) Point recovery: one largeish dataset, full round robin ----------

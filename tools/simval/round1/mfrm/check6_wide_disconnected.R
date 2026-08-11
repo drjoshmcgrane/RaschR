@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 cat("=== Wide vs long input equivalence ===\n")
 d_long <- simulate_mfrm(120, 5, 6, n_categories = 4, rater_severity_sd = 0.7, seed = 6001)
@@ -53,5 +53,5 @@ cat(sprintf("  fits without error once linked: %s\n", connected_ok))
 
 saveRDS(list(max_abs_diff_sev = max_abs_diff_sev, max_abs_diff_se = max_abs_diff_se,
             max_abs_diff_loc = max_abs_diff_loc, refused = refused,
-            connected_ok = connected_ok), "check6_results.rds")
+            connected_ok = connected_ok), "tools/simval/round1/mfrm/check6_results.rds")
 cat("\n=== DONE check6 ===\n")

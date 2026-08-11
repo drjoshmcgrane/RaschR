@@ -1,6 +1,6 @@
 a <- commandArgs(TRUE)
 offset <- as.integer(a[1]); nreps <- as.integer(a[2]); outfile <- a[3]
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 N <- 800; I <- 10
 out <- matrix(NA_real_, nreps, 9, dimnames=list(NULL,
   c("seed","d","se_naive","se_corr","tau_lo","tau_hi","cv_lohi","n_lo1","spread")))

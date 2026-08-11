@@ -1,5 +1,5 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
-source("gen_repeated.R")
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
+source("tools/simval/round1/dif/gen_repeated.R")
 # (b) structural differential missingness, no "missing=" argument used
 n_items_b <- 20; skip_idx <- 16:20; N_b <- 600
 d <- simulate_rasch(N_b, n_items_b, n_groups = 2, seed = 1)

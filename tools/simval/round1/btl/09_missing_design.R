@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 ## --- (9a) ~25% MCAR: recovery + SE calibration + pairwise chi-sq null ------
 n_rep <- 150

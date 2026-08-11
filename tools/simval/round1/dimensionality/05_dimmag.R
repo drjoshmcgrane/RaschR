@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 N <- 600
 d <- rep(seq(-1.5, 1.5, length.out = 6), 2)

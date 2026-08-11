@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 t_start <- Sys.time()
 alpha_level <- 0.05
 

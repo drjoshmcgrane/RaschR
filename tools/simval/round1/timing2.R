@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(1)
 N <- 250
 d <- seq(-2, 2.5, length.out = 8); th <- rnorm(N)

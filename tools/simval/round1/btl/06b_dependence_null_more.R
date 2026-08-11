@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 n_rep <- 400
 K <- 8; J <- 14; reps_pp <- 25
 alpha <- 0.05

@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 d <- simulate_mfrm(150, 6, 8, n_categories=4, theta_sd=1.2, item_sd=1, rater_severity_sd=0.7, halo=0.25, seed=11)
 truth <- attr(d,"truth")
 cat("halo raters:", truth$halo, "\n")

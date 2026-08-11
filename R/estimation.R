@@ -126,18 +126,35 @@ threshold_index <- function(m) {
 # NA standard error and a note naming the cause -- an honest answer, not a
 # manufactured one. Categories with zero responses are the caller's problem
 # (rasch() rescores them away); the danger zone handled here is 1-2.
-.pcml_weak_thresholds <- function(X, m, thr, item_names, min_count = 3L) {
+.pcml_weak_thresholds <- function(X, m, thr, item_names, min_count = 3L,
+                                  min_item_count = 8L) {
   flag <- logical(nrow(thr)); notes <- character(0)
   for (i in seq_len(ncol(X))) {
     cnt <- tabulate(X[, i] + 1L, nbins = m[i] + 1L)
     weak_k <- which(pmin(cnt[-length(cnt)], cnt[-1]) < min_count)
-    if (!length(weak_k)) next
-    flag[thr$item == i & thr$k %in% weak_k] <- TRUE
-    kc <- which(cnt < min_count) - 1L
-    notes <- c(notes, sprintf(
-      "item %s: only %s response(s) in category %s; threshold(s) %s and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories",
-      item_names[i], paste(cnt[kc + 1L], collapse = "/"),
-      paste(kc, collapse = "/"), paste(weak_k, collapse = "/")))
+    if (length(weak_k)) {
+      flag[thr$item == i & thr$k %in% weak_k] <- TRUE
+      kc <- which(cnt < min_count) - 1L
+      notes <- c(notes, sprintf(
+        "item %s: only %s response(s) in category %s; threshold(s) %s and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories",
+        item_names[i], paste(cnt[kc + 1L], collapse = "/"),
+        paste(kc, collapse = "/"), paste(weak_k, collapse = "/")))
+    }
+    # an item's thresholds are estimated JOINTLY, so a critically sparse
+    # category destabilises its siblings too, not only the adjacent
+    # threshold: in simulation, a ~4-response category left a sibling
+    # threshold's reported SE understated four-fold while its own local
+    # counts looked healthy (~7 responses gave ~1.7x). Flag the whole item
+    # once any category falls below min_item_count.
+    kc_it <- which(cnt < min_item_count) - 1L
+    if (length(kc_it) && any(!flag[thr$item == i])) {
+      already <- all(flag[thr$item == i])
+      flag[thr$item == i] <- TRUE
+      if (!already) notes <- c(notes, sprintf(
+        "item %s: category %s has only %s response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories",
+        item_names[i], paste(kc_it, collapse = "/"),
+        paste(cnt[kc_it + 1L], collapse = "/")))
+    }
   }
   list(flag = flag, notes = notes)
 }

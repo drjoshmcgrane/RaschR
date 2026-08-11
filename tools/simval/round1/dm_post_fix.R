@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 run <- function(nreps, gen, dep, ind, tag) {
   p <- numeric(nreps); d <- numeric(nreps); se <- numeric(nreps)
   for (r in seq_len(nreps)) {

@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 N <- 800; I <- 10; NREPS <- 300
 out <- matrix(NA_real_, NREPS, 6,
   dimnames=list(NULL, c("d","se_naive","se_corr","tau_lo","tau_hi","cv_lohi")))

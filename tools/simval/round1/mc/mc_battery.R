@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 `%||%` <- function(a, b) if (is.null(a)) b else a
 log <- function(...) cat(sprintf(...), "\n")
 results <- list()

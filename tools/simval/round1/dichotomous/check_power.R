@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(1)
 fr <- replicate(40, {
   d <- simulate_rasch(500, 15, difficulty=c(-2,2), discrimination=c(2.8, rep(1,14)))

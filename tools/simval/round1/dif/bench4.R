@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 d <- simulate_rasch(2000, 20, dif = list(items = "I06", uniform = 0.7),
                      n_groups = 2, seed = 1)
 tr <- attr(d, "truth")

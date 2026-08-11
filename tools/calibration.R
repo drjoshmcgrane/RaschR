@@ -4,7 +4,8 @@
 # variability of its estimator on model-true data (the check that exposed the
 # count-weighted BTL sandwich inflation). Run on demand:
 #   Rscript tools/calibration.R
-# Pass bands: SE-ratio in ~[0.85, 1.20] for the replicated paths; anchored
+# Pass bands: SE-ratio (empirical SD / mean reported SE, the convention
+# used across tools/simval) in ~[0.85, 1.20] for the replicated paths; anchored
 # translation equivalence to numerical precision.
 #
 # DESIGN RULE (learned the hard way): hold the TRUE parameters FIXED across
@@ -23,7 +24,7 @@ for (r in 1:150) { set.seed(5000+r)
   th <- rnorm(Np, 0, 1.3)
   X <- matrix(rbinom(Np*L,1,plogis(outer(th,dtrue,"-"))), Np, L)
   f <- pcml(X); est[r,] <- f$thr$tau; ses[r,] <- f$thr$se }
-rA <- colMeans(ses)/apply(est,2,sd)
+rA <- apply(est,2,sd)/colMeans(ses)
 ok("A pcml dichot SE ratio per item (min..max)", sprintf("%.2f .. %.2f", min(rA), max(rA)))
 
 ## B. PCM threshold SEs, 100 reps
@@ -38,7 +39,7 @@ for (r in 1:100) { set.seed(6000+r)
   colnames(X) <- sprintf("P%d", 1:6)
   f <- rasch(X, model="PCM")
   estB[r,] <- f$thresholds$tau; sesB[r,] <- f$thresholds$se }
-rB <- colMeans(sesB)/apply(estB,2,sd)
+rB <- apply(estB,2,sd)/colMeans(sesB)
 ok("B PCM threshold SE ratio (min..max)", sprintf("%.2f .. %.2f", min(rB), max(rB)))
 
 ## C. anchored rasch at distant origins
@@ -74,7 +75,7 @@ for (r in 1:120) { set.seed(7000+r)
   estD[r,] <- fe$severity[match(names(lam), fe$level)]
   sesD[r,] <- fe$se[match(names(lam), fe$level)]
 }
-rD <- colMeans(sesD)/apply(estD,2,sd)
+rD <- apply(estD,2,sd)/colMeans(sesD)
 ok("D MFRM severity SE ratio, fixed truth (min..max)",
    sprintf("%.2f .. %.2f", min(rD), max(rD)))
 
@@ -86,23 +87,39 @@ for (r in 1:100) { set.seed(8000+r)
   ds <- dif_size(f, "I05", by="group")
   diffs[r] <- ds$pairs$difference; sesE[r] <- ds$pairs$se }
 ok("E dif_size: empSD vs mean reported SE", sprintf("%.3f vs %.3f (ratio %.2f)",
-   sd(diffs), mean(sesE), mean(sesE)/sd(diffs)))
+   sd(diffs), mean(sesE), sd(diffs)/mean(sesE)))
 ok("E dif_size: mean recovered diff (planted 0.8)", sprintf("%.3f", mean(abs(diffs))))
 
-## F. person WLE SEs at fixed true theta, complete data
+## F. person WLE coverage over a theta grid, fixed calibration (compact form
+## of tools/simval/studies/wle-coverage.R; see that script for the full
+## per-grid-point study, >=1000/400 reps, and the identification-artifact
+## write-up). One large calibration held fixed; "offset" shifts the TRUE
+## person theta relative to the FIXED item bank (not the item bank itself --
+## a uniform item-location shift is exactly absorbed by rasch()'s mean-zero
+## recentring and would be a degenerate, not a targeting, manipulation).
 set.seed(9); dv <- seq(-2,2,length.out=12)
-for (th0 in c(0, 1.5)) {
-  ests <- numeric(400); se_rep <- NA
-  # item params treated as known-ish: use one large calibration, then repeated persons
-  Xc <- matrix(rbinom(1500*12,1,plogis(outer(rnorm(1500,0,1.4),dv,"-"))),1500,12)
-  colnames(Xc) <- sprintf("I%02d",1:12)
-  fc <- rasch(Xc)
-  st <- person_wle(fc$tau_list)
-  for (r in 1:400) { set.seed(9000+r)
-    x <- rbinom(12,1,plogis(th0-dv)); s <- sum(x)
-    ests[r] <- st$theta[as.character(s)] }
-  # reported SE at the MEAN raw score
-  s_typ <- as.character(round(mean(vapply(1:400, function(r){set.seed(9000+r); sum(rbinom(12,1,plogis(th0-dv)))},0))))
-  ok(sprintf("F WLE at theta=%.1f: empSD vs reported SE", th0),
-     sprintf("%.3f vs %.3f", sd(ests, na.rm=TRUE), st$se[s_typ]))
+Xc <- matrix(rbinom(1500*12,1,plogis(outer(rnorm(1500,0,1.4),dv,"-"))),1500,12)
+colnames(Xc) <- sprintf("I%02d",1:12)
+fc <- rasch(Xc); st <- person_wle(fc$tau_list)
+grid <- seq(-3,3,by=0.75); reps_f <- 500
+for (offset in c(0,1)) {
+  cov <- bias <- se_r <- ext <- numeric(length(grid))
+  for (gi in seq_along(grid)) {
+    th_true <- grid[gi] + offset
+    set.seed(9000L + offset*1000L + gi)
+    p <- plogis(th_true - dv)
+    X <- matrix(rbinom(reps_f*12,1,rep(p,each=reps_f)),reps_f,12)
+    raw <- rowSums(X); key <- as.character(raw)
+    est <- unname(st$theta[key]); se <- unname(st$se[key])
+    cov[gi]  <- mean(abs(est-th_true) <= 1.96*se)
+    bias[gi] <- mean(est-th_true)
+    se_r[gi] <- sd(est)/mean(se)
+    ext[gi]  <- mean(raw==0L | raw==12L)          # extreme (0/perfect) raw-score rate
+  }
+  worst <- which.max(abs(bias))
+  ok(sprintf("F WLE grid coverage, offset=%+d: range / SEratio range / worst bias", offset),
+     sprintf("%.3f..%.3f / %.2f..%.2f / %.3f at theta=%.2f",
+             min(cov), max(cov), min(se_r), max(se_r), bias[worst], grid[worst]+offset))
+  ok(sprintf("F WLE offset=%+d: extreme-score rate at |theta|>=2.25 (max over grid)", offset),
+     sprintf("%.3f (all Warm WLEs finite, none refused)", max(ext[abs(grid+offset) >= 2.25])))
 }

@@ -1,7 +1,7 @@
 ## Simulation validation battery: dichotomous Rasch model core
 ## Area: recovery, SE calibration, null calibration, power, PSI/alpha,
 ## score table monotonicity, under complete / 25% MCAR / structural booklet.
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 set.seed(20260810)
 
 RESULTS <- list()
@@ -409,7 +409,7 @@ add("dichotomous-core", "recovery stability across booklet replicates", "linked 
 ## =========================================================================
 ## write results
 ## =========================================================================
-saveRDS(RESULTS, "results.rds")
+saveRDS(RESULTS, "tools/simval/round1/dichotomous/results.rds")
 lap("ALL DONE")
 cat(sprintf("\nTotal checks: %d, PASS: %d, FAIL: %d\n", length(RESULTS),
             sum(vapply(RESULTS, function(r) isTRUE(r$pass), TRUE)),

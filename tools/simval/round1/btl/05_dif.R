@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 n_rep <- 200
 K <- 6; J <- 12  # >= 10 judges, clears btl_dif's cluster-inference guard

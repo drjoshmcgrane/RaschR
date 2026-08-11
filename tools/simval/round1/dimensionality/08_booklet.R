@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 # Booklet (structural missing) design: 12-item bank, 3 booklets of 6 items,
 # chain-linked with a 2-item anchor between adjacent booklets:

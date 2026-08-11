@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 t_start <- Sys.time()
 
 run_between_null <- function(n_groups, n_persons, n_items, reps, seed0) {

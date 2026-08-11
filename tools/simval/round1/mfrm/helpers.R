@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 
 # ---- custom DIF generator (simulate_mfrm has no `dif=` argument) ----------
 # Mirrors simulate_mfrm()'s generation code (R/simulate.R), adding a 2-level

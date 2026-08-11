@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(42)
 N <- 3000
 delta <- c(I1 = -0.9, I2 = -0.1, I3 = 0.3, I4 = 0.7)

@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(7)
 n_per_group <- 250
 d <- simulate_efrm(n_per_group, 8, n_sets=2, n_groups=2, set_unit_ratio=1.3, group_unit_ratio=1, seed=7)

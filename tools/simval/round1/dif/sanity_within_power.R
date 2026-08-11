@@ -1,5 +1,5 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
-source("gen_repeated.R")
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
+source("tools/simval/round1/dif/gen_repeated.R")
 long <- gen_repeated(N=300, n_items=8, g_levels=1, occ_levels=2, occ_dif_item=4, occ_dif_shift=0.7, seed=1)
 str(long)
 item_cols <- sprintf("I%02d", 1:8)

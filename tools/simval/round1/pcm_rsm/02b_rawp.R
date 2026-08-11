@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 p_flags <- c(); p_adj_flags <- c(); p_anova_flags <- c()
 for (r in seq_len(150)) {
   d <- simulate_rasch(n_persons = 500, n_items = 8, model = "PCM",

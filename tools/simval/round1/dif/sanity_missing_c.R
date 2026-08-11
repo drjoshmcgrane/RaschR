@@ -1,5 +1,5 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
-source("gen_repeated.R")
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
+source("tools/simval/round1/dif/gen_repeated.R")
 N_c <- 320; n_items_c <- 8; common_shift_item <- 5
 seed <- 1
 set.seed(seed)

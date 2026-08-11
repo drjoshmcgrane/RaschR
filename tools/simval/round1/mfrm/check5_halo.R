@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 REPS <- if (length(args)) as.integer(args[1]) else 40
@@ -70,5 +70,5 @@ saveRDS(list(sig_rate_halo = sig_rate_halo, n_halo_cells = n_halo_cells,
             sig_rate_clean = sig_rate_clean, n_clean_cells = n_clean_cells,
             omni_reject = omni_reject, n_omni = length(omni_p),
             omni_reject0 = omni_reject0, n_omni0 = length(omni_p0)),
-        "check5_results.rds")
+        "tools/simval/round1/mfrm/check5_results.rds")
 cat("\n=== DONE check5 ===\n")

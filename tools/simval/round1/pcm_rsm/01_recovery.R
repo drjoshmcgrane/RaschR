@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 options(width=140)
 
 ## ---------------------------------------------------------------
@@ -99,4 +99,4 @@ out$rsm_booklet  <- summarise_batch("RSM", "booklet",  nrep = 60,  seed0 = 6000)
 t1 <- Sys.time()
 cat("TOTAL TIME:", as.numeric(t1-t0, units="secs"), "s\n")
 
-saveRDS(out, "recovery_results.rds")
+saveRDS(out, "tools/simval/round1/pcm_rsm/recovery_results.rds")

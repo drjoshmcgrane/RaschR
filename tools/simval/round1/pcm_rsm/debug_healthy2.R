@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 mins <- c(); weak <- c()
 for (r in 1:40) {
   d <- simulate_rasch(n_persons = 1000, n_items = 5, model = "PCM",

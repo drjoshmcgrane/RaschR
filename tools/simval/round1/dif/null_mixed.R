@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 source("tools/simval/round1/dif/gen_repeated.R")
 t_start <- Sys.time()
 

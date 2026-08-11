@@ -188,8 +188,14 @@
 #'   convergence details, and \code{notes}. With judge clustering,
 #'   covariance-based inference (including the Godambe information criteria,
 #'   standard errors, dependence tests, DIF, and OSI) is withheld unless
-#'   there are at least 10 judges and more judges than fitted parameters.
-#'   Point estimates and descriptive fit remain.
+#'   there are at least 10 judges, at least 6 \emph{effective} judges (the
+#'   inverse Simpson index of each judge's share of the comparisons -- a
+#'   judge doing half the work leaves ~4 effective clusters however many
+#'   judges exist, and the clustered sandwich then rejects a true null at
+#'   ~9\% in simulation), and more judges than fitted parameters. Between
+#'   6 and 8.5 effective judges inference is reported with a caution note.
+#'   Point estimates and descriptive fit remain; \code{cl$n_units_effective}
+#'   reports the effective count.
 #'   Polytomous fits add \code{thresholds} (the symmetric threshold estimates
 #'   with standard errors), \code{m}, and \code{categories}. With an
 #'   \code{order} column the within-judge \code{dependence} effects table
@@ -944,15 +950,38 @@ plot_btl <- function(fit, band = 2.5) {
   # withhold covariance-based inference.
   cr1 <- if (!is.null(jd) && nc > 1L) nc / (nc - 1) else 1
   rank_deficient <- !is.null(jd) && nc <= np
-  cluster_inference <- is.null(jd) || (nc >= 10L && !rank_deficient)
+  # effective number of clusters under unequal allocation: the inverse
+  # Simpson index of each judge's share of the comparisons. The clustered
+  # sandwich is calibrated when the work spreads across judges but not when
+  # it concentrates: in simulation (t reference, df = clusters - 1) the
+  # null rejection is nominal for balanced designs at 10-50 judges, ~7.5%
+  # once the effective count falls to ~6, and ~9% at ~4 -- regardless of
+  # the raw judge count. Guard accordingly: withhold below 6 effective
+  # clusters, annotate below 8.5 (balanced designs sit within multinomial
+  # noise of their judge count, ~9.7-9.9 at J=10, and are calibrated
+  # there; the annotation band must not swallow them).
+  nc_eff <- if (!is.null(jd)) {
+    shr <- tapply(w, jd, sum); shr <- shr / sum(shr)
+    1 / sum(shr^2)
+  } else Inf
+  cluster_inference <- is.null(jd) ||
+    (nc >= 10L && nc_eff >= 6 && !rank_deficient)
   if (!cluster_inference)
     notes <- c(notes, sprintf(
-      paste0("%d judge clusters for %d parameters: cluster-robust inference ",
-             "is withheld%s; point estimates and fit summaries remain ",
-             "descriptive -- use at least 10 judges and more judges than ",
-             "fitted parameters, or a design-level bootstrap"), nc, np,
+      paste0("%d judge clusters (%.1f effective) for %d parameters: ",
+             "cluster-robust inference is withheld%s; point estimates and ",
+             "fit summaries remain descriptive -- use at least 10 judges ",
+             "(and at least 6 effective: spread the comparisons rather ",
+             "than concentrating them on few judges) and more judges than ",
+             "fitted parameters, or a design-level bootstrap"), nc, nc_eff, np,
       if (rank_deficient) " because the empirical covariance is rank-deficient"
-      else " because the cluster count is too small"))
+      else if (nc < 10L) " because the cluster count is too small"
+      else " because the comparison allocation concentrates on too few judges"))
+  if (cluster_inference && !is.null(jd) && nc_eff < 8.5)
+    notes <- c(notes, sprintf(
+      paste0("comparison allocation is uneven across judges (%.1f effective ",
+             "clusters from %d): clustered standard errors may be mildly ",
+             "anti-conservative"), nc_eff, nc))
   covth <- Hi %*% (crossprod(Gm) * cr1) %*% Hi
   # composite-likelihood information ingredients: tr(H^-1 J) = tr(covth H)
   # is the effective parameter count of the Godambe penalty (Varin & Vidoni
@@ -966,6 +995,7 @@ plot_btl <- function(fit, band = 2.5) {
   cl_info <- list(eff_params = if (cluster_inference)
                     abs(sum(diag(covth %*% H))) else NA_real_,
                   n_units = if (is.null(jd)) sum(w) else length(ucl),
+                  n_units_effective = if (is.null(jd)) NA_real_ else nc_eff,
                   n_parameters = np,
                   inference_available = cluster_inference)
   # anchored objects have a zero row in Bmat, so their location variance is

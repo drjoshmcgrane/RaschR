@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet = TRUE))
+suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 log <- function(...) cat(sprintf(...), "\n")
 I <- 8; N <- 400
 d0 <- seq(-2, 2.5, length.out = I)

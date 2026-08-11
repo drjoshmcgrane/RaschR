@@ -223,11 +223,22 @@
       outer(dtil_c, 1 / (G * phi[-1L]))
   cov_dt <- J_dt %*% covb %*% t(J_dt)
 
+  # joint covariance of (dtilde, log phi): both are functions of the same
+  # jointly estimated (beta_d, phi), so downstream propagation (the
+  # linking-stage calibration redraws) must draw them together -- the
+  # cross-covariance is part of the estimate, not an approximation choice
+  J_lp <- matrix(0, G, Pd + G - 1L)
+  if (G > 1L) J_lp[2:G, Pd + seq_len(G - 1L)] <- diag(1 / phi[-1], G - 1L)
+  J_lp <- Ac %*% J_lp
+  J_all <- rbind(J_dt, J_lp)
+  cov_joint <- J_all %*% covb %*% t(J_all)
+
   dimnames(cov_lp) <- list(glevs, glevs)
   list(dtilde = dtil_c, phi = setNames(phi_c, glevs),
        se_log_phi = setNames(sqrt(pmax(diag(cov_lp), 0)), glevs),
        cov_log_phi = cov_lp, phi_unident = phi_unident,
-       cov_dtilde = cov_dt, loglik = glh$ll, iterations = outer,
+       cov_dtilde = cov_dt, cov_joint = cov_joint,
+       loglik = glh$ll, iterations = outer,
        converged = conv, gidx = gidx)
 }
 
@@ -240,20 +251,22 @@
 # correction and the reconciliation over the linking graph, which a
 # leave-one-out jackknife of the raw log slope understates.
 .efrm_link_sets <- function(u_mat, se_mat, sets_u, min_link_persons,
-                            boot_reps = 300) {
+                            boot_reps = 300, regen = NULL) {
   S <- ncol(u_mat)
   A <- rbind(diag(S - 1L), rep(-1, S - 1L))
 
   # one pass over a person index vector: per-edge corrected slopes and
-  # offsets, then the two weighted least-squares solves
-  link_once <- function(idx, hard = FALSE) {
+  # offsets, then the two weighted least-squares solves. um/sm default to
+  # the point-estimate person matrices; the bootstrap can pass regenerated
+  # ones (see below).
+  link_once <- function(idx, um = u_mat, sm = se_mat, hard = FALSE) {
     edges <- list(); ls_est <- off_est <- off_n <- numeric(0)
     for (a in seq_len(S - 1)) for (b in (a + 1):S) {
-      ok <- idx[is.finite(u_mat[idx, a]) & is.finite(u_mat[idx, b])]
+      ok <- idx[is.finite(um[idx, a]) & is.finite(um[idx, b])]
       if (length(ok) < min_link_persons) next
-      u1 <- u_mat[ok, a]; u2 <- u_mat[ok, b]
-      v1 <- var(u1) - mean(se_mat[ok, a]^2)
-      v2 <- var(u2) - mean(se_mat[ok, b]^2)
+      u1 <- um[ok, a]; u2 <- um[ok, b]
+      v1 <- var(u1) - mean(sm[ok, a]^2)
+      v2 <- var(u2) - mean(sm[ok, b]^2)
       if (!is.finite(v1) || !is.finite(v2) || v1 <= 0 || v2 <= 0) {
         if (hard)
           stop("too little true person variance to link sets '", sets_u[a],
@@ -293,12 +306,39 @@
   N <- nrow(u_mat)
   point <- link_once(seq_len(N), hard = TRUE)
 
-  # person bootstrap of the linking stage (skipped inside an outer bootstrap)
+  # person bootstrap of the linking stage (skipped inside an outer
+  # bootstrap). When a regen closure is supplied, each replicate also
+  # redraws the within-frame thresholds and group units from their
+  # estimated covariances and rebuilds the person estimates, so the
+  # set-unit uncertainty carries the calibration noise that person
+  # resampling alone cannot see: the set unit is a scale, and error in the
+  # estimated threshold spread moves every person estimate's variance
+  # coherently. Without this the hybrid log-alpha standard error
+  # understates by ~20% in simulation and the unit tests reject at ~9-10%
+  # instead of 5%.
   cov_link <- NULL
   if (boot_reps > 0) {
+    # a pool of parameter draws cycled across the person resamples: each
+    # replicate pairs one draw with one resample, so the replicate spread
+    # still carries both variance components, at a fraction of the regen
+    # cost of one draw per replicate
+    n_draws <- if (is.null(regen)) 0L else {
+      nd <- getOption("rasch.efrm_link_draws", max(50L, boot_reps %/% 5L))
+      if (length(nd) != 1L || !is.finite(nd) || nd != floor(nd) || nd < 1)
+        stop("option rasch.efrm_link_draws must be one positive whole number")
+      as.integer(nd)
+    }
+    draws <- if (n_draws > 0L) vector("list", n_draws)
     reps <- matrix(NA_real_, boot_reps, 2L * S)
     for (r in seq_len(boot_reps)) {
-      b <- link_once(sample.int(N, N, replace = TRUE))
+      mats <- if (n_draws == 0L) NULL else {
+        di <- ((r - 1L) %% n_draws) + 1L
+        if (is.null(draws[[di]])) draws[[di]] <- regen()
+        draws[[di]]
+      }
+      b <- if (is.null(mats)) link_once(sample.int(N, N, replace = TRUE))
+           else link_once(sample.int(N, N, replace = TRUE),
+                          um = mats$u, sm = mats$se)
       if (!is.null(b)) reps[r, ] <- c(b$la, b$mu)
     }
     reps <- reps[stats::complete.cases(reps), , drop = FALSE]
@@ -416,11 +456,19 @@
 #' folded into the common-unit standard errors as described below.
 #'
 #' Standard errors: under \code{se_method = "hybrid"} (default) the group
-#' units carry sandwich standard errors from the pairwise stage, the set
-#' units carry person-bootstrap standard errors from the linking stage, and
-#' the unit uncertainty is propagated into the common-unit threshold and
-#' item standard errors by the delta method (treating the item-side and
-#' person-side information as independent). Under
+#' units carry sandwich standard errors from the pairwise stage; the set
+#' units carry standard errors from a linking-stage bootstrap in which each
+#' replicate resamples persons and also redraws the within-frame thresholds
+#' and group units jointly from their estimated stage-1 covariance before
+#' rebuilding the person estimates. The redraw matters because the set unit
+#' is a scale: error in the estimated threshold spread moves every person
+#' estimate's variance coherently, which person resampling alone cannot
+#' see (without it the log-alpha standard error understates by about 20%
+#' in simulation and the unit tests reject at 9-10% instead of 5%; with it
+#' they calibrate to about 6%). The unit uncertainty is propagated into
+#' the common-unit threshold and item standard errors by the delta method,
+#' treating the stage-1 and person-side linking information as independent
+#' -- the one remaining approximation of the hybrid method. Under
 #' \code{se_method = "bootstrap"} all stages are re-estimated on
 #' \code{boot_reps} person resamples and every standard error and the
 #' threshold covariance come from the replicate spread; slower, but captures
@@ -777,8 +825,47 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       sel <- which(pe$n_items > 0 & !pe$extreme)
       u_mat[sel, si] <- pe$theta[sel]; se_mat[sel, si] <- pe$se[sel]
     }
+    # calibration-noise propagation into the linking bootstrap: a
+    # symmetric square root of each stage-1 covariance, used to redraw
+    # (dtilde, log phi) per bootstrap replicate under the documented
+    # item-side/person-side independence treatment
+    mat_sqrt <- function(V) {
+      if (is.null(V) || any(!is.finite(V))) return(NULL)
+      ee <- eigen((V + t(V)) / 2, symmetric = TRUE)
+      ee$vectors %*% (t(ee$vectors) * sqrt(pmax(ee$values, 0)))
+    }
+    K_dt <- length(dtil)
+    # simulation-only escape hatches for the validation studies:
+    # rasch.efrm_link_blockdiag = TRUE reproduces the marginal
+    # (cross-covariance-free) draw for paired comparison with the joint
+    # draw; rasch.efrm_link_draws overrides the parameter-draw pool size
+    cj <- sol$cov_joint
+    if (isTRUE(getOption("rasch.efrm_link_blockdiag", FALSE)) &&
+        !is.null(cj)) {
+      cj[seq_len(K_dt), K_dt + seq_along(phi)] <- 0
+      cj[K_dt + seq_along(phi), seq_len(K_dt)] <- 0
+    }
+    L_j <- mat_sqrt(cj)
+    regen <- if (!is.null(L_j)) function() {
+      v <- drop(L_j %*% stats::rnorm(ncol(L_j)))
+      dt_s <- dtil + v[seq_len(K_dt)]
+      phi_s <- phi * exp(v[K_dt + seq_along(phi)])
+      u <- se <- matrix(NA_real_, nrow(X), S, dimnames = list(NULL, sets_u))
+      for (si in seq_len(S)) for (g in glevs) {
+        cols <- which(vmap$set == sets_u[si] & vmap$group == g)
+        if (!length(cols)) next
+        tl <- lapply(cols, function(v) {
+          rows <- which(thr_v$item == v)
+          dt_s[drow[rows]]
+        })
+        pe <- .person_estimates(Xv[, cols, drop = FALSE], tl, disc = phi_s[g])
+        sel <- which(pe$n_items > 0 & !pe$extreme)
+        u[sel, si] <- pe$theta[sel]; se[sel, si] <- pe$se[sel]
+      }
+      list(u = u, se = se)
+    } else NULL
     link <- .efrm_link_sets(u_mat, se_mat, sets_u, min_link_persons,
-                            boot_reps = boot_reps)
+                            boot_reps = boot_reps, regen = regen)
     alpha <- link$alpha; mu <- link$mu
   } else {
     alpha <- setNames(1, sets_u); mu <- setNames(0, sets_u)
@@ -1046,6 +1133,9 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     ut$significant <- ut$p_adj < 0.05
     rownames(ut) <- NULL
   }
+  fit$unit_cov <- list(cov_dtilde = sol$cov_dtilde,
+                       cov_log_phi = sol$cov_log_phi,
+                       cov_joint = sol$cov_joint)
   fit$efrm_vs_rasch <- list(ll_efrm = sol$loglik, ll_equal = glh0$ll,
                             two_delta_ll = 2 * (sol$loglik - glh0$ll),
                             extra_parameters = G - 1L,

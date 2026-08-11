@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 target_item <- "I10"   # near-central difficulty
 for (shift in c(0.6, 1.0)) {
   flags <- c()

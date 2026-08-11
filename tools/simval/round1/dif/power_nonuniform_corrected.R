@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 t_start <- Sys.time()
 
 # The first nonuniform-DIF power run (item I06, delta ~ -1.2, shift 0.6,

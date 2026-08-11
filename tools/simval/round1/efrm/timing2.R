@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(2)
 d <- simulate_efrm(200, 6, n_sets=2, n_groups=2, set_unit_ratio=1.3, group_unit_ratio=1, seed=2)
 t1 <- system.time(fit <- rasch_efrm(d, item_sets=attr(d,"truth")$item_sets, groups="group", se_method="bootstrap", boot_reps=40))

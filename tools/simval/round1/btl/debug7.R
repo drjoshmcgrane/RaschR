@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(1)
 t0<-Sys.time()
 d <- simulate_btl(n_objects=6, n_judges=12, reps_per_pair=40, seed=1)

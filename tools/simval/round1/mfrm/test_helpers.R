@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 # DIF generator sanity
 d <- sim_mfrm_dif(150, 6, 6, dif_item = "I3", dif_shift = 1.0, seed = 1)

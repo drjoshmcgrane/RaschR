@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(100)
 d <- simulate_btl(n_objects=10, n_judges=14, reps_per_pair=20, seed=101)
 f <- btl(d, "object_a","object_b", winner="winner", judge="judge")

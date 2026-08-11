@@ -289,3 +289,48 @@ test_that("unit Wald tests accompany the equal-unit comparison", {
   expect_true(all(grepl("alpha", ut2$parameter)))
   expect_true(all(ut2$p < 0.01))
 })
+
+test_that("the joint stage-1 covariance is coherent and its draws honest", {
+  d <- simulate_efrm(150, 6, n_sets = 2, n_groups = 2, set_unit_ratio = 1.2,
+                     seed = 77)
+  fit <- rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
+                    groups = "group", boot_reps = 50)
+  uc <- fit$unit_cov
+  K <- nrow(uc$cov_dtilde); G <- nrow(uc$cov_log_phi)
+  expect_equal(dim(uc$cov_joint), c(K + G, K + G))
+  # diagonal blocks reproduce the marginal covariances exactly
+  expect_equal(uc$cov_joint[seq_len(K), seq_len(K)], uc$cov_dtilde,
+               tolerance = 1e-10)
+  expect_equal(unname(uc$cov_joint[K + seq_len(G), K + seq_len(G)]),
+               unname(uc$cov_log_phi), tolerance = 1e-10)
+  # the log-phi block respects the sum-to-zero centring: every row of the
+  # phi sub-block sums to zero, so every draw's log phi perturbation does too
+  expect_lt(max(abs(rowSums(uc$cov_joint[K + seq_len(G), K + seq_len(G),
+                                         drop = FALSE]))), 1e-10)
+  # a symmetric square root reproduces the covariance, and simulated draws
+  # recover it (loose Monte Carlo tolerance) while preserving the constraint
+  ee <- eigen((uc$cov_joint + t(uc$cov_joint)) / 2, symmetric = TRUE)
+  L <- ee$vectors %*% (t(ee$vectors) * sqrt(pmax(ee$values, 0)))
+  expect_equal(L %*% t(L), (uc$cov_joint + t(uc$cov_joint)) / 2,
+               tolerance = 1e-8)
+  set.seed(1)
+  Z <- matrix(rnorm(4000 * (K + G)), 4000)
+  V <- Z %*% t(L)
+  expect_lt(max(abs(cov(V) - uc$cov_joint)) /
+              max(abs(uc$cov_joint)), 0.12)
+  expect_lt(max(abs(rowSums(V[, K + seq_len(G), drop = FALSE]))), 1e-8)
+})
+
+test_that("rasch.efrm_link_draws is validated and blockdiag is simulation-only", {
+  d <- simulate_efrm(300, 8, n_sets = 2, n_groups = 2, seed = 78)
+  old <- options(rasch.efrm_link_draws = -3)
+  on.exit(options(old), add = TRUE)
+  expect_error(rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
+                          groups = "group", boot_reps = 40),
+               "positive whole number")
+  options(rasch.efrm_link_draws = NULL, rasch.efrm_link_blockdiag = TRUE)
+  fit_bd <- rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
+                       groups = "group", boot_reps = 60)
+  expect_true(is.finite(fit_bd$alpha_table$se_log_alpha[1]))
+  options(rasch.efrm_link_blockdiag = NULL)
+})

@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 target_item <- "I06"
 d <- simulate_rasch(5000, 20, dif = list(items = target_item, nonuniform = 2.5),
                      n_groups = 2, seed = 1)

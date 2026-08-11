@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 REPS_NULL <- if (length(args) >= 1) as.integer(args[1]) else 100
@@ -71,5 +71,5 @@ saveRDS(list(null_rate_fitresid = null_rate_fitresid, null_rate_pooled = null_ra
             n_null = nrow(acc), power_fitresid = power_fitresid, power_pooled = power_pooled,
             n_erratic = n_erratic, clean_rate_fitresid = clean_rate_fitresid,
             clean_rate_pooled = clean_rate_pooled, n_clean = n_clean),
-        "check2_results.rds")
+        "tools/simval/round1/mfrm/check2_results.rds")
 cat("\n=== DONE check2 ===\n")

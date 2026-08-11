@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 d <- simulate_rasch(500, 20, n_groups = 2, missing = 0.25, seed = 999)
 t0 <- Sys.time()
 fit <- rasch(d, id = "id", factors = "group")

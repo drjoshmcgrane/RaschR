@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 t0 <- Sys.time()
 d <- simulate_rasch(n_persons=500, n_items=8, model="PCM", n_categories=4, seed=1)
 fit <- rasch(d, model="PCM")

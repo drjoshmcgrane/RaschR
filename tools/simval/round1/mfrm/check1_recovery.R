@@ -1,4 +1,4 @@
-source("helpers.R")
+source("tools/simval/round1/mfrm/helpers.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -83,5 +83,5 @@ for (cond in conditions) {
   print(results[[cond]])
 }
 
-saveRDS(results, "check1_results.rds")
+saveRDS(results, "tools/simval/round1/mfrm/check1_results.rds")
 cat("\n=== DONE check1 ===\n")

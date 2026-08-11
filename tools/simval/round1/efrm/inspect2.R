@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 set.seed(1)
 d <- simulate_efrm(300, 8, n_sets=2, n_groups=2, set_unit_ratio=1.3, group_unit_ratio=1.2, seed=1)
 tr <- attr(d,"truth")

@@ -1,4 +1,4 @@
-suppressWarnings(pkgload::load_all("."), quiet=TRUE))
+suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 n_rep <- 60
 flag_camp <- rep(NA, n_rep)
 for (i in seq_len(n_rep)) {

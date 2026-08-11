@@ -1068,20 +1068,27 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                  "the omnibus Wald tests on the unit families carry the inference"))
 
   # --- structural tables ----------------------------------------------------
+  # t reference with judges as the independent units: the unit covariances
+  # rest on resampling ~10-20 judges, and a normal reference at that unit
+  # count is anti-conservative (see the omnibus note below)
+  df_j <- max(length(unique(jd)) - 1L, 1L)
   z_phi <- log(phi) / se_log_phi
   phi_table <- data.frame(panel = panels_u, phi = unname(phi),
                           se_log_phi = unname(se_log_phi),
-                          z = unname(z_phi), p = unname(2 * pnorm(-abs(z_phi))),
+                          t = unname(z_phi), df = df_j,
+                          p = unname(2 * pt(-abs(z_phi), df_j)),
                           stringsAsFactors = FALSE)
   z_al <- log(alpha) / se_log_alpha
   alpha_table <- data.frame(set = sets_u, alpha = unname(alpha),
                             se_log_alpha = unname(se_log_alpha),
-                            z = unname(z_al), p = unname(2 * pnorm(-abs(z_al))),
+                            t = unname(z_al), df = df_j,
+                            p = unname(2 * pt(-abs(z_al), df_j)),
                             stringsAsFactors = FALSE)
   z_ka <- kappa / se_kappa
   kappa_table <- data.frame(set = sets_u, kappa = unname(kappa),
                             se_kappa = unname(se_kappa),
-                            z = unname(z_ka), p = unname(2 * pnorm(-abs(z_ka))),
+                            t = unname(z_ka), df = df_j,
+                            p = unname(2 * pt(-abs(z_ka), df_j)),
                             stringsAsFactors = FALSE)
   adjust_unit_table <- function(tab) {
     tab$p_adj <- stats::p.adjust(tab$p, method = "holm")
@@ -1092,6 +1099,13 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   alpha_table <- adjust_unit_table(alpha_table)
   kappa_table <- adjust_unit_table(kappa_table)
 
+  # Hotelling-style F reference with judges as the independent units: the
+  # unit covariances are judge-limited (the bootstrap resamples ~10-20
+  # judges), and a chi-square reference on a covariance estimated from n
+  # units rejects a true null at ~8.7% for the set origins in simulation
+  # (550 replicates, 12 judges); W * (n - q) / (q (n - 1)) ~ F(q, n - q)
+  # restores the nominal rate, exactly as for the MFRM interaction omnibus.
+  n_units_j <- length(unique(jd))
   wald_unit <- function(est, V, term) {
     if (!length(est) || is.null(V)) return(NULL)
     ok <- is.finite(est) & is.finite(diag(V))
@@ -1105,8 +1119,15 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     Vinv <- ee$vectors[, use, drop = FALSE] %*%
       (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
     W <- drop(t(est) %*% Vinv %*% est)
-    data.frame(term = term, df = sum(use), wald = W,
-               p = stats::pchisq(W, sum(use), lower.tail = FALSE))
+    q <- sum(use)
+    if (n_units_j > q) {
+      Fs <- W * (n_units_j - q) / (q * (n_units_j - 1))
+      data.frame(term = term, df = q, df2 = n_units_j - q, wald = W,
+                 f = Fs, p = stats::pf(Fs, q, n_units_j - q,
+                                       lower.tail = FALSE))
+    } else
+      data.frame(term = term, df = q, df2 = NA_real_, wald = W,
+                 f = NA_real_, p = NA_real_)
   }
   unit_omnibus <- do.call(rbind, Filter(Negate(is.null), list(
     if (G > 1L) wald_unit(log(phi), cov_log_phi, "panel units (phi)"),
