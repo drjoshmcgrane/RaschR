@@ -16,7 +16,10 @@ across all model families. A release-wide simulation validation battery
 model family and diagnostic, under complete and missing data) was run
 before submission; the one defect it found, an understated standard error
 in the response-dependence magnitude estimate, is corrected in this
-version.
+version, together with three further calibration corrections the same
+programme surfaced (an extended-frame linking variance component, an
+effective-cluster condition for judge-clustered inference, and
+judge-limited reference distributions for paired-comparison unit tests).
 
 The update also extends differential item functioning analysis to multiple
 between-person and within-person factors (factorial terms with the
