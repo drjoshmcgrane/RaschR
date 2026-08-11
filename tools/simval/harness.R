@@ -39,9 +39,17 @@ mc_se_prop <- function(p, n) sqrt(pmax(p * (1 - p), 0) / n)
     } else NA_character_)
   hash <- if (!is.na(script) && file.exists(script))
     unname(tools::md5sum(script)) else NA_character_
+  rfiles <- sort(list.files("R", pattern = "[.]R$", full.names = TRUE))
+  rtree <- if (length(rfiles)) {
+    tf <- tempfile()
+    writeLines(paste(unname(tools::md5sum(rfiles)), collapse = ""), tf)
+    h <- substr(unname(tools::md5sum(tf)), 1, 12)
+    unlink(tf)
+    h
+  } else NA_character_
   list(sha = if (length(sha) == 1)
     paste0(sha, if (isTRUE(dirty)) "+dirty" else "") else NA_character_,
-    date = format(Sys.Date()), script = script, hash = hash)
+    date = format(Sys.Date()), script = script, hash = hash, rtree = rtree)
 })
 
 # One result row per scenario x quantity. Everything optional except the
@@ -89,7 +97,8 @@ sv_row <- function(study, scenario, quantity, n_reps,
              refusal_rate = refusal_rate, mc_se_refusal = mc_ref,
              nonconv_rate = nonconv_rate, mc_se_nonconv = mc_nc,
              script = .sv_prov$script, script_md5 = .sv_prov$hash,
-             package_sha = .sv_prov$sha, executed = .sv_prov$date,
+             package_sha = .sv_prov$sha, r_tree_md5 = .sv_prov$rtree,
+             executed = .sv_prov$date,
              notes = notes, stringsAsFactors = FALSE)
 }
 

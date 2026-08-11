@@ -77,8 +77,8 @@ granularity deliberately).
   bootstrap's strong conservatism at feasible replicate counts, which is
   the procedure's documented design.
 - `results/efrm-fix-sweep.csv` and `results/efrm-fix/` — the extended
-  frame set-unit correction: pre-fix 9.4% null rejection (1,200
-  replicates), the corrected hybrid at 4.9% across nine design cells, the
+  frame set-unit correction: pre-fix 9.4% null rejection (1,000
+  replicates), the corrected hybrid at 4.9% across eight design cells, the
   seed-paired marginal-vs-joint draw comparison (identical decisions in
   all 400 replicates), and the full-bootstrap benchmark arm (ratio 0.963)
   showing the corrected hybrid prices the same uncertainty.

@@ -1,4 +1,12 @@
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
+source("tools/simval/harness.R")
+# the guard this sweep calibrates would withhold SEs exactly in the 4-7
+# effective-judge region whose inflation is the evidence; the
+# simulation-only override keeps the covariance observable (see the guard
+# comment in R/btl.R)
+old_opt <- options(rasch.btl_guard_override = TRUE)
+on.exit(options(old_opt), add = TRUE)
+rows <- list()
 K <- 8; RPP <- 40
 objs <- sprintf("O%d", seq_len(K))
 beta <- setNames(seq(-1, 1, length.out = K), objs)
@@ -24,7 +32,7 @@ for (ci in seq_len(nrow(cells))) {
     d <- gen(J, share)
     f <- tryCatch(btl(d, "object_a", "object_b", winner = "winner", judge = "judge"),
                   error = function(e) NULL)
-    if (is.null(f) || !all(is.finite(f$objects$se))) next
+    if (is.null(f) || anyNA(f$objects$se)) next   # override keeps SEs finite
     est <- setNames(f$objects$location, f$objects$object)[objs]
     V <- f$cov_beta; rownames(V) <- colnames(V) <- f$objects$object
     z <- vapply(seq_len(nrow(pr)), function(e) {
@@ -37,7 +45,14 @@ for (ci in seq_len(nrow(cells))) {
     eff[r] <- 1 / sum(sh^2)
   }
   ok <- is.finite(rej)
-  cat(sprintf("J=%2d share=%s: type1=%.4f (per-rep MCSE %.4f) mean nc_eff=%.1f n=%d\n",
-      J, ifelse(is.na(share), "bal ", sprintf("%.2f", share)),
-      mean(rej[ok]), sd(rej[ok]) / sqrt(sum(ok)), mean(eff[ok]), sum(ok)))
+  lab <- sprintf("J=%d share=%s", J, ifelse(is.na(share), "balanced", sprintf("%.2f", share)))
+  cat(sprintf("%s: type1=%.4f (per-rep MCSE %.4f) mean nc_eff=%.1f n=%d\n",
+      lab, mean(rej[ok]), sd(rej[ok]) / sqrt(sum(ok)), mean(eff[ok]), sum(ok)))
+  rows[[length(rows) + 1]] <- sv_row("btl-share-sweep", lab,
+    "type1 of pairwise contrast t-tests (guard overridden to observe the withheld region)",
+    sum(ok), type1 = mean(rej[ok]),
+    mc_override = list(type1 = sd(rej[ok]) / sqrt(sum(ok))),
+    n_attempted = NR, n_refused = NR - sum(ok),
+    notes = sprintf("mean effective clusters %.1f; per-replicate proportion over 28 contrasts; reference qt(.975, J-1)", mean(eff[ok])))
 }
+sv_write(do.call(rbind, rows), "btl-share-sweep")

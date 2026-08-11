@@ -4,7 +4,7 @@ name <- a[1]; npg <- as.integer(a[2]); K <- as.integer(a[3]); S <- as.integer(a[
 tsd <- as.numeric(a[5]); imb <- as.logical(a[6]); nr <- as.integer(a[7])
 seed0 <- as.numeric(a[8]); outf <- a[9]
 out <- matrix(NA_real_, nr, 4, dimnames = list(NULL, c("la1","se_tab1","p_alpha","p_phi")))
-nfail <- 0L
+nref <- nnc <- 0L
 for (r in seq_len(nr)) {
   d <- simulate_efrm(npg, K, n_sets = S, n_groups = 2, set_unit_ratio = 1,
                      group_unit_ratio = 1, theta_sd = tsd, seed = seed0 + r)
@@ -17,11 +17,13 @@ for (r in seq_len(nr)) {
   fit <- tryCatch(rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
                              groups = "group", se_method = "hybrid"),
                   error = function(e) NULL)
-  if (is.null(fit) || !isTRUE(fit$est$converged)) { nfail <- nfail + 1L; next }
+  if (is.null(fit)) { nref <- nref + 1L; next }
+  if (!isTRUE(fit$est$converged)) { nnc <- nnc + 1L; next }
   uo <- fit$efrm_vs_rasch$unit_omnibus
   out[r, ] <- c(log(fit$alpha_table$alpha[1]), fit$alpha_table$se_log_alpha[1],
                 uo$p[uo$term == "set units (alpha)"][1],
                 uo$p[uo$term == "group units (phi)"][1])
 }
-saveRDS(list(cell = name, out = out, nfail = nfail), outf)
-cat("done", name, "fails", nfail, "\n")
+saveRDS(list(cell = name, out = out, n_refused = nref, n_nonconv = nnc,
+             nfail = nref + nnc), outf)
+cat("done", name, "refused", nref, "nonconv", nnc, "\n")

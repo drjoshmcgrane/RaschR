@@ -276,7 +276,9 @@ Crowther (2019): every rate with its Monte Carlo standard error, replicate
 accounting that separates attempted, refused, and non-converged fits, and
 at least 1,000 replicates behind each principal null claim wherever a
 replicate is computationally feasible (the tailored bootstrap, whose
-replicates each run a complete bootstrap, is the stated exception). Seven studies
+replicates each run a complete bootstrap, is the stated exception; a few
+follow-up tables record refusals and non-convergences as one combined
+count and say so in their notes). Seven studies
 (committed under `tools/simval/studies/`, results and provenance under
 `tools/simval/results/`) covered the custom Wald and contrast tests,
 judge-clustered comparative judgement inference, the tailored-analysis
@@ -319,9 +321,9 @@ adversarial verification pass, diagnosed, corrected, and re-validated:
   judge counts tested but not for concentrated allocations: one judge
   performing half the comparisons leaves about four effective clusters
   whatever the nominal count, and the true-null rejection climbs to ~9%.
-  The guard now requires at least six effective judges (inverse Simpson
-  of the comparison shares), annotates uneven allocations, and reports
-  `cl$n_units_effective`.
+  The guard now withholds clustered inference below eight effective
+  judges (inverse Simpson of the comparison shares), cautions between
+  eight and nine and a half, and reports `cl$n_units_effective`.
 - The paired-comparison extended-frame unit tests used chi-square and
   normal references on covariances estimated from ten to twenty judges;
   the set-origin omnibus rejected at 8.7%. Judge-limited references

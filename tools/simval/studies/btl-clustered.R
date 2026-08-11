@@ -76,16 +76,13 @@
 #   Rscript tools/simval/studies/btl-clustered.R combine   # stitch chunk CSVs
 #   Rscript tools/simval/studies/btl-clustered.R           # everything, serially
 #
-# The committed results CSV (tools/simval/results/btl-clustered.csv) was
-# produced with SV_SCALE=0.15 (reps: principal 1200*0.15=180, boundary
-# 500*0.15=75, secondary 700*0.15=105), a mid-run scale-down forced by a
-# session time limit -- both chunks were killed mid-flight at the full-reps
-# setting (~5 min in) and restarted at SV_SCALE=0.15 to finish inside a
-# single blocking wait. Every reported rate still carries its own MC SE
-# computed on the ACTUAL n_reps used (harness convention), so the CSV is
-# self-describing; it is not the full >=1000-rep principal claim the design
-# above targets. Re-running with SV_SCALE=1 (unset) reproduces the full
-# design at the cost of ~89 CPU-minutes (see budget above).
+# The committed results CSV (tools/simval/results/btl-clustered.csv) is the
+# FULL design (SV_SCALE unset: principal 1,200 replicates, boundary 500,
+# secondary 700 per cell), re-run after the 1.14.2 corrections with
+# coverage targeting the population-averaged contrasts. (An earlier
+# agent-produced version used SV_SCALE=0.15 after a session time limit;
+# it is superseded.) Every reported rate carries its own MC SE computed on
+# the actual n_reps used.
 
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")
@@ -358,8 +355,10 @@ for (s in seq_len(nrow(scenarios))) {
     mc_override = list(coverage95 = mc_se_prop(mean(infer_avail_c[ok_i]), sum(ok_i))),
     n_refused = n_ref_sp, n_nonconv = n_nc_sp,
     notes = sprintf(paste("fraction of replicates where cluster_inference == TRUE",
-                          "(J=%d -> should be %s per the <10-judge withholding guard)"),
-                    sc$J, if (sc$J >= 10L) "1 (always available)" else "0 (always withheld)"))
+                          "(J=%d, balanced-count expectation %s; since 1.14.2 the",
+                          "guard also requires >=8 EFFECTIVE judges, so skewed",
+                          "allocations withhold regardless of J)"),
+                    sc$J, if (sc$J >= 10L) "1 for balanced allocations" else "0"))
 
   cat(sprintf("[%s] scenario %d/%d (%s, %d reps) done, elapsed %.1fs\n",
               format(Sys.time(), "%H:%M:%S"), s, nrow(scenarios), sc$label, n_reps,

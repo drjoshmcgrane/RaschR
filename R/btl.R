@@ -969,9 +969,14 @@ plot_btl <- function(fit, band = 2.5) {
     shr <- tapply(w, jd, sum); shr <- shr / sum(shr)
     1 / sum(shr^2)
   } else Inf
-  rank_deficient <- rank_deficient || (!is.null(jd) && nc_eff <= np)
-  cluster_inference <- is.null(jd) ||
-    (nc >= 10L && nc_eff >= 8 && !rank_deficient)
+  # simulation-only escape hatch: the calibration sweep that SET these
+  # thresholds (tools/simval/studies/followups/btl_share_sweep.R) must be
+  # able to measure the withheld region, or its evidence could never be
+  # reproduced against the guarded package
+  guard_off <- isTRUE(getOption("rasch.btl_guard_override", FALSE))
+  eff_underparam <- !is.null(jd) && nc_eff <= np
+  cluster_inference <- is.null(jd) || guard_off ||
+    (nc >= 10L && nc_eff >= 8 && !rank_deficient && !eff_underparam)
   if (!cluster_inference)
     notes <- c(notes, sprintf(
       paste0("%d judge clusters (%.1f effective) for %d parameters: ",
@@ -983,6 +988,9 @@ plot_btl <- function(fit, band = 2.5) {
       nc, nc_eff, np,
       if (rank_deficient) " because the empirical covariance is rank-deficient"
       else if (nc < 10L) " because the cluster count is too small"
+      else if (eff_underparam) paste0(" because the effective cluster count ",
+        "does not exceed the parameter count (a concentration heuristic, ",
+        "not a statement of mathematical rank deficiency)")
       else " because the comparison allocation concentrates on too few judges"))
   if (cluster_inference && !is.null(jd) && nc_eff < 9.5)
     notes <- c(notes, sprintf(
