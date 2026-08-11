@@ -359,32 +359,33 @@ replicate accounting that separates attempted, refused, and
 non-converged fits, and at least 1,000 replicates behind each principal
 null claim wherever a replicate is computationally feasible (the
 tailored bootstrap, whose replicates each run a complete bootstrap, is
-the stated exception). Seven studies (committed under
-`tools/simval/studies/`, results and provenance under
-`tools/simval/results/`) covered the custom Wald and contrast tests,
-judge-clustered comparative judgement inference, the tailored-analysis
-bootstrap, the `lr_test` composite-likelihood comparison, equating
-multiplicity, structural missingness, and person-measure coverage. Most
-of it confirmed calibration: `lr_test` rejects a true rating-scale model
-at 4.65% over 2,000 replicates; equating’s familywise drift error is
-nominal at every anchor count tried (4.9–5.5% over 2,000–4,000
-replicates), with shift coverage 94.6–94.7% across bank modes;
-person-measure (WLE) coverage sits at 0.945–0.983 across the central
-ability range for the principal ten-item design (the twenty-five-item
-test dips to 0.933 at one central point), and in the tails the intervals
-turn conservative rather than failing (at true abilities two logits past
-the item bank, bias approaches the distance to the bank but coverage
-stays at or above nominal); balanced judge-clustered designs are
-calibrated from ten judges up (Type I 5.01%, coverage 94.5% at exactly
-ten judges, 1,200 replicates); and the tailored-analysis bootstrap did
-not overstate at the design studied: its familywise error is 0.8% over
-240 full-procedure replicates (anchor selection re-run inside every one
-– fewer than the battery’s usual thousand, because each replicate runs a
-complete bootstrap and costs minutes), with low power against planted
-guessing at feasible bootstrap sizes, which is why tailored shifts are
-descriptive by default and the bootstrap warns about its own resolution
-floor. Its power grid (four to six replicates per cell) bounds behaviour
-rather than estimating it.
+the stated exception; a few follow-up tables record refusals and
+non-convergences as one combined count and say so in their notes). Seven
+studies (committed under `tools/simval/studies/`, results and provenance
+under `tools/simval/results/`) covered the custom Wald and contrast
+tests, judge-clustered comparative judgement inference, the
+tailored-analysis bootstrap, the `lr_test` composite-likelihood
+comparison, equating multiplicity, structural missingness, and
+person-measure coverage. Most of it confirmed calibration: `lr_test`
+rejects a true rating-scale model at 4.65% over 2,000 replicates;
+equating’s familywise drift error is nominal at every anchor count tried
+(4.9–5.5% over 2,000–4,000 replicates), with shift coverage 94.6–94.7%
+across bank modes; person-measure (WLE) coverage sits at 0.945–0.983
+across the central ability range for the principal ten-item design (the
+twenty-five-item test dips to 0.933 at one central point), and in the
+tails the intervals turn conservative rather than failing (at true
+abilities two logits past the item bank, bias approaches the distance to
+the bank but coverage stays at or above nominal); balanced
+judge-clustered designs are calibrated from ten judges up (Type I 5.01%,
+coverage 94.5% at exactly ten judges, 1,200 replicates); and the
+tailored-analysis bootstrap did not overstate at the design studied: its
+familywise error is 0.8% over 240 full-procedure replicates (anchor
+selection re-run inside every one – fewer than the battery’s usual
+thousand, because each replicate runs a complete bootstrap and costs
+minutes), with low power against planted guessing at feasible bootstrap
+sizes, which is why tailored shifts are descriptive by default and the
+bootstrap warns about its own resolution floor. Its power grid (four to
+six replicates per cell) bounds behaviour rather than estimating it.
 
 The second round also caught three defects, each confirmed by an
 adversarial verification pass, diagnosed, corrected, and re-validated:
@@ -402,9 +403,9 @@ adversarial verification pass, diagnosed, corrected, and re-validated:
   judge counts tested but not for concentrated allocations: one judge
   performing half the comparisons leaves about four effective clusters
   whatever the nominal count, and the true-null rejection climbs to ~9%.
-  The guard now requires at least six effective judges (inverse Simpson
-  of the comparison shares), annotates uneven allocations, and reports
-  `cl$n_units_effective`.
+  The guard now withholds clustered inference below eight effective
+  judges (inverse Simpson of the comparison shares), cautions between
+  eight and nine and a half, and reports `cl$n_units_effective`.
 - The paired-comparison extended-frame unit tests used chi-square and
   normal references on covariances estimated from ten to twenty judges;
   the set-origin omnibus rejected at 8.7%. Judge-limited references

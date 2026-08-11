@@ -49,7 +49,12 @@ matrices that supply the sandwich standard errors; matching the mean
 gives `chisq_adj` \\= r W / \sum_j \lambda_j\\ on \\r\\ degrees of
 freedom. Use `p_adj` for inference; the naive `p` is severely
 anticonservative and kept only for comparability with conventional
-software displays.
+software displays. The first-order calibration is accurate in simulation
+(rejection 4.7% at 500 persons and 8 items over 2,000 model-true
+replicates) but can turn mildly anticonservative for small samples with
+long polytomous tests (6.1% at 300 persons with 12 four-category items,
+1,900 replicates) – treat borderline `p_adj` values near 0.05 with
+correspondingly mild suspicion there.
 
 ## References
 

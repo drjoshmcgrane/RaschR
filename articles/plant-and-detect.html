@@ -400,11 +400,12 @@ replicate accounting that separates attempted, refused, and
 non-converged fits, and at least 1,000 replicates behind each principal
 null claim wherever a replicate is computationally feasible (the
 tailored bootstrap, whose replicates each run a complete bootstrap, is
-the stated exception). Seven studies (committed under
-<code>tools/simval/studies/</code>, results and provenance under
-<code>tools/simval/results/</code>) covered the custom Wald and contrast
-tests, judge-clustered comparative judgement inference, the
-tailored-analysis bootstrap, the <code>lr_test</code>
+the stated exception; a few follow-up tables record refusals and
+non-convergences as one combined count and say so in their notes). Seven
+studies (committed under <code>tools/simval/studies/</code>, results and
+provenance under <code>tools/simval/results/</code>) covered the custom
+Wald and contrast tests, judge-clustered comparative judgement
+inference, the tailored-analysis bootstrap, the <code>lr_test</code>
 composite-likelihood comparison, equating multiplicity, structural
 missingness, and person-measure coverage. Most of it confirmed
 calibration: <code>lr_test</code> rejects a true rating-scale model at
@@ -444,9 +445,9 @@ third linked set, and weak linking.</li>
 the judge counts tested but not for concentrated allocations: one judge
 performing half the comparisons leaves about four effective clusters
 whatever the nominal count, and the true-null rejection climbs to ~9%.
-The guard now requires at least six effective judges (inverse Simpson of
-the comparison shares), annotates uneven allocations, and reports
-<code>cl$n_units_effective</code>.</li>
+The guard now withholds clustered inference below eight effective judges
+(inverse Simpson of the comparison shares), cautions between eight and
+nine and a half, and reports <code>cl$n_units_effective</code>.</li>
 <li>The paired-comparison extended-frame unit tests used chi-square and
 normal references on covariances estimated from ten to twenty judges;
 the set-origin omnibus rejected at 8.7%. Judge-limited references
