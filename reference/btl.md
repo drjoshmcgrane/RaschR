@@ -177,16 +177,17 @@ the Godambe effective parameter count and the independent-unit count),
 convergence details, and `notes`. With judge clustering,
 covariance-based inference (including the Godambe information criteria,
 standard errors, dependence tests, DIF, and OSI) is withheld unless
-there are at least 10 judges, at least 6 *effective* judges (the inverse
+there are at least 10 judges, at least 8 *effective* judges (the inverse
 Simpson index of each judge's share of the comparisons – a judge doing
 half the work leaves ~4 effective clusters however many judges exist,
 and the clustered sandwich then rejects a true null at ~9% in
-simulation), and more judges than fitted parameters. Between 6 and 8.5
-effective judges inference is reported with a caution note. Point
-estimates and descriptive fit remain; `cl$n_units_effective` reports the
-effective count. Polytomous fits add `thresholds` (the symmetric
-threshold estimates with standard errors), `m`, and `categories`. With
-an `order` column the within-judge `dependence` effects table carries an
+simulation, with ~7% already at 6-7 effective), and more effective
+judges than fitted parameters. Between 8 and 9.5 effective judges
+inference is reported with a caution note. Point estimates and
+descriptive fit remain; `cl$n_units_effective` reports the effective
+count. Polytomous fits add `thresholds` (the symmetric threshold
+estimates with standard errors), `m`, and `categories`. With an `order`
+column the within-judge `dependence` effects table carries an
 `n_informative` count, and `dependence_data` holds every comparison with
 its per-comparison exposure and carry-over covariates (see
 [`plot_btl_dependence`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_dependence.md)).

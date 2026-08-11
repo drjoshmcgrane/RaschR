@@ -46,11 +46,16 @@ pcml(X, model = c("PCM", "RSM"), anchors = NULL, maxit = 60, tol = 1e-08)
 A list with the threshold table `thr` (columns `id`, `item`, `k`, `tau`,
 `se`, `anchored`, and `weak` – `TRUE` for a threshold adjacent to a
 category with fewer than 3 responses, whose estimate can run toward a
-boundary while the ridged covariance understates the error; its `se` is
-reported as `NA` and a note names the item and category), the threshold
-covariance matrix `cov_tau`, the pairwise conditional log-likelihood,
-the iteration count, a convergence flag, `notes`, and the max-score
-vector `m`.
+boundary while the ridged covariance understates the error, and for
+*every* threshold of an item any of whose categories has fewer than 8
+responses: the item's thresholds are estimated jointly, and a critically
+sparse category destabilises its siblings (in simulation a ~4-response
+category left a sibling threshold's standard error understated four-fold
+while that threshold's own local counts looked healthy). Flagged
+standard errors are reported as `NA` and a note names the item and
+category), the threshold covariance matrix `cov_tau`, the pairwise
+conditional log-likelihood, the iteration count, a convergence flag,
+`notes`, and the max-score vector `m`.
 
 ## References
 

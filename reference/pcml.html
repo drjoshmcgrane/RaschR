@@ -98,7 +98,13 @@ recentring is applied. PCM only.</p></dd>
   <code>item</code>, <code>k</code>, <code>tau</code>, <code>se</code>, <code>anchored</code>, and
   <code>weak</code> – <code>TRUE</code> for a threshold adjacent to a category with
   fewer than 3 responses, whose estimate can run toward a boundary while
-  the ridged covariance understates the error; its <code>se</code> is reported
+  the ridged covariance understates the error, and for <em>every</em>
+  threshold of an item any of whose categories has fewer than 8
+  responses: the item's thresholds are estimated jointly, and a
+  critically sparse category destabilises its siblings (in simulation a
+  ~4-response category left a sibling threshold's standard error
+  understated four-fold while that threshold's own local counts looked
+  healthy). Flagged standard errors are reported
   as <code>NA</code> and a note names the item and category), the
   threshold covariance matrix <code>cov_tau</code>, the pairwise conditional
   log-likelihood, the iteration count, a convergence flag, <code>notes</code>,

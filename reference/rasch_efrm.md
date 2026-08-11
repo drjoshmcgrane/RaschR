@@ -162,14 +162,15 @@ rebuilding the person estimates. The redraw matters because the set unit
 is a scale: error in the estimated threshold spread moves every person
 estimate's variance coherently, which person resampling alone cannot see
 (without it the log-alpha standard error understates by about 20 in
-simulation and the unit tests reject at 9-10 they calibrate to about 6
-the common-unit threshold and item standard errors by the delta method,
-treating the stage-1 and person-side linking information as independent
-– the one remaining approximation of the hybrid method. Under
-`se_method = "bootstrap"` all stages are re-estimated on `boot_reps`
-person resamples and every standard error and the threshold covariance
-come from the replicate spread; slower, but captures all
-cross-dependencies jointly.
+simulation and the unit tests reject at 9-10 they reject at 4.9 counts,
+sample sizes, imbalance, and weak linking). The unit uncertainty is
+propagated into the common-unit threshold and item standard errors by
+the delta method, treating the stage-1 and person-side linking
+information as independent – the one remaining approximation of the
+hybrid method. Under `se_method = "bootstrap"` all stages are
+re-estimated on `boot_reps` person resamples and every standard error
+and the threshold covariance come from the replicate spread; slower, but
+captures all cross-dependencies jointly.
 
 Relation to Humphry (2005): the within-frame stage follows the thesis's
 conditional separation logic. The linking stage implemented here is an
