@@ -658,7 +658,16 @@ test_that("clustered inference requires effective, not just nominal, judges", {
   # one judge does ~55% of comparisons among 20: withheld for concentration
   fs <- btl(gen(20, 0.55), "object_a", "object_b", winner = "winner", judge = "judge")
   expect_false(fs$cl$inference_available)
-  expect_lt(fs$cl$n_units_effective, 6)
+  expect_lt(fs$cl$n_units_effective, 8)
   expect_true(any(grepl("concentrat", fs$notes)))
   expect_true(all(is.na(fs$objects$se)))
+  # deterministic allocation with exactly 9.0 effective judges (450 rows:
+  # one judge 90, nine judges 40 each): reported + caution
+  dcb <- gen(10, NA)
+  stopifnot(nrow(dcb) == 450L)
+  dcb$judge <- rep(paste0("J", 1:10), times = c(90L, rep(40L, 9)))
+  fc <- btl(dcb, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_true(fc$cl$inference_available)
+  expect_true(fc$cl$n_units_effective >= 8 && fc$cl$n_units_effective < 9.5)
+  expect_true(any(grepl("uneven", fc$notes)))
 })

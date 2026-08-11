@@ -84,13 +84,15 @@ run_size_cell <- function(label, n_persons, n_items, n_categories, nrep, seed0) 
   rbind(
     sv_row("lr-test", label, "type1_p_adj", n_ok,
            type1 = if (n_ok) mean(p_adj < alpha) else NA_real_,
-           refusal_rate = n_refusal / nrep, nonconv_rate = n_nonconv / nrep,
+           n_attempted = nrep, n_refused = n_refusal + n_noadj,
+           n_nonconv = n_nonconv,
            notes = sprintf(
              "np=%d ni=%d ncat=%d; no_adjustment(df<=0)=%d/%d; Kent-adjusted p_adj, nominal alpha=.05",
              n_persons, n_items, n_categories, n_noadj, nrep)),
     sv_row("lr-test", label, "type1_p_raw", n_ok,
            type1 = if (n_ok) mean(p_raw < alpha) else NA_real_,
-           refusal_rate = n_refusal / nrep, nonconv_rate = n_nonconv / nrep,
+           n_attempted = nrep, n_refused = n_refusal + n_noadj,
+           n_nonconv = n_nonconv,
            notes = "raw unadjusted composite chi-square p (conventional display); documents the anticonservatism the Godambe adjustment corrects")
   )
 }
@@ -155,7 +157,8 @@ run_power_cell <- function(label, eff, n_persons, n_items, n_categories,
               if (n_ok) mean(p_adj < alpha) else NA_real_))
   sv_row("lr-test", label, "power_p_adj", n_ok, effect = eff,
          power = if (n_ok) mean(p_adj < alpha) else NA_real_,
-         refusal_rate = n_refusal / nrep, nonconv_rate = n_nonconv / nrep,
+         n_attempted = nrep, n_refused = n_refusal + n_noadj,
+         n_nonconv = n_nonconv,
          notes = sprintf(
            "np=%d ni=%d ncat=%d spread=%.2f; odd/even items' threshold SHAPE diverges by +-%.2f logits (hand-built, not simulate_rasch's random PCM patterns); no_adjustment=%d/%d",
            n_persons, n_items, n_categories, spread, eff, n_noadj, nrep))

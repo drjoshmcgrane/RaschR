@@ -129,12 +129,13 @@ A list of class \code{"rasch_btl"}: \code{objects} (location, se,
   convergence details, and \code{notes}. With judge clustering,
   covariance-based inference (including the Godambe information criteria,
   standard errors, dependence tests, DIF, and OSI) is withheld unless
-  there are at least 10 judges, at least 6 \emph{effective} judges (the
+  there are at least 10 judges, at least 8 \emph{effective} judges (the
   inverse Simpson index of each judge's share of the comparisons -- a
   judge doing half the work leaves ~4 effective clusters however many
   judges exist, and the clustered sandwich then rejects a true null at
-  ~9\% in simulation), and more judges than fitted parameters. Between
-  6 and 8.5 effective judges inference is reported with a caution note.
+  ~9\% in simulation, with ~7\% already at 6-7 effective), and more
+  effective judges than fitted parameters. Between 8 and 9.5 effective
+  judges inference is reported with a caution note.
   Point estimates and descriptive fit remain; \code{cl$n_units_effective}
   reports the effective count.
   Polytomous fits add \code{thresholds} (the symmetric threshold estimates

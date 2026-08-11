@@ -25,17 +25,21 @@ identification guards, and caught one defect, corrected here:
   estimates. The set unit is a scale, so error in the estimated threshold
   spread moves every person estimate's variance coherently -- invisible
   to person resampling alone. Null rejection of the set-unit tests falls
-  from 9.4% (1,200 replicates, plug-in MCSE 0.9pp) to about 6% at the
-  nominal 5%; the group-unit (phi) tests were already calibrated. The
-  stage-1 covariances are exposed as `fit$unit_cov`.
+  from 9.4% (1,000 replicates, plug-in MCSE 0.9pp) to 4.9% (1,200 fresh
+  replicates), stable across eight design cells (item counts, sample
+  sizes, imbalance, a third linked set, weak linking) and matching a
+  full-bootstrap benchmark; the group-unit (phi) tests were already
+  calibrated. The stage-1 covariances are exposed as `fit$unit_cov`.
 * Judge-clustered comparative judgement inference now also requires at
-  least 6 effective judges (inverse Simpson index of the comparison
-  shares), not just 10 nominal ones: a judge performing half the
-  comparisons leaves ~4 effective clusters at any judge count, and the
-  clustered sandwich then rejects a true null at ~9% (t reference, 500
-  replicates per cell). Balanced designs are unaffected (nominal from 10
-  judges up); allocations between 6 and 8.5 effective judges carry a
-  caution note; `fit$cl$n_units_effective` reports the count.
+  least 8 effective judges (inverse Simpson index of the comparison
+  shares), not just 10 nominal ones, and more effective judges than
+  fitted parameters: a judge performing half the comparisons leaves ~4
+  effective clusters at any judge count and ~9% Type I error, with ~7%
+  already at 6-7 effective (t reference, 500 replicates per cell,
+  tools/simval/studies/followups/btl_share_sweep.R). Balanced designs are
+  unaffected (nominal from 10 judges up); allocations between 8 and 9.5
+  effective judges carry a caution note; `fit$cl$n_units_effective`
+  reports the count.
 * The partial credit weak-category guard now flags an entire item when any
   of its categories has fewer than 8 responses, not only the thresholds
   adjacent to a near-empty (< 3) category: an item's thresholds are

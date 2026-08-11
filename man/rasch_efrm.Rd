@@ -150,7 +150,9 @@ is a scale: error in the estimated threshold spread moves every person
 estimate's variance coherently, which person resampling alone cannot
 see (without it the log-alpha standard error understates by about 20%
 in simulation and the unit tests reject at 9-10% instead of 5%; with it
-they calibrate to about 6%). The unit uncertainty is propagated into
+they reject at 4.9% over 1,200 null replicates, stable across item
+counts, sample sizes, imbalance, and weak linking). The unit
+uncertainty is propagated into
 the common-unit threshold and item standard errors by the delta method,
 treating the stage-1 and person-side linking information as independent
 -- the one remaining approximation of the hybrid method. Under

@@ -357,8 +357,20 @@ run_sparse_categories <- function(n_reps_main, n_reps_ref, n_reps_contrast, seed
           bias = mean(dv, na.rm = TRUE), emp_sd = stats::sd(dv, na.rm = TRUE),
           mean_se = mean(sv, na.rm = TRUE),
           coverage95 = if (any(ok)) mean(abs(dv[ok]) <= 1.96 * sv[ok]) else NA_real_,
-          notes = sprintf("pooled over %d items x replicates; NA se cells (weak-guard fires) excluded from mean_se/coverage but counted in n_reps via finite point estimates; %s",
+          notes = sprintf("pooled over %d items x replicates; NA se cells (weak-guard fires) excluded from mean_se/coverage but counted in n_reps via finite point estimates; POOLED emp_sd/mean_se MIXES heterogeneous item precisions (Jensen: sqrt(mean sd^2)/mean se > 1 even when every item calibrates) and, post-guard, selection -- read the per-item row below for calibration; %s",
                           I, if (k == m) "k=3 is the deliberately rare top-category threshold" else "not the rare threshold"))
+      per_item <- vapply(seq_len(I), function(j) {
+        okjk <- is.finite(est[, j, k]) & is.finite(se[, j, k])
+        if (sum(okjk) < 30) return(NA_real_)
+        stats::sd(est[okjk, j, k]) / mean(se[okjk, j, k])
+      }, 0)
+      fin <- is.finite(per_item)
+      add(scen, sprintf("threshold_k%d_per_item_ratio", k), sum(fin),
+          notes = sprintf(
+            "per-item empirical-SD/mean-SE among REPORTED (non-withheld) cells: median %.2f, max %.2f (item %s); items with <30 reported cells (guard-withheld) excluded: %s",
+            stats::median(per_item[fin]), if (any(fin)) max(per_item[fin]) else NA,
+            if (any(fin)) names(delta)[which.max(replace(per_item, !fin, -Inf))] else "none",
+            if (all(fin)) "none" else paste(names(delta)[!fin], collapse = "/")))
       Wk <- weak[, , k]
       per_rep <- rowMeans(Wk, na.rm = TRUE)
       okr <- is.finite(per_rep)

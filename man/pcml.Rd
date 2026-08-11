@@ -32,7 +32,13 @@ A list with the threshold table \code{thr} (columns \code{id},
   \code{item}, \code{k}, \code{tau}, \code{se}, \code{anchored}, and
   \code{weak} -- \code{TRUE} for a threshold adjacent to a category with
   fewer than 3 responses, whose estimate can run toward a boundary while
-  the ridged covariance understates the error; its \code{se} is reported
+  the ridged covariance understates the error, and for \emph{every}
+  threshold of an item any of whose categories has fewer than 8
+  responses: the item's thresholds are estimated jointly, and a
+  critically sparse category destabilises its siblings (in simulation a
+  ~4-response category left a sibling threshold's standard error
+  understated four-fold while that threshold's own local counts looked
+  healthy). Flagged standard errors are reported
   as \code{NA} and a note names the item and category), the
   threshold covariance matrix \code{cov_tau}, the pairwise conditional
   log-likelihood, the iteration count, a convergence flag, \code{notes},

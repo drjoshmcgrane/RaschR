@@ -42,6 +42,23 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
   any syntax error; run it (and a smoke subset) before trusting the
   reproducibility claim.
 
+## Known limitations surfaced by the battery
+
+- Small-sample undercoverage for extreme items: with 20-100 persons per
+  form, item-threshold coverage runs 0.88-0.94 (SE ratios up to ~1.5) for
+  items placed 3 logits from the person mean. The fully crossed reference
+  arm shows the same undercoverage as the linked-booklet arm at every
+  sample size, and both are nominal by 600 persons -- this is
+  small-sample behaviour of the pairwise-conditional standard errors for
+  poorly-informed items, not a cost of the booklet structure, and it is
+  compounded at the smallest sizes by conditioning on the 4-20% of fits
+  the identification guard refuses (`structural-missingness.csv`,
+  weak_links rows).
+- Pooled threshold rows in the sparse-category scenarios mix items of
+  very different precision; their emp_sd/mean_se exceeds 1 by Jensen's
+  inequality even when every item calibrates. The per-item rows carry the
+  calibration-relevant figures.
+
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the
 package git SHA (`+dirty` when the R code differs from HEAD), and the run

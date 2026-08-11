@@ -3,7 +3,9 @@
 #
 # btl(..., judge = ) clusters the Godambe sandwich by judge (crossprod of
 # per-judge score sums), applies a CR1 finite-cluster correction, and -- per
-# the "fewer-than-ten-judges withholding guard" -- WITHHOLDS covariance-based
+# the withholding guard (since 1.14.2: at least 10 judges AND at least 8
+# EFFECTIVE judges by the inverse Simpson index of comparison shares, with
+# more effective judges than parameters) -- WITHHOLDS covariance-based
 # inference (object SEs all NA, a note attached) whenever there are fewer
 # than 10 judge clusters or no more clusters than fitted parameters, while
 # still reporting point estimates and fit summaries. This study asks: (a) is
@@ -120,6 +122,43 @@ idx_large <- which(objs[pair_idx[1, ]] == "O1" & objs[pair_idx[2, ]] == "O8")
 true_diff_flat <- rep(0, n_pairs)
 true_diff_spaced <- beta_spaced[pair_idx[1, ]] - beta_spaced[pair_idx[2, ]]
 
+# Population-averaged targets under judge-by-object heterogeneity. With
+# eta_jk ~ N(0, dep_sd^2) added to both objects' logits, the marginal
+# win probability of each pair is a logistic-normal integral, and the
+# marginal (no-random-effects) BTL fit converges to the KL projection of
+# those probabilities onto the BTL family -- the population-averaged
+# contrasts, attenuated relative to the conditional generating beta
+# (about 11% at dep_sd = 0.6 for the extreme pair). Coverage of the
+# clustered CIs must target THIS estimand; targeting the conditional
+# beta conflates non-collapsibility with covariance error.
+marginal_diff_targets <- function(beta, dep_sd) {
+  if (dep_sd == 0) return(beta[pair_idx[1, ]] - beta[pair_idx[2, ]])
+  pm <- vapply(seq_len(n_pairs), function(e) {
+    d <- beta[pair_idx[1, e]] - beta[pair_idx[2, e]]
+    stats::integrate(function(u) stats::plogis(d + u) *
+                       stats::dnorm(u, 0, sqrt(2) * dep_sd),
+                     -Inf, Inf)$value
+  }, 0)
+  X <- matrix(0, n_pairs, K)
+  for (e in seq_len(n_pairs)) {          # pair_idx holds numeric indices
+    X[e, pair_idx[1, e]] <- 1
+    X[e, pair_idx[2, e]] <- -1
+  }
+  Cm <- rbind(diag(K - 1L), rep(-1, K - 1L))     # sum-to-zero
+  Xr <- X %*% Cm
+  b <- rep(0, K - 1L)
+  for (it in 1:200) {
+    pr <- stats::plogis(drop(Xr %*% b))
+    g <- crossprod(Xr, pm - pr)
+    H <- crossprod(Xr, Xr * (pr * (1 - pr)))
+    step <- solve(H, g)
+    b <- b + step
+    if (max(abs(step)) < 1e-12) break
+  }
+  bm <- drop(Cm %*% b)
+  bm[pair_idx[1, ]] - bm[pair_idx[2, ]]
+}
+
 gen_data <- function(beta, J, allocation, dep_sd) {
   jids <- sprintf("J%d", seq_len(J))
   pr <- t(utils::combn(objs, 2))
@@ -206,6 +245,10 @@ for (s in seq_len(nrow(scenarios))) {
   set.seed(seed)
   n_reps <- sc$reps
 
+  # coverage/bias targets for this scenario: the population-averaged
+  # contrasts (equal to the generating contrasts when dep_sd = 0)
+  target_sp <- marginal_diff_targets(beta_spaced, sc$dep_sd)
+
   # accumulators
   rej_flat_c <- rej_flat_n <- matrix(NA, n_reps, n_pairs)  # Type I (flat truth)
   any_rej_flat_c <- logical(n_reps)                         # familywise (clustered)
@@ -249,7 +292,7 @@ for (s in seq_len(nrow(scenarios))) {
 
     if (!isTRUE(sc_$refused) && sc_$converged && sc_$inference_available) {
       crit <- stats::qt(0.975, df = sc_$df)
-      cov_sp_c[r, ] <- abs(sc_$diffs - true_diff_spaced) <= crit * sc_$se
+      cov_sp_c[r, ] <- abs(sc_$diffs - target_sp) <= crit * sc_$se
       diff_small[r] <- sc_$diffs[idx_small]; se_small[r] <- sc_$se[idx_small]
       diff_large[r] <- sc_$diffs[idx_large]; se_large[r] <- sc_$se[idx_large]
       pow_small[r] <- abs(sc_$diffs[idx_small] / sc_$se[idx_small]) > crit
@@ -257,7 +300,7 @@ for (s in seq_len(nrow(scenarios))) {
     }
     if (!isTRUE(sn$refused) && sn$converged) {
       crit <- stats::qnorm(0.975)
-      cov_sp_n[r, ] <- abs(sn$diffs - true_diff_spaced) <= crit * sn$se
+      cov_sp_n[r, ] <- abs(sn$diffs - target_sp) <= crit * sn$se
     }
   }
 
@@ -288,22 +331,22 @@ for (s in seq_len(nrow(scenarios))) {
     notes = "P(>=1 false rejection among 28 non-independent pairwise tests/replicate)")
   rows[[length(rows) + 1]] <- mk("coverage_clustered", n_reps = covc$n, coverage95 = covc$p,
     mc_override = list(coverage95 = covc$mcse), n_refused = n_ref_sp, n_nonconv = n_nc_sp,
-    notes = "pooled over 28 pairs, spaced truth, clustered SE, t(df=nJudge-1) CI")
+    notes = "pooled over 28 pairs, spaced truth, clustered SE, t(df=nJudge-1) CI; target = population-averaged (marginal) contrasts, the estimand of the marginal BTL fit under judge heterogeneity")
   rows[[length(rows) + 1]] <- mk("coverage_naive", n_reps = covn$n, coverage95 = covn$p,
     mc_override = list(coverage95 = covn$mcse), n_refused = n_ref_sp, n_nonconv = n_nc_sp,
-    notes = "pooled over 28 pairs, spaced truth, unclustered SE, normal(z) CI")
+    notes = "pooled over 28 pairs, spaced truth, unclustered SE, normal(z) CI; same population-averaged targets")
 
   ok_s <- is.finite(diff_small); ok_l <- is.finite(diff_large)
-  bs <- mean(diff_small[ok_s] - true_diff_spaced[idx_small])
-  bl <- mean(diff_large[ok_l] - true_diff_spaced[idx_large])
+  bs <- mean(diff_small[ok_s] - target_sp[idx_small])
+  bl <- mean(diff_large[ok_l] - target_sp[idx_large])
   rows[[length(rows) + 1]] <- mk("contrast_small_O4_O5", n_reps = sum(ok_s),
-    effect = true_diff_spaced[idx_small], bias = bs, emp_sd = stats::sd(diff_small[ok_s]),
+    effect = target_sp[idx_small], bias = bs, emp_sd = stats::sd(diff_small[ok_s]),
     mean_se = mean(se_small[ok_s]), coverage95 = covc$p,
     power = mean(pow_small[ok_s]), mc_override = list(power = mc_se_prop(mean(pow_small[ok_s]), sum(ok_s))),
     n_refused = n_ref_sp, n_nonconv = n_nc_sp,
     notes = "adjacent-object contrast, |true diff| ~0.41 logits; coverage95 is the pooled 28-pair figure")
   rows[[length(rows) + 1]] <- mk("contrast_large_O1_O8", n_reps = sum(ok_l),
-    effect = true_diff_spaced[idx_large], bias = bl, emp_sd = stats::sd(diff_large[ok_l]),
+    effect = target_sp[idx_large], bias = bl, emp_sd = stats::sd(diff_large[ok_l]),
     mean_se = mean(se_large[ok_l]), coverage95 = covc$p,
     power = mean(pow_large[ok_l]), mc_override = list(power = mc_se_prop(mean(pow_large[ok_l]), sum(ok_l))),
     n_refused = n_ref_sp, n_nonconv = n_nc_sp,
