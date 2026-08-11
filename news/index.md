@@ -20,6 +20,42 @@ identification guards, and caught one defect, corrected here:
   corrected standard error calibrates at 4.8% (dichotomous, 400 fresh
   replicates; 5.4% on the 1,200 diagnostic replicates) and 3.5% (partial
   credit); the estimate d is unchanged.
+- The extended frame of reference model’s set-unit (alpha) standard
+  errors under the default hybrid method now carry the within-frame
+  calibration noise: each linking-bootstrap replicate redraws the
+  thresholds and group units jointly from their estimated stage-1
+  covariance (cross-covariance preserved) before rebuilding the person
+  estimates. The set unit is a scale, so error in the estimated
+  threshold spread moves every person estimate’s variance coherently –
+  invisible to person resampling alone. Null rejection of the set-unit
+  tests falls from 9.4% (1,200 replicates, plug-in MCSE 0.9pp) to about
+  6% at the nominal 5%; the group-unit (phi) tests were already
+  calibrated. The stage-1 covariances are exposed as `fit$unit_cov`.
+- Judge-clustered comparative judgement inference now also requires at
+  least 6 effective judges (inverse Simpson index of the comparison
+  shares), not just 10 nominal ones: a judge performing half the
+  comparisons leaves ~4 effective clusters at any judge count, and the
+  clustered sandwich then rejects a true null at ~9% (t reference, 500
+  replicates per cell). Balanced designs are unaffected (nominal from 10
+  judges up); allocations between 6 and 8.5 effective judges carry a
+  caution note; `fit$cl$n_units_effective` reports the count.
+- The partial credit weak-category guard now flags an entire item when
+  any of its categories has fewer than 8 responses, not only the
+  thresholds adjacent to a near-empty (\< 3) category: an item’s
+  thresholds are estimated jointly, and in simulation a ~4-response
+  category left a sibling threshold’s reported standard error
+  understated four-fold while that threshold’s own local counts looked
+  healthy (~7 responses gave ~1.7x). Reported standard errors for such
+  items are withheld with an explanatory note.
+- The paired-comparison extended-frame (btl_efrm) unit tests use
+  judge-limited references: the unit omnibus tests a Hotelling-style
+  F(q, n_judges - q) and the per-unit tables a t with n_judges - 1
+  degrees of freedom, replacing chi-square/normal references whose
+  covariances rest on resampling only ~10-20 judges. The set-origin
+  (kappa) omnibus rejected a true null at ~8.7% (550 replicates, 12
+  judges) under the chi-square reference; the F reference restores the
+  nominal rate, exactly as for the many-facet interaction omnibus in
+  1.14.1.
 - The plant-and-detect vignette closes with a summary of the validation
   battery.
 

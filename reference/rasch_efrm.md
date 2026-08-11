@@ -154,14 +154,22 @@ represents; the units' own uncertainty is reported in `alpha_table` and
 below.
 
 Standard errors: under `se_method = "hybrid"` (default) the group units
-carry sandwich standard errors from the pairwise stage, the set units
-carry person-bootstrap standard errors from the linking stage, and the
-unit uncertainty is propagated into the common-unit threshold and item
-standard errors by the delta method (treating the item-side and
-person-side information as independent). Under `se_method = "bootstrap"`
-all stages are re-estimated on `boot_reps` person resamples and every
-standard error and the threshold covariance come from the replicate
-spread; slower, but captures all cross-dependencies jointly.
+carry sandwich standard errors from the pairwise stage; the set units
+carry standard errors from a linking-stage bootstrap in which each
+replicate resamples persons and also redraws the within-frame thresholds
+and group units jointly from their estimated stage-1 covariance before
+rebuilding the person estimates. The redraw matters because the set unit
+is a scale: error in the estimated threshold spread moves every person
+estimate's variance coherently, which person resampling alone cannot see
+(without it the log-alpha standard error understates by about 20 in
+simulation and the unit tests reject at 9-10 they calibrate to about 6
+the common-unit threshold and item standard errors by the delta method,
+treating the stage-1 and person-side linking information as independent
+– the one remaining approximation of the hybrid method. Under
+`se_method = "bootstrap"` all stages are re-estimated on `boot_reps`
+person resamples and every standard error and the threshold covariance
+come from the replicate spread; slower, but captures all
+cross-dependencies jointly.
 
 Relation to Humphry (2005): the within-frame stage follows the thesis's
 conditional separation logic. The linking stage implemented here is an

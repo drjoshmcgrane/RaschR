@@ -51,21 +51,21 @@ fit
 #> 
 #> Item set units (alpha) and locations:
 #>   set alpha se_log_alpha     mu n_items
-#>  set1 0.822        0.032 -0.027       8
-#>  set2 1.217        0.032  0.027       8
+#>  set1 0.822        0.038 -0.027       8
+#>  set2 1.217        0.038  0.027       8
 #> 
 #> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 28.664 with 1 extra unit parameter(s)
 #> (composite likelihood: descriptive; informative for group units (phi))
 #> Omnibus Wald tests of equal units:
 #>               term df   wald       p
 #>  group units (phi)  1  8.516   0.004
-#>  set units (alpha)  1 37.025 < 0.001
+#>  set units (alpha)  1 26.523 < 0.001
 #> Holm-adjusted exploratory unit contrasts (H0: unit = 1):
 #>        parameter estimate    se      z       p   p_adj significant
 #>      log phi[g1]   -0.092 0.031 -2.918   0.004   0.007           *
 #>      log phi[g2]    0.092 0.031  2.918   0.004   0.007           *
-#>  log alpha[set1]   -0.196 0.032 -6.085 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.196 0.032  6.085 < 0.001 < 0.001           *
+#>  log alpha[set1]   -0.196 0.038 -5.150 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.196 0.038  5.150 < 0.001 < 0.001           *
 #> 
 #> Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves)
 ```
@@ -84,8 +84,8 @@ fit$phi_table
 #> 2    g2 1.0959    0.03139
 fit$alpha_table
 #>    set  alpha se_log_alpha
-#> 1 set1 0.8217      0.03228
-#> 2 set2 1.2170      0.03228
+#> 1 set1 0.8217      0.03814
+#> 2 set2 1.2170      0.03814
 fit$set_table
 #>    set       mu  alpha n_items
 #> 1 set1 -0.02699 0.8217       8
@@ -136,10 +136,10 @@ refit the complete pipeline on each person resample.
 
 fit$frames
 #>    set group n_persons n_items  alpha    phi    rho se_log_rho   origin
-#> 1 set1    g1       300       8 0.8217 0.9125 0.7498    0.04502 -0.02699
-#> 2 set2    g1       300       8 1.2170 0.9125 1.1105    0.04502  0.02699
-#> 3 set1    g2       300       8 0.8217 1.0959 0.9005    0.04502 -0.02699
-#> 4 set2    g2       300       8 1.2170 1.0959 1.3338    0.04502  0.02699
+#> 1 set1    g1       300       8 0.8217 0.9125 0.7498    0.04939 -0.02699
+#> 2 set2    g1       300       8 1.2170 0.9125 1.1105    0.04939  0.02699
+#> 3 set1    g2       300       8 0.8217 1.0959 0.9005    0.04939 -0.02699
+#> 4 set2    g2       300       8 1.2170 1.0959 1.3338    0.04939  0.02699
 #>   infit_ms outfit_ms fit_resid n_responses
 #> 1    1.002    0.9934    0.4098        2344
 #> 2    1.049    0.9767   -0.6696        2344
@@ -164,14 +164,14 @@ fit$efrm_vs_rasch
 #> $unit_omnibus
 #>                term df   wald         p
 #> 1 group units (phi)  1  8.516 3.521e-03
-#> 2 set units (alpha)  1 37.025 1.167e-09
+#> 2 set units (alpha)  1 26.523 2.604e-07
 #> 
 #> $unit_tests
 #>         parameter estimate      se      z         p     p_adj significant
 #> 1     log phi[g1] -0.09159 0.03139 -2.918 3.521e-03 7.042e-03        TRUE
 #> 2     log phi[g2]  0.09159 0.03139  2.918 3.521e-03 7.042e-03        TRUE
-#> 3 log alpha[set1] -0.19642 0.03228 -6.085 1.167e-09 4.666e-09        TRUE
-#> 4 log alpha[set2]  0.19642 0.03228  6.085 1.167e-09 4.666e-09        TRUE
+#> 3 log alpha[set1] -0.19642 0.03814 -5.150 2.604e-07 1.042e-06        TRUE
+#> 4 log alpha[set2]  0.19642 0.03814  5.150 2.604e-07 1.042e-06        TRUE
 ```
 
 The raw equal-unit composite-likelihood difference is descriptive.

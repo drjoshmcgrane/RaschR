@@ -159,17 +159,17 @@ ef <- btl_efrm(
   se_method = "conditional"
 )
 ef$phi_table
-#>    panel    phi se_log_phi       z      p  p_adj significant
-#> 1 panel1 1.1066     0.1166  0.8685 0.3851 0.7703       FALSE
-#> 2 panel2 0.9037     0.1166 -0.8685 0.3851 0.7703       FALSE
+#>    panel    phi se_log_phi       t df      p  p_adj significant
+#> 1 panel1 1.1066     0.1166  0.8685 11 0.4037 0.8074       FALSE
+#> 2 panel2 0.9037     0.1166 -0.8685 11 0.4037 0.8074       FALSE
 ef$alpha_table
-#>    set alpha se_log_alpha     z      p  p_adj significant
-#> 1 set1  1.00           NA    NA     NA     NA          NA
-#> 2 set2  1.35       0.1179 2.549 0.0108 0.0108        TRUE
+#>    set alpha se_log_alpha     t df       p   p_adj significant
+#> 1 set1  1.00           NA    NA 11      NA      NA          NA
+#> 2 set2  1.35       0.1179 2.549 11 0.02704 0.02704        TRUE
 ef$kappa_table
-#>    set  kappa se_kappa     z       p   p_adj significant
-#> 1 set1 0.0000       NA    NA      NA      NA          NA
-#> 2 set2 0.2798   0.1228 2.279 0.02269 0.02269        TRUE
+#>    set  kappa se_kappa     t df       p   p_adj significant
+#> 1 set1 0.0000       NA    NA 11      NA      NA          NA
+#> 2 set2 0.2798   0.1228 2.279 11 0.04364 0.04364        TRUE
 ```
 
 For final inference, the default judge bootstrap resamples judges within

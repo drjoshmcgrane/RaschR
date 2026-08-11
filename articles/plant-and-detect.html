@@ -377,19 +377,87 @@ release is validated by a simulation battery that runs every model
 family — the dichotomous model, the polytomous models, many-facet
 models, the extended frame of reference model, and the comparative
 judgement models — against its full set of diagnostics, under complete
-data, 25% random missingness, and linked structural designs: some 240
-checks in all. Parameter recovery is checked against the planted values;
-reported standard errors against the empirical sampling variability of
-the estimates (all calibration ratios fall within 0.85–1.20, most within
-a few percent of 1); significance tests against their nominal rates
-under model-true data; and every diagnostic against its planted
-departure for power. The identification guards are exercised in both
-directions: connected linked designs fit and recover well, while
-genuinely disconnected designs are refused rather than fitted. The
-battery’s scripts (seeds inline) and its per-check result table are kept
-in the package sources under <code>tools/simval/</code>, so every number
-is reproducible from the repository.</p>
-<p>One correction came out of the battery.
+data, 25% random missingness, and linked structural designs: 234
+recorded checks, of which 231 passed. (The three failures are retained
+in the result table deliberately: two exposed the standard-error defect
+corrected below, and one was a mis-designed power scenario in the
+battery itself, redesigned and passing.) Parameter recovery is checked
+against the planted values; reported standard errors against the
+empirical sampling variability of the estimates (all calibration ratios
+fall within 0.85–1.20, most within a few percent of 1); significance
+tests against their nominal rates under model-true data; and every
+diagnostic against its planted departure for power. The identification
+guards are exercised in both directions: connected linked designs fit
+and recover well, while genuinely disconnected designs are refused
+rather than fitted. The battery’s scripts (seeds inline) and its
+per-check result table are kept in the package sources under
+<code>tools/simval/</code>, so every number is reproducible from the
+repository.</p>
+<p>A second round followed the external review, targeting the newer
+inferential procedures with the reporting standard of Morris, White and
+Crowther (2019): every rate with its Monte Carlo standard error,
+replicate accounting that separates attempted, refused, and
+non-converged fits, and at least 1,000 replicates behind each principal
+null claim. Seven studies (committed under
+<code>tools/simval/studies/</code>, results and provenance under
+<code>tools/simval/results/</code>) covered the custom Wald and contrast
+tests, judge-clustered comparative judgement inference, the
+tailored-analysis bootstrap, the <code>lr_test</code>
+composite-likelihood comparison, equating multiplicity, structural
+missingness, and person-measure coverage. Most of it confirmed
+calibration: <code>lr_test</code> rejects a true rating-scale model at
+4.65% over 2,000 replicates; equating’s familywise drift error is
+nominal at every anchor count tried (4.9–5.5% over 2,000–4,000
+replicates), with shift coverage 94.6–94.7% across bank modes;
+person-measure (WLE) coverage sits at 0.945–0.983 across the central
+ability range, and in the tails the intervals turn conservative rather
+than failing (at true abilities two logits past the item bank, bias
+approaches the distance to the bank but coverage stays at or above
+nominal); balanced judge-clustered designs are calibrated from ten
+judges up (Type I 5.01%, coverage 94.5% at exactly ten judges, 1,200
+replicates); and the tailored-analysis bootstrap never overstates – its
+familywise error is 0.8% over 240 full-procedure replicates (anchor
+selection re-run inside every one), at the price of low power against
+planted guessing at feasible bootstrap sizes, which is why tailored
+shifts are descriptive by default and the bootstrap warns about its own
+resolution floor.</p>
+<p>The second round also caught three defects, each confirmed by an
+adversarial verification pass, diagnosed, corrected, and
+re-validated:</p>
+<ul>
+<li>The extended frame of reference model’s set-unit tests rejected a
+true null at 9.4% (1,200 replicates): the linking-stage bootstrap
+resampled persons but held the estimated thresholds fixed, and the set
+unit is a scale, so calibration noise moves every person estimate’s
+variance coherently. Each bootstrap replicate now redraws the thresholds
+and panel units jointly from their estimated stage-1 covariance
+(cross-covariance preserved); the corrected tests reject at 4.9% (1,200
+fresh replicates), stable across item counts, sample sizes, imbalance, a
+third linked set, and weak linking.</li>
+<li>Judge-clustered comparative judgement inference was calibrated for
+the judge counts tested but not for concentrated allocations: one judge
+performing half the comparisons leaves about four effective clusters
+whatever the nominal count, and the true-null rejection climbs to ~9%.
+The guard now requires at least six effective judges (inverse Simpson of
+the comparison shares), annotates uneven allocations, and reports
+<code>cl$n_units_effective</code>.</li>
+<li>The paired-comparison extended-frame unit tests used chi-square and
+normal references on covariances estimated from ten to twenty judges;
+the set-origin omnibus rejected at 8.7%. Judge-limited references
+(Hotelling-style F for the omnibus, t for the unit tables) restore
+5.5%.</li>
+</ul>
+<p>Two suspected defects were exonerated by the same machinery: the
+many-facet interaction omnibus at 25 parameters is calibrated (4.3% and
+5.2% at 600 fixed-truth replicates), and a reported two-fold standard
+error understatement for partial credit thresholds under a rare category
+proved to be mostly an artifact of pooling heterogeneous items – though
+the per-item decomposition it prompted exposed one genuine case, a
+four-fold understatement in a threshold neighbouring a ~4-response
+category, and the weak-category guard now withholds a whole item’s
+standard errors when any category falls below eight responses (the
+survivors it still reports are calibrated to 1.01–1.08).</p>
+<p>One correction came out of the first battery.
 <code>dependence_magnitude</code> followed Andrich and Marais (2019,
 eqs. 24.9–24.11) in pooling the two resolved items’ variances as if
 their estimates were independent, on the grounds that disjoint persons
@@ -420,6 +488,9 @@ differential item functioning in health research using the Rasch model.
 <em>Health and Quality of Life Outcomes</em>, 15, 181.</p>
 <p>Kendall, M. G., and Babington Smith, B. (1940). On the method of
 paired comparisons. <em>Biometrika</em>, 31, 324–345.</p>
+<p>Morris, T. P., White, I. R., and Crowther, M. J. (2019). Using
+simulation studies to evaluate statistical methods. <em>Statistics in
+Medicine</em>, 38, 2074–2102.</p>
 <p>Rasch, G. (1960). <em>Probabilistic Models for Some Intelligence and
 Attainment Tests</em>. Copenhagen: Danish Institute for Educational
 Research. (Expanded edition, 1980, Chicago: University of Chicago

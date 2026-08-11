@@ -237,11 +237,19 @@ the within-set rescaling that <code>alpha</code> represents; the units' own
 uncertainty is reported in <code>alpha_table</code> and <code>phi_table</code> and
 folded into the common-unit standard errors as described below.</p>
 <p>Standard errors: under <code>se_method = "hybrid"</code> (default) the group
-units carry sandwich standard errors from the pairwise stage, the set
-units carry person-bootstrap standard errors from the linking stage, and
-the unit uncertainty is propagated into the common-unit threshold and
-item standard errors by the delta method (treating the item-side and
-person-side information as independent). Under
+units carry sandwich standard errors from the pairwise stage; the set
+units carry standard errors from a linking-stage bootstrap in which each
+replicate resamples persons and also redraws the within-frame thresholds
+and group units jointly from their estimated stage-1 covariance before
+rebuilding the person estimates. The redraw matters because the set unit
+is a scale: error in the estimated threshold spread moves every person
+estimate's variance coherently, which person resampling alone cannot
+see (without it the log-alpha standard error understates by about 20<!-- % -->
+in simulation and the unit tests reject at 9-10<!-- % instead of 5%; with it -->
+they calibrate to about 6<!-- %). The unit uncertainty is propagated into -->
+the common-unit threshold and item standard errors by the delta method,
+treating the stage-1 and person-side linking information as independent
+– the one remaining approximation of the hybrid method. Under
 <code>se_method = "bootstrap"</code> all stages are re-estimated on
 <code>boot_reps</code> person resamples and every standard error and the
 threshold covariance come from the replicate spread; slower, but captures

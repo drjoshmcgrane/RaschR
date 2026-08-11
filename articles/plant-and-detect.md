@@ -336,32 +336,98 @@ is validated by a simulation battery that runs every model family — the
 dichotomous model, the polytomous models, many-facet models, the
 extended frame of reference model, and the comparative judgement models
 — against its full set of diagnostics, under complete data, 25% random
-missingness, and linked structural designs: some 240 checks in all.
-Parameter recovery is checked against the planted values; reported
-standard errors against the empirical sampling variability of the
-estimates (all calibration ratios fall within 0.85–1.20, most within a
-few percent of 1); significance tests against their nominal rates under
-model-true data; and every diagnostic against its planted departure for
-power. The identification guards are exercised in both directions:
-connected linked designs fit and recover well, while genuinely
-disconnected designs are refused rather than fitted. The battery’s
-scripts (seeds inline) and its per-check result table are kept in the
-package sources under `tools/simval/`, so every number is reproducible
-from the repository.
+missingness, and linked structural designs: 234 recorded checks, of
+which 231 passed. (The three failures are retained in the result table
+deliberately: two exposed the standard-error defect corrected below, and
+one was a mis-designed power scenario in the battery itself, redesigned
+and passing.) Parameter recovery is checked against the planted values;
+reported standard errors against the empirical sampling variability of
+the estimates (all calibration ratios fall within 0.85–1.20, most within
+a few percent of 1); significance tests against their nominal rates
+under model-true data; and every diagnostic against its planted
+departure for power. The identification guards are exercised in both
+directions: connected linked designs fit and recover well, while
+genuinely disconnected designs are refused rather than fitted. The
+battery’s scripts (seeds inline) and its per-check result table are kept
+in the package sources under `tools/simval/`, so every number is
+reproducible from the repository.
 
-One correction came out of the battery. `dependence_magnitude` followed
-Andrich and Marais (2019, eqs. 24.9–24.11) in pooling the two resolved
-items’ variances as if their estimates were independent, on the grounds
-that disjoint persons answer them. In the joint refit, however, the two
-estimates are negatively correlated through the shared comparator items,
-and the pooled standard error is too small: with ten items, the null
-rejection rate was 7.5% at a nominal 5% over 1,200 replicates. Since
-release 1.14.2 the standard error is the delta-method contrast over the
-fit’s sandwich covariance, which restores the nominal rate: 4.8% over
-400 fresh-seed replicates (Monte Carlo error about 1 percentage point),
-3.5% for the partial credit case, and 5.4% when the corrected formula is
-applied to the original 1,200 diagnostic replicates. The estimate of *d*
-itself is unaffected.
+A second round followed the external review, targeting the newer
+inferential procedures with the reporting standard of Morris, White and
+Crowther (2019): every rate with its Monte Carlo standard error,
+replicate accounting that separates attempted, refused, and
+non-converged fits, and at least 1,000 replicates behind each principal
+null claim. Seven studies (committed under `tools/simval/studies/`,
+results and provenance under `tools/simval/results/`) covered the custom
+Wald and contrast tests, judge-clustered comparative judgement
+inference, the tailored-analysis bootstrap, the `lr_test`
+composite-likelihood comparison, equating multiplicity, structural
+missingness, and person-measure coverage. Most of it confirmed
+calibration: `lr_test` rejects a true rating-scale model at 4.65% over
+2,000 replicates; equating’s familywise drift error is nominal at every
+anchor count tried (4.9–5.5% over 2,000–4,000 replicates), with shift
+coverage 94.6–94.7% across bank modes; person-measure (WLE) coverage
+sits at 0.945–0.983 across the central ability range, and in the tails
+the intervals turn conservative rather than failing (at true abilities
+two logits past the item bank, bias approaches the distance to the bank
+but coverage stays at or above nominal); balanced judge-clustered
+designs are calibrated from ten judges up (Type I 5.01%, coverage 94.5%
+at exactly ten judges, 1,200 replicates); and the tailored-analysis
+bootstrap never overstates – its familywise error is 0.8% over 240
+full-procedure replicates (anchor selection re-run inside every one), at
+the price of low power against planted guessing at feasible bootstrap
+sizes, which is why tailored shifts are descriptive by default and the
+bootstrap warns about its own resolution floor.
+
+The second round also caught three defects, each confirmed by an
+adversarial verification pass, diagnosed, corrected, and re-validated:
+
+- The extended frame of reference model’s set-unit tests rejected a true
+  null at 9.4% (1,200 replicates): the linking-stage bootstrap resampled
+  persons but held the estimated thresholds fixed, and the set unit is a
+  scale, so calibration noise moves every person estimate’s variance
+  coherently. Each bootstrap replicate now redraws the thresholds and
+  panel units jointly from their estimated stage-1 covariance
+  (cross-covariance preserved); the corrected tests reject at 4.9%
+  (1,200 fresh replicates), stable across item counts, sample sizes,
+  imbalance, a third linked set, and weak linking.
+- Judge-clustered comparative judgement inference was calibrated for the
+  judge counts tested but not for concentrated allocations: one judge
+  performing half the comparisons leaves about four effective clusters
+  whatever the nominal count, and the true-null rejection climbs to ~9%.
+  The guard now requires at least six effective judges (inverse Simpson
+  of the comparison shares), annotates uneven allocations, and reports
+  `cl$n_units_effective`.
+- The paired-comparison extended-frame unit tests used chi-square and
+  normal references on covariances estimated from ten to twenty judges;
+  the set-origin omnibus rejected at 8.7%. Judge-limited references
+  (Hotelling-style F for the omnibus, t for the unit tables) restore
+  5.5%.
+
+Two suspected defects were exonerated by the same machinery: the
+many-facet interaction omnibus at 25 parameters is calibrated (4.3% and
+5.2% at 600 fixed-truth replicates), and a reported two-fold standard
+error understatement for partial credit thresholds under a rare category
+proved to be mostly an artifact of pooling heterogeneous items – though
+the per-item decomposition it prompted exposed one genuine case, a
+four-fold understatement in a threshold neighbouring a ~4-response
+category, and the weak-category guard now withholds a whole item’s
+standard errors when any category falls below eight responses (the
+survivors it still reports are calibrated to 1.01–1.08).
+
+One correction came out of the first battery. `dependence_magnitude`
+followed Andrich and Marais (2019, eqs. 24.9–24.11) in pooling the two
+resolved items’ variances as if their estimates were independent, on the
+grounds that disjoint persons answer them. In the joint refit, however,
+the two estimates are negatively correlated through the shared
+comparator items, and the pooled standard error is too small: with ten
+items, the null rejection rate was 7.5% at a nominal 5% over 1,200
+replicates. Since release 1.14.2 the standard error is the delta-method
+contrast over the fit’s sandwich covariance, which restores the nominal
+rate: 4.8% over 400 fresh-seed replicates (Monte Carlo error about 1
+percentage point), 3.5% for the partial credit case, and 5.4% when the
+corrected formula is applied to the original 1,200 diagnostic
+replicates. The estimate of *d* itself is unaffected.
 
 ## References
 
@@ -381,6 +447,10 @@ differential item functioning in health research using the Rasch model.
 
 Kendall, M. G., and Babington Smith, B. (1940). On the method of paired
 comparisons. *Biometrika*, 31, 324–345.
+
+Morris, T. P., White, I. R., and Crowther, M. J. (2019). Using
+simulation studies to evaluate statistical methods. *Statistics in
+Medicine*, 38, 2074–2102.
 
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
 Attainment Tests*. Copenhagen: Danish Institute for Educational

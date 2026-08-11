@@ -63,6 +63,6 @@ tr <- attr(d, "truth")
 ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group")
 ef$alpha_table   # recovers the ~1.3 set-unit ratio
 #>    set     alpha se_log_alpha
-#> 1 set1 0.8913905   0.04276361
-#> 2 set2 1.1218428   0.04276361
+#> 1 set1 0.8913905   0.05237697
+#> 2 set2 1.1218428   0.05237697
 ```
