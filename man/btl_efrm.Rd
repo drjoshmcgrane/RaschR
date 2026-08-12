@@ -83,9 +83,12 @@ An object of class \code{"rasch_btl_efrm"}: \code{objects} (object,
 }
 \description{
 Estimates object locations from paired comparisons when the unit of the
-latent scale differs across frames -- judge-panel by object-set cells -- an
-extension of Humphry's (2005) extended frame of reference model to the
-Bradley-Terry-Luce family. Objects are partitioned into sets and judges into
+latent scale differs across frames -- judge-panel by object-set cells.
+The model is a hybrid of the package's two non-item lineages: the
+comparative judgement model, which is the conditional form of the
+dichotomous Rasch model (Andrich 1978; Bradley and Terry 1952), carrying
+the frame-of-reference unit structure of Humphry's (2005) extended frame
+of reference model (Humphry and Andrich 2008). Objects are partitioned into sets and judges into
 panels. Each object has a common-scale value \code{v_k = alpha_s beta_k +
 kappa_s}, with \code{beta_k} the within-set calibration location,
 \code{alpha_s > 0} the set unit and \code{kappa_s} the set origin; a
@@ -184,7 +187,11 @@ fit$alpha_table
 }
 }
 \references{
-Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
+Andrich, D. (1978). Relationships between the Thurstone and
+  Rasch approaches to item scaling. Applied Psychological Measurement,
+  2(3), 449-460.
+
+  Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
   incomplete block designs: I. The method of paired comparisons.
   Biometrika, 39, 324-345.
 
