@@ -11,7 +11,8 @@ Simulation provides a direct way to examine whether an estimator
 recovers known parameters and whether a diagnostic responds to the
 departure it is intended to detect. The package therefore includes
 simulators for the main model families of Rasch Measurement Theory
-(Rasch 1960): `simulate_rasch`, `simulate_btl`, `simulate_mfrm`, and
+(Rasch 1960; Andrich and Marais 2019; Humphry and Andrich 2008; Andrich
+1978): `simulate_rasch`, `simulate_btl`, `simulate_mfrm`, and
 `simulate_efrm`. Each can generate model-conforming data or introduce a
 known departure from the model.
 
@@ -439,6 +440,10 @@ replicates. The estimate of *d* itself is unaffected.
 
 ## References
 
+Andrich, D. (1978). Relationships between the Thurstone and Rasch
+approaches to item scaling. *Applied Psychological Measurement*, 2(3),
+449–460.
+
 Andrich, D., and Kreiner, S. (2010). Quantifying response dependence
 between two dichotomous items using the Rasch model. *Applied
 Psychological Measurement*, 34, 181–192.
@@ -452,6 +457,9 @@ values for Yen’s Q3. *Applied Psychological Measurement*, 41, 178–194.
 Hagquist, C., and Andrich, D. (2017). Recent advances in analysis of
 differential item functioning in health research using the Rasch model.
 *Health and Quality of Life Outcomes*, 15, 181.
+
+Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
+Rasch model. *Journal of Applied Measurement*, 9(3), 249–264.
 
 Kendall, M. G., and Babington Smith, B. (1940). On the method of paired
 comparisons. *Biometrika*, 31, 324–345.

@@ -13,12 +13,14 @@ suite examines whether they do.
 
 ## Details
 
-The model suite includes the dichotomous Rasch model, partial credit and
-rating scale models, many-facet Rasch models, the extended frame of
-reference model, and Bradley-Terry-Luce models for paired comparisons.
-Functions are provided for item and person estimation, fit, targeting,
-dimensionality, local response dependence, differential item
-functioning, threshold functioning, reliability, equating, repeated
+The model suite (Rasch 1960; Andrich and Marais 2019) includes the
+dichotomous Rasch model, partial credit and rating scale models,
+many-facet Rasch models, the extended frame of reference model (Humphry
+and Andrich 2008), and comparative judgement models for paired
+comparisons – the conditional form of the dichotomous Rasch model
+(Andrich 1978). Functions are provided for item and person estimation,
+fit, targeting, dimensionality, local response dependence, differential
+item functioning, threshold functioning, reliability, equating, repeated
 measurements, simulation, and graphical reporting. See
 [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
 [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
@@ -96,8 +98,15 @@ Rasch, G. (1977). On specific objectivity: An attempt at formalizing the
 request for generality and validity of scientific statements. Danish
 Yearbook of Philosophy, 14, 58–94.
 
+Andrich, D. (1978). Relationships between the Thurstone and Rasch
+approaches to item scaling. Applied Psychological Measurement, 2(3),
+449–460.
+
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
+
+Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
+Rasch model. Journal of Applied Measurement, 9(3), 249–264.
 
 ## See also
 

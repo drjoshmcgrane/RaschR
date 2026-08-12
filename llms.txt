@@ -71,6 +71,11 @@ person measurement based on weighted likelihood. Anchored estimation is
 available for equating, and planned missing-data designs (linked
 booklets, rotated forms).
 
+The suite follows Rasch (1960) and Andrich and Marais (2019); the frame
+of reference models follow Humphry and Andrich (2008), and the
+comparative judgement models are the conditional form of the dichotomous
+Rasch model (Andrich, 1978).
+
 ## What can be examined
 
 `rasch` provides functions for:
