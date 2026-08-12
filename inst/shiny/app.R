@@ -508,7 +508,7 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                       "Rating scale (RSM)" = "rsm",
                       "Ratings by raters (MFRM)" = "mfrm",
                       "Item sets x groups (EFRM)" = "efrm",
-                      "Comparative judgement (paired comparisons)" = "btl")),
+                      "Comparative Judgement" = "btl")),
         accordion(
           id = "run_settings", multiple = TRUE,
           open = c("Data roles", "Model"),
@@ -517,7 +517,7 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                          c("Rasch" = "rasch",
                            "Many-facet (MFRM)" = "mfrm",
                            "Extended frames (EFRM)" = "efrm",
-                           "Comparative judgement (paired comparisons)" = "btl"))),
+                           "Comparative Judgement" = "btl"))),
           accordion_panel("Data roles", icon = bs_icon("table"),
             conditionalPanel("input.model_type == 'rasch'",
               selectInput("id_col", "ID variable", NONE_CH),
@@ -604,7 +604,7 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                 radioButtons("bt_ties", "Ties",
                              c("Drop" = "drop", "Half a win each" = "half"))),
               p(class = "text-muted small",
-                "Comparative judgement models for paired comparisons: with a dichotomous winner this is the Bradley-Terry-Luce model, the conditional (person-free) form of the dichotomous Rasch model; a polytomous response uses its adjacent-categories extension. Estimated by the same conventions as the rest of the package. A judge column enables the judge fit table and clusters the standard errors by judge. Results appear on the Summary, Items, and Persons pages.")
+                "Comparative Judgement models for paired comparisons: with a dichotomous winner this is the Bradley-Terry-Luce model, the conditional (person-free) form of the dichotomous Rasch model; a polytomous response uses its adjacent-categories extension. Estimated by the same conventions as the rest of the package. A judge column enables the judge fit table and clusters the standard errors by judge. Results appear on the Summary, Items, and Persons pages.")
             )),
           accordion_panel("Estimation options", icon = bs_icon("gear"),
             conditionalPanel("input.model_type == 'rasch'",
@@ -1514,7 +1514,7 @@ panel_compare <- nav_panel("Compare", value = "p_compare", icon = bs_icon("colum
         selectizeInput("cmp_ref", "Reference fit", NULL,
                        options = list(placeholder = "keep at least two fits")),
         p(class = "text-muted small mt-3",
-          "Run an analysis, keep it, change the model or settings, run again, and keep that too. cl_aic and cl_bic are composite-likelihood information criteria: their penalty, the Godambe effective parameter count, absorbs the pairwise over-counting that the nominal parameter count would not, so they are the calibrated way to choose between models of the same data — smaller is better. The raw log-likelihood difference (two_delta_ll) stays descriptive. Across different data preparations, compare the calibration-free columns instead: chi-square per df, the fit residual SDs (ideal 1), PSI/alpha, or OSI. Comparative judgement fits can be kept and compared too — for example free versus principal-component thresholds, or with and without a position effect or within-judge dependence.")),
+          "Run an analysis, keep it, change the model or settings, run again, and keep that too. cl_aic and cl_bic are composite-likelihood information criteria: their penalty, the Godambe effective parameter count, absorbs the pairwise over-counting that the nominal parameter count would not, so they are the calibrated way to choose between models of the same data — smaller is better. The raw log-likelihood difference (two_delta_ll) stays descriptive. Across different data preparations, compare the calibration-free columns instead: chi-square per df, the fit residual SDs (ideal 1), PSI/alpha, or OSI. Comparative Judgement fits can be kept and compared too — for example free versus principal-component thresholds, or with and without a position effect or within-judge dependence.")),
       card(
         full_screen = TRUE,
         card_header_bar("Model comparison",
@@ -1542,7 +1542,7 @@ panel_export <- nav_panel("Export", value = "p_export", icon = bs_icon("download
       card(card_body(class = "empty-state",
         bs_icon("trophy", size = "2rem",
                 class = "text-secondary d-block mx-auto mb-2"),
-        p("The HTML report and ZIP archive cover Rasch analyses. For a comparative judgement analysis, download each table as CSV from its card on the Summary, Items, and Persons pages.")))),
+        p("The HTML report and ZIP archive cover Rasch analyses. For a Comparative Judgement analysis, download each table as CSV from its card on the Summary, Items, and Persons pages.")))),
     conditionalPanel("output.is_btl != true",
     layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
       card(card_header(span(bs_icon("file-earmark-text"),
@@ -1550,7 +1550,7 @@ panel_export <- nav_panel("Export", value = "p_export", icon = bs_icon("download
         card_body(
           p("A self-contained HTML report of the current analysis: the summary statistics, every diagnostic table, and the test-level plots embedded as images. One portable file, ready to e-mail or archive."),
           p(class = "text-muted small",
-            "Available for Rasch analyses (dichotomous, PCM, RSM, MFRM, EFRM); comparative judgement fits are not covered."),
+            "Available for Rasch analyses (dichotomous, PCM, RSM, MFRM, EFRM); Comparative Judgement fits are not covered."),
           downloadButton("dl_report", "Download report (HTML)",
                          class = "btn-primary btn-lg", icon = icon("file")))),
       card(card_header("Download everything"),
@@ -1581,7 +1581,7 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
     sidebar = sidebar(width = 400, open = "always",
       radioButtons("sim_layout", "Data type", c(
         "Rasch" = "rasch",
-        "Comparative judgement (paired comparisons)" = "btl",
+        "Comparative Judgement" = "btl",
         "Rated / many-facet (MFRM)" = "mfrm",
         "Frames (EFRM)" = "efrm")),
       # ---------------------------------------------------------- Rasch ----
@@ -2132,7 +2132,7 @@ server <- function(input, output, session) {
                     rsm = "Rating scale (RSM)",
                     mfrm = "Ratings by raters (MFRM)",
                     efrm = "Item sets x groups (EFRM)",
-                    btl = "Comparative judgement (paired comparisons)")
+                    btl = "Comparative Judgement")
   .demo_chip_labels <- c(dich = "Multiple choice", pcm = "Polytomous (PCM)",
                          rsm = "Rating scale", mfrm = "Ratings (MFRM)",
                          efrm = "Frames (EFRM)", btl = "Paired comparisons")
@@ -3915,7 +3915,7 @@ server <- function(input, output, session) {
   # ------------------------------------------------------------------- BTL --
   bfit <- reactive({
     validate(need(!is.null(btl_fit()),
-                  "Run a comparative judgement analysis from the Data page to see results here."))
+                  "Run a Comparative Judgement analysis from the Data page to see results here."))
     btl_fit()
   })
   output$btl_boxes <- renderUI({
@@ -3954,7 +3954,7 @@ server <- function(input, output, session) {
       polytomous <- !is.null(f$m) && f$m > 1L
       model_lab <- if (polytomous)
         sprintf("Polytomous paired comparisons (%d categories)", f$m + 1L)
-      else "Comparative judgement (paired comparisons)"
+      else "Comparative Judgement"
       conv <- if (isTRUE(f$converged))
         sprintf("converged in %d iterations", f$iterations)
       else span(class = "text-danger",
@@ -4304,7 +4304,7 @@ server <- function(input, output, session) {
   # models several factors jointly
   bdif_factor_maps <- function() {
     if (is.null(btl_fit()))
-      stop("run a comparative judgement analysis first")
+      stop("run a Comparative Judgement analysis first")
     fcs <- input$bdif_factors
     if (is.null(fcs) || !length(fcs))
       stop("choose one or more judge factors in the sidebar")
@@ -5262,9 +5262,9 @@ server <- function(input, output, session) {
   # button and the navbar icon link (Rasch fits only; BTL is notified)
   report_content <- function(file) {
     if (!is.null(btl_fit())) {
-      showNotification("The HTML report covers Rasch analyses; comparative judgement fits are not yet supported.",
+      showNotification("The HTML report covers Rasch analyses; Comparative Judgement fits are not yet supported.",
                        type = "warning", duration = 8)
-      stop("report unavailable for a comparative judgement fit")
+      stop("report unavailable for a Comparative Judgement fit")
     }
     f <- fit_or_null()
     if (is.null(f)) {
