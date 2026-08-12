@@ -204,7 +204,7 @@ are exploratory and Holm-adjusted.
 
 Andrich, D. (1978). Relationships between the Thurstone and Rasch
 approaches to item scaling. Applied Psychological Measurement, 2(3),
-449-460.
+451-462.
 
 Bradley, R. A. and Terry, M. E. (1952). Rank analysis of incomplete
 block designs: I. The method of paired comparisons. Biometrika, 39,

@@ -102,7 +102,7 @@ Yearbook of Philosophy, 14, 58–94.
 
 Andrich, D. (1978). Relationships between the Thurstone and Rasch
 approaches to item scaling. Applied Psychological Measurement, 2(3),
-449–460.
+451–462.
 
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
