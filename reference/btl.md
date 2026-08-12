@@ -1,28 +1,30 @@
-# Fit the Bradley-Terry-Luce model to paired comparisons
+# Fit comparative judgement models to paired comparisons
 
 Estimates object locations from paired-comparison data by conditional
-maximum likelihood. The Bradley-Terry-Luce model is the conditional form
-of the dichotomous Rasch model – within an item pair, given one correct
-response, the Rasch probability that it was the easier item is exactly
-of BTL form – so it belongs to the same measurement family and is
-estimated by the same conventions as the rest of the package:
-Newton-Raphson on the person-free likelihood, locations identified by
-the sum-zero constraint, and Godambe sandwich standard errors, clustered
-by judge when a judge column is given (so repeated comparisons by the
-same judge need not be independent). Objects that win or lose every
-comparison have no finite estimate and are removed with a note, exactly
-as extreme persons are set aside in a Rasch calibration; the comparison
-graph must remain connected. Beyond that, finite estimates exist only
-when the directed win graph is strongly connected (Ford 1957): if some
-subset of objects never concedes a point to the rest, the likelihood
-pushes the two clusters infinitely far apart, so the fit stops with an
-error naming the separated objects rather than presenting the
-optimiser's boundary values as measures – remove the separated cluster,
-or collect comparisons that cross the divide. Anchors relax this
-condition: an anchored object is pinned, so the fit only requires every
-free object to be tied to an anchor in both win directions (otherwise
-the constrained likelihood still recedes along the unanchored cluster,
-and the same error results).
+maximum likelihood. For dichotomous comparisons this is the
+Bradley-Terry-Luce model; for polytomous comparisons, its
+adjacent-categories ordinal extension (Tutz 1986). The
+Bradley-Terry-Luce model is the conditional form of the dichotomous
+Rasch model – within an item pair, given one correct response, the Rasch
+probability that it was the easier item is exactly of BTL form – so it
+belongs to the same measurement family and is estimated by the same
+conventions as the rest of the package: Newton-Raphson on the
+person-free likelihood, locations identified by the sum-zero constraint,
+and Godambe sandwich standard errors, clustered by judge when a judge
+column is given (so repeated comparisons by the same judge need not be
+independent). Objects that win or lose every comparison have no finite
+estimate and are removed with a note, exactly as extreme persons are set
+aside in a Rasch calibration; the comparison graph must remain
+connected. Beyond that, finite estimates exist only when the directed
+win graph is strongly connected (Ford 1957): if some subset of objects
+never concedes a point to the rest, the likelihood pushes the two
+clusters infinitely far apart, so the fit stops with an error naming the
+separated objects rather than presenting the optimiser's boundary values
+as measures – remove the separated cluster, or collect comparisons that
+cross the divide. Anchors relax this condition: an anchored object is
+pinned, so the fit only requires every free object to be tied to an
+anchor in both win directions (otherwise the constrained likelihood
+still recedes along the unanchored cluster, and the same error results).
 
 ## Usage
 

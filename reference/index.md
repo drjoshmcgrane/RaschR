@@ -109,7 +109,7 @@ comparisons, with diagnostics for objects, judges and comparison
 designs.
 
 - [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) :
-  Fit the Bradley-Terry-Luce model to paired comparisons
+  Fit comparative judgement models to paired comparisons
 - [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
   : DIF analysis for paired comparisons
 - [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)

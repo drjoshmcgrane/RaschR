@@ -7,11 +7,12 @@ library(rasch)
 
 This vignette walks through the standard analysis sequence of Rasch
 Measurement Theory and its model suite (Rasch 1960, 1961; Andrich and
-Marais 2019; for the frame of reference models Humphry and Andrich 2008,
-and for comparative judgement as the conditional form of the dichotomous
-Rasch model, Andrich 1978): fit by pairwise conditional estimation, then
-examine whether the data meet the model’s requirements before the
-measures are interpreted.
+Marais 2019; for the frame of reference models Humphry 2005 and Humphry
+and Andrich 2008; for dichotomous comparative judgement as the
+conditional form of the dichotomous Rasch model, Andrich 1978, with the
+polytomous extension after Tutz 1986): fit by pairwise conditional
+estimation, then examine whether the data meet the model’s requirements
+before the measures are interpreted.
 
 The same principal workflow is available through the package’s
 point-and-click Shiny application. Run
@@ -372,6 +373,9 @@ Andrich, D., and Luo, G. (2003). Conditional pairwise estimation in the
 Rasch model for ordered response categories using principal components.
 *Journal of Applied Measurement*, 4(3), 205–221.
 
+Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
+Measurement*. PhD thesis, Murdoch University.
+
 Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
 Rasch model. *Journal of Applied Measurement*, 9(3), 249–264.
 
@@ -384,6 +388,9 @@ Rasch, G. (1961). On general laws and the meaning of measurement in
 psychology. In *Proceedings of the Fourth Berkeley Symposium on
 Mathematical Statistics and Probability* (Vol. 4, pp. 321–333).
 Berkeley: University of California Press.
+
+Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
+*Journal of Mathematical Psychology*, 30(3), 306–316.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427–450.

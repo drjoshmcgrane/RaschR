@@ -72,9 +72,11 @@ available for equating, and planned missing-data designs (linked
 booklets, rotated forms).
 
 The suite follows Rasch (1960) and Andrich and Marais (2019); the frame
-of reference models follow Humphry and Andrich (2008), and the
-comparative judgement models are the conditional form of the dichotomous
-Rasch model (Andrich, 1978).
+of reference models follow Humphry’s (2005) thesis, where the model is
+introduced and named, and Humphry and Andrich (2008); the dichotomous
+comparative judgement model is the conditional form of the dichotomous
+Rasch model (Andrich, 1978), and the polytomous comparative judgement
+model is its adjacent-categories extension (Tutz, 1986).
 
 ## What can be examined
 
