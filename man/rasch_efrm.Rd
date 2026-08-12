@@ -172,9 +172,16 @@ threshold covariance come from the replicate spread; slower, but captures
 all cross-dependencies jointly.
 
 Relation to Humphry (2005): the within-frame stage follows the thesis's
-conditional separation logic. The linking stage implemented here is an
-error-corrected method-of-moments estimator based on the true-score
-variance ratios in equations 2.28--2.29 (after Andrich 1982). It is not the
+conditional separation logic. Humphry (2012) is the published statement
+of the item-set discrimination side, with the score vector across item
+sets as the sufficient statistic; Montuoro and Humphry (2024) apply it
+with sets formed a priori by qualitative item review and set units
+estimated from ratios of person-location standard deviations across
+sets. The linking stage implemented here is that estimator in
+error-corrected method-of-moments form, based on the true-score
+variance ratios in equations 2.28--2.29 of the thesis (after Andrich
+1982) -- the correction removes the attenuation that raw
+estimate-standard-deviation ratios carry. It is not the
 distinct likelihood equation proposed in section 5.3. The multigroup,
 polytomous, and crossed-frame implementation is therefore an experimental
 package extension whose sampling performance should be checked for the
@@ -238,6 +245,13 @@ Measurement. PhD thesis, Murdoch University.
 Humphry, S. M. (2009). Modeling the effects of person group factors on
 discrimination. Educational and Psychological Measurement, 70(2),
 215--231.
+
+Humphry, S. M. (2012). Item set discrimination and the unit in the Rasch
+model. Journal of Applied Measurement, 13(2), 165--180.
+
+Montuoro, P. and Humphry, S. M. (2024). Modeling the effect of reading
+item clarity on item discrimination. Journal of Applied Measurement,
+24(3/4), 121--132.
 
 Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the Rasch
 model. Journal of Applied Measurement, 9(3), 249--264.

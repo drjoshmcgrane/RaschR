@@ -200,6 +200,9 @@ Andrich, D. (1978). Relationships between the Thurstone and
   Humphry, S. M. (2005). Maintaining a common arbitrary unit in social
   measurement. PhD thesis, Murdoch University.
 
+  Humphry, S. M. (2012). Item set discrimination and the unit in the
+  Rasch model. Journal of Applied Measurement, 13(2), 165--180.
+
   Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
   Rasch model. Journal of Applied Measurement, 9(3), 249-264.
 
