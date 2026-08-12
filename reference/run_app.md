@@ -24,6 +24,13 @@ run_app(...)
 
 Called for its side effect of launching the app.
 
+## Details
+
+The app's display packages ('shiny', 'bslib', 'DT', 'bsicons') are
+suggested rather than required by the package. If any are missing,
+`run_app` lists them all and, in an interactive session, offers to
+install them before launching.
+
 ## Examples
 
 ``` r
