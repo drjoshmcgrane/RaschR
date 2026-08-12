@@ -726,3 +726,12 @@ test_that("the simulation override never lifts the count or rank conditions", {
   expect_true(f12$cl$inference_available)
   expect_true(all(is.finite(f12$objects$se)))
 })
+
+test_that("the app launcher reports all missing display packages at once", {
+  err <- tryCatch(
+    rasch:::.app_require(c("stats", "nonexistentpkgA", "nonexistentpkgB")),
+    error = function(e) conditionMessage(e))
+  expect_match(err, "nonexistentpkgA, nonexistentpkgB")
+  expect_match(err, 'install\\.packages\\(c\\("nonexistentpkgA", "nonexistentpkgB"\\)\\)')
+  expect_true(rasch:::.app_require("stats"))
+})

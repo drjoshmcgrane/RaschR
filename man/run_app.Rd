@@ -20,6 +20,12 @@ diagnostics, tables, and plots; and one-click export. The corresponding R
 call is shown for each analysis, but users do not need to write R analysis
 code to use the principal workflows.
 }
+\details{
+The app's display packages ('shiny', 'bslib', 'DT', 'bsicons') are
+suggested rather than required by the package. If any are missing,
+\code{run_app} lists them all and, in an interactive session, offers to
+install them before launching.
+}
 \examples{
 if (interactive()) run_app()
 }
