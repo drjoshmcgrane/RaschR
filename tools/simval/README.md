@@ -63,9 +63,11 @@ Exact provenance state of the result files: the three studies regenerated
 in the final release round (`btl-clustered.csv`, `btl-share-sweep.csv`,
 `efrm-fix-sweep.csv`) carry R-tree hash `4a0e2bf8b357`, matching commit
 `8de917b` exactly; `lr-smalln-topup.csv` carries the dirty-tree hash of
-its execution state (`42945dd80663`, R sources identical to the guarded
-tree it tested); files produced before the tree-hash mechanism existed
-carry none. Documentation-only edits under `R/` move the tree hash of
+its execution state (`42945dd80663`): the `lr_test` estimator code it
+exercised was unchanged relative to the release tree, and the hash
+difference comes from documentation comments and unrelated BTL source
+edits in flight at execution time. Files produced before the tree-hash
+mechanism existed carry none. Documentation-only edits under `R/` move the tree hash of
 later commits without touching any estimator, so a result file's hash
 identifies the sources it ran against, not necessarily HEAD.
 
