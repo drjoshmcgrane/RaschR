@@ -182,7 +182,9 @@ Simpson index of each judge's share of the comparisons – a judge doing
 half the work leaves ~4 effective clusters however many judges exist,
 and the clustered sandwich then rejects a true null at ~9% in
 simulation, with ~7% already at 6-7 effective), and more effective
-judges than fitted parameters. Between 8 and 9.5 effective judges
+judges than fitted parameters. Between 8 and 9.5 effective judges, or
+whenever one judge carries more than 20% of the comparisons (a mild ~6%
+edge that the effective count alone misses at larger judge counts),
 inference is reported with a caution note. Point estimates and
 descriptive fit remain; `cl$n_units_effective` reports the effective
 count. Polytomous fits add `thresholds` (the symmetric threshold
