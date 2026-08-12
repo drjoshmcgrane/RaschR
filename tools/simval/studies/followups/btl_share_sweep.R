@@ -1,9 +1,13 @@
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")
-# the guard this sweep calibrates would withhold SEs exactly in the 4-7
+# The guard this sweep calibrates would withhold SEs exactly in the 4-7
 # effective-judge region whose inflation is the evidence; the
-# simulation-only override keeps the covariance observable (see the guard
-# comment in R/btl.R)
+# simulation-only override keeps the covariance observable there. The
+# override can never lift the nominal cluster-count or rank conditions
+# (see the guard comment in R/btl.R). The whole sweep runs inside a
+# function so on.exit() genuinely restores the option even when this
+# file is source()d rather than Rscript-executed.
+run_share_sweep <- function() {
 old_opt <- options(rasch.btl_guard_override = TRUE)
 on.exit(options(old_opt), add = TRUE)
 rows <- list()
@@ -27,12 +31,15 @@ NR <- 500
 for (ci in seq_len(nrow(cells))) {
   J <- cells$J[ci]; share <- cells$share[ci]
   rej <- eff <- rep(NA_real_, NR)
+  n_ref <- n_nc <- 0L
   set.seed(8.8e6 + ci * 1e4)
   for (r in seq_len(NR)) {
     d <- gen(J, share)
     f <- tryCatch(btl(d, "object_a", "object_b", winner = "winner", judge = "judge"),
                   error = function(e) NULL)
-    if (is.null(f) || anyNA(f$objects$se)) next   # override keeps SEs finite
+    if (is.null(f)) { n_ref <- n_ref + 1L; next }
+    if (!isTRUE(f$converged)) { n_nc <- n_nc + 1L; next }
+    if (anyNA(f$objects$se)) { n_ref <- n_ref + 1L; next }   # override keeps SEs finite at J>=10
     est <- setNames(f$objects$location, f$objects$object)[objs]
     V <- f$cov_beta; rownames(V) <- colnames(V) <- f$objects$object
     z <- vapply(seq_len(nrow(pr)), function(e) {
@@ -52,7 +59,9 @@ for (ci in seq_len(nrow(cells))) {
     "type1 of pairwise contrast t-tests (guard overridden to observe the withheld region)",
     sum(ok), type1 = mean(rej[ok]),
     mc_override = list(type1 = sd(rej[ok]) / sqrt(sum(ok))),
-    n_attempted = NR, n_refused = NR - sum(ok),
-    notes = sprintf("mean effective clusters %.1f; per-replicate proportion over 28 contrasts; reference qt(.975, J-1)", mean(eff[ok])))
+    n_attempted = NR, n_refused = n_ref, n_nonconv = n_nc,
+    notes = sprintf("mean effective clusters %.1f; per-replicate proportion over 28 contrasts; reference qt(.975, J-1); guard override lifts concentration conditions only", mean(eff[ok])))
 }
 sv_write(do.call(rbind, rows), "btl-share-sweep")
+}
+run_share_sweep()

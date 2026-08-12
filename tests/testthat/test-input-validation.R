@@ -670,4 +670,38 @@ test_that("clustered inference requires effective, not just nominal, judges", {
   expect_true(fc$cl$inference_available)
   expect_true(fc$cl$n_units_effective >= 8 && fc$cl$n_units_effective < 9.5)
   expect_true(any(grepl("uneven", fc$notes)))
+  # a single judge above a 20% workload share draws the caution even when
+  # the effective count clears 9.5 (imbalance at larger J)
+  dms <- gen(20, NA)
+  n450 <- nrow(dms)
+  dms$judge <- rep(paste0("J", 1:20),
+                   times = c(113L, rep(ceiling((n450 - 113) / 19), 18),
+                             n450 - 113L - 18L * ceiling((n450 - 113) / 19)))
+  fms <- btl(dms, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_true(fms$cl$inference_available)
+  expect_gt(fms$cl$n_units_effective, 9.5)
+  expect_true(any(grepl("largest single-judge share", fms$notes)))
+})
+
+test_that("the simulation override never lifts the count or rank conditions", {
+  set.seed(9); K <- 6
+  objs <- paste0("O", 1:K)
+  beta <- setNames(seq(-1, 1, length.out = K), objs)
+  pr <- t(utils::combn(objs, 2))
+  d <- data.frame(object_a = rep(pr[, 1], each = 30),
+                  object_b = rep(pr[, 2], each = 30))
+  lp <- beta[d$object_a] - beta[d$object_b]
+  d$winner <- ifelse(rbinom(nrow(d), 1, plogis(lp)) == 1, d$object_a, d$object_b)
+  old <- options(rasch.btl_guard_override = TRUE)
+  on.exit(options(old), add = TRUE)
+  # 5 judges: withheld even under the override (count condition holds)
+  d$judge <- sample(paste0("J", 1:5), nrow(d), replace = TRUE)
+  f5 <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_false(f5$cl$inference_available)
+  # skewed 12 judges: the override lifts only the concentration conditions
+  d$judge <- sample(paste0("J", 1:12), nrow(d), replace = TRUE,
+                    prob = c(0.5, rep(0.5 / 11, 11)))
+  f12 <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_true(f12$cl$inference_available)
+  expect_true(all(is.finite(f12$objects$se)))
 })

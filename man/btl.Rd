@@ -135,7 +135,9 @@ A list of class \code{"rasch_btl"}: \code{objects} (location, se,
   judges exist, and the clustered sandwich then rejects a true null at
   ~9\% in simulation, with ~7\% already at 6-7 effective), and more
   effective judges than fitted parameters. Between 8 and 9.5 effective
-  judges inference is reported with a caution note.
+  judges, or whenever one judge carries more than 20\% of the
+  comparisons (a mild ~6\% edge that the effective count alone misses
+  at larger judge counts), inference is reported with a caution note.
   Point estimates and descriptive fit remain; \code{cl$n_units_effective}
   reports the effective count.
   Polytomous fits add \code{thresholds} (the symmetric threshold estimates

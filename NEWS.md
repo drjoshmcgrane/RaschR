@@ -38,8 +38,12 @@ identification guards, and caught one defect, corrected here:
   already at 6-7 effective (t reference, 500 replicates per cell,
   tools/simval/studies/followups/btl_share_sweep.R). Balanced designs are
   unaffected (nominal from 10 judges up); allocations between 8 and 9.5
-  effective judges carry a caution note; `fit$cl$n_units_effective`
-  reports the count.
+  effective judges, or with any single judge above a 20% workload share
+  (a 6% rejection edge at 20 judges that the effective count alone does
+  not flag), carry a caution note; `fit$cl$n_units_effective` reports
+  the count. A simulation-only option used by the committed calibration
+  sweep can lift the concentration conditions, and only those -- the
+  cluster-count and rank requirements cannot be bypassed.
 * The partial credit weak-category guard now flags an entire item when any
   of its categories has fewer than 8 responses, not only the thresholds
   adjacent to a near-empty (< 3) category: an item's thresholds are

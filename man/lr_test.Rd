@@ -46,9 +46,12 @@ the mean gives \code{chisq_adj} \eqn{= r W / \sum_j \lambda_j} on
 with conventional software displays. The first-order calibration is
 accurate in simulation (rejection 4.7\% at 500 persons and 8 items over
 2,000 model-true replicates) but can turn mildly anticonservative for
-small samples with long polytomous tests (6.1\% at 300 persons with 12
-four-category items, 1,900 replicates) -- treat borderline \code{p_adj}
-values near 0.05 with correspondingly mild suspicion there.
+small samples with long polytomous tests: 6.1\% at 300 persons with 12
+four-category items, among the 1,927 of 2,000 replicates whose data
+admitted the comparison (72 were refused because randomly empty
+categories left unequal observed maximum scores, and one did not
+converge). Interpret \code{p_adj} values near 0.05 cautiously in such
+designs.
 }
 \examples{
 set.seed(1)

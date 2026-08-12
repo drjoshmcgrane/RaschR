@@ -194,7 +194,9 @@
 #'   judges exist, and the clustered sandwich then rejects a true null at
 #'   ~9\% in simulation, with ~7\% already at 6-7 effective), and more
 #'   effective judges than fitted parameters. Between 8 and 9.5 effective
-#'   judges inference is reported with a caution note.
+#'   judges, or whenever one judge carries more than 20\% of the
+#'   comparisons (a mild ~6\% edge that the effective count alone misses
+#'   at larger judge counts), inference is reported with a caution note.
 #'   Point estimates and descriptive fit remain; \code{cl$n_units_effective}
 #'   reports the effective count.
 #'   Polytomous fits add \code{thresholds} (the symmetric threshold estimates
@@ -969,14 +971,20 @@ plot_btl <- function(fit, band = 2.5) {
     shr <- tapply(w, jd, sum); shr <- shr / sum(shr)
     1 / sum(shr^2)
   } else Inf
-  # simulation-only escape hatch: the calibration sweep that SET these
-  # thresholds (tools/simval/studies/followups/btl_share_sweep.R) must be
-  # able to measure the withheld region, or its evidence could never be
-  # reproduced against the guarded package
+  # simulation-only escape hatch: the calibration sweep that SET the
+  # concentration thresholds (tools/simval/studies/followups/
+  # btl_share_sweep.R) must be able to measure the withheld
+  # 4-7-effective-judge region, or its evidence could never be reproduced
+  # against the guarded package. The override lifts ONLY the
+  # concentration conditions (effective count and its parameter
+  # comparison); the nominal cluster-count and rank conditions can never
+  # be bypassed -- with too few clusters or a rank-deficient meat there
+  # is no covariance worth measuring, only fabrication.
   guard_off <- isTRUE(getOption("rasch.btl_guard_override", FALSE))
   eff_underparam <- !is.null(jd) && nc_eff <= np
-  cluster_inference <- is.null(jd) || guard_off ||
-    (nc >= 10L && nc_eff >= 8 && !rank_deficient && !eff_underparam)
+  cluster_inference <- is.null(jd) ||
+    (nc >= 10L && !rank_deficient &&
+     (guard_off || (nc_eff >= 8 && !eff_underparam)))
   if (!cluster_inference)
     notes <- c(notes, sprintf(
       paste0("%d judge clusters (%.1f effective) for %d parameters: ",
@@ -992,11 +1000,16 @@ plot_btl <- function(fit, band = 2.5) {
         "does not exceed the parameter count (a concentration heuristic, ",
         "not a statement of mathematical rank deficiency)")
       else " because the comparison allocation concentrates on too few judges"))
-  if (cluster_inference && !is.null(jd) && nc_eff < 9.5)
+  max_share <- if (!is.null(jd)) {
+    shr <- tapply(w, jd, sum); max(shr) / sum(shr)
+  } else 0
+  if (cluster_inference && !is.null(jd) &&
+      (nc_eff < 9.5 || max_share > 0.2))
     notes <- c(notes, sprintf(
       paste0("comparison allocation is uneven across judges (%.1f effective ",
-             "clusters from %d): clustered standard errors may be mildly ",
-             "anti-conservative"), nc_eff, nc))
+             "clusters from %d; largest single-judge share %.0f%%): ",
+             "clustered standard errors may be mildly anti-conservative"),
+      nc_eff, nc, 100 * max_share))
   covth <- Hi %*% (crossprod(Gm) * cr1) %*% Hi
   # composite-likelihood information ingredients: tr(H^-1 J) = tr(covth H)
   # is the effective parameter count of the Godambe penalty (Varin & Vidoni
