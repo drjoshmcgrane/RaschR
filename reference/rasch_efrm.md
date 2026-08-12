@@ -122,20 +122,23 @@ unit families, and Holm-adjusted exploratory unit contrasts), and
 
 ## Details
 
-Humphry (2005) states the model for dichotomous responses. The
-polytomous form fitted here, with the frame unit multiplying the whole
-exponent over the item's partial-credit thresholds, is this package's
-extension of that statement. It is the form characterised by preserving
-the two properties the model's logic rests on: the partial credit model
-holds within every frame in the frame's natural unit (so the pairwise
-conditional cancellation remains valid), and the weighted score remains
-sufficient for the person parameter. It reduces exactly to the
-dichotomous model when items are scored 0/1 and to the ordinary partial
-credit model when all units equal one. One interpretive consequence:
-category widths in natural units scale with the frame unit, so a
-high-unit frame makes proportionally sharper category distinctions;
-frame-level fit and the per-frame category curves are where a violation
-of this would appear.
+Humphry (2005) states the model for dichotomous responses, and Humphry
+(2009) develops and applies the person-group side: with a single item
+set, the model here is exactly that article's logistic measurement
+function, with `phi` its person-group discrimination parameter under the
+same product-one identification. The polytomous form fitted here, with
+the frame unit multiplying the whole exponent over the item's
+partial-credit thresholds, is this package's extension of that
+statement. It is the form characterised by preserving the two properties
+the model's logic rests on: the partial credit model holds within every
+frame in the frame's natural unit (so the pairwise conditional
+cancellation remains valid), and the weighted score remains sufficient
+for the person parameter. It reduces exactly to the dichotomous model
+when items are scored 0/1 and to the ordinary partial credit model when
+all units equal one. One interpretive consequence: category widths in
+natural units scale with the frame unit, so a high-unit frame makes
+proportionally sharper category distinctions; frame-level fit and the
+per-frame category curves are where a violation of this would appear.
 
 Estimation order: the within-frame pairwise stage establishes the
 centred set thresholds and the person-group units `phi`; the person-side
@@ -221,6 +224,10 @@ Measuring in the Educational, Social and Health Sciences. Springer.
 
 Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 Measurement. PhD thesis, Murdoch University.
+
+Humphry, S. M. (2009). Modeling the effects of person group factors on
+discrimination. Educational and Psychological Measurement, 70(2),
+215–231.
 
 Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
 Rasch model. Journal of Applied Measurement, 9(3), 249–264.
