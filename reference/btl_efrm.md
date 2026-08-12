@@ -1,10 +1,13 @@
 # Fit the extended frame of reference model for paired comparisons
 
 Estimates object locations from paired comparisons when the unit of the
-latent scale differs across frames – judge-panel by object-set cells –
-an extension of Humphry's (2005) extended frame of reference model to
-the Bradley-Terry-Luce family. Objects are partitioned into sets and
-judges into panels. Each object has a common-scale value
+latent scale differs across frames – judge-panel by object-set cells.
+The model is a hybrid of the package's two non-item lineages: the
+comparative judgement model, which is the conditional form of the
+dichotomous Rasch model (Andrich 1978; Bradley and Terry 1952), carrying
+the frame-of-reference unit structure of Humphry's (2005) extended frame
+of reference model (Humphry and Andrich 2008). Objects are partitioned
+into sets and judges into panels. Each object has a common-scale value
 `v_k = alpha_s beta_k + kappa_s`, with `beta_k` the within-set
 calibration location, `alpha_s > 0` the set unit and `kappa_s` the set
 origin; a comparison judged in panel `g` carries the panel unit `phi_g`.
@@ -198,6 +201,10 @@ Wald tests of the unit families. Individual unit and origin contrasts
 are exploratory and Holm-adjusted.
 
 ## References
+
+Andrich, D. (1978). Relationships between the Thurstone and Rasch
+approaches to item scaling. Applied Psychological Measurement, 2(3),
+449-460.
 
 Bradley, R. A. and Terry, M. E. (1952). Rank analysis of incomplete
 block designs: I. The method of paired comparisons. Biometrika, 39,
