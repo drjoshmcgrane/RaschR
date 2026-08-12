@@ -11,7 +11,13 @@
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
-<script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
+  window.MathJax = {
+    chtml: {
+      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
+    }
+  };
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
@@ -264,13 +270,12 @@ heuristic.</p>
 <span><span class="co">#&gt; 1    I04    I05 0.1703  0.2688    TRUE</span></span></code></pre></div>
 <p>The planted I04–I05 pair sits at the top of the sorted table and
 clears the chosen heuristic screen; the average off-diagonal value is
-close to the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>L</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-1/(L-1)</annotation></semantics></math>
-expected when the items are locally independent. As with DIF, screening
-is one thing and magnitude another. <code>dependence_magnitude</code>
-puts the effect on the logit scale by the resolution method of Andrich
-and Kreiner (2010): the dependent item is split by the category of the
-item it follows, refitted, and the threshold displacement read off.</p>
+close to the <span class="math inline">\(-1/(L-1)\)</span> expected when
+the items are locally independent. As with DIF, screening is one thing
+and magnitude another. <code>dependence_magnitude</code> puts the effect
+on the logit scale by the resolution method of Andrich and Kreiner
+(2010): the dependent item is split by the category of the item it
+follows, refitted, and the threshold displacement read off.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/dependence_magnitude.html">dependence_magnitude</a></span><span class="op">(</span><span class="va">fit4</span>, dependent <span class="op">=</span> <span class="st">"I05"</span>, independent <span class="op">=</span> <span class="st">"I04"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Response dependence of I05 on I04 (Andrich &amp; Kreiner resolution)</span></span>

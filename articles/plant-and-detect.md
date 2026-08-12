@@ -213,7 +213,7 @@ rc$flagged
 
 The planted I04–I05 pair sits at the top of the sorted table and clears
 the chosen heuristic screen; the average off-diagonal value is close to
-the $`-1/(L-1)`$ expected when the items are locally independent. As
+the \\-1/(L-1)\\ expected when the items are locally independent. As
 with DIF, screening is one thing and magnitude another.
 `dependence_magnitude` puts the effect on the logit scale by the
 resolution method of Andrich and Kreiner (2010): the dependent item is
