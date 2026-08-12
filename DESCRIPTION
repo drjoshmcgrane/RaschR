@@ -8,8 +8,10 @@ Description: Pairwise conditional estimation (Zwinderman, 1995
     <doi:10.1177/014662169501900406>) for the models of Rasch Measurement
     Theory (Rasch, 1960 <ISBN:9780226705538>): the dichotomous and
     polytomous Rasch models, many-facet models, the extended frame of
-    reference model, and comparative judgement models for dichotomous and
-    polytomous pairwise comparisons. Provides fit and invariance
+    reference model (Humphry and Andrich, 2008), and comparative judgement
+    models for dichotomous and polytomous pairwise comparisons, the
+    conditional form of the dichotomous model (Andrich, 1978
+    <doi:10.1177/014662167800200319>). Provides fit and invariance
     diagnostics, differential item functioning analysis, equating,
     reliability, and simulation, with person measurement by weighted
     likelihood (Warm, 1989 <doi:10.1007/BF02294627>), following the

@@ -19,7 +19,10 @@ library(rasch)
 ```
 
 This vignette walks through the standard analysis sequence of Rasch
-Measurement Theory (Rasch 1960, 1961; Andrich and Marais 2019): fit by
+Measurement Theory and its model suite (Rasch 1960, 1961; Andrich and
+Marais 2019; for the frame of reference models Humphry and Andrich 2008,
+and for comparative judgement as the conditional form of the dichotomous
+Rasch model, Andrich 1978): fit by
 pairwise conditional estimation, then examine whether the data meet the
 model's requirements before the measures are interpreted.
 
@@ -118,12 +121,19 @@ fit$psi
 
 ## References
 
+Andrich, D. (1978). Relationships between the Thurstone and Rasch
+approaches to item scaling. *Applied Psychological Measurement*, 2(3),
+449--460.
+
 Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences*. Springer.
 
 Andrich, D., and Luo, G. (2003). Conditional pairwise estimation in the
 Rasch model for ordered response categories using principal components.
 *Journal of Applied Measurement*, 4(3), 205--221.
+
+Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
+Rasch model. *Journal of Applied Measurement*, 9(3), 249--264.
 
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
 Tests*. Copenhagen: Danish Institute for Educational Research. (Expanded
