@@ -115,7 +115,7 @@ the thesis defines an extended frame of reference (EFR) as the union of
 two or more compatible frames and calls the model over it the extended
 frame of reference model. The journal statements use different
 terminology for the same machinery -- Humphry and Andrich (2008)
-present the frame unit as a scale parameter, and Humphry (2009), which
+present the frame unit as a scale parameter, and Humphry (2010), which
 develops and applies the person-group side, calls the model the
 logistic measurement function: with a single item set, the model here
 is exactly that article's model, with \code{phi} its person-group
@@ -242,7 +242,7 @@ Measuring in the Educational, Social and Health Sciences. Springer.
 Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 Measurement. PhD thesis, Murdoch University.
 
-Humphry, S. M. (2009). Modeling the effects of person group factors on
+Humphry, S. M. (2010). Modeling the effects of person group factors on
 discrimination. Educational and Psychological Measurement, 70(2),
 215--231.
 
