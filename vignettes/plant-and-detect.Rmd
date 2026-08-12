@@ -26,7 +26,8 @@ Simulation provides a direct way to examine whether an estimator recovers
 known parameters and whether a diagnostic responds to the departure it is
 intended to detect. The package therefore includes simulators for the main
 model families of Rasch Measurement Theory (Rasch 1960; Andrich and Marais
-2019; Humphry and Andrich 2008; Andrich 1978): `simulate_rasch`,
+2019; Humphry 2005; Humphry and Andrich 2008; Andrich 1978; Tutz 1986):
+`simulate_rasch`,
 `simulate_btl`, `simulate_mfrm`, and `simulate_efrm`. Each can generate model-conforming data or introduce a known
 departure from the model.
 
@@ -376,6 +377,9 @@ Hagquist, C., and Andrich, D. (2017). Recent advances in analysis of
 differential item functioning in health research using the Rasch model.
 *Health and Quality of Life Outcomes*, 15, 181.
 
+Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
+Measurement*. PhD thesis, Murdoch University.
+
 Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
 Rasch model. *Journal of Applied Measurement*, 9(3), 249--264.
 
@@ -389,6 +393,9 @@ studies to evaluate statistical methods. *Statistics in Medicine*, 38,
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
 Tests*. Copenhagen: Danish Institute for Educational Research. (Expanded
 edition, 1980, Chicago: University of Chicago Press.)
+
+Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
+*Journal of Mathematical Psychology*, 30(3), 306--316.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item response
 theory. *Psychometrika*, 54, 427--450.

@@ -58,10 +58,13 @@
   vapply(seq_len(K), find, 1L)
 }
 
-#' Fit the Bradley-Terry-Luce model to paired comparisons
+#' Fit comparative judgement models to paired comparisons
 #'
 #' Estimates object locations from paired-comparison data by conditional
-#' maximum likelihood. The Bradley-Terry-Luce model is the conditional form
+#' maximum likelihood. For dichotomous comparisons this is the
+#' Bradley-Terry-Luce model; for polytomous comparisons, its
+#' adjacent-categories ordinal extension (Tutz 1986). The
+#' Bradley-Terry-Luce model is the conditional form
 #' of the dichotomous Rasch model -- within an item pair, given one correct
 #' response, the Rasch probability that it was the easier item is exactly
 #' of BTL form -- so it belongs to the same measurement family and is

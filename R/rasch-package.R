@@ -14,9 +14,10 @@
 #' The model suite (Rasch 1960; Andrich and Marais 2019) includes the
 #' dichotomous Rasch model, partial credit and rating scale models,
 #' many-facet Rasch models, the extended frame of reference model (Humphry
-#' and Andrich 2008), and comparative judgement models for paired
-#' comparisons -- the conditional form of the dichotomous Rasch model
-#' (Andrich 1978). Functions are
+#' 2005; Humphry and Andrich 2008), and comparative judgement models for
+#' paired comparisons -- dichotomously the conditional form of the
+#' dichotomous Rasch model (Andrich 1978), polytomously its
+#' adjacent-categories extension (Tutz 1986). Functions are
 #' provided for item and person estimation, fit, targeting, dimensionality,
 #' local response dependence, differential item functioning, threshold
 #' functioning, reliability, equating, repeated measurements, simulation, and
@@ -94,6 +95,12 @@
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.
 #'
+#' Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
+#' Measurement. PhD thesis, Murdoch University.
+#'
 #' Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
 #' Rasch model. Journal of Applied Measurement, 9(3), 249--264.
+#'
+#' Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
+#' Journal of Mathematical Psychology, 30(3), 306--316.
 "_PACKAGE"
