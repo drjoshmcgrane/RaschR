@@ -18,7 +18,7 @@
 ^docs$
 ^pkgdown$
 ^cran-comments\.md$
-^Rplots\.pdf$
+(^|/)Rplots\.pdf$
 ^tests/testthat/_problems$
 ^figure$
 ^tools/simval$
