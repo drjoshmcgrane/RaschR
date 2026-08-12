@@ -110,11 +110,17 @@ full \code{\link{rasch}} fit at the item-by-group level, so the package's
 diagnostic tables and plots apply.
 }
 \details{
-Humphry (2005) states the model for dichotomous responses, and Humphry
-(2009) develops and applies the person-group side: with a single item
-set, the model here is exactly that article's logistic measurement
-function, with \code{phi} its person-group discrimination parameter
-under the same product-one identification. The polytomous
+Humphry (2005) states the model for dichotomous responses and names it:
+the thesis defines an extended frame of reference (EFR) as the union of
+two or more compatible frames and calls the model over it the extended
+frame of reference model. The journal statements use different
+terminology for the same machinery -- Humphry and Andrich (2008)
+present the frame unit as a scale parameter, and Humphry (2009), which
+develops and applies the person-group side, calls the model the
+logistic measurement function: with a single item set, the model here
+is exactly that article's model, with \code{phi} its person-group
+discrimination parameter under the same product-one identification.
+The polytomous
 form fitted here, with the frame unit multiplying the whole exponent over
 the item's partial-credit thresholds, is this package's extension of that
 statement. It is the form characterised by preserving the two properties
