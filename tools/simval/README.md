@@ -59,6 +59,16 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
   inequality even when every item calibrates. The per-item rows carry the
   calibration-relevant figures.
 
+Exact provenance state of the result files: the three studies regenerated
+in the final release round (`btl-clustered.csv`, `btl-share-sweep.csv`,
+`efrm-fix-sweep.csv`) carry R-tree hash `4a0e2bf8b357`, matching commit
+`8de917b` exactly; `lr-smalln-topup.csv` carries the dirty-tree hash of
+its execution state (`42945dd80663`, R sources identical to the guarded
+tree it tested); files produced before the tree-hash mechanism existed
+carry none. Documentation-only edits under `R/` move the tree hash of
+later commits without touching any estimator, so a result file's hash
+identifies the sources it ran against, not necessarily HEAD.
+
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the
 package git SHA (`+dirty` when the R code differs from HEAD), and the run

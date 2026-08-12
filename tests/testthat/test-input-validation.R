@@ -694,7 +694,28 @@ test_that("the simulation override never lifts the count or rank conditions", {
   d$winner <- ifelse(rbinom(nrow(d), 1, plogis(lp)) == 1, d$object_a, d$object_b)
   old <- options(rasch.btl_guard_override = TRUE)
   on.exit(options(old), add = TRUE)
-  # 5 judges: withheld even under the override (count condition holds)
+  # count-only failure: 9 judges but only 5 free object parameters
+  # (rank condition satisfied); the override must not restore inference
+  d$judge <- sample(paste0("J", 1:9), nrow(d), replace = TRUE)
+  f9 <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_false(f9$cl$inference_available)
+  expect_gt(f9$cl$n_units, f9$cl$n_parameters)
+  # rank-only failure: 10 judges (count satisfied) against 12 objects,
+  # i.e. more parameters than clusters; the override must not restore it
+  objs12 <- paste0("Q", 1:12)
+  beta12 <- setNames(seq(-1.2, 1.2, length.out = 12), objs12)
+  pr12 <- t(utils::combn(objs12, 2))
+  d12 <- data.frame(object_a = rep(pr12[, 1], each = 8),
+                    object_b = rep(pr12[, 2], each = 8))
+  lp12 <- beta12[d12$object_a] - beta12[d12$object_b]
+  d12$winner <- ifelse(rbinom(nrow(d12), 1, plogis(lp12)) == 1,
+                       d12$object_a, d12$object_b)
+  d12$judge <- sample(paste0("J", 1:10), nrow(d12), replace = TRUE)
+  f10 <- btl(d12, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_false(f10$cl$inference_available)
+  expect_gte(f10$cl$n_units, 10)
+  expect_lte(f10$cl$n_units, f10$cl$n_parameters)
+  # both at once: 5 judges
   d$judge <- sample(paste0("J", 1:5), nrow(d), replace = TRUE)
   f5 <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
   expect_false(f5$cl$inference_available)

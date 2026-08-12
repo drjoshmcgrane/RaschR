@@ -361,7 +361,7 @@ unaffected.
 
 Andrich, D. (1978). Relationships between the Thurstone and Rasch
 approaches to item scaling. *Applied Psychological Measurement*, 2(3),
-449--460.
+451--462.
 
 Andrich, D., and Kreiner, S. (2010). Quantifying response dependence between
 two dichotomous items using the Rasch model. *Applied Psychological
