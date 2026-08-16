@@ -16,6 +16,7 @@ simulate_efrm(
   n_groups = 2,
   set_unit_ratio = 1.3,
   group_unit_ratio = 1,
+  n_categories = 2,
   theta_sd = 1.3,
   seed = NULL
 )
@@ -40,6 +41,13 @@ simulate_efrm(
   Geometric span of the set and group units across their levels (1 =
   equal units, i.e. an ordinary Rasch fit).
 
+- n_categories:
+
+  Response categories per item: 2 (the default) gives dichotomous items;
+  larger values give partial credit items whose evenly spaced thresholds
+  are centred on the item locations, with the frame unit scaling the
+  whole exponent as in the dichotomous case.
+
 - theta_sd:
 
   Spread of person ability.
@@ -58,11 +66,12 @@ required by
 ## Examples
 
 ``` r
-d <- simulate_efrm(300, 8, set_unit_ratio = 1.3, seed = 1)
+d <- simulate_efrm(200, 6, set_unit_ratio = 1.3, seed = 1)
 tr <- attr(d, "truth")
-ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group")
-ef$alpha_table   # recovers the ~1.3 set-unit ratio
+ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+                 boot_reps = 30)   # small design keeps the example quick
+ef$alpha_table   # planted ratio 1.3, recovered within small-sample noise
 #>    set     alpha se_log_alpha
-#> 1 set1 0.8913905   0.05237697
-#> 2 set2 1.1218428   0.05237697
+#> 1 set1 0.8262889   0.09623885
+#> 2 set2 1.2102305   0.09623885
 ```

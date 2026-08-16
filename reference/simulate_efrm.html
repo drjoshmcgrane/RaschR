@@ -70,6 +70,7 @@ exponent. The planted set- and group-unit ratios are recovered by
 <span>  n_groups <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  set_unit_ratio <span class="op">=</span> <span class="fl">1.3</span>,</span>
 <span>  group_unit_ratio <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  n_categories <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  theta_sd <span class="op">=</span> <span class="fl">1.3</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -96,6 +97,13 @@ exponent. The planted set- and group-unit ratios are recovered by
 units across their levels (1 = equal units, i.e. an ordinary Rasch fit).</p></dd>
 
 
+<dt id="arg-n-categories">n_categories<a class="anchor" aria-label="anchor" href="#arg-n-categories"></a></dt>
+<dd><p>Response categories per item: 2 (the default) gives
+dichotomous items; larger values give partial credit items whose
+evenly spaced thresholds are centred on the item locations, with the
+frame unit scaling the whole exponent as in the dichotomous case.</p></dd>
+
+
 <dt id="arg-theta-sd">theta_sd<a class="anchor" aria-label="anchor" href="#arg-theta-sd"></a></dt>
 <dd><p>Spread of person ability.</p></dd>
 
@@ -113,13 +121,14 @@ units across their levels (1 = equal units, i.e. an ordinary Rasch fit).</p></dd
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">simulate_efrm</span><span class="op">(</span><span class="fl">300</span>, <span class="fl">8</span>, set_unit_ratio <span class="op">=</span> <span class="fl">1.3</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">simulate_efrm</span><span class="op">(</span><span class="fl">200</span>, <span class="fl">6</span>, set_unit_ratio <span class="op">=</span> <span class="fl">1.3</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">ef</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span><span class="va">d</span>, item_sets <span class="op">=</span> <span class="va">tr</span><span class="op">$</span><span class="va">item_sets</span>, groups <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">ef</span><span class="op">$</span><span class="va">alpha_table</span>   <span class="co"># recovers the ~1.3 set-unit ratio</span></span></span>
+<span class="r-in"><span><span class="va">ef</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span><span class="va">d</span>, item_sets <span class="op">=</span> <span class="va">tr</span><span class="op">$</span><span class="va">item_sets</span>, groups <span class="op">=</span> <span class="st">"group"</span>,</span></span>
+<span class="r-in"><span>                 boot_reps <span class="op">=</span> <span class="fl">30</span><span class="op">)</span>   <span class="co"># small design keeps the example quick</span></span></span>
+<span class="r-in"><span><span class="va">ef</span><span class="op">$</span><span class="va">alpha_table</span>   <span class="co"># planted ratio 1.3, recovered within small-sample noise</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    set     alpha se_log_alpha</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 set1 0.8913905   0.05237697</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 set2 1.1218428   0.05237697</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 set1 0.8262889   0.09623885</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 set2 1.2102305   0.09623885</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

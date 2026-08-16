@@ -76,6 +76,7 @@
 <h3 id="statistical-corrections-and-identification-1-12-0">Statistical corrections and identification<a class="anchor" aria-label="anchor" href="#statistical-corrections-and-identification-1-12-0"></a></h3>
 <ul><li>
 <code><a href="../reference/dependence_magnitude.html">dependence_magnitude()</a></code> uses the full covariance of the resolved thresholds when calculating its standard error.</li>
+<li>The EFRM item-set unit linking recovers the true-score variance by a truncated-score-moment correction. The previous construction (observed variance minus mean squared standard error) under-recovers the true-score variance on short tests and biased recovered unit ratios upward by about five per cent at eight dichotomous items per set; the corrected estimator is unbiased there, confirmed against an external TAM slope-group anchor.</li>
 <li>The hybrid EFRM set-unit covariance includes uncertainty from the within-frame calibration.</li>
 <li>Judge-clustered BTL inference requires enough nominal and effective judges, residual cluster degrees of freedom, and a sufficiently balanced workload.</li>
 <li>BTL-EFRM unit tests use judge-limited F and t reference distributions.</li>
@@ -245,6 +246,8 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.6.0" id="rasch-160">rasch 1.6.0<a class="anchor" aria-label="anchor" href="#rasch-160"></a></h2>
 <ul><li>
+<code><a href="../reference/simulate_efrm.html">simulate_efrm()</a></code> gains <code>n_categories</code> for partial credit items within frames, with planted thresholds recorded in the truth attribute.</li>
+<li>
 <code><a href="../reference/simulate_rasch.html">simulate_rasch()</a></code>, <code><a href="../reference/simulate_btl.html">simulate_btl()</a></code>, <code><a href="../reference/simulate_mfrm.html">simulate_mfrm()</a></code>, and <code><a href="../reference/simulate_efrm.html">simulate_efrm()</a></code> generate data from the package’s model families and can introduce nominated departures. Generating parameters are stored in the returned data.</li>
 </ul></div>
     <div class="section level2">

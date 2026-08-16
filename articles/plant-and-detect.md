@@ -294,7 +294,8 @@ provenance in the result tables:
 | Tailored bootstrap familywise error | 300 persons, 8 items | 0.8% over 240 full-procedure replicates |
 | CL-AIC model selection | PCM vs RSM; free vs PC thresholds (items and CJ) | null false selection 4.5-5.2% multi-parameter, ~17% one-parameter (the theoretical AIC rates); detection 95-100% at strong departures |
 | Paired-comparison effect tests | 8 objects, 14 judges | position/exposure nulls 5.8%/5.9%; carry-over 8.3% at 14 judges, 5.3% at 30; power 62/39/77% at 0.6 logits |
-| Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM | identical-likelihood comparators at solver precision; estimator variants within 0.02-0.15 logits; EFRM unit ratio’s documented small upward bias quantified against an unbiased TAM anchor |
+| Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM, lme4 | identical-likelihood comparators at solver precision; estimator variants within 0.02-0.15 logits; unit estimators tracked against external anchors |
+| EFRM unit linking (corrected) | 5-15 items/set; ratios 1-2; skew 0.5-2.8; booklet and pairwise-overlap designs | bias within ±0.015 throughout; null size 2.7-4.8%; coverage 93-99%; stays unbiased under skew where a normal-population anchor drifts |
 
 ## References
 

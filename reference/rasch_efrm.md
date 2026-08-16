@@ -91,8 +91,20 @@ The partial credit model holds within each frame in its natural unit.
 Person-group units \\\phi_g\\ and centred set thresholds are estimated
 by within-frame pairwise conditional maximum likelihood. Item-set units
 \\\alpha_s\\ and set locations are then estimated from persons common to
-linked sets using error-corrected true-score variance ratios. The
-linking graph must connect all sets to a common scale.
+linked sets by true-score variance ratios, with the true-score variance
+recovered by a truncated-score-moment correction: the mean and variance
+of the weighted likelihood score map over the non-extreme scores are
+exact functions of the person location given the fitted thresholds, and
+their person-distribution expectations are estimated through score
+weights that are unbiased for any person distribution because the raw
+score is sufficient. The naive \\var(\hat u) - mean(SE^2)\\ correction
+is badly calibrated on short tests (the reported error variance
+overstates the actual one and weighted likelihood shrinkage makes the
+errors covary negatively with the locations); its residual distortion
+biased the log unit ratio upward by about 0.05 at eight dichotomous
+items per set, confirmed against an external TAM 2PL slope-group anchor,
+while the corrected estimator is unbiased there. The linking graph must
+connect all sets to a common scale.
 
 The default hybrid standard errors combine the pairwise Godambe
 covariance, a person bootstrap for set linking, and delta-method
@@ -102,9 +114,13 @@ the set-unit standard errors understate by about 20% and the unit tests
 reject a true null at 9-10%; with it they reject at 4.9% over 1,200
 simulated replicates, stable across item counts, sample sizes,
 imbalance, and weak linking, and matching a full-bootstrap benchmark.
-With `se_method = "bootstrap"`, the complete model is refitted to each
-person resample and all reported covariance comes from the bootstrap
-distribution.
+The corrected set-unit estimator holds this calibration across designs:
+null size 3–5% with 93–99% coverage over 5–15 items per set, unit ratios
+1–2, partial credit items, booklet missingness, pairwise-only person
+overlap, and person skewness to 2.8 – where it stays unbiased while a
+normal-population MML anchor drifts. With `se_method = "bootstrap"`, the
+complete model is refitted to each person resample and all reported
+covariance comes from the bootstrap distribution.
 
 The dichotomous model and the theory of frame-dependent units follow
 Humphry (2005) and Humphry and Andrich (2008). The item-set linking step
