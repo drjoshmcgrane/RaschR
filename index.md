@@ -48,10 +48,9 @@ a common scale.
 
 The suite follows Rasch (1960) and Andrich and Marais (2019); the frame
 of reference models follow Humphry’s (2005) thesis, where the model is
-introduced and named, and Humphry and Andrich (2008); the dichotomous
-comparative judgement model is the conditional form of the dichotomous
-Rasch model (Andrich, 1978a), and the polytomous comparative judgement
-model is its adjacent-categories extension (Tutz, 1986).
+introduced and named, and Humphry and Andrich (2008); the comparative
+judgement models follow the BTL (Bradley and Terry, 1952; Luce, 1959)
+and its adjacent-categories extension (Tutz, 1986).
 
 ## Shiny application
 
