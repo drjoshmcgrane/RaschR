@@ -6,36 +6,29 @@
 [![pkgdown](https://github.com/drjoshmcgrane/rasch/actions/workflows/pkgdown.yaml/badge.svg)](https://drjoshmcgrane.github.io/rasch/)
 <!-- badges: end -->
 
-`rasch` fits and evaluates models within Rasch Measurement Theory. It includes
-models for item responses, ratings, linked frames of reference, and paired
-comparisons, with a common set of functions for examining fit, invariance,
-targeting, dimensionality, and local dependence.
-
-`rasch()` estimates the partial credit model
+`rasch` fits and evaluates the models of Rasch Measurement Theory, a family
+united by the original dichotomous model (Rasch, 1960),
 
 $$
-\log\frac{P(X_{ni}=x)}{P(X_{ni}=x-1)}=\theta_n-\delta_{ix},
+\log\frac{P(X_{ni}=1)}{P(X_{ni}=0)}=\theta_n-\delta_i.
 $$
 
-with person locations $\theta_n$ and item thresholds $\delta_{ix}$; the
-dichotomous and rating scale models are its one-threshold and
-common-threshold cases. The total score is sufficient for $\theta_n$,
-giving the separation of person and item comparisons -- the specific
-objectivity that defines measurement in RMT: item parameters are
-estimated by pairwise conditioning (Zwinderman, 1995) with no population
-distribution assumed, and person measures follow by weighted likelihood
-(Warm, 1989). The many-facet and frame of reference models carry the same
-comparisons to raters and other facets and to frames measured in
-different units. In comparative judgement the same conditioning
-eliminates the person parameter entirely:
+The sufficiency of the total score for $\theta_n$ allows item locations to
+be estimated by pairwise conditioning (Zwinderman, 1995): given exactly one
+of items $i$ and $j$ correct, the person parameter cancels,
 
 $$
-P(a \succ b)=\frac{\exp(\beta_a-\beta_b)}{1+\exp(\beta_a-\beta_b)},
+\log\frac{P(X_{ni}=1)}{P(X_{nj}=1)}=\delta_j-\delta_i,
 $$
 
-with ordered judgements following the adjacent-category form above,
-$\beta_a-\beta_b$ in place of $\theta_n$ with one symmetric threshold
-set.
+which is equivalent to the standard model for comparative judgement
+(Andrich, 1978a; Bradley and Terry, 1952; Luce, 1959). The extensions keep
+this structure: partial credit and rating scale models add ordered
+thresholds (Andrich, 1978b; Masters, 1982); the many-facet model adds rater
+and task locations to the composite (Linacre, 1989); the extended frame of
+reference model links frames measured in different units (Humphry and
+Andrich, 2008); polytomous comparative judgement applies the thresholds to
+ordered pair judgements (Tutz, 1986).
 
 The package treats fit to the model as an empirical question. Its diagnostics
 examine whether comparisons remain invariant across persons, items, groups,
@@ -51,6 +44,7 @@ occasions, raters, and other parts of the measurement design.
 | `btl()` | Comparative judgement models for dichotomous and polytomous paired comparisons |
 | `btl_efrm()` | Extended frame of reference model for paired comparisons |
 
+Person measures are estimated by weighted likelihood (Warm, 1989).
 Anchored estimation is available for equating, and incomplete linked
 designs can be fitted when their observed response structure identifies a
 common scale.
@@ -59,7 +53,7 @@ The suite follows Rasch (1960) and Andrich and Marais (2019); the frame of
 reference models follow Humphry's (2005) thesis, where the model is
 introduced and named, and Humphry and Andrich (2008); the dichotomous
 comparative judgement model is the conditional form of the dichotomous
-Rasch model (Andrich, 1978), and the polytomous comparative judgement
+Rasch model (Andrich, 1978a), and the polytomous comparative judgement
 model is its adjacent-categories extension (Tutz, 1986).
 
 ## Shiny application
@@ -127,14 +121,30 @@ simulation.
 
 ## References
 
-Andrich, D. (1978). Relationships between the Thurstone and Rasch approaches
-to item scaling. *Applied Psychological Measurement*, 2(3), 451--462.
+Andrich, D. (1978a). Relationships between the Thurstone and Rasch
+approaches to item scaling. *Applied Psychological Measurement*, 2(3),
+451--462.
+
+Andrich, D. (1978b). A rating formulation for ordered response categories.
+*Psychometrika*, 43(4), 561--573.
+
+Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete block
+designs: I. The method of paired comparisons. *Biometrika*, 39(3/4),
+324--345.
 
 Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences*. Springer.
 
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
+
+Linacre, J. M. (1989). *Many-Facet Rasch Measurement*. MESA Press.
+
+Luce, R. D. (1959). *Individual Choice Behavior: A Theoretical Analysis*.
+Wiley.
+
+Masters, G. N. (1982). A partial credit model for scoring responses with
+ordered categories. *Psychometrika*, 47(2), 149--174.
 
 Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the Rasch
 model. *Journal of Applied Measurement*, 9(3), 249--264.
