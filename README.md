@@ -6,8 +6,13 @@
 [![pkgdown](https://github.com/drjoshmcgrane/rasch/actions/workflows/pkgdown.yaml/badge.svg)](https://drjoshmcgrane.github.io/rasch/)
 <!-- badges: end -->
 
-`rasch` fits and evaluates the models of Rasch Measurement Theory, a family
-united by the original dichotomous model (Rasch, 1960),
+`rasch` fits and evaluates models within Rasch Measurement Theory. It includes
+models for item responses, ratings, linked frames of reference, and paired
+comparisons, with a common set of functions for examining fit, invariance,
+targeting, dimensionality, and local dependence.
+
+The models form a family united by the original dichotomous model
+(Rasch, 1960),
 
 $$
 \log\frac{P(X_{ni}=1)}{P(X_{ni}=0)}=\theta_n-\delta_i.
