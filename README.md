@@ -26,9 +26,11 @@ across the items. The total score is sufficient for $\theta_n$, so
 (Zwinderman, 1995), without assuming a population distribution for the
 person locations, and returns Warm (1989) weighted likelihood person
 measures on the same scale. The other models carry these comparisons to
-raters and other facets of a measurement design, to frames of reference
-measured in different units, and to comparative judgement of paired
-stimuli.
+raters and other facets of a measurement design and to frames of reference
+measured in different units. In comparative judgement of paired stimuli
+the same adjacent-category form applies with the difference between two
+stimulus locations, $\beta_a-\beta_b$, in place of $\theta_n$, and a
+single symmetric threshold set shared by all pairs.
 
 The package treats fit to the model as an empirical question. Its diagnostics
 examine whether comparisons remain invariant across persons, items, groups,
