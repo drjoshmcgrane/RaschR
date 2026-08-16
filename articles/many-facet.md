@@ -141,12 +141,13 @@ Holm’s method.
 
 ## Diagnostics
 
-The returned object is also a `rasch` fit over the virtual items, so the
-fit, targeting, dependence, dimensionality, and plotting functions
-remain available. MFRM margin tables additionally report an equal-cell
-fit residual and a response-weighted pooled residual. Their weighting
-differs, so both the design and the location of any misfit should guide
-interpretation.
+The returned object is also a `rasch` fit in which each item-by-facet
+cell enters as its own column of the response matrix (a *virtual item*),
+so the fit, targeting, dependence, dimensionality, and plotting
+functions remain available. MFRM margin tables additionally report an
+equal-cell fit residual and a response-weighted pooled residual. Their
+weighting differs, so both the design and the location of any misfit
+should guide interpretation.
 
 ## References
 

@@ -79,8 +79,8 @@ dif_anova(
 - pool_facets:
 
   For MFRM fits: pool residuals to the underlying items (the default),
-  so DIF is tested per item rather than per item-by-facet virtual cell;
-  `FALSE` tests the virtual items. Ignored for other fits.
+  so DIF is tested per item rather than per item-by-facet cell; `FALSE`
+  tests each cell as its own item. Ignored for other fits.
 
 ## Value
 

@@ -24,7 +24,9 @@ For item \\i\\ in set \\s\\ and person \\n\\ in group \\g\\,
 
 Here \\\alpha_s\\ is the item-set unit and \\\phi_g\\ is the
 person-group unit. A frame-defining factor sets the unit and cannot also
-be tested as a separate DIF factor on that frame’s virtual items.
+be tested for DIF: the factor takes a single level among the persons
+responding within any frame, so no within-frame comparison remains on
+which to test it.
 
 The model should be used when a frame-dependent unit is part of the
 substantive measurement account, not simply because an equal-unit model
