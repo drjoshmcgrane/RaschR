@@ -96,10 +96,10 @@ contrast scores between groups. The resolved logit estimate is retained,
 but its calibration-based standard error is withheld because it does not
 include repeated-person dependence.
 
-For independent rows, a contrast with weights \\\boldsymbol{c}\\ is
-\$\$\Delta_i=\boldsymbol{c}^{\mathsf T}\boldsymbol{\delta}\_i,\qquad
-\operatorname{SE}(\Delta_i)= \sqrt{\boldsymbol{c}^{\mathsf
-T}\boldsymbol{V}\_i\boldsymbol{c}}.\$\$ In a repeated-measures design, a
+For independent rows, a contrast with weights \\\mathbf{c}\\ is
+\$\$\Delta_i=\mathbf{c}^{\mathsf T}\delta_i,\qquad
+\operatorname{SE}(\Delta_i)= \sqrt{\mathbf{c}^{\mathsf
+T}\mathbf{V}\_i\mathbf{c}}.\$\$ In a repeated-measures design, a
 within-person contrast is formed from the standardised residuals,
 \$\$s_p=\sum_l c_l z\_{pl},\$\$ and tested over persons. Between-person
 contrasts use Welch tests of person means; mixed interactions use Welch

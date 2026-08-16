@@ -64,12 +64,11 @@ number of common objects `n_common`; the number usable for inference
 
 Let \\d\\ contain the location differences for the common objects and
 \\V\\ their joint covariance. The origin shift is \$\$\hat
-s=\frac{\boldsymbol{1}'V^{-1}d}
-{\boldsymbol{1}'V^{-1}\boldsymbol{1}}.\$\$ Each object is tested using
-its shifted difference \\d_j-\hat s\\. The covariance calculation
-retains the dependence induced by the sum-zero constraints. Drift tests
-require independent calibrations and at least three common objects with
-usable covariance information.
+s=\frac{\mathbf{1}'V^{-1}d} {\mathbf{1}'V^{-1}\mathbf{1}}.\$\$ Each
+object is tested using its shifted difference \\d_j-\hat s\\. The
+covariance calculation retains the dependence induced by the sum-zero
+constraints. Drift tests require independent calibrations and at least
+three common objects with usable covariance information.
 
 The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and

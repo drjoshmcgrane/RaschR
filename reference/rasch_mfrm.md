@@ -100,7 +100,7 @@ statistic, with degrees of freedom in `df_fit`.
 ## Details
 
 For person \\n\\, item \\i\\, and facet levels \\f_1,\ldots,f_Q\\, the
-additive model is \$\$P(X\_{ni\boldsymbol f}=x)=\frac{\exp\\x\theta_n-
+additive model is \$\$P(X\_{ni\mathbf{f}}=x)=\frac{\exp\\x\theta_n-
 \sum\_{k=1}^{x}\[\delta\_{ik}+\sum\_{q=1}^{Q}\rho\_{qf_q}\]\\}
 {\sum\_{y=0}^{m_i}\exp\\y\theta_n-
 \sum\_{k=1}^{y}\[\delta\_{ik}+\sum\_{q=1}^{Q}\rho\_{qf_q}\]\\}.\$\$

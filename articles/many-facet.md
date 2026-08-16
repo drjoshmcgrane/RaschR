@@ -16,7 +16,7 @@ them as person factors and assess them with `dif_anova`.
 
 For facet levels \\f_1,\ldots,f_Q\\, the model is
 
-\\ P(X\_{ni\boldsymbol f}=x)= \frac{\exp\left\\x\theta_n-
+\\ P(X\_{ni\mathbf{f}}=x)= \frac{\exp\left\\x\theta_n-
 \sum\_{k=1}^{x}\left(\delta\_{ik}+\sum\_{q=1}^{Q}\rho\_{qf_q}\right)\right\\}
 {\sum\_{y=0}^{m_i}\exp\left\\y\theta_n-
 \sum\_{k=1}^{y}\left(\delta\_{ik}+\sum\_{q=1}^{Q}\rho\_{qf_q}\right)\right\\}.

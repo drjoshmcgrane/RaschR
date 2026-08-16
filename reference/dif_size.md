@@ -65,15 +65,14 @@ are `NA` when person IDs repeat.
 
 ## Details
 
-Let \\\boldsymbol{\delta}\_i\\ contain the resolved locations of item
-\\i\\, and let \\\boldsymbol{c}\_{ab}\\ place 1 on level \\a\\, -1 on
-level \\b\\, and zero elsewhere. The reported difference and its
-standard error are \$\$\Delta\_{i,ab}=\boldsymbol{c}\_{ab}^{\mathsf T}
-\boldsymbol{\delta}\_i,\$\$ \$\$\operatorname{SE}(\Delta\_{i,ab})=
-\sqrt{\boldsymbol{c}\_{ab}^{\mathsf T}\boldsymbol{V}\_i
-\boldsymbol{c}\_{ab}},\$\$ where \\\boldsymbol{V}\_i\\ is the full
-covariance of the resolved locations. Wald probabilities are adjusted
-over the pairwise family.
+Let \\\delta_i\\ contain the resolved locations of item \\i\\, and let
+\\\mathbf{c}\_{ab}\\ place 1 on level \\a\\, -1 on level \\b\\, and zero
+elsewhere. The reported difference and its standard error are
+\$\$\Delta\_{i,ab}=\mathbf{c}\_{ab}^{\mathsf T} \delta_i,\$\$
+\$\$\operatorname{SE}(\Delta\_{i,ab})= \sqrt{\mathbf{c}\_{ab}^{\mathsf
+T}\mathbf{V}\_i \mathbf{c}\_{ab}},\$\$ where \\\mathbf{V}\_i\\ is the
+full covariance of the resolved locations. Wald probabilities are
+adjusted over the pairwise family.
 
 With repeated person identifiers, the row-level calibration covariance
 does not represent within-person sampling dependence. Logit differences
