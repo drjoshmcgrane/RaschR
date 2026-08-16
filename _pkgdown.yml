@@ -93,6 +93,7 @@ reference:
   contents:
   - dif_anova
   - dif_contrasts
+  - dif_posthoc
   - dif_size
   - split_items
   - resolve_dif
@@ -173,4 +174,5 @@ reference:
   - save_item_plots
   - save_person_plots
   - report_html
+  - report_document
   - run_app
