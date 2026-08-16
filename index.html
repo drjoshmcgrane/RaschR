@@ -79,15 +79,15 @@
 <!-- badges: start -->
 
 <p><code>rasch</code> fits and evaluates models within Rasch Measurement Theory. It includes models for item responses, ratings, linked frames of reference, and paired comparisons, with a common set of functions for examining fit, invariance, targeting, dimensionality, and local dependence.</p>
-<p>For an item with ordered scores <span class="math inline">\(x=0,\ldots,m_i\)</span>, <code><a href="reference/rasch.html">rasch()</a></code> estimates the partial credit model</p>
+<p><code><a href="reference/rasch.html">rasch()</a></code> estimates the partial credit model</p>
 <p><span class="math display">\[
 \log\frac{P(X_{ni}=x)}{P(X_{ni}=x-1)}=\theta_n-\delta_{ix},
 \]</span></p>
-<p>where <span class="math inline">\(\theta_n\)</span> is the location of person <span class="math inline">\(n\)</span> and <span class="math inline">\(\delta_{ix}\)</span> is the threshold between categories <span class="math inline">\(x-1\)</span> and <span class="math inline">\(x\)</span>; dichotomous items have one threshold, and the rating scale model holds a common threshold structure across the items. The total score is sufficient for <span class="math inline">\(\theta_n\)</span>, so <code><a href="reference/rasch.html">rasch()</a></code> estimates the item parameters by pairwise conditioning (Zwinderman, 1995), without assuming a population distribution for the person locations, and returns Warm (1989) weighted likelihood person measures on the same scale. The other models carry these comparisons to raters and other facets of a measurement design and to frames of reference measured in different units. In comparative judgement of paired stimuli the person parameter is eliminated by conditioning: the probability that stimulus <span class="math inline">\(a\)</span> is preferred to stimulus <span class="math inline">\(b\)</span> is</p>
+<p>with person locations <span class="math inline">\(\theta_n\)</span> and item thresholds <span class="math inline">\(\delta_{ix}\)</span>; the dichotomous and rating scale models are its one-threshold and common-threshold cases. The total score is sufficient for <span class="math inline">\(\theta_n\)</span>, giving the separation of person and item comparisons – the specific objectivity that defines measurement in RMT: item parameters are estimated by pairwise conditioning (Zwinderman, 1995) with no population distribution assumed, and person measures follow by weighted likelihood (Warm, 1989). The many-facet and frame of reference models carry the same comparisons to raters and other facets and to frames measured in different units. In comparative judgement the same conditioning eliminates the person parameter entirely:</p>
 <p><span class="math display">\[
 P(a \succ b)=\frac{\exp(\beta_a-\beta_b)}{1+\exp(\beta_a-\beta_b)},
 \]</span></p>
-<p>the conditional form of the dichotomous model, and ordered judgements follow the adjacent-category form above with <span class="math inline">\(\beta_a-\beta_b\)</span> in place of <span class="math inline">\(\theta_n\)</span> and a single symmetric threshold set shared by all pairs.</p>
+<p>with ordered judgements following the adjacent-category form above, <span class="math inline">\(\beta_a-\beta_b\)</span> in place of <span class="math inline">\(\theta_n\)</span> with one symmetric threshold set.</p>
 <p>The package treats fit to the model as an empirical question. Its diagnostics examine whether comparisons remain invariant across persons, items, groups, occasions, raters, and other parts of the measurement design.</p>
 <div class="section level2">
 <h2 id="models">Models<a class="anchor" aria-label="anchor" href="#models"></a>

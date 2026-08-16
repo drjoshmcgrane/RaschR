@@ -5,34 +5,29 @@ includes models for item responses, ratings, linked frames of reference,
 and paired comparisons, with a common set of functions for examining
 fit, invariance, targeting, dimensionality, and local dependence.
 
-For an item with ordered scores \\x=0,\ldots,m_i\\,
 [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
 estimates the partial credit model
 
 \\ \log\frac{P(X\_{ni}=x)}{P(X\_{ni}=x-1)}=\theta_n-\delta\_{ix}, \\
 
-where \\\theta_n\\ is the location of person \\n\\ and \\\delta\_{ix}\\
-is the threshold between categories \\x-1\\ and \\x\\; dichotomous items
-have one threshold, and the rating scale model holds a common threshold
-structure across the items. The total score is sufficient for
-\\\theta_n\\, so
-[`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-estimates the item parameters by pairwise conditioning (Zwinderman,
-1995), without assuming a population distribution for the person
-locations, and returns Warm (1989) weighted likelihood person measures
-on the same scale. The other models carry these comparisons to raters
-and other facets of a measurement design and to frames of reference
-measured in different units. In comparative judgement of paired stimuli
-the person parameter is eliminated by conditioning: the probability that
-stimulus \\a\\ is preferred to stimulus \\b\\ is
+with person locations \\\theta_n\\ and item thresholds \\\delta\_{ix}\\;
+the dichotomous and rating scale models are its one-threshold and
+common-threshold cases. The total score is sufficient for \\\theta_n\\,
+giving the separation of person and item comparisons – the specific
+objectivity that defines measurement in RMT: item parameters are
+estimated by pairwise conditioning (Zwinderman, 1995) with no population
+distribution assumed, and person measures follow by weighted likelihood
+(Warm, 1989). The many-facet and frame of reference models carry the
+same comparisons to raters and other facets and to frames measured in
+different units. In comparative judgement the same conditioning
+eliminates the person parameter entirely:
 
 \\ P(a \succ b)=\frac{\exp(\beta_a-\beta_b)}{1+\exp(\beta_a-\beta_b)},
 \\
 
-the conditional form of the dichotomous model, and ordered judgements
-follow the adjacent-category form above with \\\beta_a-\beta_b\\ in
-place of \\\theta_n\\ and a single symmetric threshold set shared by all
-pairs.
+with ordered judgements following the adjacent-category form above,
+\\\beta_a-\beta_b\\ in place of \\\theta_n\\ with one symmetric
+threshold set.
 
 The package treats fit to the model as an empirical question. Its
 diagnostics examine whether comparisons remain invariant across persons,
