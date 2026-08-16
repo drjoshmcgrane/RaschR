@@ -124,6 +124,12 @@ granularity deliberately).
   row per scenario with bias, empirical SD, mean reported SE, SE ratio,
   95% coverage, Type I / familywise error or power, refusal and
   convergence rates, and the Monte Carlo standard error of each rate.
+- `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
+  message-only history rewrite. `package_sha` values stamped in result
+  tables before that date are pre-rewrite IDs; look them up in the first
+  column to find the corresponding commit in the current history. File
+  contents were untouched by the rewrite, and the `r_tree_md5` content
+  hashes remain directly verifiable.
 
 ## Conventions
 
