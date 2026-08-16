@@ -85,7 +85,7 @@
 \]</span></p>
 <p>The sufficiency of the total score for <span class="math inline">\(\theta_n\)</span> allows item locations to be estimated by pairwise conditioning (Zwinderman, 1995): given exactly one of items <span class="math inline">\(i\)</span> and <span class="math inline">\(j\)</span> correct, the person parameter cancels,</p>
 <p><span class="math display">\[
-\log\frac{P(X_{ni}=1)}{P(X_{nj}=1)}=\delta_j-\delta_i,
+\log\frac{P(X_{ni}=1 \mid X_{ni}+X_{nj}=1)}{P(X_{nj}=1 \mid X_{ni}+X_{nj}=1)}=\delta_j-\delta_i,
 \]</span></p>
 <p>which is equivalent to the standard model for comparative judgement (Andrich, 1978a; Bradley and Terry, 1952; Luce, 1959). The extensions keep this structure: partial credit and rating scale models add ordered thresholds (Andrich, 1978b; Masters, 1982); the many-facet model adds rater and task locations to the composite (Linacre, 1989); the extended frame of reference model links frames measured in different units (Humphry and Andrich, 2008); polytomous comparative judgement applies the thresholds to ordered pair judgements (Tutz, 1986).</p>
 <p>The package treats fit to the model as an empirical question. Its diagnostics examine whether comparisons remain invariant across persons, items, groups, occasions, raters, and other parts of the measurement design.</p>
