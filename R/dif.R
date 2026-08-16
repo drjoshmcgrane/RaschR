@@ -312,7 +312,7 @@
 #'   Details for the mixed-design analysis.
 #' @param pool_facets For MFRM fits: pool residuals to the underlying
 #'   items (the default), so DIF is tested per item rather than per
-#'   item-by-facet virtual cell; \code{FALSE} tests the virtual items.
+#'   item-by-facet cell; \code{FALSE} tests each cell as its own item.
 #'   Ignored for other fits.
 #' @param sizes If \code{TRUE}, refit each flagged item-term and calculate
 #'   pairwise DIF differences in logits using \code{\link{dif_size}}.
@@ -405,7 +405,7 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
       "MFRM residuals pooled to the underlying items (standardised sum over",
       "each item's observed facet cells, so rows with different facet",
       "coverage retain comparable null variance); pool_facets = FALSE tests",
-      "the virtual items")
+      "each item-by-facet cell as its own item")
   }
   factors <- .dif_factors(fit, factors)
   # the EFRM frame group IS the frame structure: each frame has its own
@@ -416,9 +416,10 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     hit <- intersect(names(factors), fit$frame_group)
     if (length(hit) == length(factors))
       stop("'", paste(hit, collapse = "', '"),
-           "' define(s) the EFRM frame structure itself ",
-           "(each frame has its own virtual items), so they cannot be ",
-           "tested as DIF; nominate other person factors")
+           "' define(s) the EFRM frame structure itself: the factor is ",
+           "constant among the persons responding within any frame, so ",
+           "no within-frame comparison remains to test as DIF; nominate ",
+           "other person factors")
     factors <- factors[!names(factors) %in% fit$frame_group]
     drop_frame_note <- paste0("frame factor(s) '",
                               paste(hit, collapse = "', '"),

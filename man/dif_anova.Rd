@@ -52,7 +52,7 @@ Details for the mixed-design analysis.}
 
 \item{pool_facets}{For MFRM fits: pool residuals to the underlying
 items (the default), so DIF is tested per item rather than per
-item-by-facet virtual cell; \code{FALSE} tests the virtual items.
+item-by-facet cell; \code{FALSE} tests each cell as its own item.
 Ignored for other fits.}
 }
 \value{
