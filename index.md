@@ -1,7 +1,12 @@
 # rasch: Models and Diagnostics for Rasch Measurement Theory
 
-`rasch` fits and evaluates the models of Rasch Measurement Theory, a
-family united by the original dichotomous model (Rasch, 1960),
+`rasch` fits and evaluates models within Rasch Measurement Theory. It
+includes models for item responses, ratings, linked frames of reference,
+and paired comparisons, with a common set of functions for examining
+fit, invariance, targeting, dimensionality, and local dependence.
+
+The models form a family united by the original dichotomous model
+(Rasch, 1960),
 
 \\ \log\frac{P(X\_{ni}=1)}{P(X\_{ni}=0)}=\theta_n-\delta_i. \\
 
