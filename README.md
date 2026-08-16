@@ -28,7 +28,7 @@ person locations, and returns Warm (1989) weighted likelihood person
 measures on the same scale. The other models carry these comparisons to
 raters and other facets of a measurement design, to frames of reference
 measured in different units, and to comparative judgement of paired
-comparisons.
+stimuli.
 
 The package treats fit to the model as an empirical question. Its diagnostics
 examine whether comparisons remain invariant across persons, items, groups,

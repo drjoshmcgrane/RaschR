@@ -2,7 +2,7 @@
 #'
 #' Fits and evaluates models within Rasch Measurement Theory. The package
 #' includes models for item responses, ratings, linked frames of reference,
-#' and comparative judgement of paired comparisons, together with functions
+#' and comparative judgement of paired stimuli, together with functions
 #' for fit, targeting, reliability, dimensionality, local dependence,
 #' differential item functioning, equating, and simulation. The suite
 #' follows Rasch (1960) and Andrich and Marais (2019); the frame of
