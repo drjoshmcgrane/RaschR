@@ -6,16 +6,16 @@ and paired comparisons, with a common set of functions for examining
 fit, invariance, targeting, dimensionality, and local dependence.
 
 The models form a family united by the original dichotomous model
-(Rasch, 1960), which is distinguished among item response models by its
-sufficiency and invariance properties: the total score is sufficient for
-the person parameter, so items can be compared independently of the
-persons who responded, and persons independently of the items attempted,
+(Rasch, 1960),
 
-\\ \log\frac{P(X\_{ni}=1)}{P(X\_{ni}=0)}=\theta_n-\delta_i. \\
+\\ \log\frac{P(X\_{ni}=1)}{P(X\_{ni}=0)}=\theta_n-\delta_i, \\
 
-This sufficiency allows item locations to be estimated by pairwise
-conditioning (Zwinderman, 1995): given exactly one of items \\i\\ and
-\\j\\ correct, the person parameter cancels,
+which is distinguished among item response models by its sufficiency and
+invariance properties: the total score is sufficient for the person
+parameter, so items can be compared independently of the persons who
+responded. This sufficiency allows item locations to be estimated by
+pairwise conditioning (Zwinderman, 1995): given exactly one of items
+\\i\\ and \\j\\ correct, the person parameter cancels,
 
 \\ \log\frac{P(X\_{ni}=1 \mid X\_{ni}+X\_{nj}=1)}{P(X\_{nj}=1 \mid
 X\_{ni}+X\_{nj}=1)}=\delta_j-\delta_i, \\
