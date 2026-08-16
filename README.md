@@ -23,7 +23,7 @@ be estimated by pairwise conditioning (Zwinderman, 1995): given exactly one
 of items $i$ and $j$ correct, the person parameter cancels,
 
 $$
-\log\frac{P(X_{ni}=1)}{P(X_{nj}=1)}=\delta_j-\delta_i,
+\log\frac{P(X_{ni}=1 \mid X_{ni}+X_{nj}=1)}{P(X_{nj}=1 \mid X_{ni}+X_{nj}=1)}=\delta_j-\delta_i,
 $$
 
 which is equivalent to the standard model for comparative judgement
