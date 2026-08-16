@@ -120,6 +120,17 @@ granularity deliberately).
   8.3% at 14 judges falling to 5.3% at 30 judges (the few-cluster
   elevation round 1 flagged as a soft note, now characterised); power at
   0.6 logits 62/39/77%.
+- `results/cross-package-validation.csv` also carries (post-correction
+  rerun): the corrected EFRM item-set ratio anchored at −0.005 vs TAM's
+  +0.001; the person-group unit phi at +0.003 vs a per-group
+  `lme4::glmer` coefficient-slope anchor at −0.003 (phi's first external
+  check); the crossed 2x2 design clean on both units (alpha +0.009, phi
+  +0.0004 against per-cell GLMM anchors); the polytomous item side at
+  +0.008 vs TAM `GPCM.design` set-constrained slopes at +0.002 (note:
+  TAM's `2PL.groups` frees the category loadings on polytomous data and
+  is unsound as a GPCM anchor); and `rasch_mfrm` vs `tam.mml.mfr` with
+  item, rater, and threshold correlations at 0.9999+ and agreement to
+  ~0.01 logits.
 - `harness.R` — shared reporting helpers for the second-round studies: one
   row per scenario with bias, empirical SD, mean reported SE, SE ratio,
   95% coverage, Type I / familywise error or power, refusal and
@@ -139,6 +150,30 @@ granularity deliberately).
   `TAM::tam.mml.2pl` slope-group anchor (+0.001); the `btl_efrm`
   panel-unit ratio is unbiased within Monte Carlo error and tracks a
   per-panel intercept-free adjacent-category anchor.
+- `results/alpha-correction.csv` — the truncated-score-moment correction
+  of the EFRM item-set unit linking. Diagnosis: the naive construction
+  (observed variance minus mean squared standard error) under-recovers
+  the true-score variance by more than half per set at 8 dichotomous
+  items — the reported SE^2 overstates the actual error variance and WLE
+  shrinkage makes the errors covary negatively with the true values —
+  and its imperfect cancellation between sets biased the log unit ratio
+  by +0.046 at 8 items and −0.036 at 15 (a sign flip: the distortions
+  rebalance with length, so the old estimator was uncontrolled, not
+  merely short-test-biased). Corrected estimator on the default hybrid
+  path: null bias −0.002 with omnibus size 4.8% and coverage 95.3% (400
+  replicates), unbiased at 5, 8, and 15 items per set, two-group frame
+  grid size 3.5%, and the TAM-anchored same-seed rerun at −0.005 against
+  the anchor's +0.001 (pre-correction: +0.046 on identical seeds).
+- `results/alpha-correction-designs.csv` — design robustness of the
+  corrected estimator: unit-ratio sweep 1.0–2.0 (bias within ±0.015
+  everywhere, a mild +0.01 at ratios ≥1.5), person-skewness
+  dose-response 0.5–2.8 (corrected flat at +0.008 to +0.014 while the
+  TAM normal-population anchor drifts monotonically to −0.026),
+  polytomous frames via `simulate_efrm(n_categories = 4)` (null size
+  3.3%, power 100% at ratio 1.4), three sets linked by pairwise-only
+  person overlap (size 2.7%), booklet-style within-set missingness
+  exercising the per-pattern correction moments (size 3.3%), and 15
+  items per set (coverage 98%).
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

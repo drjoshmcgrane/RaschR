@@ -40,12 +40,22 @@
 #
 # Route 2 (person-side linking): alpha_s and set locations mu_s from
 # persons common to two sets. Within set s a person's frame estimate is
-# u = alpha_s * (theta - mu_s), so the ratio of error-corrected true-score
-# standard deviations over common persons estimates alpha ratios, and the
-# offsets give the relative set locations; the log-ratios are reconciled
-# over the linking graph by weighted least squares. The error-variance
-# correction var_true = var(u_hat) - mean(se^2) removes the attenuation of
-# the naive standard-deviation ratio.
+# u = alpha_s * (theta - mu_s), so the ratio of true-score variances over
+# common persons estimates squared alpha ratios, and the offsets give the
+# relative set locations; the log-ratios are reconciled over the linking
+# graph by weighted least squares. The true-score variance is recovered by
+# the truncated-score-moment correction
+#     var_true = (var(u_hat) - E[w]) / E[g']^2,
+# where g(u) and w(u) are the exact mean and variance of the WLE score map
+# over the non-extreme score distribution at u (from the fitted
+# thresholds), and E[.] over the person distribution is estimated by
+# score-weight vectors phi solving E[phi(R)|u] ~ target(u) on a grid --
+# unbiased for any person distribution because the raw score is
+# sufficient. The naive correction var(u_hat) - mean(se^2) is badly
+# calibrated on short tests: the reported SE^2 overstates the actual error
+# variance and WLE shrinkage induces cov(u, error) < 0; at 8 dichotomous
+# items per set both distortions exceed 50% of the variance and their
+# imperfect cancellation biased the log unit ratio by +0.05.
 #
 # Identification: sum dtilde = 0 per set; sum_g log phi_g = 0;
 # sum_s log alpha_s = 0; mean_s mu_s = 0. Together these give the
@@ -242,31 +252,102 @@
        converged = conv, gidx = gidx)
 }
 
+# Per-person correction moments for the set-unit linking. For each
+# missing-data pattern the WLE score map W and the model score
+# distribution are exact, so the mean g(u) and variance w(u) of W(R) over
+# the non-extreme scores are exact functions of u given the thresholds.
+# The linking needs E[w(u)] and E[g'(u)] over the (unobserved) person
+# distribution; because the raw score is sufficient, score-weight vectors
+# phi with E[phi(R) | u] ~ target(u) on a grid make mean(phi(R_i)) an
+# estimate of E[target(u)] that is unbiased for ANY person distribution
+# (both targets are bounded and tail-flat, so the ridge least-squares
+# inversion is stable, unlike a direct representation of u^2). Returns
+# per-person phi_w(R_i) and phi_g(R_i), NA for extreme or empty rows.
+.person_link_moments <- function(X, tau_list, disc = 1) {
+  N <- nrow(X)
+  obs <- !is.na(X)
+  pat <- apply(obs, 1, function(z) paste(which(z), collapse = ","))
+  w_i <- g_i <- rep(NA_real_, N)
+  for (key in unique(pat)) {
+    cols <- as.integer(strsplit(key, ",", fixed = TRUE)[[1]])
+    if (length(cols) < 2L) next
+    tl <- tau_list[cols]
+    maxr <- sum(vapply(tl, length, 1L))
+    if (maxr < 2L) next
+    W <- person_wle(tl, disc = disc)$theta[as.character(0:maxr)]
+    Wi <- W[-c(1L, maxr + 1L)]
+    if (any(!is.finite(Wi))) next
+    grid <- seq(min(Wi) - 3, max(Wi) + 3, length.out = 121L)
+    # truncated score distribution at each grid point, by direct
+    # convolution of the item category probabilities (same model as
+    # person_wle; direct is faster than FFT at these lengths)
+    B <- vapply(grid, function(u) {
+      p <- 1
+      for (tau in tl) {
+        pi <- item_moments(u, tau, disc = disc)$P
+        np <- numeric(length(p) + length(pi) - 1L)
+        for (x in seq_along(pi)) {
+          ix <- x:(x + length(p) - 1L)
+          np[ix] <- np[ix] + p * pi[x]
+        }
+        p <- np
+      }
+      p <- pmax(p, 0)[-c(1L, maxr + 1L)]
+      p / sum(p)
+    }, numeric(maxr - 1L))
+    gm <- colSums(B * Wi)
+    wm <- colSums(B * Wi^2) - gm^2
+    h <- grid[2L] - grid[1L]
+    gp <- c(gm[2L] - gm[1L], (gm[-c(1L, 2L)] - gm[-c(120L, 121L)]) / 2,
+            gm[121L] - gm[120L]) / h
+    A2 <- t(B)
+    M <- crossprod(A2) + diag(1e-6, maxr - 1L)
+    phi_w <- drop(solve(M, crossprod(A2, wm)))
+    phi_g <- drop(solve(M, crossprod(A2, gp)))
+    sel <- which(pat == key)
+    r <- rowSums(X[sel, cols, drop = FALSE])
+    inner <- r >= 1 & r <= maxr - 1L
+    w_i[sel[inner]] <- phi_w[r[inner]]
+    g_i[sel[inner]] <- phi_g[r[inner]]
+  }
+  list(w = w_i, g = g_i)
+}
+
 # Stage 2: alpha_s and set locations mu_s from persons common to set pairs,
-# with the error-variance correction. Standard errors and the joint
-# covariance of (log alpha, mu) come from a person bootstrap of the whole
-# linking stage: each replicate resamples persons, recomputes the
-# error-corrected variance ratios and offsets per set pair, and re-solves
-# the linking least squares. This captures the nonlinearity of the
-# correction and the reconciliation over the linking graph, which a
-# leave-one-out jackknife of the raw log slope understates.
-.efrm_link_sets <- function(u_mat, se_mat, sets_u, min_link_persons,
+# with the truncated-score-moment correction (see .person_link_moments).
+# Standard errors and the joint covariance of (log alpha, mu) come from a
+# person bootstrap of the whole linking stage: each replicate resamples
+# persons, recomputes the corrected variance ratios and offsets per set
+# pair, and re-solves the linking least squares. This captures the
+# nonlinearity of the correction and the reconciliation over the linking
+# graph, which a leave-one-out jackknife of the raw log slope understates.
+.efrm_link_sets <- function(u_mat, w_mat, g_mat, sets_u, min_link_persons,
                             boot_reps = 300, regen = NULL) {
   S <- ncol(u_mat)
   A <- rbind(diag(S - 1L), rep(-1, S - 1L))
 
   # one pass over a person index vector: per-edge corrected slopes and
-  # offsets, then the two weighted least-squares solves. um/sm default to
-  # the point-estimate person matrices; the bootstrap can pass regenerated
-  # ones (see below).
-  link_once <- function(idx, um = u_mat, sm = se_mat, hard = FALSE) {
+  # offsets, then the two weighted least-squares solves. um/wm/gm default
+  # to the point-estimate person matrices; the bootstrap can pass
+  # regenerated ones (see below).
+  link_once <- function(idx, um = u_mat, wm = w_mat, gm = g_mat,
+                        hard = FALSE) {
     edges <- list(); ls_est <- off_est <- off_n <- numeric(0)
     for (a in seq_len(S - 1)) for (b in (a + 1):S) {
-      ok <- idx[is.finite(um[idx, a]) & is.finite(um[idx, b])]
+      ok <- idx[is.finite(um[idx, a]) & is.finite(um[idx, b]) &
+                is.finite(wm[idx, a]) & is.finite(wm[idx, b]) &
+                is.finite(gm[idx, a]) & is.finite(gm[idx, b])]
       if (length(ok) < min_link_persons) next
       u1 <- um[ok, a]; u2 <- um[ok, b]
-      v1 <- var(u1) - mean(sm[ok, a]^2)
-      v2 <- var(u2) - mean(sm[ok, b]^2)
+      d1 <- mean(gm[ok, a]); d2 <- mean(gm[ok, b])
+      if (!is.finite(d1) || !is.finite(d2) || d1 < 0.1 || d2 < 0.1) {
+        if (hard)
+          stop("the score maps of sets '", sets_u[a], "' and '", sets_u[b],
+               "' are too flat to link (degenerate map slope)")
+        next
+      }
+      v1 <- (var(u1) - mean(wm[ok, a])) / d1^2
+      v2 <- (var(u2) - mean(wm[ok, b])) / d2^2
       if (!is.finite(v1) || !is.finite(v2) || v1 <= 0 || v2 <= 0) {
         if (hard)
           stop("too little true person variance to link sets '", sets_u[a],
@@ -338,7 +419,7 @@
       }
       b <- if (is.null(mats)) link_once(sample.int(N, N, replace = TRUE))
            else link_once(sample.int(N, N, replace = TRUE),
-                          um = mats$u, sm = mats$se)
+                          um = mats$u, wm = mats$w, gm = mats$g)
       if (!is.null(b)) reps[r, ] <- c(b$la, b$mu)
     }
     reps <- reps[stats::complete.cases(reps), , drop = FALSE]
@@ -418,7 +499,19 @@
 #' Person-group units \eqn{\phi_g} and centred set thresholds are estimated by
 #' within-frame pairwise conditional maximum likelihood. Item-set units
 #' \eqn{\alpha_s} and set locations are then estimated from persons common to
-#' linked sets using error-corrected true-score variance ratios. The linking
+#' linked sets by true-score variance ratios, with the true-score variance
+#' recovered by a truncated-score-moment correction: the mean and variance
+#' of the weighted likelihood score map over the non-extreme scores are
+#' exact functions of the person location given the fitted thresholds, and
+#' their person-distribution expectations are estimated through score
+#' weights that are unbiased for any person distribution because the raw
+#' score is sufficient. The naive \eqn{var(\hat u) - mean(SE^2)} correction
+#' is badly calibrated on short tests (the reported error variance
+#' overstates the actual one and weighted likelihood shrinkage makes the
+#' errors covary negatively with the locations); its residual distortion
+#' biased the log unit ratio upward by about 0.05 at eight dichotomous
+#' items per set, confirmed against an external TAM 2PL slope-group
+#' anchor, while the corrected estimator is unbiased there. The linking
 #' graph must connect all sets to a common scale.
 #'
 #' The default hybrid standard errors combine the pairwise Godambe covariance,
@@ -428,7 +521,12 @@
 #' understate by about 20\% and the unit tests reject a true null at 9-10\%;
 #' with it they reject at 4.9\% over 1,200 simulated replicates, stable
 #' across item counts, sample sizes, imbalance, and weak linking, and
-#' matching a full-bootstrap benchmark. With \code{se_method = "bootstrap"}, the complete
+#' matching a full-bootstrap benchmark. The corrected set-unit estimator
+#' holds this calibration across designs: null size 3--5\% with 93--99\%
+#' coverage over 5--15 items per set, unit ratios 1--2, partial credit
+#' items, booklet missingness, pairwise-only person overlap, and person
+#' skewness to 2.8 -- where it stays unbiased while a normal-population
+#' MML anchor drifts. With \code{se_method = "bootstrap"}, the complete
 #' model is refitted to each person resample and all reported covariance comes
 #' from the bootstrap distribution.
 #'
@@ -730,21 +828,29 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   }
 
   # --- person-side linking (alpha, mu) ----------------------------------------
-  if (S > 1L) {
-    u_mat <- se_mat <- matrix(NA_real_, nrow(X), S,
-                              dimnames = list(NULL, sets_u))
-    for (si in seq_len(S)) for (g in glevs) {
-      cols <- which(vmap$set == sets_u[si] & vmap$group == g)
+  # one builder for every linking path (point estimate, calibration-redraw
+  # pool, outer bootstrap): person estimates u plus the correction moments
+  # w = phi_w(R) and g = phi_g(R) per set (.person_link_moments), kept
+  # coherent so every bootstrap replicate re-runs the corrected computation
+  person_mats <- function(Xm, dt, phiv) {
+    u <- w <- g <- matrix(NA_real_, nrow(Xm), S,
+                          dimnames = list(NULL, sets_u))
+    for (si in seq_len(S)) for (gl in glevs) {
+      cols <- which(vmap$set == sets_u[si] & vmap$group == gl)
       if (!length(cols)) next
       # thresholds in dtilde units for these virtual columns
-      tl <- lapply(cols, function(v) {
-        rows <- which(thr_v$item == v)
-        dtil[drow[rows]]
-      })
-      pe <- .person_estimates(Xv[, cols, drop = FALSE], tl, disc = phi[g])
+      tl <- lapply(cols, function(v) dt[drow[which(thr_v$item == v)]])
+      Xs <- Xm[, cols, drop = FALSE]
+      pe <- .person_estimates(Xs, tl, disc = phiv[gl])
       sel <- which(pe$n_items > 0 & !pe$extreme)
-      u_mat[sel, si] <- pe$theta[sel]; se_mat[sel, si] <- pe$se[sel]
+      u[sel, si] <- pe$theta[sel]
+      lm <- .person_link_moments(Xs, tl, disc = phiv[gl])
+      w[sel, si] <- lm$w[sel]; g[sel, si] <- lm$g[sel]
     }
+    list(u = u, w = w, g = g)
+  }
+  if (S > 1L) {
+    pm <- person_mats(Xv, dtil, phi)
     # calibration-noise propagation into the linking bootstrap: a
     # symmetric square root of each stage-1 covariance, used to redraw
     # (dtilde, log phi) per bootstrap replicate under the documented
@@ -768,23 +874,10 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     L_j <- mat_sqrt(cj)
     regen <- if (!is.null(L_j)) function() {
       v <- drop(L_j %*% stats::rnorm(ncol(L_j)))
-      dt_s <- dtil + v[seq_len(K_dt)]
-      phi_s <- phi * exp(v[K_dt + seq_along(phi)])
-      u <- se <- matrix(NA_real_, nrow(X), S, dimnames = list(NULL, sets_u))
-      for (si in seq_len(S)) for (g in glevs) {
-        cols <- which(vmap$set == sets_u[si] & vmap$group == g)
-        if (!length(cols)) next
-        tl <- lapply(cols, function(v) {
-          rows <- which(thr_v$item == v)
-          dt_s[drow[rows]]
-        })
-        pe <- .person_estimates(Xv[, cols, drop = FALSE], tl, disc = phi_s[g])
-        sel <- which(pe$n_items > 0 & !pe$extreme)
-        u[sel, si] <- pe$theta[sel]; se[sel, si] <- pe$se[sel]
-      }
-      list(u = u, se = se)
+      person_mats(Xv, dtil + v[seq_len(K_dt)],
+                  phi * exp(v[K_dt + seq_along(phi)]))
     } else NULL
-    link <- .efrm_link_sets(u_mat, se_mat, sets_u, min_link_persons,
+    link <- .efrm_link_sets(pm$u, pm$w, pm$g, sets_u, min_link_persons,
                             boot_reps = boot_reps, regen = regen)
     alpha <- link$alpha; mu <- link$mu
   } else {
@@ -804,18 +897,9 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       sb <- .efrm_solve(Xb, thr_v, m_v, vmap, pb, drow, A_D,
                         maxit = maxit, tol = tol)
       if (S > 1L) {
-        u_b <- se_b <- matrix(NA_real_, length(idx), S)
-        for (si in seq_len(S)) for (g in glevs) {
-          cols <- which(vmap$set == sets_u[si] & vmap$group == g)
-          if (!length(cols)) next
-          tl <- lapply(cols, function(v) sb$dtilde[drow[thr_v$item == v]])
-          pe <- .person_estimates(Xb[, cols, drop = FALSE], tl,
-                                  disc = sb$phi[g])
-          sel <- which(pe$n_items > 0 & !pe$extreme)
-          u_b[sel, si] <- pe$theta[sel]; se_b[sel, si] <- pe$se[sel]
-        }
-        lb <- .efrm_link_sets(u_b, se_b, sets_u, min_link_persons,
-                              boot_reps = 0)
+        pm_b <- person_mats(Xb, sb$dtilde, sb$phi)
+        lb <- .efrm_link_sets(pm_b$u, pm_b$w, pm_b$g, sets_u,
+                              min_link_persons, boot_reps = 0)
         ab <- lb$alpha; mb <- lb$mu
       } else { ab <- setNames(1, sets_u); mb <- setNames(0, sets_u) }
       db <- sb$dtilde / ab[set_of_drow] + mb[set_of_drow]

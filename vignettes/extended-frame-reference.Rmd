@@ -81,18 +81,25 @@ Group units are estimated from within-frame pairwise conditional calibrations.
 Set units and locations require persons common to the linked sets. A
 disconnected design cannot establish a common unit.
 
-The set-linking step uses an error-corrected method-of-moments estimator based
-on the true-score variance-ratio argument in Humphry (2005). It is distinct
-from the likelihood proposed in section 5.3 of that thesis. The crossed,
-multigroup, and polytomous forms are extensions implemented in this package.
+The set-linking step uses a method-of-moments estimator based on the
+true-score variance-ratio argument in Humphry (2005), with the true-score
+variance recovered by a truncated-score-moment correction: the mean and
+variance of the score-to-measure map over the non-extreme scores are exact
+model functions of the person location, and their expectations are
+estimated through score weights that are unbiased for any person
+distribution. On short tests this matters -- the naive
+"observed variance minus mean squared standard error" construction
+under-recovers the true-score variance by more than half at eight
+dichotomous items per set and biased recovered unit ratios upward by
+about five per cent, a bias confirmed against an external anchor and
+removed by the correction. The estimator is distinct from the likelihood
+proposed in section 5.3 of that thesis. The crossed, multigroup, and
+polytomous forms are extensions implemented in this package.
 
 ## Uncertainty and comparison with equal units
 
 The default hybrid standard errors combine the pairwise sandwich covariance,
 a person bootstrap for the set-linking stage, and delta-method propagation.
-The moments-based link carries a small finite-sample bias at designs of
-this size -- recovered set units typically sit a few per cent above the
-planted values -- which vanishes with more linking information.
 The example uses 60 replicates to keep the vignette quick; a final analysis
 should use enough replicates to stabilise its reported standard errors. Set
 `se_method = "bootstrap"` to refit the complete pipeline on each person

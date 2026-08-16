@@ -676,25 +676,33 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
 #' @param n_sets,n_groups Numbers of item sets and person groups.
 #' @param set_unit_ratio,group_unit_ratio Geometric span of the set and group
 #'   units across their levels (1 = equal units, i.e. an ordinary Rasch fit).
+#' @param n_categories Response categories per item: 2 (the default) gives
+#'   dichotomous items; larger values give partial credit items whose
+#'   evenly spaced thresholds are centred on the item locations, with the
+#'   frame unit scaling the whole exponent as in the dichotomous case.
 #' @param theta_sd Spread of person ability.
 #' @param seed Optional RNG seed.
 #' @return A wide data frame of class \code{"rasch_sim"}, containing an ID,
 #'   item columns, and group. Its truth attribute contains the item-set map
 #'   required by \code{\link{rasch_efrm}}.
 #' @examples
-#' d <- simulate_efrm(300, 8, set_unit_ratio = 1.3, seed = 1)
+#' d <- simulate_efrm(200, 6, set_unit_ratio = 1.3, seed = 1)
 #' tr <- attr(d, "truth")
-#' ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group")
-#' ef$alpha_table   # recovers the ~1.3 set-unit ratio
+#' ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+#'                  boot_reps = 30)   # small design keeps the example quick
+#' ef$alpha_table   # planted ratio 1.3, recovered within small-sample noise
 #' @export
 simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
                           n_groups = 2, set_unit_ratio = 1.3,
-                          group_unit_ratio = 1, theta_sd = 1.3, seed = NULL) {
+                          group_unit_ratio = 1, n_categories = 2,
+                          theta_sd = 1.3, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   S <- .sim_count(n_sets, "n_sets")
   G <- .sim_count(n_groups, "n_groups")
   K <- .sim_count(items_per_set, "items_per_set", 2L)
   npg <- .sim_count(n_per_group, "n_per_group", 2L)
+  n_categories <- .sim_count(n_categories, "n_categories", 2L)
+  m <- as.integer(n_categories) - 1L
   set_unit_ratio <- .sim_scalar(set_unit_ratio, "set_unit_ratio",
                                 lower = 0, lower_open = TRUE)
   group_unit_ratio <- .sim_scalar(group_unit_ratio, "group_unit_ratio",
@@ -709,12 +717,24 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
   delta <- setNames(rep(seq(-1.5, 1.5, length.out = K), S), inm)
   set_of <- setNames(rep(seq_len(S), each = K), inm)
 
+  tau_list <- lapply(inm, function(nm) .sim_thresholds(delta[nm], m, 0.8))
+  names(tau_list) <- inm
+
   grp <- factor(rep(sprintf("g%d", seq_len(G)), each = npg))
   N <- length(grp); theta <- .sim_theta(N, 0, theta_sd)
   X <- matrix(NA_integer_, N, length(inm), dimnames = list(NULL, inm))
   for (col in seq_along(inm)) {
     s <- set_of[inm[col]]; rho <- alpha[s] * phi[as.integer(grp)]  # per-person unit
-    X[, col] <- as.integer(stats::runif(N) < stats::plogis(rho * (theta - delta[inm[col]])))
+    if (m == 1L) {
+      X[, col] <- as.integer(stats::runif(N) <
+                    stats::plogis(rho * (theta - delta[inm[col]])))
+    } else {
+      ct <- cumsum(tau_list[[inm[col]]])
+      E <- cbind(0, sapply(seq_len(m), function(k) rho * (k * theta - ct[k])))
+      P <- exp(E - apply(E, 1, max)); P <- P / rowSums(P)
+      cum <- P %*% upper.tri(diag(m + 1L), diag = TRUE)
+      X[, col] <- as.integer(rowSums(stats::runif(N) > cum))
+    }
   }
   out <- data.frame(id = sprintf("P%04d", seq_len(N)), X, group = grp,
                     check.names = FALSE, stringsAsFactors = FALSE)
@@ -725,9 +745,11 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
                                   group_unit_ratio, G))
   attr(out, "truth") <- list(
     layout = "efrm",
-    description = sprintf("%d persons, %d sets x %d groups, %d items",
-                          N, S, G, length(inm)),
-    theta = theta, difficulty = delta, alpha = alpha, phi = phi,
+    description = sprintf("%d persons, %d sets x %d groups, %d items (%d categories)",
+                          N, S, G, length(inm), m + 1L),
+    theta = theta, difficulty = delta,
+    thresholds = if (m > 1L) tau_list else NULL,
+    alpha = alpha, phi = phi,
     item_sets = setNames(set_items, sprintf("set%d", seq_len(S))),
     groups = grp, planted = planted)
   class(out) <- c("rasch_sim", "data.frame")

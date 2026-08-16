@@ -88,6 +88,23 @@ test_that("simulate_efrm plants a frame-unit ratio rasch_efrm recovers", {
   expect_output(print(d), "set-unit ratio")
 })
 
+test_that("simulate_efrm generates partial credit items on request", {
+  d <- simulate_efrm(250, 6, n_sets = 2, n_groups = 1, set_unit_ratio = 1.3,
+                     n_categories = 4, seed = 5)
+  tr <- attr(d, "truth")
+  X <- as.matrix(d[, unlist(tr$item_sets)])
+  expect_setequal(sort(unique(as.vector(X))), 0:3)
+  expect_length(tr$thresholds, ncol(X))
+  expect_true(all(vapply(tr$thresholds, length, 1L) == 3L))
+  # thresholds centre on the item locations
+  expect_equal(unname(vapply(tr$thresholds, mean, 0)),
+               unname(tr$difficulty), tolerance = 1e-10)
+  # the dichotomous draw stream is untouched by the generalisation
+  d2 <- simulate_efrm(50, 4, n_sets = 2, n_groups = 2,
+                      set_unit_ratio = 1.3, seed = 1)
+  expect_identical(sum(as.matrix(d2[, 2:9])), 402L)
+})
+
 test_that("the extra misfit types plant detectable signals", {
   # extreme response style: style persons over-use the end categories
   d <- simulate_rasch(600, 12, model = "PCM", n_categories = 4,

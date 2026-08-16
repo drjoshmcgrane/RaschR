@@ -39,6 +39,13 @@ strengthens identification and uncertainty checks.
 
 * `dependence_magnitude()` uses the full covariance of the resolved
   thresholds when calculating its standard error.
+* The EFRM item-set unit linking recovers the true-score variance by a
+  truncated-score-moment correction. The previous construction (observed
+  variance minus mean squared standard error) under-recovers the
+  true-score variance on short tests and biased recovered unit ratios
+  upward by about five per cent at eight dichotomous items per set; the
+  corrected estimator is unbiased there, confirmed against an external
+  TAM slope-group anchor.
 * The hybrid EFRM set-unit covariance includes uncertainty from the
   within-frame calibration.
 * Judge-clustered BTL inference requires enough nominal and effective judges,
@@ -261,6 +268,8 @@ strengthens identification and uncertainty checks.
 
 # rasch 1.6.0
 
+* `simulate_efrm()` gains `n_categories` for partial credit items within
+  frames, with planted thresholds recorded in the truth attribute.
 * `simulate_rasch()`, `simulate_btl()`, `simulate_mfrm()`, and
   `simulate_efrm()` generate data from the package's model families and can
   introduce nominated departures. Generating parameters are stored in the

@@ -14,6 +14,18 @@
 #      machine-precision parity expected)
 #   F  btl_efrm panel-unit ratio vs per-panel intercept-free
 #      vglm(binomialff) fits (through-origin LS slope of location vectors)
+#   G  rasch_mfrm item locations, rater severities, and PCM thresholds vs
+#      TAM::tam.mml.mfr (MML; formulaA = ~ item + rater + item:step)
+#   H  rasch_efrm person-group unit (phi) vs per-group lme4::glmer Rasch
+#      fits: through-origin slope of centred item coefficients (primary,
+#      population-robust) and random-intercept SD ratio (secondary)
+#   I  crossed 2 sets x 2 groups: rasch_efrm alpha and phi vs the glmer
+#      per-cell anchors (per-set coefficient slopes for phi; 2x2
+#      log-linear decomposition of random-intercept SDs for alpha)
+#   J  polytomous rasch_efrm item-set unit ratio vs TAM GPCM with
+#      set-constrained slopes (irtmodel="GPCM.design", set-indicator E;
+#      "2PL.groups" does NOT impose proportional category loadings on
+#      polytomous data and is unsound there)
 #
 # This is an AGREEMENT study: cross-package differences are computed per
 # dataset, so simulator truths vary across replicates while the target
@@ -236,6 +248,175 @@ add("btl_efrm panel-unit ratio (truth 1.30)", "bias of btl_efrm phi ratio",
       mean(rat[okF,"vglm"]) - 1.3, sd(rat[okF,"vglm"]),
       mean(abs(rat[okF,1] - rat[okF,2]))))
 tick("F done: efrm %+.4f, vglm %+.4f", mean(rat[okF,1]) - 1.3, mean(rat[okF,2]) - 1.3)
+
+## ---- G: rasch_mfrm vs TAM::tam.mml.mfr -----------------------------------
+# TAM's default constraint="cases" leaves the item facet uncentred and the
+# rater facet centred; centre every facet in both packages before
+# comparing. formulaA must use item:step (PCM thresholds); ~ step would
+# impose a rating-scale structure. Facet levels matched by name.
+it_m <- sv_m <- th_m <- matrix(NA_real_, R, 2)
+rms <- matrix(NA_real_, R, 4,
+              dimnames = list(NULL, c("it_r","it_t","sv_r","sv_t")))
+ctr <- function(x) x - mean(x)
+for (r in seq_len(R)) {
+  d <- simulate_mfrm(n_persons = 200, n_items = 5, n_raters = 5,
+                     n_categories = 4, theta_sd = 1.2, item_sd = 1,
+                     rater_severity_sd = 0.8, seed = 1700 + r)
+  truth <- attr(d, "truth")
+  mf <- rasch_mfrm(d, person = "person", item = "item", score = "score",
+                   facets = "rater")
+  r_item <- ctr(setNames(mf$item_effects$location, mf$item_effects$item))
+  r_sev  <- ctr(setNames(mf$facet_effects$rater$severity,
+                         mf$facet_effects$rater$level))
+  r_thr <- mf$item_thresholds[order(mf$item_thresholds$item,
+                                    mf$item_thresholds$k), ]
+  wide <- reshape(as.data.frame(d), idvar = c("person", "rater"),
+                  timevar = "item", direction = "wide")
+  iids <- sort(unique(d$item))
+  resp <- wide[, paste0("score.", iids)]; colnames(resp) <- iids
+  tam <- TAM::tam.mml.mfr(resp = resp,
+                          facets = data.frame(rater = wide$rater),
+                          formulaA = ~ item + rater + item:step,
+                          pid = as.integer(factor(wide$person)),
+                          verbose = FALSE)
+  xf <- tam$xsi.facets
+  t_im <- setNames(xf$xsi[xf$facet == "item"], xf$parameter[xf$facet == "item"])
+  t_sv <- setNames(xf$xsi[xf$facet == "rater"],
+                   sub("^rater", "", xf$parameter[xf$facet == "rater"]))
+  st <- xf[xf$facet == "item:step", ]
+  st_item <- sub(":.*$", "", st$parameter)
+  t_thr <- t_im[st_item] + st$xsi
+  o <- order(st_item, as.integer(sub("^.*step", "", st$parameter)))
+  t_thr <- t_thr[o]
+  t_im <- ctr(t_im[names(r_item)]); t_sv <- ctr(t_sv[names(r_sev)])
+  it_m[r, ] <- c(cor(r_item, t_im), max(abs(r_item - t_im)))
+  sv_m[r, ] <- c(cor(r_sev, t_sv), max(abs(r_sev - t_sv)))
+  th_m[r, ] <- c(cor(ctr(r_thr$tau), ctr(t_thr)),
+                 max(abs(ctr(r_thr$tau) - ctr(t_thr))))
+  tr_i <- ctr(truth$difficulty[names(r_item)])
+  tr_s <- ctr(truth$severity[names(r_sev)])
+  rms[r, ] <- c(sqrt(mean((r_item - tr_i)^2)), sqrt(mean((t_im - tr_i)^2)),
+                sqrt(mean((r_sev - tr_s)^2)),  sqrt(mean((t_sv - tr_s)^2)))
+}
+add("MFRM item locations vs TAM::tam.mml.mfr", "agreement over items", R,
+    notes = sprintf("mean cor %.6f; mean max|diff| %.4f, worst %.4f logits; truth RMSE rasch %.3f vs TAM %.3f",
+      mean(it_m[,1]), mean(it_m[,2]), max(it_m[,2]),
+      mean(rms[,"it_r"]), mean(rms[,"it_t"])))
+add("MFRM rater severities vs TAM::tam.mml.mfr", "agreement over raters", R,
+    notes = sprintf("mean cor %.6f; mean max|diff| %.4f, worst %.4f logits; truth RMSE rasch %.3f vs TAM %.3f",
+      mean(sv_m[,1]), mean(sv_m[,2]), max(sv_m[,2]),
+      mean(rms[,"sv_r"]), mean(rms[,"sv_t"])))
+add("MFRM PCM thresholds vs TAM::tam.mml.mfr", "agreement over 15 thresholds", R,
+    notes = sprintf("mean cor %.6f; mean max|diff| %.4f, worst %.4f logits (pairwise CML vs MML)",
+      mean(th_m[,1]), mean(th_m[,2]), max(th_m[,2])))
+tick("G done: items cor %.6f, raters cor %.6f", mean(it_m[,1]), mean(sv_m[,1]))
+
+## ---- H/I: EFRM person-side and crossed units vs lme4::glmer ---------------
+cell_long <- function(d, item_cols, group_val) {
+  di <- d[as.character(d$group) == group_val, , drop = FALSE]
+  data.frame(person = factor(rep(di$id, times = length(item_cols))),
+             item = factor(rep(item_cols, each = nrow(di)), levels = item_cols),
+             resp = as.vector(as.matrix(di[, item_cols])))
+}
+fit_cell_glmer <- function(dat) {
+  m <- suppressWarnings(lme4::glmer(resp ~ 0 + item + (1 | person),
+        data = dat, family = binomial, nAGQ = 1,
+        control = lme4::glmerControl(optimizer = "bobyqa")))
+  list(coef = lme4::fixef(m),
+       sd = sqrt(unname(lme4::VarCorr(m)$person[1, 1])))
+}
+ls_slope <- function(b1, b2) {
+  c1 <- b1 - mean(b1); c2 <- b2 - mean(b2); sum(c1 * c2) / sum(c1 * c1)
+}
+
+## H: person side (1 set, 2 groups, phi ratio 1.3)
+ph <- matrix(NA_real_, R, 3, dimnames = list(NULL, c("efrm","slope","sdr")))
+for (r in seq_len(R)) {
+  d <- simulate_efrm(n_per_group = 400, items_per_set = 8, n_sets = 1,
+                     n_groups = 2, set_unit_ratio = 1, group_unit_ratio = 1.3,
+                     seed = 1900 + r)
+  tr <- attr(d, "truth"); its <- unlist(tr$item_sets)
+  f1 <- fit_cell_glmer(cell_long(d, its, "g1"))
+  f2 <- fit_cell_glmer(cell_long(d, its, "g2"))
+  ef <- tryCatch(rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+                            id = "id", boot_reps = 30), error = function(e) NULL)
+  if (is.null(ef)) next
+  ph[r, ] <- c(ef$phi_table$phi[2] / ef$phi_table$phi[1],
+               ls_slope(f1$coef, f2$coef), f2$sd / f1$sd)
+}
+okH <- stats::complete.cases(ph)
+add("EFRM person-group unit phi (truth ratio 1.30) vs glmer anchors",
+    "log phi ratio bias", sum(okH),
+    bias = mean(log(ph[okH,"efrm"])) - log(1.3),
+    emp_sd = sd(log(ph[okH,"efrm"])),
+    notes = sprintf("glmer coefficient-slope anchor bias %+.4f (population-robust); ranef-SD-ratio anchor %+.4f (normality-dependent, upward at short tests)",
+      mean(log(ph[okH,"slope"])) - log(1.3), mean(log(ph[okH,"sdr"])) - log(1.3)))
+tick("H done: efrm %+.4f, slope anchor %+.4f",
+     mean(log(ph[okH,"efrm"])) - log(1.3), mean(log(ph[okH,"slope"])) - log(1.3))
+
+## I: crossed 2 sets x 2 groups (alpha 1.4, phi 1.3)
+cr <- matrix(NA_real_, R, 4,
+             dimnames = list(NULL, c("e_phi","e_al","g_phi","g_al")))
+for (r in seq_len(R)) {
+  d <- simulate_efrm(n_per_group = 400, items_per_set = 8, n_sets = 2,
+                     n_groups = 2, set_unit_ratio = 1.4, group_unit_ratio = 1.3,
+                     seed = 2100 + r)
+  tr <- attr(d, "truth")
+  cells <- list()
+  for (s in 1:2) for (g in c("g1", "g2"))
+    cells[[paste0("s", s, g)]] <- fit_cell_glmer(
+      cell_long(d, tr$item_sets[[s]], g))
+  ef <- tryCatch(rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+                            id = "id", boot_reps = 30), error = function(e) NULL)
+  if (is.null(ef)) next
+  L <- log(matrix(c(cells$s1g1$sd, cells$s1g2$sd,
+                    cells$s2g1$sd, cells$s2g2$sd), 2, 2, byrow = TRUE))
+  cr[r, ] <- c(ef$phi_table$phi[2] / ef$phi_table$phi[1],
+               ef$alpha_table$alpha[2] / ef$alpha_table$alpha[1],
+               sqrt(ls_slope(cells$s1g1$coef, cells$s1g2$coef) *
+                    ls_slope(cells$s2g1$coef, cells$s2g2$coef)),
+               exp(mean(L[2, ] - L[1, ])))
+}
+okI <- stats::complete.cases(cr)
+add("crossed EFRM 2x2 (alpha 1.40, phi 1.30) vs glmer per-cell anchors",
+    "log unit-ratio biases", sum(okI),
+    bias = mean(log(cr[okI,"e_al"])) - log(1.4),
+    emp_sd = sd(log(cr[okI,"e_al"])),
+    notes = sprintf("efrm phi bias %+.4f (anchor %+.4f via per-set coefficient slopes); efrm alpha bias in `bias` (anchor %+.4f via ranef-SD 2x2 decomposition)",
+      mean(log(cr[okI,"e_phi"])) - log(1.3),
+      mean(log(cr[okI,"g_phi"])) - log(1.3),
+      mean(log(cr[okI,"g_al"])) - log(1.4)))
+tick("I done: efrm alpha %+.4f phi %+.4f",
+     mean(log(cr[okI,"e_al"])) - log(1.4), mean(log(cr[okI,"e_phi"])) - log(1.3))
+
+## J: polytomous EFRM vs TAM GPCM.design
+pj <- matrix(NA_real_, R, 2, dimnames = list(NULL, c("efrm","tam")))
+Emat <- cbind(as.integer(rep(c(1, 0), each = 8)),
+              as.integer(rep(c(0, 1), each = 8)))
+for (r in seq_len(R)) {
+  d <- simulate_efrm(n_per_group = 800, items_per_set = 8, n_sets = 2,
+                     n_groups = 1, set_unit_ratio = 1.4, n_categories = 4,
+                     seed = 2300 + r)
+  tr <- attr(d, "truth"); its <- unlist(tr$item_sets)
+  ef <- tryCatch(rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+                            id = "id", boot_reps = 30), error = function(e) NULL)
+  mt <- tryCatch(TAM::tam.mml.2pl(resp = as.matrix(d[, its]),
+                                  irtmodel = "GPCM.design", E = Emat,
+                                  control = list(progress = FALSE)),
+                 error = function(e) NULL)
+  if (is.null(ef) || is.null(mt)) next
+  al <- ef$alpha_table$alpha[match(c("set1","set2"), ef$alpha_table$set)]
+  a <- mt$B[its, 2, 1]
+  pj[r, ] <- c(log(al[2]/al[1]), log(mean(a[9:16])/mean(a[1:8])))
+}
+okJ <- stats::complete.cases(pj)
+add("polytomous EFRM unit ratio (truth log 1.4) vs TAM GPCM.design",
+    "log unit ratio bias", sum(okJ),
+    bias = mean(pj[okJ,"efrm"]) - log(1.4), emp_sd = sd(pj[okJ,"efrm"]),
+    notes = sprintf("TAM GPCM set-constrained-slope anchor bias %+.4f (sd %.4f); proportional category loadings verified; irtmodel='2PL.groups' is unsound for polytomous data (free category loadings, ratio 1.19 vs truth 1.40 single-seed)",
+      mean(pj[okJ,"tam"]) - log(1.4), sd(pj[okJ,"tam"])))
+tick("J done: efrm %+.4f, TAM GPCM %+.4f",
+     mean(pj[okJ,"efrm"]) - log(1.4), mean(pj[okJ,"tam"]) - log(1.4))
 
 sv_write(do.call(rbind, rows), "cross-package-validation")
 cat(sprintf("TOTAL elapsed: %.1f min\n", as.numeric(Sys.time() - t0, units = "mins")))
