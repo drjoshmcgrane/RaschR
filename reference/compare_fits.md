@@ -60,6 +60,20 @@ criteria are valid across models of the same data whether or not they
 nest, and are `NA` (with the reason in the printed note) for MFRM and
 EFRM fits, which do not carry their Godambe matrices.
 
+In simulation (400 replicates per condition, fixed truths) the criteria
+reproduce the classical selection properties. Where the alternatives
+differ by several parameters, `cl_aic` selects the larger model under
+the null at close to its theoretical rate – 5.2% for partial credit
+against rating scale (eight three-category items) and 4.5% for free
+against two-component thresholds (eight four-category items) – and
+detects a quadratic threshold departure of 0.3 logits in 99% of
+replicates. Where they differ by a single parameter (comparative
+judgement free versus principal-component thresholds), `cl_aic` prefers
+the larger model in about 17% of null replicates, the familiar
+single-parameter AIC rate. `cl_bic` is stricter throughout (no false
+selections in the multi-parameter conditions) at the price of little
+power against mild departures.
+
 Across different data preparations (subtests, splits, facet or frame
 structures) the likelihoods are not comparable and the calibration-free
 columns carry the comparison: total item-trait chi-square per degree of

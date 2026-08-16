@@ -3,9 +3,9 @@
 Opens the guided Shiny application for users who prefer a graphical
 workflow. The app supports data import; assignment of item, person,
 group, rater, and comparison roles; model selection and fitting;
-interactive diagnostics, tables, and plots; and one-click export. The
-corresponding R call is shown for each analysis, but users do not need
-to write R analysis code to use the principal workflows.
+interactive diagnostics, tables, plots, and export. The corresponding R
+call is shown for each analysis, but users do not need to write R
+analysis code to use the principal workflows.
 
 ## Usage
 

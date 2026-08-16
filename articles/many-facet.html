@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,6 +94,17 @@ or more measurement facets such as rater, task, or occasion. Use
 denotes greater severity. Person-group variables such as sex or
 treatment are not facets: carry them as person factors and assess them
 with <code>dif_anova</code>.</p>
+<p>For facet levels <span class="math inline">\(f_1,\ldots,f_Q\)</span>,
+the model is</p>
+<p><span class="math display">\[
+P(X_{ni\boldsymbol f}=x)=
+\frac{\exp\left\{x\theta_n-
+\sum_{k=1}^{x}\left(\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}\right)\right\}}
+{\sum_{y=0}^{m_i}\exp\left\{y\theta_n-
+\sum_{k=1}^{y}\left(\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}\right)\right\}}.
+\]</span></p>
+<p>Item thresholds have a common sum-zero origin, and the levels of each
+facet sum to zero.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_mfrm.html">simulate_mfrm</a></span><span class="op">(</span>n_persons <span class="op">=</span> <span class="fl">60</span>, n_items <span class="op">=</span> <span class="fl">4</span>, n_raters <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                   rater_severity_sd <span class="op">=</span> <span class="fl">0.7</span>, seed <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
@@ -199,11 +210,11 @@ Holm’s method.</p>
 <h2 id="diagnostics">Diagnostics<a class="anchor" aria-label="anchor" href="#diagnostics"></a>
 </h2>
 <p>The returned object is also a <code>rasch</code> fit over the virtual
-items, so the usual fit, targeting, dependence, dimensionality, and
-plotting functions remain available. MFRM margin tables additionally
-report an equal-cell fit residual and a response-weighted pooled
-residual. Their weighting differs, so both the design and the location
-of any misfit should guide interpretation.</p>
+items, so the fit, targeting, dependence, dimensionality, and plotting
+functions remain available. MFRM margin tables additionally report an
+equal-cell fit residual and a response-weighted pooled residual. Their
+weighting differs, so both the design and the location of any misfit
+should guide interpretation.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

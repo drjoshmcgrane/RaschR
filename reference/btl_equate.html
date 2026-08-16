@@ -5,19 +5,11 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Equate two paired-comparison calibrations through their common objects — btl_equate"><meta name="description" content="Compares the object locations of a Bradley-Terry-Luce fit with those of a
-second fit (or a banked table of object locations), matched by object name.
-The use case is standards maintenance and comparative judgement across
-panels or years: the same scripts, performances, or products are judged by
-different panels – or by one panel in successive years – and a common set
-of anchor objects is carried through so that the two rounds land on a single
-scale."><meta property="og:description" content="Compares the object locations of a Bradley-Terry-Luce fit with those of a
-second fit (or a banked table of object locations), matched by object name.
-The use case is standards maintenance and comparative judgement across
-panels or years: the same scripts, performances, or products are judged by
-different panels – or by one panel in successive years – and a common set
-of anchor objects is carried through so that the two rounds land on a single
-scale."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Equate two paired-comparison calibrations through their common objects — btl_equate"><meta name="description" content="Places two Bradley–Terry–Luce calibrations on a common origin using their
+shared objects, then tests the shared objects for drift. The second
+calibration may be a fitted model or an object bank."><meta property="og:description" content="Places two Bradley–Terry–Luce calibrations on a common origin using their
+shared objects, then tests the shared objects for drift. The second
+calibration may be a fitted model or an object bank."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -25,7 +17,7 @@ scale."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,13 +50,9 @@ scale."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch
     </div>
 
     <div class="ref-description section level2">
-    <p>Compares the object locations of a Bradley-Terry-Luce fit with those of a
-second fit (or a banked table of object locations), matched by object name.
-The use case is standards maintenance and comparative judgement across
-panels or years: the same scripts, performances, or products are judged by
-different panels – or by one panel in successive years – and a common set
-of anchor objects is carried through so that the two rounds land on a single
-scale.</p>
+    <p>Places two Bradley–Terry–Luce calibrations on a common origin using their
+shared objects, then tests the shared objects for drift. The second
+calibration may be a fitted model or an object bank.</p>
     </div>
 
     <div class="section level2">
@@ -124,25 +112,18 @@ calibrations require a joint or paired bootstrap for inference.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Each calibration is identified by the sum-zero constraint, but the two
-constraints are imposed over <em>different</em> object sets, so the origins do
-not coincide even when the shared objects are unchanged: each scale is
-centred on the mean of a different collection. A scale shift between the two
-origins is therefore estimated by the precision-weighted mean difference
-over the common objects, and each common object is then tested against the
-shifted identity line. A flagged object shows drift – a script the two
-panels valued differently, or a standard that moved between years – and
-weakens the equating link; the surviving objects carry the second
-calibration's whole scale onto the first (<code>loc2 + shift</code>).</p>
-<p>The single shift presumes the drifting objects are a <em>minority</em>. When
-most of the common objects have genuinely moved, the precision-weighted
-shift is pulled toward the movers and the drift tests can invert – the
-stable anchors flag as the apparent drifters. Read wholesale flagging
-(several objects, one direction) as a contaminated link, not as evidence
-about the individual objects; equate through a vetted anchor subset
-instead. The <code>shift_se</code> accounts for the covariance of the location
-estimates within each calibration (each is sum-zero constrained, so its
-locations are not independent).</p>
+    <p>Let \(d\) contain the location differences for the common objects and
+\(V\) their joint covariance. The origin shift is
+$$\hat s=\frac{\boldsymbol{1}'V^{-1}d}
+{\boldsymbol{1}'V^{-1}\boldsymbol{1}}.$$
+Each object is tested using its shifted difference \(d_j-\hat s\). The
+covariance calculation retains the dependence induced by the sum-zero
+constraints. Drift tests require independent calibrations and at least
+three common objects with usable covariance information.</p>
+<p>The common-object set should contain a stable majority. If most common
+objects move in the same direction, the estimated shift follows them and
+stable objects can appear to drift. In that case, repeat the equating with a
+substantively justified anchor set.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

@@ -1,7 +1,7 @@
 # Plot Bradley-Terry-Luce object locations
 
-Caterpillar plot of the object locations with 95 per cent error bars,
-misfitting objects highlighted, in the package's house style.
+Caterpillar plot of object locations with 95 per cent error bars.
+Objects beyond the specified fit-residual band are marked.
 
 ## Usage
 

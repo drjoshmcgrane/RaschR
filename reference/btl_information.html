@@ -5,31 +5,19 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Information and targeting of a paired-comparison design — btl_information"><meta name="description" content="The paired-comparison analogue of the test-information function. The
-Fisher information a single comparison carries about the location
-difference d = beta_a - beta_b is, in this exponential family, the
-variance of its score – P(1 - P) for the dichotomous choice and
-the polytomous response variance V for the ordinal extension (the
-score is the sufficient statistic for d, so its variance is the
-information). Weighted by each comparison's replication count and summed
-over the comparisons the design actually contains, this gives a
-design information for every object: how much the observed
-comparisons pin its location down, the counterpart of an item's
-contribution to test information. Because the information peaks at gap
-zero and falls away with the location gap, near-neighbour contests are
-the informative ones."><meta property="og:description" content="The paired-comparison analogue of the test-information function. The
-Fisher information a single comparison carries about the location
-difference d = beta_a - beta_b is, in this exponential family, the
-variance of its score – P(1 - P) for the dichotomous choice and
-the polytomous response variance V for the ordinal extension (the
-score is the sufficient statistic for d, so its variance is the
-information). Weighted by each comparison's replication count and summed
-over the comparisons the design actually contains, this gives a
-design information for every object: how much the observed
-comparisons pin its location down, the counterpart of an item's
-contribution to test information. Because the information peaks at gap
-zero and falls away with the location gap, near-neighbour contests are
-the informative ones."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Information and targeting of a paired-comparison design — btl_information"><meta name="description" content="Calculates the Fisher information supplied by the observed comparison
+design. For location difference \(d=\beta_a-\beta_b\), one dichotomous
+comparison contributes
+$$I(d)=P(a\succ b)\{1-P(a\succ b)\}.$$
+For an ordered comparison, the contribution is the variance of the response
+score. Information is summed over the comparisons involving each object,
+including replication counts."><meta property="og:description" content="Calculates the Fisher information supplied by the observed comparison
+design. For location difference \(d=\beta_a-\beta_b\), one dichotomous
+comparison contributes
+$$I(d)=P(a\succ b)\{1-P(a\succ b)\}.$$
+For an ordered comparison, the contribution is the variance of the response
+score. Information is summed over the comparisons involving each object,
+including replication counts."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -37,7 +25,7 @@ the informative ones."><meta property="og:image" content="https://drjoshmcgrane.
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,19 +58,13 @@ the informative ones."><meta property="og:image" content="https://drjoshmcgrane.
     </div>
 
     <div class="ref-description section level2">
-    <p>The paired-comparison analogue of the test-information function. The
-Fisher information a single comparison carries about the location
-difference <code>d = beta_a - beta_b</code> is, in this exponential family, the
-variance of its score – <code>P(1 - P)</code> for the dichotomous choice and
-the polytomous response variance <code>V</code> for the ordinal extension (the
-score is the sufficient statistic for <code>d</code>, so its variance is the
-information). Weighted by each comparison's replication count and summed
-over the comparisons the design actually contains, this gives a
-<em>design information</em> for every object: how much the observed
-comparisons pin its location down, the counterpart of an item's
-contribution to test information. Because the information peaks at gap
-zero and falls away with the location gap, near-neighbour contests are
-the informative ones.</p>
+    <p>Calculates the Fisher information supplied by the observed comparison
+design. For location difference \(d=\beta_a-\beta_b\), one dichotomous
+comparison contributes
+$$I(d)=P(a\succ b)\{1-P(a\succ b)\}.$$
+For an ordered comparison, the contribution is the variance of the response
+score. Information is summed over the comparisons involving each object,
+including replication counts.</p>
     </div>
 
     <div class="section level2">
@@ -111,17 +93,10 @@ the informative ones.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The design information inverts to <code>se_naive = 1 / sqrt(information)</code>:
-the error the object's own comparisons would give if its location were
-treated in isolation – a design-only yardstick for reading which objects
-the comparison plan serves well. It is not the model's standard error,
-and it is not a bound: the fitted <code>se</code> comes from joint estimation
-under the sum-zero constraint (which typically REDUCES an object's
-variance relative to the isolated calculation) with judge-clustered
-Godambe covariance (which can move it in either direction), so <code>se</code>
-can sit below or above <code>se_naive</code>. Treat their ratio as a
-descriptive comparison of design coverage, not as a bound or a
-clustering test.</p>
+    <p><code>se_naive = 1/sqrt(information)</code> treats each object's comparisons in
+isolation. It is a description of the design, not the fitted standard error
+or a bound on it. The fitted standard error also reflects joint estimation,
+the identifying constraint, and judge clustering.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

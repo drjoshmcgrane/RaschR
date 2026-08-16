@@ -5,15 +5,9 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Estimate Rasch thresholds by pairwise conditional maximum likelihood — pcml"><meta name="description" content="Maximises the pairwise conditional likelihood, in which the person
-parameter cancels within every item pair, by Newton-Raphson (Andrich and
-Luo 2003; Zwinderman 1995). The partial credit model
-estimates every threshold freely; the rating scale model constrains
-tau_ik = delta_i + kappa_k through the design matrix."><meta property="og:description" content="Maximises the pairwise conditional likelihood, in which the person
-parameter cancels within every item pair, by Newton-Raphson (Andrich and
-Luo 2003; Zwinderman 1995). The partial credit model
-estimates every threshold freely; the rating scale model constrains
-tau_ik = delta_i + kappa_k through the design matrix."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Estimate Rasch thresholds by pairwise conditional maximum likelihood — pcml"><meta name="description" content="Estimates PCM or RSM thresholds by Newton–Raphson maximisation of the
+pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995)."><meta property="og:description" content="Estimates PCM or RSM thresholds by Newton–Raphson maximisation of the
+pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995)."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -21,7 +15,7 @@ tau_ik = delta_i + kappa_k through the design matrix."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,11 +48,8 @@ tau_ik = delta_i + kappa_k through the design matrix."><meta property="og:image"
     </div>
 
     <div class="ref-description section level2">
-    <p>Maximises the pairwise conditional likelihood, in which the person
-parameter cancels within every item pair, by Newton-Raphson (Andrich and
-Luo 2003; Zwinderman 1995). The partial credit model
-estimates every threshold freely; the rating scale model constrains
-<code>tau_ik = delta_i + kappa_k</code> through the design matrix.</p>
+    <p>Estimates PCM or RSM thresholds by Newton–Raphson maximisation of the
+pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995).</p>
     </div>
 
     <div class="section level2">
@@ -100,21 +91,21 @@ recentring is applied. PCM only.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with the threshold table <code>thr</code> (columns <code>id</code>,
-  <code>item</code>, <code>k</code>, <code>tau</code>, <code>se</code>, <code>anchored</code>, and
-  <code>weak</code> – <code>TRUE</code> for a threshold adjacent to a category with
-  fewer than 3 responses, whose estimate can run toward a boundary while
-  the ridged covariance understates the error, and for <em>every</em>
-  threshold of an item any of whose categories has fewer than 8
-  responses: the item's thresholds are estimated jointly, and a
-  critically sparse category destabilises its siblings (in simulation a
-  ~4-response category left a sibling threshold's standard error
-  understated four-fold while that threshold's own local counts looked
-  healthy). Flagged standard errors are reported
-  as <code>NA</code> and a note names the item and category), the
-  threshold covariance matrix <code>cov_tau</code>, the pairwise conditional
-  log-likelihood, the iteration count, a convergence flag, <code>notes</code>,
-  and the max-score vector <code>m</code>.</p>
+    <p>A list containing the threshold table <code>thr</code>, covariance matrix
+  <code>cov_tau</code>, pairwise conditional log-likelihood, iteration count,
+  convergence flag, notes, and maximum scores <code>m</code>. In <code>thr</code>,
+  <code>weak</code> marks all thresholds of an item with fewer than eight
+  responses in any category, or a threshold adjacent to a category with
+  fewer than three responses. Standard errors for weak thresholds are
+  reported as <code>NA</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>For the PCM, the adjacent-category log odds are
+$$\log\{P(X_{ni}=k)/P(X_{ni}=k-1)\}=\theta_n-\delta_{ik}.$$
+Conditioning on the score for an item pair removes \(\theta_n\). The PCM
+estimates each \(\delta_{ik}\); the RSM imposes
+\(\delta_{ik}=\beta_i+\tau_k\) through a design matrix.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

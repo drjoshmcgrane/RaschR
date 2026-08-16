@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,48 +85,32 @@ McGrane</h4>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://drjoshmcgrane.github.io/rasch/">rasch</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
-<h2 id="why-simulate">1. Why simulate<a class="anchor" aria-label="anchor" href="#why-simulate"></a>
+<h2 id="simulating-from-the-models">Simulating from the models<a class="anchor" aria-label="anchor" href="#simulating-from-the-models"></a>
 </h2>
-<p>Simulation provides a direct way to examine whether an estimator
-recovers known parameters and whether a diagnostic responds to the
-departure it is intended to detect. The package therefore includes
-simulators for the main model families of Rasch Measurement Theory
-(Rasch 1960; Andrich and Marais 2019; Humphry 2005; Humphry and Andrich
-2008; Andrich 1978; Tutz 1986): <code>simulate_rasch</code>,
-<code>simulate_btl</code>, <code>simulate_mfrm</code>, and
-<code>simulate_efrm</code>. Each can generate model-conforming data or
-introduce a known departure from the model.</p>
-<p>Every simulator returns data ready for its fitting function, with the
-generating parameters and any specified departures carried on the object
-as <code>attr(x, "truth")</code>. The print method reports what was
-planted, so a dataset never becomes anonymous once it leaves the call
-that made it.</p>
+<p>Simulation is useful when the sampling behaviour of an estimate or
+diagnostic depends on the test design. The package includes simulators
+for the ordinary Rasch models (Rasch 1960; Andrich and Marais 2019),
+many-facet models, extended frames of reference (Humphry 2005; Humphry
+and Andrich 2008), and comparative judgement of paired comparisons. They
+can generate model-conforming data or introduce a specified
+departure.</p>
+<p>Each simulator stores the generating values in
+<code>attr(x, "truth")</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span>n_persons <span class="op">=</span> <span class="fl">400</span>, n_items <span class="op">=</span> <span class="fl">10</span>, seed <span class="op">=</span> <span class="fl">101</span><span class="op">)</span></span>
-<span><span class="va">d</span>                                   <span class="co"># the print method reports the plant</span></span>
-<span><span class="co">#&gt; Simulated rasch data: dichotomous, 400 persons x 10 items</span></span>
-<span><span class="co">#&gt; Model-conforming (no departures planted).</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">)</span>            <span class="co"># the truth travels with the data</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "layout"         "description"    "model"          "n_persons"     </span></span>
 <span><span class="co">#&gt;  [5] "n_items"        "theta"          "theta2"         "difficulty"    </span></span>
 <span><span class="co">#&gt;  [9] "thresholds"     "discrimination" "guessing"       "groups"        </span></span>
 <span><span class="co">#&gt; [13] "dim_items"      "dif_items"      "careless_idx"   "style_idx"     </span></span>
 <span><span class="co">#&gt; [17] "planted"</span></span></code></pre></div>
-<p>With no departures requested, the data conform to the model. The
-remaining sections introduce one departure at a time and examine the
-corresponding diagnostic. The diagnostic conventions follow Andrich and
-Marais (2019).</p>
 </div>
 <div class="section level2">
-<h2 id="a-model-conforming-baseline">2. A model-conforming baseline<a class="anchor" aria-label="anchor" href="#a-model-conforming-baseline"></a>
+<h2 id="parameter-recovery">Parameter recovery<a class="anchor" aria-label="anchor" href="#parameter-recovery"></a>
 </h2>
-<p>It is useful to begin with parameter recovery when the model holds,
-so that later departures can be interpreted against a model-conforming
-reference. <code>sim_recovery</code> compares the parameters a fit
-recovers against the ones the simulator planted (mean-centring the
-locations, which the model identifies only up to an origin), and
-<code>plot_recovery</code> draws each true-versus-estimated panel with
-its correlation and root-mean-square error.</p>
+<p><code>sim_recovery</code> compares fitted parameters with the
+generating values. Location parameters are centred before comparison
+because their origin is arbitrary.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d</span>, id <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
 <span><span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_recovery.html">sim_recovery</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">d</span><span class="op">)</span></span>
@@ -136,34 +120,26 @@ its correlation and root-mean-square error.</p>
 <span><span class="co">#&gt;   person ability   n=400  r=0.761  RMSE=0.826  bias=NA</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_recovery.html">plot_recovery</a></span><span class="op">(</span><span class="va">rec</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plant-and-detect_files/figure-html/baseline-plot-1.png" class="r-plt" alt="Recovery scatter plots of planted against recovered item difficulty and person ability." width="672"></p>
-<p>The two panels tell different stories, and the difference is not a
-defect of the estimator but the arithmetic of information. Each item
-difficulty pools evidence from all 400 persons, so it is recovered
-tightly: the correlation is near unity and the error is around a tenth
-of a logit. Each person ability, by contrast, rests on only the ten
-items that person answered, so its weighted likelihood estimate (Warm
-1989) carries a standard error of roughly eight tenths of a logit; the
-recovery correlation is correspondingly lower and the root-mean-square
-error much larger. (The bias column reads NA by design: locations are
-identified only up to the scale origin, so a mean difference from the
-planted values is not an estimable quantity.) A short test measures
-persons imprecisely <em>even when the model is exactly true</em> — a
-point worth holding onto before reading any person-level result from a
-ten-item scale.</p>
+<p><img src="plant-and-detect_files/figure-html/baseline-plot-1.png" class="r-plt" alt="Planted and recovered item and person locations." width="672"></p>
+<p>Item locations pool information over persons. Each person location is
+based on the items answered by that person, so person recovery is
+usually less precise on a short test. This difference should be judged
+against the reported standard errors rather than the raw recovery
+correlations alone.</p>
 </div>
 <div class="section level2">
-<h2 id="planting-item-misfit">3. Planting item misfit<a class="anchor" aria-label="anchor" href="#planting-item-misfit"></a>
+<h2 id="item-misfit">Item misfit<a class="anchor" aria-label="anchor" href="#item-misfit"></a>
 </h2>
-<p>The <code>discrimination</code> argument scales an item’s slope. A
-value above one makes an item over-discriminate — its responses become
-more deterministic than the model expects, a Guttman-like pattern —
-while a value below one makes it under-discriminate, adding noise. The
-fit residuals should separate both from the well-behaved items. Here one
-central item is given a slope of 2.5 and another a slope of 0.4.</p>
+<p>The <code>discrimination</code> argument changes an item’s response
+slope. Values above one produce more deterministic responses than the
+Rasch model expects; values below one produce less deterministic
+responses.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">disc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">10</span><span class="op">)</span>; <span class="va">disc</span><span class="op">[</span><span class="fl">5</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2.5</span>; <span class="va">disc</span><span class="op">[</span><span class="fl">6</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0.4</span></span>
-<span><span class="va">d2</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span><span class="fl">400</span>, <span class="fl">10</span>, discrimination <span class="op">=</span> <span class="va">disc</span>, seed <span class="op">=</span> <span class="fl">21</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">disc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">10</span><span class="op">)</span></span>
+<span><span class="va">disc</span><span class="op">[</span><span class="fl">5</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2.5</span></span>
+<span><span class="va">disc</span><span class="op">[</span><span class="fl">6</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0.4</span></span>
+<span></span>
+<span><span class="va">d2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span><span class="fl">400</span>, <span class="fl">10</span>, discrimination <span class="op">=</span> <span class="va">disc</span>, seed <span class="op">=</span> <span class="fl">21</span><span class="op">)</span></span>
 <span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d2</span>, id <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
 <span><span class="va">fit2</span><span class="op">$</span><span class="va">items</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"location"</span>, <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    item location infit_ms outfit_ms</span></span>
@@ -177,32 +153,26 @@ central item is given a slope of 2.5 and another a slope of 0.4.</p>
 <span><span class="co">#&gt; 8   I08   1.4631   1.0828    0.9437</span></span>
 <span><span class="co">#&gt; 9   I09   2.1031   1.0133    0.8363</span></span>
 <span><span class="co">#&gt; 10  I10   2.4572   1.0382    0.7645</span></span></code></pre></div>
-<p>The two planted items depart from the pack in opposite directions, as
-the log-of-mean-square fit statistics (Andrich and Marais 2019, ch. 23)
-require. The over-discriminating item (I05) produces standardised
-residuals that are <em>too small</em> — responses more predictable than
-the model allows — so its infit and outfit mean squares fall below one.
-The under-discriminating item (I06) produces residuals that are too
-large, so its mean squares rise above one. The remaining items sit near
-the expected value of one. With a 400-by-10 draw these mean squares are
-themselves estimates; what matters is the direction of departure and
-that the planted items separate from the rest.</p>
+<p>Over-discrimination tends to give mean-square statistics below one;
+under-discrimination tends to give values above one. Their sampling
+variation still depends on the item location, sample, and test
+length.</p>
 </div>
 <div class="section level2">
-<h2 id="planting-dif">4. Planting DIF<a class="anchor" aria-label="anchor" href="#planting-dif"></a>
+<h2 id="differential-item-functioning">Differential item functioning<a class="anchor" aria-label="anchor" href="#differential-item-functioning"></a>
 </h2>
-<p>Differential item functioning is planted with <code>dif</code>,
-naming the affected items and the size of the group shift, with
-<code>n_groups = 2</code> so there is a group to differ. Here item I06
-is given a uniform shift of one logit for the second group; the other
-nine items are invariant. <code>dif_anova</code> analyses the residuals
-by group over automatically sized trait class intervals (Hagquist and
-Andrich 2017), and should flag I06 alone.</p>
+<p>The <code>dif</code> argument shifts selected items for a person
+group. Here I06 differs by one logit in the second group.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">d3</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">10</span>, dif <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>items <span class="op">=</span> <span class="st">"I06"</span>, uniform <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
-<span>                       n_groups <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">303</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">d3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span></span>
+<span>  <span class="fl">500</span>, <span class="fl">10</span>,</span>
+<span>  dif <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>items <span class="op">=</span> <span class="st">"I06"</span>, uniform <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  n_groups <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">303</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">fit3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d3</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
-<span><span class="va">da</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit3</span><span class="op">)</span></span>
+<span><span class="va">da</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit3</span><span class="op">)</span></span>
 <span><span class="va">da</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"F_uniform"</span>, <span class="st">"p_uniform_adj"</span>, <span class="st">"uniform_DIF"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    item  term F_uniform p_uniform_adj uniform_DIF</span></span>
 <span><span class="co">#&gt; 1   I01 group  0.164009      0.855993       FALSE</span></span>
@@ -215,13 +185,9 @@ Andrich 2017), and should flag I06 alone.</p>
 <span><span class="co">#&gt; 8   I08 group  0.008686      0.925785       FALSE</span></span>
 <span><span class="co">#&gt; 9   I09 group  0.138649      0.855993       FALSE</span></span>
 <span><span class="co">#&gt; 10  I10 group  0.085278      0.855993       FALSE</span></span></code></pre></div>
-<p>Only I06 carries a significant group term after the
-Benjamini-Hochberg adjustment across items; the other nine are quiet, as
-invariant items should be. The analysis of variance answers
-<em>whether</em> there is DIF. To ask <em>how much</em>, and whether it
-matters on the measurement scale, <code>dif_size</code> resolves the
-item into one copy per group, refits, and reports the distance between
-the resolved locations in logits (Andrich and Marais 2019, ch. 16).</p>
+<p><code>dif_anova</code> tests invariance. <code>dif_size</code>
+resolves the item by group and reports the difference between the
+resolved locations in logits.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/dif_size.html">dif_size</a></span><span class="op">(</span><span class="va">fit3</span>, <span class="st">"I06"</span>, by <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; DIF size for I06 by group (resolved locations, logits)</span></span>
@@ -233,71 +199,59 @@ the resolved locations in logits (Andrich and Marais 2019, ch. 16).</p>
 <span><span class="co">#&gt;  practical</span></span>
 <span><span class="co">#&gt;    &gt;= 0.50</span></span>
 <span><span class="co">#&gt; p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span></span></code></pre></div>
-<p>The resolved gap recovers the planted shift of one logit and clears
-the half-logit practical criterion. Flagging and magnitude are
-complementary: a significant <code>dif_anova</code> term says the item
-is not invariant; the <code>dif_size</code> logit difference says
-whether the non-invariance is large enough to act on.</p>
+<p>A simulation study of DIF should record false-positive rates for
+invariant items as well as detection of the shifted item. Sample size,
+group imbalance, targeting, test length, and shift size should be varied
+separately.</p>
 </div>
 <div class="section level2">
-<h2 id="planting-local-dependence">5. Planting local dependence<a class="anchor" aria-label="anchor" href="#planting-local-dependence"></a>
+<h2 id="local-response-dependence">Local response dependence<a class="anchor" aria-label="anchor" href="#local-response-dependence"></a>
 </h2>
-<p>Response dependence — one item’s answer partly following another’s —
-is planted with <code>dependence</code>, naming the item pairs and a
-strength. It should raise the residual correlation of the planted pair
-above the small negative value expected under local independence.
-<code>residual_correlations</code> returns Yen’s (1984) Q3 and,
-following Christensen, Makransky and Horton (2017), the adjusted Q3*
-(each Q3 less the average off-diagonal value). There is no universal
-critical value for adjusted Q3, so binary flagging is available only
-when the analyst supplies a screening threshold and remains
-heuristic.</p>
+<p>The <code>dependence</code> argument makes one item’s response partly
+follow another. <code>residual_correlations</code> reports Yen’s Q3 and
+adjusted Q3. Because adjusted Q3 has no universal critical value,
+<code>flag</code> is a screening threshold supplied by the analyst (Yen
+1984; Christensen, Makransky and Horton 2017).</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">d4</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">10</span>,</span>
-<span>                       dependence <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>pairs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I04"</span>, <span class="st">"I05"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>                                         strength <span class="op">=</span> <span class="fl">1.8</span><span class="op">)</span>, seed <span class="op">=</span> <span class="fl">41</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">d4</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span></span>
+<span>  <span class="fl">500</span>, <span class="fl">10</span>,</span>
+<span>  dependence <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    pairs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I04"</span>, <span class="st">"I05"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    strength <span class="op">=</span> <span class="fl">1.8</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">41</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">fit4</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d4</span>, id <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
-<span><span class="va">rc</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit4</span>, flag <span class="op">=</span> <span class="fl">0.20</span><span class="op">)</span></span>
-<span><span class="va">rc</span><span class="op">$</span><span class="va">average</span>                          <span class="co"># near -1/(L-1) under independence</span></span>
-<span><span class="co">#&gt; [1] -0.09841</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rc</span><span class="op">$</span><span class="va">pairs</span>, <span class="fl">3</span><span class="op">)</span>                   <span class="co"># the planted pair leads the table</span></span>
+<span><span class="va">rc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit4</span>, flag <span class="op">=</span> <span class="fl">0.20</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rc</span><span class="op">$</span><span class="va">pairs</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   item_a item_b       q3 q3_star flagged</span></span>
 <span><span class="co">#&gt; 1    I04    I05 0.170343  0.2688    TRUE</span></span>
 <span><span class="co">#&gt; 2    I02    I10 0.042300  0.1407   FALSE</span></span>
-<span><span class="co">#&gt; 3    I02    I09 0.002477  0.1009   FALSE</span></span>
-<span><span class="va">rc</span><span class="op">$</span><span class="va">flagged</span></span>
-<span><span class="co">#&gt;   item_a item_b     q3 q3_star flagged</span></span>
-<span><span class="co">#&gt; 1    I04    I05 0.1703  0.2688    TRUE</span></span></code></pre></div>
-<p>The planted I04–I05 pair sits at the top of the sorted table and
-clears the chosen heuristic screen; the average off-diagonal value is
-close to the <span class="math inline">\(-1/(L-1)\)</span> expected when
-the items are locally independent. As with DIF, screening is one thing
-and magnitude another. <code>dependence_magnitude</code> puts the effect
-on the logit scale by the resolution method of Andrich and Kreiner
-(2010): the dependent item is split by the category of the item it
-follows, refitted, and the threshold displacement read off.</p>
+<span><span class="co">#&gt; 3    I02    I09 0.002477  0.1009   FALSE</span></span></code></pre></div>
+<p><code>dependence_magnitude</code> resolves the dependent item by the
+response to the independent item and expresses the displacement on the
+logit scale (Andrich and Kreiner 2010).</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/dependence_magnitude.html">dependence_magnitude</a></span><span class="op">(</span><span class="va">fit4</span>, dependent <span class="op">=</span> <span class="st">"I05"</span>, independent <span class="op">=</span> <span class="st">"I04"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Response dependence of I05 on I04 (Andrich &amp; Kreiner resolution)</span></span>
 <span><span class="co">#&gt;   d = 0.760 logits (se 0.139), z = 5.48, p = &lt; 0.001</span></span></code></pre></div>
-<p>The estimated dependence is around three quarters of a logit and
-highly significant — a substantial displacement of I05’s threshold by
-the response to I04, not a marginal correlation. (The residual principal
-components of the same fit, via <code>plot_scree</code>, are the
-complementary tool for a <em>second dimension</em> rather than a
-dependent pair.)</p>
 </div>
 <div class="section level2">
-<h2 id="paired-comparisons">6. Paired comparisons<a class="anchor" aria-label="anchor" href="#paired-comparisons"></a>
+<h2 id="paired-comparisons">Paired comparisons<a class="anchor" aria-label="anchor" href="#paired-comparisons"></a>
 </h2>
-<p>The paired-comparison simulator plants faults of its own.
-<code>erratic_judges</code> sets a proportion of judges who choose at
-random; their disorder should surface in the judge fit residuals and in
-the transitivity of their choices. Here two of eight judges are
-erratic.</p>
+<p>The paired-comparison simulator can introduce erratic judges, ties,
+position effects, or within-judge dependence. In this example, one
+quarter of the judges respond at random.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">b</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl.html">simulate_btl</a></span><span class="op">(</span>n_objects <span class="op">=</span> <span class="fl">7</span>, n_judges <span class="op">=</span> <span class="fl">8</span>, reps_per_pair <span class="op">=</span> <span class="fl">30</span>,</span>
-<span>                   erratic_judges <span class="op">=</span> <span class="fl">0.25</span>, seed <span class="op">=</span> <span class="fl">61</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl.html">simulate_btl</a></span><span class="op">(</span></span>
+<span>  n_objects <span class="op">=</span> <span class="fl">7</span>,</span>
+<span>  n_judges <span class="op">=</span> <span class="fl">8</span>,</span>
+<span>  reps_per_pair <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  erratic_judges <span class="op">=</span> <span class="fl">0.25</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">61</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl.html">btl</a></span><span class="op">(</span><span class="va">b</span>, <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, winner <span class="op">=</span> <span class="st">"winner"</span>, judge <span class="op">=</span> <span class="st">"judge"</span><span class="op">)</span></span>
 <span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="op">-</span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="co">#&gt;   judge  n infit_ms outfit_ms fit_resid df_fit</span></span>
@@ -309,181 +263,146 @@ erratic.</p>
 <span><span class="co">#&gt; 3    J3 81   0.8743    0.8520   -1.5176  80.23</span></span>
 <span><span class="co">#&gt; 8    J8 92   0.8565    0.8232   -1.8897  91.12</span></span>
 <span><span class="co">#&gt; 5    J5 83   0.7515    0.7151   -2.9513  82.21</span></span></code></pre></div>
-<p>The two erratic judges (J1 and J2) carry the largest infit and outfit
-mean squares and the largest positive fit residuals; the well-behaved
-judges sit below one. The judge fit residual is the paired-comparison
-counterpart of person fit, and here it is the sharpest instrument.</p>
-<p><code>btl_transitivity</code> asks the single-dimension question in
-its native paired-comparison form. A Bradley-Terry-Luce scale implies
-that preferences stack into one consistent order: if A beats B and B
-beats C then A should beat C. A <em>circular triad</em> (A beats B, B
-beats C, C beats A) is a local contradiction, and their rate is compared
-with the one quarter expected from pure guessing (Kendall and Babington
-Smith 1940).</p>
+<p>Judge fit describes agreement with the common object scale.
+Transitivity is a different summary: it counts circular triads in the
+observed comparisons.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_transitivity.html">btl_transitivity</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span></span>
-<span><span class="va">tr</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"n_objects"</span>, <span class="st">"n_triples"</span>, <span class="st">"n_circular"</span>,</span>
-<span>               <span class="st">"circular_rate"</span>, <span class="st">"consistency"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;   n_objects n_triples n_circular circular_rate consistency</span></span>
-<span><span class="co">#&gt; 1         7        30          2       0.06667      0.7333</span></span>
-<span><span class="va">tr</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"judge"</span>, <span class="st">"n_triples"</span>, <span class="st">"circular_rate"</span>, <span class="st">"consistency"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;   judge n_triples circular_rate consistency</span></span>
-<span><span class="co">#&gt; 1    J2        21       0.33333     -0.3333</span></span>
-<span><span class="co">#&gt; 2    J1        25       0.12000      0.5200</span></span>
-<span><span class="co">#&gt; 3    J6        35       0.11429      0.5429</span></span>
-<span><span class="co">#&gt; 4    J3        15       0.06667      0.7333</span></span>
-<span><span class="co">#&gt; 5    J8        30       0.03333      0.8667</span></span>
-<span><span class="co">#&gt; 6    J4        21       0.00000      1.0000</span></span>
-<span><span class="co">#&gt; 7    J5        20       0.00000      1.0000</span></span>
-<span><span class="co">#&gt; 8    J7        16       0.00000      1.0000</span></span></code></pre></div>
-<p>Pooled across all judges the object scale is nearly transitive —
-majority verdicts stack into essentially one order — so the overall
-consistency is high. The per-judge index separates the individuals, with
-the erratic judges falling toward the bottom of the table. With only a
-handful of complete triples per judge this index is noisier than the fit
-residual, but the two agree in direction. Where the concern is not judge
-noise but a second attribute steering some contests,
-<code>btl_dimensionality</code> provides the residual-“swirl” analogue
-of residual principal components.</p>
+<span><span class="va">tr</span><span class="op">$</span><span class="va">summary</span></span>
+<span><span class="co">#&gt;   n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency</span></span>
+<span><span class="co">#&gt; 1         7      21        30          2       0.06667        0.25      0.7333</span></span>
+<span><span class="co">#&gt;   zeta</span></span>
+<span><span class="co">#&gt; 1   NA</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">tr</span><span class="op">$</span><span class="va">judges</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   judge n_comparisons n_triples n_circular circular_rate consistency</span></span>
+<span><span class="co">#&gt; 1    J2            75        21          7       0.33333     -0.3333</span></span>
+<span><span class="co">#&gt; 2    J1            74        25          3       0.12000      0.5200</span></span>
+<span><span class="co">#&gt; 3    J6            70        35          4       0.11429      0.5429</span></span>
+<span><span class="co">#&gt; 4    J3            81        15          1       0.06667      0.7333</span></span>
+<span><span class="co">#&gt; 5    J8            92        30          1       0.03333      0.8667</span></span>
+<span><span class="co">#&gt; 6    J4            78        21          0       0.00000      1.0000</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="a-small-monte-carlo-power-estimate">7. A small Monte Carlo power estimate<a class="anchor" aria-label="anchor" href="#a-small-monte-carlo-power-estimate"></a>
+<h2 id="repeated-simulation">Repeated simulation<a class="anchor" aria-label="anchor" href="#repeated-simulation"></a>
 </h2>
-<p>The plant-and-detect loop scales up. <code>sim_replicate</code> calls
-a simulator many times with successive seeds, returning the datasets as
-a list, so a diagnostic can be run across all of them and its behaviour
-summarised. Asking how often a planted departure is flagged turns that
-into a detection-power estimate. Here a uniform DIF of 0.8 logits is
-planted on one item across ten datasets, and each is fitted and passed
-to <code>dif_anova</code>.</p>
+<p><code>sim_replicate</code> generates datasets with successive seeds.
+The same analysis can then be applied to each dataset to estimate bias,
+coverage, rejection rates, or power.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_replicate.html">sim_replicate</a></span><span class="op">(</span><span class="va">simulate_rasch</span>, <span class="fl">10</span>, n_persons <span class="op">=</span> <span class="fl">400</span>, n_items <span class="op">=</span> <span class="fl">8</span>,</span>
-<span>                       dif <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>items <span class="op">=</span> <span class="st">"I04"</span>, uniform <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span>,</span>
-<span>                       n_groups <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">700</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sim_replicate.html">sim_replicate</a></span><span class="op">(</span></span>
+<span>  <span class="va">simulate_rasch</span>, <span class="fl">10</span>,</span>
+<span>  n_persons <span class="op">=</span> <span class="fl">400</span>,</span>
+<span>  n_items <span class="op">=</span> <span class="fl">8</span>,</span>
+<span>  dif <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>items <span class="op">=</span> <span class="st">"I04"</span>, uniform <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span>,</span>
+<span>  n_groups <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">700</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">flagged</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">batch</span>, <span class="kw">function</span><span class="op">(</span><span class="va">dd</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">dd</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">s</span><span class="op">$</span><span class="va">uniform_DIF</span><span class="op">[</span><span class="va">s</span><span class="op">$</span><span class="va">item</span> <span class="op">==</span> <span class="st">"I04"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="op">}</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">flagged</span><span class="op">)</span>                       <span class="co"># proportion of runs that flagged I04</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">flagged</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0.5</span></span></code></pre></div>
-<p>The estimate is the proportion of the ten runs in which the planted
-item was flagged after adjustment. A shift of 0.8 logits split over two
-groups of 200 is detected in only about half of these runs: a real
-departure of moderate size against a modest sample is caught only some
-of the time. Ten replicates suffice to demonstrate the loop, not to pin
-the number down — the Monte Carlo error on ten draws is large — but the
-same six lines, run with a few hundred replicates and swept over sample
-size and effect, are a complete power study.</p>
+<p>Ten replicates demonstrate the workflow but do not give a stable
+power estimate. For a Monte Carlo proportion <span class="math inline">\(\hat p\)</span> based on <span class="math inline">\(R\)</span> independent replicates, the estimated
+Monte Carlo standard error is</p>
+<p><span class="math display">\[
+\operatorname{MCSE}(\hat p)=
+\sqrt{\frac{\hat p(1-\hat p)}{R}}.
+\]</span></p>
+<p>The number of attempted, refused, and non-converged fits should be
+reported. Bias and coverage should be calculated for each generating
+condition rather than after pooling conditions with different true
+values.</p>
 </div>
 <div class="section level2">
-<h2 id="validation-studies">8. Validation studies<a class="anchor" aria-label="anchor" href="#validation-studies"></a>
+<h2 id="validation-studies">Validation studies<a class="anchor" aria-label="anchor" href="#validation-studies"></a>
 </h2>
-<p>The simulators above are also the package’s own test bench. Each
-release is validated by a simulation battery that runs every model
-family — the dichotomous model, the polytomous models, many-facet
-models, the extended frame of reference model, and the comparative
-judgement models — against its full set of diagnostics, under complete
-data, 25% random missingness, and linked structural designs: 234
-recorded checks, of which 231 passed. (The three failures are retained
-in the result table deliberately: two exposed the standard-error defect
-corrected below, and one was a mis-designed power scenario in the
-battery itself, redesigned and passing.) Parameter recovery is checked
-against the planted values; reported standard errors against the
-empirical sampling variability of the estimates (all calibration ratios
-fall within 0.85–1.20, most within a few percent of 1); significance
-tests against their nominal rates under model-true data; and every
-diagnostic against its planted departure for power. The identification
-guards are exercised in both directions: connected linked designs fit
-and recover well, while genuinely disconnected designs are refused
-rather than fitted. The battery’s scripts (seeds inline) and its
-per-check result table are kept in the package sources under
-<code>tools/simval/</code>, so every number is reproducible from the
-repository.</p>
-<p>A second round followed the external review, targeting the newer
-inferential procedures with the reporting standard of Morris, White and
-Crowther (2019): every rate with its Monte Carlo standard error,
-replicate accounting that separates attempted, refused, and
-non-converged fits, and at least 1,000 replicates behind each principal
-null claim wherever a replicate is computationally feasible (the
-tailored bootstrap, whose replicates each run a complete bootstrap, is
-the stated exception; a few follow-up tables record refusals and
-non-convergences as one combined count and say so in their notes). Seven
-studies (committed under <code>tools/simval/studies/</code>, results and
-provenance under <code>tools/simval/results/</code>) covered the custom
-Wald and contrast tests, judge-clustered comparative judgement
-inference, the tailored-analysis bootstrap, the <code>lr_test</code>
-composite-likelihood comparison, equating multiplicity, structural
-missingness, and person-measure coverage. Most of it confirmed
-calibration: <code>lr_test</code> rejects a true rating-scale model at
-4.65% over 2,000 replicates; equating’s familywise drift error is
-nominal at every anchor count tried (4.9–5.5% over 2,000–4,000
-replicates), with shift coverage 94.6–94.7% across bank modes;
-person-measure (WLE) coverage sits at 0.945–0.983 across the central
-ability range for the principal ten-item design (the twenty-five-item
-test dips to 0.933 at one central point), and in the tails the intervals
-turn conservative rather than failing (at true abilities two logits past
-the item bank, bias approaches the distance to the bank but coverage
-stays at or above nominal); balanced judge-clustered designs are
-calibrated from ten judges up (Type I 5.01%, coverage 94.5% at exactly
-ten judges, 1,200 replicates); and the tailored-analysis bootstrap did
-not overstate at the design studied: its familywise error is 0.8% over
-240 full-procedure replicates (anchor selection re-run inside every one
-– fewer than the battery’s usual thousand, because each replicate runs a
-complete bootstrap and costs minutes), with low power against planted
-guessing at feasible bootstrap sizes, which is why tailored shifts are
-descriptive by default and the bootstrap warns about its own resolution
-floor. Its power grid (four to six replicates per cell) bounds behaviour
-rather than estimating it.</p>
-<p>The second round also caught three defects, each confirmed by an
-adversarial verification pass, diagnosed, corrected, and
-re-validated:</p>
-<ul>
-<li>The extended frame of reference model’s set-unit tests rejected a
-true null at 9.4% (1,000 replicates): the linking-stage bootstrap
-resampled persons but held the estimated thresholds fixed, and the set
-unit is a scale, so calibration noise moves every person estimate’s
-variance coherently. Each bootstrap replicate now redraws the thresholds
-and panel units jointly from their estimated stage-1 covariance
-(cross-covariance preserved); the corrected tests reject at 4.9% (1,200
-fresh replicates), stable across item counts, sample sizes, imbalance, a
-third linked set, and weak linking.</li>
-<li>Judge-clustered comparative judgement inference was calibrated for
-the judge counts tested but not for concentrated allocations: one judge
-performing half the comparisons leaves about four effective clusters
-whatever the nominal count, and the true-null rejection climbs to ~9%.
-The guard now withholds clustered inference below eight effective judges
-(inverse Simpson of the comparison shares), cautions between eight and
-nine and a half, and reports <code>cl$n_units_effective</code>.</li>
-<li>The paired-comparison extended-frame unit tests used chi-square and
-normal references on covariances estimated from ten to twenty judges;
-the set-origin omnibus rejected at 8.7%. Judge-limited references
-(Hotelling-style F for the omnibus, t for the unit tables) restore
-5.5%.</li>
-</ul>
-<p>Two suspected defects were exonerated by the same machinery: the
-many-facet interaction omnibus at 25 parameters is calibrated (4.3% and
-5.2% at 600 fixed-truth replicates), and a reported two-fold standard
-error understatement for partial credit thresholds under a rare category
-proved to be mostly an artifact of pooling heterogeneous items – though
-the per-item decomposition it prompted exposed one genuine case, a
-four-fold understatement in a threshold neighbouring a ~4-response
-category, and the weak-category guard now withholds a whole item’s
-standard errors when any category falls below eight responses (the
-survivors it still reports are calibrated to 1.01–1.08).</p>
-<p>One correction came out of the first battery.
-<code>dependence_magnitude</code> followed Andrich and Marais (2019,
-eqs. 24.9–24.11) in pooling the two resolved items’ variances as if
-their estimates were independent, on the grounds that disjoint persons
-answer them. In the joint refit, however, the two estimates are
-negatively correlated through the shared comparator items, and the
-pooled standard error is too small: with ten items, the null rejection
-rate was 7.5% at a nominal 5% over 1,200 replicates. Since release
-1.14.2 the standard error is the delta-method contrast over the fit’s
-sandwich covariance, which restores the nominal rate: 4.8% over 400
-fresh-seed replicates (Monte Carlo error about 1 percentage point), 3.5%
-for the partial credit case, and 5.4% when the corrected formula is
-applied to the original 1,200 diagnostic replicates. The estimate of
-<em>d</em> itself is unaffected.</p>
+<p>The repository contains the simulation studies used to check
+parameter recovery, standard errors, confidence-interval coverage, null
+rejection rates, power, and identification guards. The scripts and
+result tables are under <code>tools/simval/</code>; they are excluded
+from the CRAN source package for size, and are computationally intensive
+to re-run. The examples in this vignette use small runs and are intended
+as templates for design-specific studies.</p>
+<p>The principal calibration results, each carried with its script and
+provenance in the result tables:</p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr class="header">
+<th>Quantity</th>
+<th>Design</th>
+<th>Result</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>
+<code>lr_test</code> adjusted size</td>
+<td>500 persons, 8 items, 3 categories</td>
+<td>4.7% at the 0.05 level (2,000 replicates)</td>
+</tr>
+<tr class="even">
+<td>
+<code>lr_test</code> small-sample edge</td>
+<td>300 persons, 12 items, 4 categories</td>
+<td>6.1% among 1,927/2,000 admissible replicates</td>
+</tr>
+<tr class="odd">
+<td>
+<code>dependence_magnitude</code> size</td>
+<td>800 persons, 10 items</td>
+<td>7.5% pooled-variance (pre-fix) to 4.8% covariance-based</td>
+</tr>
+<tr class="even">
+<td>EFRM set-unit omnibus size</td>
+<td>200/group, 8 items/set, 2 sets</td>
+<td>9.4% (pre-fix) to 4.9% (1,200 replicates, eight designs)</td>
+</tr>
+<tr class="odd">
+<td>Comparative judgement contrasts</td>
+<td>10-50 judges, balanced</td>
+<td>5.0% size, 94.5% coverage (1,200 replicates)</td>
+</tr>
+<tr class="even">
+<td>Effective-judge thresholds</td>
+<td>one judge with 15-50% of comparisons</td>
+<td>~9% at 4 effective, ~7% at 6-7, nominal when balanced</td>
+</tr>
+<tr class="odd">
+<td>Equating familywise error</td>
+<td>3, 5, and 10 anchors</td>
+<td>4.9-5.5% (2,000-4,000 replicates)</td>
+</tr>
+<tr class="even">
+<td>Person-measure coverage</td>
+<td>10-item test, central range</td>
+<td>0.945-0.983; conservative in the tails</td>
+</tr>
+<tr class="odd">
+<td>Tailored bootstrap familywise error</td>
+<td>300 persons, 8 items</td>
+<td>0.8% over 240 full-procedure replicates</td>
+</tr>
+<tr class="even">
+<td>CL-AIC model selection</td>
+<td>PCM vs RSM; free vs PC thresholds (items and CJ)</td>
+<td>null false selection 4.5-5.2% multi-parameter, ~17% one-parameter
+(the theoretical AIC rates); detection 95-100% at strong departures</td>
+</tr>
+<tr class="odd">
+<td>Paired-comparison effect tests</td>
+<td>8 objects, 14 judges</td>
+<td>position/exposure nulls 5.8%/5.9%; carry-over 8.3% at 14 judges,
+5.3% at 30; power 62/39/77% at 0.6 logits</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
@@ -499,22 +418,16 @@ Theory</em>. Springer.</p>
 <p>Christensen, K. B., Makransky, G., and Horton, M. (2017). Critical
 values for Yen’s Q3. <em>Applied Psychological Measurement</em>, 41,
 178–194.</p>
-<p>Hagquist, C., and Andrich, D. (2017). Recent advances in analysis of
-differential item functioning in health research using the Rasch model.
-<em>Health and Quality of Life Outcomes</em>, 15, 181.</p>
+<p>Morris, T. P., White, I. R., and Crowther, M. J. (2019). Using
+simulation studies to evaluate statistical methods. <em>Statistics in
+Medicine</em>, 38, 2074–2102.</p>
 <p>Humphry, S. M. (2005). <em>Maintaining a Common Arbitrary Unit in
 Social Measurement</em>. PhD thesis, Murdoch University.</p>
 <p>Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
 Rasch model. <em>Journal of Applied Measurement</em>, 9(3), 249–264.</p>
-<p>Kendall, M. G., and Babington Smith, B. (1940). On the method of
-paired comparisons. <em>Biometrika</em>, 31, 324–345.</p>
-<p>Morris, T. P., White, I. R., and Crowther, M. J. (2019). Using
-simulation studies to evaluate statistical methods. <em>Statistics in
-Medicine</em>, 38, 2074–2102.</p>
 <p>Rasch, G. (1960). <em>Probabilistic Models for Some Intelligence and
-Attainment Tests</em>. Copenhagen: Danish Institute for Educational
-Research. (Expanded edition, 1980, Chicago: University of Chicago
-Press.)</p>
+Attainment Tests</em>. Danish Institute for Educational Research.
+Expanded edition, University of Chicago Press, 1980.</p>
 <p>Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 <em>Journal of Mathematical Psychology</em>, 30(3), 306–316.</p>
 <p>Warm, T. A. (1989). Weighted likelihood estimation of ability in item

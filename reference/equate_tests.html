@@ -5,19 +5,11 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Equate two test calibrations through their common items — equate_tests"><meta name="description" content="Compares the item locations of a fit with those of a second fit (or a
-reference table such as an item bank), matched by item name. A scale
-shift between the two origins is estimated by the precision-weighted mean
-difference. When the calibrations use independent sampling units and at
-least three common items have standard errors, each common item is tested
-against the shifted identity line; otherwise the link is returned
-descriptively and drift inference is withheld."><meta property="og:description" content="Compares the item locations of a fit with those of a second fit (or a
-reference table such as an item bank), matched by item name. A scale
-shift between the two origins is estimated by the precision-weighted mean
-difference. When the calibrations use independent sampling units and at
-least three common items have standard errors, each common item is tested
-against the shifted identity line; otherwise the link is returned
-descriptively and drift inference is withheld."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Equate two test calibrations through their common items — equate_tests"><meta name="description" content="Places two calibrations on a common origin using their shared items, then
+tests the shared items for drift. The reference may be a fitted model or an
+item bank."><meta property="og:description" content="Places two calibrations on a common origin using their shared items, then
+tests the shared items for drift. The reference may be a fitted model or an
+item bank."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -25,7 +17,7 @@ descriptively and drift inference is withheld."><meta property="og:image" conten
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,13 +50,9 @@ descriptively and drift inference is withheld."><meta property="og:image" conten
     </div>
 
     <div class="ref-description section level2">
-    <p>Compares the item locations of a fit with those of a second fit (or a
-reference table such as an item bank), matched by item name. A scale
-shift between the two origins is estimated by the precision-weighted mean
-difference. When the calibrations use independent sampling units and at
-least three common items have standard errors, each common item is tested
-against the shifted identity line; otherwise the link is returned
-descriptively and drift inference is withheld.</p>
+    <p>Places two calibrations on a common origin using their shared items, then
+tests the shared items for drift. The reference may be a fitted model or an
+item bank.</p>
     </div>
 
     <div class="section level2">
@@ -115,6 +103,18 @@ returned but inferential drift columns are withheld.</p></dd>
   shifting (<code>rmsd</code>), the number of common items <code>n_common</code>, the
   number with usable standard errors <code>n</code>, and whether drift inference
   was available (<code>inferential</code>).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Let \(d_j\) be the location difference for common item \(j\) and
+\(v_j\) its marginal variance. With <code>shift = "mean"</code> the scale
+shift is the precision-weighted mean
+$$\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j},$$
+and each item is tested using \(d_j-\hat s\) with a variance that
+accounts for the estimated shift through the items' joint covariance.
+Drift inference requires
+independent calibrations and at least three common items with usable joint
+covariance information. Otherwise the function returns a descriptive link.</p>
     </div>
 
     <div class="section level2">

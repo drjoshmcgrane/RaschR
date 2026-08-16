@@ -17,7 +17,7 @@ scale."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,7 @@ scale.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_pimap</span><span class="op">(</span><span class="va">fit</span>, bins <span class="op">=</span> <span class="fl">35</span>, xlim <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_pimap</span><span class="op">(</span><span class="va">fit</span>, bins <span class="op">=</span> <span class="fl">35</span>, xlim <span class="op">=</span> <span class="cn">NULL</span>, information <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -75,6 +75,12 @@ scale.</p>
 <dt id="arg-xlim">xlim<a class="anchor" aria-label="anchor" href="#arg-xlim"></a></dt>
 <dd><p>Optional logit range for the shared scale; persons and
 thresholds outside it are omitted.</p></dd>
+
+
+<dt id="arg-information">information<a class="anchor" aria-label="anchor" href="#arg-information"></a></dt>
+<dd><p>Whether to overlay the test information function on a
+separate right-hand axis. Fits with more than one administrable design
+receive one curve per design.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -1,17 +1,11 @@
 # Information and targeting of a paired-comparison design
 
-The paired-comparison analogue of the test-information function. The
-Fisher information a single comparison carries about the location
-difference `d = beta_a - beta_b` is, in this exponential family, the
-variance of its score – `P(1 - P)` for the dichotomous choice and the
-polytomous response variance `V` for the ordinal extension (the score is
-the sufficient statistic for `d`, so its variance is the information).
-Weighted by each comparison's replication count and summed over the
-comparisons the design actually contains, this gives a *design
-information* for every object: how much the observed comparisons pin its
-location down, the counterpart of an item's contribution to test
-information. Because the information peaks at gap zero and falls away
-with the location gap, near-neighbour contests are the informative ones.
+Calculates the Fisher information supplied by the observed comparison
+design. For location difference \\d=\beta_a-\beta_b\\, one dichotomous
+comparison contributes \$\$I(d)=P(a\succ b)\\1-P(a\succ b)\\.\$\$ For an
+ordered comparison, the contribution is the variance of the response
+score. Information is summed over the comparisons involving each object,
+including replication counts.
 
 ## Usage
 
@@ -37,16 +31,10 @@ and the pair's `information`); `comparisons` (per comparison: the signed
 
 ## Details
 
-The design information inverts to `se_naive = 1 / sqrt(information)`:
-the error the object's own comparisons would give if its location were
-treated in isolation – a design-only yardstick for reading which objects
-the comparison plan serves well. It is not the model's standard error,
-and it is not a bound: the fitted `se` comes from joint estimation under
-the sum-zero constraint (which typically REDUCES an object's variance
-relative to the isolated calculation) with judge-clustered Godambe
-covariance (which can move it in either direction), so `se` can sit
-below or above `se_naive`. Treat their ratio as a descriptive comparison
-of design coverage, not as a bound or a clustering test.
+`se_naive = 1/sqrt(information)` treats each object's comparisons in
+isolation. It is a description of the design, not the fitted standard
+error or a bound on it. The fitted standard error also reflects joint
+estimation, the identifying constraint, and judge clustering.
 
 ## References
 

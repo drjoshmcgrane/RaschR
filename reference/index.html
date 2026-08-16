@@ -13,7 +13,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@
     <div class="section level2">
       <h2 id="estimation">Estimation<a class="anchor" aria-label="anchor" href="#estimation"></a></h2>
 
-      <div class="section-desc"><p>Fit the principal Rasch model families and estimate item and person parameters.</p></div>
+      <div class="section-desc"><p>Fit Rasch models and estimate item and person parameters.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -58,7 +58,7 @@
           <code><a href="rasch.html">rasch()</a></code>
 
         </dt>
-        <dd>Fit and diagnose a Rasch model by pairwise conditional estimation</dd>
+        <dd>Fit a Rasch model</dd>
 
         <dt>
 
@@ -86,7 +86,7 @@
           <code><a href="pcml_pc.html">pcml_pc()</a></code>
 
         </dt>
-        <dd>Estimate Rasch thresholds via the Andrich principal-components reparameterisation</dd>
+        <dd>Estimate Rasch thresholds using a principal-component parameterisation</dd>
 
         <dt>
 
@@ -104,7 +104,7 @@
       </dl></div><div class="section level2">
       <h2 id="test-of-fit-and-comparison">Test of fit and comparison<a class="anchor" aria-label="anchor" href="#test-of-fit-and-comparison"></a></h2>
 
-      <div class="section-desc"><p>Assess fit, targeting and reliability, and compare fitted models.</p></div>
+      <div class="section-desc"><p>Examine fit, targeting and reliability, or compare fitted models.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -144,7 +144,7 @@
           <code><a href="lr_test.html">lr_test()</a></code>
 
         </dt>
-        <dd>Likelihood-ratio test of the partial credit against the rating scale model</dd>
+        <dd>Compare the partial credit and rating scale models</dd>
 
         <dt>
 
@@ -192,7 +192,7 @@
       </dl></div><div class="section level2">
       <h2 id="invariance-and-dif">Invariance and DIF<a class="anchor" aria-label="anchor" href="#invariance-and-dif"></a></h2>
 
-      <div class="section-desc"><p>Examine invariance across groups and occasions, quantify DIF, split items, and equate calibrations.</p></div>
+      <div class="section-desc"><p>Examine DIF across groups or occasions and equate calibrations.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -211,14 +211,21 @@
           <code><a href="dif_contrasts.html">dif_contrasts()</a></code>
 
         </dt>
-        <dd>Planned DIF contrasts derived from the factor structure</dd>
+        <dd>Planned DIF contrasts</dd>
+
+        <dt>
+
+          <code><a href="dif_posthoc.html">dif_posthoc()</a></code>
+
+        </dt>
+        <dd>Pairwise follow-up comparisons for a DIF term</dd>
 
         <dt>
 
           <code><a href="dif_size.html">dif_size()</a></code>
 
         </dt>
-        <dd>DIF magnitude in logits with pairwise comparisons</dd>
+        <dd>DIF differences between factor levels</dd>
 
         <dt>
 
@@ -250,7 +257,7 @@
       </dl></div><div class="section level2">
       <h2 id="independence-and-dimensionality">Independence and dimensionality<a class="anchor" aria-label="anchor" href="#independence-and-dimensionality"></a></h2>
 
-      <div class="section-desc"><p>Examine dimensionality and local response dependence and apply structural remedies where appropriate.</p></div>
+      <div class="section-desc"><p>Examine dimensionality and local response dependence.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -345,7 +352,7 @@
       </dl></div><div class="section level2">
       <h2 id="paired-comparisons">Paired comparisons<a class="anchor" aria-label="anchor" href="#paired-comparisons"></a></h2>
 
-      <div class="section-desc"><p>Fit Bradley-Terry-Luce and extended frame of reference models for paired comparisons, with diagnostics for objects, judges and comparison designs.</p></div>
+      <div class="section-desc"><p>Fit and examine models for dichotomous or ordered paired comparisons.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -501,7 +508,7 @@
       </dl></div><div class="section level2">
       <h2 id="plots">Plots<a class="anchor" aria-label="anchor" href="#plots"></a></h2>
 
-      <div class="section-desc"><p>One plotting function per display, all base graphics.</p></div>
+      <div class="section-desc"><p>Plot fitted models and diagnostic results.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -625,7 +632,7 @@
           <code><a href="plot_recovery.html">plot_recovery()</a></code>
 
         </dt>
-        <dd>Recovery scatter of planted against recovered parameters</dd>
+        <dd>Plot fitted against generating parameters</dd>
 
         <dt>
 
@@ -685,7 +692,7 @@
       </dl></div><div class="section level2">
       <h2 id="data-simulation">Data simulation<a class="anchor" aria-label="anchor" href="#data-simulation"></a></h2>
 
-      <div class="section-desc"><p>Generate data from each model family, with optional known departures for evaluating estimation and diagnostic performance.</p></div>
+      <div class="section-desc"><p>Simulate data from the fitted model families.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -697,21 +704,21 @@
           <code><a href="simulate_rasch.html">simulate_rasch()</a></code>
 
         </dt>
-        <dd>Simulate person-by-item Rasch data with dial-in misfit</dd>
+        <dd>Simulate person-by-item Rasch data</dd>
 
         <dt>
 
           <code><a href="simulate_btl.html">simulate_btl()</a></code>
 
         </dt>
-        <dd>Simulate paired-comparison (BTL) data with dial-in misfit</dd>
+        <dd>Simulate paired-comparison data</dd>
 
         <dt>
 
           <code><a href="simulate_mfrm.html">simulate_mfrm()</a></code>
 
         </dt>
-        <dd>Simulate many-facet (rated) data with dial-in misfit</dd>
+        <dd>Simulate many-facet Rasch data</dd>
 
         <dt>
 
@@ -739,25 +746,25 @@
           <code><a href="sim_apply.html">sim_apply()</a></code>
 
         </dt>
-        <dd>Apply a statistic across a simulation batch, resiliently</dd>
+        <dd>Apply a statistic across a simulation batch</dd>
 
         <dt>
 
           <code><a href="sim_recovery.html">sim_recovery()</a></code>
 
         </dt>
-        <dd>Parameter recovery of a fit against the simulation truth</dd>
+        <dd>Compare fitted and generating parameters</dd>
 
         <dt>
 
           <code><a href="plot_recovery.html">plot_recovery()</a></code>
 
         </dt>
-        <dd>Recovery scatter of planted against recovered parameters</dd>
+        <dd>Plot fitted against generating parameters</dd>
       </dl></div><div class="section level2">
       <h2 id="export-and-interface">Export and interface<a class="anchor" aria-label="anchor" href="#export-and-interface"></a></h2>
 
-      <div class="section-desc"><p>Export results or launch the guided point-and-click Shiny application.</p></div>
+      <div class="section-desc"><p>Export results or launch the Shiny application.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -769,7 +776,7 @@
           <code><a href="save_outputs.html">save_outputs()</a></code>
 
         </dt>
-        <dd>Save every output of a Rasch analysis to a folder</dd>
+        <dd>Save the outputs of a Rasch analysis</dd>
 
         <dt>
 
@@ -791,6 +798,13 @@
 
         </dt>
         <dd>Write a self-contained HTML report of a Rasch analysis</dd>
+
+        <dt>
+
+          <code><a href="report_document.html">report_document()</a></code>
+
+        </dt>
+        <dd>Write an editable or print-ready analysis report</dd>
 
         <dt>
 

@@ -1,89 +1,48 @@
 # rasch: Models and Diagnostics for Rasch Measurement Theory
 
-Implements Rasch Measurement Theory for the construction and evaluation
-of measurement scales. The package is organised around sufficiency and
-invariance: the total score is sufficient for the person parameter,
-which permits person and item parameters to be separated in conditional
-estimation; and, within a specified frame of reference, comparisons
-between persons do not depend on which items are used, while comparisons
-between items do not depend on which persons respond – Rasch's criterion
-of invariant comparison (specific objectivity; Rasch 1961, 1977). These
-are requirements the data must meet for measurement, and the diagnostic
-suite examines whether they do.
+Fits and evaluates models within Rasch Measurement Theory. The package
+includes models for item responses, ratings, linked frames of reference,
+and comparative judgement of paired stimuli, together with functions for
+fit, targeting, reliability, dimensionality, local dependence,
+differential item functioning, equating, and simulation. The suite
+follows Rasch (1960) and Andrich and Marais (2019); the frame of
+reference models follow Humphry (2005), where the model is introduced
+and named, and Humphry and Andrich (2008); the dichotomous comparative
+judgement model is the conditional form of the dichotomous Rasch model
+(Andrich 1978), and the polytomous model is its adjacent-categories
+extension (Tutz 1986).
 
-## Details
+## Rasch models
 
-The model suite (Rasch 1960; Andrich and Marais 2019) includes the
-dichotomous Rasch model, partial credit and rating scale models,
-many-facet Rasch models, the extended frame of reference model (Humphry
-2005; Humphry and Andrich 2008), and comparative judgement models for
-paired comparisons – dichotomously the conditional form of the
-dichotomous Rasch model (Andrich 1978), polytomously its
-adjacent-categories extension (Tutz 1986). Functions are provided for
-item and person estimation, fit, targeting, dimensionality, local
-response dependence, differential item functioning, threshold
-functioning, reliability, equating, repeated measurements, simulation,
-and graphical reporting. See
-[`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
-[`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
-[`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md),
-and [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) for
-the principal fitting functions. Results can be exported with
-[`save_outputs`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md).
-
-## Point-and-click graphical interface
-
-The package includes a guided Shiny application, launched with
-[`run_app`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md).
-It supports data import, assignment of item, person, group, rater, and
-comparison roles, model fitting, diagnostics, plots, and export through
-a graphical interface. R is needed to install the package and launch the
-application, but users can then complete the principal analyses without
-writing R code. The app displays the corresponding R call for each
-analysis so that work conducted through the interface remains
-transparent and reproducible.
-
-## Choosing a model
+For an item with ordered scores \\x=0,\ldots,m_i\\, the partial credit
+model has adjacent-category log odds
+\$\$\log\\P(X\_{ni}=x)/P(X\_{ni}=x-1)\\=\theta_n-\delta\_{ix}.\$\$
+Dichotomous items have one threshold. The rating scale model imposes a
+common threshold structure across items. The total score is sufficient
+for \\\theta_n\\, so item parameters can be estimated without specifying
+a population distribution for person locations. The diagnostic functions
+examine whether comparisons remain invariant across persons, items,
+groups, occasions, raters, and other parts of the measurement design.
 
 Use [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-for persons responding to a common set of items. Dichotomous data are a
-special case of its partial credit model; set `model = "RSM"` when the
-same category-threshold structure is to be shared across items. Use
+for the dichotomous, partial credit, and rating scale models;
 [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
-when observations also contain facets such as raters, tasks, or
-occasions whose additive severity is part of the measurement model. Use
+for additive item, rater, and other facet effects; and
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
-only when the substantive model allows the unit itself to differ across
-linked item-set by person-group frames. For paired-comparison data, use
-[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md);
+when the unit varies across linked frames.
+[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fits the
+comparative judgement models for dichotomous and polytomous paired
+comparisons, and
 [`btl_efrm`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-supplies the corresponding linked-frame extension.
+fits their linked-frame extension.
 
-These models address different designs and invariance claims; they are
-not a ladder of progressively better-fitting alternatives. In
-particular, person factors ordinarily belong in an invariance analysis
-with
-[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md),
-whereas rating facets belong in the MFRM and frame-defining factors
-belong in the EFRM.
+## Graphical interface
 
-## Typical workflow
-
-Begin by checking coding, category use, missingness, and design
-connectedness. Missing responses can be accommodated when the observed
-response graph identifies a common scale and the missingness process is
-ignorable for the model; informative missingness requires an explicit
-sensitivity analysis. Fit the model required by the design, then examine
-targeting, item and person fit, threshold ordering, local response
-dependence, and dimensionality. Test invariance across all relevant
-person factors jointly; repeated-measures factors should be identified
-as within-person in
-[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md).
-Investigate the size and substantive meaning of a departure before
-modifying the scale. Refit after any defensible change and report the
-final model, exclusions or resolutions, uncertainty, targeting, and
-remaining limitations. The package vignettes give worked workflows for
-each main model family.
+[`run_app`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
+launches the package's Shiny application. It supports data import, model
+fitting, diagnostics, plots, and export without requiring the user to
+write R analysis code. The corresponding R call is shown for each
+analysis.
 
 ## References
 
@@ -93,7 +52,7 @@ Attainment Tests. Copenhagen: Danish Institute for Educational Research.
 
 Rasch, G. (1961). On general laws and the meaning of measurement in
 psychology. In Proceedings of the Fourth Berkeley Symposium on
-Mathematical Statistics and Probability (Vol. 4, pp. 321–333). Berkeley:
+Mathematical Statistics and Probability (Vol. 4, pp. 321–334). Berkeley:
 University of California Press.
 
 Rasch, G. (1977). On specific objectivity: An attempt at formalizing the

@@ -5,39 +5,13 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DIF analysis for paired comparisons — btl_dif"><meta name="description" content="Tests whether objects function differently for identifiable groups of
-judges. One judge factor is analysed on its own; several factors are
-modelled jointly – with main effects by default and factor-by-factor
-interactions optional – exactly as dif_anova treats person
-factors. For each object the standardised residuals of its comparisons,
-oriented to the object, are analysed by the judge factor(s) crossed with
-opponent-strength bands: a term is uniform DIF, its crossing with the band
-non-uniform DIF, and a significant higher-order group term supersedes the
-lower-order group terms built from a subset of its factors. Each term
-flagged for uniform DIF and not superseded is then resolved – the object
-split into one copy per cell of the term's factors inside a joint refit –
-and the differences between the resolved locations reported in logits with
-judge-clustered Wald tests and the practical-significance flag, mirroring
-dif_size. Fits with within-judge dependence effects
-(order) keep those effects in the residual moments and in the
-refits, so dependence is not mistaken for judge-group DIF; count-weighted
-comparisons enter all tests with their weights."><meta property="og:description" content="Tests whether objects function differently for identifiable groups of
-judges. One judge factor is analysed on its own; several factors are
-modelled jointly – with main effects by default and factor-by-factor
-interactions optional – exactly as dif_anova treats person
-factors. For each object the standardised residuals of its comparisons,
-oriented to the object, are analysed by the judge factor(s) crossed with
-opponent-strength bands: a term is uniform DIF, its crossing with the band
-non-uniform DIF, and a significant higher-order group term supersedes the
-lower-order group terms built from a subset of its factors. Each term
-flagged for uniform DIF and not superseded is then resolved – the object
-split into one copy per cell of the term's factors inside a joint refit –
-and the differences between the resolved locations reported in logits with
-judge-clustered Wald tests and the practical-significance flag, mirroring
-dif_size. Fits with within-judge dependence effects
-(order) keep those effects in the residual moments and in the
-refits, so dependence is not mistaken for judge-group DIF; count-weighted
-comparisons enter all tests with their weights."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="DIF analysis for paired comparisons — btl_dif"><meta name="description" content="Tests whether object locations differ across groups of judges. Several
+judge factors can be fitted jointly, with optional factor-by-factor
+interactions. Uniform DIF is a judge-factor effect; non-uniform DIF is its
+interaction with opponent-strength band."><meta property="og:description" content="Tests whether object locations differ across groups of judges. Several
+judge factors can be fitted jointly, with optional factor-by-factor
+interactions. Uniform DIF is a judge-factor effect; non-uniform DIF is its
+interaction with opponent-strength band."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -45,7 +19,7 @@ comparisons enter all tests with their weights."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,23 +52,10 @@ comparisons enter all tests with their weights."><meta property="og:image" conte
     </div>
 
     <div class="ref-description section level2">
-    <p>Tests whether objects function differently for identifiable groups of
-judges. One judge factor is analysed on its own; several factors are
-modelled jointly – with main effects by default and factor-by-factor
-interactions optional – exactly as <code><a href="dif_anova.html">dif_anova</a></code> treats person
-factors. For each object the standardised residuals of its comparisons,
-oriented to the object, are analysed by the judge factor(s) crossed with
-opponent-strength bands: a term is uniform DIF, its crossing with the band
-non-uniform DIF, and a significant higher-order group term supersedes the
-lower-order group terms built from a subset of its factors. Each term
-flagged for uniform DIF and not superseded is then resolved – the object
-split into one copy per cell of the term's factors inside a joint refit –
-and the differences between the resolved locations reported in logits with
-judge-clustered Wald tests and the practical-significance flag, mirroring
-<code><a href="dif_size.html">dif_size</a></code>. Fits with within-judge dependence effects
-(<code>order</code>) keep those effects in the residual moments and in the
-refits, so dependence is not mistaken for judge-group DIF; count-weighted
-comparisons enter all tests with their weights.</p>
+    <p>Tests whether object locations differ across groups of judges. Several
+judge factors can be fitted jointly, with optional factor-by-factor
+interactions. Uniform DIF is a judge-factor effect; non-uniform DIF is its
+interaction with opponent-strength band.</p>
     </div>
 
     <div class="section level2">
@@ -176,25 +137,20 @@ dropped from its resolution, with a note.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The screening ANOVA treats JUDGES as the independent units: residuals are
-aggregated to one weighted mean per judge (per opponent band) and tested
-in a split-plot design with the judge as the error unit – group terms
-between judges, band terms and their interactions within. Testing
-judge-level factors against comparison-level residuals would
-pseudo-replicate (a null simulation with judge heterogeneity and
-arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
-judge-level design is calibrated, and its power grows with the number of
-judges per group, not the number of comparisons. Each factor level needs
-at least two judges. Confirmatory output is withheld unless the base fit
-has at least ten judge clusters and more clusters than fitted parameters;
-this avoids treating a rank-deficient or very small-cluster sandwich as a
-valid sampling covariance.</p>
-<p>Each object is resolved against the other objects' common locations. When
-several objects carry real DIF, resolving them one at a time can spread a
-large effect onto clean objects as compensating, opposite-signed artificial
-DIF (Andrich &amp; Hagquist 2012, 2015); read large flags on several objects
-together with that hazard in mind, and prefer resolving the largest effect
-first and re-running.</p>
+    <p>Judges are the independent units. For each object, oriented residuals are
+aggregated to one weighted mean per judge and opponent band. A split-plot
+analysis then tests judge factors between judges and band effects within
+judges. Each factor level requires at least two judges. Confirmatory Wald
+tests are available only when the base fit supplies a valid judge-clustered
+covariance.</p>
+<p>A significant uniform term is followed by a joint refit in which the object
+has one location per factor cell. Differences between these locations are
+reported in logits with clustered Wald tests. Higher-order terms supersede
+their component terms. Models fitted with <code>order</code> retain the exposure
+and carry-over effects in both the residual analysis and refit.</p>
+<p>Objects are resolved one at a time against the common locations of the
+remaining objects. With DIF in several objects, this can induce compensating
+apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

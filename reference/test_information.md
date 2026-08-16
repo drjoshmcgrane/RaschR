@@ -33,10 +33,25 @@ A data frame with `theta`, `info`, and `sem`. For EFRM and MFRM fits it
 also contains a `design` column identifying the administrable group or
 facet design.
 
+## Details
+
+For an administrable block \\\mathcal A\\, the information and standard
+error of measurement are \$\$I(\theta)=\sum\_{i\in\mathcal A}d_i^2
+\operatorname{Var}(X_i\mid\theta),\qquad
+\operatorname{SEM}(\theta)=I(\theta)^{-1/2},\$\$ where \\d_i\\ is the
+frame unit or discrimination multiplier. For an ordinary Rasch fit,
+\\d_i=1\\.
+
 ## References
 
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
+
+## See also
+
+[`targeting_table`](https://drjoshmcgrane.github.io/rasch/reference/targeting_table.md)
+and
+[`plot_tif`](https://drjoshmcgrane.github.io/rasch/reference/plot_tif.md).
 
 ## Examples
 

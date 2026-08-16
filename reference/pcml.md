@@ -1,10 +1,7 @@
 # Estimate Rasch thresholds by pairwise conditional maximum likelihood
 
-Maximises the pairwise conditional likelihood, in which the person
-parameter cancels within every item pair, by Newton-Raphson (Andrich and
-Luo 2003; Zwinderman 1995). The partial credit model estimates every
-threshold freely; the rating scale model constrains
-`tau_ik = delta_i + kappa_k` through the design matrix.
+Estimates PCM or RSM thresholds by Newton–Raphson maximisation of the
+pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995).
 
 ## Usage
 
@@ -43,19 +40,20 @@ pcml(X, model = c("PCM", "RSM"), anchors = NULL, maxit = 60, tol = 1e-08)
 
 ## Value
 
-A list with the threshold table `thr` (columns `id`, `item`, `k`, `tau`,
-`se`, `anchored`, and `weak` – `TRUE` for a threshold adjacent to a
-category with fewer than 3 responses, whose estimate can run toward a
-boundary while the ridged covariance understates the error, and for
-*every* threshold of an item any of whose categories has fewer than 8
-responses: the item's thresholds are estimated jointly, and a critically
-sparse category destabilises its siblings (in simulation a ~4-response
-category left a sibling threshold's standard error understated four-fold
-while that threshold's own local counts looked healthy). Flagged
-standard errors are reported as `NA` and a note names the item and
-category), the threshold covariance matrix `cov_tau`, the pairwise
-conditional log-likelihood, the iteration count, a convergence flag,
-`notes`, and the max-score vector `m`.
+A list containing the threshold table `thr`, covariance matrix
+`cov_tau`, pairwise conditional log-likelihood, iteration count,
+convergence flag, notes, and maximum scores `m`. In `thr`, `weak` marks
+all thresholds of an item with fewer than eight responses in any
+category, or a threshold adjacent to a category with fewer than three
+responses. Standard errors for weak thresholds are reported as `NA`.
+
+## Details
+
+For the PCM, the adjacent-category log odds are
+\$\$\log\\P(X\_{ni}=k)/P(X\_{ni}=k-1)\\=\theta_n-\delta\_{ik}.\$\$
+Conditioning on the score for an item pair removes \\\theta_n\\. The PCM
+estimates each \\\delta\_{ik}\\; the RSM imposes
+\\\delta\_{ik}=\beta_i+\tau_k\\ through a design matrix.
 
 ## References
 

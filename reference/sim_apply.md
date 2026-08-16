@@ -1,4 +1,4 @@
-# Apply a statistic across a simulation batch, resiliently
+# Apply a statistic across a simulation batch
 
 Applies `FUN` to each replicate of a
 [`sim_replicate`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md)

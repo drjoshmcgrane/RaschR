@@ -1,15 +1,10 @@
-# Fit and diagnose a Rasch model by pairwise conditional estimation
+# Fit a Rasch model
 
-Runs a complete Rasch analysis: Andrich and Luo pairwise conditional
-maximum likelihood item estimation (see
-[`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)), Warm
-weighted likelihood person estimates per missing-data pattern, item and
-person fit residuals (the log-of-mean-square statistic of Andrich and
-Marais 2019, ch. 23, with its untransformed natural form and degrees of
-freedom), infit and outfit, the item-trait interaction chi-square and
-the class-interval ANOVA item-fit F, the person separation index with
-and without extremes, Cronbach's alpha, targeting, threshold
-diagnostics, and the score-to-measure table.
+Fits the partial credit model (PCM) or rating scale model (RSM) by
+pairwise conditional maximum likelihood. Person locations are Warm
+weighted likelihood estimates. The fitted object contains item and
+person fit, targeting, reliability, threshold diagnostics, residuals,
+and a score-to-measure table.
 
 ## Usage
 
@@ -70,22 +65,15 @@ rasch(
 
 - adjust_N:
 
-  Optional reference sample size; if supplied, item-trait chi-squares
-  are rescaled to this size (a sample-size adjustment for the
-  sensitivity of the chi-square to large samples). The scaling is
-  proportional and global – every item's chi-square is multiplied by
-  `adjust_N` over the number of classified persons – so an item answered
-  by a subset of persons keeps its proportionally smaller share of the
-  notional sample rather than being inflated to the full `adjust_N`.
+  Optional reference sample size used to rescale the item-trait
+  chi-squares. See Details.
 
 - anchors:
 
   Optional anchor table for equating: a data frame with columns `item`,
-  `k`, and `tau` fixing nominated thresholds at known values; see
+  `k`, and `tau`; see
   [`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md).
-  With anchors in place the scale origin comes from the anchors, so
-  person measures are directly comparable across separately analysed
-  datasets.
+  Anchors determine the scale origin.
 
 - na_codes:
 
@@ -95,22 +83,8 @@ rasch(
 
 - key:
 
-  Optional multiple-choice scoring key, in any of three forms. (1) A
-  named vector or data frame with columns `item` and `key` naming each
-  item's correct option: scored 0/1 (case-insensitive after trimming;
-  blanks become missing). (2) Double keying: several correct options
-  separated by `"/"` (for example `"A/C"`), all scoring 1. (3)
-  Polytomous option scoring (Andrich and Styles 2011): a data frame with
-  columns `item`, `option`, and `score` assigning an integer score to
-  every credited option (unlisted options score 0), so informative
-  distractors receive partial credit and the item is fitted as
-  polytomous; see
-  [`distractor_rescore`](https://drjoshmcgrane.github.io/rasch/reference/distractor_rescore.md)
-  for an evidence-based proposal. Raw responses are retained in `fit$mc`
-  for
-  [`distractor_analysis`](https://drjoshmcgrane.github.io/rasch/reference/distractor_analysis.md)
-  and
-  [`plot_distractors`](https://drjoshmcgrane.github.io/rasch/reference/plot_distractors.md).
+  Optional multiple-choice key: a named item-to-option vector, an
+  item/key table, or an item/option/score table. See Details.
 
 - pc_components:
 
@@ -137,42 +111,39 @@ degrees-of-freedom factor.
 
 ## Details
 
-The fit residual follows Andrich and Marais (2019, ch. 23) exactly:
-standardised residuals are squared and summed over each item's
-(person's) observed cells among non-extreme persons, compared with the
-summed cell degrees of freedom (the model-testing degrees of freedom,
-cells minus estimated parameters, apportioned equally over cells), and
-symmetrised by the log-of-mean-square transform \\f (\ln Y^2 - \ln
-f)/\sqrt{V\[Y^2\]}\\ with model-based variance \\V\[Y^2\] = \sum
-(C_4/V^2 - 1)\\. Values are approximately N(0,1) under fit; the
-conventional flagging value is 2.5 (Andrich and Marais 2019, ch. 15).
-Negative values indicate over-discrimination (Guttman-like responses),
-positive values under-discrimination.
+For scores \\x=0,\ldots,m_i\\, the PCM is
+\$\$P(X\_{ni}=x)=\frac{\exp\\x\theta_n-\sum\_{k=1}^{x}\delta\_{ik}\\}
+{\sum\_{y=0}^{m_i}\exp\\y\theta_n-\sum\_{k=1}^{y}\delta\_{ik}\\}.\$\$
+The RSM constrains \\\delta\_{ik}=\beta_i+\tau_k\\, where \\\beta_i\\ is
+the item location and \\\tau_k\\ is common across items. Dichotomous
+items are the one-threshold case of the PCM.
 
-A calibration note that applies to the whole test-of-fit suite: the
-item-trait chi-square evaluates unconditional residuals at estimated
-person measures and refers the sum of correlated item statistics to a
-chi-square with summed degrees of freedom, following the convention of
-Andrich and Marais (2019); the class-interval ANOVA F and the
-Wilson-Hilferty-style transformations are approximations of the same
-kind. Null simulation with this package shows rejection rates near but
-not exactly at the nominal level (conservative in the settings
-examined), and the direction can vary with design. These statistics are
-therefore approximate, convention-faithful diagnostics for ordering and
-flagging misfit – not exactly calibrated hypothesis tests; where exact
-calibration matters, use the simulation tools
-([`sim_replicate`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md))
-to build parametric-bootstrap reference distributions for the observed
-design.
+Pairwise conditioning removes \\\theta_n\\ from the item likelihood.
+Missing responses are omitted from pairwise contributions, and person
+measures are estimated within each observed item pattern. The observed
+item-pair graph must identify a common scale. This covers planned linked
+designs and ignorable missingness; informative missingness can still
+bias the estimates.
 
-Missing responses are omitted from the pairwise contributions and person
-estimates are computed for each observed item pattern. This supports
-planned linked designs and ignorable response missingness when the
-co-observation graph identifies one scale. It does not make informative
-missingness harmless: if response availability depends on an unmodelled
-response or person process, item and person estimates can be biased. The
-missingness mechanism and design connectedness therefore remain part of
-the substantive analysis.
+The fit residual is the log-of-mean-square statistic described by
+Andrich and Marais (2019, ch. 23). It is approximately standard normal
+under fit; positive values indicate under-discrimination and negative
+values indicate over-discrimination. The item-trait chi-square and
+class-interval F tests are large-sample diagnostic approximations and
+should be considered with the residual statistics, effect sizes, and
+item content.
+
+Multiple-choice responses may be scored from a named item-to-key vector,
+an item/key table, or an item/option/score table. A slash separates
+alternative correct options. The third form assigns integer category
+scores to nominated options and fits the resulting item as polytomous;
+unlisted options score zero. Raw responses are retained in `fit$mc` for
+distractor analysis.
+
+If `adjust_N` is supplied, each item-trait chi-square is multiplied by
+the reference sample size divided by the number of classified persons.
+The scaling is global: an item answered by a subset retains its
+proportionally smaller share of the reference sample.
 
 ## References
 
@@ -194,6 +165,16 @@ Measuring in the Educational, Social and Health Sciences. Springer.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. Psychometrika, 54(3), 427–450.
+
+## See also
+
+[`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
+[`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md),
+[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md),
+[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md),
+[`test_information`](https://drjoshmcgrane.github.io/rasch/reference/test_information.md),
+and
+[`run_app`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md).
 
 ## Examples
 

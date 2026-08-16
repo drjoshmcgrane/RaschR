@@ -5,73 +5,15 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Experimental residual dimensionality of paired comparisons — btl_dimensionality"><meta name="description" content="The residual-PCA analogue for paired comparisons. The fitted model predicts
-how often each object should beat each other from their locations; the
-object-by-object matrix of departures from that prediction (on the
-log-odds scale) is skew-symmetric, so its structure decomposes into
-rotational planes – Gower's (1977) bimensions – rather than the ordinary
-components of a symmetric residual-correlation matrix. A dominant leading
-bimension is a coherent &amp;#8220;swirl&amp;#8221; in the residuals (A over-beats B, B
-over-beats C, C over-beats A): a second attribute steering some contests. A
-flat spectrum is compatible with the conditional reference. This is an
-experimental diagnostic extension rather than a published calibrated BTL
-dimensionality test. The leading bimension is compared with a reference
-built by simulating unidimensional data from the
-fitted model with the observed pair counts (a parametric bootstrap, as in
-plot_scree); an observed strength above the reference is
-structure the one-dimensional model does not explain. For polytomous fits the
-residual log-odds are taken on the points-proportion scale, whose model
-mean is not exactly plogis(beta_i - beta_j); the simulated reference
-carries the same construction, so the test stays calibrated (verified
-mildly conservative on model-true polytomous data) rather than anticonservative.
-Likewise, when the fit carries within-judge dependence effects
-(order), the reference is simulated sequentially through each
-judge's comparisons with the fitted exposure and carry-over coefficients:
-order effects push the marginal pair rates around in a structured way, and
-a reference without them would read that structure as a second attribute.
-The price is power: carry-over and a judge-camp second attribute are
-partially confounded (both appear as consistent within-judge deviation),
-so with order modelled the test is conservative about attributing
-the ambiguous share to a second dimension.
-The reference simulates from the point estimates without refitting each
-replicate, so it carries sampling noise in the responses but not
-estimation noise in the parameters. Results are therefore descriptive and
-conditional on the fitted point estimates. A categorical verdict is also
-withheld when any object pair is unseen, because assigning zero residual to
-an unobserved pair would confuse missing information with model fit."><meta property="og:description" content="The residual-PCA analogue for paired comparisons. The fitted model predicts
-how often each object should beat each other from their locations; the
-object-by-object matrix of departures from that prediction (on the
-log-odds scale) is skew-symmetric, so its structure decomposes into
-rotational planes – Gower's (1977) bimensions – rather than the ordinary
-components of a symmetric residual-correlation matrix. A dominant leading
-bimension is a coherent &amp;#8220;swirl&amp;#8221; in the residuals (A over-beats B, B
-over-beats C, C over-beats A): a second attribute steering some contests. A
-flat spectrum is compatible with the conditional reference. This is an
-experimental diagnostic extension rather than a published calibrated BTL
-dimensionality test. The leading bimension is compared with a reference
-built by simulating unidimensional data from the
-fitted model with the observed pair counts (a parametric bootstrap, as in
-plot_scree); an observed strength above the reference is
-structure the one-dimensional model does not explain. For polytomous fits the
-residual log-odds are taken on the points-proportion scale, whose model
-mean is not exactly plogis(beta_i - beta_j); the simulated reference
-carries the same construction, so the test stays calibrated (verified
-mildly conservative on model-true polytomous data) rather than anticonservative.
-Likewise, when the fit carries within-judge dependence effects
-(order), the reference is simulated sequentially through each
-judge's comparisons with the fitted exposure and carry-over coefficients:
-order effects push the marginal pair rates around in a structured way, and
-a reference without them would read that structure as a second attribute.
-The price is power: carry-over and a judge-camp second attribute are
-partially confounded (both appear as consistent within-judge deviation),
-so with order modelled the test is conservative about attributing
-the ambiguous share to a second dimension.
-The reference simulates from the point estimates without refitting each
-replicate, so it carries sampling noise in the responses but not
-estimation noise in the parameters. Results are therefore descriptive and
-conditional on the fitted point estimates. A categorical verdict is also
-withheld when any object pair is unseen, because assigning zero residual to
-an unobserved pair would confuse missing information with model fit."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Experimental residual dimensionality of paired comparisons — btl_dimensionality"><meta name="description" content="Decomposes the skew-symmetric matrix of observed-minus-expected pair
+log-odds into Gower's (1977) rotational planes, or bimensions. A large
+leading bimension indicates a structured cycle in the residual comparisons.
+Its strength is compared with simulations from the fitted one-dimensional
+model using the observed comparison counts."><meta property="og:description" content="Decomposes the skew-symmetric matrix of observed-minus-expected pair
+log-odds into Gower's (1977) rotational planes, or bimensions. A large
+leading bimension indicates a structured cycle in the residual comparisons.
+Its strength is compared with simulations from the fitted one-dimensional
+model using the observed comparison counts."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -79,7 +21,7 @@ an unobserved pair would confuse missing information with model fit."><meta prop
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -112,40 +54,11 @@ an unobserved pair would confuse missing information with model fit."><meta prop
     </div>
 
     <div class="ref-description section level2">
-    <p>The residual-PCA analogue for paired comparisons. The fitted model predicts
-how often each object should beat each other from their locations; the
-object-by-object matrix of departures from that prediction (on the
-log-odds scale) is <em>skew-symmetric</em>, so its structure decomposes into
-rotational planes – Gower's (1977) bimensions – rather than the ordinary
-components of a symmetric residual-correlation matrix. A dominant leading
-bimension is a coherent “swirl” in the residuals (A over-beats B, B
-over-beats C, C over-beats A): a second attribute steering some contests. A
-flat spectrum is compatible with the conditional reference. This is an
-experimental diagnostic extension rather than a published calibrated BTL
-dimensionality test. The leading bimension is compared with a reference
-built by simulating unidimensional data from the
-fitted model with the observed pair counts (a parametric bootstrap, as in
-<code><a href="plot_scree.html">plot_scree</a></code>); an observed strength above the reference is
-structure the one-dimensional model does not explain. For polytomous fits the
-residual log-odds are taken on the points-proportion scale, whose model
-mean is not exactly <code>plogis(beta_i - beta_j)</code>; the simulated reference
-carries the same construction, so the test stays calibrated (verified
-mildly conservative on model-true polytomous data) rather than anticonservative.
-Likewise, when the fit carries within-judge dependence effects
-(<code>order</code>), the reference is simulated sequentially through each
-judge's comparisons with the fitted exposure and carry-over coefficients:
-order effects push the marginal pair rates around in a structured way, and
-a reference without them would read that structure as a second attribute.
-The price is power: carry-over and a judge-camp second attribute are
-partially confounded (both appear as consistent within-judge deviation),
-so with <code>order</code> modelled the test is conservative about attributing
-the ambiguous share to a second dimension.
-The reference simulates from the point estimates without refitting each
-replicate, so it carries sampling noise in the responses but not
-estimation noise in the parameters. Results are therefore descriptive and
-conditional on the fitted point estimates. A categorical verdict is also
-withheld when any object pair is unseen, because assigning zero residual to
-an unobserved pair would confuse missing information with model fit.</p>
+    <p>Decomposes the skew-symmetric matrix of observed-minus-expected pair
+log-odds into Gower's (1977) rotational planes, or bimensions. A large
+leading bimension indicates a structured cycle in the residual comparisons.
+Its strength is compared with simulations from the fitted one-dimensional
+model using the observed comparison counts.</p>
     </div>
 
     <div class="section level2">
@@ -177,19 +90,15 @@ an unobserved pair would confuse missing information with model fit.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Shared comparison order and <code>order</code> effects. The order-aware
-reference is trustworthy only when the comparison order varies across
-judges. If every judge is given the same fixed comparison sequence (a
-standard printed booklet, a fixed competition running order), a real
-within-judge order effect is confounded with the object locations – the
-fitted order coefficient attenuates, the locations absorb the structured
-order signal, and the reference reads the residue as a second dimension.
-This is detected automatically (from the concentration of pairs at each
-sequence position across judges) and the second-dimension verdict is
-withheld (<code>above_reference</code> is <code>NA</code>, with a note), because the
-design does not identify a second dimension separately from the order
-effect. Randomise the comparison order across judges to test
-dimensionality with an order effect present.</p>
+    <p>This is an experimental diagnostic. The reference is conditional on the
+fitted point estimates because the model is not re-estimated in each
+replicate. Ordered-response fits use the same points-proportion residual in
+the data and simulations. Fits with exposure or carry-over effects simulate
+those effects through each judge's observed sequence.</p>
+<p>A categorical result is withheld if any object pair is unobserved. It is
+also withheld when every judge receives essentially the same comparison
+sequence and an order effect is fitted, because order and residual structure
+are then confounded.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

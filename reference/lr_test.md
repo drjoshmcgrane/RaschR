@@ -1,12 +1,8 @@
-# Likelihood-ratio test of the partial credit against the rating scale model
+# Compare the partial credit and rating scale models
 
-A likelihood-ratio test in the tradition of Andersen (1973): an
-unrestricted (partial credit) analysis is compared with the rating
-re-parameterisation of the same model on the same data. Twice the
-difference in the pairwise conditional log-likelihoods is referred to a
-chi-square on the difference in the number of threshold parameters. A
-non-significant outcome supports adopting the simpler rating
-parameterisation.
+Compares a fitted partial credit model with the rating scale
+reparameterisation of the same data. Both raw and composite-likelihood
+adjusted statistics are returned.
 
 ## Usage
 
@@ -35,28 +31,26 @@ the two log-likelihoods; and the rating-scale refit (`fit_rsm`).
 
 ## Details
 
-The likelihood here is the pairwise composite likelihood, not a full
-likelihood, and twice its difference is not chi-square distributed: each
-response enters every pair its item forms, so the raw statistic is
-inflated. Two statistics are therefore reported. `chisq` is the raw
-composite value with its naive `p`, the conventional display. The
-limiting law of the raw statistic is \\\sum_j \lambda_j \chi^2_1\\ (Kent
-1982; Varin, Reid and Firth 2011) with \\\lambda_j\\ the eigenvalues of
-\\(C'H^{-1}C)^{-1}\\C'H^{-1}JH^{-1}C\\ over the \\r\\ constrained
-directions \\C\\ (the part of the partial-credit threshold space outside
-the rating subspace), estimated from the same Godambe \\H\\ and \\J\\
-matrices that supply the sandwich standard errors; matching the mean
-gives `chisq_adj` \\= r W / \sum_j \lambda_j\\ on \\r\\ degrees of
-freedom. Use `p_adj` for inference; the naive `p` is severely
-anticonservative and kept only for comparability with conventional
-software displays. The first-order calibration is accurate in simulation
-(rejection 4.7% at 500 persons and 8 items over 2,000 model-true
-replicates) but can turn mildly anticonservative for small samples with
-long polytomous tests: 6.1% at 300 persons with 12 four-category items,
-among the 1,927 of 2,000 replicates whose data admitted the comparison
-(72 were refused because randomly empty categories left unequal observed
-maximum scores, and one did not converge). Interpret `p_adj` values near
-0.05 cautiously in such designs.
+The pairwise conditional likelihood is a composite likelihood: each
+response contributes to every item pair in which it appears.
+Consequently, the raw statistic \\W=2(cl\_{PCM}-cl\_{RSM})\\ does not
+have an ordinary chi-square reference distribution. Its limiting
+distribution is \\\sum_j\lambda_j\chi^2_1\\ (Kent 1982; Varin, Reid and
+Firth 2011), where the \\\lambda_j\\ are obtained from the sensitivity
+matrix \\H\\, variability matrix \\J\\, and the constraints defining the
+RSM. The mean-matched statistic is \$\$W\_{adj}=rW/\sum_j\lambda_j,\$\$
+with \\r\\ degrees of freedom.
+
+Use `p_adj` for inference. The unadjusted `p` is retained for
+descriptive comparison with conventional displays. The adjustment is a
+first-order approximation and can be mildly anti-conservative in small
+samples with long polytomous tests: in simulation the rejection rate at
+the 0.05 level was 4.7% for 500 persons and 8 three-category items
+(2,000 model-true replicates), and 6.1% for 300 persons and 12
+four-category items among the 1,927 of 2,000 replicates whose data
+admitted the comparison (72 refusals from randomly empty categories, one
+non-convergence). Interpret `p_adj` values near 0.05 cautiously in such
+designs.
 
 ## References
 

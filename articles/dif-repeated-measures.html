@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -90,10 +90,18 @@ McGrane</h4>
 <p>Differential item functioning is a violation of the Rasch model’s
 requirement of invariant comparison: item locations should not depend on
 which persons respond (Rasch 1961). When several person factors are
-relevant, they should enter one model. Testing them one at a time can
-assign shared variation according to the order of the analyses. Repeated
-observations require a further distinction: group is a between-person
-factor, whereas occasion varies within person.</p>
+relevant, they should enter one model. Repeated observations require a
+further distinction: group is a between-person factor, whereas occasion
+varies within person.</p>
+<p>For a factor <span class="math inline">\(G\)</span>, class interval
+<span class="math inline">\(C\)</span>, and standardised residual <span class="math inline">\(z\)</span>, the single-factor model is</p>
+<p><span class="math display">\[
+z=\mu+G+C+G\mathbin{:}C+\varepsilon.
+\]</span></p>
+<p>The <span class="math inline">\(G\)</span> term tests uniform DIF.
+The <span class="math inline">\(G\mathbin{:}C\)</span> term tests
+non-uniform DIF. With several factors, <code>dif_anova</code> fits their
+terms jointly and uses Type II sums of squares.</p>
 <p>The following dataset has two observations per person. Item I03 has a
 group shift and item I06 has an occasion shift.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -129,11 +137,9 @@ declared explicitly. Persons, not stacked rows, are the units of
 analysis. Between-person tests use Type II sums of squares.
 Within-person tests use person-level contrasts, with a
 Greenhouse–Geisser correction when a factor has more than two levels.
-This joint multi-factor, mixed-design implementation extends the
-conventional single-factor residual analysis of variance of Andrich and
-Marais (2019). Its F references remain approximate, so consequential or
-sparse designs should also be checked by simulation at their observed
-cell sizes and missingness pattern.</p>
+This mixed-design analysis extends the single-factor residual analysis
+of variance described by Andrich and Marais (2019). Its F references are
+large-sample approximations.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">dat</span>, id <span class="op">=</span> <span class="st">"pid"</span>, factors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"group"</span>, <span class="st">"occasion"</span><span class="op">)</span>,</span>
 <span>             items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"I%02d"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span><span class="op">)</span></span>
@@ -190,13 +196,13 @@ cell sizes and missingness pattern.</p>
 <span><span class="co">#&gt; 14      FALSE</span></span>
 <span><span class="co">#&gt; 15      FALSE</span></span>
 <span><span class="co">#&gt; 16      FALSE</span></span></code></pre></div>
-<p>At this seed the two planted effects are flagged clearly: I03 by
-group and I06 by occasion. A third, weaker occasion flag appears on I05
-(adjusted p just under 0.05): no effect was planted there, and a
-borderline extra flag of this kind is exactly what a 5 per cent
-criterion over many item-by-term tests produces from time to time – read
-isolated marginal flags with the magnitude estimates below before acting
-on them.</p>
+<p>The planted effects are I03 by group and I06 by occasion, and both
+are flagged. This run also flags I05 by occasion, where nothing was
+planted: with eight items tested against every term, an occasional
+spurious flag is expected at any fixed level, which is why adjusted
+probabilities and effect sizes should be read together before an item is
+acted on. The <code>dif_size</code> step below shows the planted effects
+are large where the spurious flag is not.</p>
 <p>The multiplicity adjustment is applied across items separately within
 each term. Uniform DIF is a factor effect that is stable over the trait;
 a factor-by-class-interval effect is non-uniform DIF. If person-factor

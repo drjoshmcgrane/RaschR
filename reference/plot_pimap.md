@@ -7,7 +7,7 @@ scale.
 ## Usage
 
 ``` r
-plot_pimap(fit, bins = 35, xlim = NULL)
+plot_pimap(fit, bins = 35, xlim = NULL, information = FALSE)
 ```
 
 ## Arguments
@@ -25,6 +25,12 @@ plot_pimap(fit, bins = 35, xlim = NULL)
 
   Optional logit range for the shared scale; persons and thresholds
   outside it are omitted.
+
+- information:
+
+  Whether to overlay the test information function on a separate
+  right-hand axis. Fits with more than one administrable design receive
+  one curve per design.
 
 ## Value
 

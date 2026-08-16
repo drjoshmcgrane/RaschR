@@ -26,10 +26,27 @@ person_wle(tau_list, disc = 1)
 
 A list with `theta` and `se`, each named by raw score.
 
+## Details
+
+For raw score \\R\\, let \\E(\theta)\\, \\V(\theta)\\, and
+\\\mu_3(\theta)\\ be the sums of the item expected scores, variances,
+and third central moments. The estimate solves Warm's weighted score
+equation \$\$R-E(\theta)+\frac{\mu_3(\theta)}{2V(\theta)}=0.\$\$ With
+common discrimination \\d\\, its explicit multiplier cancels from this
+equation, although the moments are evaluated under \\d\\. The reported
+standard error is \$\$\operatorname{SE}(\hat{\theta})=
+\\d^2V(\hat{\theta})\\^{-1/2}.\$\$
+
 ## References
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. Psychometrika, 54(3), 427–450.
+
+## See also
+
+[`score_table`](https://drjoshmcgrane.github.io/rasch/reference/score_table.md)
+and
+[`person_extrapolated`](https://drjoshmcgrane.github.io/rasch/reference/person_extrapolated.md).
 
 ## Examples
 

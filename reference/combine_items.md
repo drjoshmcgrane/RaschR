@@ -1,12 +1,9 @@
 # Combine items into subtests and re-analyse
 
-Forms one polytomous super-item from each nominated group of items (its
-score is the member sum; missing if any member is missing), keeps all
-other items as they are, and refits the model with the same settings.
-The usual treatment for item pairs identified for investigation from
-[`residual_correlations`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md)
-(whose optional binary threshold is a heuristic screen, not a calibrated
-test).
+Replaces each nominated item group by a polytomous super-item whose
+score is the sum of its members, then refits the model. The function is
+commonly used to examine item groups identified by
+[`residual_correlations`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md).
 
 ## Usage
 

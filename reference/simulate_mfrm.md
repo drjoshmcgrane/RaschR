@@ -1,8 +1,7 @@
-# Simulate many-facet (rated) data with dial-in misfit
+# Simulate many-facet Rasch data
 
-Generates ratings from the many-facet Rasch model (Linacre 1989): every
-rater rates every person on every item, from person ability, item
-difficulty, and rater severity. Departures each feed an MFRM diagnostic.
+Generates fully crossed ratings from a many-facet Rasch model (Linacre
+1989), with optional erratic raters, item-by-rater interaction, or halo.
 
 ## Usage
 

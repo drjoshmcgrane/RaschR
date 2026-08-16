@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -90,9 +90,21 @@ McGrane</h4>
 <p>Paired-comparison data record two objects and an observed preference.
 In the Bradley–Terry–Luce model (Bradley and Terry 1952; Luce 1959), the
 log odds of choosing object A over object B are their location
-difference – the conditional form of the dichotomous Rasch model (Rasch
+difference:</p>
+<p><span class="math display">\[
+P(A\succ B)=\frac{\exp(\beta_A)}
+{\exp(\beta_A)+\exp(\beta_B)}.
+\]</span></p>
+<p>This is the conditional form of the dichotomous Rasch model (Rasch
 1960; Andrich 1978). The comparison graph must connect all objects;
 otherwise their relative locations are not identified.</p>
+<p>For ordered comparisons, <code>btl</code> fits the adjacent-category
+extension</p>
+<p><span class="math display">\[
+\log\frac{P(Y=r)}{P(Y=r-1)}=\beta_A-\beta_B-\tau_r,
+\]</span></p>
+<p>with thresholds symmetric under reversal of presentation order (Tutz
+1986).</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl.html">simulate_btl</a></span><span class="op">(</span>n_objects <span class="op">=</span> <span class="fl">7</span>, n_judges <span class="op">=</span> <span class="fl">12</span>,</span>
 <span>                  reps_per_pair <span class="op">=</span> <span class="fl">20</span>, seed <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
@@ -204,12 +216,17 @@ this function.</p>
 <div class="section level2">
 <h2 id="linked-frames-for-paired-comparisons">Linked frames for paired comparisons<a class="anchor" aria-label="anchor" href="#linked-frames-for-paired-comparisons"></a>
 </h2>
-<p><code>btl_efrm</code> is a hybrid of the comparative judgement model
-and Humphry’s extended frame of reference structure (Humphry and Andrich
-2008): it extends the paired-comparison model when judges belong to
-panels and objects belong to linked sets whose units or origins may
-differ. Cross-set comparisons establish the common scale. Without enough
-cross-set links, set units and origins are not identified.</p>
+<p><code>btl_efrm</code> combines the comparative judgement model with
+Humphry’s extended frame of reference structure (Humphry and Andrich
+2008). Judges belong to panels, and objects belong to linked sets. For
+object <span class="math inline">\(k\)</span> in set <span class="math inline">\(s\)</span>,</p>
+<p><span class="math display">\[
+v_k=\alpha_s\beta_k+\kappa_s.
+\]</span></p>
+<p>A same-set comparison in panel <span class="math inline">\(g\)</span>
+has logit <span class="math inline">\(\phi_g(\beta_A-\beta_B)\)</span>;
+a cross-set comparison has logit <span class="math inline">\(\phi_g(v_A-v_B)\)</span>. Cross-set comparisons
+identify the set units and origins.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">de</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl_efrm.html">simulate_btl_efrm</a></span><span class="op">(</span></span>
 <span>  n_objects_per_set <span class="op">=</span> <span class="fl">5</span>, n_sets <span class="op">=</span> <span class="fl">2</span>,</span>
@@ -234,15 +251,13 @@ cross-set links, set units and origins are not identified.</p>
 <span><span class="co">#&gt;    set  kappa se_kappa     t df       p   p_adj significant</span></span>
 <span><span class="co">#&gt; 1 set1 0.0000       NA    NA 11      NA      NA          NA</span></span>
 <span><span class="co">#&gt; 2 set2 0.2798   0.1228 2.279 11 0.04364 0.04364        TRUE</span></span></code></pre></div>
-<p>For final inference, the default judge bootstrap resamples judges
-within panels and refits both stages. It therefore propagates stage-one
-uncertainty and retains dependence among a judge’s comparisons. The
-parametric bootstrap (<code>se_method = "bootstrap"</code>) instead
-draws independent outcomes from the fitted model and is useful as a
-model-based sensitivity analysis. The conditional option used above is a
-fast inspection method and does not propagate stage-one uncertainty into
-the set-linking parameters. Read the omnibus unit tests before the
-Holm-adjusted individual unit contrasts.</p>
+<p>The default judge bootstrap resamples judges within panels and refits
+both stages. The parametric bootstrap
+(<code>se_method = "bootstrap"</code>) draws independent outcomes from
+the fitted model. The conditional option used above does not propagate
+stage-one uncertainty into the set-linking parameters. Omnibus tests
+cover the unit families; individual contrasts are Holm-adjusted
+follow-ups.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

@@ -29,7 +29,7 @@ PCM."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/l
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -122,6 +122,19 @@ Smaller is better; the criteria are valid across models of the same data
 whether or not they nest, and are <code>NA</code> (with the reason in the
 printed note) for MFRM and EFRM fits, which do not carry their Godambe
 matrices.</p>
+<p>In simulation (400 replicates per condition, fixed truths) the criteria
+reproduce the classical selection properties. Where the alternatives
+differ by several parameters, <code>cl_aic</code> selects the larger model
+under the null at close to its theoretical rate – 5.2% for partial
+credit against rating scale (eight three-category items) and 4.5% for
+free against two-component thresholds (eight four-category items) –
+and detects a quadratic threshold departure of 0.3 logits in 99% of
+replicates. Where they differ by a single parameter (comparative
+judgement free versus principal-component thresholds), <code>cl_aic</code>
+prefers the larger model in about 17% of null replicates, the familiar
+single-parameter AIC rate. <code>cl_bic</code> is stricter throughout (no
+false selections in the multi-parameter conditions) at the price of
+little power against mild departures.</p>
 <p>Across different data preparations (subtests, splits, facet or frame
 structures) the likelihoods are not comparable and the calibration-free
 columns carry the comparison: total item-trait chi-square per degree of

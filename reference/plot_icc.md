@@ -1,13 +1,22 @@
 # Plot an item characteristic curve
 
 Draws the model expected-score curve with observed class-interval means
-overlaid. With `group` supplied, observed means are drawn separately per
-group, the conventional graphical DIF display.
+overlaid. Several items may be drawn together; their expected scores are
+then expressed as proportions of their maximum scores. With `group`
+supplied, observed means are drawn separately per group, the
+conventional graphical DIF display.
 
 ## Usage
 
 ``` r
-plot_icc(fit, item, group = NULL, n_groups = NULL, grid = seq(-5, 5, 0.05))
+plot_icc(
+  fit,
+  item,
+  group = NULL,
+  n_groups = NULL,
+  grid = seq(-5, 5, 0.05),
+  observed = TRUE
+)
 ```
 
 ## Arguments
@@ -19,7 +28,8 @@ plot_icc(fit, item, group = NULL, n_groups = NULL, grid = seq(-5, 5, 0.05))
 
 - item:
 
-  Item name or column index.
+  One or more item names or column indices. Up to eight items may be
+  overlaid. A group overlay requires a single item.
 
 - group:
 
@@ -36,6 +46,10 @@ plot_icc(fit, item, group = NULL, n_groups = NULL, grid = seq(-5, 5, 0.05))
 - grid:
 
   Logit grid over which to draw the model curve.
+
+- observed:
+
+  Whether to add observed class-interval means.
 
 ## Value
 

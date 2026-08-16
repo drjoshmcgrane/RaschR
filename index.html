@@ -24,9 +24,9 @@
 <link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="rasch: Models and Diagnostics for Rasch Measurement Theory">
-<meta name="description" content="Rasch Measurement Theory in R, with models and diagnostics organised around the properties of sufficiency and invariance, plus a guided point-and-click Shiny app for analysts who prefer a graphical workflow.
+<meta name="description" content="Models and diagnostics for examining sufficiency and invariance within Rasch Measurement Theory, with a point-and-click Shiny application.
 ">
-<meta property="og:description" content="Rasch Measurement Theory in R, with models and diagnostics organised around the properties of sufficiency and invariance, plus a guided point-and-click Shiny app for analysts who prefer a graphical workflow.
+<meta property="og:description" content="Models and diagnostics for examining sufficiency and invariance within Rasch Measurement Theory, with a point-and-click Shiny application.
 ">
 <meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg">
 </head>
@@ -38,7 +38,7 @@
 
     <a class="navbar-brand me-2" href="index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,80 +78,78 @@
 </div>
 <!-- badges: start -->
 
-<p><code>rasch</code> implements Rasch Measurement Theory in R. It provides a common set of models and diagnostics for constructing measurement scales and examining whether the requirements of the Rasch model are supported by the data.</p>
-<p>The package is organised around two defining properties of Rasch measurement:</p>
-<ul>
-<li>
-<strong>Sufficiency:</strong> the total score on the relevant items carries all the information in the data about a person’s measure (and the item margins all the information about the items) – the property that allows person and item parameters to be separated in conditional estimation.</li>
-<li>
-<strong>Invariance:</strong> within a specified frame of reference, comparisons between persons do not depend on which items are used, and comparisons between items do not depend on which persons respond – Rasch’s criterion of invariant comparison, or specific objectivity.</li>
-</ul>
-<p>These are requirements the data must meet for measurement, not assumptions taken on trust. The package therefore treats estimation and the assessment of these requirements as parts of the same analysis: it provides item and person estimates, and with them the fit, dimensionality, local dependence and differential item functioning analyses that examine whether the data sustain invariant comparisons – differential item functioning, for example, is precisely a violation of invariance across person groups.</p>
-<p><strong>Documentation:</strong> <a href="https://drjoshmcgrane.github.io/rasch/" class="uri">https://drjoshmcgrane.github.io/rasch/</a></p>
-<div class="section level2">
-<h2 id="point-and-click-shiny-app">Point-and-click Shiny app<a class="anchor" aria-label="anchor" href="#point-and-click-shiny-app"></a>
-</h2>
-<p><code>rasch</code> includes a complete graphical interface for analysts who do not normally work in R. After the package is installed, launch it with one command:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The app guides the user through importing data, assigning item, person, group, rater and comparison roles, selecting the appropriate model, fitting the analysis, and examining the resulting diagnostics. Tables, plots and reports can be downloaded directly. The corresponding R call is shown alongside each analysis, so the graphical workflow remains transparent and reproducible.</p>
-<p>R is needed to install the package and launch the app, but the analysis itself can then be completed through the point-and-click interface without writing R code.</p>
-<p align="center">
-<img src="reference/figures/app-items.png" alt="The rasch Shiny interface: the item statistics table (locations, fit residuals, infit and outfit, adjusted chi-square p) beside the selected item's characteristic curve with observed class-interval points" width="90%"></p>
-</div>
+<p><code>rasch</code> fits and evaluates models within Rasch Measurement Theory. It includes models for item responses, ratings, linked frames of reference, and paired comparisons, with a common set of functions for examining fit, invariance, targeting, dimensionality, and local dependence.</p>
+<p>For an item with ordered scores <span class="math inline">\(x=0,\ldots,m_i\)</span>, <code><a href="reference/rasch.html">rasch()</a></code> estimates the partial credit model</p>
+<p><span class="math display">\[
+\log\frac{P(X_{ni}=x)}{P(X_{ni}=x-1)}=\theta_n-\delta_{ix},
+\]</span></p>
+<p>where <span class="math inline">\(\theta_n\)</span> is the location of person <span class="math inline">\(n\)</span> and <span class="math inline">\(\delta_{ix}\)</span> is the threshold between categories <span class="math inline">\(x-1\)</span> and <span class="math inline">\(x\)</span>; dichotomous items have one threshold, and the rating scale model holds a common threshold structure across the items. The total score is sufficient for <span class="math inline">\(\theta_n\)</span>, so <code><a href="reference/rasch.html">rasch()</a></code> estimates the item parameters by pairwise conditioning (Zwinderman, 1995), without assuming a population distribution for the person locations, and returns Warm (1989) weighted likelihood person measures on the same scale. The other models carry these comparisons to raters and other facets of a measurement design and to frames of reference measured in different units. In comparative judgement of paired stimuli the same adjacent-category form applies with the difference between two stimulus locations, <span class="math inline">\(\beta_a-\beta_b\)</span>, in place of <span class="math inline">\(\theta_n\)</span>, and a single symmetric threshold set shared by all pairs.</p>
+<p>The package treats fit to the model as an empirical question. Its diagnostics examine whether comparisons remain invariant across persons, items, groups, occasions, raters, and other parts of the measurement design.</p>
 <div class="section level2">
 <h2 id="models">Models<a class="anchor" aria-label="anchor" href="#models"></a>
 </h2>
-<p>The model suite includes:</p>
-<ul>
-<li>the dichotomous Rasch model;</li>
-<li>the polytomous Rasch models;</li>
-<li>many-facet Rasch models;</li>
-<li>extended frame of reference model; and</li>
-<li>comparative judgement models for dichotomous and polytomous pairwise comparisons.</li>
-</ul>
-<p>The standard item models use pairwise conditional estimation, with person measurement based on weighted likelihood. Anchored estimation is available for equating, and planned missing-data designs (linked booklets, rotated forms).</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Function</th>
+<th>Model</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code><a href="reference/rasch.html">rasch()</a></code></td>
+<td>Dichotomous Rasch, partial credit, and rating scale models</td>
+</tr>
+<tr>
+<td><code><a href="reference/rasch_mfrm.html">rasch_mfrm()</a></code></td>
+<td>Many-facet Rasch model</td>
+</tr>
+<tr>
+<td><code><a href="reference/rasch_efrm.html">rasch_efrm()</a></code></td>
+<td>Extended frame of reference model</td>
+</tr>
+<tr>
+<td><code><a href="reference/btl.html">btl()</a></code></td>
+<td>Comparative judgement models for dichotomous and polytomous paired comparisons</td>
+</tr>
+<tr>
+<td><code><a href="reference/btl_efrm.html">btl_efrm()</a></code></td>
+<td>Extended frame of reference model for paired comparisons</td>
+</tr>
+</tbody>
+</table>
+<p>Anchored estimation is available for equating, and incomplete linked designs can be fitted when their observed response structure identifies a common scale.</p>
 <p>The suite follows Rasch (1960) and Andrich and Marais (2019); the frame of reference models follow Humphry’s (2005) thesis, where the model is introduced and named, and Humphry and Andrich (2008); the dichotomous comparative judgement model is the conditional form of the dichotomous Rasch model (Andrich, 1978), and the polytomous comparative judgement model is its adjacent-categories extension (Tutz, 1986).</p>
 </div>
 <div class="section level2">
-<h2 id="what-can-be-examined">What can be examined<a class="anchor" aria-label="anchor" href="#what-can-be-examined"></a>
+<h2 id="shiny-application">Shiny application<a class="anchor" aria-label="anchor" href="#shiny-application"></a>
 </h2>
-<p><code>rasch</code> provides functions for:</p>
-<ul>
-<li>item, person and category fit;</li>
-<li>threshold functioning and category ordering;</li>
-<li>targeting, reliability and test information;</li>
-<li>residual dimensionality and local response dependence;</li>
-<li>differential item functioning over one or more person factors;</li>
-<li>between-person and within-person factor designs;</li>
-<li>DIF magnitude, planned contrasts and item splitting;</li>
-<li>common-item equating and anchored calibration;</li>
-<li>repeated-measures data in racked or stacked form;</li>
-<li>multiple-choice distractor analysis;</li>
-<li>simulation and parameter recovery; and</li>
-<li>export of tables, plots and HTML reports.</li>
-</ul>
-<p>Where the data do not identify an estimate, the fitting functions stop or withhold the affected result and provide an explanatory note.</p>
+<p>The package includes a graphical interface for analysts who do not normally work in R. Launch it after installation with:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. Results can be downloaded, and the R call for each analysis is shown in the interface.</p>
+<p align="center">
+<img src="reference/figures/app-items.png" alt="Item statistics and an item characteristic curve in the rasch Shiny application" width="90%"></p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>Install the released version from CRAN:</p>
+<p>Install the CRAN release with:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"rasch"</span><span class="op">)</span></span></code></pre></div>
-<p>Install the development version from GitHub:</p>
+<p>The development version is available from GitHub:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"drjoshmcgrane/rasch"</span><span class="op">)</span></span></code></pre></div>
-<p>The analysis functions depend only on base and recommended R packages. The interactive interface uses packages listed under <code>Suggests</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+<h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://drjoshmcgrane.github.io/rasch/">rasch</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Example data with a person factor for DIF analysis</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span></span>
 <span>  n_persons <span class="op">=</span> <span class="fl">500</span>,</span>
 <span>  n_items <span class="op">=</span> <span class="fl">10</span>,</span>
@@ -162,80 +160,32 @@
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d</span>, model <span class="op">=</span> <span class="st">"PCM"</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">items</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">person</span></span>
+<span><span class="fu"><a href="reference/fit_summary_table.html">fit_summary_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/targeting_table.html">targeting_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I05"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/score_table.html">score_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/save_outputs.html">save_outputs</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"rasch-results"</span><span class="op">)</span></span></code></pre></div>
-<p>For short scales the dimensionality test may deliberately return an indeterminate result: each opposed subtest needs at least 15 score points. Residual-correlation tables are always available, but binary adjusted-Q3 flags require an analyst-supplied heuristic threshold.</p>
-<p>For an observed data frame, supply item columns together with optional ID and person-factor columns:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch.html">rasch</a></span><span class="op">(</span></span>
-<span>  <span class="va">responses</span>,</span>
-<span>  model <span class="op">=</span> <span class="st">"PCM"</span>,</span>
-<span>  id <span class="op">=</span> <span class="st">"person_id"</span>,</span>
-<span>  factors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gender"</span>, <span class="st">"site"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I05"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
+<p>The <a href="https://drjoshmcgrane.github.io/rasch/reference/index.html">function reference</a> documents the data requirements and returned values for each analysis. The <a href="https://drjoshmcgrane.github.io/rasch/articles/">articles</a> give worked examples for the main model families, DIF with repeated measures, and simulation.</p>
 </div>
 <div class="section level2">
-<h2 id="other-model-families">Other model families<a class="anchor" aria-label="anchor" href="#other-model-families"></a>
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Many-facet Rasch model</span></span>
-<span><span class="va">mf</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span></span>
-<span>  <span class="va">ratings</span>,</span>
-<span>  person <span class="op">=</span> <span class="st">"person"</span>,</span>
-<span>  item <span class="op">=</span> <span class="st">"criterion"</span>,</span>
-<span>  score <span class="op">=</span> <span class="st">"score"</span>,</span>
-<span>  facets <span class="op">=</span> <span class="st">"rater"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Extended frame of reference model</span></span>
-<span><span class="va">ef</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span></span>
-<span>  <span class="va">responses</span>,</span>
-<span>  item_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>numeracy <span class="op">=</span> <span class="va">numeracy_items</span>,</span>
-<span>                   literacy <span class="op">=</span> <span class="va">literacy_items</span><span class="op">)</span>,</span>
-<span>  groups <span class="op">=</span> <span class="st">"group"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Paired comparisons</span></span>
-<span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/btl.html">btl</a></span><span class="op">(</span></span>
-<span>  <span class="va">comparisons</span>,</span>
-<span>  object_a <span class="op">=</span> <span class="st">"left"</span>,</span>
-<span>  object_b <span class="op">=</span> <span class="st">"right"</span>,</span>
-<span>  winner <span class="op">=</span> <span class="st">"preferred"</span>,</span>
-<span>  judge <span class="op">=</span> <span class="st">"judge"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>The <a href="https://drjoshmcgrane.github.io/rasch/reference/index.html">function reference</a> documents the input structures, identification requirements and output for each model.</p>
-</div>
-<div class="section level2">
-<h2 id="documentation-and-validation">Documentation and validation<a class="anchor" aria-label="anchor" href="#documentation-and-validation"></a>
-</h2>
-<p>The package documentation gives the estimator definitions, standard errors, identification checks and diagnostic conventions used by each function. The article <a href="https://drjoshmcgrane.github.io/rasch/articles/plant-and-detect.html">Simulation-based checks of Rasch diagnostics</a> shows how known model departures can be introduced and assessed.</p>
-<p>The test suite includes parameter-recovery, null-calibration, adversarial identification and cross-package comparison tests. Current CRAN check results are available from the <a href="https://CRAN.R-project.org/package=rasch" class="external-link">CRAN package page</a>.</p>
+<p>Andrich, D. (1978). Relationships between the Thurstone and Rasch approaches to item scaling. <em>Applied Psychological Measurement</em>, 2(3), 451–462.</p>
+<p>Andrich, D., and Marais, I. (2019). <em>A Course in Rasch Measurement Theory: Measuring in the Educational, Social and Health Sciences</em>. Springer.</p>
+<p>Humphry, S. M. (2005). <em>Maintaining a Common Arbitrary Unit in Social Measurement</em>. PhD thesis, Murdoch University.</p>
+<p>Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the Rasch model. <em>Journal of Applied Measurement</em>, 9(3), 249–264.</p>
+<p>Rasch, G. (1960). <em>Probabilistic Models for Some Intelligence and Attainment Tests</em>. Danish Institute for Educational Research. Expanded edition, University of Chicago Press, 1980.</p>
+<p>Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response. <em>Journal of Mathematical Psychology</em>, 30(3), 306–316.</p>
+<p>Warm, T. A. (1989). Weighted likelihood estimation of ability in item response theory. <em>Psychometrika</em>, 54(3), 427–450.</p>
+<p>Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models. <em>Applied Psychological Measurement</em>, 19(4), 369–375.</p>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<p>To cite the <code>rasch</code> package in publications:</p>
-<blockquote>
-<p>McGrane, J. (2026). <em>rasch: Models and Diagnostics for Rasch Measurement Theory</em>. R package version 1.14.1. <a href="https://CRAN.R-project.org/package=rasch" class="external-link uri">https://CRAN.R-project.org/package=rasch</a></p>
-</blockquote>
-<div class="sourceCode" id="cb7"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="va">@Manual</span>{<span class="ot">rasch</span>,</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="dt">title</span>  = {rasch: Models and Diagnostics for Rasch Measurement Theory},</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="dt">author</span> = {Josh McGrane},</span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="dt">year</span>   = {2026},</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="dt">note</span>   = {R package version 1.14.1},</span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="dt">url</span>    = {https://CRAN.R-project.org/package=rasch},</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>}</span></code></pre></div>
-<p><code>citation("rasch")</code> reproduces this from within R.</p>
+<p>Use <code>citation("rasch")</code> to obtain the citation for the installed version.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

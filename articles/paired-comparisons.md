@@ -10,9 +10,20 @@ library(rasch)
 Paired-comparison data record two objects and an observed preference. In
 the Bradley–Terry–Luce model (Bradley and Terry 1952; Luce 1959), the
 log odds of choosing object A over object B are their location
-difference – the conditional form of the dichotomous Rasch model (Rasch
-1960; Andrich 1978). The comparison graph must connect all objects;
-otherwise their relative locations are not identified.
+difference:
+
+\\ P(A\succ B)=\frac{\exp(\beta_A)} {\exp(\beta_A)+\exp(\beta_B)}. \\
+
+This is the conditional form of the dichotomous Rasch model (Rasch 1960;
+Andrich 1978). The comparison graph must connect all objects; otherwise
+their relative locations are not identified.
+
+For ordered comparisons, `btl` fits the adjacent-category extension
+
+\\ \log\frac{P(Y=r)}{P(Y=r-1)}=\beta_A-\beta_B-\tau_r, \\
+
+with thresholds symmetric under reversal of presentation order (Tutz
+1986).
 
 ``` r
 
@@ -140,12 +151,17 @@ or paired bootstrap outside this function.
 
 ## Linked frames for paired comparisons
 
-`btl_efrm` is a hybrid of the comparative judgement model and Humphry’s
-extended frame of reference structure (Humphry and Andrich 2008): it
-extends the paired-comparison model when judges belong to panels and
-objects belong to linked sets whose units or origins may differ.
-Cross-set comparisons establish the common scale. Without enough
-cross-set links, set units and origins are not identified.
+`btl_efrm` combines the comparative judgement model with Humphry’s
+extended frame of reference structure (Humphry and Andrich 2008). Judges
+belong to panels, and objects belong to linked sets. For object \\k\\ in
+set \\s\\,
+
+\\ v_k=\alpha_s\beta_k+\kappa_s. \\
+
+A same-set comparison in panel \\g\\ has logit
+\\\phi_g(\beta_A-\beta_B)\\; a cross-set comparison has logit
+\\\phi_g(v_A-v_B)\\. Cross-set comparisons identify the set units and
+origins.
 
 ``` r
 
@@ -174,15 +190,12 @@ ef$kappa_table
 #> 2 set2 0.2798   0.1228 2.279 11 0.04364 0.04364        TRUE
 ```
 
-For final inference, the default judge bootstrap resamples judges within
-panels and refits both stages. It therefore propagates stage-one
-uncertainty and retains dependence among a judge’s comparisons. The
-parametric bootstrap (`se_method = "bootstrap"`) instead draws
-independent outcomes from the fitted model and is useful as a
-model-based sensitivity analysis. The conditional option used above is a
-fast inspection method and does not propagate stage-one uncertainty into
-the set-linking parameters. Read the omnibus unit tests before the
-Holm-adjusted individual unit contrasts.
+The default judge bootstrap resamples judges within panels and refits
+both stages. The parametric bootstrap (`se_method = "bootstrap"`) draws
+independent outcomes from the fitted model. The conditional option used
+above does not propagate stage-one uncertainty into the set-linking
+parameters. Omnibus tests cover the unit families; individual contrasts
+are Holm-adjusted follow-ups.
 
 ## References
 

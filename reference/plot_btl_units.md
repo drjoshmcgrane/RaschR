@@ -1,10 +1,7 @@
 # Plot the frame units of a paired-comparison EFRM fit
 
-Caterpillar plot of the estimated units on the log scale: one row per
-panel unit `phi_g` and one per set unit `alpha_s`, with 95 per cent
-intervals, the reference (unit one) marked, mirroring
-[`plot_frames`](https://drjoshmcgrane.github.io/rasch/reference/plot_frames.md)
-in the package's house style.
+Caterpillar plot of panel units `phi_g` and set units `alpha_s` on the
+log scale, with 95 per cent intervals and unit one marked.
 
 ## Usage
 

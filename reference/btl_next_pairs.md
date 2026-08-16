@@ -1,18 +1,10 @@
 # Recommend the next informative comparisons (adaptive step)
 
-The adaptive comparative judgement step of Pollitt (2012): rank
-candidate object pairs by the information one additional comparison
-would carry at the current estimates. That information peaks when the
-two objects are close in location, so at equal measurement the
-recommender favours near-neighbour contests. With `weight_se = TRUE`
-(the default) each pair's priority is the one-step reduction in TOTAL
-location variance that one added comparison of the pair would deliver,
-from a rank-one (Sherman-Morrison) update of the fit's stored covariance
-with the comparison's information on the contrast, so pairs of poorly
-measured (and correlated) objects are promoted. The update formula is
-exact for a model-based information matrix; applied to the sandwich
-covariance it is a scoring device, consistent with the ranking-heuristic
-status described below.
+Ranks candidate object pairs by the information expected from one
+additional comparison at the current estimates (Pollitt 2012). By
+default, priority is the one-step reduction in total location variance
+from a rank-one covariance update. This favours close pairs and objects
+measured with less precision.
 
 ## Usage
 
@@ -29,12 +21,7 @@ btl_next_pairs(fit, n = 10, weight_se = TRUE)
 
 - n:
 
-  Number of pairs to return. The priority is a greedy one-step RANKING
-  heuristic: it plugs the judge-clustered sandwich covariance into an
-  information-update formula that is exact only for a model-based
-  information matrix, so the ranking orders candidate pairs sensibly but
-  the implied variance reductions are not exact sandwich updates. Treat
-  the ordering, not the magnitudes, as the output.
+  Number of pairs to return.
 
 - weight_se:
 
@@ -54,15 +41,11 @@ by `priority` (or by `expected_information` when `weight_se = FALSE`).
 
 ## Details
 
-This is a *greedy* rule that scores each pair on its own immediate
-one-step gain (an A-optimality step at the current estimates, taking the
-clustered covariance as the state); it is not a full optimal design and
-can be beaten by one that plans several comparisons jointly. And
-adaptive selection is known to inflate a separation (scale) reliability
-computed naively afterwards, because the design concentrates comparisons
-where they shrink the errors most: report reliability from an
-independent or non-adaptive subset, or treat an adaptive reliability as
-an upper bound (Bramley 2015).
+The procedure is a greedy, one-step ranking rather than a jointly
+optimal design. Applied to a sandwich covariance, the update ranks pairs
+but does not give an exact variance reduction. Adaptive selection can
+also inflate a separation reliability calculated from the same
+comparisons (Bramley 2015).
 
 ## References
 

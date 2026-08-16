@@ -1,4 +1,4 @@
-# Save every output of a Rasch analysis to a folder
+# Save the outputs of a Rasch analysis
 
 Writes all tables (item statistics, thresholds with standard errors,
 person estimates including ID and factors, the score-to-measure table,
@@ -43,7 +43,7 @@ save_outputs(
 
 - dpi:
 
-  PNG resolution; the default 300 is publication quality.
+  PNG resolution.
 
 - item_plots:
 

@@ -1,12 +1,9 @@
 # Plot an object characteristic curve
 
-The paired-comparison counterpart of the item characteristic curve: the
-model expected response for one object as a function of opponent
-location (the win probability, or the expected polytomous response),
-with the observed mean response against each opponent overlaid at that
-opponent\\s estimated location. Observed points shrink in toward the
-curve as the model holds; an object of inconsistent quality shows points
-straying from it, exactly as a misfitting item does.
+Plots the expected response for one object against opponent location,
+with the observed mean response against each sufficiently observed
+opponent. For dichotomous fits the curve is the win probability; for
+ordered fits it is the expected response.
 
 ## Usage
 

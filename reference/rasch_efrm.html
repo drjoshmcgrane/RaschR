@@ -5,45 +5,21 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit the extended frame of reference model — rasch_efrm"><meta name="description" content="Estimates Humphry's extended frame of reference model, in which the unit
-of the latent scale differs across frames (item-set by person-group
-cells). For item \(i\) in set \(s\) and person \(n\) in group
-\(g\), the response model is
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit the extended frame of reference model — rasch_efrm"><meta name="description" content="Fits Humphry's extended frame of reference model, in which the unit can
+differ across item-set by person-group frames. For item \(i\) in set
+\(s\) and person \(n\) in group \(g\),
 $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
   \sum_{k=1}^{x}\delta_{ik}]\}}
   {\sum_{y=0}^{m_i}\exp\{\rho_{sg}[y\theta_n-
   \sum_{k=1}^{y}\delta_{ik}]\}},\qquad
-  \rho_{sg}=\alpha_s\phi_g.$$
-Within frames the partial credit model
-holds in the frame's natural unit, so item thresholds and the person
-group units phi are estimated by within-frame pairwise conditional
-maximum likelihood (the person parameter cancels; Andrich and Luo 2003),
-jointly across frames through the sets shared by several groups. Item-set
-units alpha and set locations are then estimated from persons
-common to pairs of sets, using error-corrected true-score variances, and
-reconciled over the linking graph by weighted least squares. Everything
-is reported in a common arbitrary unit, and the returned object is also a
-full rasch fit at the item-by-group level, so the package's
-diagnostic tables and plots apply."><meta property="og:description" content="Estimates Humphry's extended frame of reference model, in which the unit
-of the latent scale differs across frames (item-set by person-group
-cells). For item \(i\) in set \(s\) and person \(n\) in group
-\(g\), the response model is
+  \rho_{sg}=\alpha_s\phi_g.$$"><meta property="og:description" content="Fits Humphry's extended frame of reference model, in which the unit can
+differ across item-set by person-group frames. For item \(i\) in set
+\(s\) and person \(n\) in group \(g\),
 $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
   \sum_{k=1}^{x}\delta_{ik}]\}}
   {\sum_{y=0}^{m_i}\exp\{\rho_{sg}[y\theta_n-
   \sum_{k=1}^{y}\delta_{ik}]\}},\qquad
-  \rho_{sg}=\alpha_s\phi_g.$$
-Within frames the partial credit model
-holds in the frame's natural unit, so item thresholds and the person
-group units phi are estimated by within-frame pairwise conditional
-maximum likelihood (the person parameter cancels; Andrich and Luo 2003),
-jointly across frames through the sets shared by several groups. Item-set
-units alpha and set locations are then estimated from persons
-common to pairs of sets, using error-corrected true-score variances, and
-reconciled over the linking graph by weighted least squares. Everything
-is reported in a common arbitrary unit, and the returned object is also a
-full rasch fit at the item-by-group level, so the package's
-diagnostic tables and plots apply."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+  \rho_{sg}=\alpha_s\phi_g.$$"><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -51,7 +27,7 @@ diagnostic tables and plots apply."><meta property="og:image" content="https://d
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,26 +60,14 @@ diagnostic tables and plots apply."><meta property="og:image" content="https://d
     </div>
 
     <div class="ref-description section level2">
-    <p>Estimates Humphry's extended frame of reference model, in which the unit
-of the latent scale differs across frames (item-set by person-group
-cells). For item \(i\) in set \(s\) and person \(n\) in group
-\(g\), the response model is
+    <p>Fits Humphry's extended frame of reference model, in which the unit can
+differ across item-set by person-group frames. For item \(i\) in set
+\(s\) and person \(n\) in group \(g\),
 $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
   \sum_{k=1}^{x}\delta_{ik}]\}}
   {\sum_{y=0}^{m_i}\exp\{\rho_{sg}[y\theta_n-
   \sum_{k=1}^{y}\delta_{ik}]\}},\qquad
-  \rho_{sg}=\alpha_s\phi_g.$$
-Within frames the partial credit model
-holds in the frame's natural unit, so item thresholds and the person
-group units <code>phi</code> are estimated by within-frame pairwise conditional
-maximum likelihood (the person parameter cancels; Andrich and Luo 2003),
-jointly across frames through the sets shared by several groups. Item-set
-units <code>alpha</code> and set locations are then estimated from persons
-common to pairs of sets, using error-corrected true-score variances, and
-reconciled over the linking graph by weighted least squares. Everything
-is reported in a common arbitrary unit, and the returned object is also a
-full <code><a href="rasch.html">rasch</a></code> fit at the item-by-group level, so the package's
-diagnostic tables and plots apply.</p>
+  \rho_{sg}=\alpha_s\phi_g.$$</p>
     </div>
 
     <div class="section level2">
@@ -144,26 +108,11 @@ mentioned form their own set <code>"(rest)"</code> when a list is given.</p></dd
 <dt id="arg-groups">groups<a class="anchor" aria-label="anchor" href="#arg-groups"></a></dt>
 <dd><p>Name of the person-group column in <code>data</code>, or a vector
 with one entry per person.
-Several column names may be given: the frames are then their crossed
-cells, per-cell units appear in <code>phi_table</code>, and a factorial
-decomposition of the cell units (sum-coded main effects, and the
-interaction when every cell is observed) is returned in
-<code>phi_factorial</code>. The decomposition is a generalised
-least-squares fit of the cell log-units using their joint covariance
-(bootstrap replicates when available, otherwise the analytic centred
-covariance, inverted spectrally along its identified directions);
-coefficient rows are descriptive, and inference is carried by the
-multi-degree-of-freedom Wald test per term in
-<code>phi_factorial_tests</code>. Group units are checked for
-identification on the joint information: a flat direction along a
-unit (structural non-identification) is refused with an error naming
-the group, since every common-unit quantity would silently depend on
-it. A unit whose analytic standard error exceeds 5 log-units
-(uncertain beyond a factor of about 150) is practically
-uninformative but not structurally unidentified: its estimate is
-kept for sensitivity work, with a warning and a note. Weakly
-identified units with real threshold spread are kept, with standard
-errors that say how weak they are.</p></dd>
+Several columns define crossed group cells. Their units are returned in
+<code>phi_table</code>; <code>phi_factorial</code> and
+<code>phi_factorial_tests</code> contain the GLS factorial decomposition and
+omnibus Wald tests. Structurally unidentified units are refused. Very
+imprecise but identified units are retained with a warning.</p></dd>
 
 
 <dt id="arg-id-factors-items-n-groups-adjust-n-na-codes">id, factors, items, n_groups, adjust_N, na_codes<a class="anchor" aria-label="anchor" href="#arg-id-factors-items-n-groups-adjust-n-na-codes"></a></dt>
@@ -194,122 +143,38 @@ bootstrap and 200 for the full bootstrap.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of classes <code>"rasch_efrm"</code> and <code>"rasch"</code>. In
-  addition to the standard components (computed over item-by-group
-  virtual columns with the frame units carried in <code>disc</code>), it has
-  <code>frames</code> (one row per frame: units, origin, pooled fit;
-  under <code>se_method = "bootstrap"</code> the frame-level
-  <code>se_log_rho</code> comes from the joint replicate draws of
-  <code>log(alpha) + log(phi)</code>, capturing cross-stage dependence,
-  while the hybrid fallback combines the stagewise errors as if
-  uncorrelated),
-  <code>phi_table</code>, <code>alpha_table</code>, <code>set_table</code>,
-  <code>item_arbitrary</code> and <code>thresholds_arbitrary</code> (the structural
-  parameters in the common unit), <code>score_curves</code> (per-group
-  score-to-measure curves, replacing the raw-score table),
-  <code>efrm_vs_rasch</code> (fit comparison against the equal-unit model on
-  the same conditional information, omnibus Wald tests for the unit
-  families, and Holm-adjusted exploratory unit contrasts), and
-  <code>linking</code> (the linking evidence).</p>
+    <p>An object of classes <code>"rasch_efrm"</code> and <code>"rasch"</code>.
+  Model-specific components include <code>frames</code>, <code>phi_table</code>,
+  <code>alpha_table</code>, <code>set_table</code>, common-unit item and threshold
+  tables, group-specific <code>score_curves</code>, <code>efrm_vs_rasch</code>, and
+  <code>linking</code>. See the extended frame of reference vignette for their
+  interpretation.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Humphry (2005) states the model for dichotomous responses and names it:
-the thesis defines an extended frame of reference (EFR) as the union of
-two or more compatible frames and calls the model over it the extended
-frame of reference model. The journal statements use different
-terminology for the same machinery – Humphry and Andrich (2008)
-present the frame unit as a scale parameter, and Humphry (2010), which
-develops and applies the person-group side, calls the model the
-logistic measurement function: with a single item set, the model here
-is exactly that article's model, with <code>phi</code> its person-group
-discrimination parameter under the same product-one identification.
-The polytomous
-form fitted here, with the frame unit multiplying the whole exponent over
-the item's partial-credit thresholds, is this package's extension of that
-statement. It is the form characterised by preserving the two properties
-the model's logic rests on: the partial credit model holds within every
-frame in the frame's natural unit (so the pairwise conditional
-cancellation remains valid), and the weighted score remains sufficient
-for the person parameter. It reduces exactly to the dichotomous model
-when items are scored 0/1 and to the ordinary partial credit model when
-all units equal one. One interpretive consequence: category widths in
-natural units scale with the frame unit, so a high-unit frame makes
-proportionally sharper category distinctions; frame-level fit and the
-per-frame category curves are where a violation of this would appear.</p>
-<p>Estimation order: the within-frame pairwise stage establishes the
-centred set thresholds and the person-group units <code>phi</code>; the
-person-side linking stage then establishes the item-set units
-<code>alpha</code> and set locations. The reported item parameters and all
-person measures are computed only after every unit is established: item
-thresholds are mapped into the common arbitrary unit using <code>alpha</code>
-and the set locations, and person measures are weighted-score weighted
-likelihood estimates evaluated under the final units
-<code>rho = alpha * phi</code>. The per-frame person estimates used inside the
-linking stage are interim quantities for the unit ratios only and are
-discarded. The within-frame stage needs no re-estimation once
-<code>alpha</code> is known, because the pairwise likelihood is invariant to
-the within-set rescaling that <code>alpha</code> represents; the units' own
-uncertainty is reported in <code>alpha_table</code> and <code>phi_table</code> and
-folded into the common-unit standard errors as described below.</p>
-<p>Standard errors: under <code>se_method = "hybrid"</code> (default) the group
-units carry sandwich standard errors from the pairwise stage; the set
-units carry standard errors from a linking-stage bootstrap in which each
-replicate resamples persons and also redraws the within-frame thresholds
-and group units jointly from their estimated stage-1 covariance before
-rebuilding the person estimates. The redraw matters because the set unit
-is a scale: error in the estimated threshold spread moves every person
-estimate's variance coherently, which person resampling alone cannot
-see (without it the log-alpha standard error understates by about 20<!-- % -->
-in simulation and the unit tests reject at 9-10<!-- % instead of 5%; with it -->
-they reject at 4.9<!-- % over 1,200 null replicates, stable across item -->
-counts, sample sizes, imbalance, and weak linking). The unit
-uncertainty is propagated into
-the common-unit threshold and item standard errors by the delta method,
-treating the stage-1 and person-side linking information as independent
-– the one remaining approximation of the hybrid method. Under
-<code>se_method = "bootstrap"</code> all stages are re-estimated on
-<code>boot_reps</code> person resamples and every standard error and the
-threshold covariance come from the replicate spread; slower, but captures
-all cross-dependencies jointly.</p>
-<p>Relation to Humphry (2005): the within-frame stage follows the thesis's
-conditional separation logic. Humphry (2012) is the published statement
-of the item-set discrimination side, with the score vector across item
-sets as the sufficient statistic; Montuoro and Humphry (2024) apply it
-with sets formed a priori by qualitative item review and set units
-estimated from ratios of person-location standard deviations across
-sets. The linking stage implemented here is that estimator in
-error-corrected method-of-moments form, based on the true-score
-variance ratios in equations 2.28–2.29 of the thesis (after Andrich
-1982) – the correction removes the attenuation that raw
-estimate-standard-deviation ratios carry. It is not the
-distinct likelihood equation proposed in section 5.3. The multigroup,
-polytomous, and crossed-frame implementation is therefore an experimental
-package extension whose sampling performance should be checked for the
-intended design, preferably with the full person bootstrap. The standard
-errors go further than the thesis's section 5.4, which inverts
-each diagonal element of the joint-likelihood information separately and
-therefore conditions on the remaining parameters, including the person
-locations, being treated as known. Here full covariance matrices are used
-throughout; the item-side covariance carries the Godambe sandwich
-correction required for a pairwise composite likelihood; the unit
-uncertainty that the thesis's transformation treats as fixed is
-propagated into the common-unit parameters; and resampling replaces
-analytic plug-in variances for the person-side linking stage.</p>
-<p>Measurement-theoretic status: within every frame the model is strictly
-Rasch, with person-free item comparisons by conditioning. Across frames
-it is an argued extension of the theory of the unit (Humphry 2005;
-Humphry and Andrich 2008): on this account the unit was always a
-frame-dependent empirical property that the ordinary model leaves
-implicit, and the extension makes it explicit; the orthodox reading of
-Rasch measurement contests this, and applied reports should present it
-as an extension rather than settled doctrine. Two concessions are
-intrinsic to the model rather than to this implementation: the item-set
-units are identified only from the person side (their conditional
-identification is impossible, as documented above), so that step uses
-distributional information; and person measures rest on weighted-score
-sufficiency with estimated weights, whose uncertainty is propagated
-rather than ignored.</p>
+    <p>The partial credit model holds within each frame in its natural unit.
+Person-group units \(\phi_g\) and centred set thresholds are estimated by
+within-frame pairwise conditional maximum likelihood. Item-set units
+\(\alpha_s\) and set locations are then estimated from persons common to
+linked sets using error-corrected true-score variance ratios. The linking
+graph must connect all sets to a common scale.</p>
+<p>The default hybrid standard errors combine the pairwise Godambe covariance,
+a person bootstrap for set linking, and delta-method propagation. Each
+linking replicate also draws the within-frame parameters from their joint
+stage-one covariance: without that redraw the set-unit standard errors
+understate by about 20% and the unit tests reject a true null at 9-10%;
+with it they reject at 4.9% over 1,200 simulated replicates, stable
+across item counts, sample sizes, imbalance, and weak linking, and
+matching a full-bootstrap benchmark. With <code>se_method = "bootstrap"</code>, the complete
+model is refitted to each person resample and all reported covariance comes
+from the bootstrap distribution.</p>
+<p>The dichotomous model and the theory of frame-dependent units follow
+Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
+an error-corrected method-of-moments implementation of the variance-ratio
+argument in Humphry (2005), rather than the likelihood proposed in section
+5.3 of that thesis. The polytomous, multigroup, and crossed-frame forms are
+extensions implemented in this package. For these designs, the full
+bootstrap gives the least conditional account of uncertainty.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -332,6 +197,11 @@ item clarity on item discrimination. Journal of Applied Measurement,
 24(3/4), 121–132.</p>
 <p>Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the Rasch
 model. Journal of Applied Measurement, 9(3), 249–264.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="rasch.html">rasch</a></code>, <code><a href="rasch_mfrm.html">rasch_mfrm</a></code>,
+  <code><a href="test_information.html">test_information</a></code>, and <code><a href="simulate_efrm.html">simulate_efrm</a></code>.</p></div>
     </div>
 
     <div class="section level2">

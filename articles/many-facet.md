@@ -14,6 +14,17 @@ for such designs. A positive facet parameter denotes greater severity.
 Person-group variables such as sex or treatment are not facets: carry
 them as person factors and assess them with `dif_anova`.
 
+For facet levels \\f_1,\ldots,f_Q\\, the model is
+
+\\ P(X\_{ni\boldsymbol f}=x)= \frac{\exp\left\\x\theta_n-
+\sum\_{k=1}^{x}\left(\delta\_{ik}+\sum\_{q=1}^{Q}\rho\_{qf_q}\right)\right\\}
+{\sum\_{y=0}^{m_i}\exp\left\\y\theta_n-
+\sum\_{k=1}^{y}\left(\delta\_{ik}+\sum\_{q=1}^{Q}\rho\_{qf_q}\right)\right\\}.
+\\
+
+Item thresholds have a common sum-zero origin, and the levels of each
+facet sum to zero.
+
 ``` r
 
 d <- simulate_mfrm(n_persons = 60, n_items = 4, n_raters = 5,
@@ -131,7 +142,7 @@ Holm’s method.
 ## Diagnostics
 
 The returned object is also a `rasch` fit over the virtual items, so the
-usual fit, targeting, dependence, dimensionality, and plotting functions
+fit, targeting, dependence, dimensionality, and plotting functions
 remain available. MFRM margin tables additionally report an equal-cell
 fit residual and a response-weighted pooled residual. Their weighting
 differs, so both the design and the location of any misfit should guide

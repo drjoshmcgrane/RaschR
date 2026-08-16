@@ -1,1459 +1,435 @@
 # Changelog
 
-## rasch 1.14.2
-
-A release-wide simulation validation battery (every model family and
-diagnostic, under complete data, 25% random missingness, and linked
-structural designs; some 240 checks) confirmed parameter recovery,
-standard error calibration, nominal test rates, detection power, and the
-identification guards, and caught one defect, corrected here:
-
-- [`dependence_magnitude()`](https://drjoshmcgrane.github.io/rasch/reference/dependence_magnitude.md)
-  computes its standard error as a delta-method contrast over the
-  sandwich covariance of the resolved thresholds, rather than pooling
-  the two variances as if the estimates were independent (Andrich and
-  Marais 2019, eqs. 24.9-24.11). The resolved items are answered by
-  disjoint persons, but in the joint refit their estimates are
-  negatively correlated through the shared comparator items, so the
-  pooled standard error was too small: over 1,200 null replicates at ten
-  items the z-test rejected at 7.5% instead of the nominal 5%. The
-  corrected standard error calibrates at 4.8% (dichotomous, 400 fresh
-  replicates; 5.4% on the 1,200 diagnostic replicates) and 3.5% (partial
-  credit); the estimate d is unchanged.
-- The extended frame of reference model’s set-unit (alpha) standard
-  errors under the default hybrid method now carry the within-frame
-  calibration noise: each linking-bootstrap replicate redraws the
-  thresholds and group units jointly from their estimated stage-1
-  covariance (cross-covariance preserved) before rebuilding the person
-  estimates. The set unit is a scale, so error in the estimated
-  threshold spread moves every person estimate’s variance coherently –
-  invisible to person resampling alone. Null rejection of the set-unit
-  tests falls from 9.4% (1,000 replicates, plug-in MCSE 0.9pp) to 4.9%
-  (1,200 fresh replicates), stable across eight design cells (item
-  counts, sample sizes, imbalance, a third linked set, weak linking) and
-  matching a full-bootstrap benchmark; the group-unit (phi) tests were
-  already calibrated. The stage-1 covariances are exposed as
-  `fit$unit_cov`.
-- Judge-clustered comparative judgement inference now also requires at
-  least 8 effective judges (inverse Simpson index of the comparison
-  shares), not just 10 nominal ones, and more effective judges than
-  fitted parameters: a judge performing half the comparisons leaves ~4
-  effective clusters at any judge count and ~9% Type I error, with ~7%
-  already at 6-7 effective (t reference, 500 replicates per cell,
-  tools/simval/studies/followups/btl_share_sweep.R). Balanced designs
-  are unaffected (nominal from 10 judges up); allocations between 8 and
-  9.5 effective judges, or with any single judge above a 20% workload
-  share (a 6% rejection edge at 20 judges that the effective count alone
-  does not flag), carry a caution note; `fit$cl$n_units_effective`
-  reports the count. A simulation-only option used by the committed
-  calibration sweep can lift the concentration conditions, and only
-  those – the cluster-count and rank requirements cannot be bypassed.
-- The partial credit weak-category guard now flags an entire item when
-  any of its categories has fewer than 8 responses, not only the
-  thresholds adjacent to a near-empty (\< 3) category: an item’s
-  thresholds are estimated jointly, and in simulation a ~4-response
-  category left a sibling threshold’s reported standard error
-  understated four-fold while that threshold’s own local counts looked
-  healthy (~7 responses gave ~1.7x). Reported standard errors for such
-  items are withheld with an explanatory note.
-- The paired-comparison extended-frame (btl_efrm) unit tests use
-  judge-limited references: the unit omnibus tests a Hotelling-style
-  F(q, n_judges - q) and the per-unit tables a t with n_judges - 1
-  degrees of freedom, replacing chi-square/normal references whose
-  covariances rest on resampling only ~10-20 judges. The set-origin
-  (kappa) omnibus rejected a true null at ~8.7% (550 replicates, 12
-  judges) under the chi-square reference; the F reference restores the
-  nominal rate, exactly as for the many-facet interaction omnibus in
-  1.14.1.
-- The plant-and-detect vignette closes with a summary of the validation
-  battery.
-
-## rasch 1.14.1
-
-This release brings together changes developed since CRAN version
-1.11.7. It extends DIF analysis, expands the facet and paired-comparison
-models, and strengthens identification and uncertainty checks. Final
-release testing also resolved the following edge cases:
-
-A verification audit of the release candidate corrected the following:
-
-- Exporting and reporting an extended-frame fit no longer fails: the
-  residual-PCA refusal for structurally disjoint columns is carried as a
-  note through
-  [`dimensionality_test()`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md),
-  [`save_outputs()`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md),
-  and
-  [`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md)
-  instead of aborting them.
-- [`test_information()`](https://drjoshmcgrane.github.io/rasch/reference/test_information.md)
-  (and
-  [`plot_tcc()`](https://drjoshmcgrane.github.io/rasch/reference/plot_tcc.md),
-  through a shared design-block computation) splits an extended-frame
-  group by the item-set administration patterns actually observed, so a
-  linking design’s core-only majority receives its own information and
-  SEM curve rather than a pooled curve describing a form nobody took.
-- The many-facet item-by-facet omnibus test uses a Hotelling-style F(q,
-  n - q) reference with persons as the units (null rejection 5.7% at n =
-  50 and 4.0% at n = 400, against ~13% under the previous chi-square
-  reference); the per-cell follow-ups use a t reference.
-- [`dimensionality_test()`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md)
-  again returns a verdict for ordinary short dichotomous tests: subtests
-  below the recommended 15 score points carry a `caution` note instead
-  of an NA verdict, degenerate subsets return an explanatory note
-  instead of a raw error, and the automatic split’s unavailability is
-  reported, not thrown.
-- [`tailored_analysis()`](https://drjoshmcgrane.github.io/rasch/reference/tailored_analysis.md)
-  defaults to 999 bootstrap replicates and warns when the sign-count
-  p-value floor (2m/(B+1) after Holm) makes detection impossible at the
-  chosen settings.
-- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  refuses to score a numeric identifier-like column (`id`, `row_id`,
-  `time`, `person`) as an item when no role is assigned, closing the
-  [`stack_data()`](https://drjoshmcgrane.github.io/rasch/reference/rack_data.md)
-  follow-up footgun; simulated datasets auto-assign their own `id`.
-- Available-case
-  [`ctt_table()`](https://drjoshmcgrane.github.io/rasch/reference/ctt_table.md)
-  withholds alpha (with the reason) when the pairwise covariance is not
-  a valid covariance matrix, instead of printing an absurd value.
-- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  withholds the composite-likelihood effective parameter count whenever
-  clustered inference is withheld, as documented; and
-  [`btl_information()`](https://drjoshmcgrane.github.io/rasch/reference/btl_information.md)
-  no longer claims the clustered SE sits above the design-only
-  `se_naive` “as a rule” (it can sit on either side; the ratio is a
-  descriptive design comparison).
-- Test-level curve plots recycle the palette beyond eight designs
-  instead of silently dropping curves.
-- Vignette and example corrections: the repeated-measures DIF vignette
-  discusses every flag its own seed produces; the paired-comparisons and
-  plant-and-detect prose match their computed output; the extended-frame
-  vignette notes the finite-sample bias its own design exhibits; the
-  mixed-design
-  [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-  example now demonstrates both planted effects.
-
-The final statistical audit made the following changes to inference and
-diagnostics:
-
-- Repeated-measures DIF now separates the descriptive logit contrast
-  from inference.
-  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  reports the magnitude but withholds row-independent Wald uncertainty;
-  [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
-  tests the same effects from person-level residual contrasts.
-
-- EFRM covariance transformation now includes all derivatives created by
-  the common-unit constraint. EFRM and BTL-EFRM results include
-  unit-level omnibus Wald tests before adjusted follow-up contrasts.
-
-- Judge-clustered BTL inference is withheld when there are fewer than
-  ten independent judges, or no residual cluster degrees of freedom.
-  Point estimates remain available, but standard errors, DIF tests, OSI
-  and composite-likelihood information criteria are not reported as
-  inferential.
-
-- BTL-EFRM defaults to a judge bootstrap for unconditional uncertainty.
-  Conditional standard errors remain available when their narrower
-  interpretation is appropriate.
-
-- MFRM item-by-facet interactions now have a primary omnibus Wald test
-  and Holm-adjusted cell follow-ups.
-
-- Common-item and common-object drift tests require independent
-  calibrations and the joint covariance of a bank’s locations. Marginal
-  bank standard errors alone cannot reproduce the covariance induced by
-  its fitted origin; such links are descriptive unless the bank is
-  fixed.
-
-- Residual PCA and dimensionality diagnostics now withhold conclusions
-  when the score ranges are too thin, when the BTL comparison order is
-  confounded, or when the fitted model cannot be reproduced by the
-  reference simulation. Q3 thresholds are explicitly heuristic and
-  opt-in.
-
-- Test information is reported for the actual design: one curve for an
-  ordinary test, by person group for EFRM, and by facet design for MFRM.
-
-- Classical statistics use complete responders by default.
-  Available-case item summaries are still available, but are labelled
-  exploratory.
-
-- Tailored-analysis item shifts are descriptive by default. Optional
-  person-bootstrap inference repeats the full tailoring and
-  anchor-selection procedure.
-
-- Equating, simulation, Guttman, dependence and dimensionality functions
-  now reject incompatible model structures and invalid or
-  underidentified inputs rather than returning apparently precise
-  results.
-
-- BTL subset-separation detection now evaluates movement along weak
-  information directions and is invariant to a translated anchor origin;
-  fixed anchors can no longer be labelled as runaway estimates.
-
-- [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
-  treats an unavailable
-  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  result as failed confirmation of uniform-only DIF, so a level removed
-  by `min_n` cannot still trigger a split with an unknown magnitude.
-
-- Under shared fixed comparison order, all dimensionality verdict
-  fields, printing, and scree colouring consistently represent the
-  verdict as withheld.
-
-- BTL
-  [`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
-  comparability uses the exact canonicalised comparison records
-  (including weights and judge allocation), eliminating checksum
-  collisions and making harmless row reordering invariant.
-
-- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  accepts character grouping vectors passed by value and excludes data
-  columns matching by-value IDs, as well as matching factor columns,
-  from the item matrix.
-
-- [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
-  now detects a shared fixed comparison order – where a within-judge
-  order effect is confounded with the object locations – and withholds
-  the second-dimension verdict (`above_reference` = NA, with a note)
-  instead of reporting the confounded false positive (previously flagged
-  a second dimension in about 93% of such designs). Detection is from
-  the concentration of pairs at each sequence position across judges;
-  when the order varies across judges the fixed-estimate reference is
-  well calibrated and the verdict is given as before (that path is
-  unchanged). Refitting the reference per replicate – the other
-  candidate remedy – was implemented and rejected: it inflates the
-  reference and destroys power even for randomised orders.
-
-## rasch 1.14.0
-
-Identification and robustness checks across the package led to the
-following changes.
-
-Identification and uncertainty reporting:
-
-- Weak-category NA standard errors now carry through to the DIF
-  functions.
-  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  and `.dif_resolve()` detect a resolved level whose split copy rests on
-  a near-empty category (already flagged weak, se = NA by
-  [`split_items()`](https://drjoshmcgrane.github.io/rasch/reference/split_items.md))
-  and withhold that level’s SE, significance, and practical flag instead
-  of recomputing an unsupported finite SE from the ridged covariance.
-  [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
-  confirms a uniform flag with
-  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  before splitting, so it no longer chases a thin-cell ANOVA artifact
-  into an item split (nonuniform flags are untouched).
-- The weak-category guard also now runs on the MFRM, EFRM, and
-  average-anchoring estimation paths, which previously reported a
-  covariance-based SE for a threshold backed by one or two responses.
-  Average anchoring (k = NA) no longer suppresses the flag for an item’s
-  still-free thresholds.
-- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  refuses a genuinely singular information matrix and, for subset
-  (quasi-)separation (an ill-conditioned direction with a location
-  driven to the boundary), marks the fit not converged and withholds the
-  affected SEs rather than reporting boundary locations with plausible
-  SEs.
-  [`btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/btl_equate.md)
-  refuses a non-converged calibration.
-- [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  detects (quasi-)complete cross-set separation directly from the fitted
-  probabilities and refuses it on both the conditional and bootstrap
-  paths, instead of reporting a boundary alpha/kappa with an unsupported
-  small bootstrap SE.
-
-Comparison, simulation, and diagnostics:
-
-- [`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
-  withholds the information criteria and two_delta_ll for a fit that did
-  not converge (new `converged` column), compares the actual response
-  data in `same_data` (not just item names, maxima, and person count),
-  and reports the real underlying item count for MFRM/EFRM rather than
-  the virtual column count.
-- [`sim_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.md)
-  reports `bias` as NA for parameters identified only up to an
-  origin/scale convention (its mean bias was structurally zero, not
-  informative), and now recovers EFRM person-group units (phi), not only
-  the set units.
-- New
-  [`sim_apply()`](https://drjoshmcgrane.github.io/rasch/reference/sim_apply.md)
-  runs a statistic across a
-  [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md)
-  batch resiliently: a replicate the estimator refuses contributes NA
-  and is counted, so one refusal does not abort a Monte-Carlo run.
-- Item infit/outfit mean-squares (and their ZSTD) now exclude
-  extreme-score persons, and person fit excludes extreme items –
-  matching the convention the log-of-mean-square fit residual already
-  used, and standard Rasch fit reporting. This raises an item’s
-  mean-squares toward their intended value (extreme persons’ boundary
-  residuals no longer deflate them). Textbook item-fit agreement is
-  preserved.
-- [`plot_icc()`](https://drjoshmcgrane.github.io/rasch/reference/plot_icc.md)’s
-  observed class-interval overlay uses the same order-invariant,
-  extreme-excluding allocation as the fit’s item-trait test (a plain
-  rank/cut split ties by row order and included extremes).
-- [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md):
-  documented explicitly that the order-aware reference is unreliable
-  when every judge shares one fixed comparison order (the order effect
-  is then confounded with the object locations); randomise the order
-  across judges before trusting a second-dimension flag.
-
-Input handling (silent coercion and collision -\> informative errors):
-
-- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md):
-  an `items=` that collides with an id/factor column errors (a
-  positional `items = 1:k` over an id-first layout no longer scores the
-  id as an item), a duplicated item column errors, a length-mismatched
-  `id`/`factors` errors, and a `factors=` grouping vector passed by
-  value is captured (its identical data column excluded) instead of
-  ignored. `adjust_N` must be positive.
-- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md):
-  `count=`/`order=` read through labels (a factor column no longer
-  becomes level codes), and any `anchors` name matching no object errors
-  instead of being silently dropped.
-- [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md):
-  a colon in an item/facet label errors (reserved key separator); a
-  data-frame `factors=` again accepts the documented
-  one-row-per-unique-person form (a 1.13.0 regression).
-- Multiple-choice scoring refuses an NA key, warns on unmatched key
-  items;
-  [`distractor_rescore()`](https://drjoshmcgrane.github.io/rasch/reference/distractor_rescore.md)
-  leaves an undefined separation z as NA rather than NaN.
-
-## rasch 1.13.3
-
-Further identification checks and one refinement to the treatment of
-weakly identified EFRM units.
-
-- Connectivity now counts only informative response pairs. A pair whose
-  every observed total is 0 or the maximum has a single feasible
-  conditional allocation and carries no information, so one respondent
-  scoring (0, 0) across two otherwise disjoint item blocks no longer
-  “connects” them (every intermediate total has at least two
-  allocations, so any response off the extreme-total corners is a real
-  link). Applied to the item-pair graph of
-  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)/[`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)
-  and to the MFRM co-observation components.
-- As the review prescribed, the graph test is now backed by a
-  rank/conditioning check of the projected information at the solution
-  in the shared solver. This also catches what no graph can see: a block
-  bridged by a single informative response is perfect separation in the
-  conditional pair logit – the pair estimate runs to the boundary and
-  the information vanishes there – and previously returned converged
-  fits with zero standard errors.
-- The Ford (1957) check now respects anchors. Strong connectivity is the
-  existence condition for the free model only; an anchored fit requires
-  each free object to be tied to an anchor in both win directions
-  (reachability to and from the anchor set over the points digraph – the
-  constrained recession-direction condition). Two anchored components
-  joined by a one-directional edge between their anchors is now
-  correctly accepted, while removing one anchor still errors.
-- EFRM: the practical weak-identification cutoff (SE of log phi above
-  5.  now produces a warning and a note while retaining the estimates,
-      supporting reproducible sensitivity analyses; the error is
-      reserved for structural non-identification (a flat direction of
-      the joint information), where no estimate exists to retain.
-
-## rasch 1.13.2
-
-Information-based identification checks replace earlier heuristics in
-the EFRM, MFRM and paired-comparison models.
-
-- EFRM: the threshold-spread heuristic is gone. Group units are now
-  checked on the joint information itself – a flat direction loading on
-  a unit, or a unit whose analytic SE exceeds 5 log-units (uncertain
-  beyond a factor of ~150), is refused with an error naming the group,
-  since every common-unit quantity would silently depend on it. Weakly
-  identified units with real spread are retained with their large SEs;
-  the previous heuristic wrongly replaced some of them with NA.
-- MFRM: full column rank of the structural design is necessary but not
-  sufficient. The fit now also checks that no between-block shift of
-  person-disjoint response blocks is expressible by the facet map (a
-  column-space intersection test on the co-observation components):
-  designs such as two person groups answering disjoint item pairs – or
-  one rater per person – previously returned converged fits whose
-  between-block contrasts were ridge artefacts, and now error with the
-  blocks named. A test fixture with exactly this nested-rater flaw was
-  corrected accordingly.
-- btl_efrm stage 1: the per-set (locations, panel-ratio) information is
-  now checked for rank at the solution; panels observing disjoint object
-  pairs leave the ratio underdetermined, and such sets are screened out
-  of the panel-unit reconciliation (refit at the reconciled units) or,
-  when no ratio information remains anywhere, the fit stops.
-- btl_efrm stage 2: rank failures are classified by where the
-  information fails. A flat direction confined to a set’s log-unit – its
-  within-set locations are indistinguishable, so the unit has nothing to
-  scale – refits with that unit fixed at the conventional 1 and reports
-  alpha as NA with a note; the set’s origin kappa and its objects’
-  placements remain identified and keep valid SEs (this is the
-  GermanParties2009 near-even-set pattern, which a blanket refusal would
-  have broken). A flat direction on an origin means the set cannot be
-  placed at all and is an error. Bootstrap replicates treat an expected
-  NA (the declared unit) as normal and any unexpected rank failure as a
-  failed replicate.
-- BTL: a Ford (1957) violation is now an error before estimation, not a
-  post-fit warning – a separated cluster has no finite maximum
-  likelihood locations, and the previous warning still presented the
-  optimiser’s boundary values with converged = TRUE.
-- EFRM input: data-frame `factors` columns are removed from the item
-  matrix (a numeric factor column could previously become an implicit
-  `(rest)` item).
-- MFRM input: rows dropped for missing person/item/facet identifiers now
-  drop from `factors` too (both the column-name and data-frame forms),
-  instead of failing with an internal length error.
-- Tests: the wide-MFRM factor-equivalence test compared a nonexistent
-  `$table` component (NULL == NULL, vacuously true); it now compares the
-  `$summary` F and p columns, on a properly linked design – the
-  equivalence itself was verified to hold.
-
-## rasch 1.13.1
-
-Corrections to the 1.13.0 additions and further identification checks.
-
-Defects in the new code:
-
-- EFRM crossed-frame labels: the solver orders cells as sorted strings
-  while the frame construction used factor-crossing order, so with
-  factor labels that sort differently the per-cell units were assigned
-  to the wrong cells (a pure-noise 2x2 gave a spurious region effect at
-  p = 2e-5). Cells are now matched by label throughout.
-- MFRM
-  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  no longer lets facet severity leak into a between-group magnitude: the
-  joint split now pools over the common observed cells with common
-  precision weights, so severity differences cancel by construction. A
-  design that previously manufactured a -1.75-logit phantom effect (z =
-  -6.5) now reports -0.11 (ns) while a planted 0.7 effect is still
-  recovered.
-- `phi_factorial` was a diagonally-weighted fit with coefficient-wise z
-  tests; it is now a generalised least-squares decomposition on the
-  joint covariance of the cell log-units (bootstrap draws when
-  available, otherwise the solver’s centred covariance, inverted
-  spectrally along its identified directions, intercept excluded as
-  inestimable under the centring), with multi-degree-of-freedom Wald
-  tests per term in `phi_factorial_tests`. A planted 1.5x region unit
-  ratio is recovered at 1.52 with p = 2e-6 and null factors stay null.
-
-Identification and input-handling backlog:
-
-- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) now
-  checks Ford’s (1957) existence condition: when the directed win graph
-  is not strongly connected the maximum-likelihood locations diverge,
-  and the fit warns and notes the separated objects instead of
-  presenting the optimiser’s boundary values as measures.
-- MFRM: wide input now carries `factors=` through the internal melt
-  (character columns are replicated like facets, data-frame factors
-  row-wise); duplicate person-by-item-by-facet responses are an error
-  (keeping the first made results depend on row order); and a structural
-  rank check on the facet design errors when facet levels are confounded
-  with the items instead of returning a valid-looking but unidentified
-  decomposition.
-- EFRM: a group whose frames show no threshold spread beyond estimation
-  noise has nothing for its unit to scale – previously the optimiser
-  returned phi near 1 with a healthy-looking SE regardless of the true
-  unit; such units are now reported NA with a note. The guard is
-  signal-to-noise based (spread under 1.5x the pooled threshold SE in
-  every set the group answers) and leaves even modest real spreads
-  untouched.
-- EFRM: under `se_method = "bootstrap"` the frame-level `se_log_rho` now
-  comes from the joint replicate draws of log(alpha) + log(phi),
-  capturing cross-stage dependence; the hybrid fallback still combines
-  the stagewise errors as if uncorrelated, as documented.
-- [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md):
-  stage 2 checks the conditioning of its observed information; when the
-  cross-set comparisons barely identify the set units (reciprocal
-  condition number below 1e-10), the conditional SEs for alpha, kappa
-  and the linked values are withheld with a note rather than reported
-  from a near-singular inverse.
-- [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  frame table: `rho` is now phi / alpha as documented (the within-set
-  logit is phi (beta_a - beta_b) with beta = (v - kappa) / alpha), not
-  phi \* alpha.
-- [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
-  validates `item_sets` (named list, no overlapping or unknown items);
-  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  removes data-frame factor columns from the response matrix even when
-  `items` is not given, so a numeric factor can no longer be silently
-  treated as an item.
-
-## rasch 1.13.0
-
-Three extensions to the facet, EFRM and DIF functions.
-
-- MFRM DIF pools to the underlying items by default:
-  [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-  on an MFRM fit now answers “does item A show DIF” by pooling residuals
-  over each item’s facet cells (`pool_facets = FALSE` keeps the
-  per-virtual-cell tests). With few items, the compensating artificial
-  DIF the plant creates on the remaining items is visible – as it should
-  be – with the planted item carrying the dominant F.
-- [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  works on underlying MFRM items: every facet cell of the item is split
-  by the groups in one joint unstructured refit of the virtual matrix
-  (the facet decomposition is not reimposed, which the note states), and
-  per-level locations are precision-weighted means over the cells with
-  the full covariance carried. A planted 0.7-logit sex effect is
-  recovered at 0.82 (SE 0.17), and `dif_anova(mf, sizes = TRUE)` now
-  yields magnitude rows.
-- [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
-  accepts several frame-defining factors: the frames are their crossed
-  cells, per-cell units appear in `phi_table`, and `phi_factorial`
-  reports a factorial decomposition of the cell units (sum-coded mains,
-  plus the interaction when every cell is observed), weighted by the
-  cells’ unit precisions with the independence approximation stated. All
-  frame-defining factors (cell and components) are excluded from DIF
-  testing; misspelled group and factor column names now error instead of
-  silently falling through.
-
-## rasch 1.12.3
-
-Identification checks for the BTL, EFRM and MFRM functions, together
-with extensions to DIF analysis for these models.
-
-- [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
-  runs on the same order-invariant machinery as the person DIF ANOVA:
-  between-judge terms by Type II sums of squares on band-centred judge
-  margins, band-crossing terms through orthonormal contrasts with the
-  Greenhouse-Geisser correction. Verified exactly order-invariant across
-  correlated judge factors; the tuned planted detections are unchanged.
-- [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
-  rejects factors that vary within a judge (the judge-level analysis
-  would silently take whichever row came first).
-- [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  validates within-set object-graph connectivity (relative locations
-  inside a disconnected set are unidentified, exactly as in
-  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md))
-  and alpha identification (cross-set comparisons must touch at least
-  two objects of every non-reference set; one object identifies only the
-  origin).
-- [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
-  group linkage requires at least two shared items of a common set
-  between groups: sharing a set label with disjoint item subsets left
-  the unit ratio unidentified but was accepted.
-- [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-  works on EFRM fits: the frame group is excluded (it is the frame
-  structure – every frame has its own virtual items – so it has no
-  within-item contrast) with a note, and other person factors are tested
-  per virtual item; nominating only the frame group is an informative
-  error.
-- [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
-  gains `factors=` (person factors, constant within person, validated –
-  a facet passed as a person factor errors with a pointer to
-  `interaction=`), so
-  [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-  works on MFRM fits directly; unavailable DIF magnitudes are reported
-  in `notes` instead of silently returning nothing.
-- The frames table’s `se_log_rho` independence approximation (log alpha
-  and log phi estimated in different stages; cross-stage covariance
-  unavailable) is stated in the documentation.
-
-## rasch 1.12.2
-
-Corrections for incomplete panels in the DIF analysis.
-
-- Between-person margins are centred within each within-cell by class
-  interval (falling back to the cell mean where a combination is empty):
-  cell-only centring removed common occasion effects but not
-  occasion-by-trait structure, which with differential missingness
-  masqueraded as non-uniform group DIF at F = 214.7; it now reads F =
-  0.01 with the occasion terms intact.
-- A between level that loses every complete within panel (for example a
-  group observed only at baseline) no longer crashes lm() with a
-  one-level factor: its within-stratum interactions are reported NA with
-  an explanatory note, and every other test proceeds.
-- Tukey candidates are filtered to between-only terms, so a significant
-  multilevel within term can no longer reach TukeyHSD and crash on its
-  empty result.
-- Transparency: the count of person panels dropped from the
-  within-person tests is returned in `notes`, alongside the
-  non-estimable-term note.
-
-## rasch 1.12.1
-
-Further corrections to the rebuilt DIF analysis.
-
-- Multi-within contrast alignment.
-  [`interaction()`](https://rdrr.io/r/base/interaction.html) orders
-  cells with the first factor fastest while the Kronecker contrast
-  matrices assume the last fastest; with two within factors a pure w1
-  effect therefore loaded onto w1:w2 (F 7.4 on the interaction, 3.2 on
-  w1). The within cells are now built in Kronecker order; the same
-  effect reads F = 16.9 on w1 and 0.35 on the interaction.
-- Comparable between-person margins. Person means for the between tests
-  are computed on within-cell-centred residuals: with a common occasion
-  effect and one group missing 80% of an occasion, raw means reported
-  group DIF at F = 37.6 (p = 2e-9); centred margins give F = 0.29 while
-  the occasion effect stays on the occasion term.
-- Tukey follow-ups in mixed designs run on the person-level
-  between-factor aov (one row per person); ordinary Tukey on repeated
-  within cells is no longer offered.
-- An NA in a between factor no longer flips it to within-subject
-  (detection counts distinct non-missing values).
-- The Greenhouse-Geisser correction is fully reported: `terms` carries
-  `df_denom` and `gg_epsilon`, the p-value is exactly pf(F, eps*df,
-  eps*df_denom), and the stale “sums of squares are sequential” sentence
-  is replaced by the Type II description.
-
 ## rasch 1.12.0
 
-The multi-factor DIF ANOVA has been rebuilt to support statistically
-valid between-person, within-person and mixed designs.
+This update extends the model suite, adds mixed-design DIF analysis, and
+strengthens identification and uncertainty checks.
 
-- Order-invariant tests. Between-person terms now use Type II sums of
-  squares on person-level residual means: every term is adjusted for
-  every term not containing it, with the class interval always among
-  them. The old sequential (Type I) tests with factors entered first let
-  entry order decide which of two correlated factors flagged – in the
-  reproduction, reversing the order lost a planted 0.8-logit DIF
-  entirely – and let a group factor absorb pure trait variance (reported
-  p = 2e-25 where the adjusted test gives p = 0.83). Verified exactly
-  order-invariant.
-- Persons are the units whenever ids repeat. Residuals aggregate to one
-  mean per person (per within cell) before any test, and the automatic
-  class-interval rule counts persons, not rows: exactly duplicating
-  every person previously changed F = 4.06 (unflagged) to F = 8.21
-  (flagged); it now changes nothing (verified to 2e-13).
-- Within-person terms are tested on person-by-cell means through
-  orthonormal contrasts with the Greenhouse-Geisser epsilon (Maxwell &
-  Delaney 2004), replacing raw multi-stratum aov: a nonspherical
-  four-level null rejected ~9% at nominal 5% before (and could crash on
-  tied person means – also fixed, in the interval allocator); it now
-  runs at 2.8%, with the spherical null at 6.1% and planted
-  within-occasion DIF still detected. Persons missing a within cell are
-  dropped from the within tests explicitly rather than projected
-  murkily. The two-level case still agrees with its paired-t gold
-  standard.
-- Input checks: unknown `within` names error; declaring a factor
-  within-subject with no repeated ids errors; and a factor that varies
-  within persons can no longer be forced between-subjects (the old
-  row-level treatment pseudo-replicated).
-- The BH family choice (per term, across items) is now documented
-  explicitly.
+### Differential item functioning
+
+- [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
+  fits several person factors jointly. It supports additive or factorial
+  effects and uses Type II sums of squares.
+- Repeated measurements are analysed with the person as the sampling
+  unit. Between-person and within-person terms use their respective
+  error strata, with a Greenhouse–Geisser correction for multilevel
+  within-person factors.
+- [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
+  provides planned logit contrasts, including between-by-within
+  interactions.
+  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
+  separates descriptive logit magnitude from repeated-measures
+  inference.
+- MFRM residuals can be pooled to their underlying items for DIF
+  analysis. Person factors not used to define an EFRM frame can also be
+  tested.
+- [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
+  splits items iteratively, beginning with the largest confirmed effect,
+  while retaining a minimum anchor set.
+
+### Facet, frame, and paired-comparison models
+
+- [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
+  accepts several facets and optional item-by-facet interaction. The
+  interaction family has an omnibus test with adjusted cell follow-ups.
+- [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
+  accepts crossed person-group factors and returns their GLS factorial
+  decomposition. Hybrid and full-bootstrap standard errors propagate
+  uncertainty in the estimated units.
+- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
+  supports ordered paired comparisons, judge-clustered covariance,
+  position effects, and within-judge exposure and carry-over effects.
+- [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
+  tests object invariance over one or more judge factors using a
+  judge-level split-plot analysis.
+- [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
+  fits linked object sets and judge panels with set and panel units.
+  Judge bootstrap inference refits both estimation stages.
+- Paired-comparison functions now cover common-object equating,
+  transitivity, residual bimensions, design information, and adaptive
+  pair selection.
+
+### Statistical corrections and identification
+
+- [`dependence_magnitude()`](https://drjoshmcgrane.github.io/rasch/reference/dependence_magnitude.md)
+  uses the full covariance of the resolved thresholds when calculating
+  its standard error.
+- The hybrid EFRM set-unit covariance includes uncertainty from the
+  within-frame calibration.
+- Judge-clustered BTL inference requires enough nominal and effective
+  judges, residual cluster degrees of freedom, and a sufficiently
+  balanced workload.
+- BTL-EFRM unit tests use judge-limited F and t reference distributions.
+- Standard errors are withheld for an item’s thresholds when any
+  response category is critically sparse.
+- Item, facet, frame, and paired-comparison models check connectedness,
+  rank, and separation before reporting estimates. Structurally
+  unidentified parameters are refused; identified but imprecise
+  parameters are marked.
+- Equating tests require independent calibrations and the joint
+  covariance of banked locations. Links without the required covariance
+  remain descriptive.
+- Information curves are calculated for item sets and facet designs that
+  can actually be administered together.
+- Classical statistics use complete responders by default.
+  Available-case results are labelled exploratory.
+
+### Follow-ups, comparisons, projects, and reports
+
+- [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
+  provides post-hoc pairwise DIF comparisons after a significant omnibus
+  term: resolved item-location differences in logits with the joint
+  contrast covariance, Holm-adjusted, with trend and adjacent-level
+  contrasts for ordered factors and simple-effect and
+  difference-of-differences contrasts for interactions.
+- The application presents automatic model comparisons beside each
+  analysis (partial credit against rating scale, free against
+  principal-component thresholds, additive against interactive
+  many-facet, frame models against their equal-unit restrictions, and
+  paired-comparison effect terms), separating formal tests,
+  composite-likelihood information criteria, and descriptive fit
+  changes. Structure-altering procedures show before-and-after summaries
+  instead.
+- Analyses can be saved as `.rasch` project files and reopened exactly;
+  [`report_document()`](https://drjoshmcgrane.github.io/rasch/reference/report_document.md)
+  renders self-contained HTML and editable Word reports for every model
+  family.
+
+### Simulation, documentation, and interface
+
+- New simulation functions cover each model family and retain the
+  generating parameters for recovery studies.
+  [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md),
+  [`sim_apply()`](https://drjoshmcgrane.github.io/rasch/reference/sim_apply.md),
+  and
+  [`sim_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.md)
+  support repeated simulation.
+- Six vignettes cover the main Rasch workflow, mixed-design DIF, MFRM,
+  EFRM, paired comparisons, and simulation studies.
+- The Shiny application includes the extended model suite, model
+  comparison, downloadable tables and plots, and the R call
+  corresponding to each fit.
+- The package and function documentation now state the fitted models,
+  identification constraints, uncertainty methods, and principal
+  references more directly.
 
 ## rasch 1.11.7
 
 CRAN release: 2026-07-30
 
-Ninth review round: one finding.
-
-- [`print()`](https://rdrr.io/r/base/print.html) distinguishes the three
-  saved-fit dependence schemas by their `df` field: current fits label
-  the statistic `t`; 1.11.4 transitional fits (`z` name, `df` present,
-  t-based p) print as `t`; older fits (`z`, no `df`, normal-reference p)
-  KEEP the `z` label – relabelling them `t` misrepresented how their
-  p-values were computed (a legacy z = 3.17 with normal p = .002 is not
-  the same claim as t = 3.17 with p = .016 at five clusters). The
-  regression test now reconstructs both legacy schemas faithfully.
+- [`print()`](https://rdrr.io/r/base/print.html) preserves the reference
+  distribution used by saved BTL fits: current and transitional results
+  are labelled `t`, while older results without cluster degrees of
+  freedom retain their original `z` label.
 
 ## rasch 1.11.6
 
-Eighth review round: label and migration polish.
-
-- [`print()`](https://rdrr.io/r/base/print.html) reads the dependence
-  statistic from either the current `t` column or the pre-1.11.5 `z`
-  column, so fits saved before the rename print completely; the printed
-  label and the rank-deficiency note both say `t`, matching the t(G - 1)
-  reference. No duplicate `z` alias column is added: the package has
-  never had a released version with the old name, the rename is
-  documented here, and old saved fits are read transparently.
+- BTL print methods read both current and earlier dependence-statistic
+  columns. Current clustered statistics are labelled `t`, in accordance
+  with their t reference distribution.
 
 ## rasch 1.11.5
 
-Seventh review round: three completions of round-six fixes, one label.
-
-- `margin=` gets the same explicit-ordering rule as `response=`: an
-  ORDERED factor (smallest to largest margin) or a numeric magnitude;
-  plain factors AND character columns are refused, since alphabetical
-  order could silently reverse which margin counts as the big win.
-- Invalid graded numeric responses (“abc”, Inf) error through the shared
-  guard instead of becoming missing and being dropped – the fit no
-  longer succeeds on silently reduced data.
-- The simulator’s item resolver rejects fractional indices (4.9 no
-  longer truncates to item 4), an empty `second_dim$items`, and a
-  vector-valued `rho`.
-- The clustered dependence/position statistic is labelled `t`, matching
-  its t(G - 1) reference (at infinite df it is the familiar z). The
-  reviewer’s independent 400-run null simulation of the cluster-t
-  correction found 5.25% rejection at nominal 5%.
+- Ordered paired-comparison margins must be numeric or an ordered
+  factor; unordered categorical margins are rejected.
+- Invalid graded responses and malformed secondary-dimension
+  specifications now produce errors rather than being coerced or
+  dropped.
+- Clustered dependence and position statistics are labelled `t`.
 
 ## rasch 1.11.4
 
-Sixth review round: four findings, all verified and closed.
-
-- The integer-score guard reads factors through their LABELS:
-  `as.numeric(factor)` returns level codes, so a factor score of “1.9”
-  slipped past as the integer 3 and was then truncated. Non-numeric and
-  non-finite scores now also error at every entry point instead of
-  silently becoming missing.
-- Graded
-  [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  requires an ORDERED response factor: a plain factor’s alphabetical
-  level order silently defined – and could reverse – the response scale
-  (worse \< same \< better read as better \< same \< worse). Integer
-  scores 0..m remain the alternative.
-- Clustered dependence and position tests use a t reference with G - 1
-  degrees of freedom (the standard few-cluster correction) instead of
-  normal theory; the table carries the df. Five judges now give honestly
-  wide p-values.
+- Score validation reads factor labels and rejects non-integer,
+  non-numeric, or non-finite values.
+- Ordered BTL responses require an ordered factor or integer scores.
+- Clustered dependence and position tests use a t reference with `G - 1`
+  degrees of freedom.
 - [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md)
-  validates the second-dimension specification: `rho` outside \[-1, 1\]
-  and unknown item names/indices are errors (rho = 1.2 used to produce
-  an all-missing second dimension that looked like a successful
-  simulation), and the item-set resolver now range-checks every
-  nominated item list centrally.
+  validates secondary-trait correlations and item sets.
 
 ## rasch 1.11.3
 
-Fifth review round: seven findings, all verified and closed.
-
-- Every public estimator now rejects fractional scores before integer
-  coercion could truncate them:
-  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md),
-  [`pcml_pc()`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md),
-  and
-  [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
-  truncated 1.9 to 1 silently, and graded
-  [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  rounded it; only
-  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  rejected. One shared guard serves all entry points.
+- All estimators share the same integer-score validation.
 - [`item_moments()`](https://drjoshmcgrane.github.io/rasch/reference/item_moments.md)
-  is overflow-stable (log-sum-exp): a 31-category item, or wide
-  categories with a large discrimination, overflowed the uncentred
-  exponent and turned every
-  [`person_wle()`](https://drjoshmcgrane.github.io/rasch/reference/person_wle.md)
-  location NA.
-- When the judge-clustered covariance is rank-deficient (clusters \<=
-  parameters) the OSI is withheld as NA – understated SEs would
-  overstate the separation reliability – and the note now spells out how
-  to read the marginal SEs and dependence tests. The SEs themselves stay
-  reported: they are consistent estimates whose understatement is
-  disclosed, which is standard few-cluster practice.
+  uses a log-sum-exp calculation for wide category ranges.
+- BTL object-separation reliability is withheld when the clustered
+  covariance is rank deficient.
 - [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  rejects a judge assigned to more than one panel (a panel is a judge
-  attribute; the judge bootstrap would otherwise silently reclassify
-  rows).
-- Undefined diagnostics are NA, not numbers: Cronbach’s alpha under zero
-  total-score variance (was -Inf), and the omnibus item-trait test when
-  no item is testable (was chi-square 0 on 0 df with p = 1).
-- [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md)’s
-  secondary trait keeps the requested mean and sd (combining two mean-mu
-  components had shifted the mean by the factor rho + sqrt(1 - rho^2))
-  and is returned in the truth metadata.
-- The MLE score-table root drops the common discrimination, which
-  cancels from the ML equation exactly as it does from Warm’s (ordinary
-  unit-discrimination fits were unaffected).
+  requires each judge to belong to one panel.
+- Undefined reliability and omnibus statistics are reported as `NA`.
+- Secondary-trait simulation retains its requested mean and standard
+  deviation, and MLE score-table calculations use the correct
+  common-unit score equation.
 
 ## rasch 1.11.2
 
-Edge cases from the fourth review round, verified and closed:
-
-- The BTL dimensionality reference now simulates at the PAIR level:
-  count weights are summed per unordered pair and rounded, so half-tie
-  rows (weight 0.5 in each direction) recombine into whole comparisons.
-  Row-level simulation broke on fractional weights (`as.integer(0.5)` is
-  a zero binomial size – every reference draw degenerated to 0). The
-  per-replicate leading strengths are exposed as `$reference$draws`.
-- `btl_efrm(se_method = "judge_bootstrap")` refuses a panel with a
-  single judge (resampling one judge returns the same data every time,
-  so its SEs would be a spurious zero) and notes panels with fewer than
-  five judges as rough.
-- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  notes when there are no more judge clusters than parameters: the
-  clustered covariance is then rank-deficient by construction and no
-  scalar (CR1) correction repairs it – the SEs likely understate.
+- The BTL dimensionality reference simulates count-weighted data at the
+  unordered-pair level and returns the leading strength from each
+  replicate.
+- Judge-bootstrap EFRM inference requires more than one judge per panel
+  and notes panels with fewer than five judges.
+- BTL fits report when the number of judge clusters cannot support a
+  full-rank clustered covariance.
 
 ## rasch 1.11.1
 
-The follow-up review’s residual findings, all verified and closed:
-
-- The BTL dimensionality reference now simulates binomial (multinomial)
-  sums for count-weighted rows instead of one weighted Bernoulli, whose
-  w^2 p(1-p) variance overdispersed the reference and made the test
-  conservative on aggregated data; aggregated and expanded data now give
-  the same reference (verified to \< 1%).
-- The pairwise chi-square degrees of freedom subtract every estimated
-  parameter (position and dependence covariates were omitted), and a
-  design with nothing testable reports NA instead of df = 1.
-- Judge-clustered covariance carries the standard CR1 small-sample
-  factor G/(G-1), on top of the single-judge error and few-cluster note.
-- `btl_efrm(se_method = "judge_bootstrap")`: judges resampled with
-  replacement within panels and the whole pipeline refitted, so the
-  errors carry within-judge dependence as well as stage-one uncertainty
-  – closing the documented gap in the parametric bootstrap. On
-  model-true data it agrees with the parametric bootstrap; estimates are
-  unchanged by construction.
-- The next-pair priority documentation is internally consistent (ranking
-  heuristic; the Sherman-Morrison update is exact for information
-  matrices, a scoring device on the sandwich).
+- BTL dimensionality reference draws now reproduce count-weighted
+  binomial or multinomial sampling.
+- Pairwise chi-square degrees of freedom include position and dependence
+  parameters; untestable designs return `NA`.
+- Judge-clustered covariance uses the CR1 small-sample factor.
+- `btl_efrm(se_method = "judge_bootstrap")` resamples judges within
+  panels and refits both stages.
+- The interpretation of
+  [`btl_next_pairs()`](https://drjoshmcgrane.github.io/rasch/reference/btl_next_pairs.md)
+  as a ranking rule is stated in its documentation.
 
 ## rasch 1.11.0
 
-Statistical validity, from a second external review. Every finding was
-re-derived or reproduced by simulation before fixing; the fixes are
-verified by new calibration tests (test-statistical-validity.R).
-
-- Recentred covariance for mixed max scores.
-  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)
-  recentres thresholds so the mean item location is zero, but the
-  covariance stayed under the sum-of-thresholds constraint – identical
-  only when every item has the same maximum score. With mixed
-  1/2/3-threshold items, per-item empSD/SE ran 0.90-1.21 by item type;
-  the linear transform `(I - 1a') cov (I - a1')` restores 0.96-1.09.
-  Affects threshold and item SEs, separation, and equating weights on
-  mixed designs.
-- Warm WLE discrimination cancellation. The common-discrimination
-  weighted score is `disc[(R-E) + mu3/(2V)]` – the discrimination
-  cancels; a stray `disc` factor in the correction biased WLEs by up to
-  0.26 logits at disc = 0.5 (exact at disc = 1, so ordinary analyses
-  were unaffected; the vector-disc EFRM path was already correct).
-- Honest chi-square degrees of freedom. An item whose responders occupy
-  fewer than two class intervals has no estimable item-trait
-  interaction: chi-square, df, and p are now NA (df was manufactured as
-  1 with p = 1), and the total test sums over testable items only. The
-  `adjust_N` proportional-scaling semantics are now documented
-  explicitly.
-- Covariance-correct equating drift tests, both families. The shift c0
-  is estimated from the same common items the tests examine, and
-  locations within a calibration are correlated through the
-  identification constraint: drift denominators now use
-  `[(I - 1u') Sigma (I - u1')]_ii` with Sigma the sum of the two
-  calibrations’ location covariances (a bank contributes diag(se^2)).
-  Null calibration: 4.6% rejection at nominal 5%, t-SD 0.97.
-- Judge-clustered SEs refuse a single judge (they collapse to ~1e-16)
-  and note fewer than 10 clusters as likely understating.
+- Threshold and item-location covariance is transformed consistently
+  after recentering items with different maximum scores.
+- Warm WLE uses the common-discrimination score equation in which the
+  common discrimination cancels.
+- Untestable item-trait statistics return `NA`, and the total test
+  includes testable items only.
+- Equating drift tests account for the estimated origin shift and joint
+  covariance of common-item locations.
+- Judge-clustered inference requires more than one judge and reports a
+  caution for fewer than ten clusters.
 - [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
-  now tests at the judge level: residuals aggregate to one weighted mean
-  per judge (per opponent band) and enter a split-plot ANOVA with the
-  judge as the error unit. The comparison-level ANOVA pseudo-replicated
-  – 6 of 10 null datasets with judge heterogeneity and arbitrary groups
-  falsely flagged uniform DIF; the judge-level design flags 0 of 10
-  while still detecting a planted 1-logit effect. Band breaks moved to
-  count-weighted quantiles, making aggregated and expanded data exactly
-  equivalent. Power now scales with judges per group – the honest unit.
-- Non-convergence now warns loudly at fit time in
-  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  uses the judge as the sampling unit and count-weighted opponent bands.
+- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
   and [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  (it was only visible in print);
-  [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)’s
-  convergence flag is scale-free (gradient per comparison).
-- Documentation: the test-of-fit suite’s calibration status is stated
-  plainly (approximate, convention-faithful diagnostics; simulation
-  shows near-but-not-nominal rejection), with parametric-bootstrap
-  references via
-  [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md)
-  recommended where exact calibration matters; the BTL pair chi-squares
-  are marked descriptive under judge clustering; the next-pair priority
-  is documented as a ranking heuristic; the BTL dimensionality
-  reference’s no-refit design is stated.
+  warn when estimation has not converged.
 
 ## rasch 1.10.3
 
-Input honesty, from an external code review (five findings, all
-confirmed and fixed):
-
-- Misspelled `id`, `factors`, or `items` column names in
-  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  are now errors naming the missing columns; they were silently ignored
-  (one misspelled factor silently dropped ALL factors), producing
-  valid-looking analyses of the wrong data. Numeric item indices still
-  work.
-- Fractional scores (e.g. 1.9) are now an error naming the columns;
-  [`as.integer()`](https://rdrr.io/r/base/integer.html) used to truncate
-  them silently, altering response data. Integer-valued doubles (“2.0”)
-  still pass.
-- MFRM rows with a missing person, item, or facet identifier are dropped
-  with a note; [`paste()`](https://rdrr.io/r/base/paste.html) used to
-  coerce `NA` to the literal string “NA”, silently pooling unrelated
-  rows under a phantom level.
+- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  reports unknown `id`, `factors`, and `items` columns as errors.
+- Fractional scores are rejected rather than truncated.
+- MFRM rows with missing design identifiers are omitted with a note.
 - [`equate_tests()`](https://drjoshmcgrane.github.io/rasch/reference/equate_tests.md)
-  excludes common items whose location or SE is unavailable (e.g. weakly
-  determined items with honest NA SEs) from the precision-weighted shift
-  and drift tests, notes them, and keeps their rows with NA test columns
-  – one such item used to turn every statistic NA.
-  [`plot_equate()`](https://drjoshmcgrane.github.io/rasch/reference/plot_equate.md)
-  handles the excluded rows.
+  excludes common items without usable locations or standard errors from
+  weighted linking and drift inference.
 - [`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md)
-  escapes all data-derived text (title, notes, item and facet names) –
-  crafted column names could inject markup into reports; table cells
-  were already escaped.
+  escapes data-derived labels and notes.
 
 ## rasch 1.10.2
 
-- App: hover identification is now consistent across the app, through
-  one shared mechanism. Beyond the person-fit plot and item fit map,
-  hovering identifies the point (or cell) on: the Guttman scalogram
-  (person, item, score), both residual-correlation heatmaps (item pair
-  and its Q3/Q3\*), the common-item equating plot and the
-  tailored-analysis comparison (item, reference and current locations),
-  and – for paired comparisons – the unexpected-judgements map (matchup,
-  surprise, location), the group characteristic curves’ observed means
-  (object, panel, mean), and the equating plot (object, both
-  calibrations). Every tooltip is resolved server-side against exactly
-  the rows its plot draws. Plots whose points are already labelled
-  (kidmap, Wright map, caterpillars) and curve or distribution displays
-  are deliberately left without hover.
+- The Shiny application adds consistent hover labels to scalograms,
+  residual heatmaps, equating plots, tailored analysis, and
+  paired-comparison displays.
 
 ## rasch 1.10.1
 
-- App: hovering a point on the person-fit plot or the item fit map now
-  shows who it is – a floating tooltip with the person ID (or item
-  name), location, and fit residual, resolved server-side against
-  exactly the subset each plot draws. The navbar wordmark is
-  left-justified.
+- Person- and item-fit plots in the Shiny application show identifiers,
+  locations, and fit residuals on hover.
 
 ## rasch 1.10.0
 
-- Model comparison, calibrated for composite likelihood.
-  [`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
-  gains `cl_aic` and `cl_bic` (Varin & Vidoni 2005; Gao & Song 2010):
-  `-2 cl` penalised by the effective parameter count `tr(H^-1 J)` from
-  the Godambe matrices – the same quantity whose eigenvalues calibrate
-  [`lr_test()`](https://drjoshmcgrane.github.io/rasch/reference/lr_test.md)
-  – which absorbs the pairwise over-counting a nominal AIC/BIC would
-  ignore (empirically 3.5-5x the nominal count). Verified by
-  plant-and-detect: the criteria select RSM on rating-structured data,
-  PCM under varying threshold spreads, and a planted BTL position effect
-  – and reject the richer model when the effect is absent. `n` for
-  CL-BIC counts independent units: persons contributing an informative
-  pair, or judges (count-weighted comparisons when unclustered).
-  MFRM/EFRM fits report NA with the reason noted.
 - [`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
-  now accepts `btl` fits (all-BTL comparisons: free vs
-  principal-component thresholds, with/without a position effect or
-  within-judge dependence), reporting judges/objects/comparisons and
-  OSI. [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
-  fits carry their composite-likelihood ingredients in `$cl`; anchored
-  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)
-  and
-  [`pcml_pc()`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md)
-  now return their Godambe matrices. The app’s Compare page shows the
-  criteria and accepts paired-comparison fits.
-- Cross-validation against independent implementations, in the test
-  suite whenever the packages are installed (new in Suggests: eRm, sirt,
-  psychotools): dichotomous, PCM, and RSM parameters against eRm’s full
-  CML (agreement to sampling precision; pairwise SEs at or just above
-  CML’s, the documented efficiency price), the same pairwise family
-  against sirt::rasch.pairwise (near-identity), and btl() against
-  psychotools::btmodel to machine precision (same likelihood).
+  adds composite-likelihood AIC and BIC based on the Godambe effective
+  parameter count.
+- Model comparison now covers BTL position, threshold, and dependence
+  specifications. The Shiny comparison page supports these fits.
+- Optional cross-package tests compare results with `eRm`, `sirt`, and
+  `psychotools`.
 
 ## rasch 1.9.3
 
-- Missing-data identification, verified and enforced. A booklet-design
-  probe (zero complete cases, linked forms, MCAR on top) confirmed the
-  pairwise conditional estimator recovers planted parameters with
-  nominal coverage – and exposed two silent failure modes at the
-  design’s edges, both now honest:
-- Disconnected designs error instead of fitting. When no person answers
-  items in more than one block, the pairwise likelihood is flat in the
-  between-block shift; the fit used to return arbitrary cross-block
-  spacing (within-block orders fine, origins meaningless) with no
-  warning.
-  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md),
-  [`pcml_pc()`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md),
-  and everything built on them now stop with an error naming the
-  disconnected blocks. Anchors rescue a block (disjoint-form equating):
-  with an anchored item in every block the fit proceeds; with any block
-  unanchored it stops and names it.
-- Thresholds beside near-empty categories report NA, not a lie. A
-  category with 1-2 responses can send its threshold toward a boundary
-  (observed: a single top-category response put an item location at
-  +13.9 logits) while the ridged covariance printed SE = 0. Such
-  thresholds are now flagged (`thr$weak`), their SEs and the
-  item-location SE reported as NA, and a note names the item, the
-  category, and its count, pointing to `pc_components` or category
-  collapsing. Estimates are still returned; categories with zero
-  responses are rescored away as before.
+- Pairwise estimation now checks that the observed item graph, together
+  with any anchors, identifies a common scale.
+- Thresholds adjoining critically sparse categories are marked weak.
+  Their threshold and item-location standard errors are withheld.
 
 ## rasch 1.9.2
 
 - Case study: `inst/casestudies/party_blocs_crisis.R` applies
   [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  to the Tuebingen 2009 party-preference data (via `psychotools`), with
-  ideological blocs as object sets and economic-crisis concern as judge
-  panels. Running the model against real data surfaced three defects,
-  all fixed below.
-- A set whose within-set contests are all near-even (or all one-sided)
-  carries no stable information about the panel-unit ratios: its
-  stage-one ratio estimate diverged and poisoned the phi reconciliation
-  with a spurious covariance (on the party data, the right bloc’s single
-  CDU/CSU-FDP pair at 55:45 drove phi to 3e4 and a fatal error). Such
-  sets are now screened out of the reconciliation, refit with the panel
-  units held at the reconciled phi – which the frame model says apply to
-  them regardless – and named in a note. Stage one also gains the same
-  trust-region step cap as
-  [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md).
-- Bootstrap replicates in which a set unit reaches its boundary (log
-  alpha driven to -Inf when a resampled within-set order flips against
-  the cross-set evidence, the signature of a two-object set with a
-  near-even internal pair) made the standard error silently NaN, printed
-  as blank. The SE is now reported as NA with a note naming the
-  parameter and the boundary count: no number is manufactured for a
-  sampling distribution that is not normal. A replicate whose
-  convergence flag was NA could also crash the bootstrap loop; it now
-  counts as a failure.
-- The stage convergence checks compared the gradient to an absolute
-  threshold, which is scale-dependent: on large designs a converged fit
-  could be flagged unconverged and – with the new screen – silently
-  rerouted, changing the estimates. Both stages now use a per-comparison
-  criterion, verified invariant to 50-fold duplication of the data.
-- Documentation: the bootstrap’s two honesty notes (model-based
-  resampling versus judge-clustered conditional errors, and
-  boundary-unstable parameters) are spelled out in
-  [`?btl_efrm`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md).
+  to the Tuebingen 2009 party-preference data.
+- Sets without stable panel-ratio information are excluded from the unit
+  reconciliation and refitted at the reconciled panel units.
+- Boundary-unstable bootstrap parameters receive `NA` standard errors
+  with the number of boundary replicates reported.
+- BTL-EFRM convergence is assessed by the gradient per comparison.
 
 ## rasch 1.9.1
 
-- Shiny app: the Frames page gains its paired-comparison variant –
-  nominate a judge-panel column and an object-set map (CSV, or inferred
-  from object-name prefixes), estimate the frame units on demand
-  (bootstrap standard errors by default), and read the panel units, set
-  units and origins, the unit caterpillar, and the per-frame fit. On the
-  app’s own paired-comparison demo the two judge panels differ
-  significantly in discriminating power – the panel containing the
-  erratic judge carries the smaller unit – which is precisely the
-  phenomenon the model makes visible.
+- The Shiny Frames page supports BTL-EFRM panel and object-set
+  definitions, unit tables, frame fit, and unit plots.
 
 ## rasch 1.9.0
 
-- The extended frame of reference model for paired comparisons:
-  [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  estimates object locations when the unit of the scale differs across
-  judge-panel by object-set frames – the package’s extension of
-  Humphry’s persons-by-items EFRM to the Bradley-Terry-Luce family.
-  Panel units (phi, a panel’s discriminating power) are identified
-  conditionally wherever two panels judge a common set; set units and
-  origins (alpha, kappa) are identified from cross-set comparisons,
-  which are themselves conditional outcomes – so, unlike the
-  persons-by-items case, the linking makes no distributional assumption
-  about the objects. Everything is estimated by the staged conditional
-  estimator: the within-frame calibrations are invariant to the linking
-  data (the frame-of-reference property), a deliberate trade of
-  efficiency for invariance. The cross-frame discrimination convention
-  (cross-set contests judged at exactly phi) is stated plainly in the
-  documentation as an assumption, with the per-frame fit residuals as
-  its check.
-- Inference for
-  [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-  defaults to a parametric bootstrap of the whole two-stage pipeline:
-  simulation showed the fast conditional errors cover at a third of
-  nominal on chain-linked designs (they omit the stage-one uncertainty
-  that flows into the linking), while the bootstrap restores 12/12
-  coverage and nominal false-flag rates at both small and large designs.
-  The conditional errors remain available as `se_method = "conditional"`
-  for quick inspection, labelled as understating.
-  [`plot_btl_units()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_units.md)
-  draws the unit caterpillar;
+- [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
+  fits the paired-comparison extension of the extended frame of
+  reference model, with panel units, object-set units, and set origins.
+- Bootstrap standard errors refit both stages. Conditional standard
+  errors remain available for descriptive work.
+- [`plot_btl_units()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_units.md)
+  and
   [`simulate_btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_btl_efrm.md)
-  generates frame-structured data with planted units for the
-  plant-to-detect loop.
+  support display and simulation.
 
 ## rasch 1.8.0
 
-Three further paired-comparison analogues of the Rasch tool set, and
-CRAN housekeeping.
-
-- Anchored estimation for paired comparisons:
-  `btl(anchors = c(Object = value, ...))` holds the named objects at
-  fixed locations and estimates the rest on that scale (no sum-zero
-  constraint; anchored objects report se 0) – the equating workflow’s
-  second half, mirroring `rasch(anchors=)`. An anchored object at a
-  response boundary is an error rather than a silent removal.
-- First-position advantage: `btl(position = TRUE)` estimates the pure
-  positional (first/left-presented) advantage of the Davidson & Beaver
-  1977. order-effect device as a constant covariate alongside any
-        exposure and carry-over effects; it is identified by triangle
-        closure even under fixed presentation orders (more weakly, with
-        honest SEs). The dimensionality reference simulation carries the
-        fitted coefficient.
-- Common-object equating:
-  [`btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/btl_equate.md)
-  compares two paired-comparison calibrations (or a calibration against
-  a bank) through their common objects – precision-weighted origin
-  shift, per-object drift t-tests with multiplicity adjustment, equated
-  locations – with
-  [`plot_btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_equate.md);
-  the standards-maintenance workflow of comparative judgement across
-  panels or years.
-- Targeting and adaptive pairing:
-  [`btl_information()`](https://drjoshmcgrane.github.io/rasch/reference/btl_information.md)
-  (per-comparison Fisher information and per-object design information,
-  with the naive 1/sqrt(information) SE beside the judge-clustered
-  sandwich),
+- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) adds
+  anchored estimation and a first-position effect.
+- [`btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/btl_equate.md)
+  and
+  [`plot_btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_equate.md)
+  provide common-object linking and drift tests for paired-comparison
+  calibrations.
+- [`btl_information()`](https://drjoshmcgrane.github.io/rasch/reference/btl_information.md),
   [`plot_btl_targeting()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_targeting.md),
   and
   [`btl_next_pairs()`](https://drjoshmcgrane.github.io/rasch/reference/btl_next_pairs.md)
-  – the greedy most-informative-next-pair step of adaptive comparative
-  judgement (Pollitt 2012), with the Bramley (2015)
-  reliability-inflation caution documented.
-- CRAN housekeeping: pure-ASCII sources, quoted ‘shiny’ in DESCRIPTION,
-  heavy Monte-Carlo recovery tests wrapped in `skip_on_cran()` (they run
-  locally and on CI), and `cran-comments.md` drafted from a full
-  `--as-cran` check (about 3 minutes; slowest example 1.4s).
-- An adversarial verification round over the new features also caught
-  and fixed a PRE-EXISTING inference bug: `btl(count=)` inflated every
-  sandwich standard error by about the square root of the count (the
-  meat weighted aggregated rows twice; point estimates were always
-  correct). Count- weighted fits now reproduce the expanded-data
-  standard errors exactly; OSI and all z/p values follow. Additionally
-  from that round:
-  [`btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/btl_equate.md)’s
-  shift standard error now uses the stored covariance of each
-  calibration (it treated the common-object differences as independent,
-  overstating the SE several-fold; 95 per cent coverage verified) and
-  documents the majority-drift limitation of single-shift equating;
-  [`btl_next_pairs()`](https://drjoshmcgrane.github.io/rasch/reference/btl_next_pairs.md)
-  ranks by the exact one-step reduction in total location variance (a
-  Sherman-Morrison update on the fit’s covariance), verified to beat
-  low-priority pairs empirically; and
-  [`btl_information()`](https://drjoshmcgrane.github.io/rasch/reference/btl_information.md)’s
-  `se_naive` is documented honestly as a single-parameter lower bound
-  rather than an independence benchmark.
-- Shiny app: the Targeting and Equating tabs gain paired-comparison
-  variants (design information + targeting plot + adaptive next-pair
-  recommendations; reference-calibration upload with drift table and
-  plot), and the Data roles gain a first-position-advantage switch and
-  an object-anchors upload.
+  provide design information and greedy next-pair selection.
+- Count-weighted BTL sandwich covariance now reproduces expanded-data
+  covariance. Equating uses each calibration’s stored covariance.
+- The Shiny Targeting and Equating pages support paired comparisons.
 
 ## rasch 1.7.1
 
-A statistical audit of the new simulation and paired-comparison
-independence code (23 findings across two adversarial rounds, all
-fixed), plus a vignette and a logo.
-
-- Misfit layers now compose correctly in
-  [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md):
-  the response-dependence and response-style regeneration steps
-  previously rebuilt their target items from the base structure,
-  silently erasing any DIF or second-dimension loading planted on those
-  items (and leaking a DIF-like signal from a DIF-carrying source item
-  into its dependent partner). Every regeneration now honours the item’s
-  own generating structure – trait, group-shifted thresholds and slope,
-  guessing.
-
-- [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
-  now simulates its noise reference sequentially WITH the fitted
-  within-judge dependence effects when the fit carries them: real order
-  effects previously inflated the false-positive rate to ~36 per cent on
-  one-dimensional data (now ~0-5 per cent). The documented price is
-  conservatism, since carry-over and a judge-camp second attribute are
-  partially confounded.
-
-- Doc examples pass `id = "id"` so they no longer emit spurious
-  dropped-column notes.
-
-- [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md):
-  `model = "PCM"` now draws each item’s threshold spacings and span
-  afresh, as the partial credit model allows (previously PCM and RSM
-  generated identical rating-scale-structured data); `dif` without
-  `n_groups >= 2` is an error instead of a silent no-op; polytomous
-  `guessing` warns and is ignored rather than falsely recorded as
-  planted; the response-dependence term now carries the guessing
-  asymptote of the pair’s first item (no more spurious easiness on the
-  dependent item); disordered thresholds work with 3 categories and no
-  longer shift the item’s location; careless responders are no longer
-  double-counted as response-style persons in the recorded truth.
-
-- [`simulate_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_mfrm.md):
-  halo raters are capped at the eligible pool (no NA raters when erratic
-  raters shrink it); the example runs.
-
-- [`sim_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.md):
-  person abilities are mean-centred as documented (an asymmetric
-  difficulty range no longer masquerades as person bias); the many-facet
-  branch reads the item margins (`item_effects`), restoring the
-  documented item-difficulty recovery for MFRM fits.
-
-- [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md):
-  null calibration verified for graded fits (mildly conservative, never
-  anticonservative) and documented; docs also clarify the
-  leading-bimension reference columns and the no-ties precondition of
-  Kendall’s zeta.
-
-- Shiny app (Simulate page): the parameter-recovery card only renders
-  when the current fit was estimated on the currently loaded simulation
-  (a stale fit can no longer be compared against new truth); the
-  reproducible call now carries every argument the generator received
-  (MFRM person/item SDs, EFRM person SD, graded categories); non-integer
-  seeds are rounded safely.
-
-- New vignette: “Planting misfit and watching the diagnostics fire” —
-  the plant-to-detect loop end to end, closing with a small Monte Carlo
-  power estimate via
-  [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md).
-
-- A hex logo (an item characteristic curve at its location),
-  reproducible from `tools/logo.R`.
+- Rasch simulation layers now retain all previously specified DIF,
+  dimensionality, response-style, dependence, and guessing terms.
+- PCM simulation uses item-specific threshold structures and applies
+  stricter validation to DIF, guessing, and disordered-threshold
+  specifications.
+- BTL dimensionality references include fitted within-judge dependence.
+- MFRM simulation and recovery use the recorded item and rater
+  parameters consistently.
+- The Simulate page links recovery output to the current generated
+  dataset.
+- A simulation vignette and package logo were added.
 
 ## rasch 1.7.0
 
-- Simulation gains the standard controls of a proper simulation tool.
-  - Population parameters: the person distribution (mean, SD, shape) and
-    the item-difficulty range are now set directly (in the package and
-    the app).
-  - More misfit: response styles (extreme / midpoint categories) and
-    speededness (a not-reached tail) for , and a halo effect for .
-  - generates a batch of datasets for Monte Carlo power, Type-I, or
-    recovery studies.
-  - and compare the parameters a fit recovers with the ones that were
-    planted (correlation, RMSE, bias, and a true-vs-estimated scatter)
-    for every layout.
-- Shiny app: the Simulate page renames the wide layout to “Rasch”,
-  exposes the population parameters, shows a parameter-recovery report
-  and the true-vs-estimated scatter after Run, and prints the
-  reproducible call.
+- Simulation functions add population-distribution controls, response
+  styles, speededness, and MFRM halo effects.
+- [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md),
+  [`sim_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.md),
+  and
+  [`plot_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/plot_recovery.md)
+  support repeated simulation and parameter-recovery summaries.
+- The Shiny Simulate page exposes the population controls and recovery
+  output.
 
 ## rasch 1.6.1
 
-- Shiny app: a Simulate page (under More) exposes all four simulators
-  with a data-type selector and per-layout misfit controls. Pressing
-  Simulate generates the data, loads it as the current dataset with its
-  roles set, and lists what was planted; pressing Run then analyses it
-  so the matching diagnostic can be watched firing. Verified end to end
-  for every layout (e.g. a planted DIF item is flagged by dif_anova, a
-  many-facet fit recovers its rater severities).
+- The Shiny application adds a Simulate page for the four data layouts
+  and their model-departure controls.
 
 ## rasch 1.6.0
 
-- Data simulation across all four model families, each with dial-in
-  departures from the model – so a known pathology can be planted and
-  the matching diagnostic watched as it fires. Every result carries the
-  true parameters () and prints what was planted.
-  - : dichotomous/PCM/RSM with discrimination misfit, guessing, a second
-    dimension, local dependence, DIF (uniform and non-uniform), careless
-    responders, disordered thresholds, and missing data.
-  - : paired comparisons with erratic judges, a second object attribute
-    (two judge camps), and within-judge exposure/carry-over dependence;
-    dichotomous or graded.
-  - : rated data with rater-severity spread, erratic raters, and a
-    rater-by-item interaction.
-  - : frames with differing set and group units. Verified end to end:
-    each planted departure is recovered or flagged by the corresponding
-    fit / diagnostic (an app panel follows).
+- [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md),
+  [`simulate_btl()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_btl.md),
+  [`simulate_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_mfrm.md),
+  and
+  [`simulate_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_efrm.md)
+  generate data from the package’s model families and can introduce
+  nominated departures. Generating parameters are stored in the returned
+  data.
 
 ## rasch 1.5.1
 
-- The judge unexpected-judgements map () is now drawn at the matchup
-  level: each pair the judge met is a segment spanning its two objects
-  on the consensus location axis, placed by how surprising the verdict
-  was, with the judge’s backed object filled. returns the per-matchup
-  residuals behind it. The object-level is retained for per-object
-  residuals.
+- [`plot_btl_judge_map()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_judge_map.md)
+  now displays individual matchups.
+  [`judge_pair_surprise()`](https://drjoshmcgrane.github.io/rasch/reference/judge_pair_surprise.md)
+  returns the corresponding residuals.
 
 ## rasch 1.5.0
 
 - [`judge_surprise()`](https://drjoshmcgrane.github.io/rasch/reference/judge_surprise.md)
   and
-  [`plot_btl_judge_map()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_judge_map.md):
-  the paired-comparison counterpart of the kidmap. A judge has no
-  ability to condition on, so the reference is the consensus object
-  scale; each object a judge met gets a standardised residual saying how
-  much more or less that judge favoured it than its location predicts. A
-  strong object the judge under-rated, or a weak object over-rated, is
-  an unexpected judgement. It catches systematic bias – a distinct
-  failure mode from the noise that judge fit and judge consistency flag.
-  In the Shiny app the Persons \> Judge fit panel is now a
-  master-detail: the judges table drives the selected judge’s map,
-  mirroring person -\> kidmap.
+  [`plot_btl_judge_map()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_judge_map.md)
+  compare a judge’s object-level preferences with the consensus object
+  scale. The display is available from the Shiny Judge fit page.
 
 ## rasch 1.4.0
 
-- Paired comparisons gain the pair-structure analogues of the Rasch
-  independence diagnostics – the tools that a persons-by-items residual
-  matrix would give but paired-comparison data cannot.
-  - [`btl_transitivity()`](https://drjoshmcgrane.github.io/rasch/reference/btl_transitivity.md)
-    counts circular triads (preference loops: A beats B, B beats C, C
-    beats A) against the chance rate, reports Kendall’s coefficient of
-    consistency for complete designs, and gives each judge’s own
-    consistency (Kendall & Babington Smith 1940) – the single-dimension
-    check, and a judge-fit analogue.
-  - [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
-    decomposes the skew-symmetric object-by-object residual preference
-    matrix into Gower (1977) bimensions – the paired-comparison
-    counterpart of residual PCA – and judges the leading bimension
-    against a model-simulated noise reference, so a coherent residual
-    “swirl” (a second attribute steering some contests) is distinguished
-    from noise.
-  - [`plot_btl_scree()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_scree.md),
-    [`plot_btl_dim_map()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_dim_map.md),
-    and
-    [`plot_btl_transitivity()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_transitivity.md)
-    display them; the Shiny app’s Independence \> Trait tab now carries
-    these for a BTL fit (it previously hid for paired comparisons).
+- [`btl_transitivity()`](https://drjoshmcgrane.github.io/rasch/reference/btl_transitivity.md)
+  reports circular triads and Kendall’s consistency coefficient for
+  suitable paired-comparison designs.
+- [`btl_dimensionality()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
+  decomposes the skew-symmetric residual preference matrix and compares
+  its leading component with a model-based reference.
+- New plots display BTL transitivity, scree, and residual maps.
 
 ## rasch 1.3.1
 
-- The package is now called **rasch** (it was developed under the
-  working title `rmt`). The name `rmt` belongs to an unrelated package
-  on CRAN, and `rasch` says plainly what this is – and mirrors
-  `mirt::mirt()` with
-  [`rasch::rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
-  No functions, arguments, or results change; only the package and
-  library name. The auxiliary result classes were unified under the
-  `rasch_` prefix (`rasch_btl`, `rasch_dif`, …) to match the fit
-  classes.
+- The package was renamed from its development name, `rmt`, to `rasch`.
+  Result classes use the `rasch_` prefix.
 
 ## rasch 1.3.0
 
-A full statistical audit of the independence, invariance, and paired-
-comparison procedures, with fixes throughout.
-
-- Paired comparisons:
-  [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) now
-  interrogates within-judge dependence – `dependence_data` holds every
-  comparison’s exposure and carry-over covariates (count-weighted),
-  [`plot_btl_dependence()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_dependence.md)
-  displays an effect as a partial-residual curve, and a separated effect
-  (one-sided informative comparisons) is set aside with a note instead
-  of reported as a runaway estimate. The graded engine’s
-  threshold-by-dependence Hessian block is corrected (free-threshold
-  fits with five or more categories and an order column now converge),
-  rows with a missing judge are dropped with a note, category checks
-  re-run after boundary objects are removed, and the dichotomous path
-  now routes through the one (vectorised) estimator.
+- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) adds
+  count-weighted exposure and carry-over effects, separation handling,
+  and
+  [`plot_btl_dependence()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_dependence.md).
 - [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
-  holds fitted dependence effects fixed in its residual moments and
-  resolution refits (dependence is no longer absorbed as spurious
-  judge-group DIF), weights count-aggregated comparisons exactly as
-  expanded rows, restricts supersession to group terms, and notes every
-  significant term it does not resolve.
-- [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-  keeps each ANOVA term in its own error stratum, so a mixed
-  (within-subject) design with missing responses no longer un-flags real
-  DIF; factors named like internals (`ci`, `f1`) are safe; a term’s own
-  class-interval crossing no longer supersedes it (so
-  [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
-  again splits items with both uniform and non-uniform DIF); mixed
-  designs say plainly that Tukey comparisons are unavailable; and
-  [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  notes when a within-person factor makes its standard errors
-  conservative. This was the 1.3.0 behaviour; from 1.14.1,
-  repeated-person logit uncertainty is withheld and person-level
-  [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
-  provides the inferential route.
-- [`plot_scree()`](https://drjoshmcgrane.github.io/rasch/reference/plot_scree.md)’s
-  parallel-analysis reference is now model-simulated (responses drawn
-  from the calibrated model, persons re-estimated), so model-true data
-  sits at the reference instead of always “showing structure” (Raiche
-  2005; Chou & Wang 2010).
-- Shiny app: judge-group DIF results freeze their run’s factors and
-  alpha (later sidebar edits cannot silently regroup the overlay or
-  break the reproducible snippets), superseded terms are shown, the
-  within-judge dependence panel explains dropped effects, and fit flags
-  are consistent on every table (fit residual \|2.5\|; outfit 0.7-1.3;
-  infit 0.8-1.2).
+  carries fitted dependence effects into its residual analysis and
+  handles aggregated comparison counts.
+- Mixed-design DIF terms are evaluated in their corresponding error
+  strata. Repeated-person logit contrasts are provided by
+  [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md).
+- Residual parallel analysis uses data simulated from the fitted model.
+- The Shiny application retains the settings used by each DIF analysis
+  and applies consistent fit flags.
 
 ## rasch 1.2.0
 
 - [`plot_pca_biplot()`](https://drjoshmcgrane.github.io/rasch/reference/plot_pca_biplot.md)
   draws the item loadings on the first two residual principal components
-  – the pair that usually carries any interpretable contrast – on equal
-  axes, coloured by the sign of the PC1 loading.
-
+  on equal axes.
 - [`residual_correlations()`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md)
-  now also returns the adjusted-Q3 `star_matrix` (each Q3 less the
-  average off-diagonal), and
+  now also returns the adjusted-Q3 `star_matrix` and
   [`plot_resid_cor()`](https://drjoshmcgrane.github.io/rasch/reference/plot_resid_cor.md)
-  gains a `stat` argument to colour either the raw Q3 or the adjusted
-  Q3\*, drawing the lower triangle only.
-
-- Shiny app: the trait- and local-dependence pages pair each table with
-  its plot (loadings with a PC1-PC2 biplot; Q3 and Q3\* matrices with
-  heatmaps), the raw and adjusted correlations are each flagged by their
-  own rule (\|Q3\| and Q3\*), and every data-restructuring action
-  (subtest, item split, automatic DIF resolution) offers an in-place
-  reset to the original data.
-
+  can draw raw Q3 or adjusted Q3\*.
+- The Shiny trait and local-dependence pages pair tables with their
+  plots and allow the original data to be restored after restructuring.
 - [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
   is now the single DIF analysis-of-variance function. One factor is
-  analysed one-way; several factors are modelled jointly – the
-  statistically correct treatment – with main effects by default and
-  factor-by-factor interactions optional (`effects = "factorial"`). It
-  handles within-subject factors (repeated-measures / mixed ANOVA) and
-  returns a classed object with a `summary`, the full `terms` table, and
-  Tukey comparisons. The separate `dif_anova_factorial()` is removed.
-
+  analysed one-way; several factors are fitted jointly. It supports
+  repeated-measures and mixed designs.
 - [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
-  resolves DIF iteratively by item splitting, largest effect first, to
-  clear artificial DIF.
+  resolves DIF iteratively by item splitting.
 
 ## rasch 1.0.0
 
-First stable release. The package delivers a complete Rasch Measurement
-Theory workflow built entirely from published measurement theory, with a
-pairwise conditional estimation core and a Shiny interface that exposes
-every analysis with reproducing R code attached to every output.
+First stable release.
 
 ### Models
 
-- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md):
-  dichotomous and polytomous (partial credit and rating scale) Rasch
-  models by pairwise conditional maximum likelihood (Andrich & Luo 2003;
-  Zwinderman 1995), with Godambe sandwich standard errors, sum-zero
-  identification, Warm (1989) weighted likelihood person estimation, and
-  the principal-component threshold parameterisation as an estimation
-  option.
-- [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md):
-  many-facet models with additive facet severities or item-by-facet
-  interactions, accepting wide (one column per item) or long data.
-- [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md):
-  the extended frame-of-reference model (Humphry) with frame units
-  estimated by within-frame pairwise conditional likelihood.
-- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md):
-  paired comparisons as the conditional form of the dichotomous Rasch
-  model (Bradley & Terry 1952; Andrich 1978), including the
-  adjacent-categories graded extension (Tutz 1986; Agresti 1992) with
-  symmetric thresholds – the Davidson (1970) ties model is its
-  three-category case – winner-plus-margin data entry, judge-clustered
-  errors, and within-judge exposure and carry-over effects estimated
-  jointly with the locations.
+- [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  fits dichotomous, partial credit, and rating scale models by pairwise
+  conditional maximum likelihood, with Warm WLE person estimates.
+- [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
+  fits additive and item-by-facet many-facet models.
+- [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
+  fits the extended frame of reference model.
+- [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fits
+  dichotomous and ordered paired-comparison models.
 
 ### Diagnostics
 
-- The test-of-fit suite follows Andrich & Marais (2019):
-  log-of-mean-square fit residuals with apportioned degrees of freedom,
-  the item-trait chi-square on automatically sized, tie-preserving class
-  intervals with per-interval detail, the ANOVA item fit, and person
-  fit.
-- Unidimensionality: residual principal components with parallel
-  analysis, the Smith (2002) subset t-test, and magnitude estimation.
-- Local dependence: Yen’s (1984) Q3 with the Christensen, Makransky &
-  Horton (2017) flagging convention, response-dependence magnitude
-  (Andrich & Kreiner), subtest formation, and the spread test.
-- Guessing: tailored analysis with origin-equated comparison
-  calibrations.
-- DIF: two-way residual ANOVA per factor, the joint factorial analysis
-  with a compact uniform/non-uniform summary, resolved DIF magnitudes in
-  logits with familywise control and a practical-significance criterion,
-  planned contrasts derived from the factor structure (with
-  repeated-measures support via person-level residual scores), and class
-  intervals sized to the cells each analysis actually uses. For paired
-  comparisons,
-  [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
-  tests object-by-judge-group interaction by the same two routes.
-- Equating and invariance: common-item comparison with drift flags, and
-  calibration anchoring.
+- Item and person fit, category functioning, targeting, reliability,
+  test information, residual dimensionality, and local dependence.
+- DIF analysis, item splitting, tailored analysis, common-item equating,
+  and anchored calibration.
+- BTL judge fit, invariance, and paired-comparison diagnostics.
 
 ### Display and reporting
 
-- A complete base-graphics plot suite: expected value curves with
-  observed class-interval means, category and threshold probability
-  curves, the person-item threshold distribution, Wright maps, kidmaps
-  (Wright, Mead & Ludlow 1980), object characteristic curves for paired
-  comparisons, threshold and item maps, test characteristic and
-  information curves, residual displays, and Guttman scalograms – all
-  with adjustable class intervals and scale ranges, and batch export to
-  multi-page PDF or ZIP at publication resolution.
+- Base-graphics functions cover item, person, threshold, targeting,
+  information, residual, and paired-comparison displays.
 - [`fit_summary_table()`](https://drjoshmcgrane.github.io/rasch/reference/fit_summary_table.md)
   and
   [`targeting_table()`](https://drjoshmcgrane.github.io/rasch/reference/targeting_table.md)
-  return the headline statistics as tidy tables;
+  return the headline statistics;
   [`save_outputs()`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md)
-  writes every table and plot to disk;
+  and
   [`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md)
-  produces a single-file HTML report.
+  export results.
 - [`run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
-  launches the Shiny interface: model-adaptive navigation, reproducing R
-  code beneath every output, and one-click export.
+  launches the Shiny interface and shows the R call corresponding to
+  each analysis.

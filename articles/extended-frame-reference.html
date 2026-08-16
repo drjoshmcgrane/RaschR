@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -92,9 +92,20 @@ frame of reference (Rasch 1961). The extended frame of reference model
 (Humphry 2005; Humphry and Andrich 2008) makes the frame explicit: it
 allows the unit to differ across linked item-set by person-group frames.
 Within each frame, the partial credit model holds in that frame’s
-natural unit. This is a different claim from ordinary DIF: a
-frame-defining factor sets the scale unit and cannot also be tested as a
-separate DIF factor on the frame’s own virtual items.</p>
+natural unit.</p>
+<p>For item <span class="math inline">\(i\)</span> in set <span class="math inline">\(s\)</span> and person <span class="math inline">\(n\)</span> in group <span class="math inline">\(g\)</span>,</p>
+<p><span class="math display">\[
+P(X_{ni}=x)=
+\frac{\exp\left\{\rho_{sg}\left[x\theta_n-
+\sum_{k=1}^{x}\delta_{ik}\right]\right\}}
+{\sum_{y=0}^{m_i}\exp\left\{\rho_{sg}\left[y\theta_n-
+\sum_{k=1}^{y}\delta_{ik}\right]\right\}},
+\qquad \rho_{sg}=\alpha_s\phi_g.
+\]</span></p>
+<p>Here <span class="math inline">\(\alpha_s\)</span> is the item-set
+unit and <span class="math inline">\(\phi_g\)</span> is the person-group
+unit. A frame-defining factor sets the unit and cannot also be tested as
+a separate DIF factor on that frame’s virtual items.</p>
 <p>The model should be used when a frame-dependent unit is part of the
 substantive measurement account, not simply because an equal-unit model
 fits poorly.</p>
@@ -175,31 +186,25 @@ estimates.</p>
 <span><span class="co">#&gt; $alpha_edges</span></span>
 <span><span class="co">#&gt;   set_a set_b   n log_slope</span></span>
 <span><span class="co">#&gt; 1  set1  set2 503    0.3928</span></span></code></pre></div>
-<p>The group units are obtained from within-frame pairwise conditional
+<p>Group units are estimated from within-frame pairwise conditional
 calibrations. Set units and locations require persons common to the
-linked sets. A disconnected or weakly linked design cannot establish a
-common unit; increasing the number of responses within an isolated frame
-does not repair the missing link.</p>
-<p>The person-side set-linking step is an error-corrected
-method-of-moments implementation based on the true-score variance-ratio
-argument in Humphry (2005), rather than the separate likelihood proposal
-in section 5.3 of that thesis. The crossed, multigroup and polytomous
-implementation is an experimental extension. Its sampling behaviour
-should be checked for the intended design, preferably with the full
-person bootstrap. At this vignette’s design and sample size, for
-example, the recovered set-unit ratio runs a modest few per cent above
-the planted value across replications – a finite-sample bias of the
-moments-based link, not sampling noise alone – which is exactly the kind
-of behaviour such a check reveals before the estimates are interpreted
-substantively.</p>
+linked sets. A disconnected design cannot establish a common unit.</p>
+<p>The set-linking step uses an error-corrected method-of-moments
+estimator based on the true-score variance-ratio argument in Humphry
+(2005). It is distinct from the likelihood proposed in section 5.3 of
+that thesis. The crossed, multigroup, and polytomous forms are
+extensions implemented in this package.</p>
 </div>
 <div class="section level2">
 <h2 id="uncertainty-and-comparison-with-equal-units">Uncertainty and comparison with equal units<a class="anchor" aria-label="anchor" href="#uncertainty-and-comparison-with-equal-units"></a>
 </h2>
 <p>The default hybrid standard errors combine the pairwise sandwich
 covariance, a person bootstrap for the set-linking stage, and
-delta-method propagation. The example uses 60 replicates to keep the
-vignette quick; a final analysis should use enough replicates to
+delta-method propagation. The moments-based link carries a small
+finite-sample bias at designs of this size – recovered set units
+typically sit a few per cent above the planted values – which vanishes
+with more linking information. The example uses 60 replicates to keep
+the vignette quick; a final analysis should use enough replicates to
 stabilise its reported standard errors. Set
 <code>se_method = "bootstrap"</code> to refit the complete pipeline on
 each person resample.</p>
@@ -243,11 +248,9 @@ each person resample.</p>
 <span><span class="co">#&gt; 3 log alpha[set1] -0.19642 0.03814 -5.150 2.604e-07 1.042e-06        TRUE</span></span>
 <span><span class="co">#&gt; 4 log alpha[set2]  0.19642 0.03814  5.150 2.604e-07 1.042e-06        TRUE</span></span></code></pre></div>
 <p>The raw equal-unit composite-likelihood difference is descriptive.
-Inference is carried by the omnibus Wald tests in
-<code>efrm_vs_rasch$unit_omnibus</code>; individual unit contrasts are
-exploratory and Holm-adjusted. None of these is a substitute for
-checking frame-level fit, targeting, link strength, and the
-defensibility of the frame interpretation.</p>
+The omnibus Wald tests in <code>efrm_vs_rasch$unit_omnibus</code> test
+the unit families; individual unit contrasts are Holm-adjusted
+follow-ups.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

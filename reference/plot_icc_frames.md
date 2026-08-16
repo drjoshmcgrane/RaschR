@@ -1,9 +1,8 @@
 # Plot an item's characteristic curves across frames
 
-The signature display of the extended frame of reference model: the
-model expected-score curve of one underlying item drawn once per person
-group (curves fan with the group units), with observed class-interval
-means per group overlaid.
+Plots the model expected-score curve for one item in each person group,
+with observed class-interval means overlaid. Differences between the
+curves reflect the fitted group units.
 
 ## Usage
 

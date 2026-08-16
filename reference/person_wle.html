@@ -19,7 +19,7 @@ likelihood estimate."><meta property="og:image" content="https://drjoshmcgrane.g
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,9 +81,25 @@ constant discrimination the raw score remains sufficient.</p></dd>
     <p>A list with <code>theta</code> and <code>se</code>, each named by raw score.</p>
     </div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>For raw score \(R\), let \(E(\theta)\), \(V(\theta)\), and
+\(\mu_3(\theta)\) be the sums of the item expected scores, variances, and
+third central moments. The estimate solves Warm's weighted score equation
+$$R-E(\theta)+\frac{\mu_3(\theta)}{2V(\theta)}=0.$$
+With common discrimination \(d\), its explicit multiplier cancels from
+this equation, although the moments are evaluated under \(d\). The
+reported standard error is
+$$\operatorname{SE}(\hat{\theta})=
+\{d^2V(\hat{\theta})\}^{-1/2}.$$</p>
+    </div>
+    <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. Psychometrika, 54(3), 427–450.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="score_table.html">score_table</a></code> and <code><a href="person_extrapolated.html">person_extrapolated</a></code>.</p></div>
     </div>
 
     <div class="section level2">

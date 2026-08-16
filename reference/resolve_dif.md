@@ -1,14 +1,12 @@
 # Resolve differential item functioning by iterative item splitting
 
-Splits DIF items one at a time, largest effect first, refitting after
-each split, until no item shows significant DIF (or the anchor set would
-fall too low). Splitting the item with the largest real DIF first
-removes the artificial DIF it induces on other items (Andrich & Hagquist
-2012, 2015), so the procedure resolves genuine DIF without chasing the
-artificial DIF that a single simultaneous pass would flag. Each split
-resolves the item into one copy per group (or per factor-combination
-cell for an interaction), with independent locations and thresholds, so
-both uniform and non-uniform DIF are resolved together.
+Splits DIF items one at a time, beginning with the largest estimated
+effect, and refits after each split. This order addresses the artificial
+DIF that a large departure can induce in otherwise invariant items
+(Andrich and Hagquist 2012, 2015). Each split gives the item a separate
+location and threshold structure in every factor cell. The procedure
+stops when no item is flagged or the remaining anchor set reaches
+`min_anchors`.
 
 ## Usage
 

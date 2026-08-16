@@ -2,11 +2,10 @@
 
 ## Estimation
 
-Fit the principal Rasch model families and estimate item and person
-parameters.
+Fit Rasch models and estimate item and person parameters.
 
 - [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  : Fit and diagnose a Rasch model by pairwise conditional estimation
+  : Fit a Rasch model
 - [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
   : Fit a many-facet Rasch model
 - [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
@@ -14,8 +13,8 @@ parameters.
 - [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md) :
   Estimate Rasch thresholds by pairwise conditional maximum likelihood
 - [`pcml_pc()`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md)
-  : Estimate Rasch thresholds via the Andrich principal-components
-  reparameterisation
+  : Estimate Rasch thresholds using a principal-component
+  parameterisation
 - [`threshold_index()`](https://drjoshmcgrane.github.io/rasch/reference/threshold_index.md)
   : Enumerate item-category thresholds
 - [`item_moments()`](https://drjoshmcgrane.github.io/rasch/reference/item_moments.md)
@@ -23,7 +22,7 @@ parameters.
 
 ## Test of fit and comparison
 
-Assess fit, targeting and reliability, and compare fitted models.
+Examine fit, targeting and reliability, or compare fitted models.
 
 - [`fit_summary_table()`](https://drjoshmcgrane.github.io/rasch/reference/fit_summary_table.md)
   : Test-of-fit summary as a table
@@ -34,8 +33,7 @@ Assess fit, targeting and reliability, and compare fitted models.
 - [`test_information()`](https://drjoshmcgrane.github.io/rasch/reference/test_information.md)
   : Test information function
 - [`lr_test()`](https://drjoshmcgrane.github.io/rasch/reference/lr_test.md)
-  : Likelihood-ratio test of the partial credit against the rating scale
-  model
+  : Compare the partial credit and rating scale models
 - [`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
   : Compare fitted Rasch models
 - [`guttman_table()`](https://drjoshmcgrane.github.io/rasch/reference/guttman_table.md)
@@ -52,15 +50,16 @@ Assess fit, targeting and reliability, and compare fitted models.
 
 ## Invariance and DIF
 
-Examine invariance across groups and occasions, quantify DIF, split
-items, and equate calibrations.
+Examine DIF across groups or occasions and equate calibrations.
 
 - [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
   : Differential item functioning by residual analysis of variance
 - [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
-  : Planned DIF contrasts derived from the factor structure
+  : Planned DIF contrasts
+- [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
+  : Pairwise follow-up comparisons for a DIF term
 - [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
-  : DIF magnitude in logits with pairwise comparisons
+  : DIF differences between factor levels
 - [`split_items()`](https://drjoshmcgrane.github.io/rasch/reference/split_items.md)
   : Split items by a person factor to resolve DIF
 - [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
@@ -72,8 +71,7 @@ items, and equate calibrations.
 
 ## Independence and dimensionality
 
-Examine dimensionality and local response dependence and apply
-structural remedies where appropriate.
+Examine dimensionality and local response dependence.
 
 - [`residual_correlations()`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md)
   : Residual correlations for local dependence (Yen's Q3)
@@ -104,9 +102,7 @@ structural remedies where appropriate.
 
 ## Paired comparisons
 
-Fit Bradley-Terry-Luce and extended frame of reference models for paired
-comparisons, with diagnostics for objects, judges and comparison
-designs.
+Fit and examine models for dichotomous or ordered paired comparisons.
 
 - [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) :
   Fit comparative judgement models to paired comparisons
@@ -154,7 +150,7 @@ designs.
 
 ## Plots
 
-One plotting function per display, all base graphics.
+Plot fitted models and diagnostic results.
 
 - [`plot_catfreq()`](https://drjoshmcgrane.github.io/rasch/reference/plot_catfreq.md)
   : Plot category frequencies
@@ -189,7 +185,7 @@ One plotting function per display, all base graphics.
 - [`plot_pimap()`](https://drjoshmcgrane.github.io/rasch/reference/plot_pimap.md)
   : Plot the person-item threshold distribution
 - [`plot_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/plot_recovery.md)
-  : Recovery scatter of planted against recovered parameters
+  : Plot fitted against generating parameters
 - [`plot_resid_cor()`](https://drjoshmcgrane.github.io/rasch/reference/plot_resid_cor.md)
   : Plot the residual-correlation heatmap
 - [`plot_resid_dist()`](https://drjoshmcgrane.github.io/rasch/reference/plot_resid_dist.md)
@@ -209,15 +205,14 @@ One plotting function per display, all base graphics.
 
 ## Data simulation
 
-Generate data from each model family, with optional known departures for
-evaluating estimation and diagnostic performance.
+Simulate data from the fitted model families.
 
 - [`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md)
-  : Simulate person-by-item Rasch data with dial-in misfit
+  : Simulate person-by-item Rasch data
 - [`simulate_btl()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_btl.md)
-  : Simulate paired-comparison (BTL) data with dial-in misfit
+  : Simulate paired-comparison data
 - [`simulate_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_mfrm.md)
-  : Simulate many-facet (rated) data with dial-in misfit
+  : Simulate many-facet Rasch data
 - [`simulate_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_efrm.md)
   : Simulate extended frame-of-reference data with differing units
 - [`simulate_btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_btl_efrm.md)
@@ -225,23 +220,25 @@ evaluating estimation and diagnostic performance.
 - [`sim_replicate()`](https://drjoshmcgrane.github.io/rasch/reference/sim_replicate.md)
   : Replicate a simulation for Monte Carlo studies
 - [`sim_apply()`](https://drjoshmcgrane.github.io/rasch/reference/sim_apply.md)
-  : Apply a statistic across a simulation batch, resiliently
+  : Apply a statistic across a simulation batch
 - [`sim_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/sim_recovery.md)
-  : Parameter recovery of a fit against the simulation truth
+  : Compare fitted and generating parameters
 - [`plot_recovery()`](https://drjoshmcgrane.github.io/rasch/reference/plot_recovery.md)
-  : Recovery scatter of planted against recovered parameters
+  : Plot fitted against generating parameters
 
 ## Export and interface
 
-Export results or launch the guided point-and-click Shiny application.
+Export results or launch the Shiny application.
 
 - [`save_outputs()`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md)
-  : Save every output of a Rasch analysis to a folder
+  : Save the outputs of a Rasch analysis
 - [`save_item_plots()`](https://drjoshmcgrane.github.io/rasch/reference/save_item_plots.md)
   : Save a plot for every item
 - [`save_person_plots()`](https://drjoshmcgrane.github.io/rasch/reference/save_person_plots.md)
   : Save a kidmap for every person
 - [`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md)
   : Write a self-contained HTML report of a Rasch analysis
+- [`report_document()`](https://drjoshmcgrane.github.io/rasch/reference/report_document.md)
+  : Write an editable or print-ready analysis report
 - [`run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
   : Launch the rasch point-and-click graphical interface

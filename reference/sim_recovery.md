@@ -1,9 +1,9 @@
-# Parameter recovery of a fit against the simulation truth
+# Compare fitted and generating parameters
 
-Compares the parameters recovered by a fit with the ones a `simulate_*`
-function planted (carried on the data as `attr(sim, "truth")`): item
-difficulties and person abilities for a Rasch fit, object locations for
-a paired-comparison fit, rater severities (with item and person
+Compares fitted parameters with the generating values from a
+`simulate_*` function (carried on the data as `attr(sim, "truth")`):
+item difficulties and person abilities for a Rasch fit, object locations
+for a paired-comparison fit, rater severities (with item and person
 measures) for a many-facet fit, and the set units for a frames fit.
 Locations are mean-centred before comparison, since the model identifies
 them only up to an origin.

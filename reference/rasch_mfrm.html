@@ -5,25 +5,13 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit a many-facet Rasch model — rasch_mfrm"><meta name="description" content="Estimates the many-facet Rasch model (Linacre 1989) for long-format data
-in which each row is one scored response carrying a person, an item, a
-score, and one or more facet levels (for example the rater). Every
-item-by-facet combination becomes a virtual item whose thresholds are the
-item's thresholds shifted by the facet severities, and the whole structure
-is estimated in one pass of the pairwise conditional likelihood, in which
-the person parameter cancels. Facet severities are reported with standard
-errors and pooled fit statistics; the returned object is also a full
-rasch fit at the virtual-item level, so every diagnostic
-table and plot in the package applies to it."><meta property="og:description" content="Estimates the many-facet Rasch model (Linacre 1989) for long-format data
-in which each row is one scored response carrying a person, an item, a
-score, and one or more facet levels (for example the rater). Every
-item-by-facet combination becomes a virtual item whose thresholds are the
-item's thresholds shifted by the facet severities, and the whole structure
-is estimated in one pass of the pairwise conditional likelihood, in which
-the person parameter cancels. Facet severities are reported with standard
-errors and pooled fit statistics; the returned object is also a full
-rasch fit at the virtual-item level, so every diagnostic
-table and plot in the package applies to it."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit a many-facet Rasch model — rasch_mfrm"><meta name="description" content="Fits an additive many-facet Rasch model (Linacre 1989) to scored responses
+indexed by person, item, and one or more facets such as rater, task, or
+occasion. Facet severities, item thresholds, person locations, and fit
+statistics are reported on a common logit scale."><meta property="og:description" content="Fits an additive many-facet Rasch model (Linacre 1989) to scored responses
+indexed by person, item, and one or more facets such as rater, task, or
+occasion. Facet severities, item thresholds, person locations, and fit
+statistics are reported on a common logit scale."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -31,7 +19,7 @@ table and plot in the package applies to it."><meta property="og:image" content=
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,16 +52,10 @@ table and plot in the package applies to it."><meta property="og:image" content=
     </div>
 
     <div class="ref-description section level2">
-    <p>Estimates the many-facet Rasch model (Linacre 1989) for long-format data
-in which each row is one scored response carrying a person, an item, a
-score, and one or more facet levels (for example the rater). Every
-item-by-facet combination becomes a virtual item whose thresholds are the
-item's thresholds shifted by the facet severities, and the whole structure
-is estimated in one pass of the pairwise conditional likelihood, in which
-the person parameter cancels. Facet severities are reported with standard
-errors and pooled fit statistics; the returned object is also a full
-<code><a href="rasch.html">rasch</a></code> fit at the virtual-item level, so every diagnostic
-table and plot in the package applies to it.</p>
+    <p>Fits an additive many-facet Rasch model (Linacre 1989) to scored responses
+indexed by person, item, and one or more facets such as rater, task, or
+occasion. Facet severities, item thresholds, person locations, and fit
+statistics are reported on a common logit scale.</p>
     </div>
 
     <div class="section level2">
@@ -147,26 +129,14 @@ negative score is also treated as missing.</p></dd>
 
 <dt id="arg-interaction">interaction<a class="anchor" aria-label="anchor" href="#arg-interaction"></a></dt>
 <dd><p>Optional name of one facet to interact with the items
-(interactive facet mode). Adds item-by-facet terms
-<code>gamma[item, level]</code> with double sum-to-zero constraints on top of
-the additive severities, so each level may be more or less severe on
-particular items; estimates are returned in <code>interaction_effects</code>.
-The joint family is tested in <code>interaction_test</code>; cell p-values in
-<code>interaction_effects</code> are Holm-adjusted exploratory follow-ups.
-The interactive model remains in the Rasch class (all discriminations
-equal one and the parameters are additive), but a significant
-interaction qualifies specific objectivity in practice: comparisons of
-the interacting facet's levels become item-dependent, which is itself
-the substantive finding.</p></dd>
+(interactive facet mode). See Details.</p></dd>
 
 
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
 <dd><p>Optional person factors for DIF analysis: a character
-vector naming columns of <code>data</code> that are constant within person,
-or a data frame with one row per data row or per unique person. They
-are carried into the fit so <code><a href="dif_anova.html">dif_anova</a></code> works on an MFRM
-fit directly. Facets are not person factors: facet DIF is an
-item-by-facet interaction (<code>interaction=</code>).</p></dd>
+vector naming columns constant within person, or a data frame with one
+row per data row or unique person. Facets belong in <code>facets</code>, not
+here.</p></dd>
 
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
@@ -175,26 +145,13 @@ item-by-facet interaction (<code>interaction=</code>).</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of classes <code>"rasch_mfrm"</code> and <code>"rasch"</code>. In
-  addition to the standard <code><a href="rasch.html">rasch</a></code> components (computed
-  over the virtual items), it carries <code>facet_effects</code> (per facet: level,
-  severity, standard error, observation count, pooled fit),
-  <code>item_effects</code> (underlying item locations and pooled fit),
-  <code>item_thresholds</code> (the structural <code>delta_ik</code> with standard
-  errors), and <code>facet_spec</code>. Interactive fits add the omnibus
-  family test in <code>interaction_test</code>, with the Holm-adjusted
-  exploratory cells in <code>interaction_effects</code>. Two fit residuals are reported per
-  facet level and per underlying item. <code>fit_resid</code> is the
-  facet-margin statistic of the published three-facet fit tables
-  (Andrich and Marais 2019, ch. 26 and app. C), the mean of the
-  constituent virtual items'
-  fit residuals; it weighs each virtual item equally, so an erratic level
-  shows the average of its per-item misfit. <code>fit_resid_pooled</code> is
-  the log-of-mean-square statistic summed over the margin's
-  observed cells of non-extreme persons, with its degrees of freedom in
-  <code>df_fit</code>; it weighs each response equally and is the more
-  powerful statistic when misfit is spread evenly over the level's
-  cells.</p>
+    <p>An object of classes <code>"rasch_mfrm"</code> and <code>"rasch"</code>.
+  Model-specific components are <code>facet_effects</code>, <code>item_effects</code>,
+  <code>item_thresholds</code>, and <code>facet_spec</code>. Interactive fits also
+  contain <code>interaction_test</code> and <code>interaction_effects</code>.
+  <code>fit_resid</code> averages virtual-item residuals within a margin;
+  <code>fit_resid_pooled</code> is the response-weighted pooled statistic, with
+  degrees of freedom in <code>df_fit</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -208,32 +165,29 @@ Positive facet values therefore denote greater severity. The item
 thresholds have a common sum-zero origin and the levels of each facet sum
 to zero. If <code>interaction</code> is requested, an item-by-level term is
 added with both its item and facet margins constrained to sum to zero.</p>
-<p>Estimation constructs one virtual item for every observed item-by-facet
-combination. Its thresholds equal the corresponding item thresholds plus
-the relevant facet severities and, where requested, the interaction term.
-This structural mapping is imposed directly in pairwise conditional maximum
-likelihood; person parameters cancel before estimation. The reported item,
-facet, and interaction parameters are recovered from the fitted structural
-coefficients. Their covariance is the Godambe sandwich covariance from the
-pairwise likelihood, transformed through the same structural mapping.</p>
-<p>Identification requires more than the presence of every nominal level.
-Facet levels must share items and persons with the rest of the design, and
-informative co-observations must connect the virtual-item blocks. A facet
-nested within an item or within a person-disjoint block can be confounded
-with item location even when every level has observations. The function
-checks the rank of the structural design and whether disconnected response
-blocks admit an unidentified relative shift, and stops rather than report
-an arbitrary decomposition.</p>
-<p>Item-by-facet interaction does not introduce unequal discriminations, but
-it makes comparisons among levels of the interacting facet item-dependent.
-A material interaction therefore qualifies the practical claim of
-invariance and should be reported as such.</p>
+<p>Estimation represents each observed item-by-facet combination as a virtual
+item and imposes the additive structure in the pairwise conditional
+likelihood. The person parameter cancels before calibration. The covariance
+of the structural parameters is the transformed Godambe sandwich covariance.</p>
+<p>Facet levels must be connected through common persons and items. A facet
+nested within an item or a person-disjoint block can be confounded with the
+item location. The function checks the structural rank and response graph
+before fitting the model.</p>
+<p>An item-by-facet interaction retains equal discrimination but allows facet
+differences to vary by item. The omnibus Wald test in
+<code>interaction_test</code> is the primary test; cell tests are Holm-adjusted
+follow-ups.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.</p>
 <p>Linacre, J. M. (1989). Many-Facet Rasch Measurement. Chicago: MESA Press.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="rasch.html">rasch</a></code>, <code><a href="rasch_efrm.html">rasch_efrm</a></code>,
+  <code><a href="dif_anova.html">dif_anova</a></code>, and <code><a href="simulate_mfrm.html">simulate_mfrm</a></code>.</p></div>
     </div>
 
     <div class="section level2">

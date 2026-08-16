@@ -1,4 +1,4 @@
-# Recovery scatter of planted against recovered parameters
+# Plot fitted against generating parameters
 
 One true-versus-estimated panel per parameter type, with the identity
 line and the correlation and RMSE.

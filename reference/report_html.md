@@ -1,10 +1,8 @@
 # Write a self-contained HTML report of a Rasch analysis
 
-Builds a single portable HTML file containing the complete analysis: the
-summary statistics, every diagnostic table, and every test-level plot
-embedded as an image, styled for reading and sharing. The file has no
-external dependencies, so it can be e-mailed or archived as the record
-of an analysis.
+Writes one HTML file containing the summary statistics, diagnostic
+tables, and test-level plots. Images and styles are embedded in the
+file.
 
 ## Usage
 

@@ -1,24 +1,13 @@
-# Estimate Rasch thresholds via the Andrich principal-components reparameterisation
+# Estimate Rasch thresholds using a principal-component parameterisation
 
-An optional alternative to
-[`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)'s
-free-threshold estimation, useful when some response categories are
-sparsely populated. Each item's thresholds are re-expressed as up to
-four orthogonal polynomial components in the category score: location,
-spread, skewness, and kurtosis (Andrich 1978, 1985; Pedler 1987).
-Location is always estimated; spread, skewness, and kurtosis are added
-in turn as an item's number of thresholds and `n_components` allow.
-Estimation uses the same pairwise conditional likelihood as `pcml`
-(Andrich and Luo 2003), so it inherits the same missing-data handling
-and sandwich standard errors. The component family stops at the quartic
-(kurtosis) term, so the reparameterisation is exact, matching `pcml`'s
-free partial credit thresholds and log-likelihood, only while every item
-has at most 3 thresholds (4 categories); from 4 thresholds on `pcml_pc`
-is necessarily a reduced-rank smoothing of the thresholds to a
-polynomial trend across categories, however large `n_components` is set,
-trading flexibility for the stability that comes from pooling
-information across all of an item's categories – useful when a category
-has low or zero frequency.
+Re-expresses each item's thresholds as orthogonal polynomial components:
+location, spread, skewness, and kurtosis (Andrich 1978, 1985; Pedler
+1987). Estimation uses the same pairwise conditional likelihood as
+[`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md). With
+at most three thresholds per item the full parameterisation is exact.
+Items with four or more thresholds are fitted by a reduced-rank
+polynomial trend, which can stabilise sparse categories at the cost of
+restricting the threshold pattern.
 
 ## Usage
 

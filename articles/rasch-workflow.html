@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,20 +84,16 @@ McGrane</h4>
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://drjoshmcgrane.github.io/rasch/">rasch</a></span><span class="op">)</span></span></code></pre></div>
-<p>This vignette walks through the standard analysis sequence of Rasch
-Measurement Theory and its model suite (Rasch 1960, 1961; Andrich and
-Marais 2019; for the frame of reference models Humphry 2005 and Humphry
-and Andrich 2008; for dichotomous comparative judgement as the
-conditional form of the dichotomous Rasch model, Andrich 1978, with the
-polytomous extension after Tutz 1986): fit by pairwise conditional
-estimation, then examine whether the data meet the model’s requirements
-before the measures are interpreted.</p>
-<p>The same principal workflow is available through the package’s
-point-and-click Shiny application. Run <code><a href="../reference/run_app.html">rasch::run_app()</a></code>
-after installation to import data, choose a model, inspect diagnostics,
-and export results without writing R analysis code. The application
-shows the corresponding R call for each analysis; this article explains
-the same decisions in their command-line form.</p>
+<p>This vignette gives a basic Rasch analysis using pairwise conditional
+estimation. The model is fitted first; fit, targeting, invariance, local
+dependence, and dimensionality are then examined before interpreting the
+measures (Rasch 1960; Andrich and Marais 2019; for the frame of
+reference models Humphry 2005 and Humphry and Andrich 2008; for
+comparative judgement Andrich 1978, with the polytomous extension after
+Tutz 1986).</p>
+<p>The same analyses are available in the Shiny application. Run
+<code><a href="../reference/run_app.html">rasch::run_app()</a></code> to import data, fit a model, inspect the
+results, and export tables or plots without writing R analysis code.</p>
 <div class="section level2">
 <h2 id="fit-the-model-required-by-the-scoring-structure">Fit the model required by the scoring structure<a class="anchor" aria-label="anchor" href="#fit-the-model-required-by-the-scoring-structure"></a>
 </h2>
@@ -105,6 +101,18 @@ the same decisions in their command-line form.</p>
 Dichotomous data are its one-threshold special case. Set
 <code>model = "RSM"</code> only when the same category threshold
 structure is intended to hold across items.</p>
+<p>For person <span class="math inline">\(n\)</span>, item <span class="math inline">\(i\)</span>, and score <span class="math inline">\(x=0,\ldots,m_i\)</span>, the partial credit model
+is</p>
+<p><span class="math display">\[
+P(X_{ni}=x)=
+\frac{\exp\left\{x\theta_n-\sum_{k=1}^{x}\delta_{ik}\right\}}
+{\sum_{y=0}^{m_i}\exp\left\{y\theta_n-
+\sum_{k=1}^{y}\delta_{ik}\right\}}.
+\]</span></p>
+<p>The rating scale model constrains <span class="math inline">\(\delta_{ik}=\beta_i+\tau_k\)</span>. Pairwise
+conditioning removes <span class="math inline">\(\theta_n\)</span> from
+the item likelihood. Person locations are subsequently estimated by
+Warm’s weighted likelihood method.</p>
 <p>The example uses simulated data so that the complete workflow is
 reproducible. With observed data, inspect the coding and frequency of
 every category before fitting the model. Negative scores are read as
@@ -350,11 +358,9 @@ to delete or combine items.</p>
 <span><span class="co">#&gt; $paired_t$p</span></span>
 <span><span class="co">#&gt; [1] 5.268e-05</span></span></code></pre></div>
 <p>Binary residual-correlation flags require an analyst-supplied
-heuristic threshold because adjusted Q3 has no universal critical value.
-The dimensionality test also withholds a categorical verdict unless each
-opposed subtest contains at least 15 score points; this is preferable to
-treating a short, low-information split as evidence for or against one
-dimension.</p>
+threshold because adjusted Q3 has no universal critical value. The
+dimensionality result carries a caution when either opposed subtest
+contains fewer than 15 score points.</p>
 </div>
 <div class="section level2">
 <h2 id="link-calibrations-through-common-items">Link calibrations through common items<a class="anchor" aria-label="anchor" href="#link-calibrations-through-common-items"></a>

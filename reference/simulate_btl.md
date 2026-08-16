@@ -1,11 +1,9 @@
-# Simulate paired-comparison (BTL) data with dial-in misfit
+# Simulate paired-comparison data
 
-Generates dichotomous or polytomous paired comparisons from the
-Bradley-Terry-Luce model, with optional departures each of which a
-paired-comparison diagnostic is built to detect. The result is a data
-frame ready for
-[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md), with
-the truth attached.
+Generates dichotomous or ordered paired comparisons from the
+Bradley–Terry–Luce model. Optional arguments introduce a second object
+attribute, erratic judges, or within-judge dependence. Generating values
+are stored in `attr(x, "truth")`.
 
 ## Usage
 
@@ -37,8 +35,8 @@ simulate_btl(
 - model:
 
   `"dichotomous"` (a winner) or `"polytomous"` (a rated margin in
-  `n_categories` categories; the pre-1.14.1 value `"graded"` is accepted
-  as an alias).
+  `n_categories` categories; an earlier development-era value `"graded"`
+  is accepted as an alias).
 
 - n_categories:
 
@@ -51,20 +49,19 @@ simulate_btl(
 - second_attribute:
 
   `NULL`, or `list(rho=)`: half the judges rank by a second object
-  attribute correlated `rho` with the first. This introduces
-  multidimensionality and possible intransitivity.
+  attribute correlated `rho` with the first. This introduces residual
+  dimensionality and possible intransitivity.
 
 - erratic_judges:
 
-  Proportion of judges who choose at random. This affects judge fit,
-  transitivity, and the judge-surprise diagnostics.
+  Proportion of judges who choose at random.
 
 - dependence:
 
   `NULL`, or `list(exposure=, carry_over=)`: within-judge order effects
   (a seen-before advantage and a pull from the judge's own earlier
-  verdicts). Adds an `order` column. Feeds the dependence effects of
-  [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md).
+  verdicts). Adds an `order` column. Feeds the dependence effects fitted
+  by [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md).
 
 - seed:
 

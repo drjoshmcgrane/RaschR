@@ -12,9 +12,19 @@ of reference (Rasch 1961). The extended frame of reference model
 (Humphry 2005; Humphry and Andrich 2008) makes the frame explicit: it
 allows the unit to differ across linked item-set by person-group frames.
 Within each frame, the partial credit model holds in that frame’s
-natural unit. This is a different claim from ordinary DIF: a
-frame-defining factor sets the scale unit and cannot also be tested as a
-separate DIF factor on the frame’s own virtual items.
+natural unit.
+
+For item \\i\\ in set \\s\\ and person \\n\\ in group \\g\\,
+
+\\ P(X\_{ni}=x)= \frac{\exp\left\\\rho\_{sg}\left\[x\theta_n-
+\sum\_{k=1}^{x}\delta\_{ik}\right\]\right\\}
+{\sum\_{y=0}^{m_i}\exp\left\\\rho\_{sg}\left\[y\theta_n-
+\sum\_{k=1}^{y}\delta\_{ik}\right\]\right\\}, \qquad
+\rho\_{sg}=\alpha_s\phi_g. \\
+
+Here \\\alpha_s\\ is the item-set unit and \\\phi_g\\ is the
+person-group unit. A frame-defining factor sets the unit and cannot also
+be tested as a separate DIF factor on that frame’s virtual items.
 
 The model should be used when a frame-dependent unit is part of the
 substantive measurement account, not simply because an equal-unit model
@@ -104,31 +114,25 @@ fit$linking
 #> 1  set1  set2 503    0.3928
 ```
 
-The group units are obtained from within-frame pairwise conditional
+Group units are estimated from within-frame pairwise conditional
 calibrations. Set units and locations require persons common to the
-linked sets. A disconnected or weakly linked design cannot establish a
-common unit; increasing the number of responses within an isolated frame
-does not repair the missing link.
+linked sets. A disconnected design cannot establish a common unit.
 
-The person-side set-linking step is an error-corrected method-of-moments
-implementation based on the true-score variance-ratio argument in
-Humphry (2005), rather than the separate likelihood proposal in section
-5.3 of that thesis. The crossed, multigroup and polytomous
-implementation is an experimental extension. Its sampling behaviour
-should be checked for the intended design, preferably with the full
-person bootstrap. At this vignette’s design and sample size, for
-example, the recovered set-unit ratio runs a modest few per cent above
-the planted value across replications – a finite-sample bias of the
-moments-based link, not sampling noise alone – which is exactly the kind
-of behaviour such a check reveals before the estimates are interpreted
-substantively.
+The set-linking step uses an error-corrected method-of-moments estimator
+based on the true-score variance-ratio argument in Humphry (2005). It is
+distinct from the likelihood proposed in section 5.3 of that thesis. The
+crossed, multigroup, and polytomous forms are extensions implemented in
+this package.
 
 ## Uncertainty and comparison with equal units
 
 The default hybrid standard errors combine the pairwise sandwich
 covariance, a person bootstrap for the set-linking stage, and
-delta-method propagation. The example uses 60 replicates to keep the
-vignette quick; a final analysis should use enough replicates to
+delta-method propagation. The moments-based link carries a small
+finite-sample bias at designs of this size – recovered set units
+typically sit a few per cent above the planted values – which vanishes
+with more linking information. The example uses 60 replicates to keep
+the vignette quick; a final analysis should use enough replicates to
 stabilise its reported standard errors. Set `se_method = "bootstrap"` to
 refit the complete pipeline on each person resample.
 
@@ -174,12 +178,9 @@ fit$efrm_vs_rasch
 #> 4 log alpha[set2]  0.19642 0.03814  5.150 2.604e-07 1.042e-06        TRUE
 ```
 
-The raw equal-unit composite-likelihood difference is descriptive.
-Inference is carried by the omnibus Wald tests in
-`efrm_vs_rasch$unit_omnibus`; individual unit contrasts are exploratory
-and Holm-adjusted. None of these is a substitute for checking
-frame-level fit, targeting, link strength, and the defensibility of the
-frame interpretation.
+The raw equal-unit composite-likelihood difference is descriptive. The
+omnibus Wald tests in `efrm_vs_rasch$unit_omnibus` test the unit
+families; individual unit contrasts are Holm-adjusted follow-ups.
 
 ## References
 

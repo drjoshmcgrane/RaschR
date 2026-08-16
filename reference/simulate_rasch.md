@@ -1,11 +1,9 @@
-# Simulate person-by-item Rasch data with dial-in misfit
+# Simulate person-by-item Rasch data
 
-Generates dichotomous or polytomous (partial credit / rating scale) data
-from the Rasch model, with optional, individually controllable
-departures from it – each of which the package's matching diagnostic is
-built to detect. The result is a data frame ready for
-[`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
-with the true parameters attached as `attr(x, "truth")`.
+Generates dichotomous, partial credit, or rating scale data. Optional
+arguments introduce item misfit, guessing, multidimensionality, local
+dependence, DIF, response styles, or missingness. Generating values are
+stored in `attr(x, "truth")`.
 
 ## Usage
 
@@ -74,21 +72,18 @@ simulate_rasch(
 - discrimination:
 
   The item slope, supplied as one value or one per item. Values above 1
-  over-discriminate (Guttman-like, negative fit residual); below 1
-  under-discriminate (noisy, positive residual). Feeds infit/outfit and
-  the item-fit F.
+  over-discriminate (Guttman-like, negative fit residual); values below
+  1 under-discriminate (positive residual).
 
 - guessing:
 
-  Scalar or length-`n_items` lower asymptote (dichotomous): low-ability
-  persons answer correctly by chance. Feeds
-  [`tailored_analysis`](https://drjoshmcgrane.github.io/rasch/reference/tailored_analysis.md).
+  Scalar or length-`n_items` lower asymptote (dichotomous): low-location
+  persons answer correctly by chance.
 
 - second_dim:
 
   `NULL`, or `list(items=, rho=)`: the named items load on a second
-  trait correlated `rho` with the first. Feeds
-  [`dimensionality_test`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md).
+  trait correlated `rho` with the first.
 
 - dependence:
 
@@ -99,31 +94,25 @@ simulate_rasch(
 - dif:
 
   `NULL`, or `list(items=, uniform=, nonuniform=)`: the named items
-  function differently for the last person group – a location shift
+  function differently for the last person group: a location shift
   (`uniform`) and/or a slope change (`nonuniform`). Needs
-  `n_groups >= 2`. Feeds
-  [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-  /
-  [`dif_size`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md).
+  `n_groups >= 2`.
 
 - careless:
 
-  Proportion of persons who answer at random (person misfit; feeds
-  person infit/outfit).
+  Proportion of persons who answer at random.
 
 - response_style:
 
   `NULL`, or `list(type=, prop=, strength=)` with `type` `"extreme"` or
   `"middle"`: a proportion `prop` of persons favour the end (or middle)
   categories regardless of the trait, with distortion `strength`
-  (default 1.6) on the log-probability scale (polytomous; feeds the
-  category diagnostics and person fit).
+  (default 1.6) on the log-probability scale (polytomous).
 
 - speeded:
 
-  Proportion not-reached at the last item: a growing tail of missing
-  responses over the final items, as under time pressure (feeds the item
-  statistics and the missingness pattern).
+  Proportion not reached at the last item: a growing tail of missing
+  responses over the final items.
 
 - disordered:
 

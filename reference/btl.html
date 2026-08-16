@@ -5,57 +5,11 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit comparative judgement models to paired comparisons — btl"><meta name="description" content="Estimates object locations from paired-comparison data by conditional
-maximum likelihood. For dichotomous comparisons this is the
-Bradley-Terry-Luce model; for polytomous comparisons, its
-adjacent-categories ordinal extension (Tutz 1986). The
-Bradley-Terry-Luce model is the conditional form
-of the dichotomous Rasch model – within an item pair, given one correct
-response, the Rasch probability that it was the easier item is exactly
-of BTL form – so it belongs to the same measurement family and is
-estimated by the same conventions as the rest of the package:
-Newton-Raphson on the person-free likelihood, locations identified by
-the sum-zero constraint, and Godambe sandwich standard errors, clustered
-by judge when a judge column is given (so repeated comparisons by the
-same judge need not be independent). Objects that win or lose every
-comparison have no finite estimate and are removed with a note, exactly
-as extreme persons are set aside in a Rasch calibration; the comparison
-graph must remain connected. Beyond that, finite estimates exist only
-when the directed win graph is strongly connected (Ford 1957): if some
-subset of objects never concedes a point to the rest, the likelihood
-pushes the two clusters infinitely far apart, so the fit stops with an
-error naming the separated objects rather than presenting the
-optimiser's boundary values as measures – remove the separated
-cluster, or collect comparisons that cross the divide. Anchors relax
-this condition: an anchored object is pinned, so the fit only requires
-every free object to be tied to an anchor in both win directions
-(otherwise the constrained likelihood still recedes along the
-unanchored cluster, and the same error results)."><meta property="og:description" content="Estimates object locations from paired-comparison data by conditional
-maximum likelihood. For dichotomous comparisons this is the
-Bradley-Terry-Luce model; for polytomous comparisons, its
-adjacent-categories ordinal extension (Tutz 1986). The
-Bradley-Terry-Luce model is the conditional form
-of the dichotomous Rasch model – within an item pair, given one correct
-response, the Rasch probability that it was the easier item is exactly
-of BTL form – so it belongs to the same measurement family and is
-estimated by the same conventions as the rest of the package:
-Newton-Raphson on the person-free likelihood, locations identified by
-the sum-zero constraint, and Godambe sandwich standard errors, clustered
-by judge when a judge column is given (so repeated comparisons by the
-same judge need not be independent). Objects that win or lose every
-comparison have no finite estimate and are removed with a note, exactly
-as extreme persons are set aside in a Rasch calibration; the comparison
-graph must remain connected. Beyond that, finite estimates exist only
-when the directed win graph is strongly connected (Ford 1957): if some
-subset of objects never concedes a point to the rest, the likelihood
-pushes the two clusters infinitely far apart, so the fit stops with an
-error naming the separated objects rather than presenting the
-optimiser's boundary values as measures – remove the separated
-cluster, or collect comparisons that cross the divide. Anchors relax
-this condition: an anchored object is pinned, so the fit only requires
-every free object to be tied to an anchor in both win directions
-(otherwise the constrained likelihood still recedes along the
-unanchored cluster, and the same error results)."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Fit comparative judgement models to paired comparisons — btl"><meta name="description" content="Fits the Bradley–Terry–Luce model to dichotomous comparisons or its
+ordered-response extension (Tutz 1986). Object, judge, and pair fit are
+reported with an object separation index and design diagnostics."><meta property="og:description" content="Fits the Bradley–Terry–Luce model to dichotomous comparisons or its
+ordered-response extension (Tutz 1986). Object, judge, and pair fit are
+reported with an object separation index and design diagnostics."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -63,7 +17,7 @@ unanchored cluster, and the same error results)."><meta property="og:image" cont
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.14.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -96,32 +50,9 @@ unanchored cluster, and the same error results)."><meta property="og:image" cont
     </div>
 
     <div class="ref-description section level2">
-    <p>Estimates object locations from paired-comparison data by conditional
-maximum likelihood. For dichotomous comparisons this is the
-Bradley-Terry-Luce model; for polytomous comparisons, its
-adjacent-categories ordinal extension (Tutz 1986). The
-Bradley-Terry-Luce model is the conditional form
-of the dichotomous Rasch model – within an item pair, given one correct
-response, the Rasch probability that it was the easier item is exactly
-of BTL form – so it belongs to the same measurement family and is
-estimated by the same conventions as the rest of the package:
-Newton-Raphson on the person-free likelihood, locations identified by
-the sum-zero constraint, and Godambe sandwich standard errors, clustered
-by judge when a judge column is given (so repeated comparisons by the
-same judge need not be independent). Objects that win or lose every
-comparison have no finite estimate and are removed with a note, exactly
-as extreme persons are set aside in a Rasch calibration; the comparison
-graph must remain connected. Beyond that, finite estimates exist only
-when the directed win graph is strongly connected (Ford 1957): if some
-subset of objects never concedes a point to the rest, the likelihood
-pushes the two clusters infinitely far apart, so the fit stops with an
-error naming the separated objects rather than presenting the
-optimiser's boundary values as measures – remove the separated
-cluster, or collect comparisons that cross the divide. Anchors relax
-this condition: an anchored object is pinned, so the fit only requires
-every free object to be tied to an anchor in both win directions
-(otherwise the constrained likelihood still recedes along the
-unanchored cluster, and the same error results).</p>
+    <p>Fits the Bradley–Terry–Luce model to dichotomous comparisons or its
+ordered-response extension (Tutz 1986). Object, judge, and pair fit are
+reported with an object separation index and design diagnostics.</p>
     </div>
 
     <div class="section level2">
@@ -160,36 +91,19 @@ compared.</p></dd>
 
 <dt id="arg-winner">winner<a class="anchor" aria-label="anchor" href="#arg-winner"></a></dt>
 <dd><p>Name of the column holding the winner of each row: its
-value must equal the row's <code>object_a</code> or <code>object_b</code> entry;
-<code>"tie"</code> or <code>"draw"</code> marks a tie; anything else (including
-blanks) is treated as missing and dropped with a note. Ignored when
-<code>response</code> is given.</p></dd>
+value must equal one of the two objects. <code>"tie"</code> and <code>"draw"</code>
+mark ties. Ignored when <code>response</code> is supplied.</p></dd>
 
 
 <dt id="arg-response">response<a class="anchor" aria-label="anchor" href="#arg-response"></a></dt>
-<dd><p>Optional name of a column holding a polytomous preference
-for <code>object_a</code> over <code>object_b</code> – an ORDERED factor
-(<code>factor(..., ordered = TRUE)</code>, levels worst to best for
-<code>object_a</code>) or integer scores <code>0..m</code>; a plain factor is
-refused, since its alphabetical level order would silently define
-(and can reverse) the response scale. Fits the
-adjacent-categories ordinal extension of BTL (Tutz 1986; Agresti
-1992): a partial-credit structure on the difference of locations with
-thresholds constrained symmetric, <code>tau_k = -tau_(m+1-k)</code>, so the
-model is invariant to presentation order. Two categories reproduce
-BTL exactly. Three categories have the Davidson (1970) probability
-structure after mapping the Davidson endpoint log-strength to
-<code>2 * beta</code>; the reported <code>beta</code> therefore uses the
-adjacent-category rather than endpoint-log-odds unit.</p></dd>
+<dd><p>Optional ordered response favouring <code>object_a</code> over
+<code>object_b</code>: an ordered factor from least to greatest preference for
+<code>object_a</code>, or integer scores <code>0..m</code>.</p></dd>
 
 
 <dt id="arg-margin">margin<a class="anchor" aria-label="anchor" href="#arg-margin"></a></dt>
-<dd><p>Optional name of a column holding the extent of the win
-("a little", "much", ...), as an ordered factor or increasing values;
-combined with <code>winner</code> it assembles the polytomous response without
-any orientation bookkeeping ("B by much" means the same thing
-whichever column B sits in). Winner values matching neither object
-are ties and form the middle category.</p></dd>
+<dd><p>Optional ordered margin-of-victory column, combined with
+<code>winner</code> to construct an orientation-invariant response.</p></dd>
 
 
 <dt id="arg-judge">judge<a class="anchor" aria-label="anchor" href="#arg-judge"></a></dt>
@@ -203,42 +117,19 @@ standing for several identical comparisons).</p></dd>
 
 
 <dt id="arg-order">order<a class="anchor" aria-label="anchor" href="#arg-order"></a></dt>
-<dd><p>Optional name of a column giving each judge's judgment
-sequence (timestamps or ranks; requires <code>judge</code>). Adds the
-within-judge dependence analysis: an exposure effect (the advantage,
-in logits, of an object the judge has seen before over one they have
-not) and a carry-over effect (the pull of the judge's own earlier
-verdicts on the same object – response dependence in the sense of
-Marais and Andrich 2008), estimated jointly with the locations and
-reported in <code>dependence</code>. Incompatible with
+<dd><p>Optional column giving each judge's comparison sequence;
+requires <code>judge</code>. See Details. Incompatible with
 <code>ties = "half"</code>.</p></dd>
 
 
 <dt id="arg-position">position<a class="anchor" aria-label="anchor" href="#arg-position"></a></dt>
-<dd><p>Logical: when <code>TRUE</code>, <code>object_a</code> is taken as the
-first-presented (left) object of every comparison and a first-position
-advantage is estimated – a single coefficient, in logits, added to
-every comparison's location difference, the pure positional form of the
-Davidson and Beaver (1977) within-pair order-effect device. It is
-reported in <code>dependence</code> with <code>effect = "position"</code> (every
-comparison is informative, so <code>n_informative</code> is the total weighted
-comparison count) and estimated jointly with the locations, alongside the
-exposure and carry-over effects when <code>order</code> is also given.
-Identification comes from triangle closure (K &gt;= 3), so the constant
-oriented covariate is estimable even when each pair has a fixed
-orientation, though weakly. Note that <code>ties = "half"</code> duplicates
-rows in the same orientation, so the first position stays well defined.</p></dd>
+<dd><p>If <code>TRUE</code>, estimate a first-presentation advantage,
+treating <code>object_a</code> as the first object in each comparison.</p></dd>
 
 
 <dt id="arg-anchors">anchors<a class="anchor" aria-label="anchor" href="#arg-anchors"></a></dt>
-<dd><p>Optional named numeric vector for equating: names are object
-names, values are fixed locations in logits. The named objects are held
-exactly at those locations and the remaining objects are estimated freely
-with no sum-zero constraint – the origin and scale come from the anchors,
-exactly as an anchored <code><a href="rasch.html">rasch</a></code> calibration works. Anchored
-objects report a standard error of zero (their location is a constant, not
-an estimate). An anchored object that is undefeated or winless is an error,
-not silently removed as a free boundary object would be.</p></dd>
+<dd><p>Optional named numeric vector of fixed object locations.
+Anchored objects have standard error zero and must not be boundary objects.</p></dd>
 
 
 <dt id="arg-ties">ties<a class="anchor" aria-label="anchor" href="#arg-ties"></a></dt>
@@ -252,11 +143,7 @@ category instead.</p></dd>
 
 <dt id="arg-thresholds">thresholds<a class="anchor" aria-label="anchor" href="#arg-thresholds"></a></dt>
 <dd><p><code>"free"</code> (default) estimates every symmetric
-threshold parameter; <code>"pc"</code> pools them to the spread (linear)
-principal component – the symmetric case of the principal-component
-threshold structure, whose even skewness component is structurally
-zero here – so thinly used categories borrow strength from every
-response. Both modes report the component decomposition.</p></dd>
+threshold; <code>"pc"</code> retains only the symmetric spread component.</p></dd>
 
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
@@ -265,75 +152,80 @@ response. Both modes report the component decomposition.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list of class <code>"rasch_btl"</code>: <code>objects</code> (location, se,
-  comparisons, wins – or the polytomous <code>score</code> – infit and outfit
-  mean squares, fit residual and its df),
-  <code>pairs</code> (per pair: n, observed and expected win proportions –
-  or mean polytomous responses –
-  standardised residual, chi-square component – the pair chi-squares
-  treat comparisons as independent and are descriptive under judge
-  clustering; the object and judge fit residuals and the clustered
-  standard errors carry the robust inference), <code>judges</code> (when
-  given: per judge n, infit, outfit, fit residual, df), <code>total_chisq</code>,
-  <code>total_df</code>, <code>total_p</code>, the object separation index
-  <code>osi</code>, <code>loglik</code>, <code>cl</code> (the composite-likelihood
-  information ingredients used by <code><a href="compare_fits.html">compare_fits</a></code>: the Godambe
-  effective parameter count and the independent-unit count),
-  convergence details, and <code>notes</code>. With judge clustering,
-  covariance-based inference (including the Godambe information criteria,
-  standard errors, dependence tests, DIF, and OSI) is withheld unless
-  there are at least 10 judges, at least 8 <em>effective</em> judges (the
-  inverse Simpson index of each judge's share of the comparisons – a
-  judge doing half the work leaves ~4 effective clusters however many
-  judges exist, and the clustered sandwich then rejects a true null at
-  ~9% in simulation, with ~7% already at 6-7 effective), and more
-  effective judges than fitted parameters. Between 8 and 9.5 effective
-  judges, or whenever one judge carries more than 20% of the
-  comparisons (a mild ~6% edge that the effective count alone misses
-  at larger judge counts), inference is reported with a caution note.
-  Point estimates and descriptive fit remain; <code>cl$n_units_effective</code>
-  reports the effective count.
-  Polytomous fits add <code>thresholds</code> (the symmetric threshold estimates
-  with standard errors), <code>m</code>, and <code>categories</code>. With an
-  <code>order</code> column the within-judge <code>dependence</code> effects table
-  carries an <code>n_informative</code> count, and <code>dependence_data</code> holds
-  every comparison with its per-comparison exposure and carry-over
-  covariates (see <code><a href="plot_btl_dependence.html">plot_btl_dependence</a></code>).</p>
+    <p>A <code>"rasch_btl"</code> object. Principal components are
+  <code>objects</code>, <code>pairs</code>, <code>judges</code>, the total pair-fit test,
+  <code>osi</code>, <code>loglik</code>, composite-likelihood information <code>cl</code>,
+  convergence details, and <code>notes</code>. Ordered-response fits also contain
+  <code>thresholds</code>, <code>m</code>, and <code>categories</code>. Fits using
+  <code>order</code> contain <code>dependence</code> and <code>dependence_data</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Fit is reported at three levels, mirroring the Rasch diagnostics.
-Per object and (when given) per judge: the log-of-mean-square fit
-residual of Andrich and Marais (2019, ch. 23) over their comparisons, with apportioned degrees of freedom –
-an erratic judge or an object of inconsistent quality shows exactly as
-an erratic person or misfitting item does. Per pair: the classical
-goodness-of-fit table comparing observed and expected win proportions,
-with the total chi-square on (pairs used) minus (free location parameters)
-degrees of freedom. The object separation index is the analogue of the
-PSI: the proportion of observed location variance not due to error.
-Anchored objects enter it with their fixed locations and zero error –
-they are separated with certainty by construction.</p>
+    <p>For objects \(a\) and \(b\), the dichotomous model is
+$$P(a\succ b)=\frac{\exp(\beta_a)}
+{\exp(\beta_a)+\exp(\beta_b)}.$$
+This is the conditional form of the dichotomous Rasch model (Andrich 1978).
+For an ordered response \(Y=0,\ldots,m\),
+$$\log\{P(Y=r)/P(Y=r-1)\}=\beta_a-\beta_b-\tau_r,$$
+with thresholds constrained to be symmetric under reversal of presentation
+order. Two categories reproduce the dichotomous model.</p>
+<p>Locations are identified by a sum-zero constraint unless anchors are
+supplied. The comparison graph must be connected, and the directed win
+graph must be strongly connected for all free locations to be finite
+(Ford 1957). Boundary objects are removed when this leaves an identified
+model; otherwise fitting stops.</p>
+<p>Standard errors use the Godambe sandwich covariance. When <code>judge</code> is
+supplied, the covariance is clustered by judge. Clustered inference is
+withheld when there are fewer than ten judges, fewer than eight effective
+judges, or no residual cluster degrees of freedom. A caution is attached
+when the effective count is below 9.5 or one judge supplies more than 20
+per cent of the comparisons. The thresholds are simulation-calibrated:
+a true null is rejected at about 9% with four effective judges and 7%
+at six to seven, while balanced designs are nominal from ten judges up
+and a single judge above a 20% share adds a mild edge near 6%.</p>
+<p>Dichotomous data may be supplied as a winner, with ties dropped or divided
+equally between the two outcomes. Ordered data may instead be supplied
+directly as scores from 0 to \(m\), or assembled from the winner and an
+ordered margin of victory. Plain factors are refused because alphabetical
+ordering can reverse the response scale. The <code>"pc"</code> threshold option
+retains the symmetric spread component, which can stabilise thin categories.</p>
+<p>If comparison order is supplied, exposure and carry-over effects are
+estimated from each judge's preceding comparisons. The <code>position</code>
+term estimates a first-presentation effect. These coefficients enter the
+model jointly with the object locations and are reported in logits.
+In simulation the position and exposure null tests hold their 5% level
+(5.8% and 5.9% at 800 replicates); the carry-over null runs near 8%
+with 14 judges – a few-cluster elevation, gone by 30 judges (5.3%) –
+and effects of 0.6 logits are detected in 62% (position), 39%
+(exposure), and 77% (carry-over) of replicates.
+Anchors fix nominated object locations and replace the sum-zero origin.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p>Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
-  incomplete block designs: I. The method of paired comparisons.
-  Biometrika, 39, 324-345. Luce, R. D. (1959). Individual Choice
-  Behavior. Wiley. Andrich, D. (1978). Relationships between the
-  Thurstone and Rasch approaches to item scaling. Applied Psychological
-  Measurement, 2, 451-462.</p>
+    <p>Bradley, R. A. and Terry, M. E. (1952). Rank analysis of incomplete block
+designs: I. The method of paired comparisons. Biometrika, 39, 324–345.</p>
+<p>Luce, R. D. (1959). Individual Choice Behavior. Wiley.</p>
+<p>Andrich, D. (1978). Relationships between the Thurstone and Rasch
+approaches to item scaling. Applied Psychological Measurement, 2,
+451–462.</p>
 <p>Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
-  Journal of Mathematical Psychology, 30(3), 306-316. Agresti, A.
-  (1992). Analysis of ordinal paired comparison data. Journal of the
-  Royal Statistical Society C, 41(2), 287-297. Davidson, R. R. (1970).
-  On extending the Bradley-Terry model to accommodate ties in paired
-  comparison experiments. Journal of the American Statistical
-  Association, 65(329), 317-328. Ford, L. R. (1957). Solution of a
-  ranking problem from binary comparisons. American Mathematical
-  Monthly, 64(8), 28-33.</p>
-<p>Davidson, R. R., &amp; Beaver, R. J. (1977). On extending the Bradley-Terry
-  model to incorporate within-pair order effects. Biometrics, 33(4),
-  693-702.</p>
+Journal of Mathematical Psychology, 30(3), 306–316.</p>
+<p>Agresti, A. (1992). Analysis of ordinal paired comparison data. Journal of
+the Royal Statistical Society C, 41(2), 287–297.</p>
+<p>Davidson, R. R. (1970). On extending the Bradley-Terry model to accommodate
+ties in paired comparison experiments. Journal of the American Statistical
+Association, 65(329), 317–328.</p>
+<p>Ford, L. R. (1957). Solution of a ranking problem from binary comparisons.
+American Mathematical Monthly, 64(8), 28–33.</p>
+<p>Davidson, R. R. and Beaver, R. J. (1977). On extending the Bradley-Terry
+model to incorporate within-pair order effects. Biometrics, 33(4),
+693–702.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="btl_dif.html">btl_dif</a></code>, <code><a href="btl_efrm.html">btl_efrm</a></code>,
+  <code><a href="btl_information.html">btl_information</a></code>, <code><a href="btl_transitivity.html">btl_transitivity</a></code>, and
+  <code><a href="simulate_btl.html">simulate_btl</a></code>.</p></div>
     </div>
 
     <div class="section level2">

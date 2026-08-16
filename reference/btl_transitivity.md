@@ -1,19 +1,10 @@
 # Transitivity of paired comparisons
 
-Tests whether paired comparisons support one consistent order. A
-Bradley-Terry-Luce scale implies that preferences stack into one
-consistent order: if A beats B and B beats C then A should beat C. A
-*circular triad* (A beats B, B beats C, C beats A) is a local
-contradiction, like rock-paper-scissors. A few are sampling noise; many
-can indicate that comparisons are not being driven by one consistent
-order. The one-quarter rate is the descriptive benchmark for a random
-tournament, not the expected circular rate under a fitted BTL model with
-unequal object locations. Accordingly this function is a Kendall
-consistency summary, not a calibrated BTL goodness-of-fit test. When
-every pair has been compared, Kendall's coefficient of consistency is
-reported (Kendall & Babington Smith 1940). With judges, each judge's own
-consistency is reported too, flagging judges whose choices approach
-chance.
+Summarises circular triads in the observed paired comparisons. A triad
+is circular when A is preferred to B, B to C, and C to A. For a complete
+tournament, the function reports Kendall's coefficient of consistency
+(Kendall and Babington Smith 1940). Judge-specific summaries are
+returned when judges are available.
 
 ## Usage
 
@@ -42,6 +33,13 @@ Kendall's `zeta` when the design is a complete round-robin with no
 exactly-tied pair – `NA` otherwise); `objects` (each object's
 circular-triad involvement); `judges` (per-judge consistency, when
 judges exist); and `notes`.
+
+## Details
+
+A circular-triad rate of one quarter is the benchmark for a random
+tournament. It is not the expected rate under a fitted BTL model with
+unequal object locations, so this function is a descriptive consistency
+measure rather than a calibrated goodness-of-fit test.
 
 ## References
 
