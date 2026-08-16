@@ -76,10 +76,10 @@ groups. The resolved logit estimate is retained, but its calibration-based
 standard error is withheld because it does not include repeated-person
 dependence.
 
-For independent rows, a contrast with weights \eqn{\boldsymbol{c}} is
-\deqn{\Delta_i=\boldsymbol{c}^{\mathsf T}\boldsymbol{\delta}_i,\qquad
+For independent rows, a contrast with weights \eqn{\mathbf{c}} is
+\deqn{\Delta_i=\mathbf{c}^{\mathsf T}\delta_i,\qquad
 \operatorname{SE}(\Delta_i)=
-\sqrt{\boldsymbol{c}^{\mathsf T}\boldsymbol{V}_i\boldsymbol{c}}.}
+\sqrt{\mathbf{c}^{\mathsf T}\mathbf{V}_i\mathbf{c}}.}
 In a repeated-measures design, a within-person contrast is formed from the
 standardised residuals,
 \deqn{s_p=\sum_l c_l z_{pl},}

@@ -67,7 +67,7 @@
 #' @details
 #' For person \eqn{n}, item \eqn{i}, and facet levels
 #' \eqn{f_1,\ldots,f_Q}, the additive model is
-#' \deqn{P(X_{ni\boldsymbol f}=x)=\frac{\exp\{x\theta_n-
+#' \deqn{P(X_{ni\mathbf{f}}=x)=\frac{\exp\{x\theta_n-
 #'   \sum_{k=1}^{x}[\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}]\}}
 #'   {\sum_{y=0}^{m_i}\exp\{y\theta_n-
 #'   \sum_{k=1}^{y}[\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}]\}}.}

@@ -31,7 +31,7 @@ or treatment are not facets: carry them as person factors and assess them with
 For facet levels $f_1,\ldots,f_Q$, the model is
 
 $$
-P(X_{ni\boldsymbol f}=x)=
+P(X_{ni\mathbf{f}}=x)=
 \frac{\exp\left\{x\theta_n-
 \sum_{k=1}^{x}\left(\delta_{ik}+\sum_{q=1}^{Q}\rho_{qf_q}\right)\right\}}
 {\sum_{y=0}^{m_i}\exp\left\{y\theta_n-

@@ -49,16 +49,16 @@ comparisons. Several names in \code{by} define factor-combination cells for
 following up an interaction in \code{\link{dif_anova}}.
 }
 \details{
-Let \eqn{\boldsymbol{\delta}_i} contain the resolved locations of item
-\eqn{i}, and let \eqn{\boldsymbol{c}_{ab}} place 1 on level \eqn{a}, -1 on
+Let \eqn{\delta_i} contain the resolved locations of item
+\eqn{i}, and let \eqn{\mathbf{c}_{ab}} place 1 on level \eqn{a}, -1 on
 level \eqn{b}, and zero elsewhere. The reported difference and its
 standard error are
-\deqn{\Delta_{i,ab}=\boldsymbol{c}_{ab}^{\mathsf T}
-\boldsymbol{\delta}_i,}
+\deqn{\Delta_{i,ab}=\mathbf{c}_{ab}^{\mathsf T}
+\delta_i,}
 \deqn{\operatorname{SE}(\Delta_{i,ab})=
-\sqrt{\boldsymbol{c}_{ab}^{\mathsf T}\boldsymbol{V}_i
-\boldsymbol{c}_{ab}},}
-where \eqn{\boldsymbol{V}_i} is the full covariance of the resolved
+\sqrt{\mathbf{c}_{ab}^{\mathsf T}\mathbf{V}_i
+\mathbf{c}_{ab}},}
+where \eqn{\mathbf{V}_i} is the full covariance of the resolved
 locations. Wald probabilities are adjusted over the pairwise family.
 
 With repeated person identifiers, the row-level calibration covariance does
