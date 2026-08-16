@@ -124,6 +124,21 @@ granularity deliberately).
   row per scenario with bias, empirical SD, mean reported SE, SE ratio,
   95% coverage, Type I / familywise error or power, refusal and
   convergence rates, and the Monte Carlo standard error of each rate.
+- `results/cross-package-validation.csv` — estimates checked against
+  independent implementations on shared datasets (25 replicates per
+  cell). Identical-likelihood comparators agree to solver precision:
+  `btl` dichotomous vs `BradleyTerry2::BTm` to 2.6e-9 logits, polytomous
+  comparative judgement vs constraint-matched `VGAM::vglm(acat)` to
+  ~1e-7 with log-likelihoods equal to 5e-12. Estimator-variant
+  comparators agree to the expected order: `sirt::rasch.pairwise` mean
+  max-difference 0.02 logits, `eRm` full conditional ML 0.07
+  (dichotomous) and 0.15 (PCM thresholds, worst 0.34 at sparse
+  extremes), with equal truth RMSE. The EFRM item-set unit ratio shows
+  its documented few-per-cent upward bias (+0.046 in the log at 8
+  dichotomous items per set) against an essentially unbiased
+  `TAM::tam.mml.2pl` slope-group anchor (+0.001); the `btl_efrm`
+  panel-unit ratio is unbiased within Monte Carlo error and tracks a
+  per-panel intercept-free adjacent-category anchor.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
