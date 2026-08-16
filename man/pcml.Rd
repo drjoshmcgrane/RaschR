@@ -28,28 +28,24 @@ recentring is applied. PCM only.}
 \item{maxit, tol}{Newton-Raphson iteration cap and convergence tolerance.}
 }
 \value{
-A list with the threshold table \code{thr} (columns \code{id},
-  \code{item}, \code{k}, \code{tau}, \code{se}, \code{anchored}, and
-  \code{weak} -- \code{TRUE} for a threshold adjacent to a category with
-  fewer than 3 responses, whose estimate can run toward a boundary while
-  the ridged covariance understates the error, and for \emph{every}
-  threshold of an item any of whose categories has fewer than 8
-  responses: the item's thresholds are estimated jointly, and a
-  critically sparse category destabilises its siblings (in simulation a
-  ~4-response category left a sibling threshold's standard error
-  understated four-fold while that threshold's own local counts looked
-  healthy). Flagged standard errors are reported
-  as \code{NA} and a note names the item and category), the
-  threshold covariance matrix \code{cov_tau}, the pairwise conditional
-  log-likelihood, the iteration count, a convergence flag, \code{notes},
-  and the max-score vector \code{m}.
+A list containing the threshold table \code{thr}, covariance matrix
+  \code{cov_tau}, pairwise conditional log-likelihood, iteration count,
+  convergence flag, notes, and maximum scores \code{m}. In \code{thr},
+  \code{weak} marks all thresholds of an item with fewer than eight
+  responses in any category, or a threshold adjacent to a category with
+  fewer than three responses. Standard errors for weak thresholds are
+  reported as \code{NA}.
 }
 \description{
-Maximises the pairwise conditional likelihood, in which the person
-parameter cancels within every item pair, by Newton-Raphson (Andrich and
-Luo 2003; Zwinderman 1995). The partial credit model
-estimates every threshold freely; the rating scale model constrains
-\code{tau_ik = delta_i + kappa_k} through the design matrix.
+Estimates PCM or RSM thresholds by Newton--Raphson maximisation of the
+pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995).
+}
+\details{
+For the PCM, the adjacent-category log odds are
+\deqn{\log\{P(X_{ni}=k)/P(X_{ni}=k-1)\}=\theta_n-\delta_{ik}.}
+Conditioning on the score for an item pair removes \eqn{\theta_n}. The PCM
+estimates each \eqn{\delta_{ik}}; the RSM imposes
+\eqn{\delta_{ik}=\beta_i+\tau_k} through a design matrix.
 }
 \examples{
 set.seed(1)

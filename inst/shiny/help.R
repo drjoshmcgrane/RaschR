@@ -1,0 +1,525 @@
+# Canonical Shiny explainers
+# ---------------------------------------------------------------------------
+# Each substantive result card is keyed by its Shiny output id.  The app uses
+# these short definitions in click/focus popovers; longer derivations and
+# qualifications belong in the manual and vignettes.  Keeping the copy here
+# prevents the same statistic acquiring different definitions on different
+# pages.
+
+APP_HELP <- c(
+  # Headline metrics -------------------------------------------------------
+  metric_persons = paste(
+    "Number of persons represented in the active analysis. After a structural",
+    "change, this refers to the current fitted response matrix."
+  ),
+  metric_items = paste(
+    "Number of item columns in the active analysis. A superitem reduces this",
+    "count; a DIF split can increase it."
+  ),
+  metric_psi = paste(
+    "Person Separation Index: the proportion of observed person-location",
+    "variance not attributed to measurement error. Larger values indicate",
+    "more reproducible separation of persons."
+  ),
+  metric_alpha = paste(
+    "Coefficient alpha calculated from the scored responses. It describes raw-",
+    "score internal consistency and is reported alongside the model-based PSI."
+  ),
+  metric_item_trait = paste(
+    "Adjusted probability for the overall item-trait chi-square. Small values",
+    "indicate that at least one item's ordering changes more over class intervals",
+    "than expected under the model."
+  ),
+  metric_power = paste(
+    "Qualitative power of the item-trait test at the observed sample size and",
+    "test length. Low power limits what a non-significant fit result can establish."
+  ),
+  metric_objects = "Number of objects represented in the active comparative judgement analysis.",
+  metric_comparisons = paste(
+    "Number of usable comparative judgements contributing to the active fit,",
+    "including count weights where supplied."
+  ),
+  metric_judges = "Number of nominated judges contributing usable comparisons to the active fit.",
+  metric_osi = paste(
+    "Object Separation Index: the proportion of observed object-location",
+    "variance not attributed to measurement error. Larger values indicate a",
+    "more reproducible object ordering."
+  ),
+  metric_pair_fit = paste(
+    "Probability for the overall pairwise fit statistic. Small values indicate",
+    "that observed responses differ from the fitted object-pair expectations."
+  ),
+  metric_item_misfit = paste(
+    "Number of items with an adjusted item chi-square probability below .05.",
+    "Inspect the complete fit statistics and plots before acting on a flag."
+  ),
+  metric_disordered = paste(
+    "Number of polytomous items whose estimated thresholds are not ordered.",
+    "Inspect category use and threshold uncertainty before considering rescoring."
+  ),
+  metric_extreme = paste(
+    "Number of persons with a zero or maximum score on all observed items.",
+    "Their finite locations require an extrapolated scoring method."
+  ),
+  metric_person_misfit = paste(
+    "Number of persons with an absolute fit residual above the working value of",
+    "2.5. This is a screening count rather than a classification rule."
+  ),
+
+  # Summary ---------------------------------------------------------------
+  fitsum_tbl = paste(
+    "Summarises overall Rasch model fit, including the item-trait",
+    "chi-square and the distribution of item and person fit residuals.",
+    "The item-trait test examines whether item difficulties remain invariant",
+    "over class intervals."
+  ),
+  targeting_tbl = paste(
+    "Summarises the alignment of person locations and item thresholds,",
+    "together with separation and reliability. Targeting is strongest when",
+    "the thresholds cover the part of the scale occupied by the persons."
+  ),
+  btl_fitsum_tbl = paste(
+    "Summarises fit of the comparative judgement model. Pairwise chi-square",
+    "compares observed and expected responses for each object pair; the",
+    "object separation index describes reproducibility of the object ordering."
+  ),
+  change_est_tbl = paste(
+    "Compares original and active item or object locations after a structural",
+    "change. The active estimates are used by every subsequent result."
+  ),
+  change_person_tbl = paste(
+    "Compares original and active person locations after a structural change,",
+    "showing how the revised calibration propagates into person measurement."
+  ),
+
+  # Item, object and person tables ----------------------------------------
+  items_tbl = paste(
+    "Reports item locations, standard errors and fit statistics. Select a row",
+    "to inspect that item; marked cells identify working fit criteria and",
+    "should be interpreted with the corresponding plots and substantive context."
+  ),
+  distractor_tbl = paste(
+    "Reports how each response option relates to person location and item score.",
+    "Options intended to represent increasing performance should generally be",
+    "chosen by progressively more able respondents."
+  ),
+  person_tbl = paste(
+    "Reports person locations, standard errors, fit and score information.",
+    "Extreme scores and sparse response patterns can carry limited information",
+    "and are identified in the table."
+  ),
+  btl_obj_tbl = paste(
+    "Reports each object's estimated location, standard error and fit over its",
+    "comparisons. Select a row to inspect the object characteristic curve."
+  ),
+  btl_thr_tbl = paste(
+    "Reports the ordered response thresholds for a polytomous comparative",
+    "judgement model. Thresholds locate transitions between adjacent response",
+    "categories on the comparison scale."
+  ),
+  btl_comp_tbl = paste(
+    "Reports the principal threshold components used by a constrained",
+    "polytomous comparative judgement model. These components provide a more",
+    "parsimonious alternative to freely estimated thresholds."
+  ),
+  btl_pairs_tbl = paste(
+    "Compares observed and expected responses for each object pair. Large",
+    "departures identify pairs that are not well represented by the fitted",
+    "one-dimensional ordering."
+  ),
+  btl_judges_tbl = paste(
+    "Summarises each judge's fit over their comparisons. Large positive fit",
+    "residuals indicate response patterns that are less consistent with the",
+    "common object ordering."
+  ),
+  btl_trans_judges_tbl = paste(
+    "Summarises circular preferences within each judge's comparisons.",
+    "Consistency equals one for a transitive ordering and zero at the",
+    "random-tournament benchmark."
+  ),
+  chisq_int_tbl = paste(
+    "Shows the selected item's observed and expected mean score in each",
+    "person class interval, with its contribution to the item chi-square."
+  ),
+  chisq_cat_tbl = paste(
+    "Shows observed and expected response-category counts by class interval.",
+    "These cells locate departures contributing to the item's overall test."
+  ),
+  ctt_tbl = paste(
+    "Reports conventional item statistics alongside the Rasch estimates,",
+    "including endorsement, item-total association and alpha if removed."
+  ),
+  rescore_tbl = paste(
+    "Summarises the evidence used to propose ordered partial-credit scores for",
+    "multiple-choice options. Review proposed scores before reanalysis."
+  ),
+
+  # Targeting and equating -------------------------------------------------
+  btl_info_tbl = paste(
+    "Reports the Fisher information supplied by each object's observed",
+    "comparisons. Larger values indicate that the comparison design places",
+    "that object more precisely."
+  ),
+  btl_next_tbl = paste(
+    "Ranks candidate comparisons by the information expected from one",
+    "additional judgement. Priority weighting favours the pairs expected to",
+    "reduce total location uncertainty most."
+  ),
+  btl_eq_tbl = paste(
+    "Places two comparative judgement calibrations on a common origin using",
+    "shared objects. The shift and object differences show agreement between",
+    "the calibrations after linking."
+  ),
+  eq_tbl = paste(
+    "Compares common-item locations after the selected origin alignment.",
+    "Where joint uncertainty is available, adjusted tests identify item drift."
+  ),
+  eq_plot = paste(
+    "Plots the common-item calibrations against the aligned identity line.",
+    "Items departing from the line have shifted after origin alignment."
+  ),
+
+  # DIF -------------------------------------------------------------------
+  dif_tbl = paste(
+    "Summarises uniform and non-uniform DIF for the selected item and factor",
+    "terms. Adjusted probabilities control multiplicity across items within",
+    "each tested term."
+  ),
+  dif_full_tbl = paste(
+    "Contains the complete item-by-term DIF results. Uniform DIF is associated",
+    "with a factor effect; non-uniform DIF with a factor-by-class-interval",
+    "interaction."
+  ),
+  bdif_anova_tbl = paste(
+    "Summarises object DIF across judge factors. A factor effect indicates a",
+    "location difference between judge groups; an opponent-band interaction",
+    "indicates non-uniform DIF."
+  ),
+  bdif_sizes_tbl = paste(
+    "Reports resolved object-location differences between judge-factor levels",
+    "in logits. Adjusted probabilities and practical flags refer to the full",
+    "displayed contrast family."
+  ),
+  dif_posthoc_tbl = paste(
+    "Resolves the selected DIF term into adjusted comparisons on the logit",
+    "scale. Interaction rows are contrasts of contrasts; main-effect rows are",
+    "marginal comparisons over the other fitted factors."
+  ),
+  dif_size_tbl = paste(
+    "Compares resolved interaction cells pairwise. Use these rows to locate the",
+    "pattern after reading the interaction contrasts above."
+  ),
+  resolve_tbl = paste(
+    "Records each automatic item split, its triggering term and effect size.",
+    "The resulting fit is used by subsequent results."
+  ),
+  contr_tbl = paste(
+    "Reports planned one-degree-of-freedom contrasts derived from the factor",
+    "structure: two-level differences, ordered trends, nominal comparisons and",
+    "factor-pair interactions. Probabilities are adjusted over this planned family."
+  ),
+
+  # Facets and frames ------------------------------------------------------
+  facet_tbl = paste(
+    "Reports the severity, uncertainty and fit of each facet level. Positive",
+    "values denote greater severity on the common logit scale."
+  ),
+  facet_int_omnibus = paste(
+    "Tests the complete item-by-facet interaction family. This omnibus result",
+    "should be read before examining individual interaction cells."
+  ),
+  facet_int_tbl = paste(
+    "Reports item-by-facet departures from the additive many-facet model.",
+    "Cell probabilities are adjusted over the exploratory follow-up family."
+  ),
+  phi_tbl = paste(
+    "Reports the relative measurement unit for each person group in an EFRM.",
+    "A value of one is the equal-unit reference; intervals and tests are",
+    "calculated on the log-unit scale."
+  ),
+  alpha_tbl = paste(
+    "Reports the relative measurement unit for each item set in an EFRM.",
+    "A value of one is the equal-unit reference; set origins are reported",
+    "separately."
+  ),
+  frame_tbl = paste(
+    "Reports the unit and fit for each observed item-set by person-group frame.",
+    "The frame unit combines the relevant set and group units."
+  ),
+  btlef_phi_tbl = paste(
+    "Reports panel units in the comparative judgement frame model. A value of",
+    "one is the equal-unit reference; adjusted tests compare each panel with",
+    "that reference."
+  ),
+  btlef_units_tbl = paste(
+    "Reports set units and origins for linked comparative judgement sets.",
+    "Units describe scale changes; origins describe translations between sets."
+  ),
+  btlef_frames_tbl = paste(
+    "Reports the unit, comparison count and fit of each panel-by-set frame.",
+    "Sparse frames should be interpreted alongside their uncertainty and the",
+    "linking design."
+  ),
+  btlef_cmp_tbl = paste(
+    "Compares the comparative judgement frame model with its equal-unit fit on",
+    "the same comparisons. The likelihood difference is descriptive."
+  ),
+  btlef_omnibus_tbl = paste(
+    "Jointly tests whether each family of panel units, set units or set origins",
+    "can be replaced by its equal-unit restriction."
+  ),
+  efrm_cmp_tbl = paste(
+    "Compares the extended-frame and equal-unit fits using the same within-frame",
+    "conditional information. The likelihood difference is descriptive."
+  ),
+  efrm_omnibus_tbl = paste(
+    "Jointly tests whether the group and item-set units can be replaced by their",
+    "equal-unit restrictions."
+  ),
+
+  # Dimensionality and local dependence ----------------------------------
+  pc_tbl = paste(
+    "Reports residual principal-component coordinates and their explained",
+    "variance. Components describe structure remaining after the Rasch trait",
+    "has been fitted."
+  ),
+  loadings_tbl = paste(
+    "Reports item loadings on the selected residual component. Items with",
+    "opposing large loadings define the strongest residual contrast."
+  ),
+  eigen_tbl = paste(
+    "Compares observed residual eigenvalues with simulations from the fitted",
+    "model. An observed value above its simulated reference indicates more",
+    "residual structure than expected under the model."
+  ),
+  dm_tbl = paste(
+    "Compares reliability when items are treated separately with a refit in",
+    "which each item subset is a super-item. The resulting coefficients estimate",
+    "unique loading, correlation and common variance across the subsets."
+  ),
+  dep_tbl = paste(
+    "Reports threshold differences after the dependent item is resolved by the",
+    "independent item's categories and the model is refitted. Their half-range",
+    "estimates the overall dependence magnitude in logits."
+  ),
+  spread_tbl = paste(
+    "Compares each polytomous item's observed threshold spread with its least",
+    "upper bound. A shortfall is evidence consistent with response dependence;",
+    "the test is commonly used after dependent items have been combined."
+  ),
+  cormat_q3_tbl = paste(
+    "Shows Yen's Q3 residual correlations between items. Large positive values",
+    "indicate response dependence remaining after conditioning on the Rasch",
+    "trait."
+  ),
+  cormat_q3s_tbl = paste(
+    "Shows adjusted Q3 residual correlations after removing their overall",
+    "mean. The adjustment makes unusually dependent item pairs easier to",
+    "identify."
+  ),
+  btl_bimensions_tbl = paste(
+    "Reports strengths of the rotational dimensions in the object-pair",
+    "residual matrix. The leading strength is compared with simulations from",
+    "the fitted comparative judgement model."
+  ),
+  btl_trans_tbl = paste(
+    "Summarises circular triads in the observed comparisons. A high loop rate",
+    "indicates departures from a single transitive object ordering."
+  ),
+  btl_dep_tbl = paste(
+    "Reports fitted within-judge history effects. Exposure represents having",
+    "seen an object before; carry-over represents the influence of earlier",
+    "verdicts involving that object."
+  ),
+  btl_dep_comps = paste(
+    "Lists the comparisons that inform the selected dependence effect, with",
+    "their history covariates and fitted contribution."
+  ),
+
+  # Other analyses ---------------------------------------------------------
+  guess_tbl = paste(
+    "Compares the original and tailored item calibrations after responses below",
+    "the nominated chance probability are removed. Shifts are descriptive unless",
+    "bootstrap inference was requested."
+  ),
+  cmp_tbl = paste(
+    "Compares fits retained during this session. Information criteria are",
+    "comparable only for models using the same observations and response",
+    "definition; other rows support descriptive comparison. CL-BIC is the",
+    "stricter criterion; CL-AIC can prefer a model that adds a single",
+    "parameter in about one null dataset in six."
+  ),
+  sim_recovery_tbl = paste(
+    "Compares planted and recovered parameters for the current simulated data.",
+    "Locations are aligned to the model's identifying origin."
+  ),
+  sim_preview = "Shows the first rows of the simulated dataset currently loaded for analysis.",
+  preview = "Shows the first rows and current column roles of the dataset to be analysed.",
+
+  # Item explorer ---------------------------------------------------------
+  icc = paste(
+    "Shows expected item score over person location, with observed class-interval",
+    "means when selected. Overlays use a common proportional score scale."
+  ),
+  ccc = paste(
+    "Shows the probability of each response category over person location.",
+    "Threshold markers locate transitions between adjacent categories."
+  ),
+  tpc = paste(
+    "Shows the probability of passing each item threshold over person location,",
+    "with observed class-interval proportions when selected."
+  ),
+  cfreq = "Shows the observed number of responses in each category for the selected item.",
+
+  # Plots: core Rasch ------------------------------------------------------
+  wright = paste(
+    "Places person locations and item thresholds on the same logit scale.",
+    "Good targeting places thresholds across the range occupied by the persons."
+  ),
+  pim_p = paste(
+    "Compares the distributions of person locations and item thresholds on",
+    "their common logit scale. Dashed lines mark the means. Test information",
+    "can be added on the right-hand scale."
+  ),
+  thrmap = paste(
+    "Displays every item threshold on the common logit scale. It shows the",
+    "location and spread of the category transitions within and between items."
+  ),
+  tcc = paste(
+    "Shows the modelled expected total score over the latent trait. The curve",
+    "translates locations on the logit scale into expected raw scores."
+  ),
+  tif = paste(
+    "Shows test information over the latent trait. Higher information indicates",
+    "greater measurement precision and a smaller conditional standard error."
+  ),
+  imap = paste(
+    "Plots item locations against item fit residuals. Items far from the central",
+    "fit band warrant closer inspection."
+  ),
+  pfit = paste(
+    "Plots person locations against person fit residuals. Select or hover over",
+    "unusual points to identify response patterns for further review."
+  ),
+  rdist_i = paste(
+    "Shows the distribution of item fit residuals against the standard normal",
+    "reference expected under adequate fit."
+  ),
+  rdist_p = paste(
+    "Shows the distribution of person fit residuals against the standard normal",
+    "reference expected under adequate fit."
+  ),
+  kidmap = paste(
+    "Shows one person's observed responses against the item response curves.",
+    "Unexpected responses appear far from the modelled pattern at that person's",
+    "estimated location."
+  ),
+  guttman = paste(
+    "Orders items by difficulty and compares the person's responses with a",
+    "deterministic Guttman pattern. The Rasch model remains probabilistic; this",
+    "display is a descriptive response-pattern check."
+  ),
+  scree = paste(
+    "Shows residual eigenvalues and, where available, their simulated reference",
+    "range. Components above the reference warrant substantive examination."
+  ),
+  pca_biplot = paste(
+    "Displays items and persons in the selected residual-component space.",
+    "Separation of item clusters can indicate a secondary response structure."
+  ),
+  rcor_q3 = paste(
+    "Visualises the Q3 residual-correlation matrix. Strong positive cells identify",
+    "item pairs with more shared response variation than the Rasch trait explains."
+  ),
+  rcor_q3s = paste(
+    "Visualises the mean-adjusted Q3 residual-correlation matrix. The adjustment",
+    "centres the matrix so unusually dependent pairs stand out."
+  ),
+  distractor_plot = paste(
+    "Shows selection of each response option over person location. Ordered scoring",
+    "is supported when higher-scoring options become more likely at higher locations."
+  ),
+  guess_plot = paste(
+    "Compares item locations before and after the tailored analysis on a common",
+    "origin. Departures from the identity line show calibration shifts."
+  ),
+
+  # Plots: facets, frames and comparative judgement -----------------------
+  facet_plot = paste(
+    "Displays facet-level severities with confidence intervals. Positive values",
+    "denote greater severity and zero is the average facet level."
+  ),
+  frame_plot = paste(
+    "Displays the estimated units of the observed EFRM frames with confidence",
+    "intervals. Unit one represents the equal-frame Rasch model."
+  ),
+  frame_icc = paste(
+    "Shows the selected item's model curve and observed class-interval means",
+    "within each frame. Differences between frames reflect their estimated units."
+  ),
+  btl_plot = paste(
+    "Displays comparative judgement object locations with confidence intervals.",
+    "Objects farther to the right have a greater modelled probability of being",
+    "preferred."
+  ),
+  btl_occ = paste(
+    "Shows the selected object's expected response over opponent location, with",
+    "observed means for opponents supported by enough comparisons."
+  ),
+  btl_cats = paste(
+    "Shows the probabilities of the ordered comparative judgement response",
+    "categories over the difference between object locations."
+  ),
+  btl_judge_map = paste(
+    "Shows one judge's observed comparison responses against their modelled",
+    "expectations. Large departures identify locally surprising judgements."
+  ),
+  btl_judge_consist = paste(
+    "Displays each judge's transitivity consistency against their number of",
+    "informative triples. Sparse judges carry less stable consistency estimates."
+  ),
+  btl_involve_plot = paste(
+    "Shows the selected judge's largest object-pair departures. It identifies",
+    "which comparisons contribute most to that judge's fit result."
+  ),
+  btl_targeting_plot = paste(
+    "Plots object location against design information, with point size showing",
+    "comparison count. The reference curve shows information expected from one",
+    "new comparison against an opponent at each location."
+  ),
+  btl_eq_plot = paste(
+    "Compares linked object locations from two comparative judgement calibrations.",
+    "Agreement with the shifted identity line indicates stable common-object linking."
+  ),
+  btl_scree = paste(
+    "Shows residual bimension strengths against simulations from the fitted model.",
+    "A leading value above the reference suggests structured preference cycles."
+  ),
+  btl_dim_map = paste(
+    "Maps objects on the leading residual bimension. The circular arrangement",
+    "shows the preference cycle represented by that residual dimension."
+  ),
+  btl_dep_plot = paste(
+    "Shows observed residual departure over the selected history covariate, with",
+    "the fitted dependence effect and the number of comparisons in each bin."
+  ),
+  bdif_occ = paste(
+    "Shows the selected object's model curve and observed responses by judge-factor",
+    "level. Separation between groups is the graphical display of object DIF."
+  ),
+  dif_icc = paste(
+    "Shows the selected item's characteristic curve and observed class-interval",
+    "means by factor level. Separation between groups is the graphical display of DIF."
+  ),
+  btlef_units_plot = paste(
+    "Displays panel and set units with confidence intervals on the log scale.",
+    "The zero reference corresponds to a unit of one."
+  )
+)
+
+app_help <- function(id, fallback = NULL) {
+  hit <- unname(APP_HELP[id])
+  if (length(hit) && !is.na(hit) && nzchar(hit)) return(hit)
+  if (!is.null(fallback) && length(fallback) && nzchar(fallback)) return(fallback)
+  NULL
+}

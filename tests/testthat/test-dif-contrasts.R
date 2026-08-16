@@ -97,3 +97,36 @@ test_that("custom cell-weight contrasts are accepted and normalised", {
                              contrasts = list(bad = c(x = 1, y = -1))),
                "design cells")
 })
+
+test_that("DIF post-hocs give marginal pairs and pure interaction magnitudes", {
+  set.seed(31); n <- 1800
+  g1 <- factor(rep(c("a", "b", "c"), each = n / 3))
+  g2 <- factor(rep(rep(c("x", "y", "z"), each = n / 9), 3))
+  d <- seq(-1.3, 1.3, length.out = 6)
+  shift <- ifelse(g1 == "c" & g2 == "z", 1.0, 0)
+  X <- matrix(rbinom(n * 6, 1,
+    plogis(outer(rnorm(n), d, "-") - outer(shift, c(0, 1, 0, 0, 0, 0)))),
+    n, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fit <- rasch(data.frame(X, g1 = g1, g2 = g2),
+               factors = c("g1", "g2"))
+
+  main <- dif_posthoc(fit, "I2", "g1")
+  expect_s3_class(main, "rasch_dif_posthoc")
+  expect_equal(nrow(main$table), choose(3, 2))
+  expect_true(all(main$table$p_adj >= main$table$p - 1e-12))
+
+  intr <- dif_posthoc(fit, "I2", "g1:g2")
+  expect_equal(nrow(intr$table), choose(3, 2)^2)
+  expect_identical(intr$type, "interaction magnitude")
+
+  # The c-a by z-x row is the difference-in-differences of the jointly
+  # resolved cell locations, not merely the largest pair of cell means.
+  cells <- dif_size(fit, "I2", by = c("g1", "g2"))$levels
+  loc <- setNames(cells$location, cells$level)
+  manual <- (loc[["c:z"]] - loc[["a:z"]]) -
+    (loc[["c:x"]] - loc[["a:x"]])
+  row <- intr$table[intr$table$contrast == "c - a x z - x", ]
+  expect_equal(row$estimate, manual, tolerance = 1e-8)
+  expect_gt(abs(row$estimate), 0.6)
+})

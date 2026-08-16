@@ -66,55 +66,47 @@
   list(X = X, notes = notes)
 }
 
-#' Fit and diagnose a Rasch model by pairwise conditional estimation
+#' Fit a Rasch model
 #'
-#' Runs a complete Rasch analysis: Andrich and Luo pairwise conditional
-#' maximum likelihood item estimation (see \code{\link{pcml}}), Warm weighted
-#' likelihood person estimates per missing-data pattern, item and person fit
-#' residuals (the log-of-mean-square statistic of Andrich and Marais 2019,
-#' ch. 23, with its
-#' untransformed natural form and degrees of freedom), infit and outfit,
-#' the item-trait interaction chi-square and the class-interval ANOVA
-#' item-fit F, the person separation index with and without extremes,
-#' Cronbach's alpha, targeting, threshold diagnostics, and the
+#' Fits the partial credit model (PCM) or rating scale model (RSM) by pairwise
+#' conditional maximum likelihood. Person locations are Warm weighted
+#' likelihood estimates. The fitted object contains item and person fit,
+#' targeting, reliability, threshold diagnostics, residuals, and a
 #' score-to-measure table.
 #'
-#' The fit residual follows Andrich and Marais (2019, ch. 23) exactly:
-#' standardised residuals are
-#' squared and summed over each item's (person's) observed cells among
-#' non-extreme persons, compared with the summed cell degrees of freedom
-#' (the model-testing degrees of freedom, cells minus estimated parameters,
-#' apportioned equally over cells), and symmetrised by the
-#' log-of-mean-square transform \eqn{f (\ln Y^2 - \ln f)/\sqrt{V[Y^2]}} with
-#' model-based variance \eqn{V[Y^2] = \sum (C_4/V^2 - 1)}. Values are
-#' approximately N(0,1) under fit; the conventional flagging value is 2.5
-#' (Andrich and Marais 2019, ch. 15).
-#' Negative values indicate over-discrimination (Guttman-like responses),
-#' positive values under-discrimination.
+#' @details
+#' For scores \eqn{x=0,\ldots,m_i}, the PCM is
+#' \deqn{P(X_{ni}=x)=\frac{\exp\{x\theta_n-\sum_{k=1}^{x}\delta_{ik}\}}
+#' {\sum_{y=0}^{m_i}\exp\{y\theta_n-\sum_{k=1}^{y}\delta_{ik}\}}.}
+#' The RSM constrains \eqn{\delta_{ik}=\beta_i+\tau_k}, where \eqn{\beta_i}
+#' is the item location and \eqn{\tau_k} is common across items. Dichotomous
+#' items are the one-threshold case of the PCM.
 #'
-#' A calibration note that applies to the whole test-of-fit suite: the
-#' item-trait chi-square evaluates unconditional residuals at estimated
-#' person measures and refers the sum of correlated item statistics to a
-#' chi-square with summed degrees of freedom, following the convention of
-#' Andrich and Marais (2019); the class-interval ANOVA F and the
-#' Wilson-Hilferty-style transformations are approximations of the same
-#' kind. Null simulation with this package shows rejection rates near but
-#' not exactly at the nominal level (conservative in the settings
-#' examined), and the direction can vary with design. These statistics are
-#' therefore approximate, convention-faithful diagnostics for ordering and
-#' flagging misfit -- not exactly calibrated hypothesis tests; where exact
-#' calibration matters, use the simulation tools
-#' (\code{\link{sim_replicate}}) to build parametric-bootstrap reference
-#' distributions for the observed design.
+#' Pairwise conditioning removes \eqn{\theta_n} from the item likelihood.
+#' Missing responses are omitted from pairwise contributions, and person
+#' measures are estimated within each observed item pattern. The observed
+#' item-pair graph must identify a common scale. This covers planned linked
+#' designs and ignorable missingness; informative missingness can still bias
+#' the estimates.
 #'
-#' Missing responses are omitted from the pairwise contributions and person
-#' estimates are computed for each observed item pattern. This supports
-#' planned linked designs and ignorable response missingness when the
-#' co-observation graph identifies one scale. It does not make informative
-#' missingness harmless: if response availability depends on an unmodelled
-#' response or person process, item and person estimates can be biased. The
-#' missingness mechanism and design connectedness therefore remain part of
-#' the substantive analysis.
+#' The fit residual is the log-of-mean-square statistic described by Andrich
+#' and Marais (2019, ch. 23). It is approximately standard normal under fit;
+#' positive values indicate under-discrimination and negative values indicate
+#' over-discrimination. The item-trait chi-square and class-interval F tests
+#' are large-sample diagnostic approximations and should be considered with
+#' the residual statistics, effect sizes, and item content.
+#'
+#' Multiple-choice responses may be scored from a named item-to-key vector,
+#' an item/key table, or an item/option/score table. A slash separates
+#' alternative correct options. The third form assigns integer category
+#' scores to nominated options and fits the resulting item as polytomous;
+#' unlisted options score zero. Raw responses are retained in \code{fit$mc}
+#' for distractor analysis.
+#'
+#' If \code{adjust_N} is supplied, each item-trait chi-square is multiplied by
+#' the reference sample size divided by the number of classified persons.
+#' The scaling is global: an item answered by a subset retains its
+#' proportionally smaller share of the reference sample.
 #'
 #' @param data Persons-by-items integer score matrix (categories from 0), or a
 #'   data frame also containing ID and person-factor columns. Missing values
@@ -135,37 +127,18 @@
 #'   many intervals of at least 50 non-extreme persons as the sample allows,
 #'   at most 10, at least 2. The resolved value is stored in
 #'   \code{fit$n_groups}.
-#' @param adjust_N Optional reference sample size; if supplied, item-trait
-#'   chi-squares are rescaled to this size (a sample-size adjustment for the
-#'   sensitivity of the chi-square to large samples). The scaling is
-#'   proportional and global -- every item's chi-square is multiplied by
-#'   \code{adjust_N} over the number of classified persons -- so an item
-#'   answered by a subset of persons keeps its proportionally smaller share
-#'   of the notional sample rather than being inflated to the full
-#'   \code{adjust_N}.
+#' @param adjust_N Optional reference sample size used to rescale the
+#'   item-trait chi-squares. See Details.
 #' @param anchors Optional anchor table for equating: a data frame with
-#'   columns \code{item}, \code{k}, and \code{tau} fixing nominated
-#'   thresholds at known values; see \code{\link{pcml}}. With anchors in
-#'   place the scale origin comes from the anchors, so person measures are
-#'   directly comparable across separately analysed datasets.
+#'   columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
+#'   Anchors determine the scale origin.
 #' @param na_codes Values to read as missing. Defaults to \code{-1}, the
 #'   conventional missing-response code; any negative score is also treated as
 #'   missing, since valid category scores start at zero.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence
 #'   tolerance of the pairwise conditional estimation.
-#' @param key Optional multiple-choice scoring key, in any of three forms. (1) A named vector or data frame with columns \code{item}
-#'   and \code{key} naming each item's correct option: scored 0/1
-#'   (case-insensitive after trimming; blanks become missing). (2) Double
-#'   keying: several correct options separated by \code{"/"} (for example
-#'   \code{"A/C"}), all scoring 1. (3) Polytomous option scoring (Andrich
-#'   and Styles 2011): a data frame with columns \code{item},
-#'   \code{option}, and \code{score} assigning an integer score to every
-#'   credited option (unlisted options score 0), so informative
-#'   distractors receive partial credit and the item is fitted as
-#'   polytomous; see \code{\link{distractor_rescore}} for an
-#'   evidence-based proposal. Raw responses are retained in \code{fit$mc}
-#'   for \code{\link{distractor_analysis}} and
-#'   \code{\link{plot_distractors}}.
+#' @param key Optional multiple-choice key: a named item-to-option vector, an
+#'   item/key table, or an item/option/score table. See Details.
 #' @param pc_components \code{NULL} (the default) estimates all PCM thresholds
 #'   freely. Values from 1 to 4 use the principal-components form in
 #'   \code{\link{pcml_pc}}: location, then spread, skewness, and kurtosis.
@@ -196,6 +169,9 @@
 #'
 #' Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 #' response theory. Psychometrika, 54(3), 427--450.
+#' @seealso \code{\link{rasch_mfrm}}, \code{\link{rasch_efrm}},
+#'   \code{\link{btl}}, \code{\link{dif_anova}},
+#'   \code{\link{test_information}}, and \code{\link{run_app}}.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-2, 2, length.out = 8)

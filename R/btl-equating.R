@@ -78,34 +78,24 @@
 
 #' Equate two paired-comparison calibrations through their common objects
 #'
-#' Compares the object locations of a Bradley-Terry-Luce fit with those of a
-#' second fit (or a banked table of object locations), matched by object name.
-#' The use case is standards maintenance and comparative judgement across
-#' panels or years: the same scripts, performances, or products are judged by
-#' different panels -- or by one panel in successive years -- and a common set
-#' of anchor objects is carried through so that the two rounds land on a single
-#' scale.
+#' Places two Bradley--Terry--Luce calibrations on a common origin using their
+#' shared objects, then tests the shared objects for drift. The second
+#' calibration may be a fitted model or an object bank.
 #'
-#' Each calibration is identified by the sum-zero constraint, but the two
-#' constraints are imposed over \emph{different} object sets, so the origins do
-#' not coincide even when the shared objects are unchanged: each scale is
-#' centred on the mean of a different collection. A scale shift between the two
-#' origins is therefore estimated by the precision-weighted mean difference
-#' over the common objects, and each common object is then tested against the
-#' shifted identity line. A flagged object shows drift -- a script the two
-#' panels valued differently, or a standard that moved between years -- and
-#' weakens the equating link; the surviving objects carry the second
-#' calibration's whole scale onto the first (\code{loc2 + shift}).
+#' @details
+#' Let \eqn{d} contain the location differences for the common objects and
+#' \eqn{V} their joint covariance. The origin shift is
+#' \deqn{\hat s=\frac{\boldsymbol{1}'V^{-1}d}
+#' {\boldsymbol{1}'V^{-1}\boldsymbol{1}}.}
+#' Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
+#' covariance calculation retains the dependence induced by the sum-zero
+#' constraints. Drift tests require independent calibrations and at least
+#' three common objects with usable covariance information.
 #'
-#' The single shift presumes the drifting objects are a \emph{minority}. When
-#' most of the common objects have genuinely moved, the precision-weighted
-#' shift is pulled toward the movers and the drift tests can invert -- the
-#' stable anchors flag as the apparent drifters. Read wholesale flagging
-#' (several objects, one direction) as a contaminated link, not as evidence
-#' about the individual objects; equate through a vetted anchor subset
-#' instead. The \code{shift_se} accounts for the covariance of the location
-#' estimates within each calibration (each is sum-zero constrained, so its
-#' locations are not independent).
+#' The common-object set should contain a stable majority. If most common
+#' objects move in the same direction, the estimated shift follows them and
+#' stable objects can appear to drift. In that case, repeat the equating with a
+#' substantively justified anchor set.
 #'
 #' @param fit1 A fitted object from \code{\link{btl}}: the calibration whose
 #'   scale (origin) the equating targets.
@@ -215,8 +205,12 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   usable <- is.finite(d) & is.finite(v)
   independent_ok <- if (is.null(independent)) !inherits(fit2, "rasch_btl")
                     else isTRUE(independent)
-  joint_cov_ok <- inherits(fit2, "rasch_btl") || !is.null(bank_cov) ||
-    all(b$se[usable] == 0)
+  joint_cov_1 <- !is.null(fit1$cov_beta) || all(a$se[usable] == 0)
+  joint_cov_2 <- if (inherits(fit2, "rasch_btl"))
+    !is.null(fit2$cov_beta) || all(b$se[usable] == 0)
+  else
+    !is.null(bank_cov) || all(b$se[usable] == 0)
+  joint_cov_ok <- joint_cov_1 && joint_cov_2
   inferential <- independent_ok && sum(usable) >= 3L && joint_cov_ok
   w <- if (sum(usable) >= 3L) 1 / pmax(v[usable], 1e-10) else numeric(0)
   # precision-weighted mean difference: the shift between the two sum-zero
@@ -295,10 +289,11 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
       "covariance is unavailable; use a joint or paired bootstrap."))
   if (independent_ok && sum(usable) >= 3L && !joint_cov_ok)
     notes <- c(notes, paste(
-      "Drift tests withheld because a bank with non-zero marginal SEs",
-      "needs its joint object-location covariance in",
-      "attr(fit2, 'cov_location'); marginal SEs do not carry the",
-      "calibration-origin covariance."))
+      "Drift tests withheld because every calibration with non-zero",
+      "marginal SEs needs its joint object-location covariance; marginal",
+      "SEs do not carry the calibration-origin covariance. For a bank,",
+      "supply this in attr(fit2, 'cov_location'). Frame-dependent fits",
+      "supply it when bootstrap standard errors are used."))
   if (independent_ok && sum(usable) < 3L)
     notes <- c(notes, paste(
       "Drift tests withheld because at least three common objects with",

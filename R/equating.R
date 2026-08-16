@@ -96,13 +96,20 @@
 
 #' Equate two test calibrations through their common items
 #'
-#' Compares the item locations of a fit with those of a second fit (or a
-#' reference table such as an item bank), matched by item name. A scale
-#' shift between the two origins is estimated by the precision-weighted mean
-#' difference. When the calibrations use independent sampling units and at
-#' least three common items have standard errors, each common item is tested
-#' against the shifted identity line; otherwise the link is returned
-#' descriptively and drift inference is withheld.
+#' Places two calibrations on a common origin using their shared items, then
+#' tests the shared items for drift. The reference may be a fitted model or an
+#' item bank.
+#'
+#' @details
+#' Let \eqn{d_j} be the location difference for common item \eqn{j} and
+#' \eqn{v_j} its marginal variance. With \code{shift = "mean"} the scale
+#' shift is the precision-weighted mean
+#' \deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j},}
+#' and each item is tested using \eqn{d_j-\hat s} with a variance that
+#' accounts for the estimated shift through the items' joint covariance.
+#' Drift inference requires
+#' independent calibrations and at least three common items with usable joint
+#' covariance information. Otherwise the function returns a descriptive link.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param reference A second \code{\link{rasch}} fit, or a data frame with

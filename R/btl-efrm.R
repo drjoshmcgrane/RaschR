@@ -407,98 +407,132 @@
          f * (log(y2) - log(f)) / sqrt(v) else NA_real_, df = f)
 }
 
+# Core diagnostics on the fitted frame probabilities. These are calculated
+# here, rather than borrowed from a single-unit BTL fit, so object and judge
+# fit update when the frame structure updates the common-scale locations.
+.btlef_diagnostics <- function(a, b, y, jd, pan, sa, sb, p, phi, alpha,
+                               objects, n_parameters) {
+  objs <- objects$object
+  K <- length(objs)
+  ia <- match(a, objs); ib <- match(b, objs)
+  p <- pmin(pmax(as.numeric(p), 1e-12), 1 - 1e-12)
+  V <- p * (1 - p)
+  z2 <- (y - p)^2 / V
+  mu4 <- p * (1 - p)^4 + (1 - p) * p^4
+  c4v <- mu4 / V^2 - 1
+  f_cell <- max((length(y) - n_parameters) / length(y), 0)
+  pool <- function(sel) {
+    n <- sum(sel)
+    if (n < 3L || f_cell <= 0)
+      return(list(infit_ms = NA_real_, outfit_ms = NA_real_,
+                  fit_resid = NA_real_, df = NA_real_, n = n))
+    y2 <- sum(z2[sel]); f <- f_cell * n
+    wv <- sum(V[sel])
+    infit <- if (wv > 1e-12) sum(z2[sel] * V[sel]) / (f_cell * wv)
+             else NA_real_
+    vv <- sum(c4v[sel])
+    fr <- if (vv > 1e-8 && y2 > 0 && f > 0)
+      f * (log(y2) - log(f)) / sqrt(vv) else NA_real_
+    list(infit_ms = infit, outfit_ms = y2 / f, fit_resid = fr,
+         df = f, n = n)
+  }
+
+  ofit <- lapply(seq_len(K), function(k) pool(ia == k | ib == k))
+  wins <- vapply(seq_len(K), function(k)
+    sum(y[ia == k]) + sum(1 - y[ib == k]), 0)
+  objects$comparisons <- vapply(ofit, `[[`, 0, "n")
+  objects$wins <- wins
+  objects$infit_ms <- vapply(ofit, `[[`, 0, "infit_ms")
+  objects$outfit_ms <- vapply(ofit, `[[`, 0, "outfit_ms")
+  objects$fit_resid <- vapply(ofit, `[[`, 0, "fit_resid")
+  objects$df_fit <- vapply(ofit, `[[`, 0, "df")
+
+  ju <- sort(unique(jd))
+  jfit <- lapply(ju, function(j) pool(jd == j))
+  judges <- data.frame(
+    judge = ju, n = vapply(jfit, `[[`, 0, "n"),
+    infit_ms = vapply(jfit, `[[`, 0, "infit_ms"),
+    outfit_ms = vapply(jfit, `[[`, 0, "outfit_ms"),
+    fit_resid = vapply(jfit, `[[`, 0, "fit_resid"),
+    df_fit = vapply(jfit, `[[`, 0, "df"), stringsAsFactors = FALSE)
+
+  lo_first <- ia < ib
+  key <- paste(pmin(ia, ib), pmax(ia, ib))
+  obs_lo <- ifelse(lo_first, y, 1 - y)
+  exp_lo <- ifelse(lo_first, p, 1 - p)
+  n_pair <- tapply(rep(1, length(y)), key, sum)
+  obs_m <- tapply(obs_lo, key, mean)
+  exp_m <- tapply(exp_lo, key, mean)
+  v_pair <- tapply(V, key, sum)
+  zp <- tapply(obs_lo - exp_lo, key, sum) / sqrt(pmax(v_pair, 1e-12))
+  idx <- do.call(rbind, strsplit(names(n_pair), " "))
+  pairs <- data.frame(
+    object_a = objs[as.integer(idx[, 1])],
+    object_b = objs[as.integer(idx[, 2])], n = as.numeric(n_pair),
+    obs_prop = as.numeric(obs_m), exp_prop = as.numeric(exp_m),
+    residual = as.numeric(zp), chisq = as.numeric(zp)^2,
+    stringsAsFactors = FALSE)
+  used <- pairs$n >= 2L
+  total_df <- sum(used) - n_parameters
+  total_chisq <- if (total_df >= 1L) sum(pairs$chisq[used]) else NA_real_
+  if (total_df < 1L) total_df <- NA_integer_
+
+  # d eta / d(v_a - v_b): within-set comparisons use phi/alpha because
+  # v = alpha * beta + kappa; cross-set comparisons use phi directly.
+  slope <- unname(phi[pan])
+  within <- sa == sb
+  slope[within] <- slope[within] / unname(alpha[sa[within]])
+  comparisons <- data.frame(
+    object_a = a, object_b = b, response = y, weight = 1,
+    judge = jd, panel = pan, set_a = sa, set_b = sb,
+    expected = p, frame_slope = slope,
+    information = slope^2 * V, stringsAsFactors = FALSE)
+
+  list(objects = objects, judges = judges, pairs = pairs,
+       comparisons = comparisons, total_chisq = total_chisq,
+       total_df = total_df,
+       total_p = if (is.finite(total_chisq))
+         stats::pchisq(total_chisq, total_df, lower.tail = FALSE) else NA_real_)
+}
+
 #' Fit the extended frame of reference model for paired comparisons
 #'
-#' Estimates object locations from paired comparisons when the unit of the
-#' latent scale differs across frames -- judge-panel by object-set cells.
-#' The model is a hybrid of the package's two non-item lineages: the
-#' comparative judgement model, which is the conditional form of the
-#' dichotomous Rasch model (Andrich 1978; Bradley and Terry 1952), carrying
-#' the frame-of-reference unit structure of Humphry's (2005) extended frame
-#' of reference model (Humphry and Andrich 2008). Objects are partitioned into sets and judges into
-#' panels. Each object has a common-scale value \code{v_k = alpha_s beta_k +
-#' kappa_s}, with \code{beta_k} the within-set calibration location,
-#' \code{alpha_s > 0} the set unit and \code{kappa_s} the set origin; a
-#' comparison judged in panel \code{g} carries the panel unit \code{phi_g}.
-#' Within a set the comparison logit is \code{phi_g (beta_a - beta_b)} (the set
-#' origin cancels and the set unit is confounded with the spread of
-#' \code{beta}, so neither is identified within a set); across sets it is
-#' \code{phi_g (v_a - v_b)}, which places the sets on one common scale.
+#' Fits paired comparisons when judges belong to panels and objects belong to
+#' linked sets whose units or origins can differ. It combines the
+#' Bradley--Terry--Luce model with Humphry's extended frame of reference
+#' structure.
 #'
-#' One modelling convention deserves plain statement. Rewritten with a single
-#' latent value per object, the model says within-set-\code{s} contests are
-#' judged at discrimination \code{phi_g / alpha_s} while every cross-set
-#' contest is judged at exactly \code{phi_g}: the common scale is
-#' \emph{defined} as the scale of between-frame judgement. That is an
-#' assumption about how discriminal dispersion behaves when unlike objects
-#' meet (a Thurstonian question with no assumption-free answer), not a
-#' consequence of the theory; the per-frame fit residuals in \code{frames}
-#' are where a violation would show.
+#' @details
+#' For object \eqn{k} in set \eqn{s}, let
+#' \deqn{v_k=\alpha_s\beta_k+\kappa_s,}
+#' where \eqn{\beta_k} is its within-set location, \eqn{\alpha_s>0} is the set
+#' unit, and \eqn{\kappa_s} is the set origin. A comparison in panel \eqn{g}
+#' has logit
+#' \deqn{\phi_g(\beta_a-\beta_b)}
+#' for objects in the same set, and
+#' \deqn{\phi_g(v_a-v_b)}
+#' for objects in different sets. Cross-set comparisons identify the common
+#' scale. The first set fixes \eqn{\alpha=1} and \eqn{\kappa=0}; panel units
+#' have geometric mean one.
 #'
-#' Estimation follows \code{\link{rasch_efrm}} in two conditional stages. In
-#' stage one the within-set comparisons of each set, pooled over panels, fit
-#' the bilinear model \code{logit = rho_{gs} (b_a - b_b)} with \code{b}
-#' sum-zero and the most-used panel fixed at \code{rho = 1}; the ratios
-#' \code{rho_{gs} = phi_g / phi_{ref(s)}} estimate the panel units up to each
-#' set's reference panel and are reconciled across sets by a precision-weighted
-#' least squares over the panel-by-set linking graph, then normalised to
-#' geometric mean one. In stage two the cross-set comparisons are a
-#' low-dimensional maximum likelihood in \code{(log alpha, kappa)} for the
-#' non-reference sets, with \code{alpha_1 = 1} and \code{kappa_1 = 0} fixing
-#' the reference set (the first, alphabetically).
+#' Estimation has two stages. Within-set comparisons estimate object locations
+#' and panel-unit ratios. Weighted least squares reconciles the ratios over the
+#' panel-by-set linking graph. Cross-set comparisons then estimate the set
+#' units and origins. Unlike the person-by-item EFRM, this linking step uses
+#' only comparison outcomes and does not require a distribution of persons.
+#' The paired-comparison form is an extension of Humphry's model implemented in
+#' this package.
 #'
-#' The set units are identified within the conditional framework: the
-#' cross-set linking uses only comparison outcomes and makes no distributional
-#' assumption about the objects. This is the substantive difference from the
-#' persons-by-items EFRM, whose item-set units can only be identified from the
-#' person side -- that is, from the distribution of the persons over the linked
-#' sets. The paired-comparison design supplies its own conditional link, so no
-#' such distributional step is needed. See Humphry (2005) and Humphry and
-#' Andrich (2008) for the theory of the unit, and Thurstone (1927) and David
-#' (1988) for the varying-discriminal-dispersion lineage from which the
-#' frame-dependent unit descends. The paired-comparison form is this package's
-#' extension of Humphry's model.
+#' The default judge bootstrap resamples judges within panels and refits both
+#' stages. The parametric bootstrap draws independent outcomes from the fitted
+#' probabilities. \code{se_method = "conditional"} uses analytic stage-one
+#' errors and conditions the linking errors on stage one; it is intended for
+#' preliminary inspection. Bootstrap failures and boundary estimates are
+#' reported in \code{notes}.
 #'
-#' Estimates always use the staged conditional estimator: the within-frame
-#' calibrations are invariant to the linking data (the frame-of-reference
-#' property), a deliberate trade of some efficiency for invariance, exactly as
-#' anchored equating trades. Inference defaults to a judge bootstrap of
-#' the whole pipeline (\code{se_method = "judge_bootstrap"}): judges are
-#' resampled within panels and both stages refitted, so the standard
-#' errors of \code{phi}, \code{alpha}, \code{kappa}, \code{beta} and the
-#' common-scale \code{v} reflect sampling variability from both stages. The
-#' \code{"conditional"} option keeps the fast analytic errors (judge-clustered
-#' sandwich for stage one, inverse observed information for stage two,
-#' conditional on stage one) for quick inspection. Because uncertainty from
-#' stage one is not propagated to stage two, the resulting standard errors for
-#' \code{alpha} and \code{kappa} do not represent total pipeline uncertainty.
-#'
-#' The optional parametric bootstrap draws independent Bernoulli outcomes at
-#' the fitted probabilities. It is a useful model-based sensitivity analysis,
-#' but it does not carry extra-model dependence within judges and is therefore
-#' not the default for repeated judgements. The judge bootstrap needs enough
-#' judges per panel to resample stably; failed replicates are counted and
-#' reported. A parameter that reaches
-#' its boundary in some replicates (a set unit driven to zero when a resampled
-#' within-set order flips against the cross-set evidence, the signature of a
-#' two-object set with a near-even internal pair) has no normal sampling
-#' distribution: its standard error is reported as \code{NA} and a note names
-#' the parameter and the boundary count rather than manufacturing a number.
-#' Relatedly, a set whose within-set contests are all near-even (or all
-#' one-sided) carries no stable information about the panel-unit ratios; such
-#' sets are screened out of the \code{phi} reconciliation, refit with the
-#' panel units held at the reconciled \code{phi} (which the frame model says
-#' apply to them regardless), and named in a note.
-#'
-#' A single set (\code{S = 1}) reduces the model to panel units alone; stage
-#' two is skipped and the print states the panel-units model. When
-#' additionally \code{G = 1} the fit reduces exactly to \code{\link{btl}} on
-#' the same data. The equal-unit (single-unit) comparison refits plain
-#' \code{\link{btl}} on all comparisons pooled and reports the descriptive
-#' composite log-likelihood difference against the frames model; because that
-#' comparison is a composite likelihood, the inference on the units is carried
-#' by omnibus Wald tests of the unit families. Individual unit and origin
-#' contrasts are exploratory and Holm-adjusted.
+#' With one set, the model contains panel units only. With one set and one
+#' panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference
+#' for the unit families; individual contrasts are Holm-adjusted follow-ups.
 #'
 #' @param data A data frame with one comparison per row.
 #' @param object_a,object_b Names of the columns holding the two compared
@@ -530,28 +564,17 @@
 #' @param boot_reps Number of replicates for \code{se_method = "bootstrap"}
 #'   or \code{"judge_bootstrap"}.
 #' @param maxit,tol Newton iteration cap and convergence tolerance.
-#' @return An object of class \code{"rasch_btl_efrm"}: \code{objects} (object,
-#'   set, \code{beta_set} and its standard error, common-scale \code{v} and its
-#'   standard error), \code{phi_table} (panel units with Wald tests against
-#'   \code{log phi = 0}), \code{alpha_table} and \code{kappa_table} (set units
-#'   and origins with Wald tests; the reference set carries \code{alpha = 1},
-#'   \code{kappa = 0} with no standard error), \code{unit_omnibus} (joint
-#'   Wald tests of equal panel units, set units, and set origins),
-#'   \code{frames} (panel by set:
-#'   common-scale discrimination \code{rho = phi / alpha} (the within-set
-#'   logit is \code{phi (beta_a - beta_b)} with \code{beta = (v - kappa) /
-#'   alpha}), comparison count, pooled fit residual and its allocated
-#'   \code{df_fit}),
-#'   \code{equal_unit} (the descriptive single-unit comparison), \code{n_cross}
-#'   (cross-set comparison counts per set pair), \code{notes} and
-#'   \code{converged}.
+#' @return An object of class \code{"rasch_btl_efrm"}. Principal components
+#'   are \code{objects}, \code{phi_table}, \code{alpha_table},
+#'   \code{kappa_table}, \code{unit_omnibus}, \code{frames},
+#'   \code{equal_unit}, \code{n_cross}, \code{notes}, and \code{converged}.
 #' @references Andrich, D. (1978). Relationships between the Thurstone and
 #'   Rasch approaches to item scaling. Applied Psychological Measurement,
-#'   2(3), 451-462.
+#'   2(3), 451--462.
 #'
 #'   Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
 #'   incomplete block designs: I. The method of paired comparisons.
-#'   Biometrika, 39, 324-345.
+#'   Biometrika, 39, 324--345.
 #'
 #'   David, H. A. (1988). The Method of Paired Comparisons (2nd ed.). Griffin.
 #'
@@ -562,13 +585,15 @@
 #'   Rasch model. Journal of Applied Measurement, 13(2), 165--180.
 #'
 #'   Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
-#'   Rasch model. Journal of Applied Measurement, 9(3), 249-264.
+#'   Rasch model. Journal of Applied Measurement, 9(3), 249--264.
 #'
 #'   Luce, R. D. (1959). Individual Choice Behavior: A Theoretical
 #'   Analysis. Wiley.
 #'
 #'   Thurstone, L. L. (1927). A law of comparative judgment. Psychological
-#'   Review, 34, 273-286.
+#'   Review, 34, 273--286.
+#' @seealso \code{\link{btl}}, \code{\link{rasch_efrm}},
+#'   \code{\link{plot_btl_units}}, and \code{\link{simulate_btl_efrm}}.
 #' @examples
 #' \donttest{
 #' d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
@@ -911,6 +936,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   # uncertainty into the linking. Judge resampling is the default; the
   # parametric outcome bootstrap remains a model-based sensitivity analysis.
   boot_fail <- 0L
+  cov_v <- NULL
   cov_draws <- function(D, idx) {
     V <- matrix(NA_real_, length(idx), length(idx))
     ok <- vapply(idx, function(j) all(is.finite(D[, j])), TRUE)
@@ -993,6 +1019,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                                      length(draws)), collapse = "; "),
         "; the parameter is weakly identified and its SE is reported as NA"))
     nO <- length(objs_all)
+    iv <- G + 2L * S + nO + seq_len(nO)
+    cov_v <- cov_draws(D, iv)
+    dimnames(cov_v) <- list(objs_all, objs_all)
     se_log_phi <- setNames(sds[seq_len(G)], panels_u)
     se_log_alpha <- setNames(sds[G + seq_len(S)], sets_u)
     se_kappa <- setNames(sds[G + S + seq_len(S)], sets_u)
@@ -1051,6 +1080,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                                      length(draws)), collapse = "; "),
         "; the parameter is weakly identified and its SE is reported as NA"))
     nO <- length(objs_all)
+    iv <- G + 2L * S + nO + seq_len(nO)
+    cov_v <- cov_draws(D, iv)
+    dimnames(cov_v) <- list(objs_all, objs_all)
     se_log_phi <- setNames(sds[seq_len(G)], panels_u)
     se_log_alpha <- setNames(sds[G + seq_len(S)], sets_u)
     se_kappa <- setNames(sds[G + S + seq_len(S)], sets_u)
@@ -1065,6 +1097,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   }
 
   # --- equal-unit (single-unit) comparison ----------------------------------
+  npar_frame <- (length(objs_all) - S) + (G - 1L) + 2L * (S - 1L)
   ll_frames <- ll_within + ll_cross
   single <- tryCatch(
     .btlef_stage1(match(a, objs_all), match(b, objs_all), y,
@@ -1074,6 +1107,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   equal_unit <- list(
     loglik_frames = ll_frames, loglik_single = ll_single,
     difference = if (is.na(ll_single)) NA_real_ else ll_frames - ll_single,
+    two_delta_ll = if (is.na(ll_single)) NA_real_ else
+      2 * (ll_frames - ll_single),
+    parameters_frames = npar_frame,
+    parameters_single = length(objs_all) - 1L,
     note = paste("descriptive composite-likelihood difference;",
                  "the omnibus Wald tests on the unit families carry the inference"))
 
@@ -1150,6 +1187,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                            "set origins (kappa)"))))
 
   objects <- data.frame(object = objs_all, set = unname(set_of[objs_all]),
+                        location = unname(v), se = unname(se_v),
                         beta_set = unname(bhat[objs_all]),
                         se_beta = unname(se_bhat[objs_all]),
                         v = unname(v), se_v = unname(se_v),
@@ -1158,7 +1196,6 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
 
   # frames: one row per panel-by-set cell holding within-set comparisons
   fr <- list()
-  npar_frame <- (length(objs_all) - S) + (G - 1L) + 2L * (S - 1L)
   f_cell <- max((length(y) - npar_frame) / length(y), 0)
   for (s in sets_u) for (g in panels_u) {
     rows <- which(within & sa == s & pan == g)
@@ -1176,6 +1213,12 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   }
   frames <- if (length(fr)) do.call(rbind, fr) else NULL
   if (!is.null(frames)) rownames(frames) <- NULL
+
+  diag_frame <- .btlef_diagnostics(
+    a, b, y, jd, pan, sa, sb, fit0$p_all, phi, alpha_use,
+    objects, n_parameters = npar_frame)
+  objects <- diag_frame$objects
+  osi <- .psi(objects$location, objects$se)
 
   if (S == 1L)
     notes <- c(notes, "single set: panel-units model (set units alpha not estimated)")
@@ -1195,6 +1238,21 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
               sets = sets_u, panels = panels_u, reference_set = sets_u[1],
               n_comparisons = length(a),
               converged = fit0$converged,
+              # rasch_btl-compatible core diagnostics, all evaluated under
+              # the frame probabilities rather than copied from an equal-unit
+              # fit. This lets the GUI and generic summaries use the active
+              # common-scale calibration after frames are added.
+              pairs = diag_frame$pairs, judges = diag_frame$judges,
+              comparisons = diag_frame$comparisons,
+              total_chisq = diag_frame$total_chisq,
+              total_df = diag_frame$total_df, total_p = diag_frame$total_p,
+              osi = osi, loglik = ll_frames, iterations = NA_integer_,
+              n_parameters = npar_frame,
+              clustered = TRUE, cov_beta = cov_v,
+              thresholds = NULL, components = NULL,
+              thr_structure = "dichotomous", m = 1L,
+              categories = c("0", "1"), dependence = NULL,
+              dependence_data = NULL,
               se_method = se_method,
               boot_reps = if (se_method %in% c("bootstrap", "judge_bootstrap"))
                 boot_reps else NA_integer_,
@@ -1215,7 +1273,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                       "do not represent total pipeline uncertainty; use",
                       "se_method = 'judge_bootstrap' for inference"),
               notes = notes)
-  class(out) <- "rasch_btl_efrm"
+  class(out) <- c("rasch_btl_efrm", "rasch_btl")
   out
 }
 
@@ -1262,12 +1320,68 @@ print.rasch_btl_efrm <- function(x, ...) {
   invisible(x)
 }
 
+# Object characteristic display for a frame-adjusted comparison fit. A single
+# equal-unit logistic curve is not available: the slope depends on panel and,
+# for within-set comparisons, on the object's set unit. Curves and observed
+# points therefore share a colour within each fitted frame.
+.plot_btl_efrm_icc <- function(fit, object, grid = NULL, min_n = 10) {
+  ob <- fit$objects
+  if (!object %in% ob$object) stop("no such object: ", object)
+  vo <- ob$location[match(object, ob$object)]
+  set_o <- ob$set[match(object, ob$object)]
+  if (is.null(grid)) {
+    rng <- range(ob$location) + c(-1, 1)
+    grid <- seq(rng[1], rng[2], length.out = 201)
+  }
+  cm <- fit$comparisons
+  take_a <- cm$object_a == object
+  take_b <- cm$object_b == object
+  d <- rbind(
+    data.frame(opponent = cm$object_b[take_a], response = cm$response[take_a],
+               weight = cm$weight[take_a], panel = cm$panel[take_a],
+               set_opponent = cm$set_b[take_a],
+               slope = cm$frame_slope[take_a]),
+    data.frame(opponent = cm$object_a[take_b], response = 1 - cm$response[take_b],
+               weight = cm$weight[take_b], panel = cm$panel[take_b],
+               set_opponent = cm$set_a[take_b],
+               slope = cm$frame_slope[take_b]))
+  d <- d[d$opponent %in% ob$object, , drop = FALSE]
+  d$frame <- ifelse(d$set_opponent == set_o,
+                    paste(d$panel, "within", set_o),
+                    paste(d$panel, "vs", d$set_opponent))
+  sp <- split(seq_len(nrow(d)), paste(d$frame, d$opponent, sep = "\r"))
+  obs <- do.call(rbind, lapply(sp, function(ii) data.frame(
+    frame = d$frame[ii[1]], opponent = d$opponent[ii[1]],
+    loc = ob$location[match(d$opponent[ii[1]], ob$object)],
+    mean = sum(d$weight[ii] * d$response[ii]) / sum(d$weight[ii]),
+    n = sum(d$weight[ii]), slope = mean(d$slope[ii]))))
+  obs <- obs[obs$n >= min_n, , drop = FALSE]
+  frames <- unique(d$frame)
+  slope <- vapply(frames, function(fr) mean(d$slope[d$frame == fr]), 0)
+  cols <- setNames(rep(.rr$pal, length.out = length(frames)), frames)
+  op <- .rr_canvas(range(grid), c(0, 1),
+                   "Opponent common-scale location (logits)",
+                   "Probability preferred",
+                   sprintf("%s  (common-scale location %.3f)", object, vo))
+  on.exit(par(op))
+  for (fr in frames)
+    lines(grid, stats::plogis(slope[[fr]] * (vo - grid)),
+          col = cols[[fr]], lwd = 2.2)
+  if (nrow(obs))
+    points(obs$loc, obs$mean, pch = 21, bg = cols[obs$frame],
+           col = "white", cex = 1.45, lwd = 1.1)
+  .rr_legend("topright", c("Model", "Observed"), lwd = c(2.2, NA),
+             pch = c(NA, 21), pt.bg = c(NA, .rr$blue),
+             col = c(.rr$ink, "white"), pt.cex = 1.25)
+  if (length(frames) <= 8L)
+    .rr_legend("bottomleft", frames, lwd = 2.2, col = unname(cols), cex = .72)
+  invisible(if (nrow(obs)) obs$opponent else character(0))
+}
+
 #' Plot the frame units of a paired-comparison EFRM fit
 #'
-#' Caterpillar plot of the estimated units on the log scale: one row per panel
-#' unit \code{phi_g} and one per set unit \code{alpha_s}, with 95 per cent
-#' intervals, the reference (unit one) marked, mirroring
-#' \code{\link{plot_frames}} in the package's house style.
+#' Caterpillar plot of panel units \code{phi_g} and set units \code{alpha_s}
+#' on the log scale, with 95 per cent intervals and unit one marked.
 #'
 #' @param fit A fitted object from \code{\link{btl_efrm}}.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.

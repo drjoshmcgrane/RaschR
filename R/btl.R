@@ -60,111 +60,76 @@
 
 #' Fit comparative judgement models to paired comparisons
 #'
-#' Estimates object locations from paired-comparison data by conditional
-#' maximum likelihood. For dichotomous comparisons this is the
-#' Bradley-Terry-Luce model; for polytomous comparisons, its
-#' adjacent-categories ordinal extension (Tutz 1986). The
-#' Bradley-Terry-Luce model is the conditional form
-#' of the dichotomous Rasch model -- within an item pair, given one correct
-#' response, the Rasch probability that it was the easier item is exactly
-#' of BTL form -- so it belongs to the same measurement family and is
-#' estimated by the same conventions as the rest of the package:
-#' Newton-Raphson on the person-free likelihood, locations identified by
-#' the sum-zero constraint, and Godambe sandwich standard errors, clustered
-#' by judge when a judge column is given (so repeated comparisons by the
-#' same judge need not be independent). Objects that win or lose every
-#' comparison have no finite estimate and are removed with a note, exactly
-#' as extreme persons are set aside in a Rasch calibration; the comparison
-#' graph must remain connected. Beyond that, finite estimates exist only
-#' when the directed win graph is strongly connected (Ford 1957): if some
-#' subset of objects never concedes a point to the rest, the likelihood
-#' pushes the two clusters infinitely far apart, so the fit stops with an
-#' error naming the separated objects rather than presenting the
-#' optimiser's boundary values as measures -- remove the separated
-#' cluster, or collect comparisons that cross the divide. Anchors relax
-#' this condition: an anchored object is pinned, so the fit only requires
-#' every free object to be tied to an anchor in both win directions
-#' (otherwise the constrained likelihood still recedes along the
-#' unanchored cluster, and the same error results).
+#' Fits the Bradley--Terry--Luce model to dichotomous comparisons or its
+#' ordered-response extension (Tutz 1986). Object, judge, and pair fit are
+#' reported with an object separation index and design diagnostics.
 #'
-#' Fit is reported at three levels, mirroring the Rasch diagnostics.
-#' Per object and (when given) per judge: the log-of-mean-square fit
-#' residual of Andrich and Marais (2019, ch. 23) over their comparisons, with apportioned degrees of freedom --
-#' an erratic judge or an object of inconsistent quality shows exactly as
-#' an erratic person or misfitting item does. Per pair: the classical
-#' goodness-of-fit table comparing observed and expected win proportions,
-#' with the total chi-square on (pairs used) minus (free location parameters)
-#' degrees of freedom. The object separation index is the analogue of the
-#' PSI: the proportion of observed location variance not due to error.
-#' Anchored objects enter it with their fixed locations and zero error --
-#' they are separated with certainty by construction.
+#' @details
+#' For objects \eqn{a} and \eqn{b}, the dichotomous model is
+#' \deqn{P(a\succ b)=\frac{\exp(\beta_a)}
+#' {\exp(\beta_a)+\exp(\beta_b)}.}
+#' This is the conditional form of the dichotomous Rasch model (Andrich 1978).
+#' For an ordered response \eqn{Y=0,\ldots,m},
+#' \deqn{\log\{P(Y=r)/P(Y=r-1)\}=\beta_a-\beta_b-\tau_r,}
+#' with thresholds constrained to be symmetric under reversal of presentation
+#' order. Two categories reproduce the dichotomous model.
+#'
+#' Locations are identified by a sum-zero constraint unless anchors are
+#' supplied. The comparison graph must be connected, and the directed win
+#' graph must be strongly connected for all free locations to be finite
+#' (Ford 1957). Boundary objects are removed when this leaves an identified
+#' model; otherwise fitting stops.
+#'
+#' Standard errors use the Godambe sandwich covariance. When \code{judge} is
+#' supplied, the covariance is clustered by judge. Clustered inference is
+#' withheld when there are fewer than ten judges, fewer than eight effective
+#' judges, or no residual cluster degrees of freedom. A caution is attached
+#' when the effective count is below 9.5 or one judge supplies more than 20
+#' per cent of the comparisons. The thresholds are simulation-calibrated:
+#' a true null is rejected at about 9\% with four effective judges and 7\%
+#' at six to seven, while balanced designs are nominal from ten judges up
+#' and a single judge above a 20\% share adds a mild edge near 6\%.
+#'
+#' Dichotomous data may be supplied as a winner, with ties dropped or divided
+#' equally between the two outcomes. Ordered data may instead be supplied
+#' directly as scores from 0 to \eqn{m}, or assembled from the winner and an
+#' ordered margin of victory. Plain factors are refused because alphabetical
+#' ordering can reverse the response scale. The \code{"pc"} threshold option
+#' retains the symmetric spread component, which can stabilise thin categories.
+#'
+#' If comparison order is supplied, exposure and carry-over effects are
+#' estimated from each judge's preceding comparisons. The \code{position}
+#' term estimates a first-presentation effect. These coefficients enter the
+#' model jointly with the object locations and are reported in logits.
+#' In simulation the position and exposure null tests hold their 5\% level
+#' (5.8\% and 5.9\% at 800 replicates); the carry-over null runs near 8\%
+#' with 14 judges -- a few-cluster elevation, gone by 30 judges (5.3\%) --
+#' and effects of 0.6 logits are detected in 62\% (position), 39\%
+#' (exposure), and 77\% (carry-over) of replicates.
+#' Anchors fix nominated object locations and replace the sum-zero origin.
 #'
 #' @param data A data frame with one comparison per row.
 #' @param object_a,object_b Names of the columns holding the two objects
 #'   compared.
 #' @param winner Name of the column holding the winner of each row: its
-#'   value must equal the row's \code{object_a} or \code{object_b} entry;
-#'   \code{"tie"} or \code{"draw"} marks a tie; anything else (including
-#'   blanks) is treated as missing and dropped with a note. Ignored when
-#'   \code{response} is given.
-#' @param margin Optional name of a column holding the extent of the win
-#'   ("a little", "much", ...), as an ordered factor or increasing values;
-#'   combined with \code{winner} it assembles the polytomous response without
-#'   any orientation bookkeeping ("B by much" means the same thing
-#'   whichever column B sits in). Winner values matching neither object
-#'   are ties and form the middle category.
+#'   value must equal one of the two objects. \code{"tie"} and \code{"draw"}
+#'   mark ties. Ignored when \code{response} is supplied.
+#' @param margin Optional ordered margin-of-victory column, combined with
+#'   \code{winner} to construct an orientation-invariant response.
 #' @param thresholds \code{"free"} (default) estimates every symmetric
-#'   threshold parameter; \code{"pc"} pools them to the spread (linear)
-#'   principal component -- the symmetric case of the principal-component
-#'   threshold structure, whose even skewness component is structurally
-#'   zero here -- so thinly used categories borrow strength from every
-#'   response. Both modes report the component decomposition.
-#' @param response Optional name of a column holding a polytomous preference
-#'   for \code{object_a} over \code{object_b} -- an ORDERED factor
-#'   (\code{factor(..., ordered = TRUE)}, levels worst to best for
-#'   \code{object_a}) or integer scores \code{0..m}; a plain factor is
-#'   refused, since its alphabetical level order would silently define
-#'   (and can reverse) the response scale. Fits the
-#'   adjacent-categories ordinal extension of BTL (Tutz 1986; Agresti
-#'   1992): a partial-credit structure on the difference of locations with
-#'   thresholds constrained symmetric, \code{tau_k = -tau_(m+1-k)}, so the
-#'   model is invariant to presentation order. Two categories reproduce
-#'   BTL exactly. Three categories have the Davidson (1970) probability
-#'   structure after mapping the Davidson endpoint log-strength to
-#'   \code{2 * beta}; the reported \code{beta} therefore uses the
-#'   adjacent-category rather than endpoint-log-odds unit.
+#'   threshold; \code{"pc"} retains only the symmetric spread component.
+#' @param response Optional ordered response favouring \code{object_a} over
+#'   \code{object_b}: an ordered factor from least to greatest preference for
+#'   \code{object_a}, or integer scores \code{0..m}.
 #' @param judge Optional name of a judge column; enables the judge fit
 #'   table and clusters the sandwich standard errors by judge.
-#' @param order Optional name of a column giving each judge's judgment
-#'   sequence (timestamps or ranks; requires \code{judge}). Adds the
-#'   within-judge dependence analysis: an exposure effect (the advantage,
-#'   in logits, of an object the judge has seen before over one they have
-#'   not) and a carry-over effect (the pull of the judge's own earlier
-#'   verdicts on the same object -- response dependence in the sense of
-#'   Marais and Andrich 2008), estimated jointly with the locations and
-#'   reported in \code{dependence}. Incompatible with
+#' @param order Optional column giving each judge's comparison sequence;
+#'   requires \code{judge}. See Details. Incompatible with
 #'   \code{ties = "half"}.
-#' @param position Logical: when \code{TRUE}, \code{object_a} is taken as the
-#'   first-presented (left) object of every comparison and a first-position
-#'   advantage is estimated -- a single coefficient, in logits, added to
-#'   every comparison's location difference, the pure positional form of the
-#'   Davidson and Beaver (1977) within-pair order-effect device. It is
-#'   reported in \code{dependence} with \code{effect = "position"} (every
-#'   comparison is informative, so \code{n_informative} is the total weighted
-#'   comparison count) and estimated jointly with the locations, alongside the
-#'   exposure and carry-over effects when \code{order} is also given.
-#'   Identification comes from triangle closure (K >= 3), so the constant
-#'   oriented covariate is estimable even when each pair has a fixed
-#'   orientation, though weakly. Note that \code{ties = "half"} duplicates
-#'   rows in the same orientation, so the first position stays well defined.
-#' @param anchors Optional named numeric vector for equating: names are object
-#'   names, values are fixed locations in logits. The named objects are held
-#'   exactly at those locations and the remaining objects are estimated freely
-#'   with no sum-zero constraint -- the origin and scale come from the anchors,
-#'   exactly as an anchored \code{\link{rasch}} calibration works. Anchored
-#'   objects report a standard error of zero (their location is a constant, not
-#'   an estimate). An anchored object that is undefeated or winless is an error,
-#'   not silently removed as a free boundary object would be.
+#' @param position If \code{TRUE}, estimate a first-presentation advantage,
+#'   treating \code{object_a} as the first object in each comparison.
+#' @param anchors Optional named numeric vector of fixed object locations.
+#'   Anchored objects have standard error zero and must not be boundary objects.
 #' @param count Optional name of a column of replication counts (a row
 #'   standing for several identical comparisons).
 #' @param ties How to treat ties in the dichotomous analysis:
@@ -174,60 +139,41 @@
 #'   \code{"error"}. With polytomous responses, code ties as a middle
 #'   category instead.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
-#' @return A list of class \code{"rasch_btl"}: \code{objects} (location, se,
-#'   comparisons, wins -- or the polytomous \code{score} -- infit and outfit
-#'   mean squares, fit residual and its df),
-#'   \code{pairs} (per pair: n, observed and expected win proportions --
-#'   or mean polytomous responses --
-#'   standardised residual, chi-square component -- the pair chi-squares
-#'   treat comparisons as independent and are descriptive under judge
-#'   clustering; the object and judge fit residuals and the clustered
-#'   standard errors carry the robust inference), \code{judges} (when
-#'   given: per judge n, infit, outfit, fit residual, df), \code{total_chisq},
-#'   \code{total_df}, \code{total_p}, the object separation index
-#'   \code{osi}, \code{loglik}, \code{cl} (the composite-likelihood
-#'   information ingredients used by \code{\link{compare_fits}}: the Godambe
-#'   effective parameter count and the independent-unit count),
-#'   convergence details, and \code{notes}. With judge clustering,
-#'   covariance-based inference (including the Godambe information criteria,
-#'   standard errors, dependence tests, DIF, and OSI) is withheld unless
-#'   there are at least 10 judges, at least 8 \emph{effective} judges (the
-#'   inverse Simpson index of each judge's share of the comparisons -- a
-#'   judge doing half the work leaves ~4 effective clusters however many
-#'   judges exist, and the clustered sandwich then rejects a true null at
-#'   ~9\% in simulation, with ~7\% already at 6-7 effective), and more
-#'   effective judges than fitted parameters. Between 8 and 9.5 effective
-#'   judges, or whenever one judge carries more than 20\% of the
-#'   comparisons (a mild ~6\% edge that the effective count alone misses
-#'   at larger judge counts), inference is reported with a caution note.
-#'   Point estimates and descriptive fit remain; \code{cl$n_units_effective}
-#'   reports the effective count.
-#'   Polytomous fits add \code{thresholds} (the symmetric threshold estimates
-#'   with standard errors), \code{m}, and \code{categories}. With an
-#'   \code{order} column the within-judge \code{dependence} effects table
-#'   carries an \code{n_informative} count, and \code{dependence_data} holds
-#'   every comparison with its per-comparison exposure and carry-over
-#'   covariates (see \code{\link{plot_btl_dependence}}).
-#' @references Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
-#'   incomplete block designs: I. The method of paired comparisons.
-#'   Biometrika, 39, 324-345. Luce, R. D. (1959). Individual Choice
-#'   Behavior. Wiley. Andrich, D. (1978). Relationships between the
-#'   Thurstone and Rasch approaches to item scaling. Applied Psychological
-#'   Measurement, 2, 451-462.
+#' @return A \code{"rasch_btl"} object. Principal components are
+#'   \code{objects}, \code{pairs}, \code{judges}, the total pair-fit test,
+#'   \code{osi}, \code{loglik}, composite-likelihood information \code{cl},
+#'   convergence details, and \code{notes}. Ordered-response fits also contain
+#'   \code{thresholds}, \code{m}, and \code{categories}. Fits using
+#'   \code{order} contain \code{dependence} and \code{dependence_data}.
+#' @references
+#' Bradley, R. A. and Terry, M. E. (1952). Rank analysis of incomplete block
+#' designs: I. The method of paired comparisons. Biometrika, 39, 324--345.
 #'
-#'   Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
-#'   Journal of Mathematical Psychology, 30(3), 306-316. Agresti, A.
-#'   (1992). Analysis of ordinal paired comparison data. Journal of the
-#'   Royal Statistical Society C, 41(2), 287-297. Davidson, R. R. (1970).
-#'   On extending the Bradley-Terry model to accommodate ties in paired
-#'   comparison experiments. Journal of the American Statistical
-#'   Association, 65(329), 317-328. Ford, L. R. (1957). Solution of a
-#'   ranking problem from binary comparisons. American Mathematical
-#'   Monthly, 64(8), 28-33.
+#' Luce, R. D. (1959). Individual Choice Behavior. Wiley.
 #'
-#'   Davidson, R. R., & Beaver, R. J. (1977). On extending the Bradley-Terry
-#'   model to incorporate within-pair order effects. Biometrics, 33(4),
-#'   693-702.
+#' Andrich, D. (1978). Relationships between the Thurstone and Rasch
+#' approaches to item scaling. Applied Psychological Measurement, 2,
+#' 451--462.
+#'
+#' Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
+#' Journal of Mathematical Psychology, 30(3), 306--316.
+#'
+#' Agresti, A. (1992). Analysis of ordinal paired comparison data. Journal of
+#' the Royal Statistical Society C, 41(2), 287--297.
+#'
+#' Davidson, R. R. (1970). On extending the Bradley-Terry model to accommodate
+#' ties in paired comparison experiments. Journal of the American Statistical
+#' Association, 65(329), 317--328.
+#'
+#' Ford, L. R. (1957). Solution of a ranking problem from binary comparisons.
+#' American Mathematical Monthly, 64(8), 28--33.
+#'
+#' Davidson, R. R. and Beaver, R. J. (1977). On extending the Bradley-Terry
+#' model to incorporate within-pair order effects. Biometrics, 33(4),
+#' 693--702.
+#' @seealso \code{\link{btl_dif}}, \code{\link{btl_efrm}},
+#'   \code{\link{btl_information}}, \code{\link{btl_transitivity}}, and
+#'   \code{\link{simulate_btl}}.
 #' @examples
 #' set.seed(1)
 #' beta <- c(A = -1, B = -0.3, C = 0.4, D = 0.9)
@@ -520,8 +466,8 @@ print.rasch_btl <- function(x, ...) {
 
 #' Plot Bradley-Terry-Luce object locations
 #'
-#' Caterpillar plot of the object locations with 95 per cent error bars,
-#' misfitting objects highlighted, in the package's house style.
+#' Caterpillar plot of object locations with 95 per cent error bars. Objects
+#' beyond the specified fit-residual band are marked.
 #'
 #' @param fit An object from \code{\link{btl}}.
 #' @param band Absolute fit-residual value beyond which an object is
@@ -1297,13 +1243,10 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 
 #' Plot an object characteristic curve
 #'
-#' The paired-comparison counterpart of the item characteristic curve: the
-#' model expected response for one object as a function of opponent
-#' location (the win probability, or the expected polytomous response), with
-#' the observed mean response against each opponent overlaid at that
-#' opponent\'s estimated location. Observed points shrink in toward the
-#' curve as the model holds; an object of inconsistent quality shows
-#' points straying from it, exactly as a misfitting item does.
+#' Plots the expected response for one object against opponent location, with
+#' the observed mean response against each sufficiently observed opponent.
+#' For dichotomous fits the curve is the win probability; for ordered fits it
+#' is the expected response.
 #'
 #' @param fit An object from \code{\link{btl}}.
 #' @param object Object name.
@@ -1329,6 +1272,13 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 #' @export
 plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
                          min_n = 10) {
+  if (inherits(fit, "rasch_btl_efrm")) {
+    if (!is.null(group))
+      stop("judge-group DIF curves are not defined after a frame adjustment; ",
+           "inspect the fitted panel-by-set frame curves, or use the ",
+           "equal-unit fit for judge-group DIF")
+    return(.plot_btl_efrm_icc(fit, object, grid = grid, min_n = min_n))
+  }
   ob <- fit$objects
   if (!object %in% ob$object) stop("no such object: ", object)
   m <- if (is.null(fit$m)) 1L else fit$m
@@ -1381,7 +1331,7 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     text(shown$loc, shown$mean, shown$opponent, pos = 3, offset = 0.45,
          cex = 0.72, col = .rr$soft)
     .rr_legend("topright",
-               c("Model", "Observed (per opponent)",
+               c("Model", "Observed",
                  if (n_omit)
                    sprintf("%d omitted (< %d comparisons)", n_omit, min_n)),
                lwd = c(3, NA, if (n_omit) NA),
@@ -1521,7 +1471,7 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
   lines(xb, fb, lwd = 2.6, col = .rr$ink)
   points(xb, ob, pch = 21, bg = .rr$blue, col = "white", cex = 1.7, lwd = 1.2)
   text(xb, ob, nb, pos = 3, offset = 0.6, cex = 0.65, col = .rr$soft)
-  .rr_legend("topleft", c("Model", "Observed (n per bin)"),
+  .rr_legend("topleft", c("Model", "Observed"),
              lwd = c(2.6, NA), pch = c(NA, 21), pt.bg = c(NA, .rr$blue),
              col = c(.rr$ink, "white"), pt.cex = 1.3)
   invisible(data.frame(covariate = xb, observed = ob, fitted = fb, n = nb))
@@ -1540,44 +1490,28 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 # ---------------------------------------------------------------------------
 #' DIF analysis for paired comparisons
 #'
-#' Tests whether objects function differently for identifiable groups of
-#' judges. One judge factor is analysed on its own; several factors are
-#' modelled jointly -- with main effects by default and factor-by-factor
-#' interactions optional -- exactly as \code{\link{dif_anova}} treats person
-#' factors. For each object the standardised residuals of its comparisons,
-#' oriented to the object, are analysed by the judge factor(s) crossed with
-#' opponent-strength bands: a term is uniform DIF, its crossing with the band
-#' non-uniform DIF, and a significant higher-order group term supersedes the
-#' lower-order group terms built from a subset of its factors. Each term
-#' flagged for uniform DIF and not superseded is then resolved -- the object
-#' split into one copy per cell of the term's factors inside a joint refit --
-#' and the differences between the resolved locations reported in logits with
-#' judge-clustered Wald tests and the practical-significance flag, mirroring
-#' \code{\link{dif_size}}. Fits with within-judge dependence effects
-#' (\code{order}) keep those effects in the residual moments and in the
-#' refits, so dependence is not mistaken for judge-group DIF; count-weighted
-#' comparisons enter all tests with their weights.
+#' Tests whether object locations differ across groups of judges. Several
+#' judge factors can be fitted jointly, with optional factor-by-factor
+#' interactions. Uniform DIF is a judge-factor effect; non-uniform DIF is its
+#' interaction with opponent-strength band.
 #'
-#' The screening ANOVA treats JUDGES as the independent units: residuals are
-#' aggregated to one weighted mean per judge (per opponent band) and tested
-#' in a split-plot design with the judge as the error unit -- group terms
-#' between judges, band terms and their interactions within. Testing
-#' judge-level factors against comparison-level residuals would
-#' pseudo-replicate (a null simulation with judge heterogeneity and
-#' arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
-#' judge-level design is calibrated, and its power grows with the number of
-#' judges per group, not the number of comparisons. Each factor level needs
-#' at least two judges. Confirmatory output is withheld unless the base fit
-#' has at least ten judge clusters and more clusters than fitted parameters;
-#' this avoids treating a rank-deficient or very small-cluster sandwich as a
-#' valid sampling covariance.
+#' @details
+#' Judges are the independent units. For each object, oriented residuals are
+#' aggregated to one weighted mean per judge and opponent band. A split-plot
+#' analysis then tests judge factors between judges and band effects within
+#' judges. Each factor level requires at least two judges. Confirmatory Wald
+#' tests are available only when the base fit supplies a valid judge-clustered
+#' covariance.
 #'
-#' Each object is resolved against the other objects' common locations. When
-#' several objects carry real DIF, resolving them one at a time can spread a
-#' large effect onto clean objects as compensating, opposite-signed artificial
-#' DIF (Andrich & Hagquist 2012, 2015); read large flags on several objects
-#' together with that hazard in mind, and prefer resolving the largest effect
-#' first and re-running.
+#' A significant uniform term is followed by a joint refit in which the object
+#' has one location per factor cell. Differences between these locations are
+#' reported in logits with clustered Wald tests. Higher-order terms supersede
+#' their component terms. Models fitted with \code{order} retain the exposure
+#' and carry-over effects in both the residual analysis and refit.
+#'
+#' Objects are resolved one at a time against the common locations of the
+#' remaining objects. With DIF in several objects, this can induce compensating
+#' apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
 #'
 #' @param fit An object from \code{\link{btl}}.
 #' @param factors One judge factor, or a named list containing several. Each

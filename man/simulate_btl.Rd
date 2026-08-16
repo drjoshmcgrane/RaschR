@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate.R
 \name{simulate_btl}
 \alias{simulate_btl}
-\title{Simulate paired-comparison (BTL) data with dial-in misfit}
+\title{Simulate paired-comparison data}
 \usage{
 simulate_btl(
   n_objects = 8,
@@ -23,7 +23,7 @@ simulate_btl(
 \item{reps_per_pair}{Comparisons made of each object pair.}
 
 \item{model}{\code{"dichotomous"} (a winner) or \code{"polytomous"} (a rated
-margin in \code{n_categories} categories; the pre-1.14.1 value
+margin in \code{n_categories} categories; an earlier development-era value
 \code{"graded"} is accepted as an alias).}
 
 \item{n_categories}{Categories for the polytomous model.}
@@ -32,15 +32,14 @@ margin in \code{n_categories} categories; the pre-1.14.1 value
 
 \item{second_attribute}{\code{NULL}, or \code{list(rho=)}: half the judges
 rank by a second object attribute correlated \code{rho} with the first.
-This introduces multidimensionality and possible intransitivity.}
+This introduces residual dimensionality and possible intransitivity.}
 
-\item{erratic_judges}{Proportion of judges who choose at random. This
-affects judge fit, transitivity, and the judge-surprise diagnostics.}
+\item{erratic_judges}{Proportion of judges who choose at random.}
 
 \item{dependence}{\code{NULL}, or \code{list(exposure=, carry_over=)}:
 within-judge order effects (a seen-before advantage and a pull from the
 judge's own earlier verdicts). Adds an \code{order} column. Feeds the
-dependence effects of \code{\link{btl}}.}
+dependence effects fitted by \code{\link{btl}}.}
 
 \item{seed}{Optional RNG seed.}
 }
@@ -51,10 +50,10 @@ A data frame of class \code{"rasch_sim"}: \code{object_a},
   \code{attr(x, "truth")}.
 }
 \description{
-Generates dichotomous or polytomous paired comparisons from the
-Bradley-Terry-Luce model, with optional departures each of which a
-paired-comparison diagnostic is built to detect. The result is a data frame
-ready for \code{\link{btl}}, with the truth attached.
+Generates dichotomous or ordered paired comparisons from the
+Bradley--Terry--Luce model. Optional arguments introduce a second object
+attribute, erratic judges, or within-judge dependence. Generating values are
+stored in \code{attr(x, "truth")}.
 }
 \examples{
 d <- simulate_btl(8, 12, erratic_judges = 0.15, seed = 1)

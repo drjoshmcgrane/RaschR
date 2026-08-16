@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate.R
 \name{simulate_mfrm}
 \alias{simulate_mfrm}
-\title{Simulate many-facet (rated) data with dial-in misfit}
+\title{Simulate many-facet Rasch data}
 \usage{
 simulate_mfrm(
   n_persons = 80,
@@ -47,9 +47,8 @@ A long data frame of class \code{"rasch_sim"} (\code{person},
   \code{\link{rasch_mfrm}}, with the truth attached.
 }
 \description{
-Generates ratings from the many-facet Rasch model (Linacre 1989): every
-rater rates every person on every item, from person ability, item
-difficulty, and rater severity. Departures each feed an MFRM diagnostic.
+Generates fully crossed ratings from a many-facet Rasch model (Linacre
+1989), with optional erratic raters, item-by-rater interaction, or halo.
 }
 \examples{
 d <- simulate_mfrm(60, 5, 6, rater_severity_sd = 0.8, seed = 1)

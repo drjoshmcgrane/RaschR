@@ -318,11 +318,15 @@ threshold_index <- function(m) {
 
 #' Estimate Rasch thresholds by pairwise conditional maximum likelihood
 #'
-#' Maximises the pairwise conditional likelihood, in which the person
-#' parameter cancels within every item pair, by Newton-Raphson (Andrich and
-#' Luo 2003; Zwinderman 1995). The partial credit model
-#' estimates every threshold freely; the rating scale model constrains
-#' \code{tau_ik = delta_i + kappa_k} through the design matrix.
+#' Estimates PCM or RSM thresholds by Newton--Raphson maximisation of the
+#' pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995).
+#'
+#' @details
+#' For the PCM, the adjacent-category log odds are
+#' \deqn{\log\{P(X_{ni}=k)/P(X_{ni}=k-1)\}=\theta_n-\delta_{ik}.}
+#' Conditioning on the score for an item pair removes \eqn{\theta_n}. The PCM
+#' estimates each \eqn{\delta_{ik}}; the RSM imposes
+#' \eqn{\delta_{ik}=\beta_i+\tau_k} through a design matrix.
 #'
 #' @param X Persons-by-items integer score matrix (categories from 0). Missing
 #'   values are handled by pairwise deletion, so linked booklet designs and
@@ -340,21 +344,13 @@ threshold_index <- function(m) {
 #'   remaining parameters are estimated on the anchored scale and no
 #'   recentring is applied. PCM only.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
-#' @return A list with the threshold table \code{thr} (columns \code{id},
-#'   \code{item}, \code{k}, \code{tau}, \code{se}, \code{anchored}, and
-#'   \code{weak} -- \code{TRUE} for a threshold adjacent to a category with
-#'   fewer than 3 responses, whose estimate can run toward a boundary while
-#'   the ridged covariance understates the error, and for \emph{every}
-#'   threshold of an item any of whose categories has fewer than 8
-#'   responses: the item's thresholds are estimated jointly, and a
-#'   critically sparse category destabilises its siblings (in simulation a
-#'   ~4-response category left a sibling threshold's standard error
-#'   understated four-fold while that threshold's own local counts looked
-#'   healthy). Flagged standard errors are reported
-#'   as \code{NA} and a note names the item and category), the
-#'   threshold covariance matrix \code{cov_tau}, the pairwise conditional
-#'   log-likelihood, the iteration count, a convergence flag, \code{notes},
-#'   and the max-score vector \code{m}.
+#' @return A list containing the threshold table \code{thr}, covariance matrix
+#'   \code{cov_tau}, pairwise conditional log-likelihood, iteration count,
+#'   convergence flag, notes, and maximum scores \code{m}. In \code{thr},
+#'   \code{weak} marks all thresholds of an item with fewer than eight
+#'   responses in any category, or a threshold adjacent to a category with
+#'   fewer than three responses. Standard errors for weak thresholds are
+#'   reported as \code{NA}.
 #' @references
 #' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
 #' Rasch model for ordered response categories using principal components.
@@ -571,26 +567,15 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
   keep
 }
 
-#' Estimate Rasch thresholds via the Andrich principal-components reparameterisation
+#' Estimate Rasch thresholds using a principal-component parameterisation
 #'
-#' An optional alternative to \code{\link{pcml}}'s free-threshold estimation,
-#' useful when some response categories are sparsely populated. Each item's
-#' thresholds are re-expressed as up to four orthogonal polynomial
-#' components in the category score: location, spread, skewness, and
-#' kurtosis (Andrich 1978, 1985; Pedler 1987). Location is always estimated;
-#' spread, skewness, and kurtosis are added in turn as an item's number of
-#' thresholds and \code{n_components} allow. Estimation uses the same
-#' pairwise conditional likelihood as \code{pcml} (Andrich and Luo 2003), so
-#' it inherits the same missing-data handling and sandwich standard errors.
-#' The component family stops at the quartic (kurtosis) term, so the
-#' reparameterisation is exact, matching \code{pcml}'s free partial credit
-#' thresholds and log-likelihood, only while every item has at most 3
-#' thresholds (4 categories); from 4 thresholds on \code{pcml_pc} is
-#' necessarily a reduced-rank smoothing of the thresholds to a polynomial
-#' trend across categories, however large \code{n_components} is set,
-#' trading flexibility for the stability that comes from pooling information
-#' across all of an item's categories -- useful when a category has low or
-#' zero frequency.
+#' Re-expresses each item's thresholds as orthogonal polynomial components:
+#' location, spread, skewness, and kurtosis (Andrich 1978, 1985; Pedler 1987).
+#' Estimation uses the same pairwise conditional likelihood as
+#' \code{\link{pcml}}. With at most three thresholds per item the full
+#' parameterisation is exact. Items with four or more thresholds are fitted by
+#' a reduced-rank polynomial trend, which can stabilise sparse categories at
+#' the cost of restricting the threshold pattern.
 #'
 #' @param X Persons-by-items integer score matrix (categories from 0).
 #'   Missing values are handled by pairwise deletion.

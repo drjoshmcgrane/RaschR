@@ -73,6 +73,20 @@
 #' printed note) for MFRM and EFRM fits, which do not carry their Godambe
 #' matrices.
 #'
+#' In simulation (400 replicates per condition, fixed truths) the criteria
+#' reproduce the classical selection properties. Where the alternatives
+#' differ by several parameters, \code{cl_aic} selects the larger model
+#' under the null at close to its theoretical rate -- 5.2\% for partial
+#' credit against rating scale (eight three-category items) and 4.5\% for
+#' free against two-component thresholds (eight four-category items) --
+#' and detects a quadratic threshold departure of 0.3 logits in 99\% of
+#' replicates. Where they differ by a single parameter (comparative
+#' judgement free versus principal-component thresholds), \code{cl_aic}
+#' prefers the larger model in about 17\% of null replicates, the familiar
+#' single-parameter AIC rate. \code{cl_bic} is stricter throughout (no
+#' false selections in the multi-parameter conditions) at the price of
+#' little power against mild departures.
+#'
 #' Across different data preparations (subtests, splits, facet or frame
 #' structures) the likelihoods are not comparable and the calibration-free
 #' columns carry the comparison: total item-trait chi-square per degree of
@@ -155,14 +169,18 @@ compare_fits <- function(..., reference = 1) {
             else c(eff = NA_real_, aic = NA_real_, bic = NA_real_)
       dep <- if (is.null(f$dependence)) "" else
         paste0(" + ", paste(f$dependence$effect, collapse = " + "))
+      model_label <- if (inherits(f, "rasch_btl_efrm"))
+        "BTL with frame-dependent units"
+      else paste0("BTL (", if (max(f$m) > 1L)
+        paste0("polytomous, ", f$thr_structure, " thresholds") else
+          "dichotomous", dep, ")")
       data.frame(
         label = labs[i], converged = conv,
-        model = paste0("BTL (", if (max(f$m) > 1L)
-          paste0("polytomous, ", f$thr_structure, " thresholds") else
-            "dichotomous", dep, ")"),
+        model = model_label,
         judges = if (is.null(f$judges)) NA_integer_ else nrow(f$judges),
         objects = nrow(f$objects), comparisons = f$n_comparisons,
-        parameters = if (is.null(f$cl)) NA_integer_ else f$cl$n_parameters,
+        parameters = if (!is.null(f$n_parameters)) f$n_parameters
+          else if (is.null(f$cl)) NA_integer_ else f$cl$n_parameters,
         loglik = if (conv) f$loglik else NA_real_,
         eff_params = unname(ic["eff"]), cl_aic = unname(ic["aic"]),
         cl_bic = unname(ic["bic"]),
@@ -252,40 +270,34 @@ print.rasch_compare <- function(x, ...) {
   invisible(x)
 }
 
-#' Likelihood-ratio test of the partial credit against the rating scale model
+#' Compare the partial credit and rating scale models
 #'
-#' A likelihood-ratio test in the tradition of Andersen (1973): an
-#' unrestricted (partial credit)
-#' analysis is compared with the rating re-parameterisation of the same
-#' model on the same data. Twice the difference in the pairwise conditional
-#' log-likelihoods is referred to a chi-square on the difference in the
-#' number of threshold parameters. A non-significant outcome supports
-#' adopting the simpler rating parameterisation.
+#' Compares a fitted partial credit model with the rating scale
+#' reparameterisation of the same data. Both raw and composite-likelihood
+#' adjusted statistics are returned.
 #'
-#' The likelihood here is the pairwise composite
-#' likelihood, not a full likelihood, and twice its difference is not
-#' chi-square distributed: each response enters every pair its item forms,
-#' so the raw statistic is inflated. Two statistics are therefore reported.
-#' \code{chisq} is the raw composite value with its naive \code{p}, the
-#' conventional display. The limiting
-#' law of the raw statistic is \eqn{\sum_j \lambda_j \chi^2_1} (Kent 1982;
-#' Varin, Reid and Firth 2011) with \eqn{\lambda_j} the eigenvalues of
-#' \eqn{(C'H^{-1}C)^{-1}\,C'H^{-1}JH^{-1}C} over the \eqn{r} constrained
-#' directions \eqn{C} (the part of the partial-credit threshold space
-#' outside the rating subspace), estimated from the same Godambe \eqn{H}
-#' and \eqn{J} matrices that supply the sandwich standard errors; matching
-#' the mean gives \code{chisq_adj} \eqn{= r W / \sum_j \lambda_j} on
-#' \eqn{r} degrees of freedom. Use \code{p_adj} for inference; the naive
-#' \code{p} is severely anticonservative and kept only for comparability
-#' with conventional software displays. The first-order calibration is
-#' accurate in simulation (rejection 4.7\% at 500 persons and 8 items over
-#' 2,000 model-true replicates) but can turn mildly anticonservative for
-#' small samples with long polytomous tests: 6.1\% at 300 persons with 12
-#' four-category items, among the 1,927 of 2,000 replicates whose data
-#' admitted the comparison (72 were refused because randomly empty
-#' categories left unequal observed maximum scores, and one did not
-#' converge). Interpret \code{p_adj} values near 0.05 cautiously in such
-#' designs.
+#' @details
+#' The pairwise conditional likelihood is a composite likelihood: each
+#' response contributes to every item pair in which it appears. Consequently,
+#' the raw statistic \eqn{W=2(cl_{PCM}-cl_{RSM})} does not have an ordinary
+#' chi-square reference distribution. Its limiting distribution is
+#' \eqn{\sum_j\lambda_j\chi^2_1} (Kent 1982; Varin, Reid and Firth 2011), where
+#' the \eqn{\lambda_j} are obtained from the sensitivity matrix \eqn{H},
+#' variability matrix \eqn{J}, and the constraints defining the RSM. The
+#' mean-matched statistic is
+#' \deqn{W_{adj}=rW/\sum_j\lambda_j,}
+#' with \eqn{r} degrees of freedom.
+#'
+#' Use \code{p_adj} for inference. The unadjusted \code{p} is retained for
+#' descriptive comparison with conventional displays. The adjustment is a
+#' first-order approximation and can be mildly anti-conservative in small
+#' samples with long polytomous tests: in simulation the rejection rate at
+#' the 0.05 level was 4.7\% for 500 persons and 8 three-category items
+#' (2,000 model-true replicates), and 6.1\% for 300 persons and 12
+#' four-category items among the 1,927 of 2,000 replicates whose data
+#' admitted the comparison (72 refusals from randomly empty categories,
+#' one non-convergence). Interpret \code{p_adj} values near 0.05 cautiously
+#' in such designs.
 #'
 #' @param fit A \code{"PCM"} fit from \code{\link{rasch}} with equal maximum
 #'   scores across items (the rating parameterisation requires them).

@@ -43,35 +43,24 @@ A list of class \code{"rasch_btl_equate"}: the comparison
   \code{p_adjust}; and \code{notes}.
 }
 \description{
-Compares the object locations of a Bradley-Terry-Luce fit with those of a
-second fit (or a banked table of object locations), matched by object name.
-The use case is standards maintenance and comparative judgement across
-panels or years: the same scripts, performances, or products are judged by
-different panels -- or by one panel in successive years -- and a common set
-of anchor objects is carried through so that the two rounds land on a single
-scale.
+Places two Bradley--Terry--Luce calibrations on a common origin using their
+shared objects, then tests the shared objects for drift. The second
+calibration may be a fitted model or an object bank.
 }
 \details{
-Each calibration is identified by the sum-zero constraint, but the two
-constraints are imposed over \emph{different} object sets, so the origins do
-not coincide even when the shared objects are unchanged: each scale is
-centred on the mean of a different collection. A scale shift between the two
-origins is therefore estimated by the precision-weighted mean difference
-over the common objects, and each common object is then tested against the
-shifted identity line. A flagged object shows drift -- a script the two
-panels valued differently, or a standard that moved between years -- and
-weakens the equating link; the surviving objects carry the second
-calibration's whole scale onto the first (\code{loc2 + shift}).
+Let \eqn{d} contain the location differences for the common objects and
+\eqn{V} their joint covariance. The origin shift is
+\deqn{\hat s=\frac{\boldsymbol{1}'V^{-1}d}
+{\boldsymbol{1}'V^{-1}\boldsymbol{1}}.}
+Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
+covariance calculation retains the dependence induced by the sum-zero
+constraints. Drift tests require independent calibrations and at least
+three common objects with usable covariance information.
 
-The single shift presumes the drifting objects are a \emph{minority}. When
-most of the common objects have genuinely moved, the precision-weighted
-shift is pulled toward the movers and the drift tests can invert -- the
-stable anchors flag as the apparent drifters. Read wholesale flagging
-(several objects, one direction) as a contaminated link, not as evidence
-about the individual objects; equate through a vetted anchor subset
-instead. The \code{shift_se} accounts for the covariance of the location
-estimates within each calibration (each is sum-zero constrained, so its
-locations are not independent).
+The common-object set should contain a stable majority. If most common
+objects move in the same direction, the estimated shift follows them and
+stable objects can appear to drift. In that case, repeat the equating with a
+substantively justified anchor set.
 }
 \examples{
 set.seed(1)

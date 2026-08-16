@@ -86,7 +86,8 @@ save_item_plots <- function(fit, what = c("icc", "ccc", "tpc", "cfreq"),
   what <- match.arg(what)
   its <- if (is.null(items)) fit$items$item else items
   draw <- function(it) switch(what,
-    icc   = plot_icc(fit, it, n_groups = n_groups, grid = grid),
+    icc   = plot_icc(fit, it, n_groups = n_groups, grid = grid,
+                     observed = observed),
     ccc   = plot_ccc(fit, it, grid = grid, observed = observed,
                      n_groups = n_groups),
     tpc   = plot_threshold_prob(fit, it, grid = grid, observed = observed,
@@ -127,7 +128,72 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
                  width, height, dpi)
 }
 
-#' Save every output of a Rasch analysis to a folder
+.save_btl_outputs <- function(fit, dir, formats, width, height, dpi,
+                              object_plots) {
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
+  odir <- file.path(pdir, "objects")
+  dir.create(tdir, showWarnings = FALSE); dir.create(pdir, showWarnings = FALSE)
+  if (object_plots) dir.create(odir, showWarnings = FALSE)
+  files <- character(0)
+  wtab <- function(d, name) {
+    if (is.null(d)) return()
+    path <- file.path(tdir, paste0(name, ".csv"))
+    utils::write.csv(d, path, row.names = FALSE)
+    files <<- c(files, path)
+  }
+  wtab(fit_summary_table(fit), "fit_summary")
+  wtab(fit$objects, "object_estimates")
+  wtab(fit$pairs, "pair_fit")
+  wtab(fit$judges, "judge_fit")
+  wtab(fit$comparisons, "comparisons")
+  info <- tryCatch(btl_information(fit), error = function(e) NULL)
+  if (!is.null(info)) {
+    wtab(info$objects, "object_information")
+    wtab(info$pairs, "pair_information")
+  }
+  tr <- tryCatch(btl_transitivity(fit), error = function(e) NULL)
+  if (!is.null(tr)) {
+    wtab(tr$objects, "transitivity_objects")
+    wtab(tr$judges, "transitivity_judges")
+  }
+  if (inherits(fit, "rasch_btl_efrm")) {
+    wtab(fit$phi_table, "panel_units_phi")
+    wtab(fit$alpha_table, "set_units_alpha")
+    wtab(fit$kappa_table, "set_origins_kappa")
+    wtab(fit$unit_omnibus, "unit_omnibus_tests")
+    wtab(fit$frames, "frame_fit")
+    wtab(data.frame(
+      model = c("Equal units", "Frame-dependent units"),
+      loglik = c(fit$equal_unit$loglik_single,
+                 fit$equal_unit$loglik_frames),
+      parameters = c(fit$equal_unit$parameters_single,
+                     fit$equal_unit$parameters_frames),
+      two_delta_loglik = c(NA_real_, fit$equal_unit$two_delta_ll)),
+      "frame_model_comparison")
+  }
+  spath <- file.path(dir, "summary.txt")
+  writeLines(c(utils::capture.output(print(fit)), "", fit$notes), spath)
+  files <- c(files, spath)
+  sp <- function(f, stem) files <<- c(files,
+    .rr_save_plot(f, stem, pdir, formats, width, height, dpi))
+  sp(function() plot_btl(fit), "object_locations")
+  sp(function() plot_btl_targeting(fit), "design_information")
+  if (!is.null(tr))
+    sp(function() plot_btl_transitivity(tr), "transitivity")
+  if (inherits(fit, "rasch_btl_efrm"))
+    sp(function() plot_btl_units(fit), "frame_units")
+  if (object_plots) for (ob in fit$objects$object) local({
+    object <- ob
+    files <<- c(files, .rr_save_plot(
+      function() plot_btl_icc(fit, object),
+      paste0(gsub("[^A-Za-z0-9_.-]", "_", object), "_icc"),
+      odir, formats, width, height, dpi))
+  })
+  invisible(files)
+}
+
+#' Save the outputs of a Rasch analysis
 #'
 #' Writes all tables (item statistics, thresholds with standard errors, person
 #' estimates including ID and factors, the score-to-measure table, residual
@@ -140,7 +206,7 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #' @param dir Output directory; created if absent.
 #' @param formats Plot formats, any of \code{"png"} and \code{"pdf"}.
 #' @param width,height Plot size in inches.
-#' @param dpi PNG resolution; the default 300 is publication quality.
+#' @param dpi PNG resolution.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
 #'   threshold curve, and frequency chart per item).
 #' @return Invisibly, the vector of files written.
@@ -155,6 +221,9 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
+  if (inherits(fit, "rasch_btl"))
+    return(.save_btl_outputs(fit, dir, formats, width, height, dpi,
+                             object_plots = item_plots))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   idir <- file.path(pdir, "items")
@@ -395,11 +464,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 
 #' Write a self-contained HTML report of a Rasch analysis
 #'
-#' Builds a single portable HTML file containing the complete analysis:
-#' the summary statistics, every diagnostic table, and every test-level
-#' plot embedded as an image, styled for reading and sharing. The file has
-#' no external dependencies, so it can be e-mailed or archived as the
-#' record of an analysis.
+#' Writes one HTML file containing the summary statistics, diagnostic tables,
+#' and test-level plots. Images and styles are embedded in the file.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param file Path of the HTML file to write.
@@ -541,4 +607,78 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     "</div></body></html>")
   writeLines(html, file, useBytes = TRUE)
   invisible(file)
+}
+
+#' Write an editable or print-ready analysis report
+#'
+#' Renders the active Rasch or paired-comparison fit as a self-contained HTML
+#' document, an editable Word document, or a PDF. The report contains the
+#' principal estimates, model-specific tables, diagnostic figures, and
+#' software provenance. Complete machine-readable results remain available
+#' from \code{\link{save_outputs}}.
+#'
+#' @param fit A fitted object from \code{\link{rasch}}, \code{\link{rasch_mfrm}},
+#'   \code{\link{rasch_efrm}}, \code{\link{btl}}, or \code{\link{btl_efrm}}.
+#' @param file Output path ending in \code{.html}, \code{.docx}, or \code{.pdf}.
+#' @param format Output format. By default it is inferred from \code{file}.
+#' @param title Report title.
+#' @return Invisibly, the output path.
+#' @details Word and HTML output require Pandoc, supplied with RStudio and
+#'   available through \pkg{rmarkdown}. PDF output also requires a LaTeX
+#'   installation such as TinyTeX.
+#' @examples
+#' \dontrun{
+#' fit <- rasch(matrix(rbinom(3000, 1, .5), 300, 10))
+#' report_document(fit, file.path(tempdir(), "analysis.docx"))
+#' }
+#' @export
+report_document <- function(fit, file,
+                            format = c("auto", "html", "docx", "pdf"),
+                            title = "Rasch measurement analysis") {
+  if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
+    stop("fit must be a Rasch or paired-comparison fit")
+  format <- match.arg(format)
+  ext <- tolower(tools::file_ext(file))
+  if (format == "auto") {
+    format <- switch(ext, html = "html", htm = "html",
+                     docx = "docx", pdf = "pdf", NA_character_)
+    if (is.na(format))
+      stop("infer the report format from a .html, .docx, or .pdf filename")
+  }
+  wanted <- c(html = "html", docx = "docx", pdf = "pdf")[[format]]
+  if (!ext %in% c(wanted, if (format == "html") "htm"))
+    stop("the filename extension does not match the requested format")
+  if (!requireNamespace("rmarkdown", quietly = TRUE))
+    stop("report_document() needs the suggested package rmarkdown")
+  if (!rmarkdown::pandoc_available())
+    stop("Pandoc is unavailable; install it or use RStudio's bundled Pandoc")
+
+  template <- system.file("rmarkdown", "rasch-report.Rmd", package = "rasch")
+  if (!nzchar(template)) {
+    candidate <- file.path("inst", "rmarkdown", "rasch-report.Rmd")
+    if (file.exists(candidate)) template <- candidate
+  }
+  if (!nzchar(template) || !file.exists(template))
+    stop("the analysis report template is missing")
+  dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+  fit_file <- tempfile("rasch-report-fit-", fileext = ".rds")
+  saveRDS(fit, fit_file, version = 3)
+  on.exit(unlink(fit_file), add = TRUE)
+  meta <- c("--metadata", paste0("title=", title))
+  output_format <- switch(
+    format,
+    html = rmarkdown::html_document(self_contained = TRUE,
+                                    pandoc_args = meta),
+    docx = rmarkdown::word_document(pandoc_args = meta),
+    pdf = rmarkdown::pdf_document(latex_engine = "xelatex",
+                                  pandoc_args = meta))
+  env <- new.env(parent = asNamespace("rasch"))
+  rendered <- rmarkdown::render(
+    input = template, output_format = output_format,
+    output_file = basename(file), output_dir = dirname(file),
+    params = list(title = title, fit_file = fit_file),
+    envir = env, quiet = TRUE)
+  if (!file.exists(rendered))
+    stop("the report renderer did not create the requested file")
+  invisible(normalizePath(rendered, mustWork = TRUE))
 }

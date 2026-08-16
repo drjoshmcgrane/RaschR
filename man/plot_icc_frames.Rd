@@ -19,10 +19,9 @@ plot_icc_frames(fit, item, n_groups = fit$n_groups, grid = seq(-5, 5, 0.05))
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-The signature display of the extended frame of reference model: the model
-expected-score curve of one underlying item drawn once per person group
-(curves fan with the group units), with observed class-interval means per
-group overlaid.
+Plots the model expected-score curve for one item in each person group, with
+observed class-interval means overlaid. Differences between the curves
+reflect the fitted group units.
 }
 \examples{
 \donttest{

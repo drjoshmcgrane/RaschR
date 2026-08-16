@@ -2,7 +2,7 @@
 % Please edit documentation in R/dif.R
 \name{dif_size}
 \alias{dif_size}
-\title{DIF magnitude in logits with pairwise comparisons}
+\title{DIF differences between factor levels}
 \usage{
 dif_size(
   fit,
@@ -42,32 +42,30 @@ A list of class \code{"rasch_dif_size"}: \code{levels} (resolved
   Sampling-uncertainty fields are \code{NA} when person IDs repeat.
 }
 \description{
-Quantifies differential item functioning on the measurement scale
-itself, where practical significance is judged: the item is resolved
-into one copy per group (or per cell of a factor combination), the
-model is refitted, and the distance between the resolved locations is
-the DIF size in logits (Andrich & Marais 2019, ch. 16: a simulated
-shift of 0.71 was recovered as 0.75 by exactly this method). Every
-pair of levels is compared with a Wald test using the full sandwich
-covariance of the resolved locations (for a between-person factor the
-persons behind different levels are disjoint, but the shared calibration
-of the other items still couples the estimates, so the covariance is
-used rather than assumed zero), with familywise adjustment over the
-pairs. When person identifiers repeat, as in a stacked repeated-measures
-design, the calibration sandwich treats the rows as independent and does
-not carry the covariance induced by repeated persons. The resolved point
-differences and practical flags are therefore retained, but sampling
-standard errors, confidence intervals, and Wald tests are withheld;
-\code{\link{dif_contrasts}} supplies person-level inferential tests.
-Differences
-at least \code{flag_logits} in absolute size are flagged as practically
-significant; half a logit is a common working criterion, to be weighed
-against the test's targeting and purpose.
+Resolves an item into one parameter per factor level, refits the model, and
+reports pairwise differences between the resolved locations. Wald tests use
+the full sandwich covariance and are adjusted over the family of level
+comparisons. Several names in \code{by} define factor-combination cells for
+following up an interaction in \code{\link{dif_anova}}.
 }
 \details{
-For an interaction, supply several factor names: levels are then the
-factor-combination cells, which is the post-hoc follow-up to a
-significant factor-by-factor term in \code{\link{dif_anova}}.
+Let \eqn{\boldsymbol{\delta}_i} contain the resolved locations of item
+\eqn{i}, and let \eqn{\boldsymbol{c}_{ab}} place 1 on level \eqn{a}, -1 on
+level \eqn{b}, and zero elsewhere. The reported difference and its
+standard error are
+\deqn{\Delta_{i,ab}=\boldsymbol{c}_{ab}^{\mathsf T}
+\boldsymbol{\delta}_i,}
+\deqn{\operatorname{SE}(\Delta_{i,ab})=
+\sqrt{\boldsymbol{c}_{ab}^{\mathsf T}\boldsymbol{V}_i
+\boldsymbol{c}_{ab}},}
+where \eqn{\boldsymbol{V}_i} is the full covariance of the resolved
+locations. Wald probabilities are adjusted over the pairwise family.
+
+With repeated person identifiers, the row-level calibration covariance does
+not represent within-person sampling dependence. Logit differences and
+practical flags are retained, but their standard errors and Wald tests are
+withheld. Use \code{\link{dif_contrasts}} for person-level inference in a
+repeated-measures design.
 }
 \examples{
 set.seed(1); n <- 600
@@ -84,4 +82,7 @@ Measuring in the Educational, Social and Health Sciences. Springer.
 
 Holm, S. (1979). A simple sequentially rejective multiple test procedure.
 Scandinavian Journal of Statistics, 6(2), 65--70.
+}
+\seealso{
+\code{\link{dif_anova}} and \code{\link{dif_contrasts}}.
 }

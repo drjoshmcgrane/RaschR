@@ -1,5 +1,10 @@
 # Simulation validation battery
 
+Version note: development builds 1.12.1 through 1.14.2 were never
+released; their content ships publicly as the 1.12.0 CRAN update. The
+version numbers and commit hashes below refer to those internal
+development states and remain the accurate provenance record.
+
 Scripts and results for the release validation batteries summarised in the
 plant-and-detect vignette ("Validation studies"). Nothing here ships in the
 CRAN package (see `.Rbuildignore`); everything runs from the package root
@@ -99,6 +104,22 @@ granularity deliberately).
   per cell), the btl_efrm origin-test correction (8.5% pre-fix to 5.5%
   post-fix at 400 replicates each), the PCM item-level guard validation,
   and the concentration guard's field behaviour.
+- `results/comparison-validation.csv` — the release gate for the app's
+  automatic model-comparison cards: every comparison surface validated
+  under its null model and at least two departure magnitudes. Citation
+  rows point surfaces already validated elsewhere (`lr_test`, the EFRM,
+  BTL-EFRM, and MFRM omnibus tests) at their provenance CSVs. New cells
+  (400 replicates per selection condition): CL-AIC null false selection
+  5.2% for PCM-vs-RSM and 4.5% for free-vs-two-component thresholds
+  (matching the theoretical multi-parameter AIC rates), rising to ~17%
+  for the one-parameter comparative-judgement threshold comparison
+  (the familiar P(chi-sq_1 > 2) = 15.7% AIC property); detection 95-100%
+  at the stronger departures; CL-BIC selects the smaller model almost
+  always under nulls with little power against mild departures. Effect
+  tests: position/exposure nulls 5.8%/5.9% (800 replicates); carry-over
+  8.3% at 14 judges falling to 5.3% at 30 judges (the few-cluster
+  elevation round 1 flagged as a soft note, now characterised); power at
+  0.6 logits 62/39/77%.
 - `harness.R` — shared reporting helpers for the second-round studies: one
   row per scenario with bias, empirical SD, mean reported SE, SE ratio,
   95% coverage, Type I / familywise error or power, refusal and

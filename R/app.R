@@ -5,7 +5,7 @@
 #' Opens the guided Shiny application for users who prefer a graphical
 #' workflow. The app supports data import; assignment of item, person, group,
 #' rater, and comparison roles; model selection and fitting; interactive
-#' diagnostics, tables, and plots; and one-click export. The corresponding R
+#' diagnostics, tables, plots, and export. The corresponding R
 #' call is shown for each analysis, but users do not need to write R analysis
 #' code to use the principal workflows.
 #'
@@ -23,7 +23,27 @@ run_app <- function(...) {
   .app_require(c("shiny", "bslib", "DT", "bsicons"))
   dir <- system.file("shiny", package = "rasch")
   if (dir == "") stop("app not found: reinstall rasch")
+  old_limit <- getOption("shiny.maxRequestSize")
+  if (is.null(old_limit) || old_limit < 100 * 1024^2) {
+    options(shiny.maxRequestSize = 100 * 1024^2)
+    on.exit(options(shiny.maxRequestSize = old_limit), add = TRUE)
+  }
   shiny::runApp(dir, ...)
+}
+
+# Reconstruct one of the datasets bundled with the graphical interface. This
+# is internal: it exists so the analysis code shown for an example run is
+# executable without embedding hundreds of lines of generated data.
+.app_example_data <- function(name) {
+  name <- match.arg(name, c("pcm", "dich", "rsm", "mfrm", "efrm", "btl"))
+  path <- system.file("shiny", "examples.R", package = "rasch")
+  if (!nzchar(path)) stop("bundled app examples not found: reinstall rasch")
+  env <- new.env(parent = asNamespace("rasch"))
+  sys.source(path, envir = env)
+  switch(name,
+    pcm = env$.demo_data(), dich = env$.demo_dich(),
+    rsm = env$.demo_rsm(), mfrm = env$.demo_mfrm(),
+    efrm = env$.demo_efrm(), btl = env$.demo_btl())
 }
 
 # Check the app's display packages in one pass. Reports everything missing

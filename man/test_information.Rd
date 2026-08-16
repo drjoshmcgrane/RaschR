@@ -26,6 +26,15 @@ linking subsample gets the pooled one), and MFRM fits return one curve per
 observed facet design; mutually exclusive virtual-item blocks, and item
 sets no single person took together, are never added together.
 }
+\details{
+For an administrable block \eqn{\mathcal A}, the information and standard
+error of measurement are
+\deqn{I(\theta)=\sum_{i\in\mathcal A}d_i^2
+\operatorname{Var}(X_i\mid\theta),\qquad
+\operatorname{SEM}(\theta)=I(\theta)^{-1/2},}
+where \eqn{d_i} is the frame unit or discrimination multiplier. For an
+ordinary Rasch fit, \eqn{d_i=1}.
+}
 \examples{
 set.seed(1)
 d <- seq(-1.5, 1.5, length.out = 6)
@@ -36,4 +45,7 @@ head(test_information(rasch(X)))
 \references{
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
+}
+\seealso{
+\code{\link{targeting_table}} and \code{\link{plot_tif}}.
 }

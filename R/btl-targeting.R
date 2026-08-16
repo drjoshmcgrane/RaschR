@@ -36,31 +36,18 @@
 
 #' Information and targeting of a paired-comparison design
 #'
-#' The paired-comparison analogue of the test-information function. The
-#' Fisher information a single comparison carries about the location
-#' difference \code{d = beta_a - beta_b} is, in this exponential family, the
-#' variance of its score -- \code{P(1 - P)} for the dichotomous choice and
-#' the polytomous response variance \code{V} for the ordinal extension (the
-#' score is the sufficient statistic for \code{d}, so its variance is the
-#' information). Weighted by each comparison's replication count and summed
-#' over the comparisons the design actually contains, this gives a
-#' \emph{design information} for every object: how much the observed
-#' comparisons pin its location down, the counterpart of an item's
-#' contribution to test information. Because the information peaks at gap
-#' zero and falls away with the location gap, near-neighbour contests are
-#' the informative ones.
+#' Calculates the Fisher information supplied by the observed comparison
+#' design. For location difference \eqn{d=\beta_a-\beta_b}, one dichotomous
+#' comparison contributes
+#' \deqn{I(d)=P(a\succ b)\{1-P(a\succ b)\}.}
+#' For an ordered comparison, the contribution is the variance of the response
+#' score. Information is summed over the comparisons involving each object,
+#' including replication counts.
 #'
-#' The design information inverts to \code{se_naive = 1 / sqrt(information)}:
-#' the error the object's own comparisons would give if its location were
-#' treated in isolation -- a design-only yardstick for reading which objects
-#' the comparison plan serves well. It is not the model's standard error,
-#' and it is not a bound: the fitted \code{se} comes from joint estimation
-#' under the sum-zero constraint (which typically REDUCES an object's
-#' variance relative to the isolated calculation) with judge-clustered
-#' Godambe covariance (which can move it in either direction), so \code{se}
-#' can sit below or above \code{se_naive}. Treat their ratio as a
-#' descriptive comparison of design coverage, not as a bound or a
-#' clustering test.
+#' \code{se_naive = 1/sqrt(information)} treats each object's comparisons in
+#' isolation. It is a description of the design, not the fitted standard error
+#' or a bound on it. The fitted standard error also reflects joint estimation,
+#' the identifying constraint, and judge clustering.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @return A list of class \code{"rasch_btl_info"}: \code{objects} (per
@@ -95,7 +82,13 @@ btl_information <- function(fit) {
   w <- cmp$weight
   d <- unname(beta[ia] - beta[ib])            # signed location gap per comparison
 
-  I_row <- .btl_info_of_d(d, m, tau)          # one-comparison information
+  # A frame fit stores row-specific information on the common v scale. For a
+  # within-set comparison its slope is phi/alpha; for a cross-set comparison
+  # it is phi. Recomputing information from v_a - v_b alone would discard both
+  # units and send the active frame calibration back to an equal-unit model.
+  I_row <- if (inherits(fit, "rasch_btl_efrm") &&
+               "information" %in% names(cmp)) cmp$information
+           else .btl_info_of_d(d, m, tau)
   Iw <- w * I_row                             # weighted contribution to design
 
   # per-object design information: the sum of weighted per-comparison
@@ -140,7 +133,11 @@ btl_information <- function(fit) {
     gap = d, weight = w, information = I_row,
     stringsAsFactors = FALSE)
 
-  notes <- paste0(
+  notes <- if (inherits(fit, "rasch_btl_efrm"))
+    paste0("information uses each comparison's fitted frame slope on the ",
+           "common scale; se_naive = 1/sqrt(information) is a design-only ",
+           "yardstick, not a bound")
+  else paste0(
     "se is the ", if (fit$clustered) "judge-clustered " else "",
     "Godambe sandwich standard error; se_naive = 1/sqrt(information) is a ",
     "design-only yardstick (the object's comparisons treated in ",
@@ -200,6 +197,25 @@ plot_btl_targeting <- function(fit, grid = NULL) {
   m <- fit$m
   tau <- if (m > 1L) fit$thresholds$tau else NULL
 
+  if (inherits(fit, "rasch_btl_efrm")) {
+    if (is.null(grid)) {
+      rng <- range(o$location) + c(-1, 1)
+      grid <- seq(rng[1], rng[2], length.out = 201)
+    }
+    ymax <- max(o$information) * 1.15
+    op <- .rr_canvas(range(grid), c(0, ymax),
+                     "Common-scale object location (logits)",
+                     "Observed-design information")
+    on.exit(par(op))
+    nc <- o$n_comparisons
+    cex <- 1.1 + 2.2 * (nc - min(nc)) / (max(nc) - min(nc) + 1e-9)
+    points(o$location, o$information, pch = 21, bg = .rr$blue,
+           col = "white", cex = cex)
+    text(o$location, o$information, o$object, pos = 3, offset = .45,
+         cex = .8, col = .rr$ink)
+    return(invisible(info))
+  }
+
   # reference curve: information one new comparison carries against an
   # opponent at location x, anchored at the centre of the scale so gap =
   # anchor - x and the curve peaks at gap 0
@@ -245,40 +261,18 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 
 #' Recommend the next informative comparisons (adaptive step)
 #'
-#' The adaptive comparative judgement step of Pollitt (2012): rank candidate
-#' object pairs by the information one additional comparison would carry at
-#' the current estimates. That information peaks when the two objects are
-#' close in location, so at equal measurement the recommender favours
-#' near-neighbour contests. With \code{weight_se = TRUE} (the default) each
-#' pair's priority is the one-step reduction in TOTAL location variance that
-#' one added comparison of the pair would deliver, from a rank-one
-#' (Sherman-Morrison) update of the fit's stored covariance with the
-#' comparison's information on the contrast, so pairs of poorly
-#' measured (and correlated) objects are promoted. The update formula is
-#' exact for a model-based information matrix; applied to the sandwich
-#' covariance it is a scoring device, consistent with the ranking-heuristic
-#' status described below.
+#' Ranks candidate object pairs by the information expected from one additional
+#' comparison at the current estimates (Pollitt 2012). By default, priority is
+#' the one-step reduction in total location variance from a rank-one covariance
+#' update. This favours close pairs and objects measured with less precision.
 #'
-#' This is a \emph{greedy} rule that scores each pair on
-#' its own immediate one-step gain (an A-optimality step at the current
-#' estimates, taking the clustered covariance as the state); it is not a full
-#' optimal design and can be beaten by one that plans several comparisons
-#' jointly. And adaptive
-#' selection is known to inflate a separation (scale) reliability computed
-#' naively afterwards, because the design concentrates comparisons where they
-#' shrink the errors most: report reliability from an independent or
-#' non-adaptive subset, or treat an adaptive reliability as an upper bound
-#' (Bramley 2015).
+#' The procedure is a greedy, one-step ranking rather than a jointly optimal
+#' design. Applied to a sandwich covariance, the update ranks pairs but does
+#' not give an exact variance reduction. Adaptive selection can also inflate a
+#' separation reliability calculated from the same comparisons (Bramley 2015).
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param n Number of pairs to return.
-#' The priority is a greedy one-step RANKING heuristic: it plugs the
-#' judge-clustered sandwich covariance into an information-update formula
-#' that is exact only for a model-based information matrix, so the ranking
-#' orders candidate pairs sensibly but the implied variance reductions are
-#' not exact sandwich updates. Treat the ordering, not the magnitudes, as
-#' the output.
-#'
 #' @param weight_se If \code{TRUE} (the default), rank pairs by their one-step
 #'   reduction in total location variance. When the fit has no covariance,
 #'   the fallback priority is expected information multiplied by the sum of
@@ -305,6 +299,11 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' @export
 btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (inherits(fit, "rasch_btl_efrm"))
+    stop("next-pair recommendations for a frame fit also require the panel ",
+         "and object set in which each new comparison will be made; use the ",
+         "observed-design information table, or undo the frame adjustment ",
+         "before requesting equal-unit recommendations")
   objs <- fit$objects$object
   K <- length(objs)
   if (K < 2L) stop("need at least two objects to recommend a pair")

@@ -35,6 +35,17 @@ item_moments <- function(theta, tau_i, disc = 1) {
 #' are finite at the extreme (zero and maximum) scores, unlike the maximum
 #' likelihood estimate.
 #'
+#' @details
+#' For raw score \eqn{R}, let \eqn{E(\theta)}, \eqn{V(\theta)}, and
+#' \eqn{\mu_3(\theta)} be the sums of the item expected scores, variances, and
+#' third central moments. The estimate solves Warm's weighted score equation
+#' \deqn{R-E(\theta)+\frac{\mu_3(\theta)}{2V(\theta)}=0.}
+#' With common discrimination \eqn{d}, its explicit multiplier cancels from
+#' this equation, although the moments are evaluated under \eqn{d}. The
+#' reported standard error is
+#' \deqn{\operatorname{SE}(\hat{\theta})=
+#' \{d^2V(\hat{\theta})\}^{-1/2}.}
+#'
 #' @param tau_list List of per-item threshold vectors.
 #' @param disc Common discrimination (frame unit) of the items; with a
 #'   constant discrimination the raw score remains sufficient.
@@ -42,6 +53,7 @@ item_moments <- function(theta, tau_i, disc = 1) {
 #' @references
 #' Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 #' response theory. Psychometrika, 54(3), 427--450.
+#' @seealso \code{\link{score_table}} and \code{\link{person_extrapolated}}.
 #' @examples
 #' person_wle(list(c(-1, 0), c(-0.5, 0.5), c(0, 1)))
 #' @export

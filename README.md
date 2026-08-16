@@ -6,69 +6,43 @@
 [![pkgdown](https://github.com/drjoshmcgrane/rasch/actions/workflows/pkgdown.yaml/badge.svg)](https://drjoshmcgrane.github.io/rasch/)
 <!-- badges: end -->
 
-`rasch` implements Rasch Measurement Theory in R. It provides a common set
-of models and diagnostics for constructing measurement scales and examining
-whether the requirements of the Rasch model are supported by the data.
+`rasch` fits and evaluates models within Rasch Measurement Theory. It includes
+models for item responses, ratings, linked frames of reference, and paired
+comparisons, with a common set of functions for examining fit, invariance,
+targeting, dimensionality, and local dependence.
 
-The package is organised around two defining properties of Rasch measurement:
+For an item with ordered scores \(x=0,\ldots,m_i\), the partial credit model
+can be written as
 
-- **Sufficiency:** the total score on the relevant items carries all the
-  information in the data about a person's measure (and the item margins all
-  the information about the items) -- the property that allows person and
-  item parameters to be separated in conditional estimation.
-- **Invariance:** within a specified frame of reference, comparisons between
-  persons do not depend on which items are used, and comparisons between
-  items do not depend on which persons respond -- Rasch's criterion of
-  invariant comparison, or specific objectivity.
+$$
+\log\frac{P(X_{ni}=x)}{P(X_{ni}=x-1)}=\theta_n-\delta_{ix},
+$$
 
-These are requirements the data must meet for measurement, not assumptions
-taken on trust. The package therefore treats estimation and the assessment
-of these requirements as parts of the same analysis: it provides item and
-person estimates, and with them the fit, dimensionality, local dependence
-and differential item functioning analyses that examine whether the data
-sustain invariant comparisons -- differential item functioning, for
-example, is precisely a violation of invariance across person groups.
+where \(\theta_n\) is the location of person \(n\) and \(\delta_{ix}\) is
+the threshold between categories \(x-1\) and \(x\). Dichotomous items have
+one threshold. The rating scale model imposes a common threshold structure
+across items. The total score is sufficient for \(\theta_n\), allowing item
+parameters to be estimated without assuming a population distribution for
+the person locations.
 
-**Documentation:** <https://drjoshmcgrane.github.io/rasch/>
-
-## Point-and-click Shiny app
-
-`rasch` includes a complete graphical interface for analysts who do not
-normally work in R. After the package is installed, launch it with one command:
-
-```r
-rasch::run_app()
-```
-
-The app guides the user through importing data, assigning item, person, group,
-rater and comparison roles, selecting the appropriate model, fitting the
-analysis, and examining the resulting diagnostics. Tables, plots and reports
-can be downloaded directly. The corresponding R call is shown alongside each
-analysis, so the graphical workflow remains transparent and reproducible.
-
-R is needed to install the package and launch the app, but the analysis itself
-can then be completed through the point-and-click interface without writing R
-code.
-
-<p align="center">
-  <img src="man/figures/app-items.png" alt="The rasch Shiny interface: the item statistics table (locations, fit residuals, infit and outfit, adjusted chi-square p) beside the selected item's characteristic curve with observed class-interval points" width="90%" />
-</p>
+The package treats fit to the model as an empirical question. Its diagnostics
+examine whether comparisons remain invariant across persons, items, groups,
+occasions, raters, and other parts of the measurement design.
 
 ## Models
 
-The model suite includes:
+| Function | Model |
+|---|---|
+| `rasch()` | Dichotomous Rasch, partial credit, and rating scale models |
+| `rasch_mfrm()` | Many-facet Rasch model |
+| `rasch_efrm()` | Extended frame of reference model |
+| `btl()` | Comparative judgement models for dichotomous and polytomous paired comparisons |
+| `btl_efrm()` | Extended frame of reference model for paired comparisons |
 
-- the dichotomous Rasch model;
-- the polytomous Rasch models;
-- many-facet Rasch models;
-- extended frame of reference model; and
-- comparative judgement models for dichotomous and polytomous pairwise
-  comparisons.
-
-The standard item models use pairwise conditional estimation, with person
-measurement based on weighted likelihood. Anchored estimation is available
-for equating, and planned missing-data designs (linked booklets, rotated
-forms).
+The item-response models use pairwise conditional maximum likelihood.
+Person locations are estimated by Warm's weighted likelihood method. Anchored
+estimation is available for equating, and incomplete linked designs can be
+fitted when their observed response structure identifies a common scale.
 
 The suite follows Rasch (1960) and Andrich and Marais (2019); the frame of
 reference models follow Humphry's (2005) thesis, where the model is
@@ -77,50 +51,43 @@ comparative judgement model is the conditional form of the dichotomous
 Rasch model (Andrich, 1978), and the polytomous comparative judgement
 model is its adjacent-categories extension (Tutz, 1986).
 
-## What can be examined
+## Shiny application
 
-`rasch` provides functions for:
+The package includes a graphical interface for analysts who do not normally
+work in R. Launch it after installation with:
 
-- item, person and category fit;
-- threshold functioning and category ordering;
-- targeting, reliability and test information;
-- residual dimensionality and local response dependence;
-- differential item functioning over one or more person factors;
-- between-person and within-person factor designs;
-- DIF magnitude, planned contrasts and item splitting;
-- common-item equating and anchored calibration;
-- repeated-measures data in racked or stacked form;
-- multiple-choice distractor analysis;
-- simulation and parameter recovery; and
-- export of tables, plots and HTML reports.
+```r
+rasch::run_app()
+```
 
-Where the data do not identify an estimate, the fitting functions stop or
-withhold the affected result and provide an explanatory note.
+The application imports data, assigns variables to their measurement roles,
+fits the selected model, and displays the resulting tables and plots. Results
+can be downloaded, and the R call for each analysis is shown in the interface.
+
+<p align="center">
+  <img src="man/figures/app-items.png" alt="Item statistics and an item characteristic curve in the rasch Shiny application" width="90%" />
+</p>
 
 ## Installation
 
-Install the released version from CRAN:
+Install the CRAN release with:
 
 ```r
 install.packages("rasch")
 ```
 
-Install the development version from GitHub:
+The development version is available from GitHub:
 
 ```r
 # install.packages("remotes")
 remotes::install_github("drjoshmcgrane/rasch")
 ```
 
-The analysis functions depend only on base and recommended R packages. The
-interactive interface uses packages listed under `Suggests`.
-
-## Quick start
+## Example
 
 ```r
 library(rasch)
 
-# Example data with a person factor for DIF analysis
 d <- simulate_rasch(
   n_persons = 500,
   n_items = 10,
@@ -131,98 +98,72 @@ d <- simulate_rasch(
 fit <- rasch(d, model = "PCM", id = "id", factors = "group")
 
 summary(fit)
-fit$items
-fit$person
+fit_summary_table(fit)
+targeting_table(fit)
+dif_anova(fit)
+residual_correlations(fit)
+dimensionality_test(fit)
 
 plot_pimap(fit)
 plot_icc(fit, "I05", group = "group")
-
-dif_anova(fit)
-dimensionality_test(fit)
-residual_correlations(fit)
-
-score_table(fit)
-save_outputs(fit, "rasch-results")
-```
-
-For short scales the dimensionality test may deliberately return an
-indeterminate result: each opposed subtest needs at least 15 score points.
-Residual-correlation tables are always available, but binary adjusted-Q3
-flags require an analyst-supplied heuristic threshold.
-
-For an observed data frame, supply item columns together with optional ID and
-person-factor columns:
-
-```r
-fit <- rasch(
-  responses,
-  model = "PCM",
-  id = "person_id",
-  factors = c("gender", "site")
-)
-```
-
-## Other model families
-
-```r
-# Many-facet Rasch model
-mf <- rasch_mfrm(
-  ratings,
-  person = "person",
-  item = "criterion",
-  score = "score",
-  facets = "rater"
-)
-
-# Extended frame of reference model
-ef <- rasch_efrm(
-  responses,
-  item_sets = list(numeracy = numeracy_items,
-                   literacy = literacy_items),
-  groups = "group"
-)
-
-# Paired comparisons
-bt <- btl(
-  comparisons,
-  object_a = "left",
-  object_b = "right",
-  winner = "preferred",
-  judge = "judge"
-)
 ```
 
 The [function reference](https://drjoshmcgrane.github.io/rasch/reference/index.html)
-documents the input structures, identification requirements and output for each
-model.
+documents the data requirements and returned values for each analysis. The
+[articles](https://drjoshmcgrane.github.io/rasch/articles/) give worked
+examples for the main model families, DIF with repeated measures, and
+simulation.
 
-## Documentation and validation
+## References
 
-The package documentation gives the estimator definitions, standard errors,
-identification checks and diagnostic conventions used by each function. The
-article [Simulation-based checks of Rasch diagnostics](https://drjoshmcgrane.github.io/rasch/articles/plant-and-detect.html)
-shows how known model departures can be introduced and assessed.
+Andrich, D. (1978). Relationships between the Thurstone and Rasch approaches
+to item scaling. *Applied Psychological Measurement*, 2(3), 451--462.
 
-The test suite includes parameter-recovery, null-calibration, adversarial
-identification and cross-package comparison tests. Current CRAN check results
-are available from the [CRAN package page](https://CRAN.R-project.org/package=rasch).
+Andrich, D., and Luo, G. (2003). Conditional pairwise estimation in the Rasch
+model for ordered response categories using principal components. *Journal
+of Applied Measurement*, 4(3), 205--221.
+
+Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement Theory:
+Measuring in the Educational, Social and Health Sciences*. Springer.
+
+Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete block
+designs: I. The method of paired comparisons. *Biometrika*, 39, 324--345.
+
+Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
+Measurement*. PhD thesis, Murdoch University.
+
+Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the Rasch
+model. *Journal of Applied Measurement*, 9(3), 249--264.
+
+Humphry, S. M. (2010). Modeling the effects of person group factors on
+discrimination. *Educational and Psychological Measurement*, 70(2), 215--231.
+
+Humphry, S. M. (2012). Item set discrimination and the unit in the Rasch
+model. *Journal of Applied Measurement*, 13(2), 165--180.
+
+Linacre, J. M. (1989). *Many-Facet Rasch Measurement*. MESA Press.
+
+Montuoro, P., and Humphry, S. M. (2024). Modeling the effect of reading item
+clarity on item discrimination. *Journal of Applied Measurement*, 24(3/4),
+121--132.
+
+Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
+Tests*. Danish Institute for Educational Research. Expanded edition,
+University of Chicago Press, 1980.
+
+Rasch, G. (1977). On specific objectivity: An attempt at formalizing the
+request for generality and validity of scientific statements. *Danish
+Yearbook of Philosophy*, 14, 58--94.
+
+Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response. *Journal
+of Mathematical Psychology*, 30(3), 306--316.
+
+Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+response theory. *Psychometrika*, 54(3), 427--450.
+
+Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
+*Applied Psychological Measurement*, 19(4), 369--375.
 
 ## Citation
 
-To cite the `rasch` package in publications:
-
-> McGrane, J. (2026). *rasch: Models and Diagnostics for Rasch Measurement
-> Theory*. R package version 1.14.1.
-> <https://CRAN.R-project.org/package=rasch>
-
-```bibtex
-@Manual{rasch,
-  title  = {rasch: Models and Diagnostics for Rasch Measurement Theory},
-  author = {Josh McGrane},
-  year   = {2026},
-  note   = {R package version 1.14.1},
-  url    = {https://CRAN.R-project.org/package=rasch},
-}
-```
-
-`citation("rasch")` reproduces this from within R.
+Use `citation("rasch")` to obtain the citation for the installed version.

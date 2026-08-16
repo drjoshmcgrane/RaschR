@@ -37,8 +37,8 @@
   invisible(op)
 }
 
-.rr_legend <- function(pos, ...) legend(pos, ..., bty = "n", text.col = .rr$ink,
-                                        cex = 0.85)
+.rr_legend <- function(pos, ..., cex = 0.85)
+  legend(pos, ..., bty = "n", text.col = .rr$ink, cex = cex)
 
 .item_idx <- function(fit, item) if (is.character(item)) match(item, fit$items$item) else item
 
@@ -52,11 +52,14 @@
 #' Plot an item characteristic curve
 #'
 #' Draws the model expected-score curve with observed class-interval means
-#' overlaid. With \code{group} supplied, observed means are drawn separately
-#' per group, the conventional graphical DIF display.
+#' overlaid. Several items may be drawn together; their expected scores are
+#' then expressed as proportions of their maximum scores. With \code{group}
+#' supplied, observed means are drawn separately per group, the conventional
+#' graphical DIF display.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
-#' @param item Item name or column index.
+#' @param item One or more item names or column indices. Up to eight items may
+#'   be overlaid. A group overlay requires a single item.
 #' @param group Optional person grouping vector, or one or more names of
 #'   factors nominated in the fit, for a DIF overlay; several names give
 #'   the factor-combination cells (the factorial display).
@@ -65,6 +68,7 @@
 #'   count adapted to keep the smallest group's interval cells adequately
 #'   filled.
 #' @param grid Logit grid over which to draw the model curve.
+#' @param observed Whether to add observed class-interval means.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -74,8 +78,54 @@
 #' plot_icc(rasch(X), "I03")
 #' @export
 plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
-                     grid = seq(-5, 5, 0.05)) {
-  i <- .item_idx(fit, item); tau_i <- fit$tau_list[[i]]; mmax <- length(tau_i)
+                     grid = seq(-5, 5, 0.05), observed = TRUE) {
+  i <- unique(.item_idx(fit, item))
+  if (!length(i) || anyNA(i) || any(i < 1L | i > nrow(fit$items)))
+    stop("Every item must name a fitted item", call. = FALSE)
+  if (length(i) > 8L)
+    stop("At most eight item characteristic curves may be overlaid", call. = FALSE)
+  if (length(i) > 1L && !is.null(group))
+    stop("A group overlay requires a single item", call. = FALSE)
+  if (length(i) > 1L) {
+    if (is.null(n_groups)) n_groups <- fit$n_groups
+    th <- fit$person$theta
+    ex <- if (!is.null(fit$person$extreme)) fit$person$extreme else
+      rep(FALSE, length(th))
+    cols <- .rr$pal[seq_along(i)]
+    op <- .rr_canvas(range(grid), c(0, 1), "Person location (logits)",
+                     "Expected score (proportion of maximum)",
+                     "Item characteristic curves", right = 2)
+    on.exit(par(op))
+    for (j in seq_along(i)) {
+      ij <- i[j]
+      tau_j <- fit$tau_list[[ij]]
+      max_j <- length(tau_j)
+      curve <- vapply(grid, function(theta)
+        item_moments(theta, tau_j, disc = .disc_of(fit, ij))$E, 0) / max_j
+      lines(grid, curve, lwd = 2.6, col = cols[j])
+      if (isTRUE(observed)) {
+        x <- fit$X[, ij]
+        ci_full <- .class_intervals(ifelse(is.na(x), NA_real_, th), ex,
+                                    n_groups)
+        ok <- !is.na(ci_full)
+        ci <- ci_full[ok]
+        obs_th <- tapply(th[ok], ci, mean)
+        obs_x <- tapply(x[ok] / max_j, ci, mean)
+        points(obs_th, obs_x, pch = 21, bg = cols[j], col = "white",
+               cex = 1.15, lwd = 1)
+      }
+    }
+    labs <- fit$items$item[i]
+    .rr_legend("topleft", labs, lwd = 2.6, col = cols,
+               cex = if (length(labs) > 6L) 0.72 else 0.8)
+    if (isTRUE(observed))
+      .rr_legend("bottomright", c("Model", "Observed"),
+                 lwd = c(2.6, NA), pch = c(NA, 21),
+                 pt.bg = c(NA, .rr$ink), col = c(.rr$ink, "white"),
+                 pt.cex = 1.15)
+    return(invisible(NULL))
+  }
+  tau_i <- fit$tau_list[[i]]; mmax <- length(tau_i)
   if (is.character(group) && length(group) < nrow(fit$X) &&
       !is.null(fit$factors) && all(group %in% names(fit$factors)))
     group <- if (length(group) == 1L) fit$factors[[group]] else
@@ -101,13 +151,13 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
                            fit$items$location[i]))
   on.exit(par(op))
   lines(grid, Ecurve, lwd = 3, col = .rr$ink)
-  if (is.null(group)) {
+  if (is.null(group) && isTRUE(observed)) {
     obsTh <- tapply(th[ok], ci, mean); obsX <- tapply(x[ok], ci, mean)
     points(obsTh, obsX, pch = 21, bg = .rr$blue, col = "white", cex = 1.5, lwd = 1.2)
-    .rr_legend("topleft", c("Model", "Observed (class intervals)"),
+    .rr_legend("topleft", c("Model", "Observed"),
                lwd = c(3, NA), pch = c(NA, 21), pt.bg = c(NA, .rr$blue),
                col = c(.rr$ink, "white"), pt.cex = 1.4)
-  } else {
+  } else if (!is.null(group)) {
     g <- factor(group)[ok]
     levs <- levels(droplevels(g))
     for (li in seq_along(levs)) {
@@ -259,6 +309,9 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' @param bins Number of histogram bins.
 #' @param xlim Optional logit range for the shared scale; persons and
 #'   thresholds outside it are omitted.
+#' @param information Whether to overlay the test information function on a
+#'   separate right-hand axis. Fits with more than one administrable design
+#'   receive one curve per design.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -267,7 +320,7 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' colnames(X) <- paste0("I", 1:6)
 #' plot_pimap(rasch(X))
 #' @export
-plot_pimap <- function(fit, bins = 35, xlim = NULL) {
+plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   th <- fit$person$theta[!is.na(fit$person$theta)]
   tau <- fit$thresholds$tau
   rng <- if (is.null(xlim)) range(c(th, tau)) + c(-0.4, 0.4) else sort(xlim)
@@ -280,7 +333,7 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL) {
   ymax <- max(pp) * 1.15; ymin <- -max(pi) * 1.6
   op <- .rr_canvas(rng, c(ymin, ymax), "Location (logits)", "Proportion",
                    "", grid_y = FALSE,
-                   yaxis = FALSE)
+                   yaxis = FALSE, right = if (isTRUE(information)) 4.2 else 1.5)
   on.exit(par(op))
   at <- pretty(c(0, max(c(pp, pi))))
   axis(2, at = c(-rev(at[-1]), at), labels = c(rev(at[-1]), at),
@@ -289,12 +342,33 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL) {
   rect(brk[-length(brk)], 0, brk[-1], pp, col = .rr$blue, border = "white", lwd = 0.6)
   rect(brk[-length(brk)], -pi, brk[-1], 0, col = .rr$amber, border = "white", lwd = 0.6)
   segments(mean(th), 0, mean(th), ymax * 0.95, col = .rr$ink, lty = 2)
-  text(mean(th), ymax * 0.98, sprintf("persons: mean %.2f, SD %.2f", mean(th), sd(th)),
-       col = .rr$ink, cex = 0.8, adj = -0.02)
-  text(mean(tau), ymin * 0.98, sprintf("thresholds: mean %.2f, SD %.2f", mean(tau), sd(tau)),
-       col = .rr$ink, cex = 0.8, adj = -0.02)
+  segments(mean(tau), ymin * 0.95, mean(tau), 0, col = .rr$ink, lty = 2)
   .rr_legend("topleft", c("Persons", "Item thresholds"),
-             fill = c(.rr$blue, .rr$amber), border = NA)
+             fill = c(.rr$blue, .rr$amber), border = NA, cex = 0.76)
+  if (isTRUE(information)) {
+    grid <- seq(rng[1], rng[2], length.out = 241L)
+    ti <- test_information(fit, grid)
+    des <- if ("design" %in% names(ti)) unique(ti$design) else "Test information"
+    cols <- rep_len(c(.rr$teal, .rr$purple, .rr$red, .rr$soft), length(des))
+    imax <- max(ti$info, na.rm = TRUE)
+    if (is.finite(imax) && imax > 0) {
+      scl <- ymax * 0.92 / imax
+      for (j in seq_along(des)) {
+        z <- if ("design" %in% names(ti)) ti$design == des[j] else
+          rep(TRUE, nrow(ti))
+        lines(ti$theta[z], ti$info[z] * scl, lwd = 2.5, col = cols[j])
+      }
+      ticks <- pretty(c(0, imax))
+      ticks <- ticks[ticks >= 0 & ticks * scl <= ymax]
+      axis(4, at = ticks * scl, labels = ticks, col = .rr$grid,
+           col.ticks = .rr$soft, col.axis = .rr$teal, cex.axis = 0.8)
+      mtext("Test information", side = 4, line = 2.7,
+            col = .rr$teal, cex = 0.85, las = 0)
+      if (length(des) > 1L)
+        .rr_legend("topright", paste0("Information: ", des),
+                   lwd = 2.5, col = cols, cex = 0.68)
+    }
+  }
   invisible(NULL)
 }
 
@@ -657,9 +731,8 @@ plot_resid_cor <- function(fit, stat = c("q3star", "q3"), cap = 0.5) {
 
 #' Plot residual principal-component loadings
 #'
-#' Residual-component loadings against item location; opposing clusters at top
-#' and bottom suggest a further dimension. Any leading component may be shown,
-#' not only the first.
+#' Residual-component loadings against item location. Opposing clusters suggest
+#' a further dimension. Any returned component may be plotted.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param component Which residual principal component to plot (default the
@@ -822,7 +895,7 @@ plot_pcc <- function(fit, person, n_groups = 5, grid = seq(-5, 5, 0.05)) {
   obsP <- tapply((x[ok] / mm[ok]), g, mean)
   points(obsL, obsP, pch = 21, bg = .rr$blue, col = "white", cex = 1.6, lwd = 1.2)
   .rr_legend("topright", c("Model at person location",
-                           "Observed (item intervals)"),
+                           "Observed"),
              lwd = c(3, NA), pch = c(NA, 21), pt.bg = c(NA, .rr$blue),
              col = c(.rr$ink, "white"), pt.cex = 1.4)
   invisible(NULL)

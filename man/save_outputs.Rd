@@ -2,7 +2,7 @@
 % Please edit documentation in R/export.R
 \name{save_outputs}
 \alias{save_outputs}
-\title{Save every output of a Rasch analysis to a folder}
+\title{Save the outputs of a Rasch analysis}
 \usage{
 save_outputs(
   fit,
@@ -23,7 +23,7 @@ save_outputs(
 
 \item{width, height}{Plot size in inches.}
 
-\item{dpi}{PNG resolution; the default 300 is publication quality.}
+\item{dpi}{PNG resolution.}
 
 \item{item_plots}{Also write the per-item plot set (one ICC, category curve,
 threshold curve, and frequency chart per item).}

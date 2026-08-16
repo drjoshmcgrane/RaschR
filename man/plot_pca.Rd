@@ -16,9 +16,8 @@ first component).}
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Residual-component loadings against item location; opposing clusters at top
-and bottom suggest a further dimension. Any leading component may be shown,
-not only the first.
+Residual-component loadings against item location. Opposing clusters suggest
+a further dimension. Any returned component may be plotted.
 }
 \examples{
 set.seed(1)

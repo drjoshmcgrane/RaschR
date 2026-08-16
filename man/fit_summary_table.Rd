@@ -16,10 +16,9 @@ thresholds structure, and dependence effects when estimated).}
 A data frame with columns \code{statistic} and \code{value}.
 }
 \description{
-The headline fit statistics of a calibration -- model, estimation,
-total item-trait chi-square, the item and person fit-residual moments,
-fit-location correlations, chi-square flag count, and disordered
-thresholds -- as a two-column table suitable for saving and reporting.
+Returns the model, estimation method, item-trait chi-square, item and person
+fit-residual moments, fit-location correlations, chi-square flag count, and
+disordered-threshold count as a two-column table.
 }
 \examples{
 set.seed(1)

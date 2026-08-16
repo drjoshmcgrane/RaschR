@@ -139,6 +139,28 @@ test_that("report_html writes a complete self-contained report", {
   expect_equal(enc("foobar"), "Zm9vYmFy")
 })
 
+test_that("report_document writes a self-contained HTML report", {
+  skip_if_not_installed("rmarkdown")
+  skip_if_not(rmarkdown::pandoc_available())
+  set.seed(31)
+  X <- matrix(rbinom(120 * 5, 1, .5), 120, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  fit <- rasch(X)
+  out <- tempfile(fileext = ".html")
+  on.exit(unlink(out), add = TRUE)
+
+  expect_identical(report_document(fit, out, title = "Test analysis"),
+                   normalizePath(out))
+  expect_gt(file.info(out)$size, 10000)
+  html <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_match(html, "Test analysis", fixed = TRUE)
+  expect_match(html, "Analysis summary", fixed = TRUE)
+  expect_match(html, "Reproducibility", fixed = TRUE)
+  expect_error(report_document(fit, sub("html$", "pdf", out),
+                               format = "html"),
+               "extension")
+})
+
 test_that("the fit and targeting summaries are complete tidy tables", {
   set.seed(1)
   d <- seq(-2, 2, length.out = 6)

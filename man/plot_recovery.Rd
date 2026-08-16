@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate.R
 \name{plot_recovery}
 \alias{plot_recovery}
-\title{Recovery scatter of planted against recovered parameters}
+\title{Plot fitted against generating parameters}
 \usage{
 plot_recovery(x, ...)
 }

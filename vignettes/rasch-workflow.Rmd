@@ -18,26 +18,36 @@ options(digits = 4)
 library(rasch)
 ```
 
-This vignette walks through the standard analysis sequence of Rasch
-Measurement Theory and its model suite (Rasch 1960, 1961; Andrich and
-Marais 2019; for the frame of reference models Humphry 2005 and Humphry
-and Andrich 2008; for dichotomous comparative judgement as the conditional
-form of the dichotomous Rasch model, Andrich 1978, with the polytomous
-extension after Tutz 1986): fit by
-pairwise conditional estimation, then examine whether the data meet the
-model's requirements before the measures are interpreted.
+This vignette gives a basic Rasch analysis using pairwise conditional
+estimation. The model is fitted first; fit, targeting, invariance, local
+dependence, and dimensionality are then examined before interpreting the
+measures (Rasch 1960; Andrich and Marais 2019; for the frame of reference
+models Humphry 2005 and Humphry and Andrich 2008; for comparative
+judgement Andrich 1978, with the polytomous extension after Tutz 1986).
 
-The same principal workflow is available through the package's point-and-click
-Shiny application. Run `rasch::run_app()` after installation to import data,
-choose a model, inspect diagnostics, and export results without writing R
-analysis code. The application shows the corresponding R call for each
-analysis; this article explains the same decisions in their command-line form.
+The same analyses are available in the Shiny application. Run
+`rasch::run_app()` to import data, fit a model, inspect the results, and export
+tables or plots without writing R analysis code.
 
 ## Fit the model required by the scoring structure
 
 `rasch` fits the partial credit model by default. Dichotomous data are its
 one-threshold special case. Set `model = "RSM"` only when the same category
 threshold structure is intended to hold across items.
+
+For person $n$, item $i$, and score $x=0,\ldots,m_i$, the partial credit model
+is
+
+$$
+P(X_{ni}=x)=
+\frac{\exp\left\{x\theta_n-\sum_{k=1}^{x}\delta_{ik}\right\}}
+{\sum_{y=0}^{m_i}\exp\left\{y\theta_n-
+\sum_{k=1}^{y}\delta_{ik}\right\}}.
+$$
+
+The rating scale model constrains $\delta_{ik}=\beta_i+\tau_k$. Pairwise
+conditioning removes $\theta_n$ from the item likelihood. Person locations
+are subsequently estimated by Warm's weighted likelihood method.
 
 The example uses simulated data so that the complete workflow is reproducible.
 With observed data, inspect the coding and frequency of every category before
@@ -80,11 +90,9 @@ head(residual_correlations(fit))
 dimensionality_test(fit)
 ```
 
-Binary residual-correlation flags require an analyst-supplied heuristic
-threshold because adjusted Q3 has no universal critical value. The
-dimensionality test also withholds a categorical verdict unless each opposed
-subtest contains at least 15 score points; this is preferable to treating a
-short, low-information split as evidence for or against one dimension.
+Binary residual-correlation flags require an analyst-supplied threshold because
+adjusted Q3 has no universal critical value. The dimensionality result carries
+a caution when either opposed subtest contains fewer than 15 score points.
 
 ## Link calibrations through common items
 

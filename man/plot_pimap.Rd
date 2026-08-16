@@ -4,7 +4,7 @@
 \alias{plot_pimap}
 \title{Plot the person-item threshold distribution}
 \usage{
-plot_pimap(fit, bins = 35, xlim = NULL)
+plot_pimap(fit, bins = 35, xlim = NULL, information = FALSE)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
@@ -13,6 +13,10 @@ plot_pimap(fit, bins = 35, xlim = NULL)
 
 \item{xlim}{Optional logit range for the shared scale; persons and
 thresholds outside it are omitted.}
+
+\item{information}{Whether to overlay the test information function on a
+separate right-hand axis. Fits with more than one administrable design
+receive one curve per design.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.

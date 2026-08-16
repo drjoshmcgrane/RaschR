@@ -16,8 +16,8 @@ highlighted.}
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Caterpillar plot of the object locations with 95 per cent error bars,
-misfitting objects highlighted, in the package's house style.
+Caterpillar plot of object locations with 95 per cent error bars. Objects
+beyond the specified fit-residual band are marked.
 }
 \examples{
 set.seed(1)

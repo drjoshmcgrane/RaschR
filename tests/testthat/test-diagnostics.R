@@ -144,6 +144,23 @@ test_that("save_outputs writes the full set of tables and plots", {
   unlink(out, recursive = TRUE)
 })
 
+test_that("save_outputs writes comparative judgement results", {
+  set.seed(101)
+  dat <- simulate_btl(n_objects = 6, n_judges = 20,
+                      reps_per_pair = 2, seed = 101)
+  fit <- btl(dat, object_a = "object_a", object_b = "object_b",
+             winner = "winner", judge = "judge")
+  out <- tempfile("rasch-btl-output-")
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+
+  files <- save_outputs(fit, out, formats = "png", item_plots = TRUE)
+  expect_true(file.exists(file.path(out, "tables", "object_estimates.csv")))
+  expect_true(file.exists(file.path(out, "tables", "pair_fit.csv")))
+  expect_true(file.exists(file.path(out, "plots", "object_locations.png")))
+  expect_true(file.exists(file.path(out, "summary.txt")))
+  expect_gt(length(files), 6)
+})
+
 test_that("the scree reference is model-simulated and calibrated", {
   # null Rasch data: the observed first eigenvalue must sit AT the reference,
   # not systematically above it (an independent-normal reference would put

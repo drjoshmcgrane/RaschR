@@ -1,25 +1,25 @@
 Package: rasch
 Type: Package
 Title: Models and Diagnostics for Rasch Measurement Theory
-Version: 1.14.2
+Version: 1.12.0
 Authors@R: person("Josh", "McGrane", role = c("aut", "cre"),
     email = "drjoshmcgrane@gmail.com")
-Description: Pairwise conditional estimation (Zwinderman, 1995
-    <doi:10.1177/014662169501900406>) for the models of Rasch Measurement
-    Theory (Rasch, 1960 <ISBN:9780226705538>): the dichotomous and
-    polytomous Rasch models, many-facet models, the extended frame of
+Description: Fits and evaluates the models of Rasch Measurement Theory
+    (Rasch, 1960 <ISBN:9780226705538>; Andrich and Marais, 2019
+    <doi:10.1007/978-981-13-7496-8>): the dichotomous Rasch, partial
+    credit, rating scale, and many-facet models, the extended frame of
     reference model (Humphry, 2005; Humphry and Andrich, 2008), and
     comparative judgement models for dichotomous pairwise comparisons --
     the conditional form of the dichotomous model (Andrich, 1978
     <doi:10.1177/014662167800200319>) -- and polytomous pairwise
-    comparisons (Tutz, 1986 <doi:10.1016/0022-2496(86)90034-9>). Provides
-    fit and invariance
-    diagnostics, differential item functioning analysis, equating,
-    reliability, and simulation, with person measurement by weighted
-    likelihood (Warm, 1989 <doi:10.1007/BF02294627>), following the
-    framework of Andrich and Marais (2019) <doi:10.1007/978-981-13-7496-8>.
-    Includes a point-and-click 'shiny' app that provides the full
-    functionality of the package.
+    comparisons (Tutz, 1986 <doi:10.1016/0022-2496(86)90034-9>). Item
+    parameters are estimated by pairwise conditional maximum likelihood
+    (Zwinderman, 1995 <doi:10.1177/014662169501900406>), with person
+    measurement by weighted likelihood (Warm, 1989
+    <doi:10.1007/BF02294627>). Functions are provided for fit, targeting,
+    reliability, dimensionality, local dependence, differential item
+    functioning, equating, and simulation. A point-and-click 'shiny' app
+    provides the full functionality of the package.
 URL: https://drjoshmcgrane.github.io/rasch/, https://github.com/drjoshmcgrane/rasch
 BugReports: https://github.com/drjoshmcgrane/rasch/issues
 License: MIT + file LICENSE

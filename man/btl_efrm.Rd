@@ -65,114 +65,48 @@ or \code{"judge_bootstrap"}.}
 \item{maxit, tol}{Newton iteration cap and convergence tolerance.}
 }
 \value{
-An object of class \code{"rasch_btl_efrm"}: \code{objects} (object,
-  set, \code{beta_set} and its standard error, common-scale \code{v} and its
-  standard error), \code{phi_table} (panel units with Wald tests against
-  \code{log phi = 0}), \code{alpha_table} and \code{kappa_table} (set units
-  and origins with Wald tests; the reference set carries \code{alpha = 1},
-  \code{kappa = 0} with no standard error), \code{unit_omnibus} (joint
-  Wald tests of equal panel units, set units, and set origins),
-  \code{frames} (panel by set:
-  common-scale discrimination \code{rho = phi / alpha} (the within-set
-  logit is \code{phi (beta_a - beta_b)} with \code{beta = (v - kappa) /
-  alpha}), comparison count, pooled fit residual and its allocated
-  \code{df_fit}),
-  \code{equal_unit} (the descriptive single-unit comparison), \code{n_cross}
-  (cross-set comparison counts per set pair), \code{notes} and
-  \code{converged}.
+An object of class \code{"rasch_btl_efrm"}. Principal components
+  are \code{objects}, \code{phi_table}, \code{alpha_table},
+  \code{kappa_table}, \code{unit_omnibus}, \code{frames},
+  \code{equal_unit}, \code{n_cross}, \code{notes}, and \code{converged}.
 }
 \description{
-Estimates object locations from paired comparisons when the unit of the
-latent scale differs across frames -- judge-panel by object-set cells.
-The model is a hybrid of the package's two non-item lineages: the
-comparative judgement model, which is the conditional form of the
-dichotomous Rasch model (Andrich 1978; Bradley and Terry 1952), carrying
-the frame-of-reference unit structure of Humphry's (2005) extended frame
-of reference model (Humphry and Andrich 2008). Objects are partitioned into sets and judges into
-panels. Each object has a common-scale value \code{v_k = alpha_s beta_k +
-kappa_s}, with \code{beta_k} the within-set calibration location,
-\code{alpha_s > 0} the set unit and \code{kappa_s} the set origin; a
-comparison judged in panel \code{g} carries the panel unit \code{phi_g}.
-Within a set the comparison logit is \code{phi_g (beta_a - beta_b)} (the set
-origin cancels and the set unit is confounded with the spread of
-\code{beta}, so neither is identified within a set); across sets it is
-\code{phi_g (v_a - v_b)}, which places the sets on one common scale.
+Fits paired comparisons when judges belong to panels and objects belong to
+linked sets whose units or origins can differ. It combines the
+Bradley--Terry--Luce model with Humphry's extended frame of reference
+structure.
 }
 \details{
-One modelling convention deserves plain statement. Rewritten with a single
-latent value per object, the model says within-set-\code{s} contests are
-judged at discrimination \code{phi_g / alpha_s} while every cross-set
-contest is judged at exactly \code{phi_g}: the common scale is
-\emph{defined} as the scale of between-frame judgement. That is an
-assumption about how discriminal dispersion behaves when unlike objects
-meet (a Thurstonian question with no assumption-free answer), not a
-consequence of the theory; the per-frame fit residuals in \code{frames}
-are where a violation would show.
+For object \eqn{k} in set \eqn{s}, let
+\deqn{v_k=\alpha_s\beta_k+\kappa_s,}
+where \eqn{\beta_k} is its within-set location, \eqn{\alpha_s>0} is the set
+unit, and \eqn{\kappa_s} is the set origin. A comparison in panel \eqn{g}
+has logit
+\deqn{\phi_g(\beta_a-\beta_b)}
+for objects in the same set, and
+\deqn{\phi_g(v_a-v_b)}
+for objects in different sets. Cross-set comparisons identify the common
+scale. The first set fixes \eqn{\alpha=1} and \eqn{\kappa=0}; panel units
+have geometric mean one.
 
-Estimation follows \code{\link{rasch_efrm}} in two conditional stages. In
-stage one the within-set comparisons of each set, pooled over panels, fit
-the bilinear model \code{logit = rho_{gs} (b_a - b_b)} with \code{b}
-sum-zero and the most-used panel fixed at \code{rho = 1}; the ratios
-\code{rho_{gs} = phi_g / phi_{ref(s)}} estimate the panel units up to each
-set's reference panel and are reconciled across sets by a precision-weighted
-least squares over the panel-by-set linking graph, then normalised to
-geometric mean one. In stage two the cross-set comparisons are a
-low-dimensional maximum likelihood in \code{(log alpha, kappa)} for the
-non-reference sets, with \code{alpha_1 = 1} and \code{kappa_1 = 0} fixing
-the reference set (the first, alphabetically).
+Estimation has two stages. Within-set comparisons estimate object locations
+and panel-unit ratios. Weighted least squares reconciles the ratios over the
+panel-by-set linking graph. Cross-set comparisons then estimate the set
+units and origins. Unlike the person-by-item EFRM, this linking step uses
+only comparison outcomes and does not require a distribution of persons.
+The paired-comparison form is an extension of Humphry's model implemented in
+this package.
 
-The set units are identified within the conditional framework: the
-cross-set linking uses only comparison outcomes and makes no distributional
-assumption about the objects. This is the substantive difference from the
-persons-by-items EFRM, whose item-set units can only be identified from the
-person side -- that is, from the distribution of the persons over the linked
-sets. The paired-comparison design supplies its own conditional link, so no
-such distributional step is needed. See Humphry (2005) and Humphry and
-Andrich (2008) for the theory of the unit, and Thurstone (1927) and David
-(1988) for the varying-discriminal-dispersion lineage from which the
-frame-dependent unit descends. The paired-comparison form is this package's
-extension of Humphry's model.
+The default judge bootstrap resamples judges within panels and refits both
+stages. The parametric bootstrap draws independent outcomes from the fitted
+probabilities. \code{se_method = "conditional"} uses analytic stage-one
+errors and conditions the linking errors on stage one; it is intended for
+preliminary inspection. Bootstrap failures and boundary estimates are
+reported in \code{notes}.
 
-Estimates always use the staged conditional estimator: the within-frame
-calibrations are invariant to the linking data (the frame-of-reference
-property), a deliberate trade of some efficiency for invariance, exactly as
-anchored equating trades. Inference defaults to a judge bootstrap of
-the whole pipeline (\code{se_method = "judge_bootstrap"}): judges are
-resampled within panels and both stages refitted, so the standard
-errors of \code{phi}, \code{alpha}, \code{kappa}, \code{beta} and the
-common-scale \code{v} reflect sampling variability from both stages. The
-\code{"conditional"} option keeps the fast analytic errors (judge-clustered
-sandwich for stage one, inverse observed information for stage two,
-conditional on stage one) for quick inspection. Because uncertainty from
-stage one is not propagated to stage two, the resulting standard errors for
-\code{alpha} and \code{kappa} do not represent total pipeline uncertainty.
-
-The optional parametric bootstrap draws independent Bernoulli outcomes at
-the fitted probabilities. It is a useful model-based sensitivity analysis,
-but it does not carry extra-model dependence within judges and is therefore
-not the default for repeated judgements. The judge bootstrap needs enough
-judges per panel to resample stably; failed replicates are counted and
-reported. A parameter that reaches
-its boundary in some replicates (a set unit driven to zero when a resampled
-within-set order flips against the cross-set evidence, the signature of a
-two-object set with a near-even internal pair) has no normal sampling
-distribution: its standard error is reported as \code{NA} and a note names
-the parameter and the boundary count rather than manufacturing a number.
-Relatedly, a set whose within-set contests are all near-even (or all
-one-sided) carries no stable information about the panel-unit ratios; such
-sets are screened out of the \code{phi} reconciliation, refit with the
-panel units held at the reconciled \code{phi} (which the frame model says
-apply to them regardless), and named in a note.
-
-A single set (\code{S = 1}) reduces the model to panel units alone; stage
-two is skipped and the print states the panel-units model. When
-additionally \code{G = 1} the fit reduces exactly to \code{\link{btl}} on
-the same data. The equal-unit (single-unit) comparison refits plain
-\code{\link{btl}} on all comparisons pooled and reports the descriptive
-composite log-likelihood difference against the frames model; because that
-comparison is a composite likelihood, the inference on the units is carried
-by omnibus Wald tests of the unit families. Individual unit and origin
-contrasts are exploratory and Holm-adjusted.
+With one set, the model contains panel units only. With one set and one
+panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference
+for the unit families; individual contrasts are Holm-adjusted follow-ups.
 }
 \examples{
 \donttest{
@@ -189,11 +123,11 @@ fit$alpha_table
 \references{
 Andrich, D. (1978). Relationships between the Thurstone and
   Rasch approaches to item scaling. Applied Psychological Measurement,
-  2(3), 451-462.
+  2(3), 451--462.
 
   Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
   incomplete block designs: I. The method of paired comparisons.
-  Biometrika, 39, 324-345.
+  Biometrika, 39, 324--345.
 
   David, H. A. (1988). The Method of Paired Comparisons (2nd ed.). Griffin.
 
@@ -204,11 +138,15 @@ Andrich, D. (1978). Relationships between the Thurstone and
   Rasch model. Journal of Applied Measurement, 13(2), 165--180.
 
   Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
-  Rasch model. Journal of Applied Measurement, 9(3), 249-264.
+  Rasch model. Journal of Applied Measurement, 9(3), 249--264.
 
   Luce, R. D. (1959). Individual Choice Behavior: A Theoretical
   Analysis. Wiley.
 
   Thurstone, L. L. (1927). A law of comparative judgment. Psychological
-  Review, 34, 273-286.
+  Review, 34, 273--286.
+}
+\seealso{
+\code{\link{btl}}, \code{\link{rasch_efrm}},
+  \code{\link{plot_btl_units}}, and \code{\link{simulate_btl_efrm}}.
 }

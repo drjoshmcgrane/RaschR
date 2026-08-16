@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate.R
 \name{sim_recovery}
 \alias{sim_recovery}
-\title{Parameter recovery of a fit against the simulation truth}
+\title{Compare fitted and generating parameters}
 \usage{
 sim_recovery(fit, sim)
 }
@@ -18,8 +18,8 @@ A list of class \code{"rasch_recovery"}: \code{summary} (per
   and estimated values behind each).
 }
 \description{
-Compares the parameters recovered by a fit with the ones a
-\code{simulate_*} function planted (carried on the data as
+Compares fitted parameters with the generating values from a
+\code{simulate_*} function (carried on the data as
 \code{attr(sim, "truth")}): item difficulties and person abilities for a
 Rasch fit, object locations for a paired-comparison fit, rater severities
 (with item and person measures) for a many-facet fit, and the set units for

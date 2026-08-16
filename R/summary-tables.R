@@ -7,10 +7,9 @@
 
 #' Test-of-fit summary as a table
 #'
-#' The headline fit statistics of a calibration -- model, estimation,
-#' total item-trait chi-square, the item and person fit-residual moments,
-#' fit-location correlations, chi-square flag count, and disordered
-#' thresholds -- as a two-column table suitable for saving and reporting.
+#' Returns the model, estimation method, item-trait chi-square, item and person
+#' fit-residual moments, fit-location correlations, chi-square flag count, and
+#' disordered-threshold count as a two-column table.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}, or a
 #'   paired-comparison fit from \code{\link{btl}} (which reports its own
@@ -115,25 +114,39 @@ targeting_table <- function(fit) {
 .btl_summary_table <- function(fit) {
   num <- function(x, d = 3) ifelse(is.finite(x),
                                    formatC(x, digits = d, format = "f"), "NA")
+  framed <- inherits(fit, "rasch_btl_efrm")
   rows <- list(
-    c("Model", if (!is.null(fit$m) && fit$m > 1L)
+    c("Model", if (framed) "Paired comparisons with frame-dependent units"
+      else if (!is.null(fit$m) && fit$m > 1L)
       sprintf("Graded paired comparisons (%d categories)", fit$m + 1L)
       else "Paired comparisons (BTL)"),
-    c("Estimation", "conditional ML (person-free)"),
+    c("Estimation", if (framed) "two-stage conditional ML (person-free)"
+      else "conditional ML (person-free)"),
     c("Converged", ifelse(isTRUE(fit$converged), "yes", "NO")),
-    c("Iterations", as.character(fit$iterations)),
     c("Objects", as.character(nrow(fit$objects))),
     c("Comparisons", formatC(fit$n_comparisons, format = "d")),
     c("Judges", if (!is.null(fit$judges)) as.character(nrow(fit$judges))
       else "not identified"),
-    c("Standard errors", if (isTRUE(fit$clustered))
-      "sandwich, clustered by judge" else "sandwich"),
+    c("Standard errors", if (framed)
+      switch(fit$se_method,
+             judge_bootstrap = "judge-resampling bootstrap",
+             bootstrap = "parametric bootstrap",
+             conditional = "conditional analytic")
+      else if (isTRUE(fit$clustered)) "sandwich, clustered by judge"
+      else "sandwich"),
     c("Pairwise chi-square", num(fit$total_chisq, 2)),
     c("Degrees of freedom", as.character(fit$total_df)),
     c("Pairwise fit probability", .fmt_p(fit$total_p)),
     c("Object separation index", num(fit$osi$PSI)),
     c("Separation", num(fit$osi$separation)),
     c("Log-likelihood", num(fit$loglik, 2)))
+  if (!framed)
+    rows <- append(rows, list(c("Iterations", as.character(fit$iterations))),
+                   after = 3L)
+  else {
+    rows[[length(rows) + 1L]] <- c("Object sets", length(fit$sets))
+    rows[[length(rows) + 1L]] <- c("Judge panels", length(fit$panels))
+  }
   if (!is.null(fit$thr_structure) && !is.null(fit$m) && fit$m > 1L)
     rows[[length(rows) + 1L]] <- c("Threshold structure",
                                    if (fit$thr_structure == "pc")

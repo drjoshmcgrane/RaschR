@@ -13,10 +13,8 @@ plot_btl_units(fit)
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Caterpillar plot of the estimated units on the log scale: one row per panel
-unit \code{phi_g} and one per set unit \code{alpha_s}, with 95 per cent
-intervals, the reference (unit one) marked, mirroring
-\code{\link{plot_frames}} in the package's house style.
+Caterpillar plot of panel units \code{phi_g} and set units \code{alpha_s}
+on the log scale, with 95 per cent intervals and unit one marked.
 }
 \examples{
 \donttest{

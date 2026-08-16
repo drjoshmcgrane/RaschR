@@ -17,9 +17,8 @@ template:
 home:
   title: "rasch: Models and Diagnostics for Rasch Measurement Theory"
   description: >
-    Rasch Measurement Theory in R, with models and diagnostics organised
-    around the properties of sufficiency and invariance, plus a guided
-    point-and-click Shiny app for analysts who prefer a graphical workflow.
+    Models and diagnostics for examining sufficiency and invariance within
+    Rasch Measurement Theory, with a point-and-click Shiny application.
   sidebar:
     structure: [links, license, citation, authors, dev]
     components:
@@ -60,8 +59,7 @@ articles:
 reference:
 - title: Estimation
   desc: >
-    Fit the principal Rasch model families and estimate item and person
-    parameters.
+    Fit Rasch models and estimate item and person parameters.
   contents:
   - rasch
   - rasch_mfrm
@@ -73,7 +71,7 @@ reference:
 
 - title: Test of fit and comparison
   desc: >
-    Assess fit, targeting and reliability, and compare fitted models.
+    Examine fit, targeting and reliability, or compare fitted models.
   contents:
   - fit_summary_table
   - targeting_table
@@ -91,8 +89,7 @@ reference:
 
 - title: Invariance and DIF
   desc: >
-    Examine invariance across groups and occasions, quantify DIF, split items,
-    and equate calibrations.
+    Examine DIF across groups or occasions and equate calibrations.
   contents:
   - dif_anova
   - dif_contrasts
@@ -104,8 +101,7 @@ reference:
 
 - title: Independence and dimensionality
   desc: >
-    Examine dimensionality and local response dependence and apply structural
-    remedies where appropriate.
+    Examine dimensionality and local response dependence.
   contents:
   - residual_correlations
   - residual_pca
@@ -125,8 +121,7 @@ reference:
 
 - title: Paired comparisons
   desc: >
-    Fit Bradley-Terry-Luce and extended frame of reference models for paired
-    comparisons, with diagnostics for objects, judges and comparison designs.
+    Fit and examine models for dichotomous or ordered paired comparisons.
   contents:
   - btl
   - btl_dif
@@ -151,15 +146,14 @@ reference:
   - plot_btl_targeting
 
 - title: Plots
-  desc: One plotting function per display, all base graphics.
+  desc: Plot fitted models and diagnostic results.
   contents:
   - starts_with("plot_")
   - -starts_with("plot_btl")
 
 - title: Data simulation
   desc: >
-    Generate data from each model family, with optional known departures for
-    evaluating estimation and diagnostic performance.
+    Simulate data from the fitted model families.
   contents:
   - simulate_rasch
   - simulate_btl
@@ -173,7 +167,7 @@ reference:
 
 - title: Export and interface
   desc: >
-    Export results or launch the guided point-and-click Shiny application.
+    Export results or launch the Shiny application.
   contents:
   - save_outputs
   - save_item_plots

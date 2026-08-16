@@ -88,13 +88,12 @@
   tau
 }
 
-#' Simulate person-by-item Rasch data with dial-in misfit
+#' Simulate person-by-item Rasch data
 #'
-#' Generates dichotomous or polytomous (partial credit / rating scale) data
-#' from the Rasch model, with optional, individually controllable departures
-#' from it -- each of which the package's matching diagnostic is built to
-#' detect. The result is a data frame ready for \code{\link{rasch}}, with the
-#' true parameters attached as \code{attr(x, "truth")}.
+#' Generates dichotomous, partial credit, or rating scale data. Optional
+#' arguments introduce item misfit, guessing, multidimensionality, local
+#' dependence, DIF, response styles, or missingness. Generating values are
+#' stored in \code{attr(x, "truth")}.
 #'
 #' @param n_persons,n_items Sample size and test length.
 #' @param model \code{"dichotomous"}, \code{"PCM"}, or \code{"RSM"}. Under
@@ -112,32 +111,26 @@
 #'   item location (polytomous).
 #' @param discrimination The item slope, supplied as one value or one per
 #'   item. Values above 1 over-discriminate (Guttman-like, negative fit
-#'   residual); below 1 under-discriminate (noisy, positive residual). Feeds
-#'   infit/outfit and the item-fit F.
+#'   residual); values below 1 under-discriminate (positive residual).
 #' @param guessing Scalar or length-\code{n_items} lower asymptote
-#'   (dichotomous): low-ability persons answer correctly by chance. Feeds
-#'   \code{\link{tailored_analysis}}.
+#'   (dichotomous): low-location persons answer correctly by chance.
 #' @param second_dim \code{NULL}, or \code{list(items=, rho=)}: the named items
-#'   load on a second trait correlated \code{rho} with the first. Feeds
-#'   \code{\link{dimensionality_test}}.
+#'   load on a second trait correlated \code{rho} with the first.
 #' @param dependence \code{NULL}, or \code{list(pairs=, strength=)}: each pair's
 #'   second item responds partly to the first. This departure feeds the
 #'   residual-dependence diagnostics.
 #' @param dif \code{NULL}, or \code{list(items=, uniform=, nonuniform=)}: the
-#'   named items function differently for the last person group -- a location
+#'   named items function differently for the last person group: a location
 #'   shift (\code{uniform}) and/or a slope change (\code{nonuniform}). Needs
-#'   \code{n_groups >= 2}. Feeds \code{\link{dif_anova}} / \code{\link{dif_size}}.
-#' @param careless Proportion of persons who answer at random (person misfit;
-#'   feeds person infit/outfit).
+#'   \code{n_groups >= 2}.
+#' @param careless Proportion of persons who answer at random.
 #' @param response_style \code{NULL}, or \code{list(type=, prop=, strength=)}
 #'   with \code{type} \code{"extreme"} or \code{"middle"}: a proportion
 #'   \code{prop} of persons favour the end (or middle) categories regardless
 #'   of the trait, with distortion \code{strength} (default 1.6) on the
-#'   log-probability scale (polytomous; feeds the category diagnostics and
-#'   person fit).
-#' @param speeded Proportion not-reached at the last item: a growing tail of
-#'   missing responses over the final items, as under time pressure (feeds the
-#'   item statistics and the missingness pattern).
+#'   log-probability scale (polytomous).
+#' @param speeded Proportion not reached at the last item: a growing tail of
+#'   missing responses over the final items.
 #' @param disordered \code{NULL} or item names/indices given disordered
 #'   thresholds (polytomous; feeds the threshold diagnostics).
 #' @param n_groups Number of equal person groups (a \code{group} factor column
@@ -429,29 +422,28 @@ print.rasch_sim <- function(x, ...) {
   invisible(x)
 }
 
-#' Simulate paired-comparison (BTL) data with dial-in misfit
+#' Simulate paired-comparison data
 #'
-#' Generates dichotomous or polytomous paired comparisons from the
-#' Bradley-Terry-Luce model, with optional departures each of which a
-#' paired-comparison diagnostic is built to detect. The result is a data frame
-#' ready for \code{\link{btl}}, with the truth attached.
+#' Generates dichotomous or ordered paired comparisons from the
+#' Bradley--Terry--Luce model. Optional arguments introduce a second object
+#' attribute, erratic judges, or within-judge dependence. Generating values are
+#' stored in \code{attr(x, "truth")}.
 #'
 #' @param n_objects,n_judges Objects to scale and judges comparing them.
 #' @param reps_per_pair Comparisons made of each object pair.
 #' @param model \code{"dichotomous"} (a winner) or \code{"polytomous"} (a rated
-#'   margin in \code{n_categories} categories; the pre-1.14.1 value
+#'   margin in \code{n_categories} categories; an earlier development-era value
 #'   \code{"graded"} is accepted as an alias).
 #' @param n_categories Categories for the polytomous model.
 #' @param object_sd Spread of the object locations (evenly spaced, sum-zero).
 #' @param second_attribute \code{NULL}, or \code{list(rho=)}: half the judges
 #'   rank by a second object attribute correlated \code{rho} with the first.
-#'   This introduces multidimensionality and possible intransitivity.
-#' @param erratic_judges Proportion of judges who choose at random. This
-#'   affects judge fit, transitivity, and the judge-surprise diagnostics.
+#'   This introduces residual dimensionality and possible intransitivity.
+#' @param erratic_judges Proportion of judges who choose at random.
 #' @param dependence \code{NULL}, or \code{list(exposure=, carry_over=)}:
 #'   within-judge order effects (a seen-before advantage and a pull from the
 #'   judge's own earlier verdicts). Adds an \code{order} column. Feeds the
-#'   dependence effects of \code{\link{btl}}.
+#'   dependence effects fitted by \code{\link{btl}}.
 #' @param seed Optional RNG seed.
 #' @return A data frame of class \code{"rasch_sim"}: \code{object_a},
 #'   \code{object_b}, \code{winner} (or \code{response} when polytomous),
@@ -469,7 +461,7 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
                          erratic_judges = 0, dependence = NULL, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
   model <- match.arg(model)
-  # "graded" is the pre-1.14.1 name for the polytomous comparison model,
+  # "graded" is an earlier development name for the polytomous comparison model,
   # kept as a working alias for released user code
   if (model == "graded") model <- "polytomous"
   K <- .sim_count(n_objects, "n_objects", 3L)
@@ -569,11 +561,10 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
   d
 }
 
-#' Simulate many-facet (rated) data with dial-in misfit
+#' Simulate many-facet Rasch data
 #'
-#' Generates ratings from the many-facet Rasch model (Linacre 1989): every
-#' rater rates every person on every item, from person ability, item
-#' difficulty, and rater severity. Departures each feed an MFRM diagnostic.
+#' Generates fully crossed ratings from a many-facet Rasch model (Linacre
+#' 1989), with optional erratic raters, item-by-rater interaction, or halo.
 #'
 #' @param n_persons,n_items,n_raters Facet sizes (fully crossed).
 #' @param n_categories Rating categories.
@@ -776,7 +767,7 @@ sim_replicate <- function(FUN, n, ..., seed = NULL) {
             layout = attr(reps[[1]], "truth")$layout)
 }
 
-#' Apply a statistic across a simulation batch, resiliently
+#' Apply a statistic across a simulation batch
 #'
 #' Applies \code{FUN} to each replicate of a \code{\link{sim_replicate}}
 #' batch, catching replicates on which \code{FUN} errors -- for example a
@@ -829,10 +820,10 @@ print.rasch_sim_batch <- function(x, ...) {
   invisible(x)
 }
 
-#' Parameter recovery of a fit against the simulation truth
+#' Compare fitted and generating parameters
 #'
-#' Compares the parameters recovered by a fit with the ones a
-#' \code{simulate_*} function planted (carried on the data as
+#' Compares fitted parameters with the generating values from a
+#' \code{simulate_*} function (carried on the data as
 #' \code{attr(sim, "truth")}): item difficulties and person abilities for a
 #' Rasch fit, object locations for a paired-comparison fit, rater severities
 #' (with item and person measures) for a many-facet fit, and the set units for
@@ -936,7 +927,7 @@ print.rasch_recovery <- function(x, ...) {
   invisible(x)
 }
 
-#' Recovery scatter of planted against recovered parameters
+#' Plot fitted against generating parameters
 #'
 #' One true-versus-estimated panel per parameter type, with the identity line
 #' and the correlation and RMSE.

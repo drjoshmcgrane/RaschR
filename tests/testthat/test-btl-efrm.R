@@ -162,6 +162,57 @@ test_that("plot_btl_units draws without error", {
   expect_silent(plot_btl_units(fit))
 })
 
+test_that("frame estimates propagate through paired-comparison diagnostics", {
+  d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                         n_judges_per_panel = 10, reps_within = 30,
+                         reps_cross = 30, panel_units = c(0.8, 1.25),
+                         set_units = c(1, 1.4), set_origins = c(0, 0.6),
+                         seed = 44)
+  fit <- befit(d, "object_a", "object_b", "winner", "judge", "panel",
+               attr(d, "truth")$object_sets)
+
+  expect_s3_class(fit, "rasch_btl")
+  expect_equal(fit$objects$location, fit$objects$v)
+  expect_equal(fit$objects$se, fit$objects$se_v)
+  expect_true(all(c("expected", "frame_slope", "information") %in%
+                    names(fit$comparisons)))
+
+  cmp <- fit$comparisons
+  loc <- setNames(fit$objects$location, fit$objects$object)
+  expected <- plogis(cmp$frame_slope *
+                       (loc[cmp$object_a] - loc[cmp$object_b]))
+  expect_equal(cmp$expected, unname(expected), tolerance = 1e-8)
+
+  info <- btl_information(fit)
+  expect_equal(info$total, sum(cmp$information), tolerance = 1e-10)
+  expect_equal(sum(info$objects$information), 2 * info$total,
+               tolerance = 1e-10)
+  expect_no_error(judge_surprise(fit, fit$judges$judge[1]))
+  expect_no_error(btl_dimensionality(fit, reps = 20))
+  expect_error(btl_next_pairs(fit), "panel and object set")
+
+  tab <- fit_summary_table(fit)
+  expect_equal(tab$value[tab$statistic == "Object sets"], "2")
+  pdf(NULL); on.exit(dev.off())
+  expect_silent(plot_btl_icc(fit, fit$objects$object[1]))
+  expect_silent(plot_btl_targeting(fit))
+})
+
+test_that("conditional frame fits withhold equating drift inference", {
+  d1 <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                          reps_within = 25, reps_cross = 25, seed = 71)
+  d2 <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                          reps_within = 25, reps_cross = 25, seed = 72)
+  f1 <- befit(d1, "object_a", "object_b", "winner", "judge", "panel",
+              attr(d1, "truth")$object_sets)
+  f2 <- befit(d2, "object_a", "object_b", "winner", "judge", "panel",
+              attr(d2, "truth")$object_sets)
+  eq <- btl_equate(f1, f2, independent = TRUE)
+  expect_false(eq$inferential)
+  expect_true(any(grepl("joint object-location covariance", eq$notes,
+                        fixed = TRUE)))
+})
+
 test_that("bootstrap SEs propagate linking uncertainty (estimates unchanged)", {
   skip_on_cran()
   d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,

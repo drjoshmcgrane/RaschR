@@ -1,36 +1,24 @@
-# CRAN comments for rasch 1.14.2
+# CRAN comments for rasch 1.12.0
 
 ## Summary of this update
 
 This is the first update since rasch 1.11.7 was accepted on 2026-07-30.
 
-It arrives promptly because post-release auditing identified statistical
-correctness issues that should not remain in the released version: some
-standard errors and significance flags could be reported for parameters the
-data did not identify (for example differential-item-functioning magnitudes
-resting on near-empty categories, and information curves pooled over item
-sets no respondent took together). These are corrected, alongside checks
-for connectedness, separation, rank, and weakly identified parameters
-across all model families. A release-wide simulation validation battery
-(recovery, standard error calibration, null rates, and power for every
-model family and diagnostic, under complete and missing data) was run
-before submission; the one defect it found, an understated standard error
-in the response-dependence magnitude estimate, is corrected in this
-version, together with three further calibration corrections the same
-programme surfaced (an extended-frame linking variance component, an
-effective-cluster condition for judge-clustered inference, and
-judge-limited reference distributions for paired-comparison unit tests).
+The release extends differential item functioning analysis to multiple
+between-person and within-person factors, with factorial terms and the
+corresponding repeated-measures error structure. It also expands the
+many-facet, extended frame of reference, and paired-comparison models, and
+adds simulation and recovery functions.
 
-The update also extends differential item functioning analysis to multiple
-between-person and within-person factors (factorial terms with the
-appropriate repeated-measures error structure), expands the many-facet,
-extended frame of reference, and paired-comparison model families, adds
-simulation and recovery tools, and adds five vignettes covering the main
-analysis workflows.
+Corrections concern standard errors, reference distributions, and the
+conditions under which inferential results are reported. The affected areas
+include response-dependence magnitude, extended-frame linking, and
+judge-clustered paired-comparison inference. The estimators now apply more
+explicit checks for connectedness, separation, rank, sparse categories, and
+weak identification.
 
-The package title and short description have been revised to state the
-purpose more directly. Technical details remain in the function
-documentation and vignettes.
+The package title, description, help pages, six vignettes, and graphical
+interface have also been revised for this release.
 
 ## Test environments
 

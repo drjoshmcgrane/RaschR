@@ -57,45 +57,28 @@ A list of class \code{"rasch_btl_dif"}: \code{summary} (one row per
   and practical flags); \code{effects}, \code{factors}, and \code{notes}.
 }
 \description{
-Tests whether objects function differently for identifiable groups of
-judges. One judge factor is analysed on its own; several factors are
-modelled jointly -- with main effects by default and factor-by-factor
-interactions optional -- exactly as \code{\link{dif_anova}} treats person
-factors. For each object the standardised residuals of its comparisons,
-oriented to the object, are analysed by the judge factor(s) crossed with
-opponent-strength bands: a term is uniform DIF, its crossing with the band
-non-uniform DIF, and a significant higher-order group term supersedes the
-lower-order group terms built from a subset of its factors. Each term
-flagged for uniform DIF and not superseded is then resolved -- the object
-split into one copy per cell of the term's factors inside a joint refit --
-and the differences between the resolved locations reported in logits with
-judge-clustered Wald tests and the practical-significance flag, mirroring
-\code{\link{dif_size}}. Fits with within-judge dependence effects
-(\code{order}) keep those effects in the residual moments and in the
-refits, so dependence is not mistaken for judge-group DIF; count-weighted
-comparisons enter all tests with their weights.
+Tests whether object locations differ across groups of judges. Several
+judge factors can be fitted jointly, with optional factor-by-factor
+interactions. Uniform DIF is a judge-factor effect; non-uniform DIF is its
+interaction with opponent-strength band.
 }
 \details{
-The screening ANOVA treats JUDGES as the independent units: residuals are
-aggregated to one weighted mean per judge (per opponent band) and tested
-in a split-plot design with the judge as the error unit -- group terms
-between judges, band terms and their interactions within. Testing
-judge-level factors against comparison-level residuals would
-pseudo-replicate (a null simulation with judge heterogeneity and
-arbitrary groups falsely flagged uniform DIF in 6 of 10 datasets); the
-judge-level design is calibrated, and its power grows with the number of
-judges per group, not the number of comparisons. Each factor level needs
-at least two judges. Confirmatory output is withheld unless the base fit
-has at least ten judge clusters and more clusters than fitted parameters;
-this avoids treating a rank-deficient or very small-cluster sandwich as a
-valid sampling covariance.
+Judges are the independent units. For each object, oriented residuals are
+aggregated to one weighted mean per judge and opponent band. A split-plot
+analysis then tests judge factors between judges and band effects within
+judges. Each factor level requires at least two judges. Confirmatory Wald
+tests are available only when the base fit supplies a valid judge-clustered
+covariance.
 
-Each object is resolved against the other objects' common locations. When
-several objects carry real DIF, resolving them one at a time can spread a
-large effect onto clean objects as compensating, opposite-signed artificial
-DIF (Andrich & Hagquist 2012, 2015); read large flags on several objects
-together with that hazard in mind, and prefer resolving the largest effect
-first and re-running.
+A significant uniform term is followed by a joint refit in which the object
+has one location per factor cell. Differences between these locations are
+reported in logits with clustered Wald tests. Higher-order terms supersede
+their component terms. Models fitted with \code{order} retain the exposure
+and carry-over effects in both the residual analysis and refit.
+
+Objects are resolved one at a time against the common locations of the
+remaining objects. With DIF in several objects, this can induce compensating
+apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
 }
 \examples{
 set.seed(1)

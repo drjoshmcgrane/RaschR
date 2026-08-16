@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate.R
 \name{simulate_rasch}
 \alias{simulate_rasch}
-\title{Simulate person-by-item Rasch data with dial-in misfit}
+\title{Simulate person-by-item Rasch data}
 \usage{
 simulate_rasch(
   n_persons = 500,
@@ -52,39 +52,33 @@ item location (polytomous).}
 
 \item{discrimination}{The item slope, supplied as one value or one per
 item. Values above 1 over-discriminate (Guttman-like, negative fit
-residual); below 1 under-discriminate (noisy, positive residual). Feeds
-infit/outfit and the item-fit F.}
+residual); values below 1 under-discriminate (positive residual).}
 
 \item{guessing}{Scalar or length-\code{n_items} lower asymptote
-(dichotomous): low-ability persons answer correctly by chance. Feeds
-\code{\link{tailored_analysis}}.}
+(dichotomous): low-location persons answer correctly by chance.}
 
 \item{second_dim}{\code{NULL}, or \code{list(items=, rho=)}: the named items
-load on a second trait correlated \code{rho} with the first. Feeds
-\code{\link{dimensionality_test}}.}
+load on a second trait correlated \code{rho} with the first.}
 
 \item{dependence}{\code{NULL}, or \code{list(pairs=, strength=)}: each pair's
 second item responds partly to the first. This departure feeds the
 residual-dependence diagnostics.}
 
 \item{dif}{\code{NULL}, or \code{list(items=, uniform=, nonuniform=)}: the
-named items function differently for the last person group -- a location
+named items function differently for the last person group: a location
 shift (\code{uniform}) and/or a slope change (\code{nonuniform}). Needs
-\code{n_groups >= 2}. Feeds \code{\link{dif_anova}} / \code{\link{dif_size}}.}
+\code{n_groups >= 2}.}
 
-\item{careless}{Proportion of persons who answer at random (person misfit;
-feeds person infit/outfit).}
+\item{careless}{Proportion of persons who answer at random.}
 
 \item{response_style}{\code{NULL}, or \code{list(type=, prop=, strength=)}
 with \code{type} \code{"extreme"} or \code{"middle"}: a proportion
 \code{prop} of persons favour the end (or middle) categories regardless
 of the trait, with distortion \code{strength} (default 1.6) on the
-log-probability scale (polytomous; feeds the category diagnostics and
-person fit).}
+log-probability scale (polytomous).}
 
-\item{speeded}{Proportion not-reached at the last item: a growing tail of
-missing responses over the final items, as under time pressure (feeds the
-item statistics and the missingness pattern).}
+\item{speeded}{Proportion not reached at the last item: a growing tail of
+missing responses over the final items.}
 
 \item{disordered}{\code{NULL} or item names/indices given disordered
 thresholds (polytomous; feeds the threshold diagnostics).}
@@ -103,11 +97,10 @@ A data frame of class \code{"rasch_sim"} (item columns
   and the planted departures.
 }
 \description{
-Generates dichotomous or polytomous (partial credit / rating scale) data
-from the Rasch model, with optional, individually controllable departures
-from it -- each of which the package's matching diagnostic is built to
-detect. The result is a data frame ready for \code{\link{rasch}}, with the
-true parameters attached as \code{attr(x, "truth")}.
+Generates dichotomous, partial credit, or rating scale data. Optional
+arguments introduce item misfit, guessing, multidimensionality, local
+dependence, DIF, response styles, or missingness. Generating values are
+stored in \code{attr(x, "truth")}.
 }
 \examples{
 # a clean scale with one over-discriminating item and one DIF item

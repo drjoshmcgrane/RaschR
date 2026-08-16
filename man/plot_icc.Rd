@@ -4,12 +4,20 @@
 \alias{plot_icc}
 \title{Plot an item characteristic curve}
 \usage{
-plot_icc(fit, item, group = NULL, n_groups = NULL, grid = seq(-5, 5, 0.05))
+plot_icc(
+  fit,
+  item,
+  group = NULL,
+  n_groups = NULL,
+  grid = seq(-5, 5, 0.05),
+  observed = TRUE
+)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
-\item{item}{Item name or column index.}
+\item{item}{One or more item names or column indices. Up to eight items may
+be overlaid. A group overlay requires a single item.}
 
 \item{group}{Optional person grouping vector, or one or more names of
 factors nominated in the fit, for a DIF overlay; several names give
@@ -21,14 +29,18 @@ count adapted to keep the smallest group's interval cells adequately
 filled.}
 
 \item{grid}{Logit grid over which to draw the model curve.}
+
+\item{observed}{Whether to add observed class-interval means.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
 Draws the model expected-score curve with observed class-interval means
-overlaid. With \code{group} supplied, observed means are drawn separately
-per group, the conventional graphical DIF display.
+overlaid. Several items may be drawn together; their expected scores are
+then expressed as proportions of their maximum scores. With \code{group}
+supplied, observed means are drawn separately per group, the conventional
+graphical DIF display.
 }
 \examples{
 set.seed(1)

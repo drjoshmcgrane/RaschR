@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulate.R
 \name{sim_apply}
 \alias{sim_apply}
-\title{Apply a statistic across a simulation batch, resiliently}
+\title{Apply a statistic across a simulation batch}
 \usage{
 sim_apply(batch, FUN, ...)
 }

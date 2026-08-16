@@ -39,12 +39,8 @@ default \code{"BH"}.}
 factor-by-factor terms); \code{"factorial"} also crosses the factors
 with each other. Immaterial with a single factor.}
 
-\item{sizes}{Also compute DIF magnitudes in logits (\code{\link{dif_size}})
-for every significant, non-superseded group term: the item is resolved
-by the term's levels (interaction terms by their cells) and all
-pairwise location differences are returned with Holm familywise
-adjustment and the practical-significance flag. Each size involves a
-re-analysis, so this costs one refit per flagged item-term.}
+\item{sizes}{If \code{TRUE}, refit each flagged item-term and calculate
+pairwise DIF differences in logits using \code{\link{dif_size}}.}
 
 \item{id}{Person identifier for stacked or repeated-measures data. It may
 be a column name stored in the fit or a vector with one value per row;
@@ -60,78 +56,50 @@ item-by-facet virtual cell; \code{FALSE} tests the virtual items.
 Ignored for other fits.}
 }
 \value{
-A list with \code{summary}, the compact reading of the analysis
-  (one row per item and group term with the uniform F, adjusted p, and
-  partial eta-squared -- the term itself -- and the non-uniform ones --
-  the term crossed with class interval -- plus \code{uniform_DIF},
-  \code{nonuniform_DIF} and \code{superseded} flags); \code{terms},
-  the complete per-item analysis of
-  variance table (term, df, sum of squares, mean square, F, partial
-  eta-squared, raw and adjusted p, significance, supersession, including
-  the residual row);
-  and \code{tukey} (per item, term, and level comparison: difference,
-  95 per cent interval, and Tukey-adjusted p), plus the \code{alpha} and
-  adjustment used. Tukey comparisons are reported for significant,
-  non-superseded group terms except two-level main effects, where the
-  F test is already the only comparison. With \code{sizes = TRUE},
-  \code{sizes} holds the logit DIF magnitudes per item, term, and level
-  pair (two-level main effects included, since the single difference is
-  exactly the DIF size).
+A list with:
+\describe{
+  \item{\code{summary}}{One row per item and group term, containing the
+  uniform and non-uniform tests, partial eta-squared, adjusted
+  probabilities, DIF flags, and supersession flag.}
+  \item{\code{terms}}{The complete item-wise analysis-of-variance tables.}
+  \item{\code{tukey}}{Tukey comparisons for significant,
+  non-superseded terms with more than two levels.}
+  \item{\code{sizes}}{When requested, pairwise logit differences for the
+  significant, non-superseded item-terms.}
+  \item{\code{posthoc}}{When \code{sizes = TRUE}, marginal pairwise
+  differences for main effects and difference-in-differences magnitudes
+  for interactions, calculated by \code{\link{dif_posthoc}}.}
+}
+The remaining components record the factors, class intervals, adjustment,
+significance level, and design settings.
 }
 \description{
-For each item the standardised residuals are analysed by the nominated
-person factor(s) crossed with the trait class interval. A term not
-involving the class interval is uniform DIF; a term crossing it is
-non-uniform DIF (Andrich and Marais 2019, ch. 16). With one factor this
-is a one-way analysis, \code{z ~ g * ci}. With several factors they are
-modelled jointly -- the statistically correct treatment, rather than one
-factor at a time -- with main effects by default
-(\code{z ~ (f1 + f2 + ...) * ci}); set \code{effects = "factorial"} to add
-the factor-by-factor interactions (\code{z ~ (f1 * f2 * ...) * ci}). When
-interactions are fitted, a significant one supersedes the lower-order
-terms built from its variables, recorded in the \code{superseded} column;
-interpret the highest-order significant terms.
+Tests uniform and non-uniform DIF by analysing each item's standardised
+residuals over person factors and trait class intervals (Andrich and Marais
+2019, ch. 16). Several person factors are fitted jointly. The function also
+supports designs containing both between-person and within-person factors.
 }
 \details{
-Probabilities are adjusted across items within each term
-(Benjamini-Hochberg by default). Tukey HSD comparisons are returned for
-each significant, non-superseded group term. Sums of squares are
-Type II (each term adjusted for every term not containing it, the
-class interval always among them), so results do not depend on the
-order factors are given.
+With one factor \eqn{G} and class interval \eqn{C}, the residual model is
+\deqn{z=\mu+G+C+G\mathbin{:}C+\varepsilon.}
+The factor term tests uniform DIF and its interaction with class interval
+tests non-uniform DIF. With several factors, \code{effects = "main"} fits
+\code{(f1 + f2 + ...) * ci}; \code{effects = "factorial"} also includes
+factor-by-factor interactions. Type II sums of squares are used, and
+probabilities are adjusted across items separately within each term.
 
+When identifiers repeat, the person is the unit of analysis. Between-person
+terms use person means and the between-person error stratum. Within-person
+terms use orthonormal contrasts of person-by-cell means. A
+Greenhouse--Geisser correction is applied to within-person factors with
+more than two levels. Persons missing a required cell are excluded from the
+corresponding within-person test. In incomplete mixed designs, within-cell
+effects are removed before the between-person analysis.
 
-Whenever person identifiers repeat, persons rather than rows are the units
-of analysis. Residuals are first averaged within each person-by-within-cell,
-and the class interval is defined at the person level. Between-person terms
-use Type II sums of squares. In a mixed or incomplete panel, each within
-cell is centred within class interval before its values are averaged for the
-between-person analysis. This removes common within-cell effects, including
-effects that vary over the trait, which could otherwise appear as uniform
-or non-uniform DIF when within-cell coverage differs between groups.
-
-Within-person terms are evaluated from orthonormal contrasts of the
-person-by-cell means. The degrees-of-freedom correction of Greenhouse and
-Geisser is applied for factors with more than two levels; persons without every
-required within cell are excluded from that within-person test. Factors
-that vary within person must be declared through \code{within}, or are
-detected automatically when identifiers repeat.
-
-The joint multi-factor and mixed-design analysis is an extension of the
-conventional single-factor residual analysis of variance of Andrich and
-Marais (2019). It preserves the
-same uniform (factor) and non-uniform (factor-by-class-interval) questions,
-but uses the appropriate between-person and within-person error strata.
-Its F references remain approximate diagnostic tests; substantively
-important designs should be checked by simulation at the observed cell
-sizes and missingness pattern.
-
-For an EFRM fit, factors used to define the frame structure are excluded.
-Each frame has its own virtual items, so a frame-defining factor has only
-one observed level for any such item and is not a separate DIF contrast.
-Other person factors may still be tested. For an MFRM fit, residuals are
-pooled to underlying items by default; use \code{pool_facets = FALSE} to
-inspect the virtual item-by-facet cells instead.
+A significant higher-order factor term supersedes its component terms in
+the summary. For EFRM fits, frame-defining factors are excluded because
+they define the model rather than a separate DIF contrast. MFRM residuals
+are pooled to underlying items unless \code{pool_facets = FALSE}.
 }
 \examples{
 set.seed(1); n <- 800
@@ -175,4 +143,8 @@ Health and Quality of Life Outcomes, 15, 181.
 
 Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
 Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.
+}
+\seealso{
+\code{\link{dif_size}}, \code{\link{dif_contrasts}}, and
+  \code{\link{resolve_dif}}.
 }

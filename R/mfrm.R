@@ -59,16 +59,10 @@
 
 #' Fit a many-facet Rasch model
 #'
-#' Estimates the many-facet Rasch model (Linacre 1989) for long-format data
-#' in which each row is one scored response carrying a person, an item, a
-#' score, and one or more facet levels (for example the rater). Every
-#' item-by-facet combination becomes a virtual item whose thresholds are the
-#' item's thresholds shifted by the facet severities, and the whole structure
-#' is estimated in one pass of the pairwise conditional likelihood, in which
-#' the person parameter cancels. Facet severities are reported with standard
-#' errors and pooled fit statistics; the returned object is also a full
-#' \code{\link{rasch}} fit at the virtual-item level, so every diagnostic
-#' table and plot in the package applies to it.
+#' Fits an additive many-facet Rasch model (Linacre 1989) to scored responses
+#' indexed by person, item, and one or more facets such as rater, task, or
+#' occasion. Facet severities, item thresholds, person locations, and fit
+#' statistics are reported on a common logit scale.
 #'
 #' @details
 #' For person \eqn{n}, item \eqn{i}, and facet levels
@@ -82,28 +76,20 @@
 #' to zero. If \code{interaction} is requested, an item-by-level term is
 #' added with both its item and facet margins constrained to sum to zero.
 #'
-#' Estimation constructs one virtual item for every observed item-by-facet
-#' combination. Its thresholds equal the corresponding item thresholds plus
-#' the relevant facet severities and, where requested, the interaction term.
-#' This structural mapping is imposed directly in pairwise conditional maximum
-#' likelihood; person parameters cancel before estimation. The reported item,
-#' facet, and interaction parameters are recovered from the fitted structural
-#' coefficients. Their covariance is the Godambe sandwich covariance from the
-#' pairwise likelihood, transformed through the same structural mapping.
+#' Estimation represents each observed item-by-facet combination as a virtual
+#' item and imposes the additive structure in the pairwise conditional
+#' likelihood. The person parameter cancels before calibration. The covariance
+#' of the structural parameters is the transformed Godambe sandwich covariance.
 #'
-#' Identification requires more than the presence of every nominal level.
-#' Facet levels must share items and persons with the rest of the design, and
-#' informative co-observations must connect the virtual-item blocks. A facet
-#' nested within an item or within a person-disjoint block can be confounded
-#' with item location even when every level has observations. The function
-#' checks the rank of the structural design and whether disconnected response
-#' blocks admit an unidentified relative shift, and stops rather than report
-#' an arbitrary decomposition.
+#' Facet levels must be connected through common persons and items. A facet
+#' nested within an item or a person-disjoint block can be confounded with the
+#' item location. The function checks the structural rank and response graph
+#' before fitting the model.
 #'
-#' Item-by-facet interaction does not introduce unequal discriminations, but
-#' it makes comparisons among levels of the interacting facet item-dependent.
-#' A material interaction therefore qualifies the practical claim of
-#' invariance and should be reported as such.
+#' An item-by-facet interaction retains equal discrimination but allows facet
+#' differences to vary by item. The omnibus Wald test in
+#' \code{interaction_test} is the primary test; cell tests are Holm-adjusted
+#' follow-ups.
 #'
 #' @param data Long-format data frame.
 #' @param person Name of the person identifier column.
@@ -125,49 +111,26 @@
 #'   long form (\code{item} + \code{score}) remains available for data
 #'   where the facet varies within items.
 #' @param interaction Optional name of one facet to interact with the items
-#'   (interactive facet mode). Adds item-by-facet terms
-#'   \code{gamma[item, level]} with double sum-to-zero constraints on top of
-#'   the additive severities, so each level may be more or less severe on
-#'   particular items; estimates are returned in \code{interaction_effects}.
-#'   The joint family is tested in \code{interaction_test}; cell p-values in
-#'   \code{interaction_effects} are Holm-adjusted exploratory follow-ups.
-#'   The interactive model remains in the Rasch class (all discriminations
-#'   equal one and the parameters are additive), but a significant
-#'   interaction qualifies specific objectivity in practice: comparisons of
-#'   the interacting facet's levels become item-dependent, which is itself
-#'   the substantive finding.
+#'   (interactive facet mode). See Details.
 #' @param factors Optional person factors for DIF analysis: a character
-#'   vector naming columns of \code{data} that are constant within person,
-#'   or a data frame with one row per data row or per unique person. They
-#'   are carried into the fit so \code{\link{dif_anova}} works on an MFRM
-#'   fit directly. Facets are not person factors: facet DIF is an
-#'   item-by-facet interaction (\code{interaction=}).
+#'   vector naming columns constant within person, or a data frame with one
+#'   row per data row or unique person. Facets belong in \code{facets}, not
+#'   here.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
-#' @return An object of classes \code{"rasch_mfrm"} and \code{"rasch"}. In
-#'   addition to the standard \code{\link{rasch}} components (computed
-#'   over the virtual items), it carries \code{facet_effects} (per facet: level,
-#'   severity, standard error, observation count, pooled fit),
-#'   \code{item_effects} (underlying item locations and pooled fit),
-#'   \code{item_thresholds} (the structural \code{delta_ik} with standard
-#'   errors), and \code{facet_spec}. Interactive fits add the omnibus
-#'   family test in \code{interaction_test}, with the Holm-adjusted
-#'   exploratory cells in \code{interaction_effects}. Two fit residuals are reported per
-#'   facet level and per underlying item. \code{fit_resid} is the
-#'   facet-margin statistic of the published three-facet fit tables
-#'   (Andrich and Marais 2019, ch. 26 and app. C), the mean of the
-#'   constituent virtual items'
-#'   fit residuals; it weighs each virtual item equally, so an erratic level
-#'   shows the average of its per-item misfit. \code{fit_resid_pooled} is
-#'   the log-of-mean-square statistic summed over the margin's
-#'   observed cells of non-extreme persons, with its degrees of freedom in
-#'   \code{df_fit}; it weighs each response equally and is the more
-#'   powerful statistic when misfit is spread evenly over the level's
-#'   cells.
+#' @return An object of classes \code{"rasch_mfrm"} and \code{"rasch"}.
+#'   Model-specific components are \code{facet_effects}, \code{item_effects},
+#'   \code{item_thresholds}, and \code{facet_spec}. Interactive fits also
+#'   contain \code{interaction_test} and \code{interaction_effects}.
+#'   \code{fit_resid} averages virtual-item residuals within a margin;
+#'   \code{fit_resid_pooled} is the response-weighted pooled statistic, with
+#'   degrees of freedom in \code{df_fit}.
 #' @references
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.
 #'
 #' Linacre, J. M. (1989). Many-Facet Rasch Measurement. Chicago: MESA Press.
+#' @seealso \code{\link{rasch}}, \code{\link{rasch_efrm}},
+#'   \code{\link{dif_anova}}, and \code{\link{simulate_mfrm}}.
 #' @examples
 #' set.seed(1)
 #' simP <- function(th, tau) {

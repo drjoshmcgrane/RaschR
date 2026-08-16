@@ -20,6 +20,7 @@ test_that("targeting plots render for dichotomous and polytomous fits", {
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_pimap(f))
   expect_no_error(plot_pimap(fp, bins = 15, xlim = c(-2, 2)))
+  expect_no_error(plot_pimap(f, information = TRUE))
   expect_no_error(plot_wright(f))
   expect_no_error(plot_wright(fp, bins = 20, xlim = c(-3, 3)))
   # a scale range excluding some persons and thresholds still renders
@@ -27,6 +28,10 @@ test_that("targeting plots render for dichotomous and polytomous fits", {
   expect_no_error(plot_pimap(f, xlim = c(-1, 1)))
   # class-interval and grid-range controls on the expected value curve
   expect_no_error(plot_icc(fp, "P03", n_groups = 8, grid = seq(-3, 3, 0.05)))
+  # multi-item overlays use a common proportional score scale and may omit
+  # the observed class-interval points
+  expect_no_error(plot_icc(fp, c("P01", "P03", "P05"), observed = TRUE))
+  expect_no_error(plot_icc(fp, c(1, 2), observed = FALSE))
 })
 
 test_that("the kidmap and batch savers work, and Q3 pairs are complete", {
@@ -37,6 +42,7 @@ test_that("the kidmap and batch savers work, and Q3 pairs are complete", {
   f <- rasch(X)
 
   pdf(NULL); on.exit(dev.off())
+  expect_error(plot_icc(f, f$items$item[1:9]), "At most eight")
   expect_no_error(plot_kidmap(f, person = 1))
   expect_no_error(plot_kidmap(f, person = 2, level = 0.9, xlim = c(-3, 3)))
   expect_error(plot_kidmap(f, person = "no-such-id"), "not found")
@@ -73,6 +79,8 @@ test_that("the DIF overlay accepts one or several nominated factor names", {
   expect_no_error(plot_icc(f, "I2", group = c("group", "sex")))
   # a raw person vector still works
   expect_no_error(plot_icc(f, "I2", group = s))
+  expect_error(plot_icc(f, c("I1", "I2"), group = s),
+               "single item")
 })
 
 test_that("residual components beyond the first can be inspected and tested", {
