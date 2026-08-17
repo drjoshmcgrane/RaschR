@@ -30,7 +30,14 @@ component.}
 carries a caution. Andrich and Marais (2019) recommend subtests of
 roughly 15 score points for stable subtest estimates; shorter subsets
 (the norm for ordinary dichotomous tests) still receive a verdict, with
-a \code{caution} field noting the reduced stability.}
+a \code{caution} field noting the reduced stability. A quiet verdict
+under caution is inconclusive, not clean: with a four-item subtest the
+test lacks power where nonparametric alternatives still flag. The
+procedure is deliberately conservative -- in cross-package comparison
+it held an exact null (no false flags) while flagging a balanced
+planted second dimension in about two-thirds of replicates where the
+DETECT index flagged all; quasi-exact matrix-sampling tests showed
+elevated null rates on the same data.}
 }
 \value{
 A list with the proportion of significant tests, its exact

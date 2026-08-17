@@ -190,6 +190,27 @@ granularity deliberately).
   32 items (~1/sqrt(I)), while the raw construction returns NaN at 4–6
   items and still sits at −0.02 to −0.04 at 16–32 — it never converges
   in the tested range.
+- `results/cross-package-diagnostics.csv` — the diagnostics checked
+  against independent implementations, at the level each comparison
+  supports. Formula parity: alpha vs `psych::alpha` to 4e-15. Value
+  level: infit/outfit vs `eRm::itemfit` r 0.97/0.99 once the mean-square
+  convention is aligned (our E[z^2] divisor sits 8-10% above eRm's /n),
+  with 25/25 same-direction flags on a planted over-discriminating item;
+  PSI vs `eRm::SepRel` to 0.004 under matched conventions; q3/q3_star vs
+  TAM Q3/aQ3 r 0.92 native, 0.97 at shared person estimates (top-1
+  localisation of a planted dependent pair is weak for both: 2/25 vs
+  8/25 — the flag rule, not top rank, is the operative criterion).
+  Rank level: person fit vs PerFit lzstar/U3 |Spearman| 0.97-0.98, 87%
+  worst-decile overlap, equal planted-careless detection (0.76 vs 0.77).
+  Decision level: uniform DIF detection 84/88/80% (rasch/Waldtest/MH,
+  BH-aligned) with comparable false-positive rates; dimensionality —
+  ours holds an exact null (0 false flags) with 67% power at a balanced
+  planted second dimension where DETECT flags 100% (also with clean
+  nulls) and the quasi-exact Tmd/T11 tests pair full power with 13-20%
+  null false-flag rates. Citation rows name the diagnostics with no
+  external parallel (dependence_magnitude, spread_test, the tailored
+  bootstrap, the comparative judgement family, equate_tests), which
+  remain simulation-validated only.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
