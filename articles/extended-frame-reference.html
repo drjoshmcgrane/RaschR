@@ -92,7 +92,8 @@ frame of reference (Rasch 1961). The extended frame of reference model
 (Humphry 2005; Humphry and Andrich 2008) makes the frame explicit: it
 allows the unit to differ across linked item-set by person-group frames.
 Within each frame, the partial credit model holds in that frame’s
-natural unit.</p>
+natural unit; dichotomous items are its one-threshold special case, and
+the example below uses them.</p>
 <p>For item <span class="math inline">\(i\)</span> in set <span class="math inline">\(s\)</span> and person <span class="math inline">\(n\)</span> in group <span class="math inline">\(g\)</span>,</p>
 <p><span class="math display">\[
 P(X_{ni}=x)=
@@ -116,9 +117,10 @@ fits poorly.</p>
 <span>                   set_unit_ratio <span class="op">=</span> <span class="fl">1.30</span>, group_unit_ratio <span class="op">=</span> <span class="fl">1.10</span>,</span>
 <span>                   seed <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span></code></pre></div>
-<p><code>simulate_efrm(n_categories = 4)</code> generates partial credit
-items within frames instead; polytomous sets carry more linking
-information per item.</p>
+<p>The simulator defaults to dichotomous items;
+<code>simulate_efrm(n_categories = 4)</code> generates partial credit
+items within frames instead, which carry more linking information per
+item.</p>
 </div>
 <div class="section level2">
 <h2 id="fit-and-inspect-the-links">Fit and inspect the links<a class="anchor" aria-label="anchor" href="#fit-and-inspect-the-links"></a>
@@ -166,6 +168,14 @@ information per item.</p>
 positive and are most naturally compared as ratios. The linking tables
 and notes should be read before interpreting common-unit item or person
 estimates.</p>
+<p>The recovered ratios in this example sit above the planted 1.30 and
+1.10. With 300 persons and eight items per set the sampling standard
+deviation of a log unit ratio is about 0.08 – roughly eight per cent on
+the ratio scale – so a single draw of this size routinely lands this far
+from its generating value, and the reported standard errors say as much.
+Judge a recovered unit against its standard error, never against the
+planted value alone, and use repeated draws (<code>sim_replicate</code>)
+when the question is whether the estimator itself is on target.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">phi_table</span></span>
 <span><span class="co">#&gt;   group    phi se_log_phi</span></span>
@@ -278,6 +288,19 @@ on each person resample.</p>
 The omnibus Wald tests in <code>efrm_vs_rasch$unit_omnibus</code> test
 the unit families; individual unit contrasts are Holm-adjusted
 follow-ups.</p>
+</div>
+<div class="section level2">
+<h2 id="worked-analyses-on-real-data">Worked analyses on real data<a class="anchor" aria-label="anchor" href="#worked-analyses-on-real-data"></a>
+</h2>
+<p>Two case studies apply the frame of reference models to real datasets
+and ship with the package:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># wording effects as item-set units in a self-esteem scale</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"wording_units_selfesteem.R"</span>,</span>
+<span>                      package <span class="op">=</span> <span class="st">"rasch"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># panel and bloc frames in paired comparisons between political parties</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"party_blocs_crisis.R"</span>,</span>
+<span>                      package <span class="op">=</span> <span class="st">"rasch"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

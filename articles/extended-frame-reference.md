@@ -12,7 +12,8 @@ of reference (Rasch 1961). The extended frame of reference model
 (Humphry 2005; Humphry and Andrich 2008) makes the frame explicit: it
 allows the unit to differ across linked item-set by person-group frames.
 Within each frame, the partial credit model holds in that frame’s
-natural unit.
+natural unit; dichotomous items are its one-threshold special case, and
+the example below uses them.
 
 For item \\i\\ in set \\s\\ and person \\n\\ in group \\g\\,
 
@@ -40,8 +41,9 @@ d <- simulate_efrm(n_per_group = 300, items_per_set = 8,
 truth <- attr(d, "truth")
 ```
 
+The simulator defaults to dichotomous items;
 `simulate_efrm(n_categories = 4)` generates partial credit items within
-frames instead; polytomous sets carry more linking information per item.
+frames instead, which carry more linking information per item.
 
 ## Fit and inspect the links
 
@@ -90,6 +92,15 @@ units, and `set_table` reports the linked set locations. Units are
 positive and are most naturally compared as ratios. The linking tables
 and notes should be read before interpreting common-unit item or person
 estimates.
+
+The recovered ratios in this example sit above the planted 1.30 and
+1.10. With 300 persons and eight items per set the sampling standard
+deviation of a log unit ratio is about 0.08 – roughly eight per cent on
+the ratio scale – so a single draw of this size routinely lands this far
+from its generating value, and the reported standard errors say as much.
+Judge a recovered unit against its standard error, never against the
+planted value alone, and use repeated draws (`sim_replicate`) when the
+question is whether the estimator itself is on target.
 
 ``` r
 
@@ -209,6 +220,21 @@ fit$efrm_vs_rasch
 The raw equal-unit composite-likelihood difference is descriptive. The
 omnibus Wald tests in `efrm_vs_rasch$unit_omnibus` test the unit
 families; individual unit contrasts are Holm-adjusted follow-ups.
+
+## Worked analyses on real data
+
+Two case studies apply the frame of reference models to real datasets
+and ship with the package:
+
+``` r
+
+# wording effects as item-set units in a self-esteem scale
+file.edit(system.file("casestudies", "wording_units_selfesteem.R",
+                      package = "rasch"))
+# panel and bloc frames in paired comparisons between political parties
+file.edit(system.file("casestudies", "party_blocs_crisis.R",
+                      package = "rasch"))
+```
 
 ## References
 

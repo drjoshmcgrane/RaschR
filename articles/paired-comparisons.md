@@ -198,6 +198,18 @@ above does not propagate stage-one uncertainty into the set-linking
 parameters. Omnibus tests cover the unit families; individual contrasts
 are Holm-adjusted follow-ups.
 
+## A worked analysis on real data
+
+The `party_blocs_crisis.R` case study fits the comparative judgement
+frame model to real paired comparisons between political parties, with
+judge panels and ideological blocs as frames:
+
+``` r
+
+file.edit(system.file("casestudies", "party_blocs_crisis.R",
+                      package = "rasch"))
+```
+
 ## References
 
 Andrich, D. (1978). Relationships between the Thurstone and Rasch
