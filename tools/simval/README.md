@@ -226,6 +226,14 @@ granularity deliberately).
   consequence in the rasch_efrm help: calibrated to at least five
   thousand linking persons; beyond that, accuracy is bounded by the
   design, not the sample.
+- `studies/alpha-bootstrap-pointest.R` — the answer to "could a bootstrap
+  make the unit estimate better?": no. Bagging and bootstrap bias
+  correction both fail to beat the shipped point estimate on RMSE (0.090
+  and 0.092 against 0.0895 over 20 datasets x 30 resamples), bias
+  correction being worse on bias as well because it removes the
+  small-sample Jensen term that partly offsets the fixed-design floor.
+  Resampling redistributes information already present; the constraint is
+  the linking channel's width, so set length is the lever.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
