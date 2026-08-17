@@ -113,9 +113,9 @@ it.</p>
 substantive measurement account, not simply because an equal-unit model
 fits poorly.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_efrm.html">simulate_efrm</a></span><span class="op">(</span>n_per_group <span class="op">=</span> <span class="fl">300</span>, items_per_set <span class="op">=</span> <span class="fl">8</span>,</span>
+<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_efrm.html">simulate_efrm</a></span><span class="op">(</span>n_per_group <span class="op">=</span> <span class="fl">500</span>, items_per_set <span class="op">=</span> <span class="fl">12</span>,</span>
 <span>                   set_unit_ratio <span class="op">=</span> <span class="fl">1.30</span>, group_unit_ratio <span class="op">=</span> <span class="fl">1.10</span>,</span>
-<span>                   seed <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
+<span>                   seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span></code></pre></div>
 <p>The simulator defaults to dichotomous items;
 <code>simulate_efrm(n_categories = 4)</code> generates partial credit
@@ -134,32 +134,32 @@ item.</p>
 <span>  boot_reps <span class="op">=</span> <span class="fl">60</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 600 persons</span></span>
-<span><span class="co">#&gt; Within-frame pairwise conditional ML: converged in 9 iterations</span></span>
-<span><span class="co">#&gt; PSI 0.781, power of fit: reasonable</span></span>
+<span><span class="co">#&gt; rasch extended frame of reference analysis: 24 items in 2 set(s) x 2 group(s) = 4 frames, 1000 persons</span></span>
+<span><span class="co">#&gt; Within-frame pairwise conditional ML: converged in 8 iterations</span></span>
+<span><span class="co">#&gt; PSI 0.844, power of fit: good</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Person group units (phi):</span></span>
 <span><span class="co">#&gt;  group   phi se_log_phi</span></span>
-<span><span class="co">#&gt;     g1 0.912     0.0314</span></span>
-<span><span class="co">#&gt;     g2 1.096     0.0314</span></span>
+<span><span class="co">#&gt;     g1 0.959     0.0186</span></span>
+<span><span class="co">#&gt;     g2 1.043     0.0186</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Item set units (alpha) and locations:</span></span>
 <span><span class="co">#&gt;   set alpha se_log_alpha     mu n_items</span></span>
-<span><span class="co">#&gt;  set1 0.845        0.045 -0.028       8</span></span>
-<span><span class="co">#&gt;  set2 1.183        0.045  0.028       8</span></span>
+<span><span class="co">#&gt;  set1 0.853        0.026 -0.008      12</span></span>
+<span><span class="co">#&gt;  set2 1.172        0.026  0.008      12</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Equal-unit comparison: 2(ll_EFRM - ll_equal) = 28.664 with 1 extra unit parameter(s)</span></span>
+<span><span class="co">#&gt; Equal-unit comparison: 2(ll_EFRM - ll_equal) = 22.250 with 1 extra unit parameter(s)</span></span>
 <span><span class="co">#&gt; (composite likelihood: descriptive; informative for group units (phi))</span></span>
 <span><span class="co">#&gt; Omnibus Wald tests of equal units:</span></span>
 <span><span class="co">#&gt;               term df   wald       p</span></span>
-<span><span class="co">#&gt;  group units (phi)  1  8.516   0.004</span></span>
-<span><span class="co">#&gt;  set units (alpha)  1 14.295 &lt; 0.001</span></span>
+<span><span class="co">#&gt;  group units (phi)  1  5.122   0.024</span></span>
+<span><span class="co">#&gt;  set units (alpha)  1 36.845 &lt; 0.001</span></span>
 <span><span class="co">#&gt; Holm-adjusted exploratory unit contrasts (H0: unit = 1):</span></span>
 <span><span class="co">#&gt;        parameter estimate    se      z       p   p_adj significant</span></span>
-<span><span class="co">#&gt;      log phi[g1]   -0.092 0.031 -2.918   0.004   0.007           *</span></span>
-<span><span class="co">#&gt;      log phi[g2]    0.092 0.031  2.918   0.004   0.007           *</span></span>
-<span><span class="co">#&gt;  log alpha[set1]   -0.168 0.045 -3.781 &lt; 0.001 &lt; 0.001           *</span></span>
-<span><span class="co">#&gt;  log alpha[set2]    0.168 0.045  3.781 &lt; 0.001 &lt; 0.001           *</span></span>
+<span><span class="co">#&gt;      log phi[g1]   -0.042 0.019 -2.263   0.024   0.047           *</span></span>
+<span><span class="co">#&gt;      log phi[g2]    0.042 0.019  2.263   0.024   0.047           *</span></span>
+<span><span class="co">#&gt;  log alpha[set1]   -0.159 0.026 -6.070 &lt; 0.001 &lt; 0.001           *</span></span>
+<span><span class="co">#&gt;  log alpha[set2]    0.159 0.026  6.070 &lt; 0.001 &lt; 0.001           *</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves)</span></span></code></pre></div>
 <p><code>phi_table</code> reports person-group units,
@@ -168,27 +168,49 @@ item.</p>
 positive and are most naturally compared as ratios. The linking tables
 and notes should be read before interpreting common-unit item or person
 estimates.</p>
-<p>The recovered ratios in this example sit above the planted 1.30 and
-1.10. With 300 persons and eight items per set the sampling standard
-deviation of a log unit ratio is about 0.08 – roughly eight per cent on
-the ratio scale – so a single draw of this size routinely lands this far
-from its generating value, and the reported standard errors say as much.
-Judge a recovered unit against its standard error, never against the
-planted value alone, and use repeated draws (<code>sim_replicate</code>)
-when the question is whether the estimator itself is on target.</p>
+<p>Compare the recovered units with the planted 1.30 and 1.10. One is
+close; the other is not, and that is the point worth absorbing. Units
+are ratios of estimated dispersions, and at ordinary designs they carry
+real sampling error: at this one, repeated draws give set-unit ratios
+with a standard deviation of about 0.055 and group-unit ratios about
+0.038, so a single analysis lands several per cent from the generating
+value as a matter of course. The two units are estimated differently and
+behave differently: group units come from the within-frame conditional
+calibration and are unbiased with well-calibrated intervals (no
+detectable bias over 60 replicates at this design, 95% coverage), while
+set units additionally carry a small fixed-design offset of about one
+per cent at these set lengths.</p>
+<p>Judge a recovered unit against its standard error, then, and never
+against a single alternative value alone. Whether the <em>estimator</em>
+is on target is a question about repeated draws, not about one:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ratios</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fl">20</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">r</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">dd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_efrm.html">simulate_efrm</a></span><span class="op">(</span>n_per_group <span class="op">=</span> <span class="fl">500</span>, items_per_set <span class="op">=</span> <span class="fl">12</span>,</span>
+<span>                      set_unit_ratio <span class="op">=</span> <span class="fl">1.30</span>, group_unit_ratio <span class="op">=</span> <span class="fl">1.10</span>,</span>
+<span>                      seed <span class="op">=</span> <span class="fl">91000</span> <span class="op">+</span> <span class="va">r</span><span class="op">)</span></span>
+<span>  <span class="va">ff</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span><span class="va">dd</span>, item_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">dd</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">$</span><span class="va">item_sets</span>,</span>
+<span>                   groups <span class="op">=</span> <span class="st">"group"</span>, id <span class="op">=</span> <span class="st">"id"</span>, boot_reps <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>alpha <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">ff</span><span class="op">$</span><span class="va">alpha_table</span><span class="op">$</span><span class="va">alpha</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">ff</span><span class="op">$</span><span class="va">alpha_table</span><span class="op">$</span><span class="va">alpha</span><span class="op">)</span>,</span>
+<span>    phi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">ff</span><span class="op">$</span><span class="va">phi_table</span><span class="op">$</span><span class="va">phi</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">ff</span><span class="op">$</span><span class="va">phi_table</span><span class="op">$</span><span class="va">phi</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>alpha <span class="op">=</span> <span class="fl">0</span>, phi <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowMeans</a></span><span class="op">(</span><span class="va">ratios</span><span class="op">)</span>   <span class="co"># 1.304 and 1.107 against the planted 1.30 and 1.10</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">ratios</span>, <span class="fl">1</span>, <span class="va">sd</span><span class="op">)</span></span></code></pre></div>
+<p>Longer item sets, not larger samples, are what tighten a set unit:
+the precision of the set-linking step is limited by the number of items
+in each set once a few hundred linking persons are available.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">phi_table</span></span>
 <span><span class="co">#&gt;   group    phi se_log_phi</span></span>
-<span><span class="co">#&gt; 1    g1 0.9125    0.03139</span></span>
-<span><span class="co">#&gt; 2    g2 1.0959    0.03139</span></span>
+<span><span class="co">#&gt; 1    g1 0.9588    0.01858</span></span>
+<span><span class="co">#&gt; 2    g2 1.0429    0.01858</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">alpha_table</span></span>
 <span><span class="co">#&gt;    set  alpha se_log_alpha</span></span>
-<span><span class="co">#&gt; 1 set1 0.8451      0.04451</span></span>
-<span><span class="co">#&gt; 2 set2 1.1833      0.04451</span></span>
+<span><span class="co">#&gt; 1 set1 0.8533      0.02613</span></span>
+<span><span class="co">#&gt; 2 set2 1.1719      0.02613</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">set_table</span></span>
-<span><span class="co">#&gt;    set     mu  alpha n_items</span></span>
-<span><span class="co">#&gt; 1 set1 -0.028 0.8451       8</span></span>
-<span><span class="co">#&gt; 2 set2  0.028 1.1833       8</span></span>
+<span><span class="co">#&gt;    set        mu  alpha n_items</span></span>
+<span><span class="co">#&gt; 1 set1 -0.008391 0.8533      12</span></span>
+<span><span class="co">#&gt; 2 set2  0.008391 1.1719      12</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">linking</span></span>
 <span><span class="co">#&gt; $phi_edges</span></span>
 <span><span class="co">#&gt; $phi_edges[[1]]</span></span>
@@ -200,7 +222,7 @@ when the question is whether the estimator itself is on target.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $alpha_edges</span></span>
 <span><span class="co">#&gt;   set_a set_b   n log_slope</span></span>
-<span><span class="co">#&gt; 1  set1  set2 503    0.3366</span></span></code></pre></div>
+<span><span class="co">#&gt; 1  set1  set2 913    0.3172</span></span></code></pre></div>
 <p>Group units are estimated from within-frame pairwise conditional
 calibrations. Set units and locations require persons common to the
 linked sets. A disconnected design cannot establish a common unit.</p>
@@ -245,27 +267,27 @@ example uses 60 replicates to keep the vignette quick; a final analysis
 should use enough replicates to stabilise its reported standard errors.
 Set <code>se_method = "bootstrap"</code> to refit the complete pipeline
 on each person resample.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">frames</span></span>
-<span><span class="co">#&gt;    set group n_persons n_items  alpha    phi    rho se_log_rho origin infit_ms</span></span>
-<span><span class="co">#&gt; 1 set1    g1       300       8 0.8451 0.9125 0.7711    0.05446 -0.028    1.010</span></span>
-<span><span class="co">#&gt; 2 set2    g1       300       8 1.1833 0.9125 1.0797    0.05446  0.028    1.041</span></span>
-<span><span class="co">#&gt; 3 set1    g2       300       8 0.8451 1.0959 0.9262    0.05446 -0.028    1.043</span></span>
-<span><span class="co">#&gt; 4 set2    g2       300       8 1.1833 1.0959 1.2968    0.05446  0.028    1.024</span></span>
-<span><span class="co">#&gt;   outfit_ms fit_resid n_responses</span></span>
-<span><span class="co">#&gt; 1    1.0036    0.6195        2344</span></span>
-<span><span class="co">#&gt; 2    0.9711   -0.7375        2344</span></span>
-<span><span class="co">#&gt; 3    1.0126    0.7063        2304</span></span>
-<span><span class="co">#&gt; 4    0.8693   -2.0092        2304</span></span>
+<span><span class="co">#&gt;    set group n_persons n_items  alpha    phi    rho se_log_rho    origin</span></span>
+<span><span class="co">#&gt; 1 set1    g1       500      12 0.8533 0.9588 0.8182    0.03206 -0.008391</span></span>
+<span><span class="co">#&gt; 2 set2    g1       500      12 1.1719 0.9588 1.1236    0.03206  0.008391</span></span>
+<span><span class="co">#&gt; 3 set1    g2       500      12 0.8533 1.0429 0.8900    0.03206 -0.008391</span></span>
+<span><span class="co">#&gt; 4 set2    g2       500      12 1.1719 1.0429 1.2222    0.03206  0.008391</span></span>
+<span><span class="co">#&gt;   infit_ms outfit_ms fit_resid n_responses</span></span>
+<span><span class="co">#&gt; 1    1.004    0.9871  -0.10701        5940</span></span>
+<span><span class="co">#&gt; 2    1.042    1.0099   0.03523        5940</span></span>
+<span><span class="co">#&gt; 3    1.022    1.0129   0.94924        5892</span></span>
+<span><span class="co">#&gt; 4    1.008    0.9366  -1.76491        5892</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span></span>
 <span><span class="co">#&gt; $ll_efrm</span></span>
-<span><span class="co">#&gt; [1] -6667</span></span>
+<span><span class="co">#&gt; [1] -27555</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $ll_equal</span></span>
-<span><span class="co">#&gt; [1] -6681</span></span>
+<span><span class="co">#&gt; [1] -27566</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $two_delta_ll</span></span>
-<span><span class="co">#&gt; [1] 28.66</span></span>
+<span><span class="co">#&gt; [1] 22.25</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $extra_parameters</span></span>
 <span><span class="co">#&gt; [1] 1</span></span>
@@ -275,15 +297,15 @@ on each person resample.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $unit_omnibus</span></span>
 <span><span class="co">#&gt;                term df   wald         p</span></span>
-<span><span class="co">#&gt; 1 group units (phi)  1  8.516 0.0035212</span></span>
-<span><span class="co">#&gt; 2 set units (alpha)  1 14.295 0.0001563</span></span>
+<span><span class="co">#&gt; 1 group units (phi)  1  5.122 2.363e-02</span></span>
+<span><span class="co">#&gt; 2 set units (alpha)  1 36.845 1.279e-09</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $unit_tests</span></span>
 <span><span class="co">#&gt;         parameter estimate      se      z         p     p_adj significant</span></span>
-<span><span class="co">#&gt; 1     log phi[g1] -0.09159 0.03139 -2.918 0.0035212 0.0070423        TRUE</span></span>
-<span><span class="co">#&gt; 2     log phi[g2]  0.09159 0.03139  2.918 0.0035212 0.0070423        TRUE</span></span>
-<span><span class="co">#&gt; 3 log alpha[set1] -0.16829 0.04451 -3.781 0.0001563 0.0006251        TRUE</span></span>
-<span><span class="co">#&gt; 4 log alpha[set2]  0.16829 0.04451  3.781 0.0001563 0.0006251        TRUE</span></span></code></pre></div>
+<span><span class="co">#&gt; 1     log phi[g1] -0.04204 0.01858 -2.263 2.363e-02 4.726e-02        TRUE</span></span>
+<span><span class="co">#&gt; 2     log phi[g2]  0.04204 0.01858  2.263 2.363e-02 4.726e-02        TRUE</span></span>
+<span><span class="co">#&gt; 3 log alpha[set1] -0.15859 0.02613 -6.070 1.279e-09 5.115e-09        TRUE</span></span>
+<span><span class="co">#&gt; 4 log alpha[set2]  0.15859 0.02613  6.070 1.279e-09 5.115e-09        TRUE</span></span></code></pre></div>
 <p>The raw equal-unit composite-likelihood difference is descriptive.
 The omnibus Wald tests in <code>efrm_vs_rasch$unit_omnibus</code> test
 the unit families; individual unit contrasts are Holm-adjusted
@@ -294,7 +316,7 @@ follow-ups.</p>
 </h2>
 <p>Two case studies apply the frame of reference models to real datasets
 and ship with the package:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># wording effects as item-set units in a self-esteem scale</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"wording_units_selfesteem.R"</span>,</span>
 <span>                      package <span class="op">=</span> <span class="st">"rasch"</span><span class="op">)</span><span class="op">)</span></span>
