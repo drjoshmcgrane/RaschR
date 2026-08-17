@@ -212,18 +212,20 @@ granularity deliberately).
   bootstrap, the comparative judgement family, equate_tests), which
   remain simulation-validated only.
 - `results/alpha-n-sweep.csv` — the corrected set-unit estimator across
-  linking samples N = 250 to 10,000 at the shipped configuration, with
-  the 3,000–4,500 band at 100 replicates (coverage resolved to ±0.02):
-  reported SEs track the empirical SD at every size while both shrink
-  with the square root of N; the bias plateaus at the fixed-design floor
-  (~+0.003 in the log, a third of one per cent on the ratio) instead of
-  vanishing; coverage holds at 96–99% through N = 5,000 — the apparent
-  erosion in the initial 60-replicate cells (0.87–0.90 at N = 1,000 and
-  10,000) coincides with their chance-high SE ratios and is not
-  supported by the fine grid, leaving only a suggestive onset at
-  N = 10,000 where the offset approaches the sampling error. Operating
-  consequence in the rasch_efrm help: accuracy beyond that point is
-  bounded by the design, not the sample.
+  linking samples N = 250 to 10,000 at the shipped configuration,
+  uniform 100 replicates per cell (coverage resolved to ±0.02; the
+  original 60-replicate cells were topped up under their fixed seeds and
+  combined exactly): reported SEs track the empirical SD at every size
+  (ratios 0.91–1.06) while both shrink with the square root of N; the
+  bias sits flat in the +0.001 to +0.008 band with the large-N plateau
+  at ~+0.004 (0.4% on the ratio) instead of vanishing; coverage runs
+  92–99% through N = 5,000 with a mild slip to 91% at N = 10,000,
+  consistent with the offset-to-SE arithmetic (0.32 SE units predicts
+  ~94%). The apparent sharp erosion in the initial 60-replicate pass
+  (0.867 at N = 10,000) did not survive uniform replication. Operating
+  consequence in the rasch_efrm help: calibrated to at least five
+  thousand linking persons; beyond that, accuracy is bounded by the
+  design, not the sample.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

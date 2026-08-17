@@ -19,11 +19,12 @@ tick <- function(...) cat(sprintf("[%s] ", format(Sys.time(), "%H:%M")),
 
 lt <- log(1.4) / 2
 for (n in c(250, 500, 1000, 2500, 3000, 3500, 4000, 4500, 5000, 10000)) {
-  # the 3000-4500 cells resolve the coverage-erosion onset and run at
-  # higher replication (coverage MC error ~0.02); their seed base is
-  # disjoint from the original cells'
+  # all cells at 100 replicates (coverage MC error ~0.02); the original
+  # cells' seed formula is unchanged, so their first 60 draws reproduce
+  # the earlier run exactly and gain 40 more; the 3000-4500 cells keep
+  # their disjoint seed base
   fine <- n %in% c(3000, 3500, 4000, 4500)
-  R <- if (fine) 100L else 60L
+  R <- 100L
   la <- se <- rep(NA_real_, R); n_ref <- 0L
   for (r in seq_len(R)) {
     s <- simulate_efrm(n_per_group = n, items_per_set = 8, n_sets = 2,
