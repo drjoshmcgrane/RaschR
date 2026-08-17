@@ -27,12 +27,21 @@ interface have also been revised for this release.
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
+0 errors | 0 warnings | 2 notes
 
-The note states that the locally installed HTML Tidy is not recent enough
-to validate the HTML manual; it is specific to the local check environment
-and unrelated to the package. The PDF manual was built and checked
-successfully.
+The first note reports the BugReports URL,
+https://github.com/drjoshmcgrane/rasch/issues, as possibly invalid. The
+issue tracker is enabled and the repository is public: the GitHub API
+reports `has_issues: true` for it, and the repository root and
+documentation site both resolve normally. GitHub returns 404 to
+unauthenticated non-browser requests for the /issues and /pulls paths
+alike, and pull requests cannot be disabled on a public repository, so
+the status reflects that behaviour rather than a broken link.
+
+The second note states that the locally installed HTML Tidy is not recent
+enough to validate the HTML manual; it is specific to the local check
+environment and unrelated to the package. The PDF manual was built and
+checked successfully.
 
 The package was built from source with its six vignettes before checking.
 Simulation-intensive and bootstrap-calibration tests use `skip_on_cran()`;
