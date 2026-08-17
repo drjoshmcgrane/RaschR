@@ -212,15 +212,18 @@ granularity deliberately).
   bootstrap, the comparative judgement family, equate_tests), which
   remain simulation-validated only.
 - `results/alpha-n-sweep.csv` — the corrected set-unit estimator across
-  linking samples N = 250 to 10,000 at the shipped configuration (60
-  replicates per cell): reported SEs track the empirical SD at every
-  size (ratios 0.82–1.14, within replicate noise of 1) while both shrink
+  linking samples N = 250 to 10,000 at the shipped configuration, with
+  the 3,000–4,500 band at 100 replicates (coverage resolved to ±0.02):
+  reported SEs track the empirical SD at every size while both shrink
   with the square root of N; the bias plateaus at the fixed-design floor
-  (+0.002 to +0.011) instead of vanishing, and coverage begins to erode
-  in the largest cells (0.87–0.90) as the floor meets the shrinking SE.
-  Operating consequence, now in the rasch_efrm help: beyond a few
-  thousand linking persons at eight items per set, accuracy is bounded
-  by the design, not the sample.
+  (~+0.003 in the log, a third of one per cent on the ratio) instead of
+  vanishing; coverage holds at 96–99% through N = 5,000 — the apparent
+  erosion in the initial 60-replicate cells (0.87–0.90 at N = 1,000 and
+  10,000) coincides with their chance-high SE ratios and is not
+  supported by the fine grid, leaving only a suggestive onset at
+  N = 10,000 where the offset approaches the sampling error. Operating
+  consequence in the rasch_efrm help: accuracy beyond that point is
+  bounded by the design, not the sample.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

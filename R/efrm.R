@@ -545,12 +545,13 @@
 #' coverage over 5--15 items per set, unit ratios 1--2, partial credit
 #' items, booklet missingness, pairwise-only person overlap, and person
 #' skewness to 2.8 -- where it stays unbiased while a normal-population
-#' MML anchor drifts. At linking samples beyond a few thousand persons
-#' the estimator's small fixed-design offset (under one per cent on the
-#' unit ratio at eight dichotomous items per set, decaying roughly with
-#' the square root of the set length) becomes the dominant error and
-#' intervals gradually undercover; longer or polytomous sets, not more
-#' persons, are the remedy there. With \code{se_method = "bootstrap"}, the complete
+#' MML anchor drifts. The estimator's fixed-design offset is small --
+#' about a third of one per cent on the unit ratio at eight dichotomous
+#' items per set, decaying with set length -- and intervals remain
+#' calibrated to at least five thousand linking persons at fine Monte
+#' Carlo resolution; only near ten thousand does the offset approach the
+#' sampling error, and there longer or polytomous sets, not more
+#' persons, buy further accuracy. With \code{se_method = "bootstrap"}, the complete
 #' model is refitted to each person resample and all reported covariance comes
 #' from the bootstrap distribution.
 #'
