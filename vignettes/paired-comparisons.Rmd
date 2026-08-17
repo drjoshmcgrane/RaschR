@@ -62,7 +62,8 @@ btl_information(fit)
 
 ## Check transitivity and residual structure
 
-Circular triads identify local contradictions in the observed ordering.
+Circular triads (Kendall and Babington Smith 1940) identify local
+contradictions in the observed ordering.
 Residual dimensionality asks whether comparisons contain a structured second
 attribute after the primary scale is fitted.
 
@@ -153,6 +154,9 @@ Rasch model. *Journal of Applied Measurement*, 9(3), 249--264.
 
 Kendall, M. G., and Babington Smith, B. (1940). On the method of paired
 comparisons. *Biometrika*, 31(3/4), 324--345.
+
+Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
+*Journal of Mathematical Psychology*, 30(3), 306--316.
 
 Luce, R. D. (1959). *Individual Choice Behavior: A Theoretical Analysis*.
 Wiley.
