@@ -151,10 +151,6 @@ should guide interpretation.
 
 ## References
 
-Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
-Theory: Measuring in the Educational, Social and Health Sciences*.
-Springer.
-
 Linacre, J. M. (1989). *Many-Facet Rasch Measurement*. Chicago: MESA
 Press.
 

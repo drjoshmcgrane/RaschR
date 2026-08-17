@@ -35,7 +35,7 @@ credit model is
 The rating scale model constrains \\\delta\_{ik}=\beta_i+\tau_k\\.
 Pairwise conditioning removes \\\theta_n\\ from the item likelihood.
 Person locations are subsequently estimated by Warm’s weighted
-likelihood method.
+likelihood method (Warm 1989).
 
 The example uses simulated data so that the complete workflow is
 reproducible. With observed data, inspect the coding and frequency of
@@ -376,10 +376,6 @@ Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
 Theory: Measuring in the Educational, Social and Health Sciences*.
 Springer.
 
-Andrich, D., and Luo, G. (2003). Conditional pairwise estimation in the
-Rasch model for ordered response categories using principal components.
-*Journal of Applied Measurement*, 4(3), 205–221.
-
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
 
@@ -390,11 +386,6 @@ Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
 Attainment Tests*. Copenhagen: Danish Institute for Educational
 Research. (Expanded edition, 1980, Chicago: University of Chicago
 Press.)
-
-Rasch, G. (1961). On general laws and the meaning of measurement in
-psychology. In *Proceedings of the Fourth Berkeley Symposium on
-Mathematical Statistics and Probability* (Vol. 4, pp. 321–333).
-Berkeley: University of California Press.
 
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 *Journal of Mathematical Psychology*, 30(3), 306–316.

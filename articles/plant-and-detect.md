@@ -11,8 +11,9 @@ Simulation is useful when the sampling behaviour of an estimate or
 diagnostic depends on the test design. The package includes simulators
 for the ordinary Rasch models (Rasch 1960; Andrich and Marais 2019),
 many-facet models, extended frames of reference (Humphry 2005; Humphry
-and Andrich 2008), and comparative judgement of paired comparisons. They
-can generate model-conforming data or introduce a specified departure.
+and Andrich 2008), and comparative judgement of paired comparisons
+(Andrich 1978; Tutz 1986). They can generate model-conforming data or
+introduce a specified departure.
 
 Each simulator stores the generating values in `attr(x, "truth")`.
 
@@ -314,10 +315,6 @@ Theory*. Springer.
 Christensen, K. B., Makransky, G., and Horton, M. (2017). Critical
 values for Yen’s Q3. *Applied Psychological Measurement*, 41, 178–194.
 
-Morris, T. P., White, I. R., and Crowther, M. J. (2019). Using
-simulation studies to evaluate statistical methods. *Statistics in
-Medicine*, 38, 2074–2102.
-
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
 
@@ -330,9 +327,6 @@ edition, University of Chicago Press, 1980.
 
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 *Journal of Mathematical Psychology*, 30(3), 306–316.
-
-Warm, T. A. (1989). Weighted likelihood estimation of ability in item
-response theory. *Psychometrika*, 54, 427–450.
 
 Yen, W. M. (1984). Effects of local item dependence on the fit and
 equating performance of the three-parameter logistic model. *Applied

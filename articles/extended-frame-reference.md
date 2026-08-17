@@ -192,20 +192,11 @@ families; individual unit contrasts are Holm-adjusted follow-ups.
 
 ## References
 
-Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
-Theory: Measuring in the Educational, Social and Health Sciences*.
-Springer.
-
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
 
 Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
 Rasch model. *Journal of Applied Measurement*, 9(3), 249–264.
-
-Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
-Attainment Tests*. Copenhagen: Danish Institute for Educational
-Research. (Expanded edition, 1980, Chicago: University of Chicago
-Press.)
 
 Rasch, G. (1961). On general laws and the meaning of measurement in
 psychology. In *Proceedings of the Fourth Berkeley Symposium on

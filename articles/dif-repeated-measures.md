@@ -188,25 +188,9 @@ account of why the item is not invariant.
 
 ## References
 
-Andrich, D., and Hagquist, C. (2012). Real and artificial differential
-item functioning. *Journal of Educational and Behavioral Statistics*,
-37(3), 387–416.
-
-Andrich, D., and Hagquist, C. (2015). Real and artificial differential
-item functioning in polytomous items. *Educational and Psychological
-Measurement*, 75(2), 185–207.
-
 Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
 Theory: Measuring in the Educational, Social and Health Sciences*.
 Springer.
-
-Hagquist, C., and Andrich, D. (2017). Recent advances in analysis of
-differential item functioning in health research using the Rasch model.
-*Health and Quality of Life Outcomes*, 15, 181.
-
-Maxwell, S. E., and Delaney, H. D. (2004). *Designing Experiments and
-Analyzing Data: A Model Comparison Perspective* (2nd ed.). Lawrence
-Erlbaum.
 
 Rasch, G. (1961). On general laws and the meaning of measurement in
 psychology. In *Proceedings of the Fourth Berkeley Symposium on
