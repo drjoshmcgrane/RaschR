@@ -218,7 +218,10 @@ granularity deliberately).
   combined exactly): reported SEs track the empirical SD at every size
   (ratios 0.91–1.06) while both shrink with the square root of N; the
   bias sits flat in the +0.001 to +0.008 band with the large-N plateau
-  at ~+0.004 (0.4% on the ratio) instead of vanishing; coverage runs
+  at ~+0.004 in log alpha[set2] -- which is +0.008 on the log RATIO, so
+  about 0.8% on the ratio scale; the per-set log is half the log ratio,
+  an easy factor-of-two trap when quoting these figures -- instead of
+  vanishing; coverage runs
   92–99% through N = 5,000 with a mild slip to 91% at N = 10,000,
   consistent with the offset-to-SE arithmetic (0.32 SE units predicts
   ~94%). The apparent sharp erosion in the initial 60-replicate pass

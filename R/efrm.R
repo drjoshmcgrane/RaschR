@@ -546,12 +546,15 @@
 #' items, booklet missingness, pairwise-only person overlap, and person
 #' skewness to 2.8 -- where it stays unbiased while a normal-population
 #' MML anchor drifts. The estimator's fixed-design offset is small --
-#' about a third of one per cent on the unit ratio at eight dichotomous
-#' items per set, decaying with set length -- and intervals remain
-#' calibrated to at least five thousand linking persons at fine Monte
-#' Carlo resolution; only near ten thousand does the offset approach the
-#' sampling error, and there longer or polytomous sets, not more
-#' persons, buy further accuracy. With \code{se_method = "bootstrap"}, the complete
+#' around one per cent on the unit ratio at eight dichotomous items per
+#' set, decaying with set length -- and intervals remain calibrated to at
+#' least five thousand linking persons at fine Monte Carlo resolution;
+#' only near ten thousand does the offset approach the sampling error,
+#' and there longer or polytomous sets, not more persons, buy further
+#' accuracy. The person-group units are unaffected: estimated in the
+#' within-frame conditional stage rather than through the linking
+#' variance ratio, they show no detectable bias (0.000 over 60 replicates
+#' at twelve items per set) with 95\% interval coverage. With \code{se_method = "bootstrap"}, the complete
 #' model is refitted to each person resample and all reported covariance comes
 #' from the bootstrap distribution.
 #'
