@@ -47,9 +47,9 @@ substantive measurement account, not simply because an equal-unit model fits
 poorly.
 
 ```{r simulate}
-d <- simulate_efrm(n_per_group = 300, items_per_set = 8,
+d <- simulate_efrm(n_per_group = 500, items_per_set = 12,
                    set_unit_ratio = 1.30, group_unit_ratio = 1.10,
-                   seed = 12)
+                   seed = 2026)
 truth <- attr(d, "truth")
 ```
 
@@ -75,14 +75,35 @@ and `set_table` reports the linked set locations. Units are positive and are
 most naturally compared as ratios. The linking tables and notes should be read
 before interpreting common-unit item or person estimates.
 
-The recovered ratios in this example sit above the planted 1.30 and 1.10.
-With 300 persons and eight items per set the sampling standard deviation of
-a log unit ratio is about 0.08 -- roughly eight per cent on the ratio scale
--- so a single draw of this size routinely lands this far from its
-generating value, and the reported standard errors say as much. Judge a
-recovered unit against its standard error, never against the planted value
-alone, and use repeated draws (`sim_replicate`) when the question is whether
-the estimator itself is on target.
+Compare the recovered units with the planted 1.30 and 1.10. One is close;
+the other is not, and that is the point worth absorbing. Units are ratios of
+estimated dispersions, and at ordinary designs they carry real sampling
+error: at this one, repeated draws give set-unit ratios with a standard
+deviation of about 0.075 and group-unit ratios about 0.045, so a single
+analysis lands several per cent from the generating value as a matter of
+course.
+
+Judge a recovered unit against its standard error, then, and never against
+a single alternative value alone. Whether the *estimator* is on target is a
+question about repeated draws, not about one:
+
+```{r recovery-check, eval = FALSE}
+ratios <- vapply(seq_len(20), function(r) {
+  dd <- simulate_efrm(n_per_group = 500, items_per_set = 12,
+                      set_unit_ratio = 1.30, group_unit_ratio = 1.10,
+                      seed = 91000 + r)
+  ff <- rasch_efrm(dd, item_sets = attr(dd, "truth")$item_sets,
+                   groups = "group", id = "id", boot_reps = 0)
+  c(alpha = max(ff$alpha_table$alpha) / min(ff$alpha_table$alpha),
+    phi = max(ff$phi_table$phi) / min(ff$phi_table$phi))
+}, c(alpha = 0, phi = 0))
+rowMeans(ratios)   # 1.304 and 1.107 against the planted 1.30 and 1.10
+apply(ratios, 1, sd)
+```
+
+Longer item sets, not larger samples, are what tighten a set unit: the
+precision of the set-linking step is limited by the number of items in each
+set once a few hundred linking persons are available.
 
 ```{r tables}
 fit$phi_table
