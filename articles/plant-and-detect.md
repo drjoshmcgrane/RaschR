@@ -298,6 +298,7 @@ provenance in the result tables:
 | Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM, lme4 | identical-likelihood comparators at solver precision; estimator variants within 0.02-0.15 logits; unit estimators tracked against external anchors |
 | Cross-package diagnostics | eRm, TAM, psych, difR, PerFit, sirt | alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98; DIF detection 84-88% all methods; dimensionality conservative (exact null, 67% power) vs DETECT (100%) |
 | EFRM unit linking (corrected) | 5-15 items/set; ratios 1-2; skew 0.5-2.8; booklet and pairwise-overlap designs | bias within ±0.015 throughout; null size 2.7-4.8%; coverage 93-99%; stays unbiased under skew where a normal-population anchor drifts |
+| EFRM unit linking across sample size | 250 to 10,000 linking persons, 8 items/set (100 replicates per cell) | reported SEs track the empirical SD throughout (ratios 0.91-1.06); bias plateaus at ~0.4% on the ratio; coverage 92-99% to 5,000 persons |
 
 ## References
 

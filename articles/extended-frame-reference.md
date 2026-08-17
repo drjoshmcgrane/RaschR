@@ -40,6 +40,9 @@ d <- simulate_efrm(n_per_group = 300, items_per_set = 8,
 truth <- attr(d, "truth")
 ```
 
+`simulate_efrm(n_categories = 4)` generates partial credit items within
+frames instead; polytomous sets carry more linking information per item.
+
 ## Fit and inspect the links
 
 ``` r
@@ -125,24 +128,41 @@ true-score variance-ratio argument in Humphry (2005), with the
 true-score variance recovered by a truncated-score-moment correction:
 the mean and variance of the score-to-measure map over the non-extreme
 scores are exact model functions of the person location, and their
-expectations are estimated through score weights that are unbiased for
-any person distribution. On short tests this matters – the naive
-“observed variance minus mean squared standard error” construction
-under-recovers the true-score variance by more than half at eight
-dichotomous items per set and biased recovered unit ratios upward by
-about five per cent, a bias confirmed against an external anchor and
-removed by the correction. The estimator is distinct from the likelihood
-proposed in section 5.3 of that thesis. The crossed, multigroup, and
-polytomous forms are extensions implemented in this package.
+expectations are estimated through score weights whose validity does not
+depend on the person distribution. This matters at any realistic length:
+the classical “observed variance minus mean squared standard error”
+construction under-recovers the true-score variance by more than half at
+eight dichotomous items per set, and its errors do not fade with length
+– in simulation it biased recovered unit ratios by about +5 per cent at
+eight items and -2 to -4 per cent at sixteen to thirty-two, never
+converging in the tested range, and it fails entirely below seven items.
+The corrected estimator is unbiased at every tested set length, unit
+ratio (1 to 2), and person distribution (skewness to 2.8, where a
+normal-population marginal maximum likelihood anchor drifts), and agrees
+with independent external anchors. Its remaining fixed-design offset is
+small – about 0.4 per cent on the unit ratio at eight dichotomous items
+per set, decaying with set length – and intervals stay calibrated to at
+least five thousand linking persons; beyond that, accuracy is bounded by
+the set length, not the sample. Each linking person’s pattern must span
+a score range of at least four within a set (four dichotomous items; six
+or more are recommended), and because the correction computes score
+distributions from the fitted within-frame model, model violations
+within a set bias the recovered units roughly in proportion. The
+estimator is distinct from the likelihood proposed in section 5.3 of
+that thesis. The crossed, multigroup, and polytomous forms are
+extensions implemented in this package.
 
 ## Uncertainty and comparison with equal units
 
 The default hybrid standard errors combine the pairwise sandwich
 covariance, a person bootstrap for the set-linking stage, and
-delta-method propagation. The example uses 60 replicates to keep the
-vignette quick; a final analysis should use enough replicates to
-stabilise its reported standard errors. Set `se_method = "bootstrap"` to
-refit the complete pipeline on each person resample.
+delta-method propagation. Across linking samples from 250 to 10,000
+persons the reported standard errors track the empirical sampling
+variability as both shrink with the square root of the sample. The
+example uses 60 replicates to keep the vignette quick; a final analysis
+should use enough replicates to stabilise its reported standard errors.
+Set `se_method = "bootstrap"` to refit the complete pipeline on each
+person resample.
 
 ``` r
 

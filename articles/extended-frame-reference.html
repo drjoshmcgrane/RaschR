@@ -116,6 +116,9 @@ fits poorly.</p>
 <span>                   set_unit_ratio <span class="op">=</span> <span class="fl">1.30</span>, group_unit_ratio <span class="op">=</span> <span class="fl">1.10</span>,</span>
 <span>                   seed <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span></code></pre></div>
+<p><code>simulate_efrm(n_categories = 4)</code> generates partial credit
+items within frames instead; polytomous sets carry more linking
+information per item.</p>
 </div>
 <div class="section level2">
 <h2 id="fit-and-inspect-the-links">Fit and inspect the links<a class="anchor" aria-label="anchor" href="#fit-and-inspect-the-links"></a>
@@ -196,26 +199,42 @@ true-score variance-ratio argument in Humphry (2005), with the
 true-score variance recovered by a truncated-score-moment correction:
 the mean and variance of the score-to-measure map over the non-extreme
 scores are exact model functions of the person location, and their
-expectations are estimated through score weights that are unbiased for
-any person distribution. On short tests this matters – the naive
-“observed variance minus mean squared standard error” construction
-under-recovers the true-score variance by more than half at eight
-dichotomous items per set and biased recovered unit ratios upward by
-about five per cent, a bias confirmed against an external anchor and
-removed by the correction. The estimator is distinct from the likelihood
-proposed in section 5.3 of that thesis. The crossed, multigroup, and
-polytomous forms are extensions implemented in this package.</p>
+expectations are estimated through score weights whose validity does not
+depend on the person distribution. This matters at any realistic length:
+the classical “observed variance minus mean squared standard error”
+construction under-recovers the true-score variance by more than half at
+eight dichotomous items per set, and its errors do not fade with length
+– in simulation it biased recovered unit ratios by about +5 per cent at
+eight items and -2 to -4 per cent at sixteen to thirty-two, never
+converging in the tested range, and it fails entirely below seven items.
+The corrected estimator is unbiased at every tested set length, unit
+ratio (1 to 2), and person distribution (skewness to 2.8, where a
+normal-population marginal maximum likelihood anchor drifts), and agrees
+with independent external anchors. Its remaining fixed-design offset is
+small – about 0.4 per cent on the unit ratio at eight dichotomous items
+per set, decaying with set length – and intervals stay calibrated to at
+least five thousand linking persons; beyond that, accuracy is bounded by
+the set length, not the sample. Each linking person’s pattern must span
+a score range of at least four within a set (four dichotomous items; six
+or more are recommended), and because the correction computes score
+distributions from the fitted within-frame model, model violations
+within a set bias the recovered units roughly in proportion. The
+estimator is distinct from the likelihood proposed in section 5.3 of
+that thesis. The crossed, multigroup, and polytomous forms are
+extensions implemented in this package.</p>
 </div>
 <div class="section level2">
 <h2 id="uncertainty-and-comparison-with-equal-units">Uncertainty and comparison with equal units<a class="anchor" aria-label="anchor" href="#uncertainty-and-comparison-with-equal-units"></a>
 </h2>
 <p>The default hybrid standard errors combine the pairwise sandwich
 covariance, a person bootstrap for the set-linking stage, and
-delta-method propagation. The example uses 60 replicates to keep the
-vignette quick; a final analysis should use enough replicates to
-stabilise its reported standard errors. Set
-<code>se_method = "bootstrap"</code> to refit the complete pipeline on
-each person resample.</p>
+delta-method propagation. Across linking samples from 250 to 10,000
+persons the reported standard errors track the empirical sampling
+variability as both shrink with the square root of the sample. The
+example uses 60 replicates to keep the vignette quick; a final analysis
+should use enough replicates to stabilise its reported standard errors.
+Set <code>se_method = "bootstrap"</code> to refit the complete pipeline
+on each person resample.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">frames</span></span>
 <span><span class="co">#&gt;    set group n_persons n_items  alpha    phi    rho se_log_rho origin infit_ms</span></span>
