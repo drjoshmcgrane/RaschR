@@ -130,14 +130,14 @@ simulation.
 
 Andrich, D. (1978a). Relationships between the Thurstone and Rasch
 approaches to item scaling. *Applied Psychological Measurement*, 2(3),
-451--462.
+451–462.
 
 Andrich, D. (1978b). A rating formulation for ordered response categories.
-*Psychometrika*, 43(4), 561--573.
+*Psychometrika*, 43(4), 561–573.
 
 Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete block
 designs: I. The method of paired comparisons. *Biometrika*, 39(3/4),
-324--345.
+324–345.
 
 Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences*. Springer.
@@ -151,23 +151,23 @@ Luce, R. D. (1959). *Individual Choice Behavior: A Theoretical Analysis*.
 Wiley.
 
 Masters, G. N. (1982). A partial credit model for scoring responses with
-ordered categories. *Psychometrika*, 47(2), 149--174.
+ordered categories. *Psychometrika*, 47(2), 149–174.
 
 Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the Rasch
-model. *Journal of Applied Measurement*, 9(3), 249--264.
+model. *Journal of Applied Measurement*, 9(3), 249–264.
 
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
 Tests*. Danish Institute for Educational Research. Expanded edition,
 University of Chicago Press, 1980.
 
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response. *Journal
-of Mathematical Psychology*, 30(3), 306--316.
+of Mathematical Psychology*, 30(3), 306–316.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
-response theory. *Psychometrika*, 54(3), 427--450.
+response theory. *Psychometrika*, 54(3), 427–450.
 
 Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
-*Applied Psychological Measurement*, 19(4), 369--375.
+*Applied Psychological Measurement*, 19(4), 369–375.
 
 ## Citation
 
