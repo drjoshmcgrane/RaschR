@@ -114,6 +114,21 @@ test_that("unlinked structures produce informative errors", {
     "not linked")
 })
 
+test_that("sets too short for the unit correction refuse loudly", {
+  # 3 dichotomous items per set = 2 interior score categories: the
+  # moment correction degenerates there (-0.27 silent log-ratio bias in
+  # the limits study), so the link must refuse rather than estimate
+  set.seed(4); n <- 300
+  th <- rnorm(n, 0, 1.3)
+  X <- sapply(seq(-1, 1, length.out = 6), function(d)
+    rbinom(n, 1, plogis(th - d)))
+  colnames(X) <- sprintf("I%d", 1:6)
+  expect_error(
+    rasch_efrm(data.frame(X, g = "g1"), groups = "g",
+               item_sets = list(s1 = colnames(X)[1:3], s2 = colnames(X)[4:6])),
+    "score range of at least 4")
+})
+
 test_that("phi sandwich SEs track the sampling variability", {
   skip_on_cran()   # heavy simulation; verified locally and on CI
   set.seed(11); L <- 12; per_g <- 250

@@ -273,7 +273,12 @@
     if (length(cols) < 2L) next
     tl <- tau_list[cols]
     maxr <- sum(vapply(tl, length, 1L))
-    if (maxr < 2L) next
+    # a pattern needs a score range of at least 4 (>= 3 interior score
+    # categories) to support the moment correction: at 2 interior
+    # categories the map slope is degenerate and the estimator collapses
+    # to a confidently wrong value (-0.27 log-ratio bias, near-zero
+    # variance, in the limits study) rather than getting noisier
+    if (maxr < 4L) next
     W <- person_wle(tl, disc = disc)$theta[as.character(0:maxr)]
     Wi <- W[-c(1L, maxr + 1L)]
     if (any(!is.finite(Wi))) next
@@ -361,7 +366,11 @@
       off_n <- c(off_n, length(ok))
     }
     if (!length(edges)) {
-      if (hard) stop("no set pairs share enough persons to link the units")
+      if (hard) stop("no set pairs share enough persons with informative ",
+                     "score patterns to link the units: each person's ",
+                     "pattern needs a score range of at least 4 within a ",
+                     "set (at least four dichotomous items, or fewer ",
+                     "polytomous ones) for the set-unit correction")
       return(NULL)
     }
     comp <- .efrm_components(S, edges)
@@ -512,7 +521,17 @@
 #' biased the log unit ratio upward by about 0.05 at eight dichotomous
 #' items per set, confirmed against an external TAM 2PL slope-group
 #' anchor, while the corrected estimator is unbiased there. The linking
-#' graph must connect all sets to a common scale.
+#' graph must connect all sets to a common scale, and each linking
+#' person's response pattern must span a score range of at least 4 within
+#' a set (at least four dichotomous items; six or more are recommended)
+#' -- shorter patterns cannot support the correction and are refused.
+#' The correction computes score distributions from the fitted
+#' within-frame model, so it inherits violations of it: within-set
+#' discrimination heterogeneity or guessing bias the recovered units
+#' roughly in proportion, mistargeting by two logits adds a few per cent,
+#' and person distributions concentrated far off-target (such as widely
+#' separated modes) can bias the ratio substantially without warning --
+#' inspect targeting before trusting units from such designs.
 #'
 #' The default hybrid standard errors combine the pairwise Godambe covariance,
 #' a person bootstrap for set linking, and delta-method propagation. Each

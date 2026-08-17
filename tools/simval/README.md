@@ -174,6 +174,22 @@ granularity deliberately).
   person overlap (size 2.7%), booklet-style within-set missingness
   exercising the per-pattern correction moments (size 3.3%), and 15
   items per set (coverage 98%).
+- `results/alpha-correction-limits.csv` — deliberate stress tests mapping
+  where the corrected set-unit estimator breaks, and how. Loud failures
+  (informative refusals): sets whose patterns span a score range under 4
+  (three dichotomous items previously collapsed to a silent −0.27 with
+  near-zero variance — now guarded and refused). Silent-but-moderate:
+  mistargeting by 1.5–2.5 logits ≈ +0.04 (common offsets do not cancel),
+  ratio 3.5 ≈ +0.05, t3 tails ≈ +0.03; silent-and-large: widely
+  bimodal persons (modes ±2.2) ≈ +0.18 — flagged in the documentation.
+  Inherited model violations degrade in proportion (discrimination
+  jitter −0.017/−0.035 at sd 0.25/0.5; guessing −0.017); ability-
+  dependent missingness measured benign (+0.013) after fixing a crash it
+  exposed. Citation rows carry the fixed-design floor curve
+  (`alpha-floor-curve.R`, N=20,000): corrected +0.012 → +0.006 from 8 to
+  32 items (~1/sqrt(I)), while the raw construction returns NaN at 4–6
+  items and still sits at −0.02 to −0.04 at 16–32 — it never converges
+  in the tested range.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

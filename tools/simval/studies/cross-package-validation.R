@@ -329,8 +329,14 @@ ls_slope <- function(b1, b2) {
   c1 <- b1 - mean(b1); c2 <- b2 - mean(b2); sum(c1 * c2) / sum(c1 * c1)
 }
 
-## H: person side (1 set, 2 groups, phi ratio 1.3)
-ph <- matrix(NA_real_, R, 3, dimnames = list(NULL, c("efrm","slope","sdr")))
+## H: person side (1 set, 2 groups, phi ratio 1.3). Third anchor: TAM on
+## item-by-person-group VIRTUAL COLUMNS (group g's persons respond to
+## their group's block, NA elsewhere) with est.slopegroups indexed by the
+## person group -- the blocks link only through the fixed N(0,1)
+## population per group, so this anchor is normality-dependent but
+## properly integrated (quadrature), unlike glmer's Laplace SD route.
+ph <- matrix(NA_real_, R, 4,
+             dimnames = list(NULL, c("efrm","slope","sdr","tamv")))
 for (r in seq_len(R)) {
   d <- simulate_efrm(n_per_group = 400, items_per_set = 8, n_sets = 1,
                      n_groups = 2, set_unit_ratio = 1, group_unit_ratio = 1.3,
@@ -338,21 +344,35 @@ for (r in seq_len(R)) {
   tr <- attr(d, "truth"); its <- unlist(tr$item_sets)
   f1 <- fit_cell_glmer(cell_long(d, its, "g1"))
   f2 <- fit_cell_glmer(cell_long(d, its, "g2"))
+  X <- as.matrix(d[, its]); grp <- as.character(d$group)
+  V <- matrix(NA_integer_, nrow(X), 16,
+              dimnames = list(NULL, paste0(rep(its, 2), "_",
+                                           rep(c("g1","g2"), each = 8))))
+  V[grp == "g1", 1:8]  <- X[grp == "g1", ]
+  V[grp == "g2", 9:16] <- X[grp == "g2", ]
+  mt <- tryCatch(TAM::tam.mml.2pl(resp = V, irtmodel = "2PL.groups",
+                                  est.slopegroups = rep(1:2, each = 8),
+                                  control = list(progress = FALSE)),
+                 error = function(e) NULL)
   ef <- tryCatch(rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
                             id = "id", boot_reps = 30), error = function(e) NULL)
-  if (is.null(ef)) next
+  if (is.null(ef) || is.null(mt)) next
+  a <- mt$B[, 2, 1]
   ph[r, ] <- c(ef$phi_table$phi[2] / ef$phi_table$phi[1],
-               ls_slope(f1$coef, f2$coef), f2$sd / f1$sd)
+               ls_slope(f1$coef, f2$coef), f2$sd / f1$sd,
+               mean(a[9:16]) / mean(a[1:8]))
 }
 okH <- stats::complete.cases(ph)
-add("EFRM person-group unit phi (truth ratio 1.30) vs glmer anchors",
+add("EFRM person-group unit phi (truth ratio 1.30) vs glmer and TAM anchors",
     "log phi ratio bias", sum(okH),
     bias = mean(log(ph[okH,"efrm"])) - log(1.3),
     emp_sd = sd(log(ph[okH,"efrm"])),
-    notes = sprintf("glmer coefficient-slope anchor bias %+.4f (population-robust); ranef-SD-ratio anchor %+.4f (normality-dependent, upward at short tests)",
-      mean(log(ph[okH,"slope"])) - log(1.3), mean(log(ph[okH,"sdr"])) - log(1.3)))
-tick("H done: efrm %+.4f, slope anchor %+.4f",
-     mean(log(ph[okH,"efrm"])) - log(1.3), mean(log(ph[okH,"slope"])) - log(1.3))
+    notes = sprintf("glmer coefficient-slope anchor bias %+.4f (population-robust); glmer ranef-SD-ratio %+.4f (normality-dependent, upward at short tests); TAM virtual-column slope-group anchor %+.4f (normality-dependent, quadrature)",
+      mean(log(ph[okH,"slope"])) - log(1.3), mean(log(ph[okH,"sdr"])) - log(1.3),
+      mean(log(ph[okH,"tamv"])) - log(1.3)))
+tick("H done: efrm %+.4f, slope anchor %+.4f, TAM virtual %+.4f",
+     mean(log(ph[okH,"efrm"])) - log(1.3), mean(log(ph[okH,"slope"])) - log(1.3),
+     mean(log(ph[okH,"tamv"])) - log(1.3))
 
 ## I: crossed 2 sets x 2 groups (alpha 1.4, phi 1.3)
 cr <- matrix(NA_real_, R, 4,
