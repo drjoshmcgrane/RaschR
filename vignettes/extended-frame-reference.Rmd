@@ -23,7 +23,8 @@ Rasch's criterion of invariant comparison holds within a specified frame of
 reference (Rasch 1961). The extended frame of reference model (Humphry 2005;
 Humphry and Andrich 2008) makes the frame explicit: it allows the unit to
 differ across linked item-set by person-group frames. Within each frame, the
-partial credit model holds in that frame's natural unit.
+partial credit model holds in that frame's natural unit; dichotomous items
+are its one-threshold special case, and the example below uses them.
 
 For item $i$ in set $s$ and person $n$ in group $g$,
 
@@ -52,8 +53,9 @@ d <- simulate_efrm(n_per_group = 300, items_per_set = 8,
 truth <- attr(d, "truth")
 ```
 
+The simulator defaults to dichotomous items;
 `simulate_efrm(n_categories = 4)` generates partial credit items within
-frames instead; polytomous sets carry more linking information per item.
+frames instead, which carry more linking information per item.
 
 ## Fit and inspect the links
 

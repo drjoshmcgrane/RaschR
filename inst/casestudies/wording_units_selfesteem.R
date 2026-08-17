@@ -62,28 +62,48 @@ plot_icc(f1, "Q6:all")    # positive wording: steeper (larger unit)
 plot_icc(f1, "Q9:all")    # negative wording: flatter (smaller unit)
 par(op)
 
-# cross-check against free slopes, and sensitivity ---------------------------
-# A generalized partial credit model (the polytomous two-parameter model)
-# frees one slope per item; its geometric-mean slope ratio between the
-# wording sets (about 1.25 here) agrees closely with the single EFRM unit
-# ratio (1.266), so the frame structure captures the set-level
-# discrimination with one parameter instead of nine. The per-item slopes
-# also localise the anomalies: Q8 ("I wish I could have more respect for
+# sensitivity: which items carry the set-unit difference? ---------------------
+# The single set unit is an average over the items in a set, so a badly
+# behaved item moves it. Refit without the suspects rather than asserting
+# what would happen.
+unit_ratio <- function(drop = character()) {
+  it <- setdiff(items, drop)
+  f <- rasch_efrm(df[, c(it, "gender")], items = it,
+                  groups = rep("all", nrow(df)),
+                  item_sets = list(positive = setdiff(positive, drop),
+                                   negative = setdiff(negative, drop)))
+  c(ratio = unname(f$alpha_table$alpha[f$alpha_table$set == "positive"] /
+                   f$alpha_table$alpha[f$alpha_table$set == "negative"]),
+    p_adj = min(f$efrm_vs_rasch$unit_tests$p_adj))
+}
+print(round(rbind(all_items = unit_ratio(),
+                  drop_Q8 = unit_ratio("Q8"),
+                  drop_Q8_Q4 = unit_ratio(c("Q8", "Q4"))), 4))
+
+# cross-check against free slopes --------------------------------------------
+# A generalized partial credit model frees one slope per item. Its per-item
+# slopes localise the anomalies: Q8 ("I wish I could have more respect for
 # myself"), the scale's well-known ambivalent item, discriminates far below
-# the other negatives, and Q4 is the weakest positive. The unit ratio
-# remains significantly above one without them (1.115 dropping Q8; 1.196
-# also dropping Q4), so the wording effect is real but Q8 inflates it.
+# the other negatives, and Q4 is the weakest positive.
+#
+# Reading the two analyses together: with all ten items the wording sets
+# differ in unit by about 20 per cent, decisively so on the Wald test. Drop
+# Q8 alone and the difference vanishes (ratio near 1, nowhere near
+# significance); drop the
+# weakest positive as well and it returns at about 12 per cent. The
+# set-level wording effect in this sample is therefore carried mainly by
+# individual anomalous items rather than by wording as such -- a conclusion
+# the single-parameter frame model cannot reach on its own, which is why
+# the free-slope cross-check belongs here. The GPCM's geometric-mean slope
+# ratio between the sets also runs above the EFRM unit ratio, as it must
+# when the slopes within a set are as heterogeneous as Q8 and Q6 are: a
+# single set unit is only a faithful summary when the set is homogeneous.
 if (requireNamespace("mirt", quietly = TRUE)) {
   m <- mirt::mirt(as.data.frame(X[keep, ][sample(sum(keep), 6000), ]), 1,
                   itemtype = "gpcm", verbose = FALSE)
-  print(mirt::coef(m, simplify = TRUE)$items[, "a1", drop = FALSE])
-}
-for (drop in list("Q8", c("Q8", "Q4"))) {
-  p2 <- setdiff(positive, drop); n2 <- setdiff(negative, drop)
-  f <- rasch_efrm(df, items = c(p2, n2), groups = rep("all", nrow(df)),
-                  item_sets = list(positive = p2, negative = n2))
-  cat(sprintf("dropping %s: alpha ratio = %.3f\n",
-              paste(drop, collapse = "+"),
-              f$alpha_table$alpha[f$alpha_table$set == "positive"] /
-                f$alpha_table$alpha[f$alpha_table$set == "negative"]))
+  a1 <- mirt::coef(m, simplify = TRUE)$items[, "a1"]
+  print(round(a1, 3))
+  gm <- function(z) exp(mean(log(z)))
+  cat(sprintf("GPCM geometric-mean slope ratio positive/negative: %.3f\n",
+              gm(a1[positive]) / gm(a1[negative])))
 }
