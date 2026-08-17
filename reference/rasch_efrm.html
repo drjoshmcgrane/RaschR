@@ -169,7 +169,17 @@ errors covary negatively with the locations); its residual distortion
 biased the log unit ratio upward by about 0.05 at eight dichotomous
 items per set, confirmed against an external TAM 2PL slope-group
 anchor, while the corrected estimator is unbiased there. The linking
-graph must connect all sets to a common scale.</p>
+graph must connect all sets to a common scale, and each linking
+person's response pattern must span a score range of at least 4 within
+a set (at least four dichotomous items; six or more are recommended)
+– shorter patterns cannot support the correction and are refused.
+The correction computes score distributions from the fitted
+within-frame model, so it inherits violations of it: within-set
+discrimination heterogeneity or guessing bias the recovered units
+roughly in proportion, mistargeting by two logits adds a few per cent,
+and person distributions concentrated far off-target (such as widely
+separated modes) can bias the ratio substantially without warning –
+inspect targeting before trusting units from such designs.</p>
 <p>The default hybrid standard errors combine the pairwise Godambe covariance,
 a person bootstrap for set linking, and delta-method propagation. Each
 linking replicate also draws the within-frame parameters from their joint
