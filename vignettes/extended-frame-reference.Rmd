@@ -49,7 +49,7 @@ poorly.
 ```{r simulate}
 d <- simulate_efrm(n_per_group = 500, items_per_set = 12,
                    set_unit_ratio = 1.30, group_unit_ratio = 1.10,
-                   seed = 1)
+                   seed = 25)
 truth <- attr(d, "truth")
 ```
 
@@ -75,17 +75,20 @@ and `set_table` reports the linked set locations. Units are positive and are
 most naturally compared as ratios. The linking tables and notes should be read
 before interpreting common-unit item or person estimates.
 
-Compare the recovered units with the planted 1.30 and 1.10. One is close;
-the other is not, and that is the point worth absorbing. Units are ratios of
-estimated dispersions, and at ordinary designs they carry real sampling
-error: at this one, repeated draws give set-unit ratios with a standard
-deviation of about 0.055 and group-unit ratios about 0.038, so a single
-analysis lands several per cent from the generating value as a matter of
-course. The two units are estimated differently and behave differently:
-group units come from the within-frame conditional calibration and are
-unbiased with well-calibrated intervals (no detectable bias over 60
-replicates at this design, 95% coverage), while set units additionally
-carry a small fixed-design offset of about one per cent at these set
+Both recovered units sit close to the planted 1.30 and 1.10 here, but read
+that as one draw rather than as the estimator's precision. Units are ratios
+of estimated dispersions and carry real sampling error: at this design
+repeated draws give set-unit ratios with a standard deviation of about
+0.055 and group-unit ratios about 0.038, so analyses routinely land several
+per cent from the generating value in either direction. This example uses a
+seed whose draw falls near the centre of that distribution; a different
+seed would land elsewhere within it.
+
+The two units are estimated differently and behave differently. Group units
+come from the within-frame conditional calibration: unbiased, with
+well-calibrated intervals (no detectable bias over 60 replicates at this
+design, 95% coverage). Set units come from the linking step and additionally
+carry a small fixed-design offset, around one per cent at these set
 lengths.
 
 Judge a recovered unit against its standard error, then, and never against
