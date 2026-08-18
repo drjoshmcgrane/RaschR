@@ -13,6 +13,27 @@
 # null-coalescing helper (package-internal; base R gained %||% only in 4.4)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+# A seeded simulator call should be reproducible without commandeering the
+# caller's random number stream: capture the stream, seed, and restore on
+# exit, so simulate_*(seed = s) twice gives the same data while code after
+# the call draws exactly what it would have drawn anyway. Restoring an
+# absent stream means removing the one set.seed() created.
+.sim_seed_capture <- function() {
+  if (exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+    get(".Random.seed", envir = globalenv(), inherits = FALSE)
+  else NULL
+}
+
+.sim_seed_restore <- function(old) {
+  if (is.null(old)) {
+    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+      rm(".Random.seed", envir = globalenv())
+  } else {
+    assign(".Random.seed", old, envir = globalenv())
+  }
+  invisible(NULL)
+}
+
 .sim_count <- function(x, name, min = 1L) {
   if (length(x) != 1L || !is.finite(x) || x != floor(x) || x < min)
     stop(name, " must be one whole number >= ", min)
@@ -159,7 +180,11 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
                            dif = NULL, careless = 0, response_style = NULL,
                            speeded = 0, disordered = NULL,
                            n_groups = 1, missing = 0, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    .old_stream <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(.old_stream), add = TRUE)
+    set.seed(seed)
+  }
   model <- match.arg(model)
   N <- .sim_count(n_persons, "n_persons", 2L)
   I <- .sim_count(n_items, "n_items", 2L)
@@ -459,7 +484,11 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
                          n_categories = 4,
                          object_sd = 1, second_attribute = NULL,
                          erratic_judges = 0, dependence = NULL, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    .old_stream <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(.old_stream), add = TRUE)
+    set.seed(seed)
+  }
   model <- match.arg(model)
   # "graded" is an earlier development name for the polytomous comparison model,
   # kept as a working alias for released user code
@@ -593,7 +622,11 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
                           n_categories = 4, theta_sd = 1.2, item_sd = 1,
                           rater_severity_sd = 0.6, erratic_raters = 0,
                           interaction = NULL, halo = 0, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    .old_stream <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(.old_stream), add = TRUE)
+    set.seed(seed)
+  }
   N <- .sim_count(n_persons, "n_persons", 2L)
   I <- .sim_count(n_items, "n_items", 2L)
   R <- .sim_count(n_raters, "n_raters", 2L)
@@ -696,7 +729,11 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
                           n_groups = 2, set_unit_ratio = 1.3,
                           group_unit_ratio = 1, n_categories = 2,
                           theta_sd = 1.3, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    .old_stream <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(.old_stream), add = TRUE)
+    set.seed(seed)
+  }
   S <- .sim_count(n_sets, "n_sets")
   G <- .sim_count(n_groups, "n_groups")
   K <- .sim_count(items_per_set, "items_per_set", 2L)
@@ -1030,7 +1067,11 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
                               reps_within = 20, reps_cross = 20,
                               panel_units = NULL, set_units = NULL,
                               set_origins = NULL, object_sd = 1, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    .old_stream <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(.old_stream), add = TRUE)
+    set.seed(seed)
+  }
   S <- .sim_count(n_sets, "n_sets")
   G <- .sim_count(n_panels, "n_panels")
   Kp <- .sim_count(n_objects_per_set, "n_objects_per_set", 2L)

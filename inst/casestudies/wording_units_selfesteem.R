@@ -14,7 +14,7 @@
 # Run time: a few minutes (subsampled to 6,000 respondents).
 # ===========================================================================
 library(rasch)
-set.seed(2026)
+set.seed(25)
 
 src <- "http://openpsychometrics.org/_rawdata/RSE.zip"
 tmp <- tempfile(fileext = ".zip")
@@ -87,17 +87,21 @@ print(round(rbind(all_items = unit_ratio(),
 # the other negatives, and Q4 is the weakest positive.
 #
 # Reading the two analyses together: with all ten items the wording sets
-# differ in unit by about 20 per cent, decisively so on the Wald test. Drop
-# Q8 alone and the difference vanishes (ratio near 1, nowhere near
-# significance); drop the
-# weakest positive as well and it returns at about 12 per cent. The
-# set-level wording effect in this sample is therefore carried mainly by
-# individual anomalous items rather than by wording as such -- a conclusion
+# differ in unit by roughly a fifth, decisively so on the Wald test. Drop
+# Q8 alone and the difference vanishes -- the ratio falls to about one,
+# nowhere near significance -- while dropping the weakest positive as well
+# brings it back above ten per cent. That pattern holds across analysis
+# samples, so the set-level wording effect here is carried mainly by
+# individual anomalous items rather than by wording as such: a conclusion
 # the single-parameter frame model cannot reach on its own, which is why
-# the free-slope cross-check belongs here. The GPCM's geometric-mean slope
-# ratio between the sets also runs above the EFRM unit ratio, as it must
-# when the slopes within a set are as heterogeneous as Q8 and Q6 are: a
-# single set unit is only a faithful summary when the set is homogeneous.
+# the free-slope cross-check belongs here.
+#
+# The GPCM's geometric-mean slope ratio between the sets lands in the same
+# region as the EFRM unit ratio, which is the useful comparison: one
+# parameter per set reproduces what nine free slopes say about the sets on
+# average. It is an average, though -- with slopes as spread as Q8's and
+# Q6's, a single set unit summarises a heterogeneous set, and which of the
+# two ratios comes out larger varies from sample to sample.
 if (requireNamespace("mirt", quietly = TRUE)) {
   m <- mirt::mirt(as.data.frame(X[keep, ][sample(sum(keep), 6000), ]), 1,
                   itemtype = "gpcm", verbose = FALSE)

@@ -243,3 +243,17 @@ test_that("btl_dimensionality reference honours fitted dependence effects", {
   }, TRUE)
   expect_lte(sum(flags), 1L)   # was ~36% false-positive before the fix
 })
+
+test_that("a seeded simulator call leaves the caller's RNG stream alone", {
+  set.seed(99); before <- runif(3)
+  set.seed(99); invisible(simulate_rasch(60, 5, seed = 7)); after <- runif(3)
+  expect_equal(before, after)                     # stream not commandeered
+  expect_identical(simulate_rasch(60, 5, seed = 7)$I01,
+                   simulate_rasch(60, 5, seed = 7)$I01)   # still reproducible
+  # and an absent stream is left absent rather than seeded behind the caller
+  if (exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+    rm(".Random.seed", envir = globalenv())
+  invisible(simulate_btl(n_objects = 4, n_judges = 3, reps_per_pair = 2,
+                         seed = 3))
+  expect_false(exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+})

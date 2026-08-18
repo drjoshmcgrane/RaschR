@@ -70,7 +70,7 @@ print(bt6$objects[order(-bt6$objects$location), c("object", "location", "se")],
 blocs <- list(left = c("Linke", "Gruene", "SPD"), right = c("CDU/CSU", "FDP"))
 crisis_of <- setNames(d$crisis[!duplicated(d$judge)],
                       d$judge[!duplicated(d$judge)])
-set.seed(2009)
+set.seed(25)
 f <- btl_efrm(d, "object_a", "object_b", "winner", "judge",
               panels = crisis_of, object_sets = blocs, boot_reps = 80)
 print(f)
@@ -82,8 +82,12 @@ print(f$objects[order(-f$objects$v), c("object", "set", "v", "se_v")],
 # order (Gruene > SPD > CDU/CSU > FDP > Linke). Crisis-affected respondents
 # judge party contests with a smaller unit than the unaffected (phi 0.87
 # versus 1.15, a discernment ratio of 1.33) -- less decisively, not more --
-# but the difference does not reach significance by either standard error
-# (bootstrap z = 1.58; judge-clustered conditional z = 1.26; see below).
+# but the difference does not reach significance by either standard error.
+# The judge-clustered conditional z is 1.26 and does not move; the
+# bootstrap z depends on the resampling draw and runs around 1.1 to 1.6
+# across seeds at this many judges -- a reminder to read a bootstrap
+# standard error as itself estimated, and to raise the replicate count
+# when a decision would turn on it (see below).
 # The right bloc's origin is firmly below the left's on the common scale
 # (kappa = -0.35, z = -5.6): in this university-town sample the left bloc
 # is preferred wholesale, consistent with the equal-unit locations. The
@@ -121,7 +125,7 @@ for (pv in c("gender", "educ")) {
   pmap <- setNames(d[[pv]][!duplicated(d$judge)], d$judge[!duplicated(d$judge)])
   pmap <- pmap[!is.na(pmap)]
   ds <- d[d$judge %in% names(pmap), ]
-  set.seed(2009)
+  set.seed(25)
   fs <- btl_efrm(ds, "object_a", "object_b", "winner", "judge",
                  panels = pmap, object_sets = blocs, boot_reps = 80)
   cat(sprintf("%s: phi = %s; |z| = %.2f\n", pv,
