@@ -119,7 +119,7 @@ plot_icc(fit, "I05", group = "group")
 The [function
 reference](https://drjoshmcgrane.github.io/rasch/reference/index.html)
 documents the data requirements and returned values for each analysis.
-The [articles](https://drjoshmcgrane.github.io/rasch/articles/) give
+The [vignettes](https://drjoshmcgrane.github.io/rasch/articles/) give
 worked examples for the main model families, DIF with repeated measures,
 and simulation.
 

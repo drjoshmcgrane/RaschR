@@ -112,7 +112,7 @@ tr
 dimensions <- btl_dimensionality(fit, reps = 20)
 dimensions
 #> Paired-comparison residual dimensionality: 3 bimension(s)
-#> Leading bimension strength 2.409 (70% of residual; reference 95%: 2.792) -> within the conditional reference
+#> Leading bimension strength 2.409 (70% of residual; reference 95%: 2.843) -> within the conditional reference
 ```
 
 ``` r
