@@ -37,7 +37,7 @@ fits poorly.
 
 d <- simulate_efrm(n_per_group = 500, items_per_set = 12,
                    set_unit_ratio = 1.30, group_unit_ratio = 1.10,
-                   seed = 1)
+                   seed = 25)
 truth <- attr(d, "truth")
 ```
 
@@ -59,30 +59,30 @@ fit <- rasch_efrm(
 fit
 #> rasch extended frame of reference analysis: 24 items in 2 set(s) x 2 group(s) = 4 frames, 1000 persons
 #> Within-frame pairwise conditional ML: converged in 8 iterations
-#> PSI 0.844, power of fit: good
+#> PSI 0.845, power of fit: good
 #> 
 #> Person group units (phi):
 #>  group   phi se_log_phi
-#>     g1 0.959     0.0186
-#>     g2 1.043     0.0186
+#>     g1 0.953      0.019
+#>     g2 1.050      0.019
 #> 
 #> Item set units (alpha) and locations:
 #>   set alpha se_log_alpha     mu n_items
-#>  set1 0.853        0.026 -0.008      12
-#>  set2 1.172        0.026  0.008      12
+#>  set1 0.880        0.019  0.005      12
+#>  set2 1.137        0.019 -0.005      12
 #> 
-#> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 22.250 with 1 extra unit parameter(s)
+#> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 30.368 with 1 extra unit parameter(s)
 #> (composite likelihood: descriptive; informative for group units (phi))
 #> Omnibus Wald tests of equal units:
 #>               term df   wald       p
-#>  group units (phi)  1  5.122   0.024
-#>  set units (alpha)  1 36.845 < 0.001
+#>  group units (phi)  1  6.509   0.011
+#>  set units (alpha)  1 44.294 < 0.001
 #> Holm-adjusted exploratory unit contrasts (H0: unit = 1):
 #>        parameter estimate    se      z       p   p_adj significant
-#>      log phi[g1]   -0.042 0.019 -2.263   0.024   0.047           *
-#>      log phi[g2]    0.042 0.019  2.263   0.024   0.047           *
-#>  log alpha[set1]   -0.159 0.026 -6.070 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.159 0.026  6.070 < 0.001 < 0.001           *
+#>      log phi[g1]   -0.049 0.019 -2.551   0.011   0.021           *
+#>      log phi[g2]    0.049 0.019  2.551   0.011   0.021           *
+#>  log alpha[set1]   -0.128 0.019 -6.655 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.128 0.019  6.655 < 0.001 < 0.001           *
 #> 
 #> Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves)
 ```
@@ -93,18 +93,21 @@ positive and are most naturally compared as ratios. The linking tables
 and notes should be read before interpreting common-unit item or person
 estimates.
 
-Compare the recovered units with the planted 1.30 and 1.10. One is
-close; the other is not, and that is the point worth absorbing. Units
-are ratios of estimated dispersions, and at ordinary designs they carry
-real sampling error: at this one, repeated draws give set-unit ratios
-with a standard deviation of about 0.055 and group-unit ratios about
-0.038, so a single analysis lands several per cent from the generating
-value as a matter of course. The two units are estimated differently and
-behave differently: group units come from the within-frame conditional
-calibration and are unbiased with well-calibrated intervals (no
-detectable bias over 60 replicates at this design, 95% coverage), while
-set units additionally carry a small fixed-design offset of about one
-per cent at these set lengths.
+Both recovered units sit close to the planted 1.30 and 1.10 here, but
+read that as one draw rather than as the estimator’s precision. Units
+are ratios of estimated dispersions and carry real sampling error: at
+this design repeated draws give set-unit ratios with a standard
+deviation of about 0.055 and group-unit ratios about 0.038, so analyses
+routinely land several per cent from the generating value in either
+direction. This example uses a seed whose draw falls near the centre of
+that distribution; a different seed would land elsewhere within it.
+
+The two units are estimated differently and behave differently. Group
+units come from the within-frame conditional calibration: unbiased, with
+well-calibrated intervals (no detectable bias over 60 replicates at this
+design, 95% coverage). Set units come from the linking step and
+additionally carry a small fixed-design offset, around one per cent at
+these set lengths.
 
 Judge a recovered unit against its standard error, then, and never
 against a single alternative value alone. Whether the *estimator* is on
@@ -133,16 +136,16 @@ each set once a few hundred linking persons are available.
 
 fit$phi_table
 #>   group    phi se_log_phi
-#> 1    g1 0.9588    0.01858
-#> 2    g2 1.0429    0.01858
+#> 1    g1 0.9526    0.01903
+#> 2    g2 1.0498    0.01903
 fit$alpha_table
 #>    set  alpha se_log_alpha
-#> 1 set1 0.8533      0.02613
-#> 2 set2 1.1719      0.02613
+#> 1 set1 0.8797      0.01925
+#> 2 set2 1.1367      0.01925
 fit$set_table
 #>    set        mu  alpha n_items
-#> 1 set1 -0.008391 0.8533      12
-#> 2 set2  0.008391 1.1719      12
+#> 1 set1  0.005332 0.8797      12
+#> 2 set2 -0.005332 1.1367      12
 fit$linking
 #> $phi_edges
 #> $phi_edges[[1]]
@@ -154,7 +157,7 @@ fit$linking
 #> 
 #> $alpha_edges
 #>   set_a set_b   n log_slope
-#> 1  set1  set2 913    0.3172
+#> 1  set1  set2 913    0.2563
 ```
 
 Group units are estimated from within-frame pairwise conditional
@@ -206,24 +209,24 @@ person resample.
 
 fit$frames
 #>    set group n_persons n_items  alpha    phi    rho se_log_rho    origin
-#> 1 set1    g1       500      12 0.8533 0.9588 0.8182    0.03206 -0.008391
-#> 2 set2    g1       500      12 1.1719 0.9588 1.1236    0.03206  0.008391
-#> 3 set1    g2       500      12 0.8533 1.0429 0.8900    0.03206 -0.008391
-#> 4 set2    g2       500      12 1.1719 1.0429 1.2222    0.03206  0.008391
+#> 1 set1    g1       500      12 0.8797 0.9526 0.8380    0.02707  0.005332
+#> 2 set2    g1       500      12 1.1367 0.9526 1.0828    0.02707 -0.005332
+#> 3 set1    g2       500      12 0.8797 1.0498 0.9235    0.02707  0.005332
+#> 4 set2    g2       500      12 1.1367 1.0498 1.1933    0.02707 -0.005332
 #>   infit_ms outfit_ms fit_resid n_responses
-#> 1    1.004    0.9871  -0.10701        5940
-#> 2    1.042    1.0099   0.03523        5940
-#> 3    1.022    1.0129   0.94924        5892
-#> 4    1.008    0.9366  -1.76491        5892
+#> 1    1.012    0.9998    0.3668        5964
+#> 2    1.022    0.9778   -0.8175        5964
+#> 3    1.019    0.9954    0.1561        5856
+#> 4    1.032    0.9735   -0.8426        5856
 fit$efrm_vs_rasch
 #> $ll_efrm
-#> [1] -27555
+#> [1] -27194
 #> 
 #> $ll_equal
-#> [1] -27566
+#> [1] -27209
 #> 
 #> $two_delta_ll
-#> [1] 22.25
+#> [1] 30.37
 #> 
 #> $extra_parameters
 #> [1] 1
@@ -233,15 +236,15 @@ fit$efrm_vs_rasch
 #> 
 #> $unit_omnibus
 #>                term df   wald         p
-#> 1 group units (phi)  1  5.122 2.363e-02
-#> 2 set units (alpha)  1 36.845 1.279e-09
+#> 1 group units (phi)  1  6.509 1.073e-02
+#> 2 set units (alpha)  1 44.294 2.826e-11
 #> 
 #> $unit_tests
 #>         parameter estimate      se      z         p     p_adj significant
-#> 1     log phi[g1] -0.04204 0.01858 -2.263 2.363e-02 4.726e-02        TRUE
-#> 2     log phi[g2]  0.04204 0.01858  2.263 2.363e-02 4.726e-02        TRUE
-#> 3 log alpha[set1] -0.15859 0.02613 -6.070 1.279e-09 5.115e-09        TRUE
-#> 4 log alpha[set2]  0.15859 0.02613  6.070 1.279e-09 5.115e-09        TRUE
+#> 1     log phi[g1] -0.04856 0.01903 -2.551 1.073e-02 2.146e-02        TRUE
+#> 2     log phi[g2]  0.04856 0.01903  2.551 1.073e-02 2.146e-02        TRUE
+#> 3 log alpha[set1] -0.12814 0.01925 -6.655 2.826e-11 1.130e-10        TRUE
+#> 4 log alpha[set2]  0.12814 0.01925  6.655 2.826e-11 1.130e-10        TRUE
 ```
 
 The raw equal-unit composite-likelihood difference is descriptive. The
