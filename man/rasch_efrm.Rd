@@ -192,17 +192,22 @@ about magnitude, so it flags more items the more persons there are: with
 two of eight items in a set discriminating twice as steeply, the
 remaining items genuinely depart from the compromise the model settles
 on, and that departure clears the cut in 0.8 of 14 sound items at 500
-persons but 6.9 at 6,000. On the Rosenberg Self-Esteem data used by the
+persons but 7.0 at 6,000. On the Rosenberg Self-Esteem data used by the
 wording case study, at 6,000 respondents, the cut selects 7 of the 10
 items and \code{\link{drop_items}} then refuses the drop for emptying a
 set.
 
 Order the items by \code{abs(fit_resid)} instead, drop the largest
-departure, and refit, watching whether the ratio settles. That ranking
-is robust where the cut is not: on the same self-esteem data it puts Q8
-first at 22.5 and Q4 second at 12.4, the two items an independent
-free-slope model identifies, and dropping Q8 alone moves the ratio from
-1.24 to 1.03.
+departure, and refit. Stop when the sets no longer differ in unit, which
+is a question for the test in \code{efrm_vs_rasch$unit_tests} rather than
+for the ratio: once there is no difference left, a further drop has
+nothing to explain and is fitting noise. On the self-esteem data the
+ranking puts Q8 first at 22.5 and Q4 second at 12.4 -- the same two items
+a free-slope model fitted to the same respondents ranks lowest, and the
+two orderings agree on the extreme three. Dropping Q8 alone moves the
+ratio from 1.24 to 1.03 at p = 0.63; dropping Q4 as well does not improve
+on that but returns a significant difference of 1.16, which is what
+ignoring the stopping rule costs.
 
 Treat a badly fitting item as evidence about its set membership: an
 item that shares no unit with its set, such as an ambivalently worded

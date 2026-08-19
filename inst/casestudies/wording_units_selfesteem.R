@@ -76,38 +76,78 @@ unit_ratio <- function(drop = character()) {
                    f$alpha_table$alpha[f$alpha_table$set == "negative"]),
     p_adj = min(f$efrm_vs_rasch$unit_tests$p_adj))
 }
+apriori <- c("Q8", "Q4")   # the usual suspects, named in advance
 print(round(rbind(all_items = unit_ratio(),
-                  drop_Q8 = unit_ratio("Q8"),
-                  drop_Q8_Q4 = unit_ratio(c("Q8", "Q4"))), 4))
+                  drop_first = unit_ratio(apriori[1]),
+                  drop_both = unit_ratio(apriori)), 4))
+
+# let the model nominate the suspects ----------------------------------------
+# The drops above were chosen a priori, from what is already known about the
+# scale. The fitted model can nominate them instead: an item that shares no
+# unit with its set misfits within it, and the standardised fit residual
+# ranks that misfit. Rank on it rather than threshold on it -- a fixed cut
+# states detectability, not magnitude, so at this sample size it selects
+# most of the instrument, as the count below shows.
+fr <- f1$items[order(abs(f1$items$fit_resid), decreasing = TRUE), ]
+fr$item <- sub(":.*$", "", fr$item)     # frame models name items by frame
+fr$set <- ifelse(fr$item %in% positive, "positive", "negative")
+print(fr[, c("item", "set", "fit_resid", "infit_z")], digits = 3,
+      row.names = FALSE)
+cat(sprintf("items clearing a fixed |fit_resid| > 2 cut: %d of %d\n",
+            sum(abs(fr$fit_resid) > 2, na.rm = TRUE), nrow(fr)))
+
+# The ranking selects, from the data alone, the items named in advance
+# above, so the table already printed is also the data-driven drop sequence
+# and needs no refitting to reproduce.
+cat(sprintf("ranked first and second: %s; named in advance: %s\n",
+            paste(fr$item[1:2], collapse = " "),
+            paste(apriori, collapse = " ")))
+
+# Read that table as a sequence and the stopping rule is the unit test, not
+# the ratio. After the first drop the sets no longer differ in unit at all,
+# so nothing remains for a second drop to explain -- and the third row shows
+# what ignoring that costs: removing the next-ranked item does not push the
+# ratio nearer one, it reintroduces a significant difference.
 
 # cross-check against free slopes --------------------------------------------
-# A generalized partial credit model frees one slope per item. Its per-item
-# slopes localise the anomalies: Q8 ("I wish I could have more respect for
-# myself"), the scale's well-known ambivalent item, discriminates far below
-# the other negatives, and Q4 is the weakest positive.
+# A generalized partial credit model frees one slope per item, on the same
+# respondents, so its per-item slopes are an independent reading of the same
+# data. They localise the same anomalies: Q8 ("I wish I could have more
+# respect for myself"), the scale's well-known ambivalent item, discriminates
+# far below the other negatives, and Q4 is the weakest positive. The two
+# orderings printed at the end are the useful comparison -- the frame model's
+# fit residuals and the free slopes are computed from different quantities
+# and agree on which items are extreme.
 #
-# Reading the two analyses together: with all ten items the wording sets
-# differ in unit by roughly a fifth, decisively so on the Wald test. Drop
-# Q8 alone and the difference vanishes -- the ratio falls to about one,
-# nowhere near significance -- while dropping the weakest positive as well
-# brings it back above ten per cent. That pattern holds across analysis
-# samples, so the set-level wording effect here is carried mainly by
-# individual anomalous items rather than by wording as such: a conclusion
-# the single-parameter frame model cannot reach on its own, which is why
-# the free-slope cross-check belongs here.
+# Reading the analyses together: with all ten items the wording sets differ
+# in unit by about a quarter, decisively so on the Wald test. Drop Q8 alone
+# and the difference vanishes -- the ratio falls to about one, nowhere near
+# significance -- while dropping the weakest positive as well brings the
+# difference back, significant again and still favouring the positive set.
+# The set-level wording effect here is therefore carried mainly by individual
+# anomalous items rather than by wording as such: a conclusion the
+# single-parameter frame model cannot reach on its own, which is why the
+# free-slope cross-check belongs here.
 #
 # The GPCM's geometric-mean slope ratio between the sets lands in the same
-# region as the EFRM unit ratio, which is the useful comparison: one
-# parameter per set reproduces what nine free slopes say about the sets on
+# region as the EFRM unit ratio, which is the other useful comparison: one
+# parameter per set reproduces what ten free slopes say about the sets on
 # average. It is an average, though -- with slopes as spread as Q8's and
-# Q6's, a single set unit summarises a heterogeneous set, and which of the
-# two ratios comes out larger varies from sample to sample.
+# Q6's, a single set unit summarises a heterogeneous set, and the two ratios
+# are close rather than equal.
 if (requireNamespace("mirt", quietly = TRUE)) {
-  m <- mirt::mirt(as.data.frame(X[keep, ][sample(sum(keep), 6000), ]), 1,
-                  itemtype = "gpcm", verbose = FALSE)
+  m <- mirt::mirt(as.data.frame(df[, items]), 1, itemtype = "gpcm",
+                  verbose = FALSE)
   a1 <- mirt::coef(m, simplify = TRUE)$items[, "a1"]
   print(round(a1, 3))
   gm <- function(z) exp(mean(log(z)))
   cat(sprintf("GPCM geometric-mean slope ratio positive/negative: %.3f\n",
               gm(a1[positive]) / gm(a1[negative])))
+  cat(sprintf("free slopes, flattest first: %s\n",
+              paste(names(sort(a1)), collapse = " ")))
+  cat(sprintf("fit residuals, largest first: %s\n",
+              paste(fr$item, collapse = " ")))
+} else {
+  message("install the 'mirt' package for the free-slope cross-check: ",
+          "install.packages('mirt')")
 }

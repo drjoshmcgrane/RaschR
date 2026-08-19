@@ -26,7 +26,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: stats, graphics, grDevices, utils
 Suggests: testthat (>= 3.0.0), shiny, bslib, DT, bsicons, knitr, rmarkdown,
-    eRm, sirt, psychotools
+    eRm, sirt, psychotools, mirt
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3

@@ -491,10 +491,18 @@ granularity deliberately).
   persons and above when the others fit exactly, and 75 to 78 per cent
   when every item carries its own small slope departure. On the
   self-esteem data the ranking puts Q8 first at 22.5 and Q4 second at
-  12.4 — the two items an independent free-slope model identifies — and
-  dropping Q8 alone moves the unit ratio from 1.24 to 1.03. The advice is
-  therefore to order items by `abs(fit_resid)`, drop the largest, refit,
-  and watch whether the ratio settles.
+  12.4, and a free-slope model fitted to the same respondents ranks the
+  same two lowest — the two orderings agree on the extreme three items.
+  Dropping Q8 alone moves the unit ratio from 1.24 to 1.03 at p = 0.63.
+
+  The stopping rule has to be the unit test rather than the ratio, and this
+  dataset shows why: dropping the second-ranked item as well does not
+  improve on 1.03 but returns a significant difference of 1.16, still
+  favouring the positive set. Once the sets no longer differ in unit there is nothing left
+  for a further drop to explain, so the advice is to order by
+  `abs(fit_resid)`, drop the largest, refit, and stop when the unit test
+  goes quiet. `inst/casestudies/wording_units_selfesteem.R` runs exactly
+  this sequence, so the figures above are reproducible rather than prose.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

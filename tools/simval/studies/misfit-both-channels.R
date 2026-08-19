@@ -3,8 +3,8 @@
 # Item misfit that is NOT frame-specific: items that over- or
 # under-discriminate relative to the Rasch model, equally in both frames.
 # This is ordinary misfit rather than DIF, and it is the common case in
-# real instruments -- the wording case study's Q8 discriminates at 0.87
-# where Q6 discriminates at 2.49 on the same scale.
+# real instruments -- the wording case study's Q8 discriminates at 0.89
+# where Q6 discriminates at 2.42 on the same scale.
 #
 # The distortion should partly cancel in a ratio of dispersions, since
 # both frames carry the same aberrant items. It cannot cancel exactly:
