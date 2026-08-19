@@ -506,9 +506,25 @@
 #' @details
 #' The partial credit model holds within each frame in its natural unit.
 #' Person-group units \eqn{\phi_g} and centred set thresholds are estimated by
-#' within-frame pairwise conditional maximum likelihood. Item-set units
-#' \eqn{\alpha_s} and set locations are then estimated from persons common to
-#' linked sets by true-score variance ratios, with the true-score variance
+#' within-frame pairwise conditional maximum likelihood.
+#'
+#' The two kinds of unit are estimated by different routes, because the
+#' design offers different information about each. A set taken by two
+#' person groups gives the same items calibrated at two scales, so the
+#' threshold pattern identifies \eqn{\phi_g} conditionally, without
+#' reference to person estimates. Item sets partition the items, so no item
+#' is calibrated at two scales and \eqn{\alpha_s} has no such channel: it is
+#' identified person-side, from the dispersion of the estimates of persons
+#' common to two sets. That route carries estimation error into the
+#' quantity being compared, which is why it needs the correction described
+#' next, and why the set units are less precise than the group units at the
+#' same sample size. Placing an item in two sets would create the missing
+#' channel but requires administering it twice to the same person, and the
+#' resulting carry-over biases the recovered ratio far more than the error
+#' it would avoid; overlapping sets are therefore refused.
+#'
+#' Item-set units \eqn{\alpha_s} and set locations are estimated from persons
+#' common to linked sets by true-score variance ratios, with the true-score variance
 #' recovered by a truncated-score-moment correction: the mean and variance
 #' of the weighted likelihood score map over the non-extreme scores are
 #' exact functions of the person location given the fitted thresholds, and
