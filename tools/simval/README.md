@@ -390,6 +390,48 @@ granularity deliberately).
   consequential decision a user makes here, it is a falsifiable hypothesis
   rather than a given, and the diagnostic is ordinary item fit within each
   set.
+- `results/misfit-repair.csv` — does the diagnose-and-drop workflow put a
+  planted unit ratio back? Plant misfit, read the diagnostic, drop what it
+  flags with `drop_items()`, refit, and compare against dropping the
+  planted items regardless of what was flagged. Planted ratio 1.40,
+  N = 500 per group, 200 replicates.
+
+  Dropping is always a sufficient cure: the oracle recovers 1.406 to 1.430
+  in every cell, against clean references of 1.408 and 1.423. Nothing is
+  lost by removing an item, so the binding constraint is never the repair
+  — it is whether the diagnostic finds the item, and recovery tracks
+  sensitivity almost one for one.
+
+  Sensitivity ranges from 91 to 22 per cent across the departures. Items
+  with DIF across person frames are found 91 per cent of the time and the
+  loop closes completely (1.448 damaged, 1.413 repaired, 1.406 oracle).
+  Items that merely discriminate differently across frames are found 40
+  per cent of the time and the loop half closes (1.530, 1.479, 1.406).
+  Under-discriminating items concentrated in one item set are found 22 per
+  cent of the time, the item fit test flags nothing at all in 114 of 200
+  replicates, and the repair is nearly worthless (1.694, 1.638, 1.430).
+
+  The multiplicity adjustment is the wrong instrument for this job.
+  Screening 8 to 10 items with Holm costs 20 to 60 points of sensitivity,
+  and the loose screens recover more: `|infit z| > 2` lifts the
+  under-discriminating cell from 1.638 to 1.486 (sensitivity 22 to 95 per
+  cent), and unadjusted probabilities lift the differential-discrimination
+  cell from 1.479 to 1.433 (40 to 82 per cent). The loose screen is not
+  free. Where misfit is strong it over-flags: `|infit z| > 2` flags 17 per
+  cent of sound items in the over-discriminating cell and `drop_items()`
+  refuses 48 of 200 drops for emptying a set, so the surviving mean rests
+  on 152 replicates and is not comparable with the rest.
+
+  Screening should therefore be separated from confirming, which
+  `frame_invariance()` does not currently allow: it flags on Holm-adjusted
+  probabilities only, and a user wanting the loose screen has to read the
+  unadjusted `p` column directly.
+
+  One cell resists every screen. Four of ten items breaking invariance
+  leaves 1.663 damaged against 1.410 oracle, and the best screen reaches
+  only 1.602 while flagging a quarter of the sound items. Past roughly a
+  fifth of the items, no amount of screening substitutes for a set of
+  items that holds together.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
