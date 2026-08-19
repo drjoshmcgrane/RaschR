@@ -179,16 +179,30 @@ as none at all. The same misfit spread evenly across both sets cancels
 almost exactly (1.41).
 
 Screen on the standardised fit residual, \code{fit_resid} in
-\code{items}, taking \code{abs(fit_resid) > 2}, and repair with
-\code{\link{drop_items}}. Of the three screens compared in simulation
-this one alone restores the ratio: against a planted 1.40 read as 1.69
-under two under-discriminating items, it recovered 1.44 where the
-item fit test reached only 1.64, and dropping the items actually
-planted gave 1.43. The chi-square test is too conservative to screen
-with, flagging nothing at all in more than half of replicates, and
-\code{infit_z} is too loose at the same cut-off, flagging 17\% of sound
-items where the fit residual flags 6\%, which matters because those
-extra drops are refused for emptying a set.
+\code{items}, and repair with \code{\link{drop_items}}. Of the fit
+statistics compared in simulation it is the one that restores the ratio:
+against a planted 1.40 read as 1.69 under two under-discriminating
+items, dropping on the fit residual recovered 1.44 where the chi-square
+item fit test reached only 1.64, and dropping the items actually planted
+gave 1.43.
+
+Rank on it; do not threshold on it. A fixed cut such as
+\code{abs(fit_resid) > 2} is a statement about detectability rather than
+about magnitude, so it flags more items the more persons there are: with
+two of eight items in a set discriminating twice as steeply, the
+remaining items genuinely depart from the compromise the model settles
+on, and that departure clears the cut in 0.8 of 14 sound items at 500
+persons but 6.9 at 6,000. On the Rosenberg Self-Esteem data used by the
+wording case study, at 6,000 respondents, the cut selects 7 of the 10
+items and \code{\link{drop_items}} then refuses the drop for emptying a
+set.
+
+Order the items by \code{abs(fit_resid)} instead, drop the largest
+departure, and refit, watching whether the ratio settles. That ranking
+is robust where the cut is not: on the same self-esteem data it puts Q8
+first at 22.5 and Q4 second at 12.4, the two items an independent
+free-slope model identifies, and dropping Q8 alone moves the ratio from
+1.24 to 1.03.
 
 Treat a badly fitting item as evidence about its set membership: an
 item that shares no unit with its set, such as an ambivalently worded

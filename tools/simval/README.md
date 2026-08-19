@@ -452,9 +452,12 @@ granularity deliberately).
   single dataset suggested the fit residual ranked better; it does not
   generalise.
 
-  Within a set the fit residual wins outright, because the question is not
-  which test is more powerful but which is better calibrated at the
-  conventional cut of 2. Against a planted 1.40 distorted to 1.69 by two
+  Within a set the fit residual is the statistic to use, though the cut
+  this study used does not generalise -- see
+  `fit-residual-threshold-n.csv`, which supersedes the threshold advice
+  below while leaving the choice between statistics standing. At the 500
+  persons measured here, the question is not which test is more powerful
+  but which is better calibrated at the conventional cut of 2. Against a planted 1.40 distorted to 1.69 by two
   under-discriminating items, `|fit_resid| > 2` recovered 1.439 where
   `|infit z| > 2` reached 1.486 and the chi-square test reached 1.638, with
   an oracle of 1.430. In the over-discriminating cell it recovered 1.376
@@ -463,6 +466,35 @@ granularity deliberately).
   sound items against 17 and 4, and that gap decides the repair:
   `drop_items()` refused 48 of 200 drops under `infit_z` for emptying a set
   against 4 under the fit residual.
+- `results/fit-residual-threshold-n.csv` — why a fixed cut on a fit
+  statistic does not survive a real sample size, and what to do instead.
+  Run against the Rosenberg Self-Esteem data behind the wording case study
+  (6,000 respondents, ten items), the `|fit_resid| > 2` screen recommended
+  by `fit-residual-screens.csv` selects seven of the ten items, `|infit z|
+  > 2` selects eight, and the chi-square test selects all ten, so
+  `drop_items()` refuses every one for emptying a set. The recommendation
+  did not survive contact with the data it was written for.
+
+  The tempting explanation — real items never fit exactly while simulated
+  ones do — is wrong. The cut degrades with N even when the sound items
+  are generated from the model exactly: they clear it 0.8 times out of 14
+  at 500 persons, 3.1 at 2,000 and 7.0 at 6,000. Two of eight items
+  discriminating twice as steeply forces the fitted model to a compromise
+  under which the rest genuinely depart, and that departure is fixed in
+  size, so only its detectability grows. A fixed threshold on any fit
+  statistic is a statement about power, not magnitude. Carried through to
+  the repair it is worse than useless: the drop it implies is refused in
+  61 per cent of replicates at 2,000 persons and 100 per cent at 6,000.
+
+  Ranking survives what thresholding does not. The two planted items are
+  the two largest departures in 100 per cent of replicates at 2,000
+  persons and above when the others fit exactly, and 75 to 78 per cent
+  when every item carries its own small slope departure. On the
+  self-esteem data the ranking puts Q8 first at 22.5 and Q4 second at
+  12.4 — the two items an independent free-slope model identifies — and
+  dropping Q8 alone moves the unit ratio from 1.24 to 1.03. The advice is
+  therefore to order items by `abs(fit_resid)`, drop the largest, refit,
+  and watch whether the ratio settles.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
