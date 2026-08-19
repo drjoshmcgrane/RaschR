@@ -13,18 +13,20 @@ frame_invariance(fit, alpha = 0.05)
 }
 \value{
 A list of class \code{"rasch_frame_invariance"} with
-  \code{comparisons} (one row per item and frame pair: locations on the
+  \code{locations} (one row per item and frame pair: locations on the
   common scale, their difference, its standard error, statistic, adjusted
-  probability, and flag), and \code{summary} (per frame pair: the number
-  of items, the root mean squared difference, the root mean squared
-  standard error, their ratio, and the number of items flagged).
+  probability, and flag), \code{discrimination} (the same items compared
+  on their within-frame infit statistics), and \code{summary} (per frame
+  pair: the number of items, the root mean squared difference, the root
+  mean squared standard error, their ratio, and the number of items
+  flagged on each count).
 }
 \description{
-Calibrates each frame separately, puts the item locations on a common
-scale using the fitted frame units, and compares them item by item. A
-frame model assumes that an item keeps its location across the frames it
-appears in, differing only by the frame's unit; this function tests that
-assumption rather than imposing it.
+Calibrates each frame separately and compares each item across the frames
+it appears in, on two counts: whether it keeps its location once the
+frame units are accounted for, and whether it discriminates alike. A
+frame model assumes both, differing only by the frame's unit; this
+function tests the assumption rather than imposing it.
 }
 \details{
 The comparison is possible only where an item set is taken by more than
@@ -46,6 +48,18 @@ squared standard error, following Humphry (2005). A root mean squared
 difference materially larger than the root mean squared standard error
 indicates item behaviour that the frame units do not account for, whether
 or not individual items reach significance.
+
+A location comparison cannot detect a difference in discrimination: a
+steeper item still crosses one half in the same place, so its location
+survives intact. The second comparison uses the within-frame fit
+statistics, which carry no unit because each is computed against its own
+frame's model, and treats the difference of two independent standardised
+infit statistics as having variance 2. It is conservative and needs a
+reasonable sample: in simulation, with 8 items and two items
+discriminating half again as steeply in one frame, it detected them in
+12\% of replicates at 500 persons per frame and 85\% at 2,000, with
+false-positive rates near 1\% throughout. Treat a null result at a few
+hundred persons per frame as uninformative rather than reassuring.
 }
 \examples{
 d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,

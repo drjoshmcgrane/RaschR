@@ -1350,6 +1350,11 @@ panel_frames <- nav_panel("Frames", value = "p_frames", icon = bs_icon("grid-3x3
                   controls = cols_switch("frames_full")),
         div(tableCard("phi_tbl", "Person group units (phi)"),
             tableCard("alpha_tbl", "Item set units (alpha) and locations"))),
+      layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
+        tableCard("frame_inv_loc_tbl", "Item invariance: locations",
+                  info = app_help("frame_inv_loc")),
+        tableCard("frame_inv_disc_tbl", "Item invariance: discrimination",
+                  info = app_help("frame_inv_disc"))),
       layout_columns(col_widths = 12,
         plotCard("frame_plot", "Frame units"),
         plotCard("frame_icc", "ICC across frames",
@@ -5121,6 +5126,43 @@ server <- function(input, output, session) {
     }
     d
   })
+  # The frame model constrains each item to one location across frames, so
+  # the fit cannot test that constraint. frame_invariance() calibrates each
+  # frame separately and compares -- the check belongs beside the units it
+  # validates, since a couple of items behaving differently across frames
+  # move a unit by more than its standard error.
+  efrm_invariance <- reactive({
+    tryCatch(frame_invariance(efrm_fit()), error = function(e) conditionMessage(e))
+  })
+  inv_or_note <- function(part) {
+    z <- efrm_invariance()
+    if (is.character(z)) return(data.frame(note = z, stringsAsFactors = FALSE))
+    d <- z[[part]]
+    keep <- if (part == "locations")
+      c("set", "frame_1", "frame_2", "item", "difference", "se", "statistic",
+        "p_adj", "flagged")
+    else c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
+           "statistic", "p_adj", "flagged")
+    d[, intersect(keep, names(d)), drop = FALSE]
+  }
+  register_table("frame_inv_loc_tbl", function() inv_or_note("locations"),
+    function() {
+      d <- inv_or_note("locations")
+      if ("p_adj" %in% names(d)) style_lo_red(num_dt(d), d, "p_adj", 0.05)
+      else num_dt(d)
+    },
+    code = "inv <- frame_invariance(fit)
+inv$summary
+inv$locations")
+  register_table("frame_inv_disc_tbl", function() inv_or_note("discrimination"),
+    function() {
+      d <- inv_or_note("discrimination")
+      if ("p_adj" %in% names(d)) style_lo_red(num_dt(d), d, "p_adj", 0.05)
+      else num_dt(d)
+    },
+    code = "inv <- frame_invariance(fit)
+inv$discrimination")
+
   register_table("phi_tbl", function() efrm_phi_tbl(), function() {
     d <- efrm_phi_tbl()
     if ("p_adj" %in% names(d)) style_lo_red(num_dt(d), d, "p_adj", 0.05)

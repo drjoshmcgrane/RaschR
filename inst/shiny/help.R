@@ -342,6 +342,19 @@ APP_HELP <- c(
     "the nominated chance probability are removed. Shifts are descriptive unless",
     "bootstrap inference was requested."
   ),
+  frame_inv_loc_tbl = paste(
+    "The model holds each item at one location across frames, so the fit",
+    "cannot test that assumption. Each frame is calibrated separately here",
+    "and the locations compared on the common scale. A flagged item behaves",
+    "differently across frames in a way the units do not explain."
+  ),
+  frame_inv_disc_tbl = paste(
+    "A location comparison cannot see a difference in discrimination: a",
+    "steeper item still crosses one half in the same place. This table",
+    "compares each item's fit within its own frame instead. It is",
+    "conservative, so a null result on a few hundred persons per frame is",
+    "uninformative rather than reassuring."
+  ),
   cmp_tbl = paste(
     "Compares fits retained during this session. Information criteria are",
     "comparable only for models using the same observations and response",

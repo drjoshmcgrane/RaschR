@@ -359,9 +359,10 @@ test_that("frame_invariance tests the invariance the model assumes", {
                   boot_reps = 0)
   inv <- frame_invariance(f)
   expect_s3_class(inv, "rasch_frame_invariance")
-  expect_equal(inv$summary$n_flagged, 0L)
+  expect_equal(inv$summary$n_location, 0L)
+  expect_equal(inv$summary$n_discrimination, 0L)
   expect_lt(inv$summary$ratio, 1.5)
-  expect_output(print(inv), "No item flagged")
+  expect_output(print(inv), "No item's location differs")
 
   # planted DIF on two items is found, and the rmsd/rmse ratio rises
   set.seed(5); N <- 400; K <- 8
@@ -379,7 +380,7 @@ test_that("frame_invariance tests the invariance the model assumes", {
   f2 <- rasch_efrm(dd, item_sets = list(set1 = colnames(X)), groups = "group",
                    id = "id", boot_reps = 0)
   inv2 <- frame_invariance(f2)
-  expect_setequal(inv2$comparisons$item[inv2$comparisons$flagged],
+  expect_setequal(inv2$locations$item[inv2$locations$flagged],
                   c("I03", "I06"))
   expect_gt(inv2$summary$ratio, 1.5)
 
@@ -390,4 +391,29 @@ test_that("frame_invariance tests the invariance the model assumes", {
   f1 <- rasch_efrm(d1, item_sets = t1$item_sets, groups = "group", id = "id",
                    boot_reps = 0)
   expect_error(frame_invariance(f1), "at least two person groups")
+})
+
+test_that("frame_invariance separates location from discrimination", {
+  # a steeper item keeps its location, so only the fit-statistic
+  # comparison can see it
+  skip_on_cran()   # needs a large sample for the discrimination test
+  set.seed(21); N <- 2000; K <- 8
+  phi <- c(0.845, 1.183); delta <- seq(-1.5, 1.5, length.out = K)
+  mk <- function(g, disc) {
+    th <- rnorm(N, 0, 1.3)
+    X <- vapply(seq_len(K), function(i)
+      rbinom(N, 1, plogis(phi[g] * disc[i] * (th - delta[i]))), numeric(N))
+    colnames(X) <- sprintf("I%02d", seq_len(K)); X
+  }
+  dsc <- rep(1, K); dsc[c(3, 6)] <- 1.8
+  X <- rbind(mk(1, rep(1, K)), mk(2, dsc))
+  d <- data.frame(id = sprintf("P%05d", seq_len(2 * N)), X,
+                  group = rep(c("g1", "g2"), each = N), check.names = FALSE)
+  f <- rasch_efrm(d, item_sets = list(set1 = colnames(X)), groups = "group",
+                  id = "id", boot_reps = 0)
+  inv <- frame_invariance(f)
+  expect_true(all(c("I03", "I06") %in%
+                    inv$discrimination$item[inv$discrimination$flagged]))
+  expect_true(all(c("infit_1", "infit_2") %in% names(inv$discrimination)))
+  expect_output(print(inv), "Discrimination differs")
 })

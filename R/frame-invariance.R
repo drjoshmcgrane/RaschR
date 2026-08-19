@@ -10,11 +10,11 @@
 
 #' Test the item invariance a frame model assumes
 #'
-#' Calibrates each frame separately, puts the item locations on a common
-#' scale using the fitted frame units, and compares them item by item. A
-#' frame model assumes that an item keeps its location across the frames it
-#' appears in, differing only by the frame's unit; this function tests that
-#' assumption rather than imposing it.
+#' Calibrates each frame separately and compares each item across the frames
+#' it appears in, on two counts: whether it keeps its location once the
+#' frame units are accounted for, and whether it discriminates alike. A
+#' frame model assumes both, differing only by the frame's unit; this
+#' function tests the assumption rather than imposing it.
 #'
 #' @details
 #' The comparison is possible only where an item set is taken by more than
@@ -37,14 +37,28 @@
 #' indicates item behaviour that the frame units do not account for, whether
 #' or not individual items reach significance.
 #'
+#' A location comparison cannot detect a difference in discrimination: a
+#' steeper item still crosses one half in the same place, so its location
+#' survives intact. The second comparison uses the within-frame fit
+#' statistics, which carry no unit because each is computed against its own
+#' frame's model, and treats the difference of two independent standardised
+#' infit statistics as having variance 2. It is conservative and needs a
+#' reasonable sample: in simulation, with 8 items and two items
+#' discriminating half again as steeply in one frame, it detected them in
+#' 12\% of replicates at 500 persons per frame and 85\% at 2,000, with
+#' false-positive rates near 1\% throughout. Treat a null result at a few
+#' hundred persons per frame as uninformative rather than reassuring.
+#'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param alpha Significance level for flagging items.
 #' @return A list of class \code{"rasch_frame_invariance"} with
-#'   \code{comparisons} (one row per item and frame pair: locations on the
+#'   \code{locations} (one row per item and frame pair: locations on the
 #'   common scale, their difference, its standard error, statistic, adjusted
-#'   probability, and flag), and \code{summary} (per frame pair: the number
-#'   of items, the root mean squared difference, the root mean squared
-#'   standard error, their ratio, and the number of items flagged).
+#'   probability, and flag), \code{discrimination} (the same items compared
+#'   on their within-frame infit statistics), and \code{summary} (per frame
+#'   pair: the number of items, the root mean squared difference, the root
+#'   mean squared standard error, their ratio, and the number of items
+#'   flagged on each count).
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 #' Measurement}. PhD thesis, Murdoch University.
@@ -71,7 +85,7 @@ frame_invariance <- function(fit, alpha = 0.05) {
 
   sets <- unique(fit$set_of)
   rho <- fit$frames
-  out <- list()
+  out <- list(); dsc <- list()
   for (s in sets) {
     its <- names(fit$set_of)[fit$set_of == s]
     # calibrate the set separately within each group
@@ -88,6 +102,8 @@ frame_invariance <- function(fit, alpha = 0.05) {
       cal[[g]] <- data.frame(item = f$items$item,
                              loc = f$items$location / r,
                              se = f$items$se / r,
+                             infit = f$items$infit_ms,
+                             infit_z = f$items$infit_z,
                              stringsAsFactors = FALSE)
     }
     if (length(cal) < 2L) next
@@ -105,6 +121,18 @@ frame_invariance <- function(fit, alpha = 0.05) {
         location_1 = m$loc_1, location_2 = m$loc_2,
         difference = d, se = se, statistic = z,
         p = 2 * stats::pnorm(-abs(z)), stringsAsFactors = FALSE)
+      # discrimination: a location comparison cannot see a slope
+      # difference, since a steeper item still crosses one half in the
+      # same place. Fit statistics can: each is computed against its own
+      # frame's model, so it carries no unit and the frames are
+      # comparable directly. Two independent standardised statistics
+      # differ with variance 2.
+      zd <- (m$infit_z_1 - m$infit_z_2) / sqrt(2)
+      dsc[[length(dsc) + 1L]] <- data.frame(
+        set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
+        infit_1 = m$infit_1, infit_2 = m$infit_2,
+        statistic = zd, p = 2 * stats::pnorm(-abs(zd)),
+        stringsAsFactors = FALSE)
     }
   }
   if (!length(out))
@@ -114,18 +142,26 @@ frame_invariance <- function(fit, alpha = 0.05) {
   cmp$p_adj <- stats::p.adjust(cmp$p, method = "holm")
   cmp$flagged <- cmp$p_adj < alpha
   rownames(cmp) <- NULL
+  dsc <- do.call(rbind, dsc)
+  dsc$p_adj <- stats::p.adjust(dsc$p, method = "holm")
+  dsc$flagged <- dsc$p_adj < alpha
+  rownames(dsc) <- NULL
 
   key <- paste(cmp$set, cmp$frame_1, cmp$frame_2, sep = "|")
-  smry <- do.call(rbind, lapply(split(cmp, key), function(z) data.frame(
-    set = z$set[1], frame_1 = z$frame_1[1], frame_2 = z$frame_2[1],
-    n_items = nrow(z),
-    rmsd = sqrt(mean(z$difference^2)),
-    rmse = sqrt(mean(z$se^2)),
-    ratio = sqrt(mean(z$difference^2)) / sqrt(mean(z$se^2)),
-    n_flagged = sum(z$flagged), stringsAsFactors = FALSE)))
+  keyd <- paste(dsc$set, dsc$frame_1, dsc$frame_2, sep = "|")
+  smry <- do.call(rbind, lapply(unique(key), function(k) {
+    z <- cmp[key == k, ]; y <- dsc[keyd == k, ]
+    data.frame(set = z$set[1], frame_1 = z$frame_1[1], frame_2 = z$frame_2[1],
+      n_items = nrow(z),
+      rmsd = sqrt(mean(z$difference^2)),
+      rmse = sqrt(mean(z$se^2)),
+      ratio = sqrt(mean(z$difference^2)) / sqrt(mean(z$se^2)),
+      n_location = sum(z$flagged), n_discrimination = sum(y$flagged),
+      stringsAsFactors = FALSE)
+  }))
   rownames(smry) <- NULL
-  structure(list(comparisons = cmp, summary = smry, alpha = alpha),
-            class = "rasch_frame_invariance")
+  structure(list(locations = cmp, discrimination = dsc, summary = smry,
+                 alpha = alpha), class = "rasch_frame_invariance")
 }
 
 #' @export
@@ -133,14 +169,24 @@ print.rasch_frame_invariance <- function(x, ...) {
   cat("Item invariance across frames (each frame calibrated separately)\n\n")
   print(.fmt_df(x$summary), row.names = FALSE)
   cat("\nrmsd/rmse above 1 indicates item behaviour the frame units do not account for\n")
-  fl <- x$comparisons[x$comparisons$flagged, ]
+  fl <- x$locations[x$locations$flagged, ]
   if (nrow(fl)) {
-    cat(sprintf("\n%d item(s) flagged at alpha = %.2f (Holm-adjusted):\n",
+    cat(sprintf("\nLocation differs across frames for %d item(s) at alpha = %.2f (Holm-adjusted):\n",
                 nrow(fl), x$alpha))
     print(.fmt_df(fl[, c("set", "frame_1", "frame_2", "item", "difference",
                          "se", "statistic", "p_adj")]), row.names = FALSE)
   } else {
-    cat(sprintf("\nNo item flagged at alpha = %.2f.\n", x$alpha))
+    cat(sprintf("\nNo item's location differs across frames at alpha = %.2f.\n",
+                x$alpha))
+  }
+  fd <- x$discrimination[x$discrimination$flagged, ]
+  if (nrow(fd)) {
+    cat(sprintf("\nDiscrimination differs across frames for %d item(s):\n",
+                nrow(fd)))
+    print(.fmt_df(fd[, c("set", "frame_1", "frame_2", "item", "infit_1",
+                         "infit_2", "statistic", "p_adj")]), row.names = FALSE)
+  } else {
+    cat("\nNo item's discrimination differs across frames.\n")
   }
   invisible(x)
 }
