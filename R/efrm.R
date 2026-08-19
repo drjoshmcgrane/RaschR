@@ -570,9 +570,28 @@
 #' accuracy. The person-group units are unaffected: estimated in the
 #' within-frame conditional stage rather than through the linking
 #' variance ratio, they show no detectable bias (0.000 over 60 replicates
-#' at twelve items per set) with 95\% interval coverage. With \code{se_method = "bootstrap"}, the complete
+#' at twelve items per set) with 95\% interval coverage, and they are the
+#' more precise of the two: the conditional channel is close to twice as
+#' precise as the linking channel at eight items per frame, narrowing to
+#' about 15\% by twenty. A significant group unit beside a
+#' non-significant set unit therefore reflects the design as much as the
+#' data. With \code{se_method = "bootstrap"}, the complete
 #' model is refitted to each person resample and all reported covariance comes
 #' from the bootstrap distribution.
+#'
+#' Screen the items before interpreting a unit. Both units are ratios of
+#' quantities estimated within frames, so an item that behaves differently
+#' across frames enters the estimate as though it were a unit difference,
+#' and neither estimator resists it. In simulation, two items in twelve
+#' carrying a one-logit shift between frames moved a recovered unit ratio
+#' by 7 to 11\%, and four items whose discrimination differed by half
+#' moved it by 10 to 12\% -- several times the reported standard error,
+#' and larger than any estimation bias measured for these estimators. Item
+#' misfit as such is not the concern: over- and under-discriminating items
+#' that behave the same way in every frame largely cancel in a ratio,
+#' costing about 2\%. The concern is specifically frame-specific
+#' departure, so test the frame factors with \code{\link{dif_anova}} and
+#' resolve or remove what it flags before reading the units.
 #'
 #' The dichotomous model and the theory of frame-dependent units follow
 #' Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
