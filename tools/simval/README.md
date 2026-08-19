@@ -421,17 +421,48 @@ granularity deliberately).
   cent of sound items in the over-discriminating cell and `drop_items()`
   refuses 48 of 200 drops for emptying a set, so the surviving mean rests
   on 152 replicates and is not comparable with the rest.
+  `fit-residual-screens.csv` later replaced this screen with the
+  standardised fit residual, which detects as much without the
+  over-flagging; read that entry before adopting `|infit z| > 2`.
 
   Screening should therefore be separated from confirming, which
-  `frame_invariance()` does not currently allow: it flags on Holm-adjusted
-  probabilities only, and a user wanting the loose screen has to read the
-  unadjusted `p` column directly.
+  `frame_invariance()` did not allow at the time of this run: it flagged on
+  Holm-adjusted probabilities only. Its `adjust` argument now offers both.
 
   One cell resists every screen. Four of ten items breaking invariance
   leaves 1.663 damaged against 1.410 oracle, and the best screen reaches
   only 1.602 while flagging a quarter of the sound items. Past roughly a
   fifth of the items, no amount of screening substitutes for a set of
   items that holds together.
+- `results/fit-residual-screens.csv` — which standardised fit statistic
+  should drive a screen. Both the frame comparison and the item-set screen
+  used `infit_z`, the cube-root standardisation of a mean square; the
+  package also computes the log-transformed fit residual
+  `f (log y2 - log f) / sqrt(v)`. The answer differs by which comparison is
+  meant, so the two were tested separately.
+
+  Across frames, `infit_z` should stay. It detects two items discriminating
+  1.8 times as steeply in 67, 95 and 100 per cent of replicates at 500,
+  1,000 and 2,000 persons per frame against the fit residual's 50, 85 and
+  99, at type I rates of 3.0, 4.3 and 5.5 per cent against 2.0, 2.8 and
+  4.0. The extra power is largely the difference between a test at nominal
+  size and a conservative one, and on ranking — whether the planted items
+  are the largest departures, which is what a screen depends on — they are
+  indistinguishable (80.5 against 78.5 per cent at 500 persons). An earlier
+  single dataset suggested the fit residual ranked better; it does not
+  generalise.
+
+  Within a set the fit residual wins outright, because the question is not
+  which test is more powerful but which is better calibrated at the
+  conventional cut of 2. Against a planted 1.40 distorted to 1.69 by two
+  under-discriminating items, `|fit_resid| > 2` recovered 1.439 where
+  `|infit z| > 2` reached 1.486 and the chi-square test reached 1.638, with
+  an oracle of 1.430. In the over-discriminating cell it recovered 1.376
+  against 1.321 and 1.337, oracle 1.430. It detects as much as `infit_z`
+  (88 and 93 per cent against 86 and 95) while flagging 6 and 2 per cent of
+  sound items against 17 and 4, and that gap decides the repair:
+  `drop_items()` refused 48 of 200 drops under `infit_z` for emptying a set
+  against 4 under the fit residual.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

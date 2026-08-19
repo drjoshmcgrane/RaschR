@@ -176,12 +176,25 @@ two over-discriminating items in one set moved a planted ratio of 1.40
 to 1.17, two under-discriminating items moved it to 1.73, and four
 over-discriminating items to 1.02 -- a real 40\% unit difference read
 as none at all. The same misfit spread evenly across both sets cancels
-almost exactly (1.41). Screen with the ordinary item fit statistics
-within each set, and treat a badly fitting item as evidence about its
-set membership: an item that shares no unit with its set, such as an
-ambivalently worded item filed among the negatively worded ones, is
-better removed than retained, and cannot be given a set of its own
-because a single item carries no dispersion to estimate a unit from.
+almost exactly (1.41).
+
+Screen on the standardised fit residual, \code{fit_resid} in
+\code{items}, taking \code{abs(fit_resid) > 2}, and repair with
+\code{\link{drop_items}}. Of the three screens compared in simulation
+this one alone restores the ratio: against a planted 1.40 read as 1.69
+under two under-discriminating items, it recovered 1.44 where the
+item fit test reached only 1.64, and dropping the items actually
+planted gave 1.43. The chi-square test is too conservative to screen
+with, flagging nothing at all in more than half of replicates, and
+\code{infit_z} is too loose at the same cut-off, flagging 17\% of sound
+items where the fit residual flags 6\%, which matters because those
+extra drops are refused for emptying a set.
+
+Treat a badly fitting item as evidence about its set membership: an
+item that shares no unit with its set, such as an ambivalently worded
+item filed among the negatively worded ones, is better removed than
+retained, and cannot be given a set of its own because a single item
+carries no dispersion to estimate a unit from.
 
 The dichotomous model and the theory of frame-dependent units follow
 Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
