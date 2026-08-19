@@ -349,3 +349,45 @@ test_that("rasch.efrm_link_draws is validated and blockdiag is simulation-only",
   expect_true(is.finite(fit_bd$alpha_table$se_log_alpha[1]))
   options(rasch.efrm_link_blockdiag = NULL)
 })
+
+test_that("frame_invariance tests the invariance the model assumes", {
+  # clean frames: nothing flagged, rmsd at or below rmse
+  d <- simulate_efrm(n_per_group = 400, items_per_set = 8, n_sets = 1,
+                     n_groups = 2, group_unit_ratio = 1.4, seed = 2)
+  tr <- attr(d, "truth")
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  inv <- frame_invariance(f)
+  expect_s3_class(inv, "rasch_frame_invariance")
+  expect_equal(inv$summary$n_flagged, 0L)
+  expect_lt(inv$summary$ratio, 1.5)
+  expect_output(print(inv), "No item flagged")
+
+  # planted DIF on two items is found, and the rmsd/rmse ratio rises
+  set.seed(5); N <- 400; K <- 8
+  phi <- c(0.845, 1.183); delta <- seq(-1.5, 1.5, length.out = K)
+  mk <- function(g, shift) {
+    th <- rnorm(N, 0, 1.3)
+    dd <- delta; dd[c(3, 6)] <- dd[c(3, 6)] + shift
+    X <- vapply(seq_len(K), function(i)
+      rbinom(N, 1, plogis(phi[g] * (th - dd[i]))), numeric(N))
+    colnames(X) <- sprintf("I%02d", seq_len(K)); X
+  }
+  X <- rbind(mk(1, 0), mk(2, 1))
+  dd <- data.frame(id = sprintf("P%04d", seq_len(2 * N)), X,
+                   group = rep(c("g1", "g2"), each = N), check.names = FALSE)
+  f2 <- rasch_efrm(dd, item_sets = list(set1 = colnames(X)), groups = "group",
+                   id = "id", boot_reps = 0)
+  inv2 <- frame_invariance(f2)
+  expect_setequal(inv2$comparisons$item[inv2$comparisons$flagged],
+                  c("I03", "I06"))
+  expect_gt(inv2$summary$ratio, 1.5)
+
+  # a single person group leaves no item in two frames
+  d1 <- simulate_efrm(n_per_group = 200, items_per_set = 6, n_sets = 2,
+                      n_groups = 1, set_unit_ratio = 1.3, seed = 3)
+  t1 <- attr(d1, "truth")
+  f1 <- rasch_efrm(d1, item_sets = t1$item_sets, groups = "group", id = "id",
+                   boot_reps = 0)
+  expect_error(frame_invariance(f1), "at least two person groups")
+})

@@ -49,6 +49,8 @@ fit2 <- drop_items(fit, "I03")
 nrow(fit2$items)
 }
 \seealso{
-\code{\link{split_items}} and \code{\link{resolve_dif}}, which
-  resolve an item rather than remove it, and \code{\link{combine_items}}.
+\code{\link{frame_invariance}}, which identifies the items a
+  frame model's assumption does not hold for; \code{\link{split_items}}
+  and \code{\link{resolve_dif}}, which resolve an item rather than
+  remove it; and \code{\link{combine_items}}.
 }

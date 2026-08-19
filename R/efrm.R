@@ -589,13 +589,15 @@
 #' answered by every group, so an item can sit differently in one group
 #' than another: two items in twelve carrying a one-logit shift moved a
 #' recovered ratio by 7 to 11\% in simulation, and four items whose
-#' discrimination differed by half moved it by 10 to 12\%. Note that
-#' \code{\link{dif_anova}} cannot test the grouping factor that defines the
-#' frames -- it is constant within each frame by construction, and is
-#' refused. Screen instead by comparing each item's per-frame estimates in
-#' \code{items} after rescaling by the frame units in \code{frames}: under
-#' the model they agree, and divergence beyond their standard errors is
-#' frame-specific item behaviour.
+#' discrimination differed by half moved it by 10 to 12\%. Neither the
+#' fitted object nor \code{\link{dif_anova}} can detect this. The fit holds
+#' one location per item, shared across the frames it appears in and scaled
+#' by the frame unit, so its per-frame estimates agree by construction; and
+#' the grouping factor that defines the frames is constant within each
+#' frame, so \code{dif_anova} refuses it. Testing the assumption means
+#' stepping outside the model, which is what \code{\link{frame_invariance}}
+#' does: it calibrates each frame separately, puts the locations on the
+#' common scale, and compares them item by item.
 #'
 #' Item-set units are exposed to something else entirely. Sets partition
 #' the items, so no item appears in two sets and DIF across sets is not

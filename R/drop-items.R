@@ -39,8 +39,10 @@
 #'   replicates for the refit. Defaults to the number the original fit used.
 #' @return A refitted object of the same class as \code{fit}, carrying a note
 #'   recording which items were dropped.
-#' @seealso \code{\link{split_items}} and \code{\link{resolve_dif}}, which
-#'   resolve an item rather than remove it, and \code{\link{combine_items}}.
+#' @seealso \code{\link{frame_invariance}}, which identifies the items a
+#'   frame model's assumption does not hold for; \code{\link{split_items}}
+#'   and \code{\link{resolve_dif}}, which resolve an item rather than
+#'   remove it; and \code{\link{combine_items}}.
 #' @examples
 #' d <- simulate_rasch(300, 8, seed = 1)
 #' fit <- rasch(d, id = "id")

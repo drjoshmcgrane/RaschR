@@ -65,6 +65,13 @@ strengthens identification and uncertainty checks.
 
 ## Follow-ups, comparisons, projects, and reports
 
+* `frame_invariance()` tests the item invariance a frame model assumes
+  rather than imposing it. The fitted model holds one location per item,
+  shared across frames and scaled by the frame unit, so the assumption
+  cannot be checked from the fit; the function calibrates each frame
+  separately, puts the locations on the common scale, and compares them
+  item by item, reporting Holm-adjusted tests and the root mean squared
+  difference against the root mean squared standard error.
 * `drop_items()` removes items from a fitted analysis and refits it,
   keeping the model, person identifiers, factors, and -- for frame models
   -- the set structure and standard-error method. The application offers
