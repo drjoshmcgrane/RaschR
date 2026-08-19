@@ -265,7 +265,28 @@ granularity deliberately).
   about 0.105 for the person-side link at equal budget, improving to 0.024
   at 40 items. Untested caveat: the study gave each frame independent
   persons; a bridge design shares persons across contexts, so the two
-  calibrations' errors correlate.
+  calibrations' errors correlate. That caveat is settled in
+  `bridge-item-design.csv`, and the bridge idea does not survive it.
+- `results/bridge-item-design.csv` — a bridge design for item-set units
+  requires the same person to answer an item in both set contexts, which
+  means re-administration. Sharing persons is harmless on its own: with
+  responses conditionally independent given theta the SD ratio stays
+  unbiased and its sampling standard deviation is no worse than under
+  independent persons (0.067 against 0.087 at 8 items and 250 persons),
+  since correlated errors partly cancel in a ratio. Carry-over between the
+  two administrations is what breaks it: half a logit inflates the unit
+  ratio by about 12 per cent and a full logit by 17, in every cell, with no
+  decay in sample size or item count — a person repeating their first
+  answer makes the second administration look more consistent, which the
+  calibration reads as a larger unit. For scale, the person-side link's
+  corrected defect was 5 per cent. Since item sets are defined by item
+  properties, an item belongs to one set, so a bridge means literal
+  re-administration and conditional independence is not credible. The
+  person-side link is therefore the only sound route to item-set units,
+  and the truncated-score-moment correction was necessary rather than
+  avoidable. The dependence would at least be detectable: paired
+  administrations show a large Q3 in `residual_correlations`, though
+  detection only tells you to abandon the bridge.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
