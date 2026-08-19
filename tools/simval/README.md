@@ -351,6 +351,27 @@ granularity deliberately).
   text reports a generated 1.76) and he used RUMM2020's WLEs, so a design
   detail differs; the ordering of the three estimators is unaffected since
   all three run on identical data.
+- `results/pgd-ours-vs-his.csv` — the like-for-like comparison on a
+  common-item linking design. Given common items and disjoint person
+  groups this package does not use its person-side link at all: it
+  estimates the person-group unit by conditional ML on the bilinear
+  threshold structure. Run against Humphry's SD ratio on his own design
+  (12 WALNA common items, N = 980 per year, ability gap 0.5, planted phi
+  ratio 1.306), the two are indistinguishable on clean data: 1.306
+  against 1.308, sampling SD 0.040 against 0.041. Under item-level
+  departures conditional ML is consistently the worse of the two, by 3 to
+  5 percentage points (1.458 against 1.406 with two DIF items; 1.480
+  against 1.460 with four differentially discriminating items). Weighting
+  by information is the reason: an item whose discrimination is inflated
+  in one frame carries more information there, so conditional ML leans on
+  the items that mislead it, where a dispersion weights items by squared
+  distance from the mean. The conclusion is symmetrical. On a common-item
+  design his estimator is at least as good as ours, and our advantage is
+  confined to designs where item sets partition the items and his channel
+  does not exist. It also settles a tempting change: switching phi to a
+  dispersion ratio would buy a few points under contamination that
+  screening should remove anyway, at the cost of the conditional standard
+  errors an SD ratio cannot provide.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
