@@ -146,6 +146,7 @@ btl_information <- function(fit) {
   out <- list(objects = objects, pairs = pairs, comparisons = comparisons,
               total = sum(Iw), m = m, clustered = fit$clustered,
               notes = notes)
+  out <- .tag_tables(out)
   class(out) <- "rasch_btl_info"
   out
 }

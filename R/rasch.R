@@ -539,6 +539,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
                 df_factor = rf$f_cell),
               thresholds_diag = td, est = est, notes = notes,
               factors = fac_df, disc = disc)
+  out <- .tag_tables(out)
   class(out) <- "rasch"
   out
 }

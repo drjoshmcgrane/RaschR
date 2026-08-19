@@ -59,7 +59,8 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
                 note = if (missing == "complete")
                   "fewer than 3 complete responders: classical statistics withheld"
                 else "fewer than 3 usable responses per item: classical statistics withheld")
-    class(out) <- "rasch_ctt"
+    out <- .tag_tables(out)
+  class(out) <- "rasch_ctt"
     return(out)
   }
   # Under available-case mode, total proportions and pairwise covariances are
@@ -139,6 +140,7 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
                     "non-degenerate) covariance matrix"))
                 if (length(nt)) paste(nt, collapse = "; ") else NULL
               })
+  out <- .tag_tables(out)
   class(out) <- "rasch_ctt"
   out
 }

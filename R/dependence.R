@@ -111,6 +111,7 @@ dependence_magnitude <- function(fit, dependent, independent) {
   out <- list(d = d, se = se, z = z, p = 2 * pnorm(-abs(z)),
               thresholds = tab, dependent = nm_j, independent = nm_i,
               refit = refit)
+  out <- .tag_tables(out)
   class(out) <- "rasch_dependence"
   out
 }
@@ -123,7 +124,7 @@ print.rasch_dependence <- function(x, ...) {
               x$d, x$se, x$z, .fmt_p(x$p)))
   if (nrow(x$thresholds) > 1) {
     cat("  per threshold:\n")
-    print(round(x$thresholds, 3), row.names = FALSE)
+    print(.fmt_df(x$thresholds), row.names = FALSE)
   }
   invisible(x)
 }

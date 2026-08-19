@@ -1280,6 +1280,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   fit$boot_reps_used <- if (!is.null(boot)) nrow(boot) else NA_integer_
   fit$virtual_map <- vmap
   fit$set_of <- set_of
+  fit <- .tag_tables(fit)
   class(fit) <- c("rasch_efrm", "rasch")
   fit
 }

@@ -482,6 +482,7 @@ dimensionality_magnitude <- function(fit, subtests) {
                     A = c(psi_row[4], alp_row[4]))
   out <- list(table = tab, refit = refit, S = S, K = K,
               alpha_applicable = fit$alpha$applicable)
+  out <- .tag_tables(out)
   class(out) <- "rasch_dim_magnitude"
   out
 }

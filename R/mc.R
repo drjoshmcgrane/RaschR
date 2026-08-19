@@ -308,6 +308,7 @@ distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
   out <- list(option_scores = do.call(rbind, os),
               evidence = do.call(rbind, ev))
   rownames(out$option_scores) <- rownames(out$evidence) <- NULL
+  out <- .tag_tables(out)
   class(out) <- "rasch_rescore"
   out
 }

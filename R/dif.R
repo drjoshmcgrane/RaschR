@@ -796,6 +796,7 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     out$sizes <- size_tab
     out$posthoc <- posthoc_tab
   }
+  out <- .tag_tables(out)
   class(out) <- "rasch_dif"
   out
 }
@@ -991,6 +992,7 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   out <- list(item = item, by = paste(names(factors), collapse = ":"),
               levels = levels_df, pairs = pairs, alpha = alpha,
               p_adjust = p_adjust, flag_logits = flag_logits, notes = notes)
+  out <- .tag_tables(out)
   class(out) <- "rasch_dif_size"
   out
 }
@@ -1620,6 +1622,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
   out <- list(table = tab, family = fam_df, within = within,
               paired = paired, alpha = alpha, p_adjust = p_adjust,
               flag_logits = flag_logits, notes = unique(notes))
+  out <- .tag_tables(out)
   class(out) <- "rasch_dif_contrasts"
   out
 }

@@ -358,6 +358,7 @@ lr_test <- function(fit, maxit = 60, tol = 1e-8) {
               chisq_adj = chisq_adj, p_adj = p_adj, lambda = lambda,
               loglik_pcm = fit$est$loglik, loglik_rsm = rsm$est$loglik,
               fit_rsm = rsm)
+  out <- .tag_tables(out)
   class(out) <- "rasch_lr"
   out
 }

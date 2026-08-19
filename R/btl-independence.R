@@ -155,6 +155,7 @@ btl_transitivity <- function(fit, min_triples = 5L) {
 
   out <- list(summary = summary, objects = objects, judges = judges,
               notes = notes)
+  out <- .tag_tables(out)
   class(out) <- "rasch_btl_transitivity"
   out
 }

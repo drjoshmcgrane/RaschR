@@ -271,6 +271,7 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "BH",
   out <- list(fit = cur, splits = split_df, n_splits = nrow(split_df),
               stopped = stopped, notes = notes,
               n_remaining_dif = if (is.null(final_dif)) 0L else nrow(final_dif))
+  out <- .tag_tables(out)
   class(out) <- "rasch_resolve_dif"
   out
 }

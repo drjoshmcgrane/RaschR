@@ -1197,6 +1197,7 @@ plot_btl <- function(fit, band = 2.5) {
               },
               anchors = anch,
               notes = notes)
+  out <- .tag_tables(out)
   class(out) <- "rasch_btl"
   out
 }
@@ -1894,6 +1895,7 @@ btl_dif <- function(fit, factors, objects = NULL,
               sizes = sizes, effects = effects, factors = fnames,
               alpha = alpha, p_adjust = p_adjust, flag_logits = flag_logits,
               notes = unique(notes))
+  out <- .tag_tables(out)
   class(out) <- "rasch_btl_dif"
   out
 }

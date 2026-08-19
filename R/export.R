@@ -139,7 +139,7 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
   wtab <- function(d, name) {
     if (is.null(d)) return()
     path <- file.path(tdir, paste0(name, ".csv"))
-    utils::write.csv(d, path, row.names = FALSE)
+    .write_csv_plain(d, path)
     files <<- c(files, path)
   }
   wtab(fit_summary_table(fit), "fit_summary")
@@ -233,7 +233,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   files <- character(0)
   wtab <- function(d, name) {
     path <- file.path(tdir, paste0(name, ".csv"))
-    utils::write.csv(d, path, row.names = FALSE)
+    .write_csv_plain(d, path)
     files <<- c(files, path)
   }
 

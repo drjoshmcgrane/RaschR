@@ -1273,6 +1273,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                       "do not represent total pipeline uncertainty; use",
                       "se_method = 'judge_bootstrap' for inference"),
               notes = notes)
+  out <- .tag_tables(out)
   class(out) <- c("rasch_btl_efrm", "rasch_btl")
   out
 }

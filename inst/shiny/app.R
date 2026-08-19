@@ -58,6 +58,24 @@ clamp01 <- function(x, default)
   if (is.null(x) || is.na(x) || x <= 0 || x >= 1) default else x
 
 # p-values as text: "%.3f" alone prints a misleading 0.000 for tiny p
+# write.csv encodes a small double in scientific notation, so a downloaded
+# table would disagree with the screen beside it. Raise scipen for the call:
+# the file keeps full precision and loses the exponent.
+# A raw preview is the one table that does not go through num_dt, so its
+# doubles reach DataTables as serialised JSON and a small one renders in
+# scientific notation. Round the non-integer numerics the same way.
+round_preview <- function(dt, d) {
+  num <- names(d)[vapply(d, function(v)
+    is.numeric(v) && !all(is.na(v) | v == round(v)), TRUE)]
+  if (length(num)) DT::formatRound(dt, num, 3) else dt
+}
+
+write_csv_plain <- function(d, file) {
+  op <- options(scipen = 999)
+  on.exit(options(op), add = TRUE)
+  write.csv(d, file, row.names = FALSE)
+}
+
 fmt_p <- function(p)
   ifelse(is.na(p), "NA", ifelse(p < 0.001, "< 0.001", sprintf("%.3f", p)))
 
@@ -2018,8 +2036,10 @@ server <- function(input, output, session) {
   })
   output$sim_preview <- renderDT({
     req(!is.null(sim_data()))
-    datatable(head(sim_data(), 12), rownames = FALSE, style = "bootstrap5",
-              class = "table-sm compact", options = list(dom = "t", scrollX = TRUE))
+    d <- head(sim_data(), 12)
+    round_preview(
+      datatable(d, rownames = FALSE, style = "bootstrap5", class = "table-sm compact",
+                options = list(dom = "t", scrollX = TRUE)), d)
   })
   output$sim_code <- renderText(sim_code_val() %||% "")
   # parameter recovery: the fit matching the simulated layout, compared to the
@@ -2284,9 +2304,11 @@ server <- function(input, output, session) {
               if (nrow(df) > 200) " First 200 rows shown in the preview." else ""))
   })
   output$preview <- renderDT({
-    datatable(head(raw_data(), 200), rownames = FALSE, style = "bootstrap5",
-              class = "table-sm compact hover order-column",
-              options = list(pageLength = 10, scrollX = TRUE, dom = "tip"))
+    d <- head(raw_data(), 200)
+    round_preview(
+      datatable(d, rownames = FALSE, style = "bootstrap5",
+                class = "table-sm compact hover order-column",
+                options = list(pageLength = 10, scrollX = TRUE, dom = "tip")), d)
   })
   output$rcode_fit <- renderText({
     validate(need(!is.null(current_rcode()),
@@ -3011,7 +3033,7 @@ server <- function(input, output, session) {
     filename = function() "dif_resolution.csv",
     content = function(file) {
       rr <- resolve_res(); req(!is.null(rr))
-      write.csv(rr$splits, file, row.names = FALSE)
+      write_csv_plain(rr$splits, file)
     })
 
   sel_item <- reactive({
@@ -3170,7 +3192,7 @@ server <- function(input, output, session) {
     if (!is.null(code)) register_code(id, code)
     output[[paste0(id, "_csv")]] <- downloadHandler(
       filename = function() csv_name %||% paste0("rasch_", id, ".csv"),
-      content = function(file) write.csv(fun(), file, row.names = FALSE))
+      content = function(file) write_csv_plain(fun(), file))
   }
   # the curated stat boxes (test of fit, targeting, BTL test of fit) share
   # one registration: `ui_fun` builds the on-screen label-value rows, while
@@ -3180,7 +3202,7 @@ server <- function(input, output, session) {
     if (!is.null(code)) register_code(id, code)
     output[[paste0(id, "_csv")]] <- downloadHandler(
       filename = function() csv_name,
-      content = function(file) write.csv(csv_fun(), file, row.names = FALSE))
+      content = function(file) write_csv_plain(csv_fun(), file))
   }
   # paired PDF/ZIP batch downloads (all-items explorer plots, all-persons
   # kidmaps): one handler per extension, same content function for both
@@ -3581,7 +3603,7 @@ server <- function(input, output, session) {
     filename = function() "rasch_ctt_tbl.csv",
     content = function(file) {
       ct <- ctt_res(); req(!inherits(ct, "error"))
-      write.csv(ct$table, file, row.names = FALSE)
+      write_csv_plain(ct$table, file)
     })
 
   # likelihood-ratio test of PCM against the rating parameterisation; only
@@ -3680,11 +3702,11 @@ server <- function(input, output, session) {
   output$chisq_int_csv <- downloadHandler(
     filename = function() paste0("rasch_chisq_intervals_", sel_item(), ".csv"),
     content = function(file)
-      write.csv(chisq_res()$intervals, file, row.names = FALSE))
+      write_csv_plain(chisq_res()$intervals, file))
   output$chisq_cat_csv <- downloadHandler(
     filename = function() paste0("rasch_chisq_categories_", sel_item(), ".csv"),
     content = function(file)
-      write.csv(chisq_res()$categories, file, row.names = FALSE))
+      write_csv_plain(chisq_res()$categories, file))
   register_code("chisq", function()
     sprintf('chisq_detail(fit, %s)', qstr(sel_item())))
 
@@ -3838,7 +3860,7 @@ server <- function(input, output, session) {
     content = function(file) {
       res <- rescore_res()
       if (is.null(res)) stop("run the proposal first")
-      write.csv(res$option_scores, file, row.names = FALSE)
+      write_csv_plain(res$option_scores, file)
     })
 
   # -------------------------------------------------------------- persons --
@@ -4214,7 +4236,7 @@ server <- function(input, output, session) {
     content = function(file) {
       ph <- dif_posthoc_res()
       if (inherits(ph, "error")) stop(conditionMessage(ph))
-      write.csv(ph$table, file, row.names = FALSE)
+      write_csv_plain(ph$table, file)
     })
 
   # planned DIF contrasts: the family is derived from the factor structure
@@ -5095,17 +5117,16 @@ server <- function(input, output, session) {
     content = function(file) {
       f <- fit()
       thr <- f$thresholds
-      write.csv(data.frame(item = f$items$item[thr$item], k = thr$k,
-                           tau = thr$tau), file, row.names = FALSE)
+      write_csv_plain(data.frame(item = f$items$item[thr$item], k = thr$k,
+                                 tau = thr$tau), file)
     })
 
   output$dl_calib <- downloadHandler(
     filename = function() format(Sys.time(), "rasch_calibration_%Y%m%d_%H%M.csv"),
     content = function(file) {
       f <- fit()
-      write.csv(data.frame(item = f$items$item, location = f$items$location,
-                           se = f$items$se, max = f$items$max),
-                file, row.names = FALSE)
+      write_csv_plain(data.frame(item = f$items$item, location = f$items$location,
+                                 se = f$items$se, max = f$items$max), file)
     })
 
   # ---------------------------------------------------------------- frames --
@@ -5586,7 +5607,7 @@ server <- function(input, output, session) {
     filename = function() "rasch_dimensionality_magnitude.csv",
     content = function(file) {
       r <- dm_res(); req(!is.null(r))
-      write.csv(r$table, file, row.names = FALSE)
+      write_csv_plain(r$table, file)
     })
   register_code("dm_tbl", function() {
     r <- dm_res(); req(!is.null(r))
@@ -5707,7 +5728,7 @@ server <- function(input, output, session) {
     filename = function() "rasch_dependence_thresholds.csv",
     content = function(file) {
       r <- dep_res(); req(!is.null(r))
-      write.csv(r$thresholds, file, row.names = FALSE)
+      write_csv_plain(r$thresholds, file)
     })
 
   # spread test against Andrich's least upper bounds
@@ -5733,7 +5754,7 @@ server <- function(input, output, session) {
     filename = function() "rasch_spread_test.csv",
     content = function(file) {
       r <- spread_res(); req(!is.null(r))
-      write.csv(r, file, row.names = FALSE)
+      write_csv_plain(r, file)
     })
 
   # ---------------------------------------------------------------- guessing --

@@ -521,6 +521,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   }
   fit$facet_spec <- facets
   fit$virtual_map <- vmap
+  fit <- .tag_tables(fit)
   class(fit) <- c("rasch_mfrm", "rasch")
   fit
 }

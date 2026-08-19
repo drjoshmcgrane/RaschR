@@ -196,6 +196,7 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
               n_removed = sum(cut_cells), chance = chance,
               anchor_items = anchor_items, se_method = se_method,
               boot_reps_used = boot_used)
+  out <- .tag_tables(out)
   class(out) <- "rasch_tailored"
   out
 }
