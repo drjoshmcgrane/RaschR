@@ -237,6 +237,35 @@ granularity deliberately).
   small-sample Jensen term that partly offsets the fixed-design floor.
   Resampling redistributes information already present; the constraint is
   the linking channel's width, so set length is the lever.
+- `results/humphry-item-side.csv` — is the item-side variance-ratio
+  argument (Humphry 2005, eq. 2.27) biased? Not detectably. Over 15 design
+  cells (8 to 40 items, 200 to 5,000 persons per frame, planted unit ratio
+  1.30, 30 replicates each) the raw SD ratio's pooled log bias is +0.00008
+  with a standard error of 0.0025, and no cell reaches two standard
+  errors. The attenuation mechanism is real but arithmetic puts it out of
+  reach: item standard errors contribute one to two per cent of the
+  observed item variance, and the two frames' error variances differ in
+  the offsetting direction. Correcting is pointless here — subtracting
+  `mean(se^2)`, or the covariance-correct `tr(V)/(K-1)` that accounts for
+  the sum-zero constraint, moves the estimate by about 0.004. Contrast the
+  person side, where the error share exceeds half and the naive
+  construction biased the ratio by five per cent.
+- `results/common-item-channel.csv` — when two frames share items, three
+  channels estimate the unit ratio from the same data: the bilinear
+  conditional fit `rasch_efrm` uses for phi, the SD ratio of two
+  within-frame calibrations, and their regression slope. Conditional ML
+  and the SD ratio are indistinguishable — both unbiased, with sampling
+  standard deviations agreeing to three decimals across all six cells. The
+  slope channel is attenuated as errors-in-variables predicts (−0.013 to
+  −0.034, worsening as the item grid densifies and the true item variance
+  falls), which is the control confirming the comparison measures what it
+  claims. Implication for design: a bridge design putting some items in
+  both set contexts would estimate alpha on an unbiased channel needing no
+  correction and no new estimator, at a log-ratio SD of 0.087 against
+  about 0.105 for the person-side link at equal budget, improving to 0.024
+  at 40 items. Untested caveat: the study gave each frame independent
+  persons; a bridge design shares persons across contexts, so the two
+  calibrations' errors correlate.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
