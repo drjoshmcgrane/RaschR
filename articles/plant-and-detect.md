@@ -73,17 +73,17 @@ disc[6] <- 0.4
 d2 <- simulate_rasch(400, 10, discrimination = disc, seed = 21)
 fit2 <- rasch(d2, id = "id")
 fit2$items[, c("item", "location", "infit_ms", "outfit_ms")]
-#>    item location infit_ms outfit_ms
-#> 1   I01  -2.5220   0.8994    0.7716
-#> 2   I02  -1.8851   1.0412    0.9415
-#> 3   I03  -1.5071   1.0119    0.8956
-#> 4   I04  -0.7011   1.0517    0.9912
-#> 5   I05  -0.3867   0.9134    0.8490
-#> 6   I06   0.2056   1.2625    1.2397
-#> 7   I07   0.7730   1.0445    1.0459
-#> 8   I08   1.4631   1.0828    0.9437
-#> 9   I09   2.1031   1.0133    0.8363
-#> 10  I10   2.4572   1.0382    0.7645
+#>  item location infit_ms outfit_ms
+#>   I01   -2.522    0.899     0.772
+#>   I02   -1.885    1.041     0.941
+#>   I03   -1.507    1.012     0.896
+#>   I04   -0.701    1.052     0.991
+#>   I05   -0.387    0.913     0.849
+#>   I06    0.206    1.262     1.240
+#>   I07    0.773    1.044     1.046
+#>   I08    1.463    1.083     0.944
+#>   I09    2.103    1.013     0.836
+#>   I10    2.457    1.038     0.765
 ```
 
 Over-discrimination tends to give mean-square statistics below one;
@@ -107,17 +107,17 @@ d3 <- simulate_rasch(
 fit3 <- rasch(d3, id = "id", factors = "group")
 da <- dif_anova(fit3)
 da$summary[, c("item", "term", "F_uniform", "p_uniform_adj", "uniform_DIF")]
-#>    item  term F_uniform p_uniform_adj uniform_DIF
-#> 1   I01 group  0.164009      0.855993       FALSE
-#> 2   I02 group  3.234919      0.242365       FALSE
-#> 3   I03 group  0.172138      0.855993       FALSE
-#> 4   I04 group  0.412059      0.855993       FALSE
-#> 5   I05 group  3.694811      0.242365       FALSE
-#> 6   I06 group 18.647136      0.000191        TRUE
-#> 7   I07 group  0.611468      0.855993       FALSE
-#> 8   I08 group  0.008686      0.925785       FALSE
-#> 9   I09 group  0.138649      0.855993       FALSE
-#> 10  I10 group  0.085278      0.855993       FALSE
+#>  item  term F_uniform p_uniform_adj uniform_DIF
+#>   I01 group     0.164         0.856            
+#>   I02 group     3.235         0.242            
+#>   I03 group     0.172         0.856            
+#>   I04 group     0.412         0.856            
+#>   I05 group     3.695         0.242            
+#>   I06 group    18.647       < 0.001           *
+#>   I07 group     0.611         0.856            
+#>   I08 group     0.009         0.926            
+#>   I09 group     0.139         0.856            
+#>   I10 group     0.085         0.856
 ```
 
 `dif_anova` tests invariance. `dif_size` resolves the item by group and
@@ -130,10 +130,10 @@ dif_size(fit3, "I06", by = "group")
 #>  level location    se weak   n
 #>     g1    0.262 0.140    0 250
 #>     g2    1.266 0.162    0 250
-#>  level_a level_b difference    se      z p p_adj  lower  upper significant
-#>       g1      g2     -1.004 0.234 -4.287 0     0 -1.463 -0.545           *
-#>  practical
-#>    >= 0.50
+#>  level_a level_b difference    se      z       p   p_adj  lower  upper
+#>       g1      g2     -1.004 0.234 -4.287 < 0.001 < 0.001 -1.463 -0.545
+#>  significant practical
+#>            *   >= 0.50
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```
 
@@ -199,15 +199,15 @@ b <- simulate_btl(
 
 bt <- btl(b, "object_a", "object_b", winner = "winner", judge = "judge")
 bt$judges[order(-bt$judges$fit_resid), ]
-#>   judge  n infit_ms outfit_ms fit_resid df_fit
-#> 1    J1 74   1.4569    1.5253    3.9953  73.30
-#> 2    J2 75   1.3566    1.4168    3.2204  74.29
-#> 6    J6 70   1.0708    1.0758    0.5876  69.33
-#> 4    J4 78   0.9017    0.8810   -1.1930  77.26
-#> 7    J7 77   0.8939    0.8757   -1.3396  76.27
-#> 3    J3 81   0.8743    0.8520   -1.5176  80.23
-#> 8    J8 92   0.8565    0.8232   -1.8897  91.12
-#> 5    J5 83   0.7515    0.7151   -2.9513  82.21
+#>  judge  n infit_ms outfit_ms fit_resid df_fit
+#>     J1 74    1.457     1.525     3.995 73.295
+#>     J2 75    1.357     1.417     3.220 74.286
+#>     J6 70    1.071     1.076     0.588 69.333
+#>     J4 78    0.902     0.881    -1.193 77.257
+#>     J7 77    0.894     0.876    -1.340 76.267
+#>     J3 81    0.874     0.852    -1.518 80.229
+#>     J8 92    0.856     0.823    -1.890 91.124
+#>     J5 83    0.752     0.715    -2.951 82.210
 ```
 
 Judge fit describes agreement with the common object scale. Transitivity
@@ -218,18 +218,18 @@ comparisons.
 
 tr <- btl_transitivity(bt)
 tr$summary
-#>   n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency
-#> 1         7      21        30          2       0.06667        0.25      0.7333
-#>   zeta
-#> 1   NA
+#>  n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency
+#>          7      21        30          2         0.067       0.250       0.733
+#>  zeta
+#> 
 head(tr$judges)
-#>   judge n_comparisons n_triples n_circular circular_rate consistency
-#> 1    J2            75        21          7       0.33333     -0.3333
-#> 2    J1            74        25          3       0.12000      0.5200
-#> 3    J6            70        35          4       0.11429      0.5429
-#> 4    J3            81        15          1       0.06667      0.7333
-#> 5    J8            92        30          1       0.03333      0.8667
-#> 6    J4            78        21          0       0.00000      1.0000
+#>  judge n_comparisons n_triples n_circular circular_rate consistency
+#>     J2            75        21          7         0.333      -0.333
+#>     J1            74        25          3         0.120       0.520
+#>     J6            70        35          4         0.114       0.543
+#>     J3            81        15          1         0.067       0.733
+#>     J8            92        30          1         0.033       0.867
+#>     J4            78        21          0         0.000       1.000
 ```
 
 ## Repeated simulation

@@ -202,17 +202,17 @@ the precision of the set-linking step is limited by the number of items
 in each set once a few hundred linking persons are available.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">phi_table</span></span>
-<span><span class="co">#&gt;   group    phi se_log_phi</span></span>
-<span><span class="co">#&gt; 1    g1 0.9526    0.01903</span></span>
-<span><span class="co">#&gt; 2    g2 1.0498    0.01903</span></span>
+<span><span class="co">#&gt;  group   phi se_log_phi</span></span>
+<span><span class="co">#&gt;     g1 0.953      0.019</span></span>
+<span><span class="co">#&gt;     g2 1.050      0.019</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">alpha_table</span></span>
-<span><span class="co">#&gt;    set  alpha se_log_alpha</span></span>
-<span><span class="co">#&gt; 1 set1 0.8797      0.02991</span></span>
-<span><span class="co">#&gt; 2 set2 1.1367      0.02991</span></span>
+<span><span class="co">#&gt;   set alpha se_log_alpha</span></span>
+<span><span class="co">#&gt;  set1 0.880        0.030</span></span>
+<span><span class="co">#&gt;  set2 1.137        0.030</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">set_table</span></span>
-<span><span class="co">#&gt;    set        mu  alpha n_items</span></span>
-<span><span class="co">#&gt; 1 set1  0.005332 0.8797      12</span></span>
-<span><span class="co">#&gt; 2 set2 -0.005332 1.1367      12</span></span>
+<span><span class="co">#&gt;   set     mu alpha n_items</span></span>
+<span><span class="co">#&gt;  set1  0.005 0.880      12</span></span>
+<span><span class="co">#&gt;  set2 -0.005 1.137      12</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">linking</span></span>
 <span><span class="co">#&gt; $phi_edges</span></span>
 <span><span class="co">#&gt; $phi_edges[[1]]</span></span>
@@ -223,8 +223,8 @@ in each set once a few hundred linking persons are available.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $alpha_edges</span></span>
-<span><span class="co">#&gt;   set_a set_b   n log_slope</span></span>
-<span><span class="co">#&gt; 1  set1  set2 913    0.2563</span></span></code></pre></div>
+<span><span class="co">#&gt;  set_a set_b   n log_slope</span></span>
+<span><span class="co">#&gt;   set1  set2 913     0.256</span></span></code></pre></div>
 <p>Group units are estimated from within-frame pairwise conditional
 calibrations. Set units and locations require persons common to the
 linked sets. A disconnected design cannot establish a common unit.</p>
@@ -271,16 +271,16 @@ Set <code>se_method = "bootstrap"</code> to refit the complete pipeline
 on each person resample.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">frames</span></span>
-<span><span class="co">#&gt;    set group n_persons n_items  alpha    phi    rho se_log_rho    origin</span></span>
-<span><span class="co">#&gt; 1 set1    g1       500      12 0.8797 0.9526 0.8380    0.03546  0.005332</span></span>
-<span><span class="co">#&gt; 2 set2    g1       500      12 1.1367 0.9526 1.0828    0.03546 -0.005332</span></span>
-<span><span class="co">#&gt; 3 set1    g2       500      12 0.8797 1.0498 0.9235    0.03546  0.005332</span></span>
-<span><span class="co">#&gt; 4 set2    g2       500      12 1.1367 1.0498 1.1933    0.03546 -0.005332</span></span>
-<span><span class="co">#&gt;   infit_ms outfit_ms fit_resid n_responses</span></span>
-<span><span class="co">#&gt; 1    1.012    0.9998    0.3668        5964</span></span>
-<span><span class="co">#&gt; 2    1.022    0.9778   -0.8175        5964</span></span>
-<span><span class="co">#&gt; 3    1.019    0.9954    0.1561        5856</span></span>
-<span><span class="co">#&gt; 4    1.032    0.9735   -0.8426        5856</span></span>
+<span><span class="co">#&gt;   set group n_persons n_items alpha   phi   rho se_log_rho origin infit_ms</span></span>
+<span><span class="co">#&gt;  set1    g1       500      12 0.880 0.953 0.838      0.035  0.005    1.012</span></span>
+<span><span class="co">#&gt;  set2    g1       500      12 1.137 0.953 1.083      0.035 -0.005    1.022</span></span>
+<span><span class="co">#&gt;  set1    g2       500      12 0.880 1.050 0.924      0.035  0.005    1.019</span></span>
+<span><span class="co">#&gt;  set2    g2       500      12 1.137 1.050 1.193      0.035 -0.005    1.032</span></span>
+<span><span class="co">#&gt;  outfit_ms fit_resid n_responses</span></span>
+<span><span class="co">#&gt;      1.000     0.367        5964</span></span>
+<span><span class="co">#&gt;      0.978    -0.817        5964</span></span>
+<span><span class="co">#&gt;      0.995     0.156        5856</span></span>
+<span><span class="co">#&gt;      0.973    -0.843        5856</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span></span>
 <span><span class="co">#&gt; $ll_efrm</span></span>
 <span><span class="co">#&gt; [1] -27194</span></span>
@@ -298,16 +298,16 @@ on each person resample.</p>
 <span><span class="co">#&gt; [1] "group units (phi)"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $unit_omnibus</span></span>
-<span><span class="co">#&gt;                term df   wald         p</span></span>
-<span><span class="co">#&gt; 1 group units (phi)  1  6.509 1.073e-02</span></span>
-<span><span class="co">#&gt; 2 set units (alpha)  1 18.349 1.839e-05</span></span>
+<span><span class="co">#&gt;               term df   wald       p</span></span>
+<span><span class="co">#&gt;  group units (phi)  1  6.509   0.011</span></span>
+<span><span class="co">#&gt;  set units (alpha)  1 18.349 &lt; 0.001</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $unit_tests</span></span>
-<span><span class="co">#&gt;         parameter estimate      se      z         p     p_adj significant</span></span>
-<span><span class="co">#&gt; 1     log phi[g1] -0.04856 0.01903 -2.551 1.073e-02 2.146e-02        TRUE</span></span>
-<span><span class="co">#&gt; 2     log phi[g2]  0.04856 0.01903  2.551 1.073e-02 2.146e-02        TRUE</span></span>
-<span><span class="co">#&gt; 3 log alpha[set1] -0.12814 0.02991 -4.284 1.839e-05 7.355e-05        TRUE</span></span>
-<span><span class="co">#&gt; 4 log alpha[set2]  0.12814 0.02991  4.284 1.839e-05 7.355e-05        TRUE</span></span></code></pre></div>
+<span><span class="co">#&gt;        parameter estimate    se      z       p   p_adj significant</span></span>
+<span><span class="co">#&gt;      log phi[g1]   -0.049 0.019 -2.551   0.011   0.021           *</span></span>
+<span><span class="co">#&gt;      log phi[g2]    0.049 0.019  2.551   0.011   0.021           *</span></span>
+<span><span class="co">#&gt;  log alpha[set1]   -0.128 0.030 -4.284 &lt; 0.001 &lt; 0.001           *</span></span>
+<span><span class="co">#&gt;  log alpha[set2]    0.128 0.030  4.284 &lt; 0.001 &lt; 0.001           *</span></span></code></pre></div>
 <p>The raw equal-unit composite-likelihood difference is descriptive.
 The omnibus Wald tests in <code>efrm_vs_rasch$unit_omnibus</code> test
 the unit families; individual unit contrasts are Holm-adjusted

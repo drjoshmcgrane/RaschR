@@ -71,7 +71,7 @@ tr <- attr(d, "truth")
 ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
                  boot_reps = 30)   # small design keeps the example quick
 ef$alpha_table   # planted ratio 1.3, recovered within small-sample noise
-#>    set     alpha se_log_alpha
-#> 1 set1 0.8262889    0.1034167
-#> 2 set2 1.2102305    0.1034167
+#>   set alpha se_log_alpha
+#>  set1 0.826        0.103
+#>  set2 1.210        0.103
 ```

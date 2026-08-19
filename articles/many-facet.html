@@ -136,37 +136,26 @@ effects. Pairwise conditioning removes the person parameter before
 calibration.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">item_effects</span></span>
-<span><span class="co">#&gt;    item location      se   n infit_ms outfit_ms fit_resid fit_resid_pooled</span></span>
-<span><span class="co">#&gt; I1   I1  -0.9878 0.07403 300   1.0454    1.0586    0.1640        6.572e-01</span></span>
-<span><span class="co">#&gt; I2   I2  -0.3274 0.06060 300   1.0540    1.0206    0.1115        3.518e-01</span></span>
-<span><span class="co">#&gt; I3   I3   0.3856 0.06609 300   0.9904    0.9887   -0.0953        3.724e-05</span></span>
-<span><span class="co">#&gt; I4   I4   0.9297 0.08963 300   0.9230    0.8778   -0.5534       -1.142e+00</span></span>
-<span><span class="co">#&gt;    df_fit</span></span>
-<span><span class="co">#&gt; I1  281.2</span></span>
-<span><span class="co">#&gt; I2  281.2</span></span>
-<span><span class="co">#&gt; I3  281.2</span></span>
-<span><span class="co">#&gt; I4  281.2</span></span>
+<span><span class="co">#&gt;  item location    se   n infit_ms outfit_ms fit_resid fit_resid_pooled  df_fit</span></span>
+<span><span class="co">#&gt;    I1   -0.988 0.074 300    1.045     1.059     0.164            0.657 281.250</span></span>
+<span><span class="co">#&gt;    I2   -0.327 0.061 300    1.054     1.021     0.111            0.352 281.250</span></span>
+<span><span class="co">#&gt;    I3    0.386 0.066 300    0.990     0.989    -0.095            0.000 281.250</span></span>
+<span><span class="co">#&gt;    I4    0.930 0.090 300    0.923     0.878    -0.553           -1.142 281.250</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">facet_effects</span><span class="op">$</span><span class="va">rater</span></span>
-<span><span class="co">#&gt;    level severity      se   n infit_ms outfit_ms fit_resid fit_resid_pooled</span></span>
-<span><span class="co">#&gt; R1    R1  0.75602 0.07612 240    1.075    1.0133   0.08018           0.2432</span></span>
-<span><span class="co">#&gt; R2    R2  0.58538 0.07617 240    0.997    0.9561  -0.15377          -0.2990</span></span>
-<span><span class="co">#&gt; R3    R3 -0.98133 0.10195 240    0.945    1.0751   0.19455           0.7361</span></span>
-<span><span class="co">#&gt; R4    R4 -0.43750 0.08603 240    1.099    1.0101   0.01089           0.2096</span></span>
-<span><span class="co">#&gt; R5    R5  0.07742 0.07959 240    0.905    0.8768  -0.59837          -1.1725</span></span>
-<span><span class="co">#&gt;    df_fit</span></span>
-<span><span class="co">#&gt; R1    225</span></span>
-<span><span class="co">#&gt; R2    225</span></span>
-<span><span class="co">#&gt; R3    225</span></span>
-<span><span class="co">#&gt; R4    225</span></span>
-<span><span class="co">#&gt; R5    225</span></span>
+<span><span class="co">#&gt;  level severity    se   n infit_ms outfit_ms fit_resid fit_resid_pooled df_fit</span></span>
+<span><span class="co">#&gt;     R1    0.756 0.076 240    1.075     1.013     0.080            0.243    225</span></span>
+<span><span class="co">#&gt;     R2    0.585 0.076 240    0.997     0.956    -0.154           -0.299    225</span></span>
+<span><span class="co">#&gt;     R3   -0.981 0.102 240    0.945     1.075     0.195            0.736    225</span></span>
+<span><span class="co">#&gt;     R4   -0.438 0.086 240    1.099     1.010     0.011            0.210    225</span></span>
+<span><span class="co">#&gt;     R5    0.077 0.080 240    0.905     0.877    -0.598           -1.172    225</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">item_thresholds</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   item k      tau     se</span></span>
-<span><span class="co">#&gt; 1   I1 1 -2.03833 0.2589</span></span>
-<span><span class="co">#&gt; 2   I1 2 -0.99292 0.1751</span></span>
-<span><span class="co">#&gt; 3   I1 3  0.06779 0.1446</span></span>
-<span><span class="co">#&gt; 4   I2 1 -1.44758 0.2224</span></span>
-<span><span class="co">#&gt; 5   I2 2 -0.46306 0.1713</span></span>
-<span><span class="co">#&gt; 6   I2 3  0.92841 0.1720</span></span></code></pre></div>
+<span><span class="co">#&gt;  item k    tau    se</span></span>
+<span><span class="co">#&gt;    I1 1 -2.038 0.259</span></span>
+<span><span class="co">#&gt;    I1 2 -0.993 0.175</span></span>
+<span><span class="co">#&gt;    I1 3  0.068 0.145</span></span>
+<span><span class="co">#&gt;    I2 1 -1.448 0.222</span></span>
+<span><span class="co">#&gt;    I2 2 -0.463 0.171</span></span>
+<span><span class="co">#&gt;    I2 3  0.928 0.172</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_facets.html">plot_facets</a></span><span class="op">(</span><span class="va">fit</span>, facet <span class="op">=</span> <span class="st">"rater"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="many-facet_files/figure-html/facets-1.png" class="r-plt" alt="Rater severity estimates with confidence intervals." width="672"></p>
@@ -189,16 +178,16 @@ sum-to-zero constraints.</p>
 <span>  facets <span class="op">=</span> <span class="st">"rater"</span>, interaction <span class="op">=</span> <span class="st">"rater"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit_interaction</span><span class="op">$</span><span class="va">interaction_effects</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   item level    gamma     se       z      p p_adj significant</span></span>
-<span><span class="co">#&gt; 1   I1    R1 -0.15699 0.1788 -0.8782 0.3834     1       FALSE</span></span>
-<span><span class="co">#&gt; 2   I2    R1  0.04113 0.1322  0.3111 0.7568     1       FALSE</span></span>
-<span><span class="co">#&gt; 3   I3    R1  0.05905 0.1559  0.3788 0.7062     1       FALSE</span></span>
-<span><span class="co">#&gt; 4   I4    R1  0.05680 0.1441  0.3943 0.6948     1       FALSE</span></span>
-<span><span class="co">#&gt; 5   I1    R2 -0.07109 0.1451 -0.4899 0.6260     1       FALSE</span></span>
-<span><span class="co">#&gt; 6   I2    R2 -0.08552 0.1542 -0.5547 0.5812     1       FALSE</span></span>
+<span><span class="co">#&gt;  item level  gamma    se      z     p p_adj significant</span></span>
+<span><span class="co">#&gt;    I1    R1 -0.157 0.179 -0.878 0.383 1.000            </span></span>
+<span><span class="co">#&gt;    I2    R1  0.041 0.132  0.311 0.757 1.000            </span></span>
+<span><span class="co">#&gt;    I3    R1  0.059 0.156  0.379 0.706 1.000            </span></span>
+<span><span class="co">#&gt;    I4    R1  0.057 0.144  0.394 0.695 1.000            </span></span>
+<span><span class="co">#&gt;    I1    R2 -0.071 0.145 -0.490 0.626 1.000            </span></span>
+<span><span class="co">#&gt;    I2    R2 -0.086 0.154 -0.555 0.581 1.000</span></span>
 <span><span class="va">fit_interaction</span><span class="op">$</span><span class="va">interaction_test</span></span>
-<span><span class="co">#&gt;   facet df  wald      f df2      p</span></span>
-<span><span class="co">#&gt; 1 rater 12 5.993 0.4063  48 0.9541</span></span></code></pre></div>
+<span><span class="co">#&gt;  facet df  wald     f df2     p</span></span>
+<span><span class="co">#&gt;  rater 12 5.993 0.406  48 0.954</span></span></code></pre></div>
 <p>The interaction model retains equal discrimination, but comparisons
 among raters become item-dependent. A material interaction therefore
 qualifies the claim of invariant rater severity rather than merely

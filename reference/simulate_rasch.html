@@ -204,59 +204,59 @@ is added when &gt; 1, for DIF).</p></dd>
 <span class="r-in"><span>                    seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">d</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">items</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span><span class="op">)</span><span class="op">]</span>   <span class="co"># item 1 misfits</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    item  infit_ms outfit_ms</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1   I01 1.0129673 0.4276359</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   I02 1.0434529 0.9552952</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   I03 0.9821247 0.8216242</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4   I04 1.0542503 1.1240877</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5   I05 1.0403856 0.9455574</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6   I06 1.0912200 1.1335211</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7   I07 1.0266441 0.9933927</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8   I08 1.1127883 1.1255372</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9   I09 1.0445976 1.0522776</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10  I10 1.0460971 0.9486632</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11  I11 1.0356288 0.9841202</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12  I12 0.9849557 0.7809060</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  item infit_ms outfit_ms</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I01    1.013     0.428</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I02    1.043     0.955</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I03    0.982     0.822</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I04    1.054     1.124</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I05    1.040     0.946</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I06    1.091     1.134</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I07    1.027     0.993</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I08    1.113     1.126</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I09    1.045     1.052</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I10    1.046     0.949</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I11    1.036     0.984</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I12    0.985     0.781</span>
 <span class="r-in"><span><span class="fu"><a href="dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span>                           <span class="co"># item 6 flags</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    item  term   F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1   I01 group  4.83171573 2.853237e-02  1.151575e-01 1.233110e-02       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   I02 group  1.83782166 1.759971e-01  3.519941e-01 4.726448e-03       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   I03 group  0.03257713 8.568613e-01  8.930004e-01 8.417155e-05       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4   I04 group  2.03757803 1.542602e-01  3.519941e-01 5.237484e-03       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5   I05 group  0.86937693 3.517092e-01  5.935165e-01 2.241417e-03       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6   I06 group 25.47500950 6.910514e-07  8.292617e-06 6.176134e-02        TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7   I07 group  3.26266938 7.165039e-02  2.149512e-01 8.360188e-03       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8   I08 group  0.08509096 7.706696e-01  8.930004e-01 2.198249e-04       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9   I09 group  0.72302977 3.956776e-01  5.935165e-01 1.864810e-03       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10  I10 group  0.50867110 4.761445e-01  6.348594e-01 1.312670e-03       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11  I11 group  4.81605772 2.878939e-02  1.151575e-01 1.229163e-02       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12  I12 group  0.01811637 8.930004e-01  8.930004e-01 4.681013e-05       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1    1.54966116   0.17347796        0.5204339    0.0196284713          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2    0.01997421   0.99983670        0.9998367    0.0002579982          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3    1.76053942   0.11999503        0.5204339    0.0222401139          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4    1.71079174   0.13105466        0.5204339    0.0216252638          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5    1.19165870   0.31252139        0.6250428    0.0151626613          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6    0.47260534   0.79668141        0.8834756    0.0060689550          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7    2.56058359   0.02694998        0.3233997    0.0320230728          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8    0.95357514   0.44624178        0.7649859    0.0121701548          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9    0.82209172   0.53445762        0.8016864    0.0105097128          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10   0.51196042   0.76724495        0.8834756    0.0065710119          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11   0.45468459   0.80985262        0.8834756    0.0058401700          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12   1.20767050   0.30477298        0.6250428    0.0153632653          FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    superseded</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9       FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11      FALSE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12      FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  item  term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I01 group     4.832     0.029         0.115        0.012            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I02 group     1.838     0.176         0.352        0.005            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I03 group     0.033     0.857         0.893        0.000            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I04 group     2.038     0.154         0.352        0.005            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I05 group     0.869     0.352         0.594        0.002            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I06 group    25.475   &lt; 0.001       &lt; 0.001        0.062           *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I07 group     3.263     0.072         0.215        0.008            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I08 group     0.085     0.771         0.893        0.000            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I09 group     0.723     0.396         0.594        0.002            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I10 group     0.509     0.476         0.635        0.001            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I11 group     4.816     0.029         0.115        0.012            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I12 group     0.018     0.893         0.893        0.000            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         1.550        0.173            0.520           0.020               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         0.020        1.000            1.000           0.000               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         1.761        0.120            0.520           0.022               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         1.711        0.131            0.520           0.022               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         1.192        0.313            0.625           0.015               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         0.473        0.797            0.883           0.006               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         2.561        0.027            0.323           0.032               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         0.954        0.446            0.765           0.012               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         0.822        0.534            0.802           0.011               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         0.512        0.767            0.883           0.007               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         0.455        0.810            0.883           0.006               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         1.208        0.305            0.625           0.015               </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  superseded</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

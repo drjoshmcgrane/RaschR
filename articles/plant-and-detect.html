@@ -142,17 +142,17 @@ responses.</p>
 <span><span class="va">d2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span><span class="fl">400</span>, <span class="fl">10</span>, discrimination <span class="op">=</span> <span class="va">disc</span>, seed <span class="op">=</span> <span class="fl">21</span><span class="op">)</span></span>
 <span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d2</span>, id <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
 <span><span class="va">fit2</span><span class="op">$</span><span class="va">items</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"location"</span>, <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    item location infit_ms outfit_ms</span></span>
-<span><span class="co">#&gt; 1   I01  -2.5220   0.8994    0.7716</span></span>
-<span><span class="co">#&gt; 2   I02  -1.8851   1.0412    0.9415</span></span>
-<span><span class="co">#&gt; 3   I03  -1.5071   1.0119    0.8956</span></span>
-<span><span class="co">#&gt; 4   I04  -0.7011   1.0517    0.9912</span></span>
-<span><span class="co">#&gt; 5   I05  -0.3867   0.9134    0.8490</span></span>
-<span><span class="co">#&gt; 6   I06   0.2056   1.2625    1.2397</span></span>
-<span><span class="co">#&gt; 7   I07   0.7730   1.0445    1.0459</span></span>
-<span><span class="co">#&gt; 8   I08   1.4631   1.0828    0.9437</span></span>
-<span><span class="co">#&gt; 9   I09   2.1031   1.0133    0.8363</span></span>
-<span><span class="co">#&gt; 10  I10   2.4572   1.0382    0.7645</span></span></code></pre></div>
+<span><span class="co">#&gt;  item location infit_ms outfit_ms</span></span>
+<span><span class="co">#&gt;   I01   -2.522    0.899     0.772</span></span>
+<span><span class="co">#&gt;   I02   -1.885    1.041     0.941</span></span>
+<span><span class="co">#&gt;   I03   -1.507    1.012     0.896</span></span>
+<span><span class="co">#&gt;   I04   -0.701    1.052     0.991</span></span>
+<span><span class="co">#&gt;   I05   -0.387    0.913     0.849</span></span>
+<span><span class="co">#&gt;   I06    0.206    1.262     1.240</span></span>
+<span><span class="co">#&gt;   I07    0.773    1.044     1.046</span></span>
+<span><span class="co">#&gt;   I08    1.463    1.083     0.944</span></span>
+<span><span class="co">#&gt;   I09    2.103    1.013     0.836</span></span>
+<span><span class="co">#&gt;   I10    2.457    1.038     0.765</span></span></code></pre></div>
 <p>Over-discrimination tends to give mean-square statistics below one;
 under-discrimination tends to give values above one. Their sampling
 variation still depends on the item location, sample, and test
@@ -174,17 +174,17 @@ group. Here I06 differs by one logit in the second group.</p>
 <span><span class="va">fit3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d3</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="va">da</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit3</span><span class="op">)</span></span>
 <span><span class="va">da</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"F_uniform"</span>, <span class="st">"p_uniform_adj"</span>, <span class="st">"uniform_DIF"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    item  term F_uniform p_uniform_adj uniform_DIF</span></span>
-<span><span class="co">#&gt; 1   I01 group  0.164009      0.855993       FALSE</span></span>
-<span><span class="co">#&gt; 2   I02 group  3.234919      0.242365       FALSE</span></span>
-<span><span class="co">#&gt; 3   I03 group  0.172138      0.855993       FALSE</span></span>
-<span><span class="co">#&gt; 4   I04 group  0.412059      0.855993       FALSE</span></span>
-<span><span class="co">#&gt; 5   I05 group  3.694811      0.242365       FALSE</span></span>
-<span><span class="co">#&gt; 6   I06 group 18.647136      0.000191        TRUE</span></span>
-<span><span class="co">#&gt; 7   I07 group  0.611468      0.855993       FALSE</span></span>
-<span><span class="co">#&gt; 8   I08 group  0.008686      0.925785       FALSE</span></span>
-<span><span class="co">#&gt; 9   I09 group  0.138649      0.855993       FALSE</span></span>
-<span><span class="co">#&gt; 10  I10 group  0.085278      0.855993       FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt;  item  term F_uniform p_uniform_adj uniform_DIF</span></span>
+<span><span class="co">#&gt;   I01 group     0.164         0.856            </span></span>
+<span><span class="co">#&gt;   I02 group     3.235         0.242            </span></span>
+<span><span class="co">#&gt;   I03 group     0.172         0.856            </span></span>
+<span><span class="co">#&gt;   I04 group     0.412         0.856            </span></span>
+<span><span class="co">#&gt;   I05 group     3.695         0.242            </span></span>
+<span><span class="co">#&gt;   I06 group    18.647       &lt; 0.001           *</span></span>
+<span><span class="co">#&gt;   I07 group     0.611         0.856            </span></span>
+<span><span class="co">#&gt;   I08 group     0.009         0.926            </span></span>
+<span><span class="co">#&gt;   I09 group     0.139         0.856            </span></span>
+<span><span class="co">#&gt;   I10 group     0.085         0.856</span></span></code></pre></div>
 <p><code>dif_anova</code> tests invariance. <code>dif_size</code>
 resolves the item by group and reports the difference between the
 resolved locations in logits.</p>
@@ -194,10 +194,10 @@ resolved locations in logits.</p>
 <span><span class="co">#&gt;  level location    se weak   n</span></span>
 <span><span class="co">#&gt;     g1    0.262 0.140    0 250</span></span>
 <span><span class="co">#&gt;     g2    1.266 0.162    0 250</span></span>
-<span><span class="co">#&gt;  level_a level_b difference    se      z p p_adj  lower  upper significant</span></span>
-<span><span class="co">#&gt;       g1      g2     -1.004 0.234 -4.287 0     0 -1.463 -0.545           *</span></span>
-<span><span class="co">#&gt;  practical</span></span>
-<span><span class="co">#&gt;    &gt;= 0.50</span></span>
+<span><span class="co">#&gt;  level_a level_b difference    se      z       p   p_adj  lower  upper</span></span>
+<span><span class="co">#&gt;       g1      g2     -1.004 0.234 -4.287 &lt; 0.001 &lt; 0.001 -1.463 -0.545</span></span>
+<span><span class="co">#&gt;  significant practical</span></span>
+<span><span class="co">#&gt;            *   &gt;= 0.50</span></span>
 <span><span class="co">#&gt; p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span></span></code></pre></div>
 <p>A simulation study of DIF should record false-positive rates for
 invariant items as well as detection of the shifted item. Sample size,
@@ -254,33 +254,33 @@ quarter of the judges respond at random.</p>
 <span></span>
 <span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl.html">btl</a></span><span class="op">(</span><span class="va">b</span>, <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, winner <span class="op">=</span> <span class="st">"winner"</span>, judge <span class="op">=</span> <span class="st">"judge"</span><span class="op">)</span></span>
 <span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="op">-</span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>, <span class="op">]</span></span>
-<span><span class="co">#&gt;   judge  n infit_ms outfit_ms fit_resid df_fit</span></span>
-<span><span class="co">#&gt; 1    J1 74   1.4569    1.5253    3.9953  73.30</span></span>
-<span><span class="co">#&gt; 2    J2 75   1.3566    1.4168    3.2204  74.29</span></span>
-<span><span class="co">#&gt; 6    J6 70   1.0708    1.0758    0.5876  69.33</span></span>
-<span><span class="co">#&gt; 4    J4 78   0.9017    0.8810   -1.1930  77.26</span></span>
-<span><span class="co">#&gt; 7    J7 77   0.8939    0.8757   -1.3396  76.27</span></span>
-<span><span class="co">#&gt; 3    J3 81   0.8743    0.8520   -1.5176  80.23</span></span>
-<span><span class="co">#&gt; 8    J8 92   0.8565    0.8232   -1.8897  91.12</span></span>
-<span><span class="co">#&gt; 5    J5 83   0.7515    0.7151   -2.9513  82.21</span></span></code></pre></div>
+<span><span class="co">#&gt;  judge  n infit_ms outfit_ms fit_resid df_fit</span></span>
+<span><span class="co">#&gt;     J1 74    1.457     1.525     3.995 73.295</span></span>
+<span><span class="co">#&gt;     J2 75    1.357     1.417     3.220 74.286</span></span>
+<span><span class="co">#&gt;     J6 70    1.071     1.076     0.588 69.333</span></span>
+<span><span class="co">#&gt;     J4 78    0.902     0.881    -1.193 77.257</span></span>
+<span><span class="co">#&gt;     J7 77    0.894     0.876    -1.340 76.267</span></span>
+<span><span class="co">#&gt;     J3 81    0.874     0.852    -1.518 80.229</span></span>
+<span><span class="co">#&gt;     J8 92    0.856     0.823    -1.890 91.124</span></span>
+<span><span class="co">#&gt;     J5 83    0.752     0.715    -2.951 82.210</span></span></code></pre></div>
 <p>Judge fit describes agreement with the common object scale.
 Transitivity is a different summary: it counts circular triads in the
 observed comparisons.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_transitivity.html">btl_transitivity</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span></span>
 <span><span class="va">tr</span><span class="op">$</span><span class="va">summary</span></span>
-<span><span class="co">#&gt;   n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency</span></span>
-<span><span class="co">#&gt; 1         7      21        30          2       0.06667        0.25      0.7333</span></span>
-<span><span class="co">#&gt;   zeta</span></span>
-<span><span class="co">#&gt; 1   NA</span></span>
+<span><span class="co">#&gt;  n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency</span></span>
+<span><span class="co">#&gt;          7      21        30          2         0.067       0.250       0.733</span></span>
+<span><span class="co">#&gt;  zeta</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">tr</span><span class="op">$</span><span class="va">judges</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   judge n_comparisons n_triples n_circular circular_rate consistency</span></span>
-<span><span class="co">#&gt; 1    J2            75        21          7       0.33333     -0.3333</span></span>
-<span><span class="co">#&gt; 2    J1            74        25          3       0.12000      0.5200</span></span>
-<span><span class="co">#&gt; 3    J6            70        35          4       0.11429      0.5429</span></span>
-<span><span class="co">#&gt; 4    J3            81        15          1       0.06667      0.7333</span></span>
-<span><span class="co">#&gt; 5    J8            92        30          1       0.03333      0.8667</span></span>
-<span><span class="co">#&gt; 6    J4            78        21          0       0.00000      1.0000</span></span></code></pre></div>
+<span><span class="co">#&gt;  judge n_comparisons n_triples n_circular circular_rate consistency</span></span>
+<span><span class="co">#&gt;     J2            75        21          7         0.333      -0.333</span></span>
+<span><span class="co">#&gt;     J1            74        25          3         0.120       0.520</span></span>
+<span><span class="co">#&gt;     J6            70        35          4         0.114       0.543</span></span>
+<span><span class="co">#&gt;     J3            81        15          1         0.067       0.733</span></span>
+<span><span class="co">#&gt;     J8            92        30          1         0.033       0.867</span></span>
+<span><span class="co">#&gt;     J4            78        21          0         0.000       1.000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="repeated-simulation">Repeated simulation<a class="anchor" aria-label="anchor" href="#repeated-simulation"></a>

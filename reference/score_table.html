@@ -124,14 +124,14 @@ response theory. Psychometrika, 54(3), 427–450.</p>
 <span class="r-in"><span><span class="va">X</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">300</span> <span class="op">*</span> <span class="fl">6</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">300</span><span class="op">)</span>, <span class="va">d</span>, <span class="st">"-"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="fl">300</span>, <span class="fl">6</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">score_table</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"mle"</span>, extremes <span class="op">=</span> <span class="st">"extrapolated"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   score       theta        se extrapolated freq    cum_pct</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1     0 -3.27788845 1.8246799         TRUE   13   4.333333</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2     1 -1.95393671 1.1597821        FALSE   35  16.000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3     2 -0.88068333 0.9582186        FALSE   63  37.000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4     3 -0.01065703 0.9221359        FALSE   73  61.333333</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5     4  0.86803622 0.9667528        FALSE   66  83.333333</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6     5  1.96255223 1.1702696        FALSE   41  97.000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7     6  3.32590095 1.8484082         TRUE    9 100.000000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  score  theta    se extrapolated freq cum_pct</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      0 -3.278 1.825            *   13   4.333</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      1 -1.954 1.160                35  16.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      2 -0.881 0.958                63  37.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      3 -0.011 0.922                73  61.333</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      4  0.868 0.967                66  83.333</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      5  1.963 1.170                41  97.000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      6  3.326 1.848            *    9 100.000</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -135,17 +135,17 @@ each set once a few hundred linking persons are available.
 ``` r
 
 fit$phi_table
-#>   group    phi se_log_phi
-#> 1    g1 0.9526    0.01903
-#> 2    g2 1.0498    0.01903
+#>  group   phi se_log_phi
+#>     g1 0.953      0.019
+#>     g2 1.050      0.019
 fit$alpha_table
-#>    set  alpha se_log_alpha
-#> 1 set1 0.8797      0.02991
-#> 2 set2 1.1367      0.02991
+#>   set alpha se_log_alpha
+#>  set1 0.880        0.030
+#>  set2 1.137        0.030
 fit$set_table
-#>    set        mu  alpha n_items
-#> 1 set1  0.005332 0.8797      12
-#> 2 set2 -0.005332 1.1367      12
+#>   set     mu alpha n_items
+#>  set1  0.005 0.880      12
+#>  set2 -0.005 1.137      12
 fit$linking
 #> $phi_edges
 #> $phi_edges[[1]]
@@ -156,8 +156,8 @@ fit$linking
 #> 
 #> 
 #> $alpha_edges
-#>   set_a set_b   n log_slope
-#> 1  set1  set2 913    0.2563
+#>  set_a set_b   n log_slope
+#>   set1  set2 913     0.256
 ```
 
 Group units are estimated from within-frame pairwise conditional
@@ -208,16 +208,16 @@ person resample.
 ``` r
 
 fit$frames
-#>    set group n_persons n_items  alpha    phi    rho se_log_rho    origin
-#> 1 set1    g1       500      12 0.8797 0.9526 0.8380    0.03546  0.005332
-#> 2 set2    g1       500      12 1.1367 0.9526 1.0828    0.03546 -0.005332
-#> 3 set1    g2       500      12 0.8797 1.0498 0.9235    0.03546  0.005332
-#> 4 set2    g2       500      12 1.1367 1.0498 1.1933    0.03546 -0.005332
-#>   infit_ms outfit_ms fit_resid n_responses
-#> 1    1.012    0.9998    0.3668        5964
-#> 2    1.022    0.9778   -0.8175        5964
-#> 3    1.019    0.9954    0.1561        5856
-#> 4    1.032    0.9735   -0.8426        5856
+#>   set group n_persons n_items alpha   phi   rho se_log_rho origin infit_ms
+#>  set1    g1       500      12 0.880 0.953 0.838      0.035  0.005    1.012
+#>  set2    g1       500      12 1.137 0.953 1.083      0.035 -0.005    1.022
+#>  set1    g2       500      12 0.880 1.050 0.924      0.035  0.005    1.019
+#>  set2    g2       500      12 1.137 1.050 1.193      0.035 -0.005    1.032
+#>  outfit_ms fit_resid n_responses
+#>      1.000     0.367        5964
+#>      0.978    -0.817        5964
+#>      0.995     0.156        5856
+#>      0.973    -0.843        5856
 fit$efrm_vs_rasch
 #> $ll_efrm
 #> [1] -27194
@@ -235,16 +235,16 @@ fit$efrm_vs_rasch
 #> [1] "group units (phi)"
 #> 
 #> $unit_omnibus
-#>                term df   wald         p
-#> 1 group units (phi)  1  6.509 1.073e-02
-#> 2 set units (alpha)  1 18.349 1.839e-05
+#>               term df   wald       p
+#>  group units (phi)  1  6.509   0.011
+#>  set units (alpha)  1 18.349 < 0.001
 #> 
 #> $unit_tests
-#>         parameter estimate      se      z         p     p_adj significant
-#> 1     log phi[g1] -0.04856 0.01903 -2.551 1.073e-02 2.146e-02        TRUE
-#> 2     log phi[g2]  0.04856 0.01903  2.551 1.073e-02 2.146e-02        TRUE
-#> 3 log alpha[set1] -0.12814 0.02991 -4.284 1.839e-05 7.355e-05        TRUE
-#> 4 log alpha[set2]  0.12814 0.02991  4.284 1.839e-05 7.355e-05        TRUE
+#>        parameter estimate    se      z       p   p_adj significant
+#>      log phi[g1]   -0.049 0.019 -2.551   0.011   0.021           *
+#>      log phi[g2]    0.049 0.019  2.551   0.011   0.021           *
+#>  log alpha[set1]   -0.128 0.030 -4.284 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.128 0.030  4.284 < 0.001 < 0.001           *
 ```
 
 The raw equal-unit composite-likelihood difference is descriptive. The

@@ -45,14 +45,14 @@ fit
 #>      O7    1.465 0.220         120   97    -0.976
 #> Judges beyond |fit residual| 2.5: 0
 fit$objects
-#>   object location     se comparisons wins infit_ms outfit_ms fit_resid df_fit
-#> 1     O1  -1.8195 0.1795         120   16   1.0175    1.0674    0.2242  118.3
-#> 2     O2  -0.9299 0.2160         120   35   0.9730    0.8489   -0.9665  118.3
-#> 3     O3  -0.2029 0.2149         120   54   1.1463    1.1531    1.1791  118.3
-#> 4     O4  -0.2763 0.2075         120   52   0.9647    0.9512   -0.4071  118.3
-#> 5     O5   0.5650 0.1245         120   75   0.9708    1.0213    0.1476  118.3
-#> 6     O6   1.1983 0.2427         120   91   1.0906    1.2000    0.8747  118.3
-#> 7     O7   1.4653 0.2205         120   97   0.9551    0.7870   -0.9760  118.3
+#>  object location    se comparisons wins infit_ms outfit_ms fit_resid  df_fit
+#>      O1   -1.820 0.180         120   16    1.017     1.067     0.224 118.286
+#>      O2   -0.930 0.216         120   35    0.973     0.849    -0.967 118.286
+#>      O3   -0.203 0.215         120   54    1.146     1.153     1.179 118.286
+#>      O4   -0.276 0.208         120   52    0.965     0.951    -0.407 118.286
+#>      O5    0.565 0.124         120   75    0.971     1.021     0.148 118.286
+#>      O6    1.198 0.243         120   91    1.091     1.200     0.875 118.286
+#>      O7    1.465 0.220         120   97    0.955     0.787    -0.976 118.286
 ```
 
 Judge residuals describe agreement with the common object scale; they
@@ -63,19 +63,19 @@ be considered together.
 ``` r
 
 fit$judges
-#>    judge  n infit_ms outfit_ms fit_resid df_fit
-#> 1     J1 32   1.1764    0.9699  -0.07376  31.54
-#> 2    J10 35   0.7386    0.6181  -1.27240  34.50
-#> 3    J11 39   1.0522    1.2970   0.78439  38.44
-#> 4    J12 35   1.1293    1.1234   0.29638  34.50
-#> 5     J2 31   0.8139    1.1361   0.34239  30.56
-#> 6     J3 38   1.1394    1.1366   0.42621  37.46
-#> 7     J4 35   0.8343    0.8276  -0.51156  34.50
-#> 8     J5 31   1.0460    0.9253  -0.22159  30.56
-#> 9     J6 36   1.3172    1.3684   0.96433  35.49
-#> 10    J7 35   1.0353    0.9238  -0.22938  34.50
-#> 11    J8 35   0.8332    0.7551  -0.83367  34.50
-#> 12    J9 38   1.0730    0.9232  -0.19434  37.46
+#>  judge  n infit_ms outfit_ms fit_resid df_fit
+#>     J1 32    1.176     0.970    -0.074 31.543
+#>    J10 35    0.739     0.618    -1.272 34.500
+#>    J11 39    1.052     1.297     0.784 38.443
+#>    J12 35    1.129     1.123     0.296 34.500
+#>     J2 31    0.814     1.136     0.342 30.557
+#>     J3 38    1.139     1.137     0.426 37.457
+#>     J4 35    0.834     0.828    -0.512 34.500
+#>     J5 31    1.046     0.925    -0.222 30.557
+#>     J6 36    1.317     1.368     0.964 35.486
+#>     J7 35    1.035     0.924    -0.229 34.500
+#>     J8 35    0.833     0.755    -0.834 34.500
+#>     J9 38    1.073     0.923    -0.194 37.457
 judge_surprise(fit, "J1")
 #> Judge J1: 32 comparisons over 7 objects
 #> No object judged against its consensus standing.
@@ -178,17 +178,17 @@ ef <- btl_efrm(
   se_method = "conditional"
 )
 ef$phi_table
-#>    panel    phi se_log_phi       t df      p  p_adj significant
-#> 1 panel1 1.1066     0.1166  0.8685 11 0.4037 0.8074       FALSE
-#> 2 panel2 0.9037     0.1166 -0.8685 11 0.4037 0.8074       FALSE
+#>   panel   phi se_log_phi      t df     p p_adj significant
+#>  panel1 1.107      0.117  0.868 11 0.404 0.807            
+#>  panel2 0.904      0.117 -0.868 11 0.404 0.807
 ef$alpha_table
-#>    set alpha se_log_alpha     t df       p   p_adj significant
-#> 1 set1  1.00           NA    NA 11      NA      NA          NA
-#> 2 set2  1.35       0.1179 2.549 11 0.02704 0.02704        TRUE
+#>   set alpha se_log_alpha     t df     p p_adj significant
+#>  set1 1.000                    11                        
+#>  set2 1.350        0.118 2.549 11 0.027 0.027           *
 ef$kappa_table
-#>    set  kappa se_kappa     t df       p   p_adj significant
-#> 1 set1 0.0000       NA    NA 11      NA      NA          NA
-#> 2 set2 0.2798   0.1228 2.279 11 0.04364 0.04364        TRUE
+#>   set kappa se_kappa     t df     p p_adj significant
+#>  set1 0.000                11                        
+#>  set2 0.280    0.123 2.279 11 0.044 0.044           *
 ```
 
 The default judge bootstrap resamples judges within panels and refits

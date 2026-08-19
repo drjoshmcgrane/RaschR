@@ -83,6 +83,30 @@ strengthens identification and uncertainty checks.
 
 ### Follow-ups, comparisons, projects, and reports
 
+- [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+  tests the item invariance a frame model assumes rather than imposing
+  it. The fitted model holds one location per item, shared across frames
+  and scaled by the frame unit, so the assumption cannot be checked from
+  the fit; the function calibrates each frame separately, puts the
+  locations on the common scale, and compares them item by item,
+  reporting the root mean squared difference against the root mean
+  squared standard error. Its `adjust` argument chooses between Holm
+  across all comparisons and no adjustment, because screening for items
+  to examine and reporting a difference are different jobs: on eight to
+  ten items the adjustment costs between 20 and 60 points of
+  sensitivity, and simulation shows that carrying through to the
+  repaired unit ratio. Both probabilities are reported either way, and
+  the printed output names the rule it applied. The application exposes
+  the choice as a switch.
+- [`drop_items()`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
+  removes items from a fitted analysis and refits it, keeping the model,
+  person identifiers, factors, and – for frame models – the set
+  structure and standard-error method. The application offers the same
+  action on the selected item, recorded as an undoable step. For frame
+  models this is a sensitivity analysis rather than housekeeping: a set
+  unit is estimated from the dispersion its own items produce, so an
+  item that fits its set badly moves the unit that decides whether the
+  sets differ.
 - [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
   provides post-hoc pairwise DIF comparisons after a significant omnibus
   term: resolved item-location differences in logits with the joint

@@ -177,8 +177,8 @@ fit <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                 object_sets = attr(d, "truth")$object_sets,
                 se_method = "conditional")
 fit$alpha_table
-#>    set    alpha se_log_alpha        t df            p        p_adj significant
-#> 1 set1 1.000000           NA       NA 11           NA           NA          NA
-#> 2 set2 1.606727   0.07723586 6.139626 11 7.314069e-05 7.314069e-05        TRUE
+#>   set alpha se_log_alpha     t df       p   p_adj significant
+#>  set1 1.000                    11                            
+#>  set2 1.607        0.077 6.140 11 < 0.001 < 0.001           *
 # }
 ```

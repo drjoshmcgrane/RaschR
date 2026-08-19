@@ -134,19 +134,19 @@ dependence effects fitted by <code><a href="btl.html">btl</a></code>.</p></dd>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">simulate_btl</span><span class="op">(</span><span class="fl">8</span>, <span class="fl">12</span>, erratic_judges <span class="op">=</span> <span class="fl">0.15</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="btl.html">btl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, winner <span class="op">=</span> <span class="st">"winner"</span>, judge <span class="op">=</span> <span class="st">"judge"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span>          <span class="co"># the erratic judges carry large fit residuals</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    judge  n  infit_ms outfit_ms  fit_resid df_fit</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1     J1 64 1.2295559 1.2860809  1.4008368  63.36</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2    J10 61 0.8282835 0.7923607 -1.3444319  60.39</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3    J11 41 0.7521572 0.6528004 -1.8596500  40.59</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4    J12 62 0.9105348 0.8766737 -0.7595074  61.38</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5     J2 50 1.4382514 1.8513748  3.0502717  49.50</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6     J3 59 0.9333531 0.8985656 -0.5650125  58.41</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7     J4 65 1.0931577 1.1947629  1.1791819  64.35</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8     J5 70 1.0077925 1.0865689  0.5635480  69.30</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9     J6 60 0.9139414 0.8926580 -0.7310213  59.40</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10    J7 54 1.0475564 1.0148149  0.0828951  53.46</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11    J8 53 1.0434358 1.0532995  0.2926053  52.47</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12    J9 61 0.8308331 0.7986060 -1.4223486  60.39</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  judge  n infit_ms outfit_ms fit_resid df_fit</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J1 64    1.230     1.286     1.401 63.360</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    J10 61    0.828     0.792    -1.344 60.390</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    J11 41    0.752     0.653    -1.860 40.590</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    J12 62    0.911     0.877    -0.760 61.380</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J2 50    1.438     1.851     3.050 49.500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J3 59    0.933     0.899    -0.565 58.410</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J4 65    1.093     1.195     1.179 64.350</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J5 70    1.008     1.087     0.564 69.300</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J6 60    0.914     0.893    -0.731 59.400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J7 54    1.048     1.015     0.083 53.460</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J8 53    1.043     1.053     0.293 52.470</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     J9 61    0.831     0.799    -1.422 60.390</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

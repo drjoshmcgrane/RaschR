@@ -232,13 +232,15 @@ are built differently.</p>
 answered by every group, so an item can sit differently in one group
 than another: two items in twelve carrying a one-logit shift moved a
 recovered ratio by 7 to 11% in simulation, and four items whose
-discrimination differed by half moved it by 10 to 12%. Note that
-<code><a href="dif_anova.html">dif_anova</a></code> cannot test the grouping factor that defines the
-frames – it is constant within each frame by construction, and is
-refused. Screen instead by comparing each item's per-frame estimates in
-<code>items</code> after rescaling by the frame units in <code>frames</code>: under
-the model they agree, and divergence beyond their standard errors is
-frame-specific item behaviour.</p>
+discrimination differed by half moved it by 10 to 12%. Neither the
+fitted object nor <code><a href="dif_anova.html">dif_anova</a></code> can detect this. The fit holds
+one location per item, shared across the frames it appears in and scaled
+by the frame unit, so its per-frame estimates agree by construction; and
+the grouping factor that defines the frames is constant within each
+frame, so <code>dif_anova</code> refuses it. Testing the assumption means
+stepping outside the model, which is what <code><a href="frame_invariance.html">frame_invariance</a></code>
+does: it calibrates each frame separately, puts the locations on the
+common scale, and compares them item by item.</p>
 <p>Item-set units are exposed to something else entirely. Sets partition
 the items, so no item appears in two sets and DIF across sets is not
 defined. What distorts a set unit is misfit CONCENTRATED IN ONE SET,
@@ -248,12 +250,40 @@ two over-discriminating items in one set moved a planted ratio of 1.40
 to 1.17, two under-discriminating items moved it to 1.73, and four
 over-discriminating items to 1.02 – a real 40% unit difference read
 as none at all. The same misfit spread evenly across both sets cancels
-almost exactly (1.41). Screen with the ordinary item fit statistics
-within each set, and treat a badly fitting item as evidence about its
-set membership: an item that shares no unit with its set, such as an
-ambivalently worded item filed among the negatively worded ones, is
-better removed than retained, and cannot be given a set of its own
-because a single item carries no dispersion to estimate a unit from.</p>
+almost exactly (1.41).</p>
+<p>Screen on the standardised fit residual, <code>fit_resid</code> in
+<code>items</code>, and repair with <code><a href="drop_items.html">drop_items</a></code>. Of the fit
+statistics compared in simulation it is the one that restores the ratio:
+against a planted 1.40 read as 1.69 under two under-discriminating
+items, dropping on the fit residual recovered 1.44 where the chi-square
+item fit test reached only 1.64, and dropping the items actually planted
+gave 1.43.</p>
+<p>Rank on it; do not threshold on it. A fixed cut such as
+<code>abs(fit_resid) &gt; 2</code> is a statement about detectability rather than
+about magnitude, so it flags more items the more persons there are: with
+two of eight items in a set discriminating twice as steeply, the
+remaining items genuinely depart from the compromise the model settles
+on, and that departure clears the cut in 0.8 of 14 sound items at 500
+persons but 7.0 at 6,000. On the Rosenberg Self-Esteem data used by the
+wording case study, at 6,000 respondents, the cut selects 7 of the 10
+items and <code><a href="drop_items.html">drop_items</a></code> then refuses the drop for emptying a
+set.</p>
+<p>Order the items by <code>abs(fit_resid)</code> instead, drop the largest
+departure, and refit. Stop when the sets no longer differ in unit, which
+is a question for the test in <code>efrm_vs_rasch$unit_tests</code> rather than
+for the ratio: once there is no difference left, a further drop has
+nothing to explain and is fitting noise. On the self-esteem data the
+ranking puts Q8 first at 22.5 and Q4 second at 12.4 – the same two items
+a free-slope model fitted to the same respondents ranks lowest, and the
+two orderings agree on the extreme three. Dropping Q8 alone moves the
+ratio from 1.24 to 1.03 at p = 0.63; dropping Q4 as well does not improve
+on that but returns a significant difference of 1.16, which is what
+ignoring the stopping rule costs.</p>
+<p>Treat a badly fitting item as evidence about its set membership: an
+item that shares no unit with its set, such as an ambivalently worded
+item filed among the negatively worded ones, is better removed than
+retained, and cannot be given a set of its own because a single item
+carries no dispersion to estimate a unit from.</p>
 <p>The dichotomous model and the theory of frame-dependent units follow
 Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
 an error-corrected method-of-moments implementation of the variance-ratio
@@ -306,9 +336,9 @@ model. Journal of Applied Measurement, 9(3), 249–264.</p>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">rasch_efrm</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="va">X</span>, grp <span class="op">=</span> <span class="va">grp</span><span class="op">)</span>, item_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>core <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>                  groups <span class="op">=</span> <span class="st">"grp"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">phi_table</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   group       phi se_log_phi</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1     A 0.8422988 0.04222911</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2     B 1.1872271 0.04222911</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  group   phi se_log_phi</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      A 0.842      0.042</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      B 1.187      0.042</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

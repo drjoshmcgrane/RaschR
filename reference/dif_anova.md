@@ -173,45 +173,45 @@ X <- matrix(rbinom(n * 6, 1, plogis(outer(rnorm(n), d, "-") - sh)), n, 6)
 colnames(X) <- paste0("I", 1:6)
 fit <- rasch(data.frame(X, g1 = g1, g2 = g2), factors = c("g1", "g2"))
 dif_anova(fit)$summary
-#>    item term  F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#> 1    I1   g1  0.6121334 4.342458e-01  4.342458e-01 0.0008589994       FALSE
-#> 2    I1   g2  1.3413518 2.471841e-01  2.966209e-01 0.0018803785       FALSE
-#> 3    I2   g1 22.5995342 2.415245e-06  1.449147e-05 0.0307644276        TRUE
-#> 4    I2   g2  2.9308828 8.733541e-02  2.620062e-01 0.0040995331       FALSE
-#> 5    I3   g1  2.6226689 1.057899e-01  2.632076e-01 0.0036700052       FALSE
-#> 6    I3   g2  0.3236896 5.695781e-01  5.695781e-01 0.0004544136       FALSE
-#> 7    I4   g1  2.2787190 1.316038e-01  2.632076e-01 0.0031902378       FALSE
-#> 8    I4   g2  1.4279983 2.324893e-01  2.966209e-01 0.0020016012       FALSE
-#> 9    I5   g1  0.8332442 3.616451e-01  4.342458e-01 0.0011689189       FALSE
-#> 10   I5   g2  1.3836032 2.398815e-01  2.966209e-01 0.0019394940       FALSE
-#> 11   I6   g1  0.6800322 4.098518e-01  4.342458e-01 0.0009541900       FALSE
-#> 12   I6   g2  3.9539511 4.714388e-02  2.620062e-01 0.0055226333       FALSE
-#>    F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#> 1     0.4714642  0.756715172       0.75671517    0.0026416781          FALSE
-#> 2     0.1169713  0.976504536       0.97650454    0.0006567108          FALSE
-#> 3     2.5711448  0.036798473       0.11039542    0.0142389570          FALSE
-#> 4     0.2242190  0.924909281       0.97650454    0.0012580724          FALSE
-#> 5     1.2157323  0.302694888       0.60538978    0.0067836248          FALSE
-#> 6     0.5819722  0.675793611       0.97650454    0.0032588521          FALSE
-#> 7     0.8410808  0.499308707       0.66662317    0.0047029510          FALSE
-#> 8     1.5816798  0.177323408       0.69062571    0.0088075791          FALSE
-#> 9     0.7539858  0.555519305       0.66662317    0.0042180085          FALSE
-#> 10    0.3857592  0.818903711       0.97650454    0.0021624998          FALSE
-#> 11    3.5440568  0.007116541       0.04269925    0.0195217452           TRUE
-#> 12    1.4061183  0.230208570       0.69062571    0.0078376275          FALSE
-#>    superseded
-#> 1       FALSE
-#> 2       FALSE
-#> 3       FALSE
-#> 4       FALSE
-#> 5       FALSE
-#> 6       FALSE
-#> 7       FALSE
-#> 8       FALSE
-#> 9       FALSE
-#> 10      FALSE
-#> 11      FALSE
-#> 12      FALSE
+#>  item term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
+#>    I1   g1     0.612     0.434         0.434        0.001            
+#>    I1   g2     1.341     0.247         0.297        0.002            
+#>    I2   g1    22.600   < 0.001       < 0.001        0.031           *
+#>    I2   g2     2.931     0.087         0.262        0.004            
+#>    I3   g1     2.623     0.106         0.263        0.004            
+#>    I3   g2     0.324     0.570         0.570        0.000            
+#>    I4   g1     2.279     0.132         0.263        0.003            
+#>    I4   g2     1.428     0.232         0.297        0.002            
+#>    I5   g1     0.833     0.362         0.434        0.001            
+#>    I5   g2     1.384     0.240         0.297        0.002            
+#>    I6   g1     0.680     0.410         0.434        0.001            
+#>    I6   g2     3.954     0.047         0.262        0.006            
+#>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
+#>         0.471        0.757            0.757           0.003               
+#>         0.117        0.977            0.977           0.001               
+#>         2.571        0.037            0.110           0.014               
+#>         0.224        0.925            0.977           0.001               
+#>         1.216        0.303            0.605           0.007               
+#>         0.582        0.676            0.977           0.003               
+#>         0.841        0.499            0.667           0.005               
+#>         1.582        0.177            0.691           0.009               
+#>         0.754        0.556            0.667           0.004               
+#>         0.386        0.819            0.977           0.002               
+#>         3.544        0.007            0.043           0.020              *
+#>         1.406        0.230            0.691           0.008               
+#>  superseded
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
 
 # \donttest{
 # Mixed design: group is between persons and occasion is within persons.
@@ -231,17 +231,17 @@ mixed_fit <- rasch(repeated, id = rep(seq_len(N), 2),
                    factors = c("group", "occasion"))
 mixed_dif <- dif_anova(mixed_fit, within = "occasion")
 subset(mixed_dif$summary, uniform_DIF | nonuniform_DIF)
-#>    item     term F_uniform    p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#> 3    I2    group 24.646183 1.153580e-06  6.921478e-06   0.07545223        TRUE
-#> 9    I5    group  6.589918 1.073731e-02  3.221193e-02   0.02135494        TRUE
-#> 10   I5 occasion 19.701863 1.270410e-05  7.622462e-05   0.06124261        TRUE
-#>    F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#> 3     1.3680556    0.2449523        0.9489444     0.017797453          FALSE
-#> 9     0.1794123    0.9489444        0.9489444     0.002370688          FALSE
-#> 10    0.1960145    0.9403641        0.9403641     0.002589496          FALSE
-#>    superseded
-#> 3       FALSE
-#> 9       FALSE
-#> 10      FALSE
+#>  item     term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
+#>    I2    group    24.646   < 0.001       < 0.001        0.075           *
+#>    I5    group     6.590     0.011         0.032        0.021           *
+#>    I5 occasion    19.702   < 0.001       < 0.001        0.061           *
+#>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
+#>         1.368        0.245            0.949           0.018               
+#>         0.179        0.949            0.949           0.002               
+#>         0.196        0.940            0.940           0.003               
+#>  superseded
+#>            
+#>            
+#>            
 # }
 ```

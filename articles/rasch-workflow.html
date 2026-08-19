@@ -393,18 +393,18 @@ reliability, and the uncertainty of person estimates. The score table
 supplies the complete-response conversion from raw score to logits.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/score_table.html">score_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    score     theta     se extrapolated freq cum_pct</span></span>
-<span><span class="co">#&gt; 1      0 -4.144091 1.6509        FALSE    3    0.75</span></span>
-<span><span class="co">#&gt; 2      1 -2.786098 1.0486        FALSE   10    3.25</span></span>
-<span><span class="co">#&gt; 3      2 -1.965606 0.8972        FALSE   20    8.25</span></span>
-<span><span class="co">#&gt; 4      3 -1.269250 0.8358        FALSE   45   19.50</span></span>
-<span><span class="co">#&gt; 5      4 -0.622110 0.8075        FALSE   85   40.75</span></span>
-<span><span class="co">#&gt; 6      5 -0.001229 0.7979        FALSE   76   59.75</span></span>
-<span><span class="co">#&gt; 7      6  0.615549 0.8054        FALSE   69   77.00</span></span>
-<span><span class="co">#&gt; 8      7  1.254188 0.8345        FALSE   48   89.00</span></span>
-<span><span class="co">#&gt; 9      8  1.951294 0.9009        FALSE   27   95.75</span></span>
-<span><span class="co">#&gt; 10     9  2.794069 1.0597        FALSE   15   99.50</span></span>
-<span><span class="co">#&gt; 11    10  4.192495 1.6744        FALSE    2  100.00</span></span>
+<span><span class="co">#&gt;  score  theta    se extrapolated freq cum_pct</span></span>
+<span><span class="co">#&gt;      0 -4.144 1.651                 3   0.750</span></span>
+<span><span class="co">#&gt;      1 -2.786 1.049                10   3.250</span></span>
+<span><span class="co">#&gt;      2 -1.966 0.897                20   8.250</span></span>
+<span><span class="co">#&gt;      3 -1.269 0.836                45  19.500</span></span>
+<span><span class="co">#&gt;      4 -0.622 0.807                85  40.750</span></span>
+<span><span class="co">#&gt;      5 -0.001 0.798                76  59.750</span></span>
+<span><span class="co">#&gt;      6  0.616 0.805                69  77.000</span></span>
+<span><span class="co">#&gt;      7  1.254 0.835                48  89.000</span></span>
+<span><span class="co">#&gt;      8  1.951 0.901                27  95.750</span></span>
+<span><span class="co">#&gt;      9  2.794 1.060                15  99.500</span></span>
+<span><span class="co">#&gt;     10  4.192 1.674                 2 100.000</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">psi</span></span>
 <span><span class="co">#&gt; $PSI</span></span>
 <span><span class="co">#&gt; [1] 0.5623</span></span>

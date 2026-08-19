@@ -68,17 +68,17 @@ colnames(raw) <- paste0("M", 1:4)
 fit <- rasch(raw, key = setNames(rep("A", 4), colnames(raw)))
 pr <- distractor_rescore(fit)
 pr$option_scores
-#>    item option score
-#> 1    M1      A     2
-#> 2    M1      B     1
-#> 3    M1      D     0
-#> 4    M2      A     2
-#> 5    M2      B     1
-#> 6    M2      D     0
-#> 7    M3      A     2
-#> 8    M3      B     1
-#> 9    M3      D     0
-#> 10   M4      A     2
-#> 11   M4      B     1
-#> 12   M4      D     0
+#>  item option score
+#>    M1      A     2
+#>    M1      B     1
+#>    M1      D     0
+#>    M2      A     2
+#>    M2      B     1
+#>    M2      D     0
+#>    M3      A     2
+#>    M3      B     1
+#>    M3      D     0
+#>    M4      A     2
+#>    M4      B     1
+#>    M4      D     0
 ```

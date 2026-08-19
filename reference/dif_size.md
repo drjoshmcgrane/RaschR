@@ -109,9 +109,9 @@ dif_size(fit, "I3", by = "grp")
 #>  level location    se weak   n
 #>      a   -0.890 0.133    0 300
 #>      b    0.018 0.126    0 300
-#>  level_a level_b difference    se      z p p_adj  lower  upper significant
-#>        a       b     -0.907 0.204 -4.441 0     0 -1.308 -0.507           *
-#>  practical
-#>    >= 0.50
+#>  level_a level_b difference    se      z       p   p_adj  lower  upper
+#>        a       b     -0.907 0.204 -4.441 < 0.001 < 0.001 -1.308 -0.507
+#>  significant practical
+#>            *   >= 0.50
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```

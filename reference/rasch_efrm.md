@@ -172,13 +172,17 @@ Person-group units are exposed to ordinary DIF. The same items are
 answered by every group, so an item can sit differently in one group
 than another: two items in twelve carrying a one-logit shift moved a
 recovered ratio by 7 to 11% in simulation, and four items whose
-discrimination differed by half moved it by 10 to 12%. Note that
+discrimination differed by half moved it by 10 to 12%. Neither the
+fitted object nor
 [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-cannot test the grouping factor that defines the frames – it is constant
-within each frame by construction, and is refused. Screen instead by
-comparing each item's per-frame estimates in `items` after rescaling by
-the frame units in `frames`: under the model they agree, and divergence
-beyond their standard errors is frame-specific item behaviour.
+can detect this. The fit holds one location per item, shared across the
+frames it appears in and scaled by the frame unit, so its per-frame
+estimates agree by construction; and the grouping factor that defines
+the frames is constant within each frame, so `dif_anova` refuses it.
+Testing the assumption means stepping outside the model, which is what
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+does: it calibrates each frame separately, puts the locations on the
+common scale, and compares them item by item.
 
 Item-set units are exposed to something else entirely. Sets partition
 the items, so no item appears in two sets and DIF across sets is not
@@ -189,12 +193,46 @@ over-discriminating items in one set moved a planted ratio of 1.40 to
 1.17, two under-discriminating items moved it to 1.73, and four
 over-discriminating items to 1.02 – a real 40% unit difference read as
 none at all. The same misfit spread evenly across both sets cancels
-almost exactly (1.41). Screen with the ordinary item fit statistics
-within each set, and treat a badly fitting item as evidence about its
-set membership: an item that shares no unit with its set, such as an
-ambivalently worded item filed among the negatively worded ones, is
-better removed than retained, and cannot be given a set of its own
-because a single item carries no dispersion to estimate a unit from.
+almost exactly (1.41).
+
+Screen on the standardised fit residual, `fit_resid` in `items`, and
+repair with
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md).
+Of the fit statistics compared in simulation it is the one that restores
+the ratio: against a planted 1.40 read as 1.69 under two
+under-discriminating items, dropping on the fit residual recovered 1.44
+where the chi-square item fit test reached only 1.64, and dropping the
+items actually planted gave 1.43.
+
+Rank on it; do not threshold on it. A fixed cut such as
+`abs(fit_resid) > 2` is a statement about detectability rather than
+about magnitude, so it flags more items the more persons there are: with
+two of eight items in a set discriminating twice as steeply, the
+remaining items genuinely depart from the compromise the model settles
+on, and that departure clears the cut in 0.8 of 14 sound items at 500
+persons but 7.0 at 6,000. On the Rosenberg Self-Esteem data used by the
+wording case study, at 6,000 respondents, the cut selects 7 of the 10
+items and
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
+then refuses the drop for emptying a set.
+
+Order the items by `abs(fit_resid)` instead, drop the largest departure,
+and refit. Stop when the sets no longer differ in unit, which is a
+question for the test in `efrm_vs_rasch$unit_tests` rather than for the
+ratio: once there is no difference left, a further drop has nothing to
+explain and is fitting noise. On the self-esteem data the ranking puts
+Q8 first at 22.5 and Q4 second at 12.4 – the same two items a free-slope
+model fitted to the same respondents ranks lowest, and the two orderings
+agree on the extreme three. Dropping Q8 alone moves the ratio from 1.24
+to 1.03 at p = 0.63; dropping Q4 as well does not improve on that but
+returns a significant difference of 1.16, which is what ignoring the
+stopping rule costs.
+
+Treat a badly fitting item as evidence about its set membership: an item
+that shares no unit with its set, such as an ambivalently worded item
+filed among the negatively worded ones, is better removed than retained,
+and cannot be given a set of its own because a single item carries no
+dispersion to estimate a unit from.
 
 The dichotomous model and the theory of frame-dependent units follow
 Humphry (2005) and Humphry and Andrich (2008). The item-set linking step
@@ -260,8 +298,8 @@ colnames(X) <- sprintf("I%02d", seq_along(d))
 fit <- rasch_efrm(data.frame(X, grp = grp), item_sets = list(core = colnames(X)),
                   groups = "grp")
 fit$phi_table
-#>   group       phi se_log_phi
-#> 1     A 0.8422988 0.04222911
-#> 2     B 1.1872271 0.04222911
+#>  group   phi se_log_phi
+#>      A 0.842      0.042
+#>      B 1.187      0.042
 # }
 ```

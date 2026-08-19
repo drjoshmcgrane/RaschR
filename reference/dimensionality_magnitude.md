@@ -57,7 +57,7 @@ colnames(X) <- paste0("I", 1:10)
 fit <- rasch(X)
 dimensionality_magnitude(fit,
   list(paste0("I", 1:5), paste0("I", 6:10)))$table
-#>   index      run1   subtest        c2         c       rho         A
-#> 1   PSI 0.5770681 0.3690656 1.2680828 1.1260918 0.4409010 0.6119796
-#> 2 alpha 0.6618793 0.4969475 0.7467516 0.8641479 0.5724912 0.7281328
+#>  index  run1 subtest    c2     c   rho     A
+#>    PSI 0.577   0.369 1.268 1.126 0.441 0.612
+#>  alpha 0.662   0.497 0.747 0.864 0.572 0.728
 ```
