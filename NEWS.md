@@ -65,6 +65,14 @@ strengthens identification and uncertainty checks.
 
 ## Follow-ups, comparisons, projects, and reports
 
+* `drop_items()` removes items from a fitted analysis and refits it,
+  keeping the model, person identifiers, factors, and -- for frame models
+  -- the set structure and standard-error method. The application offers
+  the same action on the selected item, recorded as an undoable step. For
+  frame models this is a sensitivity analysis rather than housekeeping: a
+  set unit is estimated from the dispersion its own items produce, so an
+  item that fits its set badly moves the unit that decides whether the
+  sets differ.
 * `dif_posthoc()` provides post-hoc pairwise DIF comparisons after a
   significant omnibus term: resolved item-location differences in logits
   with the joint contrast covariance, Holm-adjusted, with trend and

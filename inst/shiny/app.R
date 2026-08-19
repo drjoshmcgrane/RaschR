@@ -767,6 +767,7 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
         # above the result; display settings and batch downloads sit below it.
         header = div(class = "d-flex align-items-center gap-3 flex-wrap",
           uiOutput("sel_item_title", inline = TRUE),
+          uiOutput("drop_item_ui", inline = TRUE),
           conditionalPanel(
             "input.items_nav == 'ICC'",
             info_icon(app_help("icc"), "About this plot")),
@@ -3009,6 +3010,38 @@ server <- function(input, output, session) {
     f <- fit()
     i <- input$items_tbl_rows_selected
     if (length(i)) f$items$item[i] else f$items$item[1]
+  })
+
+  # Dropping the selected item and refitting is a step in the analysis, not
+  # housekeeping: for frame models a set unit is estimated from the spread
+  # its own items produce, so removing an item that fits its set badly can
+  # move the unit substantially. The step is recorded like any other, so it
+  # can be undone and is saved with the project.
+  output$drop_item_ui <- renderUI({
+    f <- tryCatch(fit(), error = function(e) NULL)
+    if (is.null(f) || inherits(f, "rasch_mfrm")) return(NULL)
+    actionButton("drop_item", "Drop item and refit",
+                 icon = bs_icon("trash"),
+                 class = "btn-outline-secondary btn-xs rasch-control-button")
+  })
+
+  observeEvent(input$drop_item, {
+    f <- fit()
+    it <- sel_item()
+    req(length(it) == 1L)
+    res <- tryCatch(drop_items(f, it), error = function(e) e)
+    if (inherits(res, "error")) {
+      showNotification(paste("Could not drop", it, "--", conditionMessage(res)),
+                       type = "error", duration = 10)
+    } else {
+      push_analysis_step(
+        "drop_item", sprintf("Dropped item: %s", it), res,
+        details = list(item = it),
+        code = sprintf("fit <- drop_items(fit, %s)", qstr(it)))
+      showNotification(
+        sprintf("Re-analysed without %s. Undo to restore it, or use Reset to original data.", it),
+        type = "message", duration = 8)
+    }
   })
 
   icc_items <- reactive({
