@@ -4,18 +4,22 @@
 \alias{frame_invariance}
 \title{Test the item invariance a frame model assumes}
 \usage{
-frame_invariance(fit, alpha = 0.05)
+frame_invariance(fit, alpha = 0.05, adjust = c("holm", "none"))
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch_efrm}}.}
 
 \item{alpha}{Significance level for flagging items.}
+
+\item{adjust}{Multiplicity adjustment used to flag items: \code{"holm"}
+across all comparisons, or \code{"none"} for screening. Both
+probabilities are reported regardless.}
 }
 \value{
 A list of class \code{"rasch_frame_invariance"} with
   \code{locations} (one row per item and frame pair: locations on the
-  common scale, their difference, its standard error, statistic, adjusted
-  probability, and flag), \code{discrimination} (the same items compared
+  common scale, their difference, its standard error, statistic, both
+  probabilities, and flag), \code{discrimination} (the same items compared
   on their within-frame infit statistics, with the Winsteps-style
   discrimination index for each frame and its ratio alongside), and
   \code{summary} (per frame pair: the number of items, the root mean
@@ -85,6 +89,25 @@ attenuated a true frame ratio of 1.5 to about 1.22. Tested on its own it
 is also the weaker instrument, detecting a 1.5-fold difference in 63\%
 of replicates at 2,000 persons per frame against the infit comparison's
 90\%, which is why the test column comes from the latter.
+
+Which item to flag is a screening decision, not a confirmatory one, and
+the two call for different thresholds. \code{adjust} chooses: Holm across
+every item and frame pair, or none. Both probabilities are reported
+either way, so the choice changes only \code{flagged}. Screening 8 to 10
+items with Holm costs between 20 and 60 points of sensitivity in
+simulation, and that shows up in the repair: dropping the flagged items
+from a planted unit ratio of 1.40 left the ratio at 1.479 under Holm and
+1.433 unadjusted, against 1.406 for dropping the items actually planted.
+The loose screen is not free -- where misfit is strong it flags sound
+items too, and \code{\link{drop_items}} then refuses drops that would
+empty a set -- so use \code{"none"} to decide which items to examine and
+\code{"holm"} to report which ones differ.
+
+Dropping is a complete cure where the item is found: removing the
+planted items restored the ratio in every simulated departure, so what
+limits the repair is detection rather than removal. Past roughly a fifth
+of the items breaking invariance, no threshold rescues the ratio and the
+item set itself is the problem.
 }
 \examples{
 d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,

@@ -421,3 +421,43 @@ test_that("frame_invariance separates location from discrimination", {
   expect_false("statistic" %in% names(inv$discrimination))
   expect_output(print(inv), "Discrimination differs")
 })
+
+test_that("adjust chooses the screening threshold without hiding either p", {
+  # Holm across every item and frame pair is right for reporting a
+  # difference and wrong for deciding which items to examine
+  set.seed(21); N <- 700; K <- 8
+  phi <- c(0.845, 1.183); delta <- seq(-1.5, 1.5, length.out = K)
+  mk <- function(g, disc, shift) {
+    th <- rnorm(N, 0, 1.3)
+    X <- vapply(seq_len(K), function(i)
+      rbinom(N, 1, plogis(phi[g] * disc[i] * (th - delta[i] - shift[i]))),
+      numeric(N))
+    colnames(X) <- sprintf("I%02d", seq_len(K)); X
+  }
+  dsc <- rep(1, K); dsc[c(3, 6)] <- 1.7
+  sh <- rep(0, K); sh[2] <- 0.45
+  X <- rbind(mk(1, rep(1, K), rep(0, K)), mk(2, dsc, sh))
+  d <- data.frame(id = sprintf("P%05d", seq_len(2 * N)), X,
+                  group = rep(c("g1", "g2"), each = N), check.names = FALSE)
+  f <- rasch_efrm(d, item_sets = list(set1 = colnames(X)), groups = "group",
+                  id = "id", boot_reps = 0)
+  fl <- function(inv) sort(unique(c(
+    inv$locations$item[inv$locations$flagged],
+    inv$discrimination$item[inv$discrimination$flagged])))
+  strict <- frame_invariance(f, adjust = "holm")
+  loose <- frame_invariance(f, adjust = "none")
+
+  # the loose screen can only ever flag a superset, and here flags more
+  expect_true(all(fl(strict) %in% fl(loose)))
+  expect_gt(length(fl(loose)), length(fl(strict)))
+  # only the flag moves: both probabilities are reported either way, and
+  # the statistics themselves are untouched
+  expect_identical(strict$locations$p, loose$locations$p)
+  expect_identical(strict$locations$p_adj, loose$locations$p_adj)
+  expect_identical(strict$discrimination$infit_z, loose$discrimination$infit_z)
+  # the printed output names the rule it applied, so a screen is not
+  # mistaken for a confirmed difference
+  expect_output(print(loose), "unadjusted, screening")
+  expect_output(print(strict), "Holm-adjusted")
+  expect_error(frame_invariance(f, adjust = "bonferroni"))
+})

@@ -73,12 +73,34 @@
 #' of replicates at 2,000 persons per frame against the infit comparison's
 #' 90\%, which is why the test column comes from the latter.
 #'
+#' Which item to flag is a screening decision, not a confirmatory one, and
+#' the two call for different thresholds. \code{adjust} chooses: Holm across
+#' every item and frame pair, or none. Both probabilities are reported
+#' either way, so the choice changes only \code{flagged}. Screening 8 to 10
+#' items with Holm costs between 20 and 60 points of sensitivity in
+#' simulation, and that shows up in the repair: dropping the flagged items
+#' from a planted unit ratio of 1.40 left the ratio at 1.479 under Holm and
+#' 1.433 unadjusted, against 1.406 for dropping the items actually planted.
+#' The loose screen is not free -- where misfit is strong it flags sound
+#' items too, and \code{\link{drop_items}} then refuses drops that would
+#' empty a set -- so use \code{"none"} to decide which items to examine and
+#' \code{"holm"} to report which ones differ.
+#'
+#' Dropping is a complete cure where the item is found: removing the
+#' planted items restored the ratio in every simulated departure, so what
+#' limits the repair is detection rather than removal. Past roughly a fifth
+#' of the items breaking invariance, no threshold rescues the ratio and the
+#' item set itself is the problem.
+#'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param alpha Significance level for flagging items.
+#' @param adjust Multiplicity adjustment used to flag items: \code{"holm"}
+#'   across all comparisons, or \code{"none"} for screening. Both
+#'   probabilities are reported regardless.
 #' @return A list of class \code{"rasch_frame_invariance"} with
 #'   \code{locations} (one row per item and frame pair: locations on the
-#'   common scale, their difference, its standard error, statistic, adjusted
-#'   probability, and flag), \code{discrimination} (the same items compared
+#'   common scale, their difference, its standard error, statistic, both
+#'   probabilities, and flag), \code{discrimination} (the same items compared
 #'   on their within-frame infit statistics, with the Winsteps-style
 #'   discrimination index for each frame and its ratio alongside), and
 #'   \code{summary} (per frame pair: the number of items, the root mean
@@ -98,9 +120,10 @@
 #'                   id = "id", boot_reps = 0)
 #' frame_invariance(fit)
 
-frame_invariance <- function(fit, alpha = 0.05) {
+frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none")) {
   if (!inherits(fit, "rasch_efrm"))
     stop("frame_invariance needs a fit from rasch_efrm()")
+  adjust <- match.arg(adjust)
   grp <- fit$factors[[fit$frame_group]]
   glev <- levels(factor(grp))
   if (length(glev) < 2L)
@@ -167,13 +190,14 @@ frame_invariance <- function(fit, alpha = 0.05) {
   if (!length(out))
     stop("no item set is taken by two person groups, so no item appears in ",
          "two frames to be compared")
+  # both probabilities are always reported; adjust chooses which one flags
   cmp <- do.call(rbind, out)
   cmp$p_adj <- stats::p.adjust(cmp$p, method = "holm")
-  cmp$flagged <- cmp$p_adj < alpha
+  cmp$flagged <- (if (adjust == "holm") cmp$p_adj else cmp$p) < alpha
   rownames(cmp) <- NULL
   dsc <- do.call(rbind, dsc)
   dsc$p_adj <- stats::p.adjust(dsc$p, method = "holm")
-  dsc$flagged <- dsc$p_adj < alpha
+  dsc$flagged <- (if (adjust == "holm") dsc$p_adj else dsc$p) < alpha
   rownames(dsc) <- NULL
 
   key <- paste(cmp$set, cmp$frame_1, cmp$frame_2, sep = "|")
@@ -190,34 +214,38 @@ frame_invariance <- function(fit, alpha = 0.05) {
   }))
   rownames(smry) <- NULL
   structure(list(locations = cmp, discrimination = dsc, summary = smry,
-                 alpha = alpha), class = "rasch_frame_invariance")
+                 alpha = alpha, adjust = adjust),
+            class = "rasch_frame_invariance")
 }
 
 #' @export
 print.rasch_frame_invariance <- function(x, ...) {
+  adj <- if (is.null(x$adjust)) "holm" else x$adjust
+  pcol <- if (adj == "holm") "p_adj" else "p"
+  rule <- if (adj == "holm") "Holm-adjusted" else "unadjusted, screening"
   cat("Item invariance across frames (each frame calibrated separately)\n\n")
   print(.fmt_df(x$summary), row.names = FALSE)
   cat("\nrmsd/rmse above 1 indicates item behaviour the frame units do not account for\n")
   fl <- x$locations[x$locations$flagged, ]
   if (nrow(fl)) {
-    cat(sprintf("\nLocation differs across frames for %d item(s) at alpha = %.2f (Holm-adjusted):\n",
-                nrow(fl), x$alpha))
+    cat(sprintf("\nLocation differs across frames for %d item(s) at alpha = %.2f (%s):\n",
+                nrow(fl), x$alpha, rule))
     print(.fmt_df(fl[, c("set", "frame_1", "frame_2", "item", "difference",
-                         "se", "statistic", "p_adj")]), row.names = FALSE)
+                         "se", "statistic", pcol)]), row.names = FALSE)
   } else {
-    cat(sprintf("\nNo item's location differs across frames at alpha = %.2f.\n",
-                x$alpha))
+    cat(sprintf("\nNo item's location differs across frames at alpha = %.2f (%s).\n",
+                x$alpha, rule))
   }
   fd <- x$discrimination[x$discrimination$flagged, ]
   if (nrow(fd)) {
     cat(sprintf("\nDiscrimination differs across frames for %d item(s):\n",
                 nrow(fd)))
     print(.fmt_df(fd[, c("set", "frame_1", "frame_2", "item", "infit_1",
-                         "infit_2", "infit_z", "p_adj", "disc_1", "disc_2",
+                         "infit_2", "infit_z", pcol, "disc_1", "disc_2",
                          "disc_ratio")]), row.names = FALSE)
-    cat("The test is the infit comparison (infit_z, p_adj). The disc columns\n",
-        "describe size and direction only: they run high, and their ratio\n",
-        "understates the difference.\n", sep = "")
+    cat("The test is the infit comparison (infit_z, ", pcol, "). The disc\n",
+        "columns describe size and direction only: they run high, and their\n",
+        "ratio understates the difference.\n", sep = "")
   } else {
     cat("\nNo item's discrimination differs across frames.\n")
   }

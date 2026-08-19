@@ -70,8 +70,14 @@ strengthens identification and uncertainty checks.
   shared across frames and scaled by the frame unit, so the assumption
   cannot be checked from the fit; the function calibrates each frame
   separately, puts the locations on the common scale, and compares them
-  item by item, reporting Holm-adjusted tests and the root mean squared
-  difference against the root mean squared standard error.
+  item by item, reporting the root mean squared difference against the root
+  mean squared standard error. Its `adjust` argument chooses between Holm
+  across all comparisons and no adjustment, because screening for items to
+  examine and reporting a difference are different jobs: on eight to ten
+  items the adjustment costs between 20 and 60 points of sensitivity, and
+  simulation shows that carrying through to the repaired unit ratio. Both
+  probabilities are reported either way, and the printed output names the
+  rule it applied. The application exposes the choice as a switch.
 * `drop_items()` removes items from a fitted analysis and refits it,
   keeping the model, person identifiers, factors, and -- for frame models
   -- the set structure and standard-error method. The application offers

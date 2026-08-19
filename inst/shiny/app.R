@@ -1352,7 +1352,10 @@ panel_frames <- nav_panel("Frames", value = "p_frames", icon = bs_icon("grid-3x3
             tableCard("alpha_tbl", "Item set units (alpha) and locations"))),
       layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
         tableCard("frame_inv_loc_tbl", "Item invariance: locations",
-                  info = app_help("frame_inv_loc")),
+                  info = app_help("frame_inv_loc"),
+                  controls = div(class = "small text-secondary",
+                                 input_switch("inv_screen", "Screen",
+                                              value = FALSE))),
         tableCard("frame_inv_disc_tbl", "Item invariance: discrimination",
                   info = app_help("frame_inv_disc"))),
       layout_columns(col_widths = 12,
@@ -5131,37 +5134,40 @@ server <- function(input, output, session) {
   # frame separately and compares -- the check belongs beside the units it
   # validates, since a couple of items behaving differently across frames
   # move a unit by more than its standard error.
+  # the switch chooses between screening and confirming. Holm across every
+  # item and frame pair is the right instrument for reporting a difference
+  # and the wrong one for deciding which items to look at: it costs 20 to 60
+  # points of sensitivity on a set of this size (misfit-repair.csv).
+  inv_adjust <- reactive(if (isTRUE(input$inv_screen)) "none" else "holm")
   efrm_invariance <- reactive({
-    tryCatch(frame_invariance(efrm_fit()), error = function(e) conditionMessage(e))
+    tryCatch(frame_invariance(efrm_fit(), adjust = inv_adjust()),
+             error = function(e) conditionMessage(e))
   })
+  inv_pcol <- function() if (inv_adjust() == "holm") "p_adj" else "p"
   inv_or_note <- function(part) {
     z <- efrm_invariance()
     if (is.character(z)) return(data.frame(note = z, stringsAsFactors = FALSE))
     d <- z[[part]]
     keep <- if (part == "locations")
       c("set", "frame_1", "frame_2", "item", "difference", "se", "statistic",
-        "p_adj", "flagged")
+        "p", "p_adj", "flagged")
     else c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
-           "infit_z", "p_adj", "flagged", "disc_1", "disc_2", "disc_ratio")
+           "infit_z", "p", "p_adj", "flagged", "disc_1", "disc_2", "disc_ratio")
     d[, intersect(keep, names(d)), drop = FALSE]
   }
+  inv_dt <- function(part) {
+    d <- inv_or_note(part)
+    pc <- inv_pcol()
+    if (pc %in% names(d)) style_lo_red(num_dt(d), d, pc, 0.05) else num_dt(d)
+  }
+  inv_code <- function(part) sprintf(
+    "inv <- frame_invariance(fit, adjust = \"%s\")\n%s",
+    isolate(inv_adjust()),
+    if (part == "locations") "inv$summary\ninv$locations" else "inv$discrimination")
   register_table("frame_inv_loc_tbl", function() inv_or_note("locations"),
-    function() {
-      d <- inv_or_note("locations")
-      if ("p_adj" %in% names(d)) style_lo_red(num_dt(d), d, "p_adj", 0.05)
-      else num_dt(d)
-    },
-    code = "inv <- frame_invariance(fit)
-inv$summary
-inv$locations")
+    function() inv_dt("locations"), code = function() inv_code("locations"))
   register_table("frame_inv_disc_tbl", function() inv_or_note("discrimination"),
-    function() {
-      d <- inv_or_note("discrimination")
-      if ("p_adj" %in% names(d)) style_lo_red(num_dt(d), d, "p_adj", 0.05)
-      else num_dt(d)
-    },
-    code = "inv <- frame_invariance(fit)
-inv$discrimination")
+    function() inv_dt("discrimination"), code = function() inv_code("discrimination"))
 
   register_table("phi_tbl", function() efrm_phi_tbl(), function() {
     d <- efrm_phi_tbl()

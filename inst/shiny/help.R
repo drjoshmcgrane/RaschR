@@ -346,13 +346,14 @@ APP_HELP <- c(
     "The model holds each item at one location across frames, so the fit",
     "cannot test that assumption. Each frame is calibrated separately here",
     "and the locations compared on the common scale. A flagged item behaves",
-    "differently across frames in a way the units do not explain."
+    "differently across frames. Screen drops the multiplicity adjustment,",
+    "which finds more of them at the cost of flagging sound ones."
   ),
   frame_inv_disc_tbl = paste(
-    "A location comparison cannot see a steeper item, which still crosses",
-    "one half in the same place. This table compares each item's fit within",
-    "its own frame instead. It is far less sensitive: near 500 persons per",
-    "frame it finds such an item about one time in six. The disc columns",
+    "A location comparison cannot see a steeper item, which crosses one half",
+    "in the same place. This table compares each item's fit within its own",
+    "frame instead. It is far less sensitive: near 500 persons it finds such",
+    "an item one time in six, so Screen helps most here. The disc columns",
     "describe size and direction, and run high."
   ),
   cmp_tbl = paste(
