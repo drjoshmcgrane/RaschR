@@ -349,12 +349,10 @@ APP_HELP <- c(
     "differently across frames in a way the units do not explain."
   ),
   frame_inv_disc_tbl = paste(
-    "A location comparison cannot see a difference in discrimination: a",
-    "steeper item still crosses one half in the same place. This table",
-    "compares each item's fit within its own frame instead. It is far less",
-    "sensitive than the location table: near 500 persons per frame it",
-    "detects such an item about one time in six. Treat a null result as",
-    "weak evidence below a couple of thousand persons per frame."
+    "A location comparison cannot see a steeper item, which still crosses",
+    "one half in the same place. This table compares each item's fit within",
+    "its own frame instead. It is far less sensitive: near 500 persons per",
+    "frame it finds such an item about one time in six."
   ),
   cmp_tbl = paste(
     "Compares fits retained during this session. Information criteria are",
