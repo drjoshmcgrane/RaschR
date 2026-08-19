@@ -58,8 +58,18 @@ infit statistics as having variance 2. It is conservative and needs a
 reasonable sample: in simulation, with 8 items and two items
 discriminating half again as steeply in one frame, it detected them in
 12\% of replicates at 500 persons per frame and 85\% at 2,000, with
-false-positive rates near 1\% throughout. Treat a null result at a few
-hundred persons per frame as uninformative rather than reassuring.
+false-positive rates near 1\% throughout.
+
+The two comparisons are therefore not equally sensitive, and the gap
+matters because the two departures do comparable damage. At departures
+that each move a unit ratio by six or seven per cent -- two items
+shifted a logit, against two items discriminating half again as steeply
+-- 500 persons per frame detected the shifted items about 97\% of the
+time and the steeper items about 16\%. Only by around 2,000 persons per
+frame do the two reach comparable power. A clean result at a few hundred
+persons per frame is thus much stronger evidence against differential
+item functioning than against differential discrimination: it has ruled
+out one departure and barely tested the other.
 }
 \examples{
 d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,
