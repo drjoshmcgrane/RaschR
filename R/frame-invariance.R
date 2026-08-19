@@ -89,6 +89,7 @@
 #' Measurement}. PhD thesis, Murdoch University.
 #' @seealso \code{\link{drop_items}} to remove an item the test flags, and
 #'   \code{\link{rasch_efrm}} for the model whose assumption is tested.
+#' @export
 #' @examples
 #' d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,
 #'                    n_groups = 2, group_unit_ratio = 1.4, seed = 2)
@@ -96,31 +97,7 @@
 #' fit <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
 #'                   id = "id", boot_reps = 0)
 #' frame_invariance(fit)
-# Winsteps-style item discrimination: the slope fitted by maximum
-# likelihood on the item's own responses with the person measures and the
-# item location held at their Rasch values. The frame unit is absorbed
-# into those fixed measures, so the index is relative to the frame's own
-# model. It is descriptive, not a two-parameter estimate: the measures are
-# estimated including the item being scored, which biases the index upward
-# (about 1.19 for a true 1.0 in simulation) and attenuates a ratio between
-# frames (1.5 recovered as about 1.22).
-.winsteps_disc <- function(f) {
-  ok <- !f$person$extreme
-  th <- f$person$theta[ok]
-  X <- as.matrix(f$X)[ok, , drop = FALSE]
-  d <- f$items$location
-  vapply(seq_len(ncol(X)), function(i) {
-    y <- X[, i]; g <- is.finite(y) & is.finite(th)
-    if (length(unique(y[g])) < 2L) return(NA_real_)
-    z <- th[g] - d[i]
-    m <- tryCatch(suppressWarnings(
-      stats::glm(y[g] ~ 0 + z, family = stats::binomial)),
-      error = function(e) NULL)
-    if (is.null(m)) NA_real_ else unname(stats::coef(m))
-  }, 0)
-}
 
-#' @export
 frame_invariance <- function(fit, alpha = 0.05) {
   if (!inherits(fit, "rasch_efrm"))
     stop("frame_invariance needs a fit from rasch_efrm()")
@@ -181,9 +158,9 @@ frame_invariance <- function(fit, alpha = 0.05) {
       dsc[[length(dsc) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
         infit_1 = m$infit_1, infit_2 = m$infit_2,
+        infit_z = zd, p = 2 * stats::pnorm(-abs(zd)),
         disc_1 = m$disc_1, disc_2 = m$disc_2,
         disc_ratio = m$disc_2 / m$disc_1,
-        statistic = zd, p = 2 * stats::pnorm(-abs(zd)),
         stringsAsFactors = FALSE)
     }
   }
@@ -236,12 +213,38 @@ print.rasch_frame_invariance <- function(x, ...) {
     cat(sprintf("\nDiscrimination differs across frames for %d item(s):\n",
                 nrow(fd)))
     print(.fmt_df(fd[, c("set", "frame_1", "frame_2", "item", "infit_1",
-                         "infit_2", "disc_1", "disc_2", "disc_ratio",
-                         "statistic", "p_adj")]), row.names = FALSE)
-    cat("disc_* is the Winsteps-style index: descriptive, biased upward,",
-        "and its ratio attenuated\n")
+                         "infit_2", "infit_z", "p_adj", "disc_1", "disc_2",
+                         "disc_ratio")]), row.names = FALSE)
+    cat("The test is the infit comparison (infit_z, p_adj). The disc columns\n",
+        "describe size and direction only: they run high, and their ratio\n",
+        "understates the difference.\n", sep = "")
   } else {
     cat("\nNo item's discrimination differs across frames.\n")
   }
   invisible(x)
+}
+
+
+# Winsteps-style item discrimination: the slope fitted by maximum
+# likelihood on the item's own responses with the person measures and the
+# item location held at their Rasch values. The frame unit is absorbed
+# into those fixed measures, so the index is relative to the frame's own
+# model. It is descriptive, not a two-parameter estimate: the measures are
+# estimated including the item being scored, which biases the index upward
+# (about 1.19 for a true 1.0 in simulation) and attenuates a ratio between
+# frames (1.5 recovered as about 1.22).
+.winsteps_disc <- function(f) {
+  ok <- !f$person$extreme
+  th <- f$person$theta[ok]
+  X <- as.matrix(f$X)[ok, , drop = FALSE]
+  d <- f$items$location
+  vapply(seq_len(ncol(X)), function(i) {
+    y <- X[, i]; g <- is.finite(y) & is.finite(th)
+    if (length(unique(y[g])) < 2L) return(NA_real_)
+    z <- th[g] - d[i]
+    m <- tryCatch(suppressWarnings(
+      stats::glm(y[g] ~ 0 + z, family = stats::binomial)),
+      error = function(e) NULL)
+    if (is.null(m)) NA_real_ else unname(stats::coef(m))
+  }, 0)
 }

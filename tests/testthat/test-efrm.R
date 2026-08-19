@@ -414,6 +414,10 @@ test_that("frame_invariance separates location from discrimination", {
   inv <- frame_invariance(f)
   expect_true(all(c("I03", "I06") %in%
                     inv$discrimination$item[inv$discrimination$flagged]))
-  expect_true(all(c("infit_1", "infit_2") %in% names(inv$discrimination)))
+  # the test comes from infit; the disc columns are descriptive only
+  expect_true(all(c("infit_1", "infit_2", "infit_z", "p_adj",
+                    "disc_1", "disc_2", "disc_ratio") %in%
+                    names(inv$discrimination)))
+  expect_false("statistic" %in% names(inv$discrimination))
   expect_output(print(inv), "Discrimination differs")
 })

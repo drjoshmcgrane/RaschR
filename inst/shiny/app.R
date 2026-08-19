@@ -5142,7 +5142,7 @@ server <- function(input, output, session) {
       c("set", "frame_1", "frame_2", "item", "difference", "se", "statistic",
         "p_adj", "flagged")
     else c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
-           "disc_1", "disc_2", "disc_ratio", "statistic", "p_adj", "flagged")
+           "infit_z", "p_adj", "flagged", "disc_1", "disc_2", "disc_ratio")
     d[, intersect(keep, names(d)), drop = FALSE]
   }
   register_table("frame_inv_loc_tbl", function() inv_or_note("locations"),
