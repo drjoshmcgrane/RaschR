@@ -95,9 +95,19 @@ drop_items <- function(fit, items, boot_reps = NULL) {
     d <- data.frame(id = fit$person$id, src, fit$factors,
                     check.names = FALSE, stringsAsFactors = FALSE)
     extra <- setdiff(names(fit$factors), fit$frame_group)
+    # boot_reps_used is NA for two different fits: one whose standard errors
+    # came from the analytic route rather than a bootstrap, which is ordinary
+    # for a single person group, and one asked for no standard errors at all.
+    # Reading both as zero refits the first without the standard errors it
+    # had, leaving no test on the set units. Tell them apart by whether the
+    # source fit carries any, so the refit keeps the character of the fit it
+    # came from. An explicit boot_reps is still honoured.
     reps <- boot_reps
-    if (is.null(reps)) reps <- fit$boot_reps_used
-    if (is.null(reps) || !is.finite(reps)) reps <- 0L
+    if (is.null(reps)) {
+      reps <- fit$boot_reps_used
+      if (is.null(reps) || !is.finite(reps))
+        reps <- if (any(is.finite(fit$alpha_table$se_log_alpha))) NULL else 0L
+    }
     refit <- rasch_efrm(d, item_sets = split(keep, sets_left),
                         groups = fit$frame_group, id = "id",
                         factors = if (length(extra)) extra else NULL,
