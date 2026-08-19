@@ -224,18 +224,36 @@ data. With <code>se_method = "bootstrap"</code>, the complete
 model is refitted to each person resample and all reported covariance comes
 from the bootstrap distribution.</p>
 <p>Screen the items before interpreting a unit. Both units are ratios of
-quantities estimated within frames, so an item that behaves differently
-across frames enters the estimate as though it were a unit difference,
-and neither estimator resists it. In simulation, two items in twelve
-carrying a one-logit shift between frames moved a recovered unit ratio
-by 7 to 11%, and four items whose discrimination differed by half
-moved it by 10 to 12% – several times the reported standard error,
-and larger than any estimation bias measured for these estimators. Item
-misfit as such is not the concern: over- and under-discriminating items
-that behave the same way in every frame largely cancel in a ratio,
-costing about 2%. The concern is specifically frame-specific
-departure, so test the frame factors with <code><a href="dif_anova.html">dif_anova</a></code> and
-resolve or remove what it flags before reading the units.</p>
+quantities estimated within frames, so an item that misbehaves in one
+frame and not another enters the estimate as though it were a unit
+difference. The two units are exposed differently, because their frames
+are built differently.</p>
+<p>Person-group units are exposed to ordinary DIF. The same items are
+answered by every group, so an item can sit differently in one group
+than another: two items in twelve carrying a one-logit shift moved a
+recovered ratio by 7 to 11% in simulation, and four items whose
+discrimination differed by half moved it by 10 to 12%. Note that
+<code><a href="dif_anova.html">dif_anova</a></code> cannot test the grouping factor that defines the
+frames – it is constant within each frame by construction, and is
+refused. Screen instead by comparing each item's per-frame estimates in
+<code>items</code> after rescaling by the frame units in <code>frames</code>: under
+the model they agree, and divergence beyond their standard errors is
+frame-specific item behaviour.</p>
+<p>Item-set units are exposed to something else entirely. Sets partition
+the items, so no item appears in two sets and DIF across sets is not
+defined. What distorts a set unit is misfit CONCENTRATED IN ONE SET,
+which the other set carries nothing to offset. This is the largest
+effect measured anywhere for these estimators: with 8 items per set,
+two over-discriminating items in one set moved a planted ratio of 1.40
+to 1.17, two under-discriminating items moved it to 1.73, and four
+over-discriminating items to 1.02 – a real 40% unit difference read
+as none at all. The same misfit spread evenly across both sets cancels
+almost exactly (1.41). Screen with the ordinary item fit statistics
+within each set, and treat a badly fitting item as evidence about its
+set membership: an item that shares no unit with its set, such as an
+ambivalently worded item filed among the negatively worded ones, is
+better removed than retained, and cannot be given a set of its own
+because a single item carries no dispersion to estimate a unit from.</p>
 <p>The dichotomous model and the theory of frame-dependent units follow
 Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
 an error-corrected method-of-moments implementation of the variance-ratio
