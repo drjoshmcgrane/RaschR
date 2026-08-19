@@ -313,6 +313,44 @@ granularity deliberately).
   contamination resistance. The discipline the method needs is screening
   the common items for DIF and misfit before computing the ratio, which is
   what his own RMSD 0.24 against RMSE 0.12 diagnostic was detecting.
+- `results/channel-head-to-head.csv` — Humphry's item-side estimator and
+  ours on identical simulated data (same persons, same items, two frames
+  differing only in unit, conditional independence given theta). Both are
+  unbiased everywhere, so the comparison is of efficiency: the item-side
+  channel is 1.96 times more precise at 8 items and 980 persons, 1.46
+  times at 12 items, and 1.15 to 1.33 times by 20 to 40 items. Adding
+  persons sharpens item locations and helps his channel; adding items
+  sharpens person estimates and helps ours. The person-side route is
+  therefore costly on short sets and close to equivalent on long ones.
+- `results/misfit-both-channels.csv` — ordinary item misfit, over- and
+  under-discriminating items equally in both frames, as distinct from the
+  frame-specific departures in `humphry-pgd-misfit.csv`. It largely
+  cancels in a ratio, on both channels: four of twelve items with
+  discrimination doubled or halved attenuate the recovered ratio by 2.3
+  per cent (item side) or 1.0 (person side), and scattering every item's
+  discrimination log-normally costs about 1 per cent. Compare +10.4 per
+  cent for the same number of items when the discrimination differs
+  ACROSS frames. The screening a unit ratio requires is therefore for
+  frame-specific departures, not for poor fit as such.
+- `results/humphry-isd-replication.csv` — his ITEM-SET discrimination
+  study replicated on its own design (4 sets of 10 items spanning -4 to 4,
+  N = 1000, planted ISDs 0.604/0.906/1.209/1.511). ISD is estimated
+  person-side in the thesis -- "a matrix of log ratios of standard
+  deviations for common persons across the sets", corrected by equation
+  2.29, var(WLE) minus the mean squared standard error -- which is the
+  construction this package replaced. On his design the uncorrected ratio
+  is attenuated to 2.089 against a planted 2.502 end-to-end; equation 2.29
+  overshoots to 2.698 (+7.8 per cent); the truncated-score-moment
+  correction lands at 2.483 (-0.8 per cent). Note that the product
+  constraint fixes the mean of log alpha, so mean bias is zero by
+  construction for every estimator and only the SPREAD can be wrong --
+  which is why the end-to-end ratio is the discriminating statistic.
+  Caveat: the per-set SDs here (0.74/1.15/1.57/1.99) sit about 12 per cent
+  below his Table 3.10 (0.84/1.30/1.74/2.14). The thesis is internally
+  inconsistent about the person spread (his expected SDs imply 1.51, the
+  text reports a generated 1.76) and he used RUMM2020's WLEs, so a design
+  detail differs; the ordering of the three estimators is unaffected since
+  all three run on identical data.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
