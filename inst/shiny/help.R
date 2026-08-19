@@ -352,7 +352,8 @@ APP_HELP <- c(
     "A location comparison cannot see a steeper item, which still crosses",
     "one half in the same place. This table compares each item's fit within",
     "its own frame instead. It is far less sensitive: near 500 persons per",
-    "frame it finds such an item about one time in six."
+    "frame it finds such an item about one time in six. The disc columns",
+    "describe size and direction, and run high."
   ),
   cmp_tbl = paste(
     "Compares fits retained during this session. Information criteria are",

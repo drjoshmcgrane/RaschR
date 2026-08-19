@@ -59,16 +59,31 @@
 #' item functioning than against differential discrimination: it has ruled
 #' out one departure and barely tested the other.
 #'
+#' The discrimination table also reports a Winsteps-style index for each
+#' frame (\code{disc_1}, \code{disc_2}) and their ratio, because a
+#' standardised difference says only that something differs while the index
+#' says how much and in which direction. It is fitted by maximum likelihood
+#' on each item's own responses with the person measures and item location
+#' held at their Rasch values, so it is relative to the frame's own model
+#' and the unit cancels. Read it as description rather than estimate: the
+#' measures are estimated including the item being scored, which biased the
+#' index to about 1.19 for a true discrimination of 1.0 in simulation and
+#' attenuated a true frame ratio of 1.5 to about 1.22. Tested on its own it
+#' is also the weaker instrument, detecting a 1.5-fold difference in 63\%
+#' of replicates at 2,000 persons per frame against the infit comparison's
+#' 90\%, which is why the test column comes from the latter.
+#'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param alpha Significance level for flagging items.
 #' @return A list of class \code{"rasch_frame_invariance"} with
 #'   \code{locations} (one row per item and frame pair: locations on the
 #'   common scale, their difference, its standard error, statistic, adjusted
 #'   probability, and flag), \code{discrimination} (the same items compared
-#'   on their within-frame infit statistics), and \code{summary} (per frame
-#'   pair: the number of items, the root mean squared difference, the root
-#'   mean squared standard error, their ratio, and the number of items
-#'   flagged on each count).
+#'   on their within-frame infit statistics, with the Winsteps-style
+#'   discrimination index for each frame and its ratio alongside), and
+#'   \code{summary} (per frame pair: the number of items, the root mean
+#'   squared difference, the root mean squared standard error, their ratio,
+#'   and the number of items flagged on each count).
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 #' Measurement}. PhD thesis, Murdoch University.
@@ -81,6 +96,30 @@
 #' fit <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
 #'                   id = "id", boot_reps = 0)
 #' frame_invariance(fit)
+# Winsteps-style item discrimination: the slope fitted by maximum
+# likelihood on the item's own responses with the person measures and the
+# item location held at their Rasch values. The frame unit is absorbed
+# into those fixed measures, so the index is relative to the frame's own
+# model. It is descriptive, not a two-parameter estimate: the measures are
+# estimated including the item being scored, which biases the index upward
+# (about 1.19 for a true 1.0 in simulation) and attenuates a ratio between
+# frames (1.5 recovered as about 1.22).
+.winsteps_disc <- function(f) {
+  ok <- !f$person$extreme
+  th <- f$person$theta[ok]
+  X <- as.matrix(f$X)[ok, , drop = FALSE]
+  d <- f$items$location
+  vapply(seq_len(ncol(X)), function(i) {
+    y <- X[, i]; g <- is.finite(y) & is.finite(th)
+    if (length(unique(y[g])) < 2L) return(NA_real_)
+    z <- th[g] - d[i]
+    m <- tryCatch(suppressWarnings(
+      stats::glm(y[g] ~ 0 + z, family = stats::binomial)),
+      error = function(e) NULL)
+    if (is.null(m)) NA_real_ else unname(stats::coef(m))
+  }, 0)
+}
+
 #' @export
 frame_invariance <- function(fit, alpha = 0.05) {
   if (!inherits(fit, "rasch_efrm"))
@@ -114,6 +153,7 @@ frame_invariance <- function(fit, alpha = 0.05) {
                              se = f$items$se / r,
                              infit = f$items$infit_ms,
                              infit_z = f$items$infit_z,
+                             disc = .winsteps_disc(f),
                              stringsAsFactors = FALSE)
     }
     if (length(cal) < 2L) next
@@ -141,6 +181,8 @@ frame_invariance <- function(fit, alpha = 0.05) {
       dsc[[length(dsc) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
         infit_1 = m$infit_1, infit_2 = m$infit_2,
+        disc_1 = m$disc_1, disc_2 = m$disc_2,
+        disc_ratio = m$disc_2 / m$disc_1,
         statistic = zd, p = 2 * stats::pnorm(-abs(zd)),
         stringsAsFactors = FALSE)
     }
@@ -194,7 +236,10 @@ print.rasch_frame_invariance <- function(x, ...) {
     cat(sprintf("\nDiscrimination differs across frames for %d item(s):\n",
                 nrow(fd)))
     print(.fmt_df(fd[, c("set", "frame_1", "frame_2", "item", "infit_1",
-                         "infit_2", "statistic", "p_adj")]), row.names = FALSE)
+                         "infit_2", "disc_1", "disc_2", "disc_ratio",
+                         "statistic", "p_adj")]), row.names = FALSE)
+    cat("disc_* is the Winsteps-style index: descriptive, biased upward,",
+        "and its ratio attenuated\n")
   } else {
     cat("\nNo item's discrimination differs across frames.\n")
   }
