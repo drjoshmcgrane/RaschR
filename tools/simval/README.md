@@ -372,6 +372,24 @@ granularity deliberately).
   dispersion ratio would buy a few points under contamination that
   screening should remove anyway, at the cost of the conditional standard
   errors an SD ratio cannot provide.
+- `results/alpha-set-misfit.csv` — what actually threatens an item-set
+  unit, and the largest effect measured anywhere in this battery. Sets
+  partition the items, so no item appears in two sets and DIF across sets
+  is undefined; the hazard is misfit concentrated in ONE set, which the
+  other carries nothing to offset. With 8 items per set and a planted
+  ratio of 1.40: two over-discriminating items in set 1 recover 1.17, two
+  under-discriminating items recover 1.73, and four over-discriminating
+  items recover 1.02 — a real 40 per cent unit difference read as none.
+  The same misfit spread evenly across both sets cancels almost exactly
+  (1.41 against 1.42 clean). The sign follows the mechanism: an
+  over-discriminating item disperses its own set's person estimates, which
+  reads as a larger unit for that set. The under-discriminating case is
+  the practical one — it is the wording case study's Q8, an ambivalent
+  item filed among the negatively worded ones, whose removal moved that
+  analysis from 1.24 to 1.03. Set membership is thus the most
+  consequential decision a user makes here, it is a falsifiable hypothesis
+  rather than a given, and the diagnostic is ordinary item fit within each
+  set.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
