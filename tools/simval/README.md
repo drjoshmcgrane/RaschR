@@ -287,6 +287,32 @@ granularity deliberately).
   avoidable. The dependence would at least be detectable: paired
   administrations show a large Q3 in `residual_correlations`, though
   detection only tells you to abandon the bridge.
+- `results/humphry-pgd-replication.csv` — a simulation of the
+  person-group-discrimination design in Humphry (2005, ch. 4): 12 common
+  items linking Year 5 and Year 7, calibrated separately, the unit ratio
+  read off the ratio of the common items' location standard deviations.
+  Planted 1.306 (his phi_5 = 0.875, phi_7 = 1.143); recovered 1.303 to
+  1.311 in every cell, bias within 0.004 of zero at 200 replicates. The
+  ability gap between year levels, swept from 0 to 1 logit, changes
+  nothing, so differential targeting is not a threat to the estimator.
+  Sampling SD is 0.04 at his N of 980 and 0.02 at 5,000, which reconciles
+  his own two figures: the full-population 1.22 and the sample 1.30 differ
+  by 0.064 in the log, about 1.6 SD of their difference — sampling
+  variation, not a discrepancy needing explanation.
+- `results/humphry-pgd-misfit.csv` — the exposure that design does carry.
+  Item-level departures on the common items enter the dispersion as if
+  they were unit differences: two of twelve items with a one-logit uniform
+  DIF shift move the recovered ratio from 1.306 to 1.403, and four items
+  with discrimination multiplied by 1.5 take it to 1.442. The direction is
+  not fixed — four items with moderate alternating-sign DIF pull it down
+  to 1.289, their shifts partly cancelling within the spread. Robust
+  dispersion measures do not rescue it: the median absolute deviation is
+  worse than the standard deviation in five of six cells (1.712 against
+  1.442 under differential discrimination), because a MAD over 12 items is
+  itself a poor dispersion estimator and that noise outweighs its
+  contamination resistance. The discipline the method needs is screening
+  the common items for DIF and misfit before computing the ratio, which is
+  what his own RMSD 0.24 against RMSE 0.12 diagnostic was detecting.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
