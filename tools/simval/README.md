@@ -536,6 +536,36 @@ granularity deliberately).
   resolving dominates. Dropping earns its place where the item is a poor
   measure wherever it appears, which is a different diagnosis than the one
   `frame_invariance()` makes.
+- `results/chained-linking.csv` — does a unit ratio recover when the two
+  frames share no items at all? A vertical design rarely gives every pair of
+  year levels a common block: year 3 and year 5 share one anchor, year 5 and
+  year 7 share a different one, and years 3 and 7 share nothing. The model
+  accepts this, because identification of the person-group units runs over
+  the CONNECTED COMPONENTS of the graph whose edges are group pairs sharing
+  at least two items within one set. A chain is enough. Breaking it is
+  refused, naming the components: "relative units (phi) are unidentified
+  between: year3+year5 | year7".
+
+  Accepting a design is not recovering from it, and the year 3 to year 7
+  comparison is made entirely through year 5. It recovers anyway. Against
+  planted ratios of 1.250 directly linked and 1.562 chained, at 300, 700 and
+  2,000 persons per year the direct ratio came back at 1.238, 1.262 and
+  1.249, and the chained one at 1.536, 1.573 and 1.567. No bias worth the
+  name in either, at any of the three sizes.
+
+  What the chain costs is precision, not accuracy. The chained ratio's
+  empirical standard deviation runs about 1.4 times the direct one at every
+  sample size — 0.171 against 0.119, 0.115 against 0.080, 0.068 against
+  0.051 — which is the square root of two you would expect from compounding
+  two links rather than reading one.
+
+  The reported standard errors are the weak part. At 300 per year they are
+  far too conservative, a mean of 0.205 against an empirical spread of 0.119
+  for the direct ratio and 0.279 against 0.171 for the chained one. By 2,000
+  they have crossed over and understate slightly, 0.044 against 0.051 and
+  0.051 against 0.068. So a chained comparison at a few hundred per year is
+  better than its standard error suggests, and one at a few thousand is
+  marginally worse; read the interval with that in mind.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
