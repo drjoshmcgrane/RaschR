@@ -97,6 +97,7 @@ reference:
   - dif_size
   - split_items
   - drop_items
+  - resolve_frames
   - frame_invariance
   - resolve_dif
   - equate_tests

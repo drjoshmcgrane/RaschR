@@ -503,6 +503,39 @@ granularity deliberately).
   `abs(fit_resid)`, drop the largest, refit, and stop when the unit test
   goes quiet. `inst/casestudies/wording_units_selfesteem.R` runs exactly
   this sequence, so the figures above are reproducible rather than prose.
+- `results/resolve-versus-drop.csv` — when an item breaks frame invariance,
+  is it better removed or resolved? `misfit-repair.csv` showed that dropping
+  a flagged item restores a planted unit ratio; it did not ask what the
+  repair costs. Dropping takes the item out of every frame, so it stops
+  contributing to any person's measure, including in the frames it behaved
+  well in. Resolving gives it a location per frame: it stops linking the
+  frames, which is what the diagnosis found wrong with it, and goes on
+  measuring the person inside their own frame.
+
+  One item shifted 1.2 logits in frame 2, twelve items, 500 persons per
+  frame, planted group-unit ratio 1.40, 200 replicates.
+
+  On the unit the two remedies are indistinguishable: 1.400 dropped against
+  1.401 resolved, from 1.386 damaged and 1.399 clean. Both are unbiased, and
+  the damage itself is modest — one differentially functioning item in twelve
+  moves the ratio by about one per cent, so the repair is not what
+  distinguishes them.
+
+  The cost does. Dropping raises the mean person standard error from 0.7268
+  to 0.7592, a 4.5 per cent loss of precision paid by every respondent, and
+  lowers the correlation between the person estimates and the locations that
+  generated them from 0.8501 to 0.8374. Resolving leaves both where the
+  clean analysis had them, 0.7267 and 0.8498 — indistinguishable from never
+  having had the problem. It buys this with one parameter per extra frame
+  and by removing the item from the link, so the group units then rest on
+  the items that remain common; `resolve_frames()` refuses when that would
+  leave a set with fewer than two.
+
+  So the two remedies are not a trade-off on this evidence: where an item
+  measures well within each frame and only its comparability fails,
+  resolving dominates. Dropping earns its place where the item is a poor
+  measure wherever it appears, which is a different diagnosis than the one
+  `frame_invariance()` makes.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

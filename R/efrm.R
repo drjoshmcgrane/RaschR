@@ -432,7 +432,10 @@
       if (!is.null(b)) reps[r, ] <- c(b$la, b$mu)
     }
     reps <- reps[stats::complete.cases(reps), , drop = FALSE]
-    if (nrow(reps) < 30)
+    # scale the requirement to what was asked for: a flat "< 30" rejects every
+    # boot_reps below 30 without a single replicate having failed, and then
+    # blames the design for it
+    if (nrow(reps) < max(2L, min(30L, boot_reps %/% 2L)))
       stop("the unit-linking bootstrap failed in most replicates; the linking ",
            "design is too weak for stable alpha estimation")
     cov_link <- stats::cov(reps)

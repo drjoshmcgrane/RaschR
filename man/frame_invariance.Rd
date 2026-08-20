@@ -113,6 +113,18 @@ planted items restored the ratio in every simulated departure, so what
 limits the repair is detection rather than removal. Past roughly a fifth
 of the items breaking invariance, no threshold rescues the ratio and the
 item set itself is the problem.
+
+A flagged item has two remedies, and the diagnosis here is
+frame-specific while one of them is not. \code{\link{drop_items}} takes
+the item out of every frame, so it stops measuring anyone, including in
+the frames it behaved perfectly well in.
+\code{\link{resolve_frames}} gives it a separate location per frame
+instead: it stops linking the frames, which is what this test found
+wrong with it, and goes on measuring the person within their own frame.
+Resolving costs a parameter per extra frame and leaves the group units
+resting on the items that remain common; dropping costs every person
+that item's contribution. Prefer resolving when the item measures well
+inside each frame, and dropping when it does not measure well anywhere.
 }
 \examples{
 d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,
@@ -127,6 +139,7 @@ Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 Measurement}. PhD thesis, Murdoch University.
 }
 \seealso{
-\code{\link{drop_items}} to remove an item the test flags, and
+\code{\link{resolve_frames}} to give a flagged item a location
+  per frame, \code{\link{drop_items}} to remove it altogether, and
   \code{\link{rasch_efrm}} for the model whose assumption is tested.
 }

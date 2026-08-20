@@ -101,6 +101,20 @@ strengthens identification and uncertainty checks.
   own print methods read `< 0.001`. They now share one formatting vocabulary,
   with the values untouched. Saved tables and the application's downloads
   keep full precision without the exponent.
+* `resolve_frames()` gives an item that does not hold across frames a
+  separate location in each frame and refits, so it goes on measuring the
+  person inside their own frame while no longer constraining the comparison
+  between frames. It is the milder of the two remedies for an item
+  `frame_invariance()` flags, and on simulation the milder one dominates:
+  against a planted group-unit ratio of 1.40 with one item shifted 1.2
+  logits in one frame, resolving and dropping recover the ratio equally
+  (1.401 and 1.400), but dropping raises the mean person standard error from
+  0.727 to 0.759 and lowers the correlation between person estimates and the
+  locations that generated them from 0.850 to 0.837, while resolving leaves
+  both where the clean analysis had them. Resolving costs a parameter per
+  extra frame and removes the item from the link that identifies the group
+  units, so it refuses when a set would be left with fewer than two items
+  common to the frames.
 * `drop_items()` removes items from a fitted analysis and refits it,
   keeping the model, person identifiers, factors, and -- for frame models
   -- the set structure and standard-error method. The application offers

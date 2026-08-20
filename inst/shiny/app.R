@@ -3058,9 +3058,37 @@ server <- function(input, output, session) {
   output$drop_item_ui <- renderUI({
     f <- tryCatch(fit(), error = function(e) NULL)
     if (is.null(f) || inherits(f, "rasch_mfrm")) return(NULL)
-    actionButton("drop_item", "Drop item and refit",
+    drop_btn <- actionButton("drop_item", "Drop item and refit",
                  icon = bs_icon("trash"),
                  class = "btn-outline-secondary btn-xs rasch-control-button")
+    # for a frame model the milder remedy belongs beside the blunt one: the
+    # item keeps measuring inside each frame and only stops linking them
+    if (!inherits(f, "rasch_efrm")) return(drop_btn)
+    tagList(drop_btn,
+            actionButton("resolve_item", "Resolve by frame and refit",
+                         icon = bs_icon("arrows-expand"),
+                         class = "btn-outline-secondary btn-xs rasch-control-button"))
+  })
+
+  observeEvent(input$resolve_item, {
+    f <- fit()
+    it <- sel_source_item()
+    req(length(it) == 1L)
+    res <- tryCatch(resolve_frames(f, it), error = function(e) e)
+    if (inherits(res, "error")) {
+      showNotification(paste("Could not resolve", it, "--",
+                             conditionMessage(res)),
+                       type = "error", duration = 10)
+    } else {
+      push_analysis_step(
+        "resolve_item", sprintf("Resolved by frame: %s", it), res,
+        details = list(item = it),
+        code = sprintf("fit <- resolve_frames(fit, %s)", qstr(it)))
+      showNotification(
+        sprintf(paste("%s now has a location in each frame and no longer",
+                      "links them. Undo to restore the shared location."), it),
+        type = "message", duration = 8)
+    }
   })
 
   observeEvent(input$drop_item, {
