@@ -70,6 +70,16 @@ round_preview <- function(dt, d) {
   if (length(num)) DT::formatRound(dt, num, 3) else dt
 }
 
+# The package refuses some analyses on some designs deliberately -- residual
+# components on structurally disjoint columns, differential functioning on the
+# factor that defines a frame -- and signals those with a rasch_refusal
+# condition. A refusal is a result and belongs in the app's own validation
+# voice; anything else is a fault and should still arrive in red.
+soft <- function(expr) {
+  tryCatch(expr,
+           rasch_refusal = function(e) validate(need(FALSE, conditionMessage(e))))
+}
+
 write_csv_plain <- function(d, file) {
   op <- options(scipen = 999)
   on.exit(options(op), add = TRUE)
@@ -3149,8 +3159,8 @@ server <- function(input, output, session) {
   # pixels), for plots whose natural size grows with the data (e.g. a matrix
   # heatmap that should track its item count and the table beside it)
   register_plot <- function(id, fun, w = 9, h = 6, code = NULL, px = NULL) {
-    output[[id]] <- if (is.null(px)) renderPlot(fun(), res = 96)
-                    else renderPlot(fun(), res = 96, height = px)
+    output[[id]] <- if (is.null(px)) renderPlot(soft(fun()), res = 96)
+                    else renderPlot(soft(fun()), res = 96, height = px)
     if (!is.null(code)) register_code(id, code)
     for (fmt in c("png", "pdf")) local({
       fmt_ <- fmt
@@ -3224,7 +3234,7 @@ server <- function(input, output, session) {
   # the CSV content is always the full table from `fun` (never the curated
   # on-screen display)
   register_table <- function(id, fun, dt_fun, code = NULL, csv_name = NULL) {
-    output[[id]] <- renderDT(dt_fun())
+    output[[id]] <- renderDT(soft(dt_fun()))
     if (!is.null(code)) register_code(id, code)
     output[[paste0(id, "_csv")]] <- downloadHandler(
       filename = function() csv_name %||% paste0("rasch_", id, ".csv"),
@@ -4081,8 +4091,8 @@ server <- function(input, output, session) {
   # interactions when requested (effects is ignored with a single factor)
   dif_res <- reactive({
     f <- fit(); req(!is.null(f$factors))
-    dif_anova(f, effects = input$dif_effects %||% "main",
-              p_adjust = input$dif_padj %||% "BH", alpha = dif_alpha())
+    soft(dif_anova(f, effects = input$dif_effects %||% "main",
+                   p_adjust = input$dif_padj %||% "BH", alpha = dif_alpha()))
   })
   # code footer: omit the effects argument when there is only one factor
   dif_effects_arg <- function()
@@ -5572,9 +5582,9 @@ server <- function(input, output, session) {
   })
   dim_res <- reactive({
     s <- dim_subsets()
-    if (is.null(s)) dimensionality_test(fit(), component = pca_k())
-    else dimensionality_test(fit(), items_positive = s$pos,
-                             items_negative = s$neg)
+    soft(if (is.null(s)) dimensionality_test(fit(), component = pca_k())
+         else dimensionality_test(fit(), items_positive = s$pos,
+                                  items_negative = s$neg))
   })
   output$dim_txt <- renderPrint({
     dt <- dim_res()

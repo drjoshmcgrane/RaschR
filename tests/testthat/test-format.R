@@ -63,3 +63,25 @@ test_that("a saved table carries plain decimals rather than exponents", {
   expect_equal(utils::read.csv(p)$p_adj, 2.3e-17)
   expect_equal(utils::read.csv(p)$loc, 1.2345678)
 })
+
+test_that("a deliberate refusal is signalled apart from a fault", {
+  # the application showed considered refusals in the same red as a crash,
+  # because a caller had no way to tell them apart
+  d <- simulate_efrm(n_per_group = 200, items_per_set = 5, n_sets = 2,
+                     n_groups = 2, seed = 4)
+  tr <- attr(d, "truth")
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+
+  # residual components are undefined on structurally disjoint columns
+  expect_error(residual_pca(f), class = "rasch_refusal")
+  # a frame-defining factor has no within-frame contrast left to test
+  expect_error(dif_anova(f, "group"), class = "rasch_refusal")
+  # and the message still reads as before, so existing expectations hold
+  expect_error(dif_anova(f, "group"), "define\\(s\\) the EFRM frame structure")
+
+  # a genuine fault must NOT be dressed as a refusal
+  e <- tryCatch(residual_pca("nonsense"), error = function(e) e)
+  expect_false(inherits(e, "rasch_refusal"))
+  expect_s3_class(e, "error")
+})

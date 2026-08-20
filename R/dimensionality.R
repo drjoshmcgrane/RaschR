@@ -101,7 +101,7 @@ residual_pca <- function(fit, n_components = 10) {
   no_overlap <- is.na(R) & row(R) != col(R)
   if (any(no_overlap)) {
     ij <- which(no_overlap, arr.ind = TRUE)[1L, ]
-    stop("residual PCA is undefined because some item columns have no ",
+    .refuse("residual PCA is undefined because some item columns have no ",
          "respondents in common (for example ", colnames(R)[ij[1L]], " and ",
          colnames(R)[ij[2L]], "). This happens for structurally disjoint ",
          "designs (item-by-group columns of an extended-frame fit, facet ",
@@ -109,7 +109,8 @@ residual_pca <- function(fit, n_components = 10) {
          "missing data; analyse an observable design block, or persons who ",
          "share items, rather than treating non-overlap as zero correlation")
   }
-  if (anyNA(R)) stop("residual PCA is undefined for a constant residual column")
+  if (anyNA(R))
+    .refuse("residual PCA is undefined for a constant residual column")
   diag(R) <- 1
   ev0 <- eigen(R, symmetric = TRUE)
   adjusted <- min(ev0$values) < -1e-8
@@ -158,7 +159,7 @@ residual_pca <- function(fit, n_components = 10) {
 # through the same estimation chain as the observed eigenvalues.
 .scree_reference <- function(fit, k, reps) {
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
-    stop("parallel residual reference is not available for mutually exclusive ",
+    .refuse("parallel residual reference is not available for mutually exclusive ",
          "EFRM/MFRM virtual designs; fit and analyse an observable design block")
   if (length(reps) != 1L || !is.finite(reps) || reps < 2L)
     stop("reps must be at least 2")

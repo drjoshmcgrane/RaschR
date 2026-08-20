@@ -418,7 +418,7 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
   if (!is.null(fit$frame_group) && any(names(factors) %in% fit$frame_group)) {
     hit <- intersect(names(factors), fit$frame_group)
     if (length(hit) == length(factors))
-      stop("'", paste(hit, collapse = "', '"),
+      .refuse("'", paste(hit, collapse = "', '"),
            "' define(s) the EFRM frame structure itself: the factor is ",
            "constant among the persons responding within any frame, so ",
            "no within-frame comparison remains to test as DIF; nominate ",
