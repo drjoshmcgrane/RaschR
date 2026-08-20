@@ -5193,9 +5193,17 @@ server <- function(input, output, session) {
     "inv <- frame_invariance(fit, adjust = \"%s\")\n%s",
     inv_adjust(),
     if (part == "locations") "inv$summary\ninv$locations" else "inv$discrimination")
-  register_table("frame_inv_loc_tbl", function() inv_or_note("locations"),
+  # the download carries the full table, per the register_table contract: the
+  # curated screen version drops location_1 and location_2, which are the two
+  # columns the card's own explainer points at
+  inv_full <- function(part) {
+    z <- efrm_invariance()
+    if (is.character(z)) data.frame(note = z, stringsAsFactors = FALSE)
+    else as.data.frame(z[[part]])
+  }
+  register_table("frame_inv_loc_tbl", function() inv_full("locations"),
     function() inv_dt("locations"), code = function() inv_code("locations"))
-  register_table("frame_inv_disc_tbl", function() inv_or_note("discrimination"),
+  register_table("frame_inv_disc_tbl", function() inv_full("discrimination"),
     function() inv_dt("discrimination"), code = function() inv_code("discrimination"))
 
   register_table("phi_tbl", function() efrm_phi_tbl(), function() {

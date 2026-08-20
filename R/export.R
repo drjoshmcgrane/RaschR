@@ -288,6 +288,14 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   }
   if (inherits(fit, "rasch_efrm")) {
     wtab(fit$frames, "frames")
+    # the fit holds each item at one location across frames, so the units are
+    # only as good as that assumption; save the test of it beside them
+    inv <- tryCatch(frame_invariance(fit), error = function(e) NULL)
+    if (!is.null(inv)) {
+      wtab(inv$summary, "frame_invariance_summary")
+      wtab(inv$locations, "frame_invariance_locations")
+      wtab(inv$discrimination, "frame_invariance_discrimination")
+    }
     wtab(fit$phi_table, "group_units_phi")
     wtab(fit$alpha_table, "set_units_alpha")
     wtab(fit$set_table, "set_locations")
@@ -599,6 +607,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     if (inherits(fit, "rasch_efrm")) s("<h2>Frames and units</h2>",
       .html_table(fit$frames[, intersect(c("set", "group", "rho", "se_log_rho",
         "origin", "fit_resid", "n_responses"), names(fit$frames))])) else "",
+    if (inherits(fit, "rasch_efrm")) .html_frame_invariance(fit) else "",
     "<h2>Person estimates</h2>",
     .html_table(fit$person[, intersect(c("id", names(fit$factors), "raw",
                                          "max_raw", "theta", "se", "extreme",
@@ -682,3 +691,36 @@ report_document <- function(fit, file,
     stop("the report renderer did not create the requested file")
   invisible(normalizePath(rendered, mustWork = TRUE))
 }
+
+# The frame model holds each item at one location across frames and scales it
+# by the frame unit, so it cannot test that assumption from its own fit. A
+# report that shows the units without the test invites the reader to trust
+# them further than the analysis warrants, so the test travels with them.
+.html_frame_invariance <- function(fit) {
+  inv <- tryCatch(frame_invariance(fit), error = function(e) NULL)
+  if (is.null(inv)) return("")
+  fl <- inv$locations[isTRUE_or_false(inv$locations$flagged), , drop = FALSE]
+  fd <- inv$discrimination[isTRUE_or_false(inv$discrimination$flagged), ,
+                           drop = FALSE]
+  paste0("<h2>Item invariance across frames</h2>",
+    "<p class='note'>The fitted model holds each item at one location across",
+    " frames, so it cannot test that assumption; each frame is calibrated",
+    " separately here and the locations compared on the common scale. A root",
+    " mean squared difference above the root mean squared standard error is",
+    " item behaviour the frame units do not account for.</p>",
+    .html_table(as.data.frame(inv$summary)),
+    if (nrow(fl)) paste0("<h3>Locations differing across frames</h3>",
+      .html_table(as.data.frame(fl[, intersect(
+        c("set", "frame_1", "frame_2", "item", "location_1", "location_2",
+          "difference", "se", "statistic", "p_adj"), names(fl))])))
+    else "<p class='note'>No item's location differs across frames.</p>",
+    if (nrow(fd)) paste0("<h3>Discrimination differing across frames</h3>",
+      "<p class='note'>The test is the comparison of within-frame infit; the",
+      " disc columns describe size and direction only, and run high.</p>",
+      .html_table(as.data.frame(fd[, intersect(
+        c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
+          "infit_z", "p_adj", "disc_1", "disc_2", "disc_ratio"), names(fd))])))
+    else "<p class='note'>No item's discrimination differs across frames.</p>")
+}
+
+isTRUE_or_false <- function(x) !is.na(x) & x

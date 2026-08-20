@@ -93,3 +93,50 @@ test_that("a frame model's virtual item name resolves to its source item", {
   expect_error(drop_items(f, virtual), "not in the fit")
   expect_s3_class(drop_items(f, bare, boot_reps = 0), "rasch_efrm")
 })
+
+test_that("the report and saved outputs carry the invariance test", {
+  # a report that shows frame units without the test of the assumption behind
+  # them invites the reader to trust them further than the analysis warrants
+  skip_on_cran()
+  set.seed(11)
+  N <- 500; K <- 8
+  phi <- c(0.85, 1.18); delta <- seq(-1.5, 1.5, length.out = K)
+  mk <- function(g, dsc, shift) {
+    th <- stats::rnorm(N, 0, 1.3)
+    X <- vapply(seq_len(K), function(i)
+      stats::rbinom(N, 1, stats::plogis(
+        phi[g] * dsc[i] * (th - delta[i] - shift[i]))), numeric(N))
+    colnames(X) <- sprintf("I%02d", seq_len(K)); X
+  }
+  dsc <- rep(1, K); dsc[3] <- 1.8
+  sh <- rep(0, K); sh[6] <- 0.6
+  d <- data.frame(id = sprintf("P%04d", seq_len(2 * N)),
+                  rbind(mk(1, rep(1, K), rep(0, K)), mk(2, dsc, sh)),
+                  group = rep(c("g1", "g2"), each = N), check.names = FALSE)
+  f <- rasch_efrm(d, item_sets = list(set1 = sprintf("I%02d", seq_len(K))),
+                  groups = "group", id = "id", boot_reps = 0)
+
+  html <- tempfile(fileext = ".html")
+  on.exit(unlink(html), add = TRUE)
+  report_html(f, html)
+  x <- readLines(html, warn = FALSE)
+  expect_true(any(grepl("Item invariance across frames", x)))
+  # the section reports whichever way the test came out; which branch fires
+  # is a question about power, tested elsewhere, not about the report
+  expect_true(any(grepl("Locations differing across frames", x)) ||
+                any(grepl("No item's location differs", x)))
+  expect_true(any(grepl("Discrimination differing across frames", x)) ||
+                any(grepl("No item's discrimination differs", x)))
+  expect_true(any(grepl("root mean squared", x)))     # the summary is there
+  expect_false(any(grepl(">[0-9.]+e[-+][0-9]+<", x)))
+
+  dir <- tempfile(); dir.create(dir)
+  on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+  invisible(save_outputs(f, dir, formats = "png", item_plots = FALSE))
+  saved <- list.files(dir, pattern = "invariance", recursive = TRUE,
+                      full.names = TRUE)
+  expect_length(saved, 3L)
+  loc <- utils::read.csv(grep("locations", saved, value = TRUE))
+  # the full table, not the curated screen version
+  expect_true(all(c("location_1", "location_2") %in% names(loc)))
+})
