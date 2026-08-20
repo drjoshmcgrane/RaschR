@@ -884,6 +884,17 @@ print.rasch_dif <- function(x, ...) {
 #' against a non-zero null, so it uses the standard error rather than the
 #' probability alone.
 #'
+#' Polytomous items are classified on the same metric. Under the partial
+#' credit model an item's difficulty decomposes as a location plus its
+#' thresholds, so where differential functioning shifts the location and
+#' leaves the thresholds alone -- uniform functioning, which is what a
+#' resolved location difference estimates -- the signed area between the two
+#' groups' expected score curves is the number of thresholds times that
+#' shift, and the same cut-values apply per threshold (Golia, 2012, section
+#' 2.2, following Cohen, Kim and Baker, 1993). Where the thresholds
+#' themselves differ across groups the shift is not a summary of the item
+#' and the letter should not be read.
+#'
 #' Read the letter beside the magnitude rather than instead of it, because
 #' the categories were built to triage items for an operational bank and not
 #' to answer whether an item is invariant. A tops out at 0.426 logits, which
@@ -897,15 +908,27 @@ print.rasch_dif <- function(x, ...) {
 #' \code{practical} against \code{flag_logits} answers "is this item
 #' behaving the same way in both groups". They are different questions.
 #'
-#' The column is \code{NA} for a polytomous item. ETS classifies those from
-#' a standardised mean difference in the observed-score metric, which is a
-#' different statistic rather than a rescaling of this one.
+#' A separate ETS convention categorises polytomous items from a
+#' standardised mean difference at 0.17 and 0.25, but that is a statistic in
+#' the observed-score metric rather than this one, and Zwick, Thayer and
+#' Mazzeo (1997) record that ETS had no official polytomous policy.
 #' @references
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.
 #'
 #' Holm, S. (1979). A simple sequentially rejective multiple test procedure.
 #' Scandinavian Journal of Statistics, 6(2), 65--70.
+#'
+#' Zieky, M. (1993). Practical questions in the use of DIF statistics in item
+#' development. In P. W. Holland and H. Wainer (eds), Differential Item
+#' Functioning (pp. 337--364). Erlbaum.
+#'
+#' Linacre, J. M. and Wright, B. D. (1989). Mantel-Haenszel DIF and PROX are
+#' equivalent! Rasch Measurement Transactions, 3(2), 51--53.
+#'
+#' Golia, S. (2012). Differential item functioning classification for
+#' polytomously scored items. Electronic Journal of Applied Statistical
+#' Analysis, 5(3), 367--373.
 #' @seealso \code{\link{dif_anova}} and \code{\link{dif_contrasts}}.
 #' @examples
 #' set.seed(1); n <- 600
@@ -1022,8 +1045,7 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   pairs$significant <- ifelse(pair_weak | repeated_person, NA,
                               pairs$p_adj < alpha)
   pairs$practical <- ifelse(pair_weak, NA, abs(pairs$difference) >= flag_logits)
-  pairs$ets <- .ets_category(pairs$difference, pairs$se, pairs$p_adj, alpha,
-                             dichotomous = max(fit$m[i]) == 1L)
+  pairs$ets <- .ets_category(pairs$difference, pairs$se, pairs$p_adj, alpha)
 
   out <- list(item = item, by = paste(names(factors), collapse = ":"),
               levels = levels_df, pairs = pairs, alpha = alpha,

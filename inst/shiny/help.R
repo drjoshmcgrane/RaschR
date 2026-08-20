@@ -208,7 +208,7 @@ APP_HELP <- c(
   dif_size_tbl = paste(
     "Compares resolved interaction cells pairwise. Use these rows to locate the",
     "pattern after reading the interaction contrasts above. ETS letters, where",
-    "shown, judge whether the item distorts the total score, not whether it is",
+    "judge whether the item distorts the total score, not whether it is",
     "invariant: A allows up to 0.43 logits."
   ),
   resolve_tbl = paste(

@@ -101,8 +101,6 @@ test_that("the ETS categories follow the published rule on the logit scale", {
   expect_equal(.ets_category(1.2, 0.9, 0.4), "A")
   # large but not significantly beyond the A ceiling is B, not C
   expect_equal(.ets_category(c_cut + 0.01, 0.5, 0.01), "B+")
-  # polytomous items are not classified by this rule
-  expect_true(is.na(.ets_category(0.9, small, 1e-10, dichotomous = FALSE)))
   expect_true(is.na(.ets_category(NA_real_, NA_real_, NA_real_)))
 })
 
@@ -124,4 +122,29 @@ test_that("dif_size reports an ETS category beside the magnitude", {
   expect_match(big$ets, "^C")               # 0.9 logits is 2.1 delta
   clean <- dif_size(f, "I06", "grp")$pairs
   expect_equal(clean$ets, "A")
+})
+
+test_that("a polytomous item is classified on the same metric", {
+  # under the partial credit model a uniform shift of the item location is
+  # the signed area divided by the number of thresholds, so the published
+  # cut-values apply per threshold rather than needing a separate statistic
+  set.seed(5)
+  N <- 2000; K <- 6
+  th <- stats::rnorm(N, 0, 1.3)
+  tau <- lapply(seq_len(K), function(i) c(-1, 0, 1) +
+                  seq(-0.5, 0.5, length.out = K)[i])
+  g <- rep(c("ref", "foc"), each = N / 2)
+  sh <- ifelse(g == "foc", 0.9, 0)
+  X <- vapply(seq_len(K), function(i)
+    vapply(seq_len(N), function(p) {
+      s <- if (i == 2L) sh[p] else 0
+      sample(0:3, 1, prob = item_moments(th[p] - s, tau[[i]])$P) }, 0),
+    numeric(N))
+  colnames(X) <- sprintf("I%02d", seq_len(K))
+  f <- rasch(data.frame(id = seq_len(N), X, grp = g), id = "id",
+             factors = "grp")
+  p <- dif_size(f, "I02", "grp")$pairs
+  expect_true(all(f$items$max == 3))          # genuinely polytomous
+  expect_false(is.na(p$ets))                  # and still classified
+  expect_match(p$ets, "^[BC]")
 })

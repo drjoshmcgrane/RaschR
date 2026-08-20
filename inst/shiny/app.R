@@ -4253,7 +4253,7 @@ server <- function(input, output, session) {
     keep <- c("level_a", "level_b", "difference", "se", "z",
               "lower", "upper", "p_adj", "ets")
     d <- ds$pairs[, intersect(keep, names(ds$pairs))]
-    if ("ets" %in% names(d) && all(is.na(d$ets))) d$ets <- NULL
+    if ("ets" %in% names(d) && all(is.na(d$ets))) d$ets <- NULL   # weak levels only
     dt <- style_mag_red(num_dt(d), d, "difference", ds$flag_logits)
     style_lo_red(dt, d, "p_adj", ds$alpha)
   })

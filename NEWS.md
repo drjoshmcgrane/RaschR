@@ -110,9 +110,14 @@ strengthens identification and uncertainty checks.
   0.426. The letter is documented as answering whether an item distorts the
   total score rather than whether it is invariant, because A permits a
   difference of 10.6 percentage points in success at the item's own location.
-  Polytomous items are not classified: ETS uses a standardised mean
-  difference in the observed-score metric, which is a different statistic
-  rather than a rescaling of this one.
+  Polytomous items are classified on the same metric: under the partial
+  credit model an item's difficulty decomposes as a location plus its
+  thresholds, so a shift that leaves the thresholds alone gives a signed area
+  of the number of thresholds times that shift, and the same cut-values apply
+  per threshold (Golia 2012, after Cohen, Kim and Baker 1993). The separate
+  ETS convention for polytomous items, at 0.17 and 0.25 on a standardised
+  mean difference, is a statistic in the observed-score metric rather than
+  this one.
 * `resolve_frames()` gives an item that does not hold across frames a
   separate location in each frame and refits, so it goes on measuring the
   person inside their own frame while no longer constraining the comparison
