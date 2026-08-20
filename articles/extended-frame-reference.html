@@ -316,11 +316,21 @@ follow-ups.</p>
 <div class="section level2">
 <h2 id="worked-analyses-on-real-data">Worked analyses on real data<a class="anchor" aria-label="anchor" href="#worked-analyses-on-real-data"></a>
 </h2>
-<p>Two case studies apply the frame of reference models to real datasets
-and ship with the package:</p>
+<p>Three case studies apply the frame of reference models to real
+datasets and ship with the package. The two wording studies are best
+read together: they find a set-unit difference of almost the same size
+and it means something different in each. In the self-esteem data the
+difference is carried by one ambivalent item and vanishes when that item
+goes; in the height data it survives every single-item removal, and yet
+leaves the person ordering essentially unchanged against a criterion
+collected outside the inventory. Neither conclusion is available from
+the unit test alone.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># wording effects as item-set units in a self-esteem scale</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"wording_units_selfesteem.R"</span>,</span>
+<span>                      package <span class="op">=</span> <span class="st">"rasch"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># the same question in a balanced inventory, checked against a criterion</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"wording_units_height.R"</span>,</span>
 <span>                      package <span class="op">=</span> <span class="st">"rasch"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co"># panel and bloc frames in paired comparisons between political parties</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"party_blocs_crisis.R"</span>,</span>
