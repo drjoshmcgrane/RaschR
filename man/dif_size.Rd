@@ -38,8 +38,9 @@ resolved locations would be too unstable to compare), with a note.}
 A list of class \code{"rasch_dif_size"}: \code{levels} (resolved
   location and SE per level, with its n), \code{pairs} (per comparison:
   difference in logits, SE, z, raw and adjusted p, 95 per cent interval,
-  \code{significant}, \code{practical}), the settings, and any notes.
-  Sampling-uncertainty fields are \code{NA} when person IDs repeat.
+  \code{significant}, \code{practical}, \code{ets}), the settings, and
+  any notes. Sampling-uncertainty fields are \code{NA} when person IDs
+  repeat.
 }
 \description{
 Resolves an item into one parameter per factor level, refits the model, and
@@ -67,6 +68,38 @@ practical flags are retained, but their standard errors and Wald tests are
 withheld. Use \code{\link{dif_contrasts}} for person-level inference in a
 repeated-measures design.
 }
+\section{The ETS categories}{
+
+\code{pairs$ets} reports the A, B and C categories used at ETS, signed
+for direction as they are there. They are defined from the
+Mantel-Haenszel common odds ratio on the delta scale, where
+\eqn{\mathrm{MH\ D\text{-}DIF} = -2.35\log\hat\alpha_{MH}}. Under the
+Rasch model that log odds ratio and the difference in item location
+estimate the same quantity, both being conditional on the total score, so
+the delta thresholds convert exactly at 2.35 delta units to the logit: A
+is not significant or below 0.426 logits, C is at or above 0.638 logits
+and significantly beyond 0.426, and B is the remainder. The C rule tests
+against a non-zero null, so it uses the standard error rather than the
+probability alone.
+
+Read the letter beside the magnitude rather than instead of it, because
+the categories were built to triage items for an operational bank and not
+to answer whether an item is invariant. A tops out at 0.426 logits, which
+is a difference of 10.6 percentage points in success at the item's own
+location -- plainly not invariance. What justifies calling it negligible
+is its effect on the score rather than on the item: in simulation at
+3,000 persons, one item sitting at that ceiling moved the comparison
+between the two groups by 0.026 logits on a ten-item test and 0.018 on a
+twenty-item one, while three such items moved it by 0.086 and 0.050. So
+the letter answers "does this item distort the total score", and
+\code{practical} against \code{flag_logits} answers "is this item
+behaving the same way in both groups". They are different questions.
+
+The column is \code{NA} for a polytomous item. ETS classifies those from
+a standardised mean difference in the observed-score metric, which is a
+different statistic rather than a rescaling of this one.
+}
+
 \examples{
 set.seed(1); n <- 600
 d <- seq(-2, 2, length.out = 8); g <- rep(c("a", "b"), each = n / 2)

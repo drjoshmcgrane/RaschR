@@ -101,6 +101,18 @@ strengthens identification and uncertainty checks.
   own print methods read `< 0.001`. They now share one formatting vocabulary,
   with the values untouched. Saved tables and the application's downloads
   keep full precision without the exponent.
+* `dif_size()` reports the ETS A, B and C categories beside the magnitude,
+  signed for direction as ETS signs them. They convert exactly rather than by
+  analogy: the Mantel-Haenszel common odds ratio on the delta scale and the
+  conditional difference in item location estimate the same quantity under
+  the Rasch model, at 2.35 delta units to the logit, so A is not significant
+  or below 0.426 logits and C is at or above 0.638 and significantly beyond
+  0.426. The letter is documented as answering whether an item distorts the
+  total score rather than whether it is invariant, because A permits a
+  difference of 10.6 percentage points in success at the item's own location.
+  Polytomous items are not classified: ETS uses a standardised mean
+  difference in the observed-score metric, which is a different statistic
+  rather than a rescaling of this one.
 * `resolve_frames()` gives an item that does not hold across frames a
   separate location in each frame and refits, so it goes on measuring the
   person inside their own frame while no longer constraining the comparison

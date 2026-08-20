@@ -85,3 +85,43 @@ test_that("a deliberate refusal is signalled apart from a fault", {
   expect_false(inherits(e, "rasch_refusal"))
   expect_s3_class(e, "error")
 })
+
+test_that("the ETS categories follow the published rule on the logit scale", {
+  # 2.35 delta units to the logit, so A tops out at 0.426 and C starts at
+  # 0.638; C additionally tests against the A ceiling rather than against zero
+  a_cut <- 1 / 2.35; c_cut <- 1.5 / 2.35
+  small <- 0.001                      # a standard error tight enough to decide
+
+  expect_equal(.ets_category(a_cut - 0.01, small, 1e-10), "A")
+  expect_equal(.ets_category(a_cut + 0.01, small, 1e-10), "B+")
+  expect_equal(.ets_category(c_cut + 0.01, small, 1e-10), "C+")
+  expect_equal(.ets_category(-(c_cut + 0.01), small, 1e-10), "C-")
+
+  # not significantly different from zero is A whatever the magnitude
+  expect_equal(.ets_category(1.2, 0.9, 0.4), "A")
+  # large but not significantly beyond the A ceiling is B, not C
+  expect_equal(.ets_category(c_cut + 0.01, 0.5, 0.01), "B+")
+  # polytomous items are not classified by this rule
+  expect_true(is.na(.ets_category(0.9, small, 1e-10, dichotomous = FALSE)))
+  expect_true(is.na(.ets_category(NA_real_, NA_real_, NA_real_)))
+})
+
+test_that("dif_size reports an ETS category beside the magnitude", {
+  set.seed(2)
+  N <- 2000; K <- 8
+  th <- stats::rnorm(N); dl <- seq(-1.2, 1.2, length.out = K)
+  g <- rep(c("ref", "foc"), each = N / 2)
+  X <- vapply(seq_len(K), function(i)
+    stats::rbinom(N, 1, stats::plogis(th - dl[i])), numeric(N))
+  X[g == "foc", 3] <- stats::rbinom(sum(g == "foc"), 1,
+    stats::plogis(th[g == "foc"] - dl[3] - 0.9))
+  colnames(X) <- sprintf("I%02d", seq_len(K))
+  f <- rasch(data.frame(id = seq_len(N), X, grp = g), id = "id",
+             factors = "grp")
+
+  big <- dif_size(f, "I03", "grp")$pairs
+  expect_true("ets" %in% names(big))
+  expect_match(big$ets, "^C")               # 0.9 logits is 2.1 delta
+  clean <- dif_size(f, "I06", "grp")$pairs
+  expect_equal(clean$ets, "A")
+})

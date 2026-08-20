@@ -4248,8 +4248,12 @@ server <- function(input, output, session) {
   output$dif_size_tbl <- DT::renderDT({
     ds <- dif_size_res()
     req(!inherits(ds, "error"))
-    d <- ds$pairs[, c("level_a", "level_b", "difference", "se", "z",
-                      "lower", "upper", "p_adj")]
+    # the ETS letter sits beside the magnitude, never instead of it: it
+    # answers whether the item distorts the score, not whether it is invariant
+    keep <- c("level_a", "level_b", "difference", "se", "z",
+              "lower", "upper", "p_adj", "ets")
+    d <- ds$pairs[, intersect(keep, names(ds$pairs))]
+    if ("ets" %in% names(d) && all(is.na(d$ets))) d$ets <- NULL
     dt <- style_mag_red(num_dt(d), d, "difference", ds$flag_logits)
     style_lo_red(dt, d, "p_adj", ds$alpha)
   })
