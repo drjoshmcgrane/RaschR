@@ -152,8 +152,8 @@ dif_size(fit, "I03", by = "group")
 #>  level location se weak   n
 #>      A   -0.549       0 240
 #>      B    0.295       0 240
-#>  level_a level_b difference se z p p_adj lower upper significant practical
-#>        A       B     -0.844                                        >= 0.50
+#>  level_a level_b difference se z p p_adj lower upper significant practical  ets
+#>        A       B     -0.844                                        >= 0.50 <NA>
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 #> notes: person identifiers repeat across response rows: resolved point differences remain descriptive, but sampling SEs, confidence intervals and Wald tests are withheld; use dif_contrasts for person-level inference or a whole-person bootstrap
 dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion",

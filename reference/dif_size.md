@@ -60,8 +60,8 @@ dif_size(
 A list of class `"rasch_dif_size"`: `levels` (resolved location and SE
 per level, with its n), `pairs` (per comparison: difference in logits,
 SE, z, raw and adjusted p, 95 per cent interval, `significant`,
-`practical`), the settings, and any notes. Sampling-uncertainty fields
-are `NA` when person IDs repeat.
+`practical`, `ets`), the settings, and any notes. Sampling-uncertainty
+fields are `NA` when person IDs repeat.
 
 ## Details
 
@@ -80,6 +80,36 @@ and practical flags are retained, but their standard errors and Wald
 tests are withheld. Use
 [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
 for person-level inference in a repeated-measures design.
+
+## The ETS categories
+
+`pairs$ets` reports the A, B and C categories used at ETS, signed for
+direction as they are there. They are defined from the Mantel-Haenszel
+common odds ratio on the delta scale, where \\\mathrm{MH\\ D\text{-}DIF}
+= -2.35\log\hat\alpha\_{MH}\\. Under the Rasch model that log odds ratio
+and the difference in item location estimate the same quantity, both
+being conditional on the total score, so the delta thresholds convert
+exactly at 2.35 delta units to the logit: A is not significant or below
+0.426 logits, C is at or above 0.638 logits and significantly beyond
+0.426, and B is the remainder. The C rule tests against a non-zero null,
+so it uses the standard error rather than the probability alone.
+
+Read the letter beside the magnitude rather than instead of it, because
+the categories were built to triage items for an operational bank and
+not to answer whether an item is invariant. A tops out at 0.426 logits,
+which is a difference of 10.6 percentage points in success at the item's
+own location – plainly not invariance. What justifies calling it
+negligible is its effect on the score rather than on the item: in
+simulation at 3,000 persons, one item sitting at that ceiling moved the
+comparison between the two groups by 0.026 logits on a ten-item test and
+0.018 on a twenty-item one, while three such items moved it by 0.086 and
+0.050. So the letter answers "does this item distort the total score",
+and `practical` against `flag_logits` answers "is this item behaving the
+same way in both groups". They are different questions.
+
+The column is `NA` for a polytomous item. ETS classifies those from a
+standardised mean difference in the observed-score metric, which is a
+different statistic rather than a rescaling of this one.
 
 ## References
 
@@ -111,7 +141,7 @@ dif_size(fit, "I3", by = "grp")
 #>      b    0.018 0.126    0 300
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>        a       b     -0.907 0.204 -4.441 < 0.001 < 0.001 -1.308 -0.507
-#>  significant practical
-#>            *   >= 0.50
+#>  significant practical ets
+#>            *   >= 0.50  C-
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```

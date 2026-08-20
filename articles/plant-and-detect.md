@@ -132,8 +132,8 @@ dif_size(fit3, "I06", by = "group")
 #>     g2    1.266 0.162    0 250
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>       g1      g2     -1.004 0.234 -4.287 < 0.001 < 0.001 -1.463 -0.545
-#>  significant practical
-#>            *   >= 0.50
+#>  significant practical ets
+#>            *   >= 0.50  C-
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```
 
