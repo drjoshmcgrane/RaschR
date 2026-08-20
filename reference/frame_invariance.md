@@ -25,20 +25,26 @@ frame_invariance(fit, alpha = 0.05, adjust = c("holm", "none"))
 
 - adjust:
 
-  Multiplicity adjustment used to flag items: `"holm"` across all
-  comparisons, or `"none"` for screening. Both probabilities are
-  reported regardless.
+  Multiplicity adjustment used to flag items: `"holm"`, applied within
+  the location table and within the discrimination table separately, or
+  `"none"` for screening. Both probabilities are reported regardless, so
+  the choice changes only `flagged`.
 
 ## Value
 
-A list of class `"rasch_frame_invariance"` with `locations` (one row per
-item and frame pair: locations on the common scale, their difference,
-its standard error, statistic, both probabilities, and flag),
-`discrimination` (the same items compared on their within-frame infit
-statistics, with the Winsteps-style discrimination index for each frame
-and its ratio alongside), and `summary` (per frame pair: the number of
+A list of class `"rasch_frame_invariance"` with five elements.
+`locations` holds one row per item, item set, and frame pair: the set,
+the two frames, the locations on the common scale, their difference, its
+standard error, statistic, both probabilities, and the flag.
+`discrimination` holds the same rows compared on their within-frame
+infit statistics: `infit_1`, `infit_2`, the standardised difference
+`infit_z`, both probabilities, the flag, and alongside them the
+estimated discrimination for each frame (`disc_1`, `disc_2`) and its
+ratio. `summary` holds one row per set and frame pair: the number of
 items, the root mean squared difference, the root mean squared standard
-error, their ratio, and the number of items flagged on each count).
+error, their ratio, and the number of items flagged on each count.
+`alpha` and `adjust` record the significance level and multiplicity rule
+the flags used.
 
 ## Details
 

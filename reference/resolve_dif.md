@@ -66,6 +66,15 @@ Andrich, D., & Hagquist, C. (2012). Real and artificial differential
 item functioning. *Journal of Educational and Behavioral Statistics*,
 37(3), 387-416.
 
+## See also
+
+[`split_items`](https://drjoshmcgrane.github.io/rasch/reference/split_items.md)
+for a single split,
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
+to remove an item instead, and
+[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
+for the test it resolves.
+
 ## Examples
 
 ``` r

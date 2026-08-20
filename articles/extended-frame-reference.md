@@ -27,7 +27,15 @@ Here \\\alpha_s\\ is the item-set unit and \\\phi_g\\ is the
 person-group unit. A frame-defining factor sets the unit and cannot also
 be tested for DIF: the factor takes a single level among the persons
 responding within any frame, so no within-frame comparison remains on
-which to test it.
+which to test it. This is why
+[`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
+refuses such a factor, and why the fitted model cannot check its own
+assumption: it holds each item at one location across frames by
+construction, so the per-frame estimates it reports agree because the
+model made them agree. Testing the assumption means stepping outside the
+model, which is what
+[`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+does – see below.
 
 The model should be used when a frame-dependent unit is part of the
 substantive measurement account, not simply because an equal-unit model
@@ -250,6 +258,52 @@ fit$efrm_vs_rasch
 The raw equal-unit composite-likelihood difference is descriptive. The
 omnibus Wald tests in `efrm_vs_rasch$unit_omnibus` test the unit
 families; individual unit contrasts are Holm-adjusted follow-ups.
+
+## Testing the invariance the model assumes
+
+[`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+calibrates each frame separately, puts the item locations on the common
+scale by dividing by that frame’s unit, and compares them item by item.
+It reports two comparisons, and they are not equally sensitive: a
+location difference is found about 97 per cent of the time at 500
+persons per frame, a difference in discrimination about 16 per cent, and
+the two reach comparable power only near 2,000. A clean result at a few
+hundred persons per frame is therefore much stronger evidence against
+differential item functioning than against differential discrimination.
+
+``` r
+
+inv <- frame_invariance(fit)
+inv$summary                    # rmsd against rmse, per set and frame pair
+inv$locations
+```
+
+Which items to flag is a screening decision, not a confirmatory one, and
+`adjust` chooses. Holm across eight to ten items is right for reporting
+that an item differs and wrong for deciding which items to look at,
+where it costs between 20 and 60 points of sensitivity. Both
+probabilities are reported either way, so the choice changes only which
+rows are flagged.
+
+``` r
+
+frame_invariance(fit, adjust = "none")   # screen
+```
+
+An item the test flags is removed with
+[`drop_items()`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md),
+which refits and returns an ordinary fit of the same class. Rank the
+items by `abs(fit_resid)` rather than applying a fixed cut-off – a cut
+states detectability rather than magnitude, so it flags more items the
+more persons there are – then drop the largest departure, refit, and
+stop when the units no longer differ. Dropping is a complete cure where
+the item is found; what limits the repair is detection, not removal.
+
+``` r
+
+fit2 <- drop_items(fit, "I07")
+fit2$efrm_vs_rasch$unit_tests            # has the difference gone?
+```
 
 ## Worked analyses on real data
 

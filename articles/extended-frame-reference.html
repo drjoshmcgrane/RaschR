@@ -108,7 +108,12 @@ unit and <span class="math inline">\(\phi_g\)</span> is the person-group
 unit. A frame-defining factor sets the unit and cannot also be tested
 for DIF: the factor takes a single level among the persons responding
 within any frame, so no within-frame comparison remains on which to test
-it.</p>
+it. This is why <code><a href="../reference/dif_anova.html">dif_anova()</a></code> refuses such a factor, and why
+the fitted model cannot check its own assumption: it holds each item at
+one location across frames by construction, so the per-frame estimates
+it reports agree because the model made them agree. Testing the
+assumption means stepping outside the model, which is what
+<code><a href="../reference/frame_invariance.html">frame_invariance()</a></code> does – see below.</p>
 <p>The model should be used when a frame-dependent unit is part of the
 substantive measurement account, not simply because an equal-unit model
 fits poorly.</p>
@@ -314,6 +319,42 @@ the unit families; individual unit contrasts are Holm-adjusted
 follow-ups.</p>
 </div>
 <div class="section level2">
+<h2 id="testing-the-invariance-the-model-assumes">Testing the invariance the model assumes<a class="anchor" aria-label="anchor" href="#testing-the-invariance-the-model-assumes"></a>
+</h2>
+<p><code><a href="../reference/frame_invariance.html">frame_invariance()</a></code> calibrates each frame separately,
+puts the item locations on the common scale by dividing by that frame’s
+unit, and compares them item by item. It reports two comparisons, and
+they are not equally sensitive: a location difference is found about 97
+per cent of the time at 500 persons per frame, a difference in
+discrimination about 16 per cent, and the two reach comparable power
+only near 2,000. A clean result at a few hundred persons per frame is
+therefore much stronger evidence against differential item functioning
+than against differential discrimination.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">inv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frame_invariance.html">frame_invariance</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">inv</span><span class="op">$</span><span class="va">summary</span>                    <span class="co"># rmsd against rmse, per set and frame pair</span></span>
+<span><span class="va">inv</span><span class="op">$</span><span class="va">locations</span></span></code></pre></div>
+<p>Which items to flag is a screening decision, not a confirmatory one,
+and <code>adjust</code> chooses. Holm across eight to ten items is right
+for reporting that an item differs and wrong for deciding which items to
+look at, where it costs between 20 and 60 points of sensitivity. Both
+probabilities are reported either way, so the choice changes only which
+rows are flagged.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/frame_invariance.html">frame_invariance</a></span><span class="op">(</span><span class="va">fit</span>, adjust <span class="op">=</span> <span class="st">"none"</span><span class="op">)</span>   <span class="co"># screen</span></span></code></pre></div>
+<p>An item the test flags is removed with <code><a href="../reference/drop_items.html">drop_items()</a></code>,
+which refits and returns an ordinary fit of the same class. Rank the
+items by <code>abs(fit_resid)</code> rather than applying a fixed
+cut-off – a cut states detectability rather than magnitude, so it flags
+more items the more persons there are – then drop the largest departure,
+refit, and stop when the units no longer differ. Dropping is a complete
+cure where the item is found; what limits the repair is detection, not
+removal.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/drop_items.html">drop_items</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I07"</span><span class="op">)</span></span>
+<span><span class="va">fit2</span><span class="op">$</span><span class="va">efrm_vs_rasch</span><span class="op">$</span><span class="va">unit_tests</span>            <span class="co"># has the difference gone?</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="worked-analyses-on-real-data">Worked analyses on real data<a class="anchor" aria-label="anchor" href="#worked-analyses-on-real-data"></a>
 </h2>
 <p>Three case studies apply the frame of reference models to real
@@ -325,7 +366,7 @@ goes; in the height data it survives every single-item removal, and yet
 leaves the person ordering essentially unchanged against a criterion
 collected outside the inventory. Neither conclusion is available from
 the unit test alone.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># wording effects as item-set units in a self-esteem scale</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/file.edit.html" class="external-link">file.edit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"casestudies"</span>, <span class="st">"wording_units_selfesteem.R"</span>,</span>
 <span>                      package <span class="op">=</span> <span class="st">"rasch"</span><span class="op">)</span><span class="op">)</span></span>

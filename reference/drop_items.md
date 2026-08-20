@@ -18,6 +18,10 @@ drop_items(fit, items, boot_reps = NULL)
   A fitted object from
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) or
   [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
+  Many-facet fits are refused: remove the item's rows from the
+  long-format data and refit
+  [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
+  instead.
 
 - items:
 
@@ -25,8 +29,12 @@ drop_items(fit, items, boot_reps = NULL)
 
 - boot_reps:
 
-  For frame models, the number of linking bootstrap replicates for the
-  refit. Defaults to the number the original fit used.
+  Bootstrap replicates for the refit. The default keeps the character of
+  the fit it came from: a fit whose unit standard errors came from a
+  bootstrap passes its replicate count on, a fit that has unit standard
+  errors by the analytic route takes the package default, and a fit
+  asked for no standard errors is refitted without them. Pass a number
+  to override all three.
 
 ## Value
 

@@ -37,6 +37,15 @@ A new
 in which each split item appears as `"item (level)"`, with the splits
 recorded in its notes.
 
+## See also
+
+[`resolve_dif`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md),
+which applies this iteratively;
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md),
+which removes an item rather than resolving it; and
+[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md),
+which identifies the items to split.
+
 ## Examples
 
 ``` r

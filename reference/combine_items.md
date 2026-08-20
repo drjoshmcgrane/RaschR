@@ -34,6 +34,13 @@ A new
 [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) fit
 on the combined structure, with the combinations recorded in its notes.
 
+## See also
+
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
+to remove an item rather than combine it, and
+[`residual_correlations`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md)
+for the dependence that motivates combining.
+
 ## Examples
 
 ``` r

@@ -79,22 +79,27 @@ function tests the assumption rather than imposing it.</p>
 
 
 <dt id="arg-adjust">adjust<a class="anchor" aria-label="anchor" href="#arg-adjust"></a></dt>
-<dd><p>Multiplicity adjustment used to flag items: <code>"holm"</code>
-across all comparisons, or <code>"none"</code> for screening. Both
-probabilities are reported regardless.</p></dd>
+<dd><p>Multiplicity adjustment used to flag items: <code>"holm"</code>,
+applied within the location table and within the discrimination table
+separately, or <code>"none"</code> for screening. Both probabilities are
+reported regardless, so the choice changes only <code>flagged</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list of class <code>"rasch_frame_invariance"</code> with
-  <code>locations</code> (one row per item and frame pair: locations on the
-  common scale, their difference, its standard error, statistic, both
-  probabilities, and flag), <code>discrimination</code> (the same items compared
-  on their within-frame infit statistics, with the Winsteps-style
-  discrimination index for each frame and its ratio alongside), and
-  <code>summary</code> (per frame pair: the number of items, the root mean
-  squared difference, the root mean squared standard error, their ratio,
-  and the number of items flagged on each count).</p>
+    <p>A list of class <code>"rasch_frame_invariance"</code> with five
+  elements. <code>locations</code> holds one row per item, item set, and frame
+  pair: the set, the two frames, the locations on the common scale, their
+  difference, its standard error, statistic, both probabilities, and the
+  flag. <code>discrimination</code> holds the same rows compared
+  on their within-frame infit statistics: <code>infit_1</code>, <code>infit_2</code>,
+  the standardised difference <code>infit_z</code>, both probabilities, the
+  flag, and alongside them the estimated discrimination for each frame
+  (<code>disc_1</code>, <code>disc_2</code>) and its ratio. <code>summary</code> holds one
+  row per set and frame pair: the number of items, the root mean squared
+  difference, the root mean squared standard error, their ratio, and the
+  number of items flagged on each count. <code>alpha</code> and <code>adjust</code>
+  record the significance level and multiplicity rule the flags used.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

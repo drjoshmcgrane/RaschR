@@ -180,7 +180,9 @@ corresponding within-person test. In incomplete mixed designs, within-cell
 effects are removed before the between-person analysis.</p>
 <p>A significant higher-order factor term supersedes its component terms in
 the summary. For EFRM fits, frame-defining factors are excluded because
-they define the model rather than a separate DIF contrast. MFRM residuals
+they define the model rather than a separate DIF contrast; testing such a
+factor means stepping outside the model, which is what
+<code><a href="frame_invariance.html">frame_invariance</a></code> does. MFRM residuals
 are pooled to underlying items unless <code>pool_facets = FALSE</code>.</p>
     </div>
     <div class="section level2">
@@ -197,7 +199,8 @@ Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="dif_size.html">dif_size</a></code>, <code><a href="dif_contrasts.html">dif_contrasts</a></code>, and
-  <code><a href="resolve_dif.html">resolve_dif</a></code>.</p></div>
+  <code><a href="resolve_dif.html">resolve_dif</a></code>; and <code><a href="frame_invariance.html">frame_invariance</a></code> for the
+  frame-defining factor this function excludes.</p></div>
     </div>
 
     <div class="section level2">

@@ -137,8 +137,11 @@ analysis.
 
 A significant higher-order factor term supersedes its component terms in
 the summary. For EFRM fits, frame-defining factors are excluded because
-they define the model rather than a separate DIF contrast. MFRM
-residuals are pooled to underlying items unless `pool_facets = FALSE`.
+they define the model rather than a separate DIF contrast; testing such
+a factor means stepping outside the model, which is what
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+does. MFRM residuals are pooled to underlying items unless
+`pool_facets = FALSE`.
 
 ## References
 
@@ -159,7 +162,10 @@ Erlbaum.
 [`dif_size`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md),
 [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md),
 and
-[`resolve_dif`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md).
+[`resolve_dif`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md);
+and
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+for the frame-defining factor this function excludes.
 
 ## Examples
 

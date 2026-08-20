@@ -275,6 +275,11 @@ Rasch model. Journal of Applied Measurement, 9(3), 249–264.
 
 ## See also
 
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md),
+which tests the item invariance this model assumes rather than imposing
+it, and
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md),
+which removes an item the test flags and refits. Also
 [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
 [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
 [`test_information`](https://drjoshmcgrane.github.io/rasch/reference/test_information.md),

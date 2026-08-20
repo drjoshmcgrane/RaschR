@@ -107,7 +107,8 @@ summary, threshold table, person table, score table, residuals,
 reliability, targeting, item-trait statistics, threshold diagnostics,
 and estimation details. The component `summary_stats` contains the
 distribution summaries, fit-location correlations, and the cell
-degrees-of-freedom factor.
+degrees-of-freedom factor. The item summary carries a `disc` column
+described below.
 
 ## Details
 
@@ -144,6 +145,33 @@ If `adjust_N` is supplied, each item-trait chi-square is multiplied by
 the reference sample size divided by the number of classified persons.
 The scaling is global: an item answered by a subset retains its
 proportionally smaller share of the reference sample.
+
+## Estimated item discrimination
+
+The item summary reports `disc`, the slope that maximises an item's own
+likelihood with the person measures and the item's thresholds held at
+the values the model gave them. It follows the index Linacre's Winsteps
+reports as DISCRIM, generalised here to polytomous items, where the same
+slope multiplies every threshold of the item. The Rasch model does not
+estimate it; it is computed afterwards, one item at a time, to describe
+how steeply each item sorts the people the model has already located.
+
+Read it as description, not as an estimate of a discrimination
+parameter. The person measures are estimated from a set that includes
+the item being scored, which biases the index upward – about 1.19 for a
+true 1.0 in simulation – and pulls extreme items toward the rest, so a
+true ratio of 1.5 between two items recovers as roughly 1.2. Its
+ordering is more dependable than its level: with one steep and one flat
+item planted among six, the planted pair came back at the extremes of
+the column while the unplanted items spread between them. An item whose
+responses do not vary among the non-extreme persons has no slope and is
+reported as `NA`.
+
+Where a test of discrimination is wanted rather than a description, use
+the fit statistics: they are the calibrated instrument, and
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+tests discrimination across frames on the within-frame infit rather than
+on this index, which is the weaker of the two.
 
 ## References
 
@@ -185,24 +213,24 @@ X <- matrix(rbinom(500 * 8, 1, plogis(outer(rnorm(500), d, "-"))), 500, 8)
 colnames(X) <- paste0("I", 1:8)
 fit <- rasch(X, model = "PCM")
 fit$items
-#>  item max location    se fit_resid  df_fit natural_resid infit_ms outfit_ms
-#>    I1   1   -2.160 0.144     0.167 423.500         0.170    1.027     0.988
-#>    I2   1   -1.352 0.113    -0.576 423.500        -0.555    1.030     0.920
-#>    I3   1   -0.894 0.106    -1.427 423.500        -1.331    1.005     0.876
-#>    I4   1   -0.253 0.098    -0.684 423.500        -0.668    1.061     0.975
-#>    I5   1    0.391 0.098     0.868 423.500         0.896    1.160     1.094
-#>    I6   1    0.890 0.100    -0.563 423.500        -0.549    1.074     0.963
-#>    I7   1    1.468 0.113     0.186 423.500         0.189    1.105     1.018
-#>    I8   1    1.910 0.128     0.229 423.500         0.233    0.997     1.012
-#>  infit_z outfit_z  chisq df     p p_adj p_bonf F_anova p_anova
-#>    0.332   -0.007  5.367  6 0.498 0.569  1.000   0.550   0.770
-#>    0.514   -0.694  8.361  6 0.213 0.569  1.000   1.387   0.218
-#>    0.107   -1.473 13.544  6 0.035 0.281  0.281   2.771   0.012
-#>    1.424   -0.373  7.579  6 0.271 0.569  1.000   1.493   0.179
-#>    3.694    1.432  2.837  6 0.829 0.829  1.000   0.499   0.809
-#>    1.566   -0.429  5.526  6 0.478 0.569  1.000   0.941   0.465
-#>    1.767    0.196  5.761  6 0.451 0.569  1.000   0.708   0.643
-#>   -0.018    0.130  6.873  6 0.333 0.569  1.000   0.956   0.455
+#>  item max location    se  disc fit_resid  df_fit natural_resid infit_ms
+#>    I1   1   -2.160 0.144 1.106     0.167 423.500         0.170    1.027
+#>    I2   1   -1.352 0.113 1.209    -0.576 423.500        -0.555    1.030
+#>    I3   1   -0.894 0.106 1.352    -1.427 423.500        -1.331    1.005
+#>    I4   1   -0.253 0.098 1.327    -0.684 423.500        -0.668    1.061
+#>    I5   1    0.391 0.098 1.077     0.868 423.500         0.896    1.160
+#>    I6   1    0.890 0.100 1.243    -0.563 423.500        -0.549    1.074
+#>    I7   1    1.468 0.113 1.092     0.186 423.500         0.189    1.105
+#>    I8   1    1.910 0.128 1.174     0.229 423.500         0.233    0.997
+#>  outfit_ms infit_z outfit_z  chisq df     p p_adj p_bonf F_anova p_anova
+#>      0.988   0.332   -0.007  5.367  6 0.498 0.569  1.000   0.550   0.770
+#>      0.920   0.514   -0.694  8.361  6 0.213 0.569  1.000   1.387   0.218
+#>      0.876   0.107   -1.473 13.544  6 0.035 0.281  0.281   2.771   0.012
+#>      0.975   1.424   -0.373  7.579  6 0.271 0.569  1.000   1.493   0.179
+#>      1.094   3.694    1.432  2.837  6 0.829 0.829  1.000   0.499   0.809
+#>      0.963   1.566   -0.429  5.526  6 0.478 0.569  1.000   0.941   0.465
+#>      1.018   1.767    0.196  5.761  6 0.451 0.569  1.000   0.708   0.643
+#>      1.012  -0.018    0.130  6.873  6 0.333 0.569  1.000   0.956   0.455
 fit$psi$PSI
 #> [1] 0.4907417
 ```

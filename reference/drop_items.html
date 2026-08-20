@@ -69,7 +69,9 @@ the same class, so every diagnostic applies to it unchanged.</p>
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
 <dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code> or
-<code><a href="rasch_efrm.html">rasch_efrm</a></code>.</p></dd>
+<code><a href="rasch_efrm.html">rasch_efrm</a></code>. Many-facet fits are refused: remove the
+item's rows from the long-format data and refit
+<code><a href="rasch_mfrm.html">rasch_mfrm</a></code> instead.</p></dd>
 
 
 <dt id="arg-items">items<a class="anchor" aria-label="anchor" href="#arg-items"></a></dt>
@@ -77,8 +79,12 @@ the same class, so every diagnostic applies to it unchanged.</p>
 
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
-<dd><p>For frame models, the number of linking bootstrap
-replicates for the refit. Defaults to the number the original fit used.</p></dd>
+<dd><p>Bootstrap replicates for the refit. The default keeps the
+character of the fit it came from: a fit whose unit standard errors came
+from a bootstrap passes its replicate count on, a fit that has unit
+standard errors by the analytic route takes the package default, and a
+fit asked for no standard errors is refitted without them. Pass a number
+to override all three.</p></dd>
 
 </dl></div>
     <div class="section level2">
