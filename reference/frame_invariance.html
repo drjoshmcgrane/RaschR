@@ -170,6 +170,17 @@ planted items restored the ratio in every simulated departure, so what
 limits the repair is detection rather than removal. Past roughly a fifth
 of the items breaking invariance, no threshold rescues the ratio and the
 item set itself is the problem.</p>
+<p>A flagged item has two remedies, and the diagnosis here is
+frame-specific while one of them is not. <code><a href="drop_items.html">drop_items</a></code> takes
+the item out of every frame, so it stops measuring anyone, including in
+the frames it behaved perfectly well in.
+<code><a href="resolve_frames.html">resolve_frames</a></code> gives it a separate location per frame
+instead: it stops linking the frames, which is what this test found
+wrong with it, and goes on measuring the person within their own frame.
+Resolving costs a parameter per extra frame and leaves the group units
+resting on the items that remain common; dropping costs every person
+that item's contribution. Prefer resolving when the item measures well
+inside each frame, and dropping when it does not measure well anywhere.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -178,7 +189,8 @@ Measurement</em>. PhD thesis, Murdoch University.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="drop_items.html">drop_items</a></code> to remove an item the test flags, and
+    <div class="dont-index"><p><code><a href="resolve_frames.html">resolve_frames</a></code> to give a flagged item a location
+  per frame, <code><a href="drop_items.html">drop_items</a></code> to remove it altogether, and
   <code><a href="rasch_efrm.html">rasch_efrm</a></code> for the model whose assumption is tested.</p></div>
     </div>
 

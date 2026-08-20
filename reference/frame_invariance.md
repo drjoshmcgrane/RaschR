@@ -126,6 +126,20 @@ limits the repair is detection rather than removal. Past roughly a fifth
 of the items breaking invariance, no threshold rescues the ratio and the
 item set itself is the problem.
 
+A flagged item has two remedies, and the diagnosis here is
+frame-specific while one of them is not.
+[`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
+takes the item out of every frame, so it stops measuring anyone,
+including in the frames it behaved perfectly well in.
+[`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)
+gives it a separate location per frame instead: it stops linking the
+frames, which is what this test found wrong with it, and goes on
+measuring the person within their own frame. Resolving costs a parameter
+per extra frame and leaves the group units resting on the items that
+remain common; dropping costs every person that item's contribution.
+Prefer resolving when the item measures well inside each frame, and
+dropping when it does not measure well anywhere.
+
 ## References
 
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
@@ -133,8 +147,10 @@ Measurement*. PhD thesis, Murdoch University.
 
 ## See also
 
+[`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)
+to give a flagged item a location per frame,
 [`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
-to remove an item the test flags, and
+to remove it altogether, and
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
 for the model whose assumption is tested.
 

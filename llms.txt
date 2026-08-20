@@ -238,6 +238,8 @@ Examine DIF across groups or occasions and equate calibrations.
   : Split items by a person factor to resolve DIF
 - [`drop_items()`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
   : Drop items and refit
+- [`resolve_frames()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)
+  : Resolve items that do not hold across frames
 - [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
   : Test the item invariance a frame model assumes
 - [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)

@@ -63,6 +63,8 @@ dispersion from which to estimate a unit.
 
 [`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md),
 which identifies the items a frame model's assumption does not hold for;
+[`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md),
+which gives such an item a location per frame rather than removing it;
 [`split_items`](https://drjoshmcgrane.github.io/rasch/reference/split_items.md)
 and
 [`resolve_dif`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md),
