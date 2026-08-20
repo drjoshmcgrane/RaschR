@@ -5207,7 +5207,7 @@ server <- function(input, output, session) {
   # move a unit by more than its standard error.
   # the switch chooses between screening and confirming. Holm across every
   # item and frame pair is the right instrument for reporting a difference
-  # and the wrong one for deciding which items to look at: it costs 20 to 60
+  # and the wrong one for deciding which items to look at: it costs 8 to 42
   # points of sensitivity on a set of this size (misfit-repair.csv).
   inv_adjust <- reactive(if (isTRUE(input$inv_screen)) "none" else "holm")
   efrm_invariance <- reactive({

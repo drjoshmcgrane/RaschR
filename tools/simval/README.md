@@ -398,9 +398,12 @@ granularity deliberately).
 
   Dropping is always a sufficient cure: the oracle recovers 1.406 to 1.430
   in every cell, against clean references of 1.408 and 1.423. Nothing is
-  lost by removing an item, so the binding constraint is never the repair
-  — it is whether the diagnostic finds the item, and recovery tracks
-  sensitivity almost one for one.
+  lost by removing an item, so the binding constraint is never the repair —
+  it is whether the diagnostic finds the item. Recovery is not a simple
+  function of sensitivity across the whole table, because the two damage
+  directions push the ratio opposite ways and cancel when pooled; read the
+  cells within a direction, where the cell with the lowest sensitivity is
+  also the cell whose repair leaves the most damage behind.
 
   Sensitivity ranges from 91 to 22 per cent across the departures. Items
   with DIF across person frames are found 91 per cent of the time and the
@@ -412,7 +415,7 @@ granularity deliberately).
   replicates, and the repair is nearly worthless (1.694, 1.638, 1.430).
 
   The multiplicity adjustment is the wrong instrument for this job.
-  Screening 8 to 10 items with Holm costs 20 to 60 points of sensitivity,
+  Screening ten items with Holm costs 8 to 42 points of sensitivity,
   and the loose screens recover more: `|infit z| > 2` lifts the
   under-discriminating cell from 1.638 to 1.486 (sensitivity 22 to 95 per
   cent), and unadjusted probabilities lift the differential-discrimination
@@ -431,9 +434,11 @@ granularity deliberately).
 
   One cell resists every screen. Four of ten items breaking invariance
   leaves 1.663 damaged against 1.410 oracle, and the best screen reaches
-  only 1.602 while flagging a quarter of the sound items. Past roughly a
-  fifth of the items, no amount of screening substitutes for a set of
-  items that holds together.
+  only 1.602 while flagging a quarter of the sound items. Two of ten and
+  four of ten are the only contamination levels this study runs, so where
+  between them screening stops substituting for a coherent item set is not
+  established here -- only that at two of ten it substitutes partially and
+  at four of ten it does not.
 - `results/fit-residual-screens.csv` — which standardised fit statistic
   should drive a screen. Both the frame comparison and the item-set screen
   used `infit_z`, the cube-root standardisation of a mean square; the
@@ -566,6 +571,33 @@ granularity deliberately).
   0.051 against 0.068. So a chained comparison at a few hundred per year is
   better than its standard error suggests, and one at a few thousand is
   marginally worse; read the interval with that in mind.
+- `results/frame-invariance-power.csv` — the power of the two comparisons
+  `frame_invariance()` reports, and the provenance those figures previously
+  lacked. The help page asserted them; no study stood behind them. It does
+  now, and the figures moved a little.
+
+  Two departures matched on the damage they do rather than on nominal size,
+  each moving the planted group-unit ratio by six or seven per cent: two
+  items of eight shifted a logit in frame 2, against two discriminating half
+  again as steeply there. 200 replicates, flags at the function's default.
+
+  The asymmetry is real and large. The location comparison finds the shifted
+  items 95 per cent of the time at 500 persons per frame and always by
+  1,000; the discrimination comparison finds the steeper items 14 per cent
+  at 500, 45 per cent at 1,000 and 88 per cent at 2,000. So a clean result
+  at a few hundred per frame rules out one departure and barely tests the
+  other, and the two only converge near two thousand.
+
+  Under a true null both channels are conservative, flagging 0.1 to 1.5 per
+  cent of items, Holm across the family doing the work. That calibration
+  does not survive contamination on the location side, and this is the
+  finding the help page had missed: where two items of eight really are
+  shifted, the other six differ from the compromise the model settles on and
+  get flagged more readily the larger the sample — 19 per cent of sound
+  items at 500 persons per frame, 44 per cent at 1,000, 61 per cent at
+  2,000. The discrimination channel does not do this, staying near 2 per
+  cent throughout. A long list of flagged locations is evidence that some
+  item is displaced, not that all of them are.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first
