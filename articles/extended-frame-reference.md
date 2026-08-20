@@ -279,9 +279,9 @@ inv$locations
 ```
 
 Which items to flag is a screening decision, not a confirmatory one, and
-`adjust` chooses. Holm across eight to ten items is right for reporting
-that an item differs and wrong for deciding which items to look at,
-where it costs between 20 and 60 points of sensitivity. Both
+`adjust` chooses. Holm across the ten items measured is right for
+reporting that an item differs and wrong for deciding which items to
+look at, where it costs between 8 and 42 points of sensitivity. Both
 probabilities are reported either way, so the choice changes only which
 rows are flagged.
 

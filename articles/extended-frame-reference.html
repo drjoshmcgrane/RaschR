@@ -335,11 +335,11 @@ than against differential discrimination.</p>
 <span><span class="va">inv</span><span class="op">$</span><span class="va">summary</span>                    <span class="co"># rmsd against rmse, per set and frame pair</span></span>
 <span><span class="va">inv</span><span class="op">$</span><span class="va">locations</span></span></code></pre></div>
 <p>Which items to flag is a screening decision, not a confirmatory one,
-and <code>adjust</code> chooses. Holm across eight to ten items is right
-for reporting that an item differs and wrong for deciding which items to
-look at, where it costs between 20 and 60 points of sensitivity. Both
-probabilities are reported either way, so the choice changes only which
-rows are flagged.</p>
+and <code>adjust</code> chooses. Holm across the ten items measured is
+right for reporting that an item differs and wrong for deciding which
+items to look at, where it costs between 8 and 42 points of sensitivity.
+Both probabilities are reported either way, so the choice changes only
+which rows are flagged.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/frame_invariance.html">frame_invariance</a></span><span class="op">(</span><span class="va">fit</span>, adjust <span class="op">=</span> <span class="st">"none"</span><span class="op">)</span>   <span class="co"># screen</span></span></code></pre></div>
 <p>An item the test flags is removed with <code><a href="../reference/drop_items.html">drop_items()</a></code>,

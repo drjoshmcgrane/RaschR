@@ -92,8 +92,8 @@ strengthens identification and uncertainty checks.
   reporting the root mean squared difference against the root mean
   squared standard error. Its `adjust` argument chooses between Holm
   across all comparisons and no adjustment, because screening for items
-  to examine and reporting a difference are different jobs: on eight to
-  ten items the adjustment costs between 20 and 60 points of
+  to examine and reporting a difference are different jobs: across the
+  ten items measured the adjustment cost between 8 and 42 points of
   sensitivity, and simulation shows that carrying through to the
   repaired unit ratio. Both probabilities are reported either way, and
   the printed output names the rule it applied. The application exposes

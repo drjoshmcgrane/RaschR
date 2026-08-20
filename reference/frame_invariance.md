@@ -76,21 +76,30 @@ survives intact. The second comparison uses the within-frame fit
 statistics, which carry no unit because each is computed against its own
 frame's model, and treats the difference of two independent standardised
 infit statistics as having variance 2. It is conservative and needs a
-reasonable sample: in simulation, with 8 items and two items
-discriminating half again as steeply in one frame, it detected them in
-12% of replicates at 500 persons per frame and 85% at 2,000, with
-false-positive rates near 1% throughout.
+reasonable sample: with 8 items and two of them discriminating half
+again as steeply in one frame, it flagged those two in 14% of replicates
+at 500 persons per frame, 45% at 1,000 and 88% at 2,000.
 
 The two comparisons are therefore not equally sensitive, and the gap
-matters because the two departures do comparable damage. At departures
-that each move a unit ratio by six or seven per cent – two items shifted
-a logit, against two items discriminating half again as steeply – 500
-persons per frame detected the shifted items about 97% of the time and
-the steeper items about 16%. Only by around 2,000 persons per frame do
-the two reach comparable power. A clean result at a few hundred persons
+matters because the two departures do comparable damage. Matched so that
+each moves a unit ratio by six or seven per cent – two items shifted a
+logit, against two items discriminating half again as steeply – the
+location comparison found the shifted items 95% of the time at 500
+persons per frame and always by 1,000, where the discrimination
+comparison reached 14% and 45%. A clean result at a few hundred persons
 per frame is thus much stronger evidence against differential item
 functioning than against differential discrimination: it has ruled out
 one departure and barely tested the other.
+
+Under a true null – frames differing by a unit ratio and nothing else –
+both comparisons flag between 0.1 and 1.5% of items, Holm across the
+family making them conservative. That calibration does not survive
+contamination on the location side. Where two items of eight really are
+shifted, the remaining six differ from the compromise the model settles
+on, and the comparison flags them more readily the larger the sample:
+19% of sound items at 500 persons per frame, 44% at 1,000 and 61% at
+2,000. Read a long list of flagged locations as evidence that some item
+is displaced rather than that all of them are.
 
 The discrimination table also reports a Winsteps-style index for each
 frame (`disc_1`, `disc_2`) and their ratio, because a standardised
@@ -109,8 +118,8 @@ replicates at 2,000 persons per frame against the infit comparison's
 Which item to flag is a screening decision, not a confirmatory one, and
 the two call for different thresholds. `adjust` chooses: Holm across
 every item and frame pair, or none. Both probabilities are reported
-either way, so the choice changes only `flagged`. Screening 8 to 10
-items with Holm costs between 20 and 60 points of sensitivity in
+either way, so the choice changes only `flagged`. Screening the ten
+items measured, Holm cost between 8 and 42 points of sensitivity in
 simulation, and that shows up in the repair: dropping the flagged items
 from a planted unit ratio of 1.40 left the ratio at 1.479 under Holm and
 1.433 unadjusted, against 1.406 for dropping the items actually planted.
@@ -122,9 +131,10 @@ which items to examine and `"holm"` to report which ones differ.
 
 Dropping is a complete cure where the item is found: removing the
 planted items restored the ratio in every simulated departure, so what
-limits the repair is detection rather than removal. Past roughly a fifth
-of the items breaking invariance, no threshold rescues the ratio and the
-item set itself is the problem.
+limits the repair is detection rather than removal. With two items of
+ten breaking invariance a screen recovers most of the ratio; with four
+of ten none tested rescues it, and the item set itself is the problem.
+Where between those two the repair gives out has not been measured.
 
 A flagged item has two remedies, and the diagnosis here is
 frame-specific while one of them is not.
