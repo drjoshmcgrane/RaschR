@@ -98,7 +98,9 @@ effects are removed before the between-person analysis.
 
 A significant higher-order factor term supersedes its component terms in
 the summary. For EFRM fits, frame-defining factors are excluded because
-they define the model rather than a separate DIF contrast. MFRM residuals
+they define the model rather than a separate DIF contrast; testing such a
+factor means stepping outside the model, which is what
+\code{\link{frame_invariance}} does. MFRM residuals
 are pooled to underlying items unless \code{pool_facets = FALSE}.
 }
 \examples{
@@ -146,5 +148,6 @@ Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.
 }
 \seealso{
 \code{\link{dif_size}}, \code{\link{dif_contrasts}}, and
-  \code{\link{resolve_dif}}.
+  \code{\link{resolve_dif}}; and \code{\link{frame_invariance}} for the
+  frame-defining factor this function excludes.
 }

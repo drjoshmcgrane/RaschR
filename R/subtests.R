@@ -30,6 +30,9 @@
 #' fit <- rasch(X)
 #' fit2 <- combine_items(fit, list(c("I4", "I5")))
 #' fit2$items$item
+#' @seealso \code{\link{drop_items}} to remove an item rather than combine
+#'   it, and \code{\link{residual_correlations}} for the dependence that
+#'   motivates combining.
 #' @export
 combine_items <- function(fit, groups, model = "PCM") {
   if (!inherits(fit, "rasch")) stop("combine_items needs a rasch fit")
@@ -93,6 +96,9 @@ combine_items <- function(fit, groups, model = "PCM") {
 #' fit <- rasch(data.frame(X, grp = g), factors = "grp")
 #' fit2 <- split_items(fit, "I3", by = "grp")
 #' fit2$items$item
+#' @seealso \code{\link{resolve_dif}}, which applies this iteratively;
+#'   \code{\link{drop_items}}, which removes an item rather than resolving
+#'   it; and \code{\link{dif_anova}}, which identifies the items to split.
 #' @export
 split_items <- function(fit, items, by) {
   if (!inherits(fit, "rasch")) stop("split_items needs a rasch fit")
@@ -165,6 +171,9 @@ split_items <- function(fit, items, by) {
 #' colnames(X) <- paste0("I", 1:8)
 #' fit <- rasch(data.frame(X, grp = g), factors = "grp")
 #' resolve_dif(fit)$splits
+#' @seealso \code{\link{split_items}} for a single split,
+#'   \code{\link{drop_items}} to remove an item instead, and
+#'   \code{\link{dif_anova}} for the test it resolves.
 #' @export
 resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "BH",
                         min_anchors = NULL, max_splits = NULL) {

@@ -94,18 +94,23 @@
 #'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param alpha Significance level for flagging items.
-#' @param adjust Multiplicity adjustment used to flag items: \code{"holm"}
-#'   across all comparisons, or \code{"none"} for screening. Both
-#'   probabilities are reported regardless.
-#' @return A list of class \code{"rasch_frame_invariance"} with
-#'   \code{locations} (one row per item and frame pair: locations on the
-#'   common scale, their difference, its standard error, statistic, both
-#'   probabilities, and flag), \code{discrimination} (the same items compared
-#'   on their within-frame infit statistics, with the Winsteps-style
-#'   discrimination index for each frame and its ratio alongside), and
-#'   \code{summary} (per frame pair: the number of items, the root mean
-#'   squared difference, the root mean squared standard error, their ratio,
-#'   and the number of items flagged on each count).
+#' @param adjust Multiplicity adjustment used to flag items: \code{"holm"},
+#'   applied within the location table and within the discrimination table
+#'   separately, or \code{"none"} for screening. Both probabilities are
+#'   reported regardless, so the choice changes only \code{flagged}.
+#' @return A list of class \code{"rasch_frame_invariance"} with five
+#'   elements. \code{locations} holds one row per item, item set, and frame
+#'   pair: the set, the two frames, the locations on the common scale, their
+#'   difference, its standard error, statistic, both probabilities, and the
+#'   flag. \code{discrimination} holds the same rows compared
+#'   on their within-frame infit statistics: \code{infit_1}, \code{infit_2},
+#'   the standardised difference \code{infit_z}, both probabilities, the
+#'   flag, and alongside them the estimated discrimination for each frame
+#'   (\code{disc_1}, \code{disc_2}) and its ratio. \code{summary} holds one
+#'   row per set and frame pair: the number of items, the root mean squared
+#'   difference, the root mean squared standard error, their ratio, and the
+#'   number of items flagged on each count. \code{alpha} and \code{adjust}
+#'   record the significance level and multiplicity rule the flags used.
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 #' Measurement}. PhD thesis, Murdoch University.
@@ -153,7 +158,7 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none")) {
                              se = f$items$se / r,
                              infit = f$items$infit_ms,
                              infit_z = f$items$infit_z,
-                             disc = .winsteps_disc(f),
+                             disc = f$items$disc,
                              stringsAsFactors = FALSE)
     }
     if (length(cal) < 2L) next
@@ -213,8 +218,8 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none")) {
       stringsAsFactors = FALSE)
   }))
   rownames(smry) <- NULL
-  structure(list(locations = cmp, discrimination = dsc, summary = smry,
-                 alpha = alpha, adjust = adjust),
+  structure(.tag_tables(list(locations = cmp, discrimination = dsc,
+                             summary = smry, alpha = alpha, adjust = adjust)),
             class = "rasch_frame_invariance")
 }
 
@@ -250,29 +255,4 @@ print.rasch_frame_invariance <- function(x, ...) {
     cat("\nNo item's discrimination differs across frames.\n")
   }
   invisible(x)
-}
-
-
-# Winsteps-style item discrimination: the slope fitted by maximum
-# likelihood on the item's own responses with the person measures and the
-# item location held at their Rasch values. The frame unit is absorbed
-# into those fixed measures, so the index is relative to the frame's own
-# model. It is descriptive, not a two-parameter estimate: the measures are
-# estimated including the item being scored, which biases the index upward
-# (about 1.19 for a true 1.0 in simulation) and attenuates a ratio between
-# frames (1.5 recovered as about 1.22).
-.winsteps_disc <- function(f) {
-  ok <- !f$person$extreme
-  th <- f$person$theta[ok]
-  X <- as.matrix(f$X)[ok, , drop = FALSE]
-  d <- f$items$location
-  vapply(seq_len(ncol(X)), function(i) {
-    y <- X[, i]; g <- is.finite(y) & is.finite(th)
-    if (length(unique(y[g])) < 2L) return(NA_real_)
-    z <- th[g] - d[i]
-    m <- tryCatch(suppressWarnings(
-      stats::glm(y[g] ~ 0 + z, family = stats::binomial)),
-      error = function(e) NULL)
-    if (is.null(m)) NA_real_ else unname(stats::coef(m))
-  }, 0)
 }

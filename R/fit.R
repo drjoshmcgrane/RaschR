@@ -517,3 +517,48 @@ test_information <- function(fit, grid = seq(-6, 6, by = 0.1)) {
   rownames(out) <- NULL
   out
 }
+
+# ---------------------------------------------------------------------------
+# Estimated item discrimination
+# ===========================================================================
+# The slope that maximises an item's own likelihood with the person measures
+# and the item's thresholds held at the values the Rasch model gave them.
+# One free parameter per item, fitted one item at a time, so it is a
+# description of how steeply an item sorts the people the model has already
+# located -- not a two-parameter estimate, which would relocate everything at
+# once. Reported for polytomous items as well: item_moments() carries the
+# discrimination through the partial credit structure, so the same slope
+# multiplies every threshold of the item.
+#
+# Efficiency: the likelihood only needs the DISTINCT person measures, of which
+# there are at most one per raw score under complete data, so each evaluation
+# costs far less than a pass over the sample.
+# ---------------------------------------------------------------------------
+.item_discrim <- function(theta, X, tau_list, extreme, bounds = c(0.05, 5)) {
+  ok <- !extreme & is.finite(theta)
+  if (sum(ok) < 3L) return(rep(NA_real_, length(tau_list)))
+  th <- theta[ok]
+  Xo <- X[ok, , drop = FALSE]
+  ut <- sort(unique(th))
+  idx <- match(th, ut)
+  vapply(seq_along(tau_list), function(i) {
+    y <- Xo[, i]
+    g <- !is.na(y)
+    # an item with no variation among the non-extreme persons has no slope
+    if (sum(g) < 3L || length(unique(y[g])) < 2L) return(NA_real_)
+    tau <- tau_list[[i]]
+    m <- length(tau)
+    cnt <- table(factor(idx[g], levels = seq_along(ut)),
+                 factor(y[g], levels = 0:m))
+    keep <- rowSums(cnt) > 0
+    cnt <- matrix(cnt[keep, ], nrow = sum(keep))
+    uth <- ut[keep]
+    nll <- function(a) {
+      lp <- vapply(uth, function(t)
+        log(pmax(item_moments(t, tau, disc = a)$P, 1e-300)), numeric(m + 1L))
+      -sum(cnt * t(lp))
+    }
+    o <- tryCatch(stats::optimize(nll, bounds), error = function(e) NULL)
+    if (is.null(o)) NA_real_ else o$minimum
+  }, 0)
+}

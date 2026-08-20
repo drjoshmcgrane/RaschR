@@ -86,6 +86,21 @@ strengthens identification and uncertainty checks.
   here the difference survives every single-item removal and still leaves the
   person ordering unchanged. A unit difference can be decisive and
   inconsequential at the same time, and only the criterion says which.
+* The item summary reports `disc`, the slope that maximises an item's own
+  likelihood with the person measures and its thresholds held at the values
+  the model gave them, following the index Winsteps reports as DISCRIM and
+  generalised here to polytomous items. It is a description of how steeply an
+  item sorts the people the model has already located, not an estimate of a
+  discrimination parameter: it runs high, because the measures are estimated
+  from a set that includes the item being scored, and its ordering is more
+  dependable than its level. `frame_invariance()` reports it per frame
+  alongside the comparison it tests, which stays on the fit statistics.
+* Results tables print in decimals rather than exponents. Tables read
+  directly off a fitted object carried no print method, so base R formatted
+  them and a probability below 1e-4 arrived as `4.00e-83` where the package's
+  own print methods read `< 0.001`. They now share one formatting vocabulary,
+  with the values untouched. Saved tables and the application's downloads
+  keep full precision without the exponent.
 * `drop_items()` removes items from a fitted analysis and refits it,
   keeping the model, person identifiers, factors, and -- for frame models
   -- the set structure and standard-error method. The application offers

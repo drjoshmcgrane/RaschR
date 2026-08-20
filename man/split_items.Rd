@@ -36,3 +36,8 @@ fit <- rasch(data.frame(X, grp = g), factors = "grp")
 fit2 <- split_items(fit, "I3", by = "grp")
 fit2$items$item
 }
+\seealso{
+\code{\link{resolve_dif}}, which applies this iteratively;
+  \code{\link{drop_items}}, which removes an item rather than resolving
+  it; and \code{\link{dif_anova}}, which identifies the items to split.
+}

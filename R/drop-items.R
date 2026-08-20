@@ -33,10 +33,16 @@
 #' dispersion from which to estimate a unit.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} or
-#'   \code{\link{rasch_efrm}}.
+#'   \code{\link{rasch_efrm}}. Many-facet fits are refused: remove the
+#'   item's rows from the long-format data and refit
+#'   \code{\link{rasch_mfrm}} instead.
 #' @param items Item names to remove.
-#' @param boot_reps For frame models, the number of linking bootstrap
-#'   replicates for the refit. Defaults to the number the original fit used.
+#' @param boot_reps Bootstrap replicates for the refit. The default keeps the
+#'   character of the fit it came from: a fit whose unit standard errors came
+#'   from a bootstrap passes its replicate count on, a fit that has unit
+#'   standard errors by the analytic route takes the package default, and a
+#'   fit asked for no standard errors is refitted without them. Pass a number
+#'   to override all three.
 #' @return A refitted object of the same class as \code{fit}, carrying a note
 #'   recording which items were dropped.
 #' @seealso \code{\link{frame_invariance}}, which identifies the items a

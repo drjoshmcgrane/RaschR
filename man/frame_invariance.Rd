@@ -11,20 +11,25 @@ frame_invariance(fit, alpha = 0.05, adjust = c("holm", "none"))
 
 \item{alpha}{Significance level for flagging items.}
 
-\item{adjust}{Multiplicity adjustment used to flag items: \code{"holm"}
-across all comparisons, or \code{"none"} for screening. Both
-probabilities are reported regardless.}
+\item{adjust}{Multiplicity adjustment used to flag items: \code{"holm"},
+applied within the location table and within the discrimination table
+separately, or \code{"none"} for screening. Both probabilities are
+reported regardless, so the choice changes only \code{flagged}.}
 }
 \value{
-A list of class \code{"rasch_frame_invariance"} with
-  \code{locations} (one row per item and frame pair: locations on the
-  common scale, their difference, its standard error, statistic, both
-  probabilities, and flag), \code{discrimination} (the same items compared
-  on their within-frame infit statistics, with the Winsteps-style
-  discrimination index for each frame and its ratio alongside), and
-  \code{summary} (per frame pair: the number of items, the root mean
-  squared difference, the root mean squared standard error, their ratio,
-  and the number of items flagged on each count).
+A list of class \code{"rasch_frame_invariance"} with five
+  elements. \code{locations} holds one row per item, item set, and frame
+  pair: the set, the two frames, the locations on the common scale, their
+  difference, its standard error, statistic, both probabilities, and the
+  flag. \code{discrimination} holds the same rows compared
+  on their within-frame infit statistics: \code{infit_1}, \code{infit_2},
+  the standardised difference \code{infit_z}, both probabilities, the
+  flag, and alongside them the estimated discrimination for each frame
+  (\code{disc_1}, \code{disc_2}) and its ratio. \code{summary} holds one
+  row per set and frame pair: the number of items, the root mean squared
+  difference, the root mean squared standard error, their ratio, and the
+  number of items flagged on each count. \code{alpha} and \code{adjust}
+  record the significance level and multiplicity rule the flags used.
 }
 \description{
 Calibrates each frame separately and compares each item across the frames

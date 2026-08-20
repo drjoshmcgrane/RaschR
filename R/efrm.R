@@ -711,7 +711,10 @@
 #'
 #' Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the Rasch
 #' model. Journal of Applied Measurement, 9(3), 249--264.
-#' @seealso \code{\link{rasch}}, \code{\link{rasch_mfrm}},
+#' @seealso \code{\link{frame_invariance}}, which tests the item invariance
+#'   this model assumes rather than imposing it, and \code{\link{drop_items}},
+#'   which removes an item the test flags and refits. Also
+#'   \code{\link{rasch}}, \code{\link{rasch_mfrm}},
 #'   \code{\link{test_information}}, and \code{\link{simulate_efrm}}.
 #' @examples
 #' \donttest{

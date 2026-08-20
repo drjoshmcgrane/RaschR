@@ -1370,12 +1370,12 @@ panel_frames <- nav_panel("Frames", value = "p_frames", icon = bs_icon("grid-3x3
             tableCard("alpha_tbl", "Item set units (alpha) and locations"))),
       layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
         tableCard("frame_inv_loc_tbl", "Item invariance: locations",
-                  info = app_help("frame_inv_loc"),
+                  info = app_help("frame_inv_loc_tbl"),
                   controls = div(class = "small text-secondary",
                                  input_switch("inv_screen", "Screen",
                                               value = FALSE))),
         tableCard("frame_inv_disc_tbl", "Item invariance: discrimination",
-                  info = app_help("frame_inv_disc"))),
+                  info = app_help("frame_inv_disc_tbl"))),
       layout_columns(col_widths = 12,
         plotCard("frame_plot", "Frame units"),
         plotCard("frame_icc", "ICC across frames",
@@ -3041,6 +3041,14 @@ server <- function(input, output, session) {
     i <- input$items_tbl_rows_selected
     if (length(i)) f$items$item[i] else f$items$item[1]
   })
+  # a frame model names an item by the frame that took it, "S1I01:g1", but
+  # drop_items() works on the source item; strip the frame where the bare
+  # name is one the fit holds
+  sel_source_item <- reactive({
+    f <- fit(); it <- sel_item()
+    src <- names(f$set_of)
+    if (is.null(src) || it %in% src) it else sub(":[^:]*$", "", it)
+  })
 
   # Dropping the selected item and refitting is a step in the analysis, not
   # housekeeping: for frame models a set unit is estimated from the spread
@@ -3057,7 +3065,7 @@ server <- function(input, output, session) {
 
   observeEvent(input$drop_item, {
     f <- fit()
-    it <- sel_item()
+    it <- sel_source_item()
     req(length(it) == 1L)
     res <- tryCatch(drop_items(f, it), error = function(e) e)
     if (inherits(res, "error")) {
@@ -5183,7 +5191,7 @@ server <- function(input, output, session) {
   }
   inv_code <- function(part) sprintf(
     "inv <- frame_invariance(fit, adjust = \"%s\")\n%s",
-    isolate(inv_adjust()),
+    inv_adjust(),
     if (part == "locations") "inv$summary\ninv$locations" else "inv$discrimination")
   register_table("frame_inv_loc_tbl", function() inv_or_note("locations"),
     function() inv_dt("locations"), code = function() inv_code("locations"))

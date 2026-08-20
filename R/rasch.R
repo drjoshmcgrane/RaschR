@@ -144,12 +144,38 @@
 #'   \code{\link{pcml_pc}}: location, then spread, skewness, and kurtosis.
 #'   This can stabilise sparse categories. Component estimates are stored in
 #'   the estimation details. Available for PCM fits without anchors.
+#' @section Estimated item discrimination:
+#' The item summary reports \code{disc}, the slope that maximises an item's
+#' own likelihood with the person measures and the item's thresholds held at
+#' the values the model gave them. It follows the index Linacre's Winsteps
+#' reports as DISCRIM, generalised here to polytomous items, where the same
+#' slope multiplies every threshold of the item. The Rasch model does not
+#' estimate it; it is computed afterwards, one item at a time, to describe
+#' how steeply each item sorts the people the model has already located.
+#'
+#' Read it as description, not as an estimate of a discrimination parameter.
+#' The person measures are estimated from a set that includes the item being
+#' scored, which biases the index upward -- about 1.19 for a true 1.0 in
+#' simulation -- and pulls extreme items toward the rest, so a true ratio of
+#' 1.5 between two items recovers as roughly 1.2. Its ordering is more
+#' dependable than its level: with one steep and one flat item planted among
+#' six, the planted pair came back at the extremes of the column while the
+#' unplanted items spread between them. An item whose responses do not vary
+#' among the non-extreme persons has no slope and is reported as \code{NA}.
+#'
+#' Where a test of discrimination is wanted rather than a description, use
+#' the fit statistics: they are the calibrated instrument, and
+#' \code{\link{frame_invariance}} tests discrimination across frames on the
+#' within-frame infit rather than on this index, which is the weaker of the
+#' two.
+#'
 #' @return An object of class \code{"rasch"}. Its principal components are
 #'   the item summary, threshold table, person table, score table, residuals,
 #'   reliability, targeting, item-trait statistics, threshold diagnostics,
 #'   and estimation details. The component \code{summary_stats} contains the
 #'   distribution summaries, fit-location correlations, and the cell
-#'   degrees-of-freedom factor.
+#'   degrees-of-freedom factor. The item summary carries a \code{disc}
+#'   column described below.
 #' @references
 #' Rasch, G. (1960). Probabilistic Models for Some Intelligence and
 #' Attainment Tests. Copenhagen: Danish Institute for Educational Research.
@@ -475,6 +501,8 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   }, 0)
   items_df <- data.frame(item = colnames(X), max = m, location = loc,
                          se = se_loc,
+                         disc = .item_discrim(person$theta, X, tau_list,
+                                              person$extreme),
                          fit_resid = rf$items$fit_resid, df_fit = rf$items$df,
                          natural_resid = rf$items$natural,
                          infit_ms = ifit$infit_ms, outfit_ms = ifit$outfit_ms,

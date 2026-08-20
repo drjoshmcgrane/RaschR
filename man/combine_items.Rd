@@ -34,3 +34,8 @@ fit <- rasch(X)
 fit2 <- combine_items(fit, list(c("I4", "I5")))
 fit2$items$item
 }
+\seealso{
+\code{\link{drop_items}} to remove an item rather than combine
+  it, and \code{\link{residual_correlations}} for the dependence that
+  motivates combining.
+}

@@ -75,7 +75,8 @@ An object of class \code{"rasch"}. Its principal components are
   reliability, targeting, item-trait statistics, threshold diagnostics,
   and estimation details. The component \code{summary_stats} contains the
   distribution summaries, fit-location correlations, and the cell
-  degrees-of-freedom factor.
+  degrees-of-freedom factor. The item summary carries a \code{disc}
+  column described below.
 }
 \description{
 Fits the partial credit model (PCM) or rating scale model (RSM) by pairwise
@@ -118,6 +119,33 @@ the reference sample size divided by the number of classified persons.
 The scaling is global: an item answered by a subset retains its
 proportionally smaller share of the reference sample.
 }
+\section{Estimated item discrimination}{
+
+The item summary reports \code{disc}, the slope that maximises an item's
+own likelihood with the person measures and the item's thresholds held at
+the values the model gave them. It follows the index Linacre's Winsteps
+reports as DISCRIM, generalised here to polytomous items, where the same
+slope multiplies every threshold of the item. The Rasch model does not
+estimate it; it is computed afterwards, one item at a time, to describe
+how steeply each item sorts the people the model has already located.
+
+Read it as description, not as an estimate of a discrimination parameter.
+The person measures are estimated from a set that includes the item being
+scored, which biases the index upward -- about 1.19 for a true 1.0 in
+simulation -- and pulls extreme items toward the rest, so a true ratio of
+1.5 between two items recovers as roughly 1.2. Its ordering is more
+dependable than its level: with one steep and one flat item planted among
+six, the planted pair came back at the extremes of the column while the
+unplanted items spread between them. An item whose responses do not vary
+among the non-extreme persons has no slope and is reported as \code{NA}.
+
+Where a test of discrimination is wanted rather than a description, use
+the fit statistics: they are the calibrated instrument, and
+\code{\link{frame_invariance}} tests discrimination across frames on the
+within-frame infit rather than on this index, which is the weaker of the
+two.
+}
+
 \examples{
 set.seed(1)
 d <- seq(-2, 2, length.out = 8)
