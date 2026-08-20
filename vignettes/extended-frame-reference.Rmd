@@ -176,12 +176,21 @@ unit contrasts are Holm-adjusted follow-ups.
 
 ## Worked analyses on real data
 
-Two case studies apply the frame of reference models to real datasets and
-ship with the package:
+Three case studies apply the frame of reference models to real datasets and
+ship with the package. The two wording studies are best read together: they
+find a set-unit difference of almost the same size and it means something
+different in each. In the self-esteem data the difference is carried by one
+ambivalent item and vanishes when that item goes; in the height data it
+survives every single-item removal, and yet leaves the person ordering
+essentially unchanged against a criterion collected outside the inventory.
+Neither conclusion is available from the unit test alone.
 
 ```{r casestudies, eval = FALSE}
 # wording effects as item-set units in a self-esteem scale
 file.edit(system.file("casestudies", "wording_units_selfesteem.R",
+                      package = "rasch"))
+# the same question in a balanced inventory, checked against a criterion
+file.edit(system.file("casestudies", "wording_units_height.R",
                       package = "rasch"))
 # panel and bloc frames in paired comparisons between political parties
 file.edit(system.file("casestudies", "party_blocs_crisis.R",

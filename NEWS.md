@@ -78,6 +78,14 @@ strengthens identification and uncertainty checks.
   simulation shows that carrying through to the repaired unit ratio. Both
   probabilities are reported either way, and the printed output names the
   rule it applied. The application exposes the choice as a switch.
+* Case study: `inst/casestudies/wording_units_height.R` applies the item-set
+  units to a balanced inventory of 26 items, 13 worded in each direction, and
+  reads it against a criterion collected outside the inventory. It is the
+  counterpart to the self-esteem study rather than a repeat of it: there a
+  significant set-level difference turns out to be one ambivalent item, while
+  here the difference survives every single-item removal and still leaves the
+  person ordering unchanged. A unit difference can be decisive and
+  inconsequential at the same time, and only the criterion says which.
 * `drop_items()` removes items from a fitted analysis and refits it,
   keeping the model, person identifiers, factors, and -- for frame models
   -- the set structure and standard-error method. The application offers
