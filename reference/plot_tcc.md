@@ -1,6 +1,7 @@
 # Plot the test characteristic curve
 
-Expected total score against person location for the whole instrument.
+Expected total score against person location. Structural fits draw one
+curve for each administrable frame or facet design.
 
 ## Usage
 

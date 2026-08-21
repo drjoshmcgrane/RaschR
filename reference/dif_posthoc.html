@@ -79,7 +79,9 @@ differences, providing a logit-scale magnitude for the interaction itself.</p>
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code>.</p></dd>
+<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code> or
+<code><a href="rasch_mfrm.html">rasch_mfrm</a></code>. EFRM fits are excluded because resolved
+comparisons would discard their frame units.</p></dd>
 
 
 <dt id="arg-item">item<a class="anchor" aria-label="anchor" href="#arg-item"></a></dt>
@@ -87,8 +89,9 @@ differences, providing a logit-scale magnitude for the interaction itself.</p>
 
 
 <dt id="arg-term">term<a class="anchor" aria-label="anchor" href="#arg-term"></a></dt>
-<dd><p>A factor name for a main effect, or factor names joined by
-<code>":"</code> for an interaction.</p></dd>
+<dd><p>A factor name for a main effect, or a character vector of
+factor names for an interaction. A single colon-separated string is
+also accepted when the factor names themselves contain no colon.</p></dd>
 
 
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
@@ -97,9 +100,14 @@ differences, providing a logit-scale magnitude for the interaction itself.</p>
 marginal comparisons.</p></dd>
 
 
-<dt id="arg-within-id">within, id<a class="anchor" aria-label="anchor" href="#arg-within-id"></a></dt>
-<dd><p>Within-person factor names and person identifiers, specified
-as for <code><a href="dif_contrasts.html">dif_contrasts</a></code>.</p></dd>
+<dt id="arg-within">within<a class="anchor" aria-label="anchor" href="#arg-within"></a></dt>
+<dd><p>Within-person factor names, specified as for
+<code><a href="dif_contrasts.html">dif_contrasts</a></code>.</p></dd>
+
+
+<dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
+<dd><p>Person identifiers, specified as for
+<code><a href="dif_contrasts.html">dif_contrasts</a></code>.</p></dd>
 
 
 <dt id="arg-p-adjust">p_adjust<a class="anchor" aria-label="anchor" href="#arg-p-adjust"></a></dt>

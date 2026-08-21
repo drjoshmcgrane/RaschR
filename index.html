@@ -79,7 +79,7 @@
 <!-- badges: start -->
 
 <p><code>rasch</code> fits and evaluates models within Rasch Measurement Theory. It includes models for item responses, ratings, linked frames of reference, and paired comparisons, with a common set of functions for examining fit, invariance, targeting, dimensionality, and local dependence.</p>
-<p>The models form a family united by the original dichotomous model (Rasch, 1960),</p>
+<p>The original dichotomous model is (Rasch, 1960)</p>
 <p><span class="math display">\[
 \log\frac{P(X_{ni}=1)}{P(X_{ni}=0)}=\theta_n-\delta_i,
 \]</span></p>
@@ -125,7 +125,7 @@
 </tbody>
 </table>
 <p>Person measures are estimated by weighted likelihood (Warm, 1989). Anchored estimation is available for equating, and incomplete linked designs can be fitted when their observed response structure identifies a common scale.</p>
-<p>The suite follows Rasch (1960) and Andrich and Marais (2019); the frame of reference models follow Humphry’s (2005) thesis, where the model is introduced and named, and Humphry and Andrich (2008); the comparative judgement models follow the BTL (Bradley and Terry, 1952; Luce, 1959) and its adjacent-categories extension (Tutz, 1986).</p>
+<p>The item-response models follow Rasch (1960) and Andrich and Marais (2019). The frame models follow Humphry (2005) and Humphry and Andrich (2008). The comparative judgement models follow Bradley and Terry (1952), Luce (1959), Andrich (1978a), and Tutz (1986).</p>
 </div>
 <div class="section level2">
 <h2 id="shiny-application">Shiny application<a class="anchor" aria-label="anchor" href="#shiny-application"></a>
@@ -133,7 +133,7 @@
 <p>The package includes a graphical interface for analysts who do not normally work in R. Launch it after installation with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. Results can be downloaded, and the R call for each analysis is shown in the interface.</p>
+<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. An analysis can be saved as a <code>.rasch</code> project and reopened. Tables, figures and HTML, Word or PDF reports can be downloaded. The R code for each result is shown in the interface.</p>
 <p align="center">
 <img src="reference/figures/app-items.png" alt="Item statistics and an item characteristic curve in the rasch Shiny application" width="90%"></p>
 </div>
@@ -179,13 +179,13 @@
 </h2>
 <p>Andrich, D. (1978a). Relationships between the Thurstone and Rasch approaches to item scaling. <em>Applied Psychological Measurement</em>, 2(3), 451–462.</p>
 <p>Andrich, D. (1978b). A rating formulation for ordered response categories. <em>Psychometrika</em>, 43(4), 561–573.</p>
-<p>Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete block designs: I. The method of paired comparisons. <em>Biometrika</em>, 39(3/4), 324–345.</p>
 <p>Andrich, D., and Marais, I. (2019). <em>A Course in Rasch Measurement Theory: Measuring in the Educational, Social and Health Sciences</em>. Springer.</p>
+<p>Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete block designs: I. The method of paired comparisons. <em>Biometrika</em>, 39(3/4), 324–345.</p>
 <p>Humphry, S. M. (2005). <em>Maintaining a Common Arbitrary Unit in Social Measurement</em>. PhD thesis, Murdoch University.</p>
+<p>Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the Rasch model. <em>Journal of Applied Measurement</em>, 9(3), 249–264.</p>
 <p>Linacre, J. M. (1989). <em>Many-Facet Rasch Measurement</em>. MESA Press.</p>
 <p>Luce, R. D. (1959). <em>Individual Choice Behavior: A Theoretical Analysis</em>. Wiley.</p>
 <p>Masters, G. N. (1982). A partial credit model for scoring responses with ordered categories. <em>Psychometrika</em>, 47(2), 149–174.</p>
-<p>Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the Rasch model. <em>Journal of Applied Measurement</em>, 9(3), 249–264.</p>
 <p>Rasch, G. (1960). <em>Probabilistic Models for Some Intelligence and Attainment Tests</em>. Danish Institute for Educational Research. Expanded edition, University of Chicago Press, 1980.</p>
 <p>Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response. <em>Journal of Mathematical Psychology</em>, 30(3), 306–316.</p>
 <p>Warm, T. A. (1989). Weighted likelihood estimation of ability in item response theory. <em>Psychometrika</em>, 54(3), 427–450.</p>

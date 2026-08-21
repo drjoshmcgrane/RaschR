@@ -31,8 +31,9 @@ tailored_analysis(
 
 - fit:
 
-  A dichotomous fit from
+  An unanchored, unconstrained dichotomous fit from
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  The procedure estimates its own common origin.
 
 - chance:
 
@@ -52,7 +53,9 @@ tailored_analysis(
   `"none"` (default) reports the item shifts descriptively.
   `"bootstrap"` resamples persons and repeats the complete four-step
   procedure, including automatic anchor selection, to obtain standard
-  errors, percentile intervals, and Holm-adjusted tests.
+  errors, percentile intervals, and Holm-adjusted tests. When a person
+  identifier occurs on several rows, all of that person's rows are
+  resampled together.
 
 - boot_reps:
 

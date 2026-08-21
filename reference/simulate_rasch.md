@@ -72,8 +72,8 @@ simulate_rasch(
 - discrimination:
 
   The item slope, supplied as one value or one per item. Values above 1
-  over-discriminate (Guttman-like, negative fit residual); values below
-  1 under-discriminate (positive residual).
+  produce steeper responses and negative fit residuals. Values below 1
+  produce flatter responses and positive fit residuals.
 
 - guessing:
 
@@ -162,30 +162,30 @@ fit$items[c("item", "infit_ms", "outfit_ms")]   # item 1 misfits
 #>   I12    0.985     0.781
 dif_anova(fit)$summary                           # item 6 flags
 #>  item  term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>   I01 group     4.832     0.029         0.115        0.012            
-#>   I02 group     1.838     0.176         0.352        0.005            
-#>   I03 group     0.033     0.857         0.893        0.000            
-#>   I04 group     2.038     0.154         0.352        0.005            
-#>   I05 group     0.869     0.352         0.594        0.002            
+#>   I01 group     4.832     0.029         0.173        0.012            
+#>   I02 group     1.838     0.176         0.422        0.005            
+#>   I03 group     0.033     0.857         0.932        0.000            
+#>   I04 group     2.038     0.154         0.422        0.005            
+#>   I05 group     0.869     0.352         0.649        0.002            
 #>   I06 group    25.475   < 0.001       < 0.001        0.062           *
-#>   I07 group     3.263     0.072         0.215        0.008            
-#>   I08 group     0.085     0.771         0.893        0.000            
-#>   I09 group     0.723     0.396         0.594        0.002            
-#>   I10 group     0.509     0.476         0.635        0.001            
-#>   I11 group     4.816     0.029         0.115        0.012            
-#>   I12 group     0.018     0.893         0.893        0.000            
+#>   I07 group     3.263     0.072         0.344        0.008            
+#>   I08 group     0.085     0.771         0.926        0.000            
+#>   I09 group     0.723     0.396         0.678        0.002            
+#>   I10 group     0.509     0.476         0.714        0.001            
+#>   I11 group     4.816     0.029         0.173        0.012            
+#>   I12 group     0.018     0.893         0.932        0.000            
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         1.550        0.173            0.520           0.020               
+#>         1.550        0.173            0.422           0.020               
 #>         0.020        1.000            1.000           0.000               
-#>         1.761        0.120            0.520           0.022               
-#>         1.711        0.131            0.520           0.022               
+#>         1.761        0.120            0.422           0.022               
+#>         1.711        0.131            0.422           0.022               
 #>         1.192        0.313            0.625           0.015               
-#>         0.473        0.797            0.883           0.006               
-#>         2.561        0.027            0.323           0.032               
-#>         0.954        0.446            0.765           0.012               
-#>         0.822        0.534            0.802           0.011               
-#>         0.512        0.767            0.883           0.007               
-#>         0.455        0.810            0.883           0.006               
+#>         0.473        0.797            0.926           0.006               
+#>         2.561        0.027            0.173           0.032               
+#>         0.954        0.446            0.714           0.012               
+#>         0.822        0.534            0.755           0.011               
+#>         0.512        0.767            0.926           0.007               
+#>         0.455        0.810            0.926           0.006               
 #>         1.208        0.305            0.625           0.015               
 #>  superseded
 #>            

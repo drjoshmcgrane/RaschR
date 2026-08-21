@@ -8,7 +8,8 @@ over-rated) or less (`z < 0`, under-rated) that judge favoured it than
 its consensus location predicts. A surprise is an object the judge
 treated against its standing: a strong object under-rated, or a weak
 object over-rated (residual opposite in sign to the location), beyond
-`flag_z` and seen at least `min_n` times.
+`flag_z` and seen at least `min_n` times. The fitted model must have
+converged.
 
 ## Usage
 

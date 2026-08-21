@@ -136,12 +136,13 @@ refitted. <code>"conditional"</code> uses
 analytic stage-one standard errors for <code>beta</code> and <code>phi</code>, and
 inverse observed information for <code>alpha</code> and <code>kappa</code>
 conditional on the stage-one estimates. It is faster, but does not
-propagate stage-one uncertainty into the linking parameters.</p></dd>
+propagate stage-one uncertainty into the linking parameters; unit
+probabilities and omnibus tests are therefore withheld.</p></dd>
 
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
 <dd><p>Number of replicates for <code>se_method = "bootstrap"</code>
-or <code>"judge_bootstrap"</code>.</p></dd>
+or <code>"judge_bootstrap"</code>; at least 30 are required.</p></dd>
 
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
@@ -150,10 +151,9 @@ or <code>"judge_bootstrap"</code>.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>"rasch_btl_efrm"</code>. Principal components
-  are <code>objects</code>, <code>phi_table</code>, <code>alpha_table</code>,
-  <code>kappa_table</code>, <code>unit_omnibus</code>, <code>frames</code>,
-  <code>equal_unit</code>, <code>n_cross</code>, <code>notes</code>, and <code>converged</code>.</p>
+    <p>An object of class <code>"rasch_btl_efrm"</code>. It contains the object
+  estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
+  frame definitions, convergence information, and analysis notes.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -177,10 +177,12 @@ The paired-comparison form is an extension of Humphry's model implemented in
 this package.</p>
 <p>The default judge bootstrap resamples judges within panels and refits both
 stages. The parametric bootstrap draws independent outcomes from the fitted
-probabilities. <code>se_method = "conditional"</code> uses analytic stage-one
+probabilities and uses normal and chi-square reference distributions.
+<code>se_method = "conditional"</code> uses analytic stage-one
 errors and conditions the linking errors on stage one; it is intended for
-preliminary inspection. Bootstrap failures and boundary estimates are
-reported in <code>notes</code>.</p>
+preliminary inspection. Its unit probabilities and omnibus tests are
+withheld because it does not propagate stage-one uncertainty. Bootstrap
+failures and boundary estimates are reported in <code>notes</code>.</p>
 <p>With one set, the model contains panel units only. With one set and one
 panel, it reduces to <code><a href="btl.html">btl</a></code>. Omnibus Wald tests provide inference
 for the unit families; individual contrasts are Holm-adjusted follow-ups.</p>
@@ -222,9 +224,9 @@ for the unit families; individual contrasts are Holm-adjusted follow-ups.</p>
 <span class="r-in"><span>                object_sets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">$</span><span class="va">object_sets</span>,</span></span>
 <span class="r-in"><span>                se_method <span class="op">=</span> <span class="st">"conditional"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">alpha_table</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   set alpha se_log_alpha     t df       p   p_adj significant</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  set1 1.000                    11                            </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  set2 1.607        0.077 6.140 11 &lt; 0.001 &lt; 0.001           *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   set alpha se_log_alpha t df p p_adj significant</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  set1 1.000                                      </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  set2 1.607        0.077                         </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

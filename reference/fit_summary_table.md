@@ -1,8 +1,10 @@
 # Test-of-fit summary as a table
 
-Returns the model, estimation method, item-trait chi-square, item and
+Returns the model, estimation method, trait chi-square, calibration and
 person fit-residual moments, fit-location correlations, chi-square flag
-count, and disordered-threshold count as a two-column table.
+count, and disordered-threshold count as a two-column table. MFRM and
+EFRM summaries label their fitted item-by-facet or item-by-frame columns
+as response cells.
 
 ## Usage
 

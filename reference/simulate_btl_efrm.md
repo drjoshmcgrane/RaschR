@@ -89,7 +89,7 @@ bt <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                object_sets = attr(d, "truth")$object_sets,
                se_method = "conditional")
 bt$alpha_table   # recovers the ~1.4 set unit
-#>   set alpha se_log_alpha     t df       p   p_adj significant
-#>  set1 1.000                    11                            
-#>  set2 1.457        0.079 4.750 11 < 0.001 < 0.001           *
+#>   set alpha se_log_alpha t df p p_adj significant
+#>  set1 1.000                                      
+#>  set2 1.457        0.079                         
 ```

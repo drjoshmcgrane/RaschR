@@ -9,9 +9,12 @@ cannot fall below the value implied by the binomial distribution when
 the item is a subtest of equally difficult, independent dichotomous
 items; different difficulties only raise it. A spread estimate below the
 bound therefore indicates response dependence among the members (Andrich
-and Marais 2019, Table 24.1). Typically applied after
-[`combine_items`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md),
-whose super-items are exactly such subtests.
+and Marais 2019, Table 24.1). Applied to the superitems recorded by
+[`combine_items`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md).
+The binomial bound applies only when every component was dichotomous; a
+composite containing a polytomous item is shown but its bound and
+verdict are withheld. The input calibration and the principal-components
+refit must both converge.
 
 ## Usage
 
@@ -34,10 +37,13 @@ spread_test(fit, maxit = 60, tol = 1e-08)
 
 ## Value
 
-A data frame with one row per polytomous item: `item`, `m`, the `spread`
-estimate and its `se`, the bound `lub` (available for maximum scores 2
-to 8), `z` = (spread - lub)/se, and `dependent` = spread below the
-bound. Dichotomous items carry no spread and are omitted.
+A data frame with one row per recorded superitem: `item`, `m`, whether
+the binomial bound is `eligible`, the `spread` estimate and its `se`,
+the bound `lub` (available for dichotomous-component subtests with
+maximum scores 2 to 8), `z` = (spread - lub)/se, and `dependent` =
+spread below the bound. Items not formed by
+[`combine_items()`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md)
+are omitted.
 
 ## References
 
@@ -59,6 +65,7 @@ colnames(X) <- paste0("I", 1:8)
 fit2 <- combine_items(rasch(X), list(c("I4", "I5", "I6"), c("I1", "I2", "I3")))
 spread_test(fit2)
 #> Spread-parameter screen (Andrich 1985): spread below the binomial bound indicates dependence
-#>      item m spread    se bound     z dependent
-#>  I1+I2+I3 3  0.653 0.114 0.550 0.899          
+#>      item m eligible spread    se bound     z dependent
+#>  I4+I5+I6 1                                            
+#>  I1+I2+I3 3        *  0.653 0.114 0.550 0.899          
 ```

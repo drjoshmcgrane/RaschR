@@ -1,7 +1,8 @@
 # Plot the item map (location against fit residual)
 
-Items plotted by location and fit residual, with the conventional
-acceptance band at +/- 2.5 and misfitting items labelled.
+Fitted columns plotted by location and fit residual, with the
+conventional acceptance band at +/- 2.5. MFRM and EFRM points are
+response cells; ordinary Rasch points are items.
 
 ## Usage
 

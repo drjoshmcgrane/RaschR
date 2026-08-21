@@ -28,7 +28,10 @@ dif_posthoc(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) or
+  [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md).
+  EFRM fits are excluded because resolved comparisons would discard
+  their frame units.
 
 - item:
 
@@ -36,8 +39,9 @@ dif_posthoc(
 
 - term:
 
-  A factor name for a main effect, or factor names joined by `":"` for
-  an interaction.
+  A factor name for a main effect, or a character vector of factor names
+  for an interaction. A single colon-separated string is also accepted
+  when the factor names themselves contain no colon.
 
 - factors:
 
@@ -45,9 +49,14 @@ dif_posthoc(
   [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md).
   Other factors are retained when calculating marginal comparisons.
 
-- within, id:
+- within:
 
-  Within-person factor names and person identifiers, specified as for
+  Within-person factor names, specified as for
+  [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md).
+
+- id:
+
+  Person identifiers, specified as for
   [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md).
 
 - p_adjust:

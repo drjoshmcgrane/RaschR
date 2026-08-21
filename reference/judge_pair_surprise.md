@@ -8,6 +8,7 @@ stronger object won less than its lead predicts – the judge backed the
 underdog. A matchup is an unexpected judgement when `z` falls at or
 below `-flag_z` and the pair was seen at least `min_n` times, i.e. the
 judge favoured the weaker object further than sampling noise explains.
+The fitted model must have converged.
 
 ## Usage
 

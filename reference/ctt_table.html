@@ -9,15 +9,21 @@
 analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
-upper third of total scores minus the lower third), and alpha if the
-item is deleted; plus coefficient alpha, the raw-score mean, SD, and the
+upper third of total scores minus the lower third). Equal total scores
+remain in the same third, so the group sizes can differ and DI is withheld
+when three distinct score groups cannot be formed. The table also gives
+alpha if the item is deleted; the summary gives coefficient alpha, the
+raw-score mean, SD, and the
 classical standard error of measurement \(s\sqrt{1 - \alpha}\), which
 unlike the Rasch SE is one value for all persons."><meta property="og:description" content="The classical companion table conventionally reported alongside a Rasch
 analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
-upper third of total scores minus the lower third), and alpha if the
-item is deleted; plus coefficient alpha, the raw-score mean, SD, and the
+upper third of total scores minus the lower third). Equal total scores
+remain in the same third, so the group sizes can differ and DI is withheld
+when three distinct score groups cannot be formed. The table also gives
+alpha if the item is deleted; the summary gives coefficient alpha, the
+raw-score mean, SD, and the
 classical standard error of measurement \(s\sqrt{1 - \alpha}\), which
 unlike the Rasch SE is one value for all persons."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -64,8 +70,11 @@ unlike the Rasch SE is one value for all persons."><meta property="og:image" con
 analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
-upper third of total scores minus the lower third), and alpha if the
-item is deleted; plus coefficient alpha, the raw-score mean, SD, and the
+upper third of total scores minus the lower third). Equal total scores
+remain in the same third, so the group sizes can differ and DI is withheld
+when three distinct score groups cannot be formed. The table also gives
+alpha if the item is deleted; the summary gives coefficient alpha, the
+raw-score mean, SD, and the
 classical standard error of measurement \(s\sqrt{1 - \alpha}\), which
 unlike the Rasch SE is one value for all persons.</p>
     </div>
@@ -80,7 +89,9 @@ unlike the Rasch SE is one value for all persons.</p>
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code>.</p></dd>
+<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code> whose columns form one
+administered item set. Expanded EFRM and MFRM response-cell matrices are
+not accepted; one-cell-per-item reductions are.</p></dd>
 
 
 <dt id="arg-missing">missing<a class="anchor" aria-label="anchor" href="#arg-missing"></a></dt>
@@ -116,14 +127,14 @@ tests. Psychometrika, 16, 297–334.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Traditional statistics (complete cases; item n 400-400; 400 complete)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Raw score mean 4.08, SD 1.71 (complete responders); alpha 0.529; SEM 1.17</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  item   n min max facility item_total item_rest    di alpha_drop</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I1 400   0   1    0.848      0.370     0.169 0.298      0.519</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I2 400   0   1    0.787      0.443     0.221 0.373      0.504</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I3 400   0   1    0.672      0.479     0.226 0.484      0.504</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I4 400   0   1    0.575      0.526     0.267 0.589      0.488</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I5 400   0   1    0.432      0.579     0.333 0.663      0.460</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I6 400   0   1    0.338      0.495     0.243 0.497      0.497</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I7 400   0   1    0.250      0.533     0.313 0.527      0.472</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I8 400   0   1    0.175      0.407     0.198 0.316      0.511</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I1 400   0   1    0.848      0.370     0.169 0.257      0.519</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I2 400   0   1    0.787      0.443     0.221 0.364      0.504</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I3 400   0   1    0.672      0.479     0.226 0.458      0.504</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I4 400   0   1    0.575      0.526     0.267 0.539      0.488</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I5 400   0   1    0.432      0.579     0.333 0.613      0.460</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I6 400   0   1    0.338      0.495     0.243 0.486      0.497</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I7 400   0   1    0.250      0.533     0.313 0.466      0.472</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I8 400   0   1    0.175      0.407     0.198 0.293      0.511</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

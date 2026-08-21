@@ -81,12 +81,13 @@ btl_efrm(
   analytic stage-one standard errors for `beta` and `phi`, and inverse
   observed information for `alpha` and `kappa` conditional on the
   stage-one estimates. It is faster, but does not propagate stage-one
-  uncertainty into the linking parameters.
+  uncertainty into the linking parameters; unit probabilities and
+  omnibus tests are therefore withheld.
 
 - boot_reps:
 
   Number of replicates for `se_method = "bootstrap"` or
-  `"judge_bootstrap"`.
+  `"judge_bootstrap"`; at least 30 are required.
 
 - maxit, tol:
 
@@ -94,9 +95,9 @@ btl_efrm(
 
 ## Value
 
-An object of class `"rasch_btl_efrm"`. Principal components are
-`objects`, `phi_table`, `alpha_table`, `kappa_table`, `unit_omnibus`,
-`frames`, `equal_unit`, `n_cross`, `notes`, and `converged`.
+An object of class `"rasch_btl_efrm"`. It contains the object estimates,
+group- and set-unit tables, origin shifts, omnibus unit tests, frame
+definitions, convergence information, and analysis notes.
 
 ## Details
 
@@ -118,10 +119,12 @@ Humphry's model implemented in this package.
 
 The default judge bootstrap resamples judges within panels and refits
 both stages. The parametric bootstrap draws independent outcomes from
-the fitted probabilities. `se_method = "conditional"` uses analytic
-stage-one errors and conditions the linking errors on stage one; it is
-intended for preliminary inspection. Bootstrap failures and boundary
-estimates are reported in `notes`.
+the fitted probabilities and uses normal and chi-square reference
+distributions. `se_method = "conditional"` uses analytic stage-one
+errors and conditions the linking errors on stage one; it is intended
+for preliminary inspection. Its unit probabilities and omnibus tests are
+withheld because it does not propagate stage-one uncertainty. Bootstrap
+failures and boundary estimates are reported in `notes`.
 
 With one set, the model contains panel units only. With one set and one
 panel, it reduces to
@@ -177,8 +180,8 @@ fit <- btl_efrm(d, "object_a", "object_b", winner = "winner",
                 object_sets = attr(d, "truth")$object_sets,
                 se_method = "conditional")
 fit$alpha_table
-#>   set alpha se_log_alpha     t df       p   p_adj significant
-#>  set1 1.000                    11                            
-#>  set2 1.607        0.077 6.140 11 < 0.001 < 0.001           *
+#>   set alpha se_log_alpha t df p p_adj significant
+#>  set1 1.000                                      
+#>  set2 1.607        0.077                         
 # }
 ```

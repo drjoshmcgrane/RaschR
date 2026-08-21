@@ -45,5 +45,5 @@ batch <- sim_replicate(simulate_rasch, 8, n_persons = 400, n_items = 10,
 flagged <- sim_apply(batch, function(d)
   dif_anova(rasch(d, id = "id", factors = "group"))$summary$uniform_DIF[5])
 mean(flagged, na.rm = TRUE)
-#> [1] 0.75
+#> [1] 0.5
 ```

@@ -1,9 +1,12 @@
 # Targeting and reliability summary as a table
 
-The person and item location moments (with and without extreme persons),
-the threshold range and coverage, and the reliability indices – PSI, PSI
-without extremes, item separation, and coefficient alpha – as a
-two-column table suitable for saving and reporting.
+The person and calibration location moments, threshold range and
+coverage, and the applicable separation and reliability indices as a
+two-column table suitable for saving and reporting. MFRM and EFRM fits
+describe item-by-facet or item-by-frame response cells rather than
+additional items. Coefficient alpha is not applicable when an item has
+several response cells; it is retained for the one-cell-per-item
+reduction.
 
 ## Usage
 

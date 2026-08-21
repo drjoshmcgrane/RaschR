@@ -13,8 +13,11 @@ binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
 A spread estimate below the bound therefore indicates response
 dependence among the members (Andrich and Marais 2019, Table 24.1).
-Typically applied after combine_items, whose super-items
-are exactly such subtests."><meta property="og:description" content="Andrich's (1985) least-upper-bound screen: the spread component
+Applied to the superitems recorded by combine_items. The
+binomial bound applies only when every component was dichotomous; a
+composite containing a polytomous item is shown but its bound and verdict
+are withheld. The input calibration and the principal-components refit
+must both converge."><meta property="og:description" content="Andrich's (1985) least-upper-bound screen: the spread component
 \(\lambda\) of a polytomous item (half the distance between successive
 thresholds in the principal-components parameterisation, estimated here
 by pcml_pc) cannot fall below the value implied by the
@@ -22,8 +25,11 @@ binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
 A spread estimate below the bound therefore indicates response
 dependence among the members (Andrich and Marais 2019, Table 24.1).
-Typically applied after combine_items, whose super-items
-are exactly such subtests."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+Applied to the superitems recorded by combine_items. The
+binomial bound applies only when every component was dichotomous; a
+composite containing a polytomous item is shown but its bound and verdict
+are withheld. The input calibration and the principal-components refit
+must both converge."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -72,8 +78,11 @@ binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
 A spread estimate below the bound therefore indicates response
 dependence among the members (Andrich and Marais 2019, Table 24.1).
-Typically applied after <code><a href="combine_items.html">combine_items</a></code>, whose super-items
-are exactly such subtests.</p>
+Applied to the superitems recorded by <code><a href="combine_items.html">combine_items</a></code>. The
+binomial bound applies only when every component was dichotomous; a
+composite containing a polytomous item is shown but its bound and verdict
+are withheld. The input calibration and the principal-components refit
+must both converge.</p>
     </div>
 
     <div class="section level2">
@@ -95,11 +104,13 @@ are exactly such subtests.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame with one row per polytomous item: <code>item</code>,
-  <code>m</code>, the <code>spread</code> estimate and its <code>se</code>, the bound
-  <code>lub</code> (available for maximum scores 2 to 8), <code>z</code> =
+    <p>A data frame with one row per recorded superitem: <code>item</code>,
+  <code>m</code>, whether the binomial bound is <code>eligible</code>, the
+  <code>spread</code> estimate and its <code>se</code>, the bound <code>lub</code>
+  (available for dichotomous-component subtests with maximum scores 2 to
+  8), <code>z</code> =
   (spread - lub)/se, and <code>dependent</code> = spread below the bound.
-  Dichotomous items carry no spread and are omitted.</p>
+  Items not formed by <code><a href="combine_items.html">combine_items()</a></code> are omitted.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -120,8 +131,9 @@ Measuring in the Educational, Social and Health Sciences. Springer.</p>
 <span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="combine_items.html">combine_items</a></span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I4"</span>, <span class="st">"I5"</span>, <span class="st">"I6"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">spread_test</span><span class="op">(</span><span class="va">fit2</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Spread-parameter screen (Andrich 1985): spread below the binomial bound indicates dependence</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      item m spread    se bound     z dependent</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  I1+I2+I3 3  0.653 0.114 0.550 0.899          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      item m eligible spread    se bound     z dependent</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  I4+I5+I6 1                                            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  I1+I2+I3 3        *  0.653 0.114 0.550 0.899          </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

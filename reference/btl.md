@@ -124,11 +124,7 @@ supplied, the covariance is clustered by judge. Clustered inference is
 withheld when there are fewer than ten judges, fewer than eight
 effective judges, or no residual cluster degrees of freedom. A caution
 is attached when the effective count is below 9.5 or one judge supplies
-more than 20 per cent of the comparisons. The thresholds are
-simulation-calibrated: a true null is rejected at about 9% with four
-effective judges and 7% at six to seven, while balanced designs are
-nominal from ten judges up and a single judge above a 20% share adds a
-mild edge near 6%.
+more than 20 per cent of the comparisons.
 
 Dichotomous data may be supplied as a winner, with ties dropped or
 divided equally between the two outcomes. Ordered data may instead be
@@ -141,12 +137,10 @@ stabilise thin categories.
 If comparison order is supplied, exposure and carry-over effects are
 estimated from each judge's preceding comparisons. The `position` term
 estimates a first-presentation effect. These coefficients enter the
-model jointly with the object locations and are reported in logits. In
-simulation the position and exposure null tests hold their 5% level
-(5.8% and 5.9% at 800 replicates); the carry-over null runs near 8% with
-14 judges – a few-cluster elevation, gone by 30 judges (5.3%) – and
-effects of 0.6 logits are detected in 62% (position), 39% (exposure),
-and 77% (carry-over) of replicates. Anchors fix nominated object
+model jointly with the object locations and are reported in logits. The
+carry-over estimate and clustered SE remain descriptive below 30 judges;
+its probability is withheld because null calibration is mildly
+anti-conservative at smaller judge counts. Anchors fix nominated object
 locations and replace the sum-zero origin.
 
 ## References

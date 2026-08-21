@@ -35,8 +35,9 @@ score_table(
 ## Value
 
 A data frame with `score`, `theta`, `se`, `freq`, `cum_pct` (omitted
-when no complete responders exist), and `extrapolated`; `NULL` for fits
-without a common raw-score metric (EFRM).
+when no complete responders exist), and `extrapolated`; `NULL` when the
+fitted items do not share one discrimination or an item is represented
+by several MFRM or EFRM response cells.
 
 ## Details
 

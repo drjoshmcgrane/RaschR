@@ -175,16 +175,16 @@ group. Here I06 differs by one logit in the second group.</p>
 <span><span class="va">da</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit3</span><span class="op">)</span></span>
 <span><span class="va">da</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"F_uniform"</span>, <span class="st">"p_uniform_adj"</span>, <span class="st">"uniform_DIF"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;  item  term F_uniform p_uniform_adj uniform_DIF</span></span>
-<span><span class="co">#&gt;   I01 group     0.164         0.856            </span></span>
-<span><span class="co">#&gt;   I02 group     3.235         0.242            </span></span>
-<span><span class="co">#&gt;   I03 group     0.172         0.856            </span></span>
-<span><span class="co">#&gt;   I04 group     0.412         0.856            </span></span>
-<span><span class="co">#&gt;   I05 group     3.695         0.242            </span></span>
+<span><span class="co">#&gt;   I01 group     0.164         0.949            </span></span>
+<span><span class="co">#&gt;   I02 group     3.235         0.291            </span></span>
+<span><span class="co">#&gt;   I03 group     0.172         0.949            </span></span>
+<span><span class="co">#&gt;   I04 group     0.412         0.949            </span></span>
+<span><span class="co">#&gt;   I05 group     3.695         0.291            </span></span>
 <span><span class="co">#&gt;   I06 group    18.647       &lt; 0.001           *</span></span>
-<span><span class="co">#&gt;   I07 group     0.611         0.856            </span></span>
-<span><span class="co">#&gt;   I08 group     0.009         0.926            </span></span>
-<span><span class="co">#&gt;   I09 group     0.139         0.856            </span></span>
-<span><span class="co">#&gt;   I10 group     0.085         0.856</span></span></code></pre></div>
+<span><span class="co">#&gt;   I07 group     0.611         0.949            </span></span>
+<span><span class="co">#&gt;   I08 group     0.009         0.949            </span></span>
+<span><span class="co">#&gt;   I09 group     0.139         0.949            </span></span>
+<span><span class="co">#&gt;   I10 group     0.085         0.949</span></span></code></pre></div>
 <p><code>dif_anova</code> tests invariance. <code>dif_size</code>
 resolves the item by group and reports the difference between the
 resolved locations in logits.</p>
@@ -196,8 +196,8 @@ resolved locations in logits.</p>
 <span><span class="co">#&gt;     g2    1.266 0.162    0 250</span></span>
 <span><span class="co">#&gt;  level_a level_b difference    se      z       p   p_adj  lower  upper</span></span>
 <span><span class="co">#&gt;       g1      g2     -1.004 0.234 -4.287 &lt; 0.001 &lt; 0.001 -1.463 -0.545</span></span>
-<span><span class="co">#&gt;  significant practical ets</span></span>
-<span><span class="co">#&gt;            *   &gt;= 0.50  C-</span></span>
+<span><span class="co">#&gt;  significant practical ets signed_area</span></span>
+<span><span class="co">#&gt;            *   &gt;= 0.50  C-            </span></span>
 <span><span class="co">#&gt; p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span></span></code></pre></div>
 <p>A simulation study of DIF should record false-positive rates for
 invariant items as well as detection of the shifted item. Sample size,
@@ -360,9 +360,35 @@ provenance in the result tables:</p>
 <td>7.5% pooled-variance (pre-fix) to 4.8% covariance-based</td>
 </tr>
 <tr class="even">
-<td>EFRM set-unit omnibus size</td>
-<td>200/group, 8 items/set, 2 sets</td>
-<td>9.4% (pre-fix) to 4.9% (1,200 replicates, eight designs)</td>
+<td>EFRM set-unit linking</td>
+<td>500-600 persons, 8 items/set</td>
+<td>hybrid Type I 4.0-5.0%, SE ratios 0.97-1.05 and coverage 0.927-0.960
+under normal, bimodal and contrasting group distributions;
+full-bootstrap Type I 2.5% and coverage 0.975</td>
+</tr>
+<tr class="odd">
+<td>BTL-EFRM unit tests</td>
+<td>12 judges, 6 objects/set</td>
+<td>judge-bootstrap Type I 3.3-5.3% for panel units, set units and
+origins; independent-outcome bootstrap 3.0-6.7% (300 replicates)</td>
+</tr>
+<tr class="even">
+<td>MFRM multifactor DIF</td>
+<td>500 persons, 8 items, 6 raters</td>
+<td>4.7% familywise error with balanced raters and 3.8% when one group
+has two raters (1,000 replicates)</td>
+</tr>
+<tr class="odd">
+<td>Frame-invariance bootstrap size</td>
+<td>500 persons/frame, 8 common items</td>
+<td>3.0% combined Holm familywise error; SE ratios 1.00 locations and
+1.03 discrimination (300 replicates)</td>
+</tr>
+<tr class="even">
+<td>Frame-invariance bootstrap power</td>
+<td>two affected items, 500 persons/frame</td>
+<td>96.3% for a one-logit location shift; 9.6% for a 1.5-fold
+discrimination change (120 replicates)</td>
 </tr>
 <tr class="odd">
 <td>Comparative judgement contrasts</td>
@@ -385,9 +411,11 @@ provenance in the result tables:</p>
 <td>0.945-0.983; conservative in the tails</td>
 </tr>
 <tr class="odd">
-<td>Tailored bootstrap familywise error</td>
-<td>300 persons, 8 items</td>
-<td>0.8% over 240 full-procedure replicates</td>
+<td>Tailored bootstrap</td>
+<td>300 persons, 8 items, 399 resamples</td>
+<td>clean-item familywise error 0-2.5%; at least one of two hard items
+detected in 17.5% and 26.3% of datasets with guessing 0.15 and 0.30 (80
+full-procedure replicates per effect)</td>
 </tr>
 <tr class="even">
 <td>CL-AIC model selection</td>
@@ -404,9 +432,9 @@ provenance in the result tables:</p>
 <tr class="even">
 <td>Cross-package agreement</td>
 <td>sirt, eRm, TAM, BradleyTerry2, VGAM, lme4</td>
-<td>identical-likelihood comparators at solver precision; estimator
-variants within 0.02-0.15 logits; unit estimators tracked against
-external anchors</td>
+<td>identical-likelihood comparators at solver precision; current EFRM
+set-unit bias +0.0036 vs TAM +0.0008 dichotomous and +0.0035 vs +0.0020
+polytomous</td>
 </tr>
 <tr class="odd">
 <td>Cross-package diagnostics</td>
@@ -416,19 +444,19 @@ DIF detection 84-88% all methods; dimensionality conservative (exact
 null, 67% power) vs DETECT (100%)</td>
 </tr>
 <tr class="even">
-<td>EFRM unit linking (corrected)</td>
-<td>5-15 items/set; ratios 1-2; skew 0.5-2.8; booklet and
-pairwise-overlap designs</td>
-<td>bias within ±0.015 throughout; null size 2.7-4.8%; coverage 93-99%;
-stays unbiased under skew where a normal-population anchor drifts</td>
+<td>EFRM boundary conditions</td>
+<td>3-8 items/set; 80-1,000 persons; ratios to 3.5; targeting,
+missingness and non-normality</td>
+<td>absolute bias at most 0.022 under the model; all three-item links
+refused; at 80 persons 11% refused and 2% did not converge; 41- and
+101-point grids agreed</td>
 </tr>
 <tr class="odd">
-<td>EFRM unit linking across sample size</td>
-<td>250 to 10,000 linking persons, 8 items/set (100 replicates per
-cell)</td>
-<td>reported SEs track the empirical SD throughout (ratios 0.91-1.06);
-bias plateaus at ~0.4% on the ratio; coverage 92-99% to 5,000
-persons</td>
+<td>BTL-EFRM staged link</td>
+<td>6 objects/set, 12 judges</td>
+<td>log set-unit bias decreased from -0.108 at 10 repetitions per pair
+to -0.041 at 20, -0.016 at 50 and -0.007 at 100; bootstrap coverage was
+0.933-0.950 at 20 repetitions</td>
 </tr>
 </tbody>
 </table>

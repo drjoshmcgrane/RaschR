@@ -28,7 +28,10 @@ dif_anova(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
+  [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
+  or
+  [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
 
 - factors:
 
@@ -45,7 +48,7 @@ dif_anova(
 
 - p_adjust:
 
-  Multiplicity adjustment across items within each term; default `"BH"`.
+  Multiplicity adjustment over all item-by-term tests; default `"BH"`.
 
 - alpha:
 
@@ -80,7 +83,9 @@ dif_anova(
 
   For MFRM fits: pool residuals to the underlying items (the default),
   so DIF is tested per item rather than per item-by-facet cell; `FALSE`
-  tests each cell as its own item. Ignored for other fits.
+  tests each cell as its own item. EFRM response cells are always pooled
+  by item, so this argument does not alter EFRM fits. Ignored for
+  ordinary fits.
 
 ## Value
 
@@ -98,8 +103,8 @@ A list with:
 
 - `tukey`:
 
-  Tukey comparisons for significant, non-superseded terms with more than
-  two levels.
+  Residual-mean Tukey comparisons retained for compatibility in
+  between-person designs. Use `posthoc` for logit-scale follow-ups.
 
 - `sizes`:
 
@@ -123,8 +128,10 @@ With one factor \\G\\ and class interval \\C\\, the residual model is
 uniform DIF and its interaction with class interval tests non-uniform
 DIF. With several factors, `effects = "main"` fits
 `(f1 + f2 + ...) * ci`; `effects = "factorial"` also includes
-factor-by-factor interactions. Type II sums of squares are used, and
-probabilities are adjusted across items separately within each term.
+factor-by-factor interactions. Type II sums of squares are used. The
+multiplicity adjustment covers all item-by-DIF-term tests, including
+both uniform and non-uniform DIF; the class-interval main effect is a
+nuisance term and is not included.
 
 When identifiers repeat, the person is the unit of analysis.
 Between-person terms use person means and the between-person error
@@ -141,7 +148,9 @@ they define the model rather than a separate DIF contrast; testing such
 a factor means stepping outside the model, which is what
 [`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
 does. MFRM residuals are pooled to underlying items unless
-`pool_facets = FALSE`.
+`pool_facets = FALSE`. EFRM response cells are always pooled by item;
+the frame-defining factors remain excluded. Inference is available only
+from a converged calibration.
 
 ## References
 
@@ -180,31 +189,31 @@ colnames(X) <- paste0("I", 1:6)
 fit <- rasch(data.frame(X, g1 = g1, g2 = g2), factors = c("g1", "g2"))
 dif_anova(fit)$summary
 #>  item term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>    I1   g1     0.612     0.434         0.434        0.001            
-#>    I1   g2     1.341     0.247         0.297        0.002            
+#>    I1   g1     0.612     0.434         0.651        0.001            
+#>    I1   g2     1.341     0.247         0.494        0.002            
 #>    I2   g1    22.600   < 0.001       < 0.001        0.031           *
-#>    I2   g2     2.931     0.087         0.262        0.004            
-#>    I3   g1     2.623     0.106         0.263        0.004            
-#>    I3   g2     0.324     0.570         0.570        0.000            
-#>    I4   g1     2.279     0.132         0.263        0.003            
-#>    I4   g2     1.428     0.232         0.297        0.002            
-#>    I5   g1     0.833     0.362         0.434        0.001            
-#>    I5   g2     1.384     0.240         0.297        0.002            
-#>    I6   g1     0.680     0.410         0.434        0.001            
-#>    I6   g2     3.954     0.047         0.262        0.006            
+#>    I2   g2     2.931     0.087         0.419        0.004            
+#>    I3   g1     2.623     0.106         0.423        0.004            
+#>    I3   g2     0.324     0.570         0.719        0.000            
+#>    I4   g1     2.279     0.132         0.451        0.003            
+#>    I4   g2     1.428     0.232         0.494        0.002            
+#>    I5   g1     0.833     0.362         0.620        0.001            
+#>    I5   g2     1.384     0.240         0.494        0.002            
+#>    I6   g1     0.680     0.410         0.651        0.001            
+#>    I6   g2     3.954     0.047         0.283        0.006            
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         0.471        0.757            0.757           0.003               
+#>         0.471        0.757            0.865           0.003               
 #>         0.117        0.977            0.977           0.001               
-#>         2.571        0.037            0.110           0.014               
-#>         0.224        0.925            0.977           0.001               
-#>         1.216        0.303            0.605           0.007               
-#>         0.582        0.676            0.977           0.003               
-#>         0.841        0.499            0.667           0.005               
-#>         1.582        0.177            0.691           0.009               
-#>         0.754        0.556            0.667           0.004               
-#>         0.386        0.819            0.977           0.002               
-#>         3.544        0.007            0.043           0.020              *
-#>         1.406        0.230            0.691           0.008               
+#>         2.571        0.037            0.283           0.014               
+#>         0.224        0.925            0.965           0.001               
+#>         1.216        0.303            0.559           0.007               
+#>         0.582        0.676            0.811           0.003               
+#>         0.841        0.499            0.705           0.005               
+#>         1.582        0.177            0.494           0.009               
+#>         0.754        0.556            0.719           0.004               
+#>         0.386        0.819            0.893           0.002               
+#>         3.544        0.007            0.085           0.020               
+#>         1.406        0.230            0.494           0.008               
 #>  superseded
 #>            
 #>            
@@ -239,14 +248,11 @@ mixed_dif <- dif_anova(mixed_fit, within = "occasion")
 subset(mixed_dif$summary, uniform_DIF | nonuniform_DIF)
 #>  item     term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
 #>    I2    group    24.646   < 0.001       < 0.001        0.075           *
-#>    I5    group     6.590     0.011         0.032        0.021           *
 #>    I5 occasion    19.702   < 0.001       < 0.001        0.061           *
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         1.368        0.245            0.949           0.018               
-#>         0.179        0.949            0.949           0.002               
-#>         0.196        0.940            0.940           0.003               
+#>         1.368        0.245            0.653           0.018               
+#>         0.196        0.940            0.950           0.003               
 #>  superseded
-#>            
 #>            
 #>            
 # }

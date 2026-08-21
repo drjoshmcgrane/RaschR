@@ -1,11 +1,8 @@
 # DIF differences between factor levels
 
-Resolves an item into one parameter per factor level, refits the model,
-and reports pairwise differences between the resolved locations. Wald
-tests use the full sandwich covariance and are adjusted over the family
-of level comparisons. Several names in `by` define factor-combination
-cells for following up an interaction in
-[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md).
+Resolves an item by one or more person factors and compares the
+resulting locations. Several factors in `by` give pairwise comparisons
+between their joint cells and can be used to quantify an interaction.
 
 ## Usage
 
@@ -26,7 +23,10 @@ dif_size(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) or
+  [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md).
+  EFRM fits are excluded because an ordinary split refit would discard
+  their frame units.
 
 - item:
 
@@ -57,11 +57,13 @@ dif_size(
 
 ## Value
 
-A list of class `"rasch_dif_size"`: `levels` (resolved location and SE
-per level, with its n), `pairs` (per comparison: difference in logits,
-SE, z, raw and adjusted p, 95 per cent interval, `significant`,
-`practical`, `ets`), the settings, and any notes. Sampling-uncertainty
-fields are `NA` when person IDs repeat.
+A list of class `"rasch_dif_size"`. `levels` contains the resolved
+location, standard error and sample size for each level. `pairs`
+contains logit differences, Wald statistics, confidence intervals, raw
+and adjusted probabilities, and practical flags. For dichotomous items
+it also contains `ets`; for polytomous items it contains the descriptive
+`signed_area`. Sampling-uncertainty fields are `NA` when person
+identifiers repeat.
 
 ## Details
 
@@ -81,47 +83,29 @@ tests are withheld. Use
 [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
 for person-level inference in a repeated-measures design.
 
-## The ETS categories
+## Magnitude conventions
 
-`pairs$ets` reports the A, B and C categories used at ETS, signed for
-direction as they are there. They are defined from the Mantel-Haenszel
-common odds ratio on the delta scale, where \\\mathrm{MH\\ D\text{-}DIF}
-= -2.35\log\hat\alpha\_{MH}\\. Under the Rasch model that log odds ratio
-and the difference in item location estimate the same quantity, both
-being conditional on the total score, so the delta thresholds convert
-exactly at 2.35 delta units to the logit: A is not significant or below
-0.426 logits, C is at or above 0.638 logits and significantly beyond
-0.426, and B is the remainder. The C rule tests against a non-zero null,
-so it uses the standard error rather than the probability alone.
+For dichotomous items, `ets` applies the ETS A, B and C rules to the
+itemwise comparison. On the logit scale the magnitude cut-points are
+\\1/2.35=0.426\\ and \\1.5/2.35=0.638\\. Category A also includes an
+itemwise test that is not significant. Category C requires a magnitude
+of at least 0.638 and rejection of the interval null \\\|\Delta\|\leq
+0.426\\; B is the remainder. The category uses the raw itemwise
+probability, while `significant` uses `p_adjust` over the requested
+pairwise family.
 
-Polytomous items are classified on the same metric. Under the partial
-credit model an item's difficulty decomposes as a location plus its
-thresholds, so where differential functioning shifts the location and
-leaves the thresholds alone – uniform functioning, which is what a
-resolved location difference estimates – the signed area between the two
-groups' expected score curves is the number of thresholds times that
-shift, and the same cut-values apply per threshold (Golia, 2012, section
-2.2, following Cohen, Kim and Baker, 1993). Where the thresholds
-themselves differ across groups the shift is not a summary of the item
-and the letter should not be read.
-
-Read the letter beside the magnitude rather than instead of it, because
-the categories were built to triage items for an operational bank and
-not to answer whether an item is invariant. A tops out at 0.426 logits,
-which is a difference of 10.6 percentage points in success at the item's
-own location – plainly not invariance. What justifies calling it
-negligible is its effect on the score rather than on the item: in
-simulation at 3,000 persons, one item sitting at that ceiling moved the
-comparison between the two groups by 0.026 logits on a ten-item test and
-0.018 on a twenty-item one, while three such items moved it by 0.086 and
-0.050. So the letter answers "does this item distort the total score",
-and `practical` against `flag_logits` answers "is this item behaving the
-same way in both groups". They are different questions.
-
-A separate ETS convention categorises polytomous items from a
-standardised mean difference at 0.17 and 0.25, but that is a statistic
-in the observed-score metric rather than this one, and Zwick, Thayer and
-Mazzeo (1997) record that ETS had no official polytomous policy.
+For a partial credit item with \\m_i\\ thresholds, the signed area
+between the two expected-score curves has the closed form
+\$\$SA\_{ab}=\int\\E_b(X\mid\theta)-E_a(X\mid\theta)\\\\d\theta
+=\sum\_{k=1}^{m_i}(\delta\_{iak}-\delta\_{ibk})
+=m_i(\beta\_{ia}-\beta\_{ib}).\$\$ This is returned as `signed_area`; a
+positive value means that level `a` has the harder resolved item. It is
+descriptive and is not given an A/B/C category: score-metric
+classifications for polytomous DIF are not interchangeable with a PCM
+logit difference. For pooled MFRM items, the areas use the same
+precision weight for a facet cell in every group. A comparison is
+withheld when the groups do not support the same observed response
+categories.
 
 ## References
 
@@ -138,9 +122,12 @@ Item Functioning (pp. 337–364). Erlbaum.
 Linacre, J. M. and Wright, B. D. (1989). Mantel-Haenszel DIF and PROX
 are equivalent! Rasch Measurement Transactions, 3(2), 51–53.
 
-Golia, S. (2012). Differential item functioning classification for
-polytomously scored items. Electronic Journal of Applied Statistical
-Analysis, 5(3), 367–373.
+Cohen, A. S., Kim, S.-H. and Baker, F. B. (1993). Detection of
+differential item functioning in the graded response model. Applied
+Psychological Measurement, 17(4), 335–350.
+
+Raju, N. S. (1988). The area between two item characteristic curves.
+Psychometrika, 53(4), 495–502.
 
 ## See also
 
@@ -164,7 +151,7 @@ dif_size(fit, "I3", by = "grp")
 #>      b    0.018 0.126    0 300
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>        a       b     -0.907 0.204 -4.441 < 0.001 < 0.001 -1.308 -0.507
-#>  significant practical ets
-#>            *   >= 0.50  C-
+#>  significant practical ets signed_area
+#>            *   >= 0.50  C-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```

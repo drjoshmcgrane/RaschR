@@ -5,10 +5,12 @@ analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only:
 per item the facility (mean score over maximum), the item-total and
 corrected item-rest correlations, the discrimination index DI = PRU -
 PRL (mean proportion-of-maximum in the upper third of total scores minus
-the lower third), and alpha if the item is deleted; plus coefficient
-alpha, the raw-score mean, SD, and the classical standard error of
-measurement \\s\sqrt{1 - \alpha}\\, which unlike the Rasch SE is one
-value for all persons.
+the lower third). Equal total scores remain in the same third, so the
+group sizes can differ and DI is withheld when three distinct score
+groups cannot be formed. The table also gives alpha if the item is
+deleted; the summary gives coefficient alpha, the raw-score mean, SD,
+and the classical standard error of measurement \\s\sqrt{1 - \alpha}\\,
+which unlike the Rasch SE is one value for all persons.
 
 ## Usage
 
@@ -21,7 +23,10 @@ ctt_table(fit, missing = c("complete", "available"))
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  whose columns form one administered item set. Expanded EFRM and MFRM
+  response-cell matrices are not accepted; one-cell-per-item reductions
+  are.
 
 - missing:
 
@@ -53,12 +58,12 @@ ctt_table(rasch(X))
 #> Traditional statistics (complete cases; item n 400-400; 400 complete)
 #> Raw score mean 4.08, SD 1.71 (complete responders); alpha 0.529; SEM 1.17
 #>  item   n min max facility item_total item_rest    di alpha_drop
-#>    I1 400   0   1    0.848      0.370     0.169 0.298      0.519
-#>    I2 400   0   1    0.787      0.443     0.221 0.373      0.504
-#>    I3 400   0   1    0.672      0.479     0.226 0.484      0.504
-#>    I4 400   0   1    0.575      0.526     0.267 0.589      0.488
-#>    I5 400   0   1    0.432      0.579     0.333 0.663      0.460
-#>    I6 400   0   1    0.338      0.495     0.243 0.497      0.497
-#>    I7 400   0   1    0.250      0.533     0.313 0.527      0.472
-#>    I8 400   0   1    0.175      0.407     0.198 0.316      0.511
+#>    I1 400   0   1    0.848      0.370     0.169 0.257      0.519
+#>    I2 400   0   1    0.787      0.443     0.221 0.364      0.504
+#>    I3 400   0   1    0.672      0.479     0.226 0.458      0.504
+#>    I4 400   0   1    0.575      0.526     0.267 0.539      0.488
+#>    I5 400   0   1    0.432      0.579     0.333 0.613      0.460
+#>    I6 400   0   1    0.338      0.495     0.243 0.486      0.497
+#>    I7 400   0   1    0.250      0.533     0.313 0.466      0.472
+#>    I8 400   0   1    0.175      0.407     0.198 0.293      0.511
 ```

@@ -13,7 +13,8 @@ significance. Persons with an extreme score on either subset are
 excluded (their weighted-likelihood estimates are most biased there).
 The proportion of significant tests is reported with an exact
 (Clopper-Pearson) binomial confidence interval; a lower bound above
-`alpha` signals multidimensionality.
+`alpha` signals multidimensionality. The test requires a converged
+calibration.
 
 ## Usage
 

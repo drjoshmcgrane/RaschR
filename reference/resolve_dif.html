@@ -5,17 +5,27 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Resolve differential item functioning by iterative item splitting — resolve_dif"><meta name="description" content="Splits DIF items one at a time, beginning with the largest estimated effect,
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Resolve differential item functioning by iterative item splitting — resolve_dif"><meta name="description" content="Splits items with uniform DIF one at a time, beginning with the largest
+estimated effect,
 and refits after each split. This order addresses the artificial DIF that a
 large departure can induce in otherwise invariant items (Andrich and
 Hagquist 2012, 2015). Each split gives the item a separate location and
-threshold structure in every factor cell. The procedure stops when no item
-is flagged or the remaining anchor set reaches min_anchors."><meta property="og:description" content="Splits DIF items one at a time, beginning with the largest estimated effect,
+threshold structure in every factor cell. A location split does not model a
+group-specific discrimination, so items with non-uniform DIF are left for
+review rather than being made untestable by a split. The procedure stops
+when no resolvable uniform DIF remains or the remaining unsplit reference
+set reaches min_anchors. Items fixed by external anchors are not
+split."><meta property="og:description" content="Splits items with uniform DIF one at a time, beginning with the largest
+estimated effect,
 and refits after each split. This order addresses the artificial DIF that a
 large departure can induce in otherwise invariant items (Andrich and
 Hagquist 2012, 2015). Each split gives the item a separate location and
-threshold structure in every factor cell. The procedure stops when no item
-is flagged or the remaining anchor set reaches min_anchors."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+threshold structure in every factor cell. A location split does not model a
+group-specific discrimination, so items with non-uniform DIF are left for
+review rather than being made untestable by a split. The procedure stops
+when no resolvable uniform DIF remains or the remaining unsplit reference
+set reaches min_anchors. Items fixed by external anchors are not
+split."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -56,12 +66,17 @@ is flagged or the remaining anchor set reaches min_anchors."><meta property="og:
     </div>
 
     <div class="ref-description section level2">
-    <p>Splits DIF items one at a time, beginning with the largest estimated effect,
+    <p>Splits items with uniform DIF one at a time, beginning with the largest
+estimated effect,
 and refits after each split. This order addresses the artificial DIF that a
 large departure can induce in otherwise invariant items (Andrich and
 Hagquist 2012, 2015). Each split gives the item a separate location and
-threshold structure in every factor cell. The procedure stops when no item
-is flagged or the remaining anchor set reaches <code>min_anchors</code>.</p>
+threshold structure in every factor cell. A location split does not model a
+group-specific discrimination, so items with non-uniform DIF are left for
+review rather than being made untestable by a split. The procedure stops
+when no resolvable uniform DIF remains or the remaining unsplit reference
+set reaches <code>min_anchors</code>. Items fixed by external anchors are not
+split.</p>
     </div>
 
     <div class="section level2">
@@ -99,9 +114,10 @@ defaults to every nominated factor.</p></dd>
 
 
 <dt id="arg-min-anchors">min_anchors<a class="anchor" aria-label="anchor" href="#arg-min-anchors"></a></dt>
-<dd><p>Minimum number of original items to leave unsplit; the
-procedure stops before the anchor set falls below this (pervasive DIF is
-not artificial DIF). Default <code>max(3, items / 4)</code>.</p></dd>
+<dd><p>Minimum number of original items to leave unsplit as the
+internal reference set. The procedure stops before this set becomes
+smaller; pervasive DIF is not artificial DIF. Default
+<code>max(3, items / 4)</code>.</p></dd>
 
 
 <dt id="arg-max-splits">max_splits<a class="anchor" aria-label="anchor" href="#arg-max-splits"></a></dt>
@@ -113,8 +129,8 @@ of items.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_resolve_dif"</code>: the final resolved
   <code>fit</code>, the <code>splits</code> performed (order, item, factor, partial
-  eta-squared, DIF magnitude in logits), the <code>stopped</code> reason, and
-  the residual <code>dif</code> table for the final fit.</p>
+  eta-squared, source item, DIF magnitude in logits), the <code>stopped</code>
+  reason, and the residual <code>dif</code> table for the final fit.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -138,8 +154,8 @@ of items.</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="va">X</span>, grp <span class="op">=</span> <span class="va">g</span><span class="op">)</span>, factors <span class="op">=</span> <span class="st">"grp"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">resolve_dif</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">$</span><span class="va">splits</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  order item factor  eta2 magnitude</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      1   I3    grp 0.054     1.111</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  order item factor base_item  eta2 magnitude</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      1   I3    grp        I3 0.054     1.111</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

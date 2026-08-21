@@ -91,11 +91,12 @@ rasch_mfrm(
 ## Value
 
 An object of classes `"rasch_mfrm"` and `"rasch"`. Model-specific
-components are `facet_effects`, `item_effects`, `item_thresholds`, and
-`facet_spec`. Interactive fits also contain `interaction_test` and
-`interaction_effects`. `fit_resid` averages virtual-item residuals
-within a margin; `fit_resid_pooled` is the response-weighted pooled
-statistic, with degrees of freedom in `df_fit`.
+components describe the facets, items, thresholds, and facet
+specification. Interactive fits also contain an omnibus test and the
+corresponding item-by-facet effects. The component `fit_resid` averages
+virtual-item residuals within a margin. Its response-weighted
+counterpart is `fit_resid_pooled`; its degrees of freedom are in
+`df_fit`.
 
 ## Details
 

@@ -108,16 +108,16 @@ fit3 <- rasch(d3, id = "id", factors = "group")
 da <- dif_anova(fit3)
 da$summary[, c("item", "term", "F_uniform", "p_uniform_adj", "uniform_DIF")]
 #>  item  term F_uniform p_uniform_adj uniform_DIF
-#>   I01 group     0.164         0.856            
-#>   I02 group     3.235         0.242            
-#>   I03 group     0.172         0.856            
-#>   I04 group     0.412         0.856            
-#>   I05 group     3.695         0.242            
+#>   I01 group     0.164         0.949            
+#>   I02 group     3.235         0.291            
+#>   I03 group     0.172         0.949            
+#>   I04 group     0.412         0.949            
+#>   I05 group     3.695         0.291            
 #>   I06 group    18.647       < 0.001           *
-#>   I07 group     0.611         0.856            
-#>   I08 group     0.009         0.926            
-#>   I09 group     0.139         0.856            
-#>   I10 group     0.085         0.856
+#>   I07 group     0.611         0.949            
+#>   I08 group     0.009         0.949            
+#>   I09 group     0.139         0.949            
+#>   I10 group     0.085         0.949
 ```
 
 `dif_anova` tests invariance. `dif_size` resolves the item by group and
@@ -132,8 +132,8 @@ dif_size(fit3, "I06", by = "group")
 #>     g2    1.266 0.162    0 250
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>       g1      g2     -1.004 0.234 -4.287 < 0.001 < 0.001 -1.463 -0.545
-#>  significant practical ets
-#>            *   >= 0.50  C-
+#>  significant practical ets signed_area
+#>            *   >= 0.50  C-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```
 
@@ -287,18 +287,22 @@ provenance in the result tables:
 | `lr_test` adjusted size | 500 persons, 8 items, 3 categories | 4.7% at the 0.05 level (2,000 replicates) |
 | `lr_test` small-sample edge | 300 persons, 12 items, 4 categories | 6.1% among 1,927/2,000 admissible replicates |
 | `dependence_magnitude` size | 800 persons, 10 items | 7.5% pooled-variance (pre-fix) to 4.8% covariance-based |
-| EFRM set-unit omnibus size | 200/group, 8 items/set, 2 sets | 9.4% (pre-fix) to 4.9% (1,200 replicates, eight designs) |
+| EFRM set-unit linking | 500-600 persons, 8 items/set | hybrid Type I 4.0-5.0%, SE ratios 0.97-1.05 and coverage 0.927-0.960 under normal, bimodal and contrasting group distributions; full-bootstrap Type I 2.5% and coverage 0.975 |
+| BTL-EFRM unit tests | 12 judges, 6 objects/set | judge-bootstrap Type I 3.3-5.3% for panel units, set units and origins; independent-outcome bootstrap 3.0-6.7% (300 replicates) |
+| MFRM multifactor DIF | 500 persons, 8 items, 6 raters | 4.7% familywise error with balanced raters and 3.8% when one group has two raters (1,000 replicates) |
+| Frame-invariance bootstrap size | 500 persons/frame, 8 common items | 3.0% combined Holm familywise error; SE ratios 1.00 locations and 1.03 discrimination (300 replicates) |
+| Frame-invariance bootstrap power | two affected items, 500 persons/frame | 96.3% for a one-logit location shift; 9.6% for a 1.5-fold discrimination change (120 replicates) |
 | Comparative judgement contrasts | 10-50 judges, balanced | 5.0% size, 94.5% coverage (1,200 replicates) |
 | Effective-judge thresholds | one judge with 15-50% of comparisons | ~9% at 4 effective, ~7% at 6-7, nominal when balanced |
 | Equating familywise error | 3, 5, and 10 anchors | 4.9-5.5% (2,000-4,000 replicates) |
 | Person-measure coverage | 10-item test, central range | 0.945-0.983; conservative in the tails |
-| Tailored bootstrap familywise error | 300 persons, 8 items | 0.8% over 240 full-procedure replicates |
+| Tailored bootstrap | 300 persons, 8 items, 399 resamples | clean-item familywise error 0-2.5%; at least one of two hard items detected in 17.5% and 26.3% of datasets with guessing 0.15 and 0.30 (80 full-procedure replicates per effect) |
 | CL-AIC model selection | PCM vs RSM; free vs PC thresholds (items and CJ) | null false selection 4.5-5.2% multi-parameter, ~17% one-parameter (the theoretical AIC rates); detection 95-100% at strong departures |
 | Paired-comparison effect tests | 8 objects, 14 judges | position/exposure nulls 5.8%/5.9%; carry-over 8.3% at 14 judges, 5.3% at 30; power 62/39/77% at 0.6 logits |
-| Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM, lme4 | identical-likelihood comparators at solver precision; estimator variants within 0.02-0.15 logits; unit estimators tracked against external anchors |
+| Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM, lme4 | identical-likelihood comparators at solver precision; current EFRM set-unit bias +0.0036 vs TAM +0.0008 dichotomous and +0.0035 vs +0.0020 polytomous |
 | Cross-package diagnostics | eRm, TAM, psych, difR, PerFit, sirt | alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98; DIF detection 84-88% all methods; dimensionality conservative (exact null, 67% power) vs DETECT (100%) |
-| EFRM unit linking (corrected) | 5-15 items/set; ratios 1-2; skew 0.5-2.8; booklet and pairwise-overlap designs | bias within ±0.015 throughout; null size 2.7-4.8%; coverage 93-99%; stays unbiased under skew where a normal-population anchor drifts |
-| EFRM unit linking across sample size | 250 to 10,000 linking persons, 8 items/set (100 replicates per cell) | reported SEs track the empirical SD throughout (ratios 0.91-1.06); bias plateaus at ~0.4% on the ratio; coverage 92-99% to 5,000 persons |
+| EFRM boundary conditions | 3-8 items/set; 80-1,000 persons; ratios to 3.5; targeting, missingness and non-normality | absolute bias at most 0.022 under the model; all three-item links refused; at 80 persons 11% refused and 2% did not converge; 41- and 101-point grids agreed |
+| BTL-EFRM staged link | 6 objects/set, 12 judges | log set-unit bias decreased from -0.108 at 10 repetitions per pair to -0.041 at 20, -0.016 at 50 and -0.007 at 100; bootstrap coverage was 0.933-0.950 at 20 repetitions |
 
 ## References
 

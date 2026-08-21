@@ -35,7 +35,9 @@ split_items(fit, items, by)
 A new
 [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) fit
 in which each split item appears as `"item (level)"`, with the splits
-recorded in its notes.
+recorded in its notes. Person and item estimates are recalculated with
+the fitted grouping, keyed scoring, anchors on unchanged items, PCM
+constraints and optimisation controls. An anchored item cannot be split.
 
 ## See also
 

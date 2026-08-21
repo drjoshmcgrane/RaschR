@@ -79,7 +79,7 @@ interaction with opponent-strength band.</p>
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>An object from <code><a href="btl.html">btl</a></code>.</p></dd>
+<dd><p>An ordinary paired-comparison fit from <code><a href="btl.html">btl</a></code>.</p></dd>
 
 
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
@@ -99,9 +99,9 @@ also crosses the factors with one another.</p></dd>
 
 
 <dt id="arg-p-adjust">p_adjust<a class="anchor" aria-label="anchor" href="#arg-p-adjust"></a></dt>
-<dd><p>Multiplicity adjustment across objects within each term;
-the resolved-size probabilities are adjusted in one pool over all
-objects, terms, and cell pairs.</p></dd>
+<dd><p>Multiplicity adjustment over all object-by-term tests;
+the resolved-size probabilities are adjusted separately in one pool over
+all objects, terms, and cell pairs.</p></dd>
 
 
 <dt id="arg-alpha">alpha<a class="anchor" aria-label="anchor" href="#arg-alpha"></a></dt>
@@ -142,7 +142,9 @@ aggregated to one weighted mean per judge and opponent band. A split-plot
 analysis then tests judge factors between judges and band effects within
 judges. Each factor level requires at least two judges. Confirmatory Wald
 tests are available only when the base fit supplies a valid judge-clustered
-covariance.</p>
+covariance. The base paired-comparison calibration must have converged.
+BTL-EFRM fits are not accepted: the ordinary residual and resolution
+models do not contain the fitted panel and set units.</p>
 <p>A significant uniform term is followed by a joint refit in which the object
 has one location per factor cell. Differences between these locations are
 reported in logits with clustered Wald tests. Higher-order terms supersede
@@ -150,7 +152,10 @@ their component terms. Models fitted with <code>order</code> retain the exposure
 and carry-over effects in both the residual analysis and refit.</p>
 <p>Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce compensating
-apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).</p>
+apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
+An externally anchored object is not resolved: fixing each of its copies at
+the same anchor would define their difference as zero. Anchors on the other
+objects are retained in the joint refit.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -180,7 +185,7 @@ apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> DIF for paired comparisons: 1 factor(s) [group], main effects</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Residual ANOVA per object and term (uniform = term; non-uniform = term x opponent band)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  object  term F_uniform p_uniform_adj uniform_DIF F_nonuniform p_nonuniform_adj</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       C group    10.576         0.009           *        0.685            0.514</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       C group    10.576         0.017           *        0.685            0.514</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  nonuniform_DIF</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

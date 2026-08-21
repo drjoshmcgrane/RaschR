@@ -85,7 +85,8 @@ also accepted.</p>
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code>.</p></dd>
+<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code> or
+<code><a href="rasch_mfrm.html">rasch_mfrm</a></code>.</p></dd>
 
 
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
@@ -106,8 +107,8 @@ varies within an id.</p></dd>
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
 <dd><p>Person identifier with one entry per row, or the name of a
-nominated factor holding it; required for stacked designs where the
-same person occupies several rows.</p></dd>
+nominated factor holding it. By default the identifier stored by the
+fitted model is used, so stacked designs retain their pairing.</p></dd>
 
 
 <dt id="arg-contrasts">contrasts<a class="anchor" aria-label="anchor" href="#arg-contrasts"></a></dt>
@@ -165,7 +166,10 @@ $$s_p=\sum_l c_l z_{pl},$$
 and tested over persons. Between-person contrasts use Welch tests of person
 means; mixed interactions use Welch tests of the within-person contrast
 scores. The sign of each residual test is aligned with the resolved logit
-contrast.</p>
+contrast. Contrasts require a converged calibration.
+For an MFRM fit, underlying items are pooled over their facet cells by
+default. EFRM fits are excluded because the required split refit would
+discard the frame units.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

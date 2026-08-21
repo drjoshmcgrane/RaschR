@@ -67,7 +67,7 @@ Examine DIF across groups or occasions and equate calibrations.
 - [`resolve_frames()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)
   : Resolve items that do not hold across frames
 - [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
-  : Test the item invariance a frame model assumes
+  : Test item invariance across frames
 - [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
   : Resolve differential item functioning by iterative item splitting
 - [`equate_tests()`](https://drjoshmcgrane.github.io/rasch/reference/equate_tests.md)

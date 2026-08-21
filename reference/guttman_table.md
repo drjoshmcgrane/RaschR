@@ -18,7 +18,10 @@ guttman_table(fit)
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  whose columns form one administered item set. Expanded EFRM and MFRM
+  response-cell matrices are not accepted; one-cell-per-item reductions
+  are.
 
 ## Value
 

@@ -33,6 +33,10 @@ combine_items(fit, groups, model = "PCM")
 A new
 [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) fit
 on the combined structure, with the combinations recorded in its notes.
+Person and item estimates are recalculated. Fit grouping, external
+anchors on unchanged items, keyed scoring, PCM constraints and
+optimisation controls are retained. Anchored items cannot be combined
+because the resulting superitem has no corresponding external anchor.
 
 ## See also
 

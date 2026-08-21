@@ -10,16 +10,18 @@ standard error of measurement. Ordinary Rasch fits return one whole-test
 curve. EFRM fits return one curve per person group and per item-set
 administration pattern actually observed within that group (in a linking
 design, persons who took only the core set get a core-only curve, and the
-linking subsample gets the pooled one), and MFRM fits return one curve per
-observed facet design; mutually exclusive virtual-item blocks, and item
-sets no single person took together, are never added together."><meta property="og:description" content="Fisher information over a grid of person locations, with the corresponding
+linking subsample gets the pooled one). MFRM fits return one curve per set
+of facet conditions observed together for a person, so ratings that jointly
+inform the same person measure are added and mutually exclusive designs
+remain separate."><meta property="og:description" content="Fisher information over a grid of person locations, with the corresponding
 standard error of measurement. Ordinary Rasch fits return one whole-test
 curve. EFRM fits return one curve per person group and per item-set
 administration pattern actually observed within that group (in a linking
 design, persons who took only the core set get a core-only curve, and the
-linking subsample gets the pooled one), and MFRM fits return one curve per
-observed facet design; mutually exclusive virtual-item blocks, and item
-sets no single person took together, are never added together."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+linking subsample gets the pooled one). MFRM fits return one curve per set
+of facet conditions observed together for a person, so ratings that jointly
+inform the same person measure are added and mutually exclusive designs
+remain separate."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -65,9 +67,10 @@ standard error of measurement. Ordinary Rasch fits return one whole-test
 curve. EFRM fits return one curve per person group and per item-set
 administration pattern actually observed within that group (in a linking
 design, persons who took only the core set get a core-only curve, and the
-linking subsample gets the pooled one), and MFRM fits return one curve per
-observed facet design; mutually exclusive virtual-item blocks, and item
-sets no single person took together, are never added together.</p>
+linking subsample gets the pooled one). MFRM fits return one curve per set
+of facet conditions observed together for a person, so ratings that jointly
+inform the same person measure are added and mutually exclusive designs
+remain separate.</p>
     </div>
 
     <div class="section level2">
@@ -91,7 +94,7 @@ sets no single person took together, are never added together.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame with <code>theta</code>, <code>info</code>, and <code>sem</code>. For
   EFRM and MFRM fits it also contains a <code>design</code> column identifying
-  the administrable group or facet design.</p>
+  the administrable frame or facet design.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -1,9 +1,7 @@
 # Drop items and refit
 
-Removes named items from a fitted analysis and refits it, keeping the
-original model, person identifiers, factors, and (for frame models) the
-set structure and standard-error method. The result is an ordinary fit
-of the same class, so every diagnostic applies to it unchanged.
+Removes named items and refits the analysis with the same model
+specification.
 
 ## Usage
 
@@ -29,12 +27,8 @@ drop_items(fit, items, boot_reps = NULL)
 
 - boot_reps:
 
-  Bootstrap replicates for the refit. The default keeps the character of
-  the fit it came from: a fit whose unit standard errors came from a
-  bootstrap passes its replicate count on, a fit that has unit standard
-  errors by the analytic route takes the package default, and a fit
-  asked for no standard errors is refitted without them. Pass a number
-  to override all three.
+  Bootstrap replicates for an EFRM refit. The default retains the fitted
+  specification; a number overrides it.
 
 ## Value
 
@@ -43,33 +37,29 @@ which items were dropped.
 
 ## Details
 
-Screening items is part of an analysis of frames rather than a step
-before it. A person-group unit is estimated from the same items in every
-frame, so an item with differential item functioning distorts it; an
-item-set unit is estimated from the dispersion of person estimates
-within each set, so an item that fits its set badly distorts that set
-alone, with nothing in the other set to offset it. In simulation the
-second effect is large: at eight items per set, two under-discriminating
-items in one set moved a planted unit ratio of 1.40 to 1.73, and four
-over-discriminating items moved it to 1.02. Dropping such an item and
-comparing the units before and after is therefore a substantive
-sensitivity analysis, not housekeeping.
+The refit retains person identifiers and factors, class-interval
+settings, optimisation controls, anchors, multiple-choice scoring and
+PCM component constraints. An EFRM refit also retains the item-set and
+crossed-frame design, linking controls and uncertainty method. The
+operation is refused if it would remove every anchor, empty an item set
+or leave the model unidentified.
 
-An item that fits no set well is usually better removed than reassigned,
-and it cannot be given a set of its own: a single item carries no
-dispersion from which to estimate a unit.
+Item removal changes both the item calibration and the person estimates.
+For an EFRM it can also change the estimated frame units. Compare the
+original and refitted results as a sensitivity analysis.
 
 ## See also
 
-[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md),
-which identifies the items a frame model's assumption does not hold for;
-[`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md),
-which gives such an item a location per frame rather than removing it;
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+and
+[`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)
+for frame models;
 [`split_items`](https://drjoshmcgrane.github.io/rasch/reference/split_items.md)
 and
-[`resolve_dif`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md),
-which resolve an item rather than remove it; and
-[`combine_items`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md).
+[`resolve_dif`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
+for DIF; and
+[`combine_items`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md)
+for response dependence.
 
 ## Examples
 

@@ -1,8 +1,8 @@
 # Plot the person-item threshold distribution
 
 The targeting display: the person location distribution above the axis
-and the item threshold distribution mirrored below it, on a shared logit
-scale.
+and the calibration threshold distribution mirrored below it, on a
+shared logit scale. MFRM and EFRM thresholds belong to response cells.
 
 ## Usage
 

@@ -29,7 +29,8 @@ dif_contrasts(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) or
+  [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md).
 
 - factors:
 
@@ -49,8 +50,8 @@ dif_contrasts(
 - id:
 
   Person identifier with one entry per row, or the name of a nominated
-  factor holding it; required for stacked designs where the same person
-  occupies several rows.
+  factor holding it. By default the identifier stored by the fitted
+  model is used, so stacked designs retain their pairing.
 
 - contrasts:
 
@@ -104,7 +105,10 @@ within-person contrast is formed from the standardised residuals,
 \$\$s_p=\sum_l c_l z\_{pl},\$\$ and tested over persons. Between-person
 contrasts use Welch tests of person means; mixed interactions use Welch
 tests of the within-person contrast scores. The sign of each residual
-test is aligned with the resolved logit contrast.
+test is aligned with the resolved logit contrast. Contrasts require a
+converged calibration. For an MFRM fit, underlying items are pooled over
+their facet cells by default. EFRM fits are excluded because the
+required split refit would discard the frame units.
 
 ## References
 

@@ -45,7 +45,7 @@ The procedure is a greedy, one-step ranking rather than a jointly
 optimal design. Applied to a sandwich covariance, the update ranks pairs
 but does not give an exact variance reduction. Adaptive selection can
 also inflate a separation reliability calculated from the same
-comparisons (Bramley 2015).
+comparisons (Bramley 2015). The fitted model must have converged.
 
 ## References
 

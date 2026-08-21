@@ -14,10 +14,7 @@ otherwise, so each threshold yields \\\hat d_k =
 \\\hat d\\ is their mean (eq. 24.7 of Andrich and Marais 2019). The
 resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \\\hat d\\ is
-calculated from their full sandwich covariance: treating them as
-independent understates it, rejecting a true null at 7.5% in simulation,
-while the covariance-based standard error restores the nominal rate
-(4.8% dichotomous, 3.5% partial credit).
+calculated from their full sandwich covariance.
 
 ## Usage
 
@@ -44,6 +41,18 @@ A list of class `"rasch_dependence"`: the estimate `d`, its `se`, `z`
 and `p` for the hypothesis \\d = 0\\, the per-threshold table
 `thresholds` (columns `k`, `delta_lo`, `delta_hi`, `d_k`, `se_k`), and
 the resolved `refit`.
+
+## Details
+
+Polytomous resolution requires an unconstrained partial credit model so
+that each resolved threshold can move independently. A rating scale or
+principal-component threshold constraint is therefore refused. The refit
+otherwise retains the original fit grouping, keyed scoring, anchors on
+items that remain, and optimisation controls. Both calibrations must
+converge before the magnitude and its standard error are reported. MFRM
+virtual items are resolved through this unconstrained PCM. EFRM virtual
+frames are mutually exclusive and must first be reduced to an observable
+frame or linked design block.
 
 ## References
 

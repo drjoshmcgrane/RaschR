@@ -27,8 +27,11 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
   Bank-based drift inference requires the joint location covariance as a
   square matrix in `attr(fit2, "cov_location")`, ordered like the bank
   rows (or named by object), unless the bank is treated as fixed with
-  zero SEs. For a polytomous fit the bank must carry `attr(bank, "m")`
-  matching the number of fitted score steps.
+  zero SEs. A bank whose covariance was estimated from a finite number
+  of independent sampling units may carry their residual degrees of
+  freedom in `attr(fit2, "df_location")`. For a polytomous fit the bank
+  must carry `attr(bank, "m")` matching the number of fitted score
+  steps.
 
 - alpha:
 
@@ -62,13 +65,14 @@ number of common objects `n_common`; the number usable for inference
 
 ## Details
 
-Let \\d\\ contain the location differences for the common objects and
-\\V\\ their joint covariance. The origin shift is \$\$\hat
-s=\frac{\mathbf{1}'V^{-1}d} {\mathbf{1}'V^{-1}\mathbf{1}}.\$\$ Each
-object is tested using its shifted difference \\d_j-\hat s\\. The
-covariance calculation retains the dependence induced by the sum-zero
-constraints. Drift tests require independent calibrations and at least
-three common objects with usable covariance information.
+Let \\d_j\\ be the location difference for common object \\j\\ and
+\\v_j\\ its marginal variance. The origin shift is the
+precision-weighted mean \$\$\hat s=\frac{\sum_j d_j/v_j}{\sum_j
+1/v_j}.\$\$ Each object is tested using its shifted difference
+\\d_j-\hat s\\. The covariance calculation retains the dependence
+induced by the sum-zero constraints. Drift tests require independent
+calibrations and at least three common objects with usable covariance
+information.
 
 The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and
@@ -103,11 +107,11 @@ eq$table
 #> 4     O5  0.7692300 0.1424835  0.1589980 0.1227805  0.6102320
 #> 5     O6  1.2374851 0.1430865  0.3920252 0.1300981  0.8454599
 #> 6     O7  1.8209314 0.1682478  0.9978767 0.1373542  0.8230547
-#>   shifted_difference   se_diff           t         p p_adj drifting
-#> 1       -0.191440169 0.1997993 -0.95816214 0.3379810     1    FALSE
-#> 2       -0.057710563 0.1941698 -0.29721701 0.7663008     1    FALSE
-#> 3       -0.203234869 0.1945965 -1.04439116 0.2963044     1    FALSE
-#> 4        0.005907421 0.1784021  0.03311296 0.9735845     1    FALSE
-#> 5        0.241135288 0.1865883  1.29233859 0.1962399     1    FALSE
-#> 6        0.218730044 0.2194493  0.99672260 0.3188992     1    FALSE
+#>   shifted_difference   se_diff           t  df         p p_adj drifting
+#> 1       -0.191440169 0.1997993 -0.95816214 Inf 0.3379810     1    FALSE
+#> 2       -0.057710563 0.1941698 -0.29721701 Inf 0.7663008     1    FALSE
+#> 3       -0.203234869 0.1945965 -1.04439116 Inf 0.2963044     1    FALSE
+#> 4        0.005907421 0.1784021  0.03311296 Inf 0.9735845     1    FALSE
+#> 5        0.241135288 0.1865883  1.29233859 Inf 0.1962399     1    FALSE
+#> 6        0.218730044 0.2194493  0.99672260 Inf 0.3188992     1    FALSE
 ```

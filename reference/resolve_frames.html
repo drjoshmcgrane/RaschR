@@ -5,13 +5,9 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Resolve items that do not hold across frames — resolve_frames"><meta name="description" content="Gives named items a separate location in each frame and refits, so they
-continue to measure persons within their own frame while no longer
-constraining the comparison between frames. The result is an ordinary
-frame fit, so every diagnostic applies to it unchanged."><meta property="og:description" content="Gives named items a separate location in each frame and refits, so they
-continue to measure persons within their own frame while no longer
-constraining the comparison between frames. The result is an ordinary
-frame fit, so every diagnostic applies to it unchanged."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Resolve items that do not hold across frames — resolve_frames"><meta name="description" content="Gives each named item a separate location in every frame in which it was
+administered, then refits the EFRM."><meta property="og:description" content="Gives each named item a separate location in every frame in which it was
+administered, then refits the EFRM."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -52,10 +48,8 @@ frame fit, so every diagnostic applies to it unchanged."><meta property="og:imag
     </div>
 
     <div class="ref-description section level2">
-    <p>Gives named items a separate location in each frame and refits, so they
-continue to measure persons within their own frame while no longer
-constraining the comparison between frames. The result is an ordinary
-frame fit, so every diagnostic applies to it unchanged.</p>
+    <p>Gives each named item a separate location in every frame in which it was
+administered, then refits the EFRM.</p>
     </div>
 
     <div class="section level2">
@@ -76,9 +70,8 @@ frame fit, so every diagnostic applies to it unchanged.</p>
 
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
-<dd><p>Bootstrap replicates for the refit, resolved as in
-<code><a href="drop_items.html">drop_items</a></code>: the refit keeps the character of the fit it
-came from unless a number is given.</p></dd>
+<dd><p>Bootstrap replicates for the refit. The default retains
+the fitted specification; a number overrides it.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -89,28 +82,17 @@ came from unless a number is given.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The fitted model represents an item's threshold in a frame as the frame
-unit times one location shared across frames, so an item that behaves
-differently in one frame is misrepresented in all of them, and the group
-units absorb part of the discrepancy.
-<code><a href="frame_invariance.html">frame_invariance</a></code> tests for such items;
-this function and <code><a href="drop_items.html">drop_items</a></code> are the two remedies.</p>
-<p>Resolving is the milder one. The item is replaced by one version per
-frame, named <code>"item (frame)"</code>, each answered by that frame's persons
-alone. Each version keeps its own location, so the item still contributes
-to the person estimates of everyone who answered it, and it no longer
-contributes to the link between frames. Dropping the item removes that
-contribution as well, from every frame at once.</p>
-<p>The link is what pays for it. Person-group units are identified by the
-items two frames have in common, so a resolved item leaves the units
-resting on the items that remain shared, and resolving too many leaves
-them unidentified. This function refuses when a set would be left with
-fewer than two common items; the model's own connectivity check catches
-the remaining cases.</p>
-<p>Prefer resolving when the item measures well inside each frame and only
-its comparability is in doubt, and dropping when the item is a poor
-measure wherever it appears. The distinction is empirical: compare the
-unit estimates and the person standard errors the two remedies produce.</p>
+    <p>A resolved item continues to contribute to person measurement within each
+frame but no longer constrains the link between those frames. Its versions
+are named <code>"item (frame)"</code>. The remaining common items and the linked
+set design must still identify the frame units; otherwise the refit is
+refused by the model's connectivity and rank checks.</p>
+<p>Resolve an item when its within-frame measurement remains defensible but
+its cross-frame location does not. This refit does not estimate a separate
+discrimination and therefore does not resolve a discrimination-only flag
+from <code><a href="frame_invariance.html">frame_invariance</a></code>. Review or remove such an item instead.
+Use <code><a href="drop_items.html">drop_items</a></code> when the item should no longer contribute to
+measurement.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

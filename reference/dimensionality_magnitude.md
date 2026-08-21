@@ -12,7 +12,8 @@ S\\(r_1/r_2 - 1) \frac{SK - 1}{S(K - 1)},\$\$ the latent correlation
 between subscales is \\\rho = 1/(1 + c^2)\\, and \\A = S/(S + c^2)\\ is
 the proportion of common (non-unique, non-error) variance. Both the
 person separation index and coefficient alpha versions are reported
-(Andrich and Marais 2019, ch. 24).
+(Andrich and Marais 2019, ch. 24). Both the original and subtest
+calibrations must converge.
 
 ## Usage
 

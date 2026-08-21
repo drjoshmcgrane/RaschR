@@ -101,7 +101,8 @@ analysis than in the origin-equated one; the comparison table and
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>A dichotomous fit from <code><a href="rasch.html">rasch</a></code>.</p></dd>
+<dd><p>An unanchored, unconstrained dichotomous fit from
+<code><a href="rasch.html">rasch</a></code>. The procedure estimates its own common origin.</p></dd>
 
 
 <dt id="arg-chance">chance<a class="anchor" aria-label="anchor" href="#arg-chance"></a></dt>
@@ -121,7 +122,9 @@ procedure trusts.</p></dd>
 <dd><p><code>"none"</code> (default) reports the item shifts
 descriptively. <code>"bootstrap"</code> resamples persons and repeats the
 complete four-step procedure, including automatic anchor selection, to
-obtain standard errors, percentile intervals, and Holm-adjusted tests.</p></dd>
+obtain standard errors, percentile intervals, and Holm-adjusted tests.
+When a person identifier occurs on several rows, all of that person's
+rows are resampled together.</p></dd>
 
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>

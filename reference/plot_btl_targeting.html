@@ -8,24 +8,20 @@
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Targeting plot for a paired-comparison design — plot_btl_targeting"><meta name="description" content="The paired-comparison counterpart of a test-information display. Every
 object is a dot at its location (x) and its design information (y, the
 pooled Fisher information of the comparisons it took part in), the dot
-sized by how many comparisons that is. A reference curve, read on the
-right axis, traces the information a single new comparison would
-carry against an opponent at each location – anchored at the centre of
-the scale, so it peaks at gap zero and falls away with the gap. The curve
-is the visual explanation of why an adaptive design chases near-neighbour
-contests: information is bought most cheaply where the two objects are
-close, and a well-targeted design lifts the low dots by pairing their
-objects against opponents near them."><meta property="og:description" content="The paired-comparison counterpart of a test-information display. Every
+sized by how many comparisons that is. For an equal-unit fit, a reference
+curve on the right axis traces the information a single new
+comparison would carry against an opponent at each location. It peaks at
+gap zero and explains why adaptive designs favour near neighbours. A frame
+fit has no single reference curve because the information also depends on
+the fitted panel and set units."><meta property="og:description" content="The paired-comparison counterpart of a test-information display. Every
 object is a dot at its location (x) and its design information (y, the
 pooled Fisher information of the comparisons it took part in), the dot
-sized by how many comparisons that is. A reference curve, read on the
-right axis, traces the information a single new comparison would
-carry against an opponent at each location – anchored at the centre of
-the scale, so it peaks at gap zero and falls away with the gap. The curve
-is the visual explanation of why an adaptive design chases near-neighbour
-contests: information is bought most cheaply where the two objects are
-close, and a well-targeted design lifts the low dots by pairing their
-objects against opponents near them."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+sized by how many comparisons that is. For an equal-unit fit, a reference
+curve on the right axis traces the information a single new
+comparison would carry against an opponent at each location. It peaks at
+gap zero and explains why adaptive designs favour near neighbours. A frame
+fit has no single reference curve because the information also depends on
+the fitted panel and set units."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -69,14 +65,12 @@ objects against opponents near them."><meta property="og:image" content="https:/
     <p>The paired-comparison counterpart of a test-information display. Every
 object is a dot at its location (x) and its design information (y, the
 pooled Fisher information of the comparisons it took part in), the dot
-sized by how many comparisons that is. A reference curve, read on the
-right axis, traces the information a single <em>new</em> comparison would
-carry against an opponent at each location – anchored at the centre of
-the scale, so it peaks at gap zero and falls away with the gap. The curve
-is the visual explanation of why an adaptive design chases near-neighbour
-contests: information is bought most cheaply where the two objects are
-close, and a well-targeted design lifts the low dots by pairing their
-objects against opponents near them.</p>
+sized by how many comparisons that is. For an equal-unit fit, a reference
+curve on the right axis traces the information a single <em>new</em>
+comparison would carry against an opponent at each location. It peaks at
+gap zero and explains why adaptive designs favour near neighbours. A frame
+fit has no single reference curve because the information also depends on
+the fitted panel and set units.</p>
     </div>
 
     <div class="section level2">
@@ -93,7 +87,7 @@ objects against opponents near them.</p>
 
 
 <dt id="arg-grid">grid<a class="anchor" aria-label="anchor" href="#arg-grid"></a></dt>
-<dd><p>Optional location grid for the reference curve.</p></dd>
+<dd><p>Optional location grid for the equal-unit reference curve.</p></dd>
 
 </dl></div>
     <div class="section level2">

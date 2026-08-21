@@ -4,7 +4,10 @@ Draws the model expected-score curve with observed class-interval means
 overlaid. Several items may be drawn together; their expected scores are
 then expressed as proportions of their maximum scores. With `group`
 supplied, observed means are drawn separately per group, the
-conventional graphical DIF display.
+conventional graphical DIF display. For an MFRM fit, a single item may
+be named; its observed item-by-facet response cells are aligned by their
+fitted facet and interaction shifts before the class-interval means are
+formed.
 
 ## Usage
 

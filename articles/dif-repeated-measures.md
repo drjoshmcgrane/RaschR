@@ -67,42 +67,42 @@ Its F references are large-sample approximations.
 
 fit <- rasch(dat, id = "pid", factors = c("group", "occasion"),
              items = sprintf("I%02d", 1:8))
-da <- dif_anova(fit, within = "occasion")
+da <- dif_anova(fit, within = "occasion", sizes = TRUE)
 da$summary
 #>  item     term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>   I01    group     0.753     0.387         0.830        0.003            
+#>   I01    group     0.753     0.387         0.840        0.003            
 #>   I01 occasion     0.002     0.962         0.962        0.000            
-#>   I02    group     0.099     0.754         0.876        0.000            
-#>   I02 occasion     0.748     0.388         0.621        0.003            
-#>   I03    group    15.829   < 0.001       < 0.001        0.064           *
-#>   I03 occasion     0.521     0.471         0.628        0.002            
-#>   I04    group     0.059     0.808         0.876        0.000            
-#>   I04 occasion     0.354     0.552         0.631        0.002            
-#>   I05    group     3.974     0.047         0.190        0.017            
-#>   I05 occasion     6.853     0.009         0.038        0.029           *
-#>   I06    group     0.360     0.549         0.876        0.002            
+#>   I02    group     0.099     0.754         0.959        0.000            
+#>   I02 occasion     0.748     0.388         0.840        0.003            
+#>   I03    group    15.829   < 0.001         0.001        0.064           *
+#>   I03 occasion     0.521     0.471         0.840        0.002            
+#>   I04    group     0.059     0.808         0.959        0.000            
+#>   I04 occasion     0.354     0.552         0.840        0.002            
+#>   I05    group     3.974     0.047         0.309        0.017            
+#>   I05 occasion     6.853     0.009         0.101        0.029            
+#>   I06    group     0.360     0.549         0.840        0.002            
 #>   I06 occasion    19.381   < 0.001       < 0.001        0.077           *
-#>   I07    group     0.024     0.876         0.876        0.000            
-#>   I07 occasion     1.525     0.218         0.436        0.007            
-#>   I08    group     0.666     0.415         0.830        0.003            
-#>   I08 occasion     3.944     0.048         0.129        0.017            
+#>   I07    group     0.024     0.876         0.959        0.000            
+#>   I07 occasion     1.525     0.218         0.731        0.007            
+#>   I08    group     0.666     0.415         0.840        0.003            
+#>   I08 occasion     3.944     0.048         0.309        0.017            
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         1.798        0.148            0.657           0.023               
-#>         0.894        0.445            0.772           0.011               
-#>         1.153        0.328            0.657           0.015               
-#>         0.657        0.579            0.772           0.008               
+#>         1.798        0.148            0.678           0.023               
+#>         0.894        0.445            0.840           0.011               
+#>         1.153        0.328            0.840           0.015               
+#>         0.657        0.579            0.840           0.008               
 #>         0.569        0.636            0.848           0.007               
-#>         0.207        0.892            0.892           0.003               
-#>         0.618        0.604            0.848           0.008               
-#>         1.441        0.231            0.772           0.018               
-#>         0.196        0.899            0.940           0.003               
-#>         0.228        0.877            0.892           0.003               
-#>         0.133        0.940            0.940           0.002               
-#>         2.016        0.112            0.772           0.026               
-#>         1.374        0.251            0.657           0.018               
-#>         0.769        0.512            0.772           0.010               
-#>         1.375        0.251            0.657           0.018               
-#>         0.819        0.485            0.772           0.011               
+#>         0.207        0.892            0.959           0.003               
+#>         0.618        0.604            0.840           0.008               
+#>         1.441        0.231            0.731           0.018               
+#>         0.196        0.899            0.959           0.003               
+#>         0.228        0.877            0.959           0.003               
+#>         0.133        0.940            0.962           0.002               
+#>         2.016        0.112            0.600           0.026               
+#>         1.374        0.251            0.731           0.018               
+#>         0.769        0.512            0.840           0.010               
+#>         1.375        0.251            0.731           0.018               
+#>         0.819        0.485            0.840           0.011               
 #>  superseded
 #>            
 #>            
@@ -122,28 +122,20 @@ da$summary
 #> 
 ```
 
-The planted effects are I03 by group and I06 by occasion, and both are
-flagged. This run also flags I05 by occasion, where nothing was planted:
-with eight items tested against every term, an occasional spurious flag
-is expected at any fixed level, which is why adjusted probabilities and
-effect sizes should be read together before an item is acted on. The
-`dif_size` step below shows the planted effects are large where the
-spurious flag is not.
-
 The multiplicity adjustment is applied across items separately within
 each term. Uniform DIF is a factor effect that is stable over the trait;
 a factor-by-class-interval effect is non-uniform DIF. If person-factor
 interactions are substantively required, use `effects = "factorial"` and
 interpret a significant higher-order term before its component main
-effects.
+effects. Read adjusted probabilities with effect sizes before changing
+an item.
 
 ## Quantify the departure
 
 ANOVA identifies evidence against invariance; it does not state the size
 of the departure in logits. `dif_size` resolves an item by a
-between-person factor. `dif_contrasts` is the corresponding
-planned-contrast approach and uses person-level differencing for
-within-person questions.
+between-person factor. `dif_contrasts` provides planned contrasts and
+uses person-level differencing for within-person questions.
 
 ``` r
 
@@ -154,10 +146,11 @@ dif_size(fit, "I03", by = "group")
 #>      B    0.295       0 240
 #>  level_a level_b difference se z p p_adj lower upper significant practical  ets
 #>        A       B     -0.844                                        >= 0.50 <NA>
+#>  signed_area
+#>             
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 #> notes: person identifiers repeat across response rows: resolved point differences remain descriptive, but sampling SEs, confidence intervals and Wald tests are withheld; use dif_contrasts for person-level inference or a whole-person bootstrap
-dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion",
-                    id = fit$person$id)
+dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion")
 dc$table
 #>  item                         contrast within estimate se statistic      df
 #>   I03                     group: B - A           0.841        4.090 237.998
@@ -173,13 +166,38 @@ dc$table
 #>    0.629   1.000                                  
 #>  < 0.001 < 0.001                       *         *
 #>    0.264   1.000
+da$posthoc
+#>  item     term item.1 contrast within estimate se statistic      df       p
+#>   I03    group    I03    B - A           0.841        4.090 237.998 < 0.001
+#>   I06 occasion    I06  T2 - T1      *    1.043        4.650 239.000 < 0.001
+#>    p_adj lower upper significant practical
+#>  < 0.001                       *         *
+#>  < 0.001                       *         *
 ```
+
+[`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
+is the general follow-up for a significant term. A main effect with more
+than two levels is reported as pairwise marginal differences over the
+other fitted factors. An interaction is reported as a
+difference-in-differences, or its higher-order counterpart. These
+comparisons use the joint covariance of the resolved item locations and
+Holm adjustment over the stated family. They are preferable to an
+ordinary Tukey comparison of residual means because the result is on the
+logit scale and respects the factor structure used in the DIF analysis.
 
 For repeated-person contrasts, significance comes from person-level
 residual contrast scores. The resolved logit difference remains the
 magnitude, but its row-independent calibration covariance is not a
 repeated-measures standard error; the package therefore withholds the
-logit SE and interval in this case.
+logit SE and interval in this case. The fitted person identifier is used
+unless `id` is supplied explicitly.
+
+For a many-facet fit, follow-ups may name the underlying item; its
+virtual facet cells are pooled with common weights so facet severity
+cancels from the group contrast. Extended-frame fits support the
+residual ANOVA for factors outside the frame definition, but not an
+ordinary resolved-item magnitude: that refit would discard the fitted
+frame units.
 
 A statistical flag should be considered with the logit magnitude,
 targeting, item content, and the intended use of the scale. Resolving an

@@ -148,30 +148,14 @@ proportionally smaller share of the reference sample.
 
 ## Estimated item discrimination
 
-The item summary reports `disc`, the slope that maximises an item's own
-likelihood with the person measures and the item's thresholds held at
-the values the model gave them. It follows the index Linacre's Winsteps
-reports as DISCRIM, generalised here to polytomous items, where the same
-slope multiplies every threshold of the item. The Rasch model does not
-estimate it; it is computed afterwards, one item at a time, to describe
-how steeply each item sorts the people the model has already located.
-
-Read it as description, not as an estimate of a discrimination
-parameter. The person measures are estimated from a set that includes
-the item being scored, which biases the index upward – about 1.19 for a
-true 1.0 in simulation – and pulls extreme items toward the rest, so a
-true ratio of 1.5 between two items recovers as roughly 1.2. Its
-ordering is more dependable than its level: with one steep and one flat
-item planted among six, the planted pair came back at the extremes of
-the column while the unplanted items spread between them. An item whose
-responses do not vary among the non-extreme persons has no slope and is
-reported as `NA`.
-
-Where a test of discrimination is wanted rather than a description, use
-the fit statistics: they are the calibrated instrument, and
-[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
-tests discrimination across frames on the within-frame infit rather than
-on this index, which is the weaker of the two.
+The item summary includes a post-estimation slope `disc`. For item
+\\i\\, it maximises that item's response likelihood over \\a_i\\ while
+holding the fitted person locations and thresholds fixed: \$\$\hat
+a_i=\arg\max\_{a_i} \sum_n\log
+P(X\_{ni}=x\_{ni}\mid\hat\theta_n,\hat\delta_i,a_i).\$\$ The same slope
+multiplies every threshold of a polytomous item. It is a descriptive
+index, not a freely estimated parameter of the Rasch model, and no
+sampling standard error or hypothesis test is attached to it.
 
 ## References
 

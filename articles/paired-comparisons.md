@@ -162,7 +162,11 @@ set \\s\\,
 A same-set comparison in panel \\g\\ has logit
 \\\phi_g(\beta_A-\beta_B)\\; a cross-set comparison has logit
 \\\phi_g(v_A-v_B)\\. Cross-set comparisons identify the set units and
-origins.
+origins. The cross-set likelihood holds the within-set locations and
+panel units fixed. It estimates the set transformations directly from
+the comparison outcomes and does not use the finite-grid
+person-distribution link in
+[`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
 
 ``` r
 
@@ -178,25 +182,34 @@ ef <- btl_efrm(
   se_method = "conditional"
 )
 ef$phi_table
-#>   panel   phi se_log_phi      t df     p p_adj significant
-#>  panel1 1.107      0.117  0.868 11 0.404 0.807            
-#>  panel2 0.904      0.117 -0.868 11 0.404 0.807
+#>   panel   phi se_log_phi t df p p_adj significant
+#>  panel1 1.107      0.117                         
+#>  panel2 0.904      0.117
 ef$alpha_table
-#>   set alpha se_log_alpha     t df     p p_adj significant
-#>  set1 1.000                    11                        
-#>  set2 1.350        0.118 2.549 11 0.027 0.027           *
+#>   set alpha se_log_alpha t df p p_adj significant
+#>  set1 1.000                                      
+#>  set2 1.350        0.118
 ef$kappa_table
-#>   set kappa se_kappa     t df     p p_adj significant
-#>  set1 0.000                11                        
-#>  set2 0.280    0.123 2.279 11 0.044 0.044           *
+#>   set kappa se_kappa t df p p_adj significant
+#>  set1 0.000                                  
+#>  set2 0.280    0.123
 ```
 
 The default judge bootstrap resamples judges within panels and refits
 both stages. The parametric bootstrap (`se_method = "bootstrap"`) draws
 independent outcomes from the fitted model. The conditional option used
-above does not propagate stage-one uncertainty into the set-linking
-parameters. Omnibus tests cover the unit families; individual contrasts
-are Holm-adjusted follow-ups.
+above reports estimates and conditional standard errors but withholds
+probabilities because it does not propagate stage-one uncertainty into
+the set link. With either bootstrap, omnibus tests cover the unit
+families and individual contrasts are Holm-adjusted follow-ups.
+
+With 12 judges and 20 repetitions per pair, null rejection for the three
+unit families was 3.3–5.3 per cent under the judge bootstrap and 3.0–6.7
+per cent under the independent-outcome bootstrap. The staged set-unit
+estimate has small finite-sample attenuation when the within-set
+locations are imprecise: log-unit bias was -0.041 at 20 repetitions per
+pair, -0.016 at 50 and -0.007 at 100. The bootstrap intervals retained
+nominal coverage at the 20-repetition design.
 
 ## A worked analysis on real data
 

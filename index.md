@@ -5,8 +5,7 @@ includes models for item responses, ratings, linked frames of reference,
 and paired comparisons, with a common set of functions for examining
 fit, invariance, targeting, dimensionality, and local dependence.
 
-The models form a family united by the original dichotomous model
-(Rasch, 1960),
+The original dichotomous model is (Rasch, 1960)
 
 \\ \log\frac{P(X\_{ni}=1)}{P(X\_{ni}=0)}=\theta_n-\delta_i, \\
 
@@ -49,11 +48,10 @@ Anchored estimation is available for equating, and incomplete linked
 designs can be fitted when their observed response structure identifies
 a common scale.
 
-The suite follows Rasch (1960) and Andrich and Marais (2019); the frame
-of reference models follow Humphry’s (2005) thesis, where the model is
-introduced and named, and Humphry and Andrich (2008); the comparative
-judgement models follow the BTL (Bradley and Terry, 1952; Luce, 1959)
-and its adjacent-categories extension (Tutz, 1986).
+The item-response models follow Rasch (1960) and Andrich and Marais
+(2019). The frame models follow Humphry (2005) and Humphry and Andrich
+(2008). The comparative judgement models follow Bradley and Terry
+(1952), Luce (1959), Andrich (1978a), and Tutz (1986).
 
 ## Shiny application
 
@@ -67,8 +65,9 @@ rasch::run_app()
 
 The application imports data, assigns variables to their measurement
 roles, fits the selected model, and displays the resulting tables and
-plots. Results can be downloaded, and the R call for each analysis is
-shown in the interface.
+plots. An analysis can be saved as a `.rasch` project and reopened.
+Tables, figures and HTML, Word or PDF reports can be downloaded. The R
+code for each result is shown in the interface.
 
 ![Item statistics and an item characteristic curve in the rasch Shiny
 application](reference/figures/app-items.png)
@@ -132,16 +131,19 @@ approaches to item scaling. *Applied Psychological Measurement*, 2(3),
 Andrich, D. (1978b). A rating formulation for ordered response
 categories. *Psychometrika*, 43(4), 561–573.
 
-Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete
-block designs: I. The method of paired comparisons. *Biometrika*,
-39(3/4), 324–345.
-
 Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement
 Theory: Measuring in the Educational, Social and Health Sciences*.
 Springer.
 
+Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete
+block designs: I. The method of paired comparisons. *Biometrika*,
+39(3/4), 324–345.
+
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
+
+Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
+Rasch model. *Journal of Applied Measurement*, 9(3), 249–264.
 
 Linacre, J. M. (1989). *Many-Facet Rasch Measurement*. MESA Press.
 
@@ -150,9 +152,6 @@ Analysis*. Wiley.
 
 Masters, G. N. (1982). A partial credit model for scoring responses with
 ordered categories. *Psychometrika*, 47(2), 149–174.
-
-Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
-Rasch model. *Journal of Applied Measurement*, 9(3), 249–264.
 
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
 Attainment Tests*. Danish Institute for Educational Research. Expanded

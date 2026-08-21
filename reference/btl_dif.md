@@ -26,7 +26,7 @@ btl_dif(
 
 - fit:
 
-  An object from
+  An ordinary paired-comparison fit from
   [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md).
 
 - factors:
@@ -46,9 +46,9 @@ btl_dif(
 
 - p_adjust:
 
-  Multiplicity adjustment across objects within each term; the
-  resolved-size probabilities are adjusted in one pool over all objects,
-  terms, and cell pairs.
+  Multiplicity adjustment over all object-by-term tests; the
+  resolved-size probabilities are adjusted separately in one pool over
+  all objects, terms, and cell pairs.
 
 - alpha:
 
@@ -86,7 +86,10 @@ are aggregated to one weighted mean per judge and opponent band. A
 split-plot analysis then tests judge factors between judges and band
 effects within judges. Each factor level requires at least two judges.
 Confirmatory Wald tests are available only when the base fit supplies a
-valid judge-clustered covariance.
+valid judge-clustered covariance. The base paired-comparison calibration
+must have converged. BTL-EFRM fits are not accepted: the ordinary
+residual and resolution models do not contain the fitted panel and set
+units.
 
 A significant uniform term is followed by a joint refit in which the
 object has one location per factor cell. Differences between these
@@ -98,7 +101,9 @@ refit.
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce
 compensating apparent DIF in invariant objects (Andrich and Hagquist
-2012, 2015).
+2012, 2015). An externally anchored object is not resolved: fixing each
+of its copies at the same anchor would define their difference as zero.
+Anchors on the other objects are retained in the joint refit.
 
 ## References
 
@@ -129,7 +134,7 @@ btl_dif(f, grp, objects = "C")
 #> DIF for paired comparisons: 1 factor(s) [group], main effects
 #> Residual ANOVA per object and term (uniform = term; non-uniform = term x opponent band)
 #>  object  term F_uniform p_uniform_adj uniform_DIF F_nonuniform p_nonuniform_adj
-#>       C group    10.576         0.009           *        0.685            0.514
+#>       C group    10.576         0.017           *        0.685            0.514
 #>  nonuniform_DIF
 #>                
 #> 

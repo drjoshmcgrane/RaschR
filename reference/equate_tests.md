@@ -63,7 +63,8 @@ precision-weighted mean \$\$\hat s=\frac{\sum_j d_j/v_j}{\sum_j
 that accounts for the estimated shift through the items' joint
 covariance. Drift inference requires independent calibrations and at
 least three common items with usable joint covariance information.
-Otherwise the function returns a descriptive link.
+Otherwise the function returns a descriptive link. Fitted calibrations
+must have converged.
 
 ## Examples
 

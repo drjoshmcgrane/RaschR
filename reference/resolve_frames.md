@@ -1,9 +1,7 @@
 # Resolve items that do not hold across frames
 
-Gives named items a separate location in each frame and refits, so they
-continue to measure persons within their own frame while no longer
-constraining the comparison between frames. The result is an ordinary
-frame fit, so every diagnostic applies to it unchanged.
+Gives each named item a separate location in every frame in which it was
+administered, then refits the EFRM.
 
 ## Usage
 
@@ -24,10 +22,8 @@ resolve_frames(fit, items, boot_reps = NULL)
 
 - boot_reps:
 
-  Bootstrap replicates for the refit, resolved as in
-  [`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md):
-  the refit keeps the character of the fit it came from unless a number
-  is given.
+  Bootstrap replicates for the refit. The default retains the fitted
+  specification; a number overrides it.
 
 ## Value
 
@@ -37,33 +33,20 @@ resolved. The resolved versions appear in the item table as
 
 ## Details
 
-The fitted model represents an item's threshold in a frame as the frame
-unit times one location shared across frames, so an item that behaves
-differently in one frame is misrepresented in all of them, and the group
-units absorb part of the discrepancy.
-[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
-tests for such items; this function and
+A resolved item continues to contribute to person measurement within
+each frame but no longer constrains the link between those frames. Its
+versions are named `"item (frame)"`. The remaining common items and the
+linked set design must still identify the frame units; otherwise the
+refit is refused by the model's connectivity and rank checks.
+
+Resolve an item when its within-frame measurement remains defensible but
+its cross-frame location does not. This refit does not estimate a
+separate discrimination and therefore does not resolve a
+discrimination-only flag from
+[`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md).
+Review or remove such an item instead. Use
 [`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
-are the two remedies.
-
-Resolving is the milder one. The item is replaced by one version per
-frame, named `"item (frame)"`, each answered by that frame's persons
-alone. Each version keeps its own location, so the item still
-contributes to the person estimates of everyone who answered it, and it
-no longer contributes to the link between frames. Dropping the item
-removes that contribution as well, from every frame at once.
-
-The link is what pays for it. Person-group units are identified by the
-items two frames have in common, so a resolved item leaves the units
-resting on the items that remain shared, and resolving too many leaves
-them unidentified. This function refuses when a set would be left with
-fewer than two common items; the model's own connectivity check catches
-the remaining cases.
-
-Prefer resolving when the item measures well inside each frame and only
-its comparability is in doubt, and dropping when the item is a poor
-measure wherever it appears. The distinction is empirical: compare the
-unit estimates and the person standard errors the two remedies produce.
+when the item should no longer contribute to measurement.
 
 ## See also
 

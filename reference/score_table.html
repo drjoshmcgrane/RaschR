@@ -89,8 +89,9 @@ estimator's own values; these are <code>NA</code> for MLE.
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame with <code>score</code>, <code>theta</code>, <code>se</code>,
   <code>freq</code>, <code>cum_pct</code> (omitted when no complete responders
-  exist), and <code>extrapolated</code>; <code>NULL</code> for
-  fits without a common raw-score metric (EFRM).</p>
+  exist), and <code>extrapolated</code>; <code>NULL</code> when the fitted items do not
+  share one discrimination or an item is represented by several MFRM or
+  EFRM response cells.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

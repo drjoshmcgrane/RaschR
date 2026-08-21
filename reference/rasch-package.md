@@ -40,9 +40,8 @@ fits their linked-frame extension.
 
 [`run_app`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
 launches the package's Shiny application. It supports data import, model
-fitting, diagnostics, plots, and export without requiring the user to
-write R analysis code. The corresponding R call is shown for each
-analysis.
+fitting, diagnostics, plots, saved analysis projects and reports. The
+corresponding R code is shown for each result.
 
 ## References
 
