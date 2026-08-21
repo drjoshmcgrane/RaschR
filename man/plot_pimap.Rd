@@ -23,8 +23,8 @@ Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
 The targeting display: the person location distribution above the axis and
-the item threshold distribution mirrored below it, on a shared logit
-scale.
+the calibration threshold distribution mirrored below it, on a shared
+logit scale. MFRM and EFRM thresholds belong to response cells.
 }
 \examples{
 set.seed(1)

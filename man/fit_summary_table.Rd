@@ -16,9 +16,11 @@ thresholds structure, and dependence effects when estimated).}
 A data frame with columns \code{statistic} and \code{value}.
 }
 \description{
-Returns the model, estimation method, item-trait chi-square, item and person
-fit-residual moments, fit-location correlations, chi-square flag count, and
-disordered-threshold count as a two-column table.
+Returns the model, estimation method, trait chi-square, calibration and
+person fit-residual moments, fit-location correlations, chi-square flag
+count, and disordered-threshold count as a two-column table. MFRM and EFRM
+summaries label their fitted item-by-facet or item-by-frame columns as
+response cells.
 }
 \examples{
 set.seed(1)

@@ -40,9 +40,8 @@ for dichotomous and polytomous paired comparisons, and
 \section{Graphical interface}{
 
 \code{\link{run_app}} launches the package's Shiny application. It supports
-data import, model fitting, diagnostics, plots, and export without requiring
-the user to write R analysis code. The corresponding R call is shown for
-each analysis.
+data import, model fitting, diagnostics, plots, saved analysis projects and
+reports. The corresponding R code is shown for each result.
 }
 
 \references{

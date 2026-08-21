@@ -53,6 +53,7 @@ accounts for the estimated shift through the items' joint covariance.
 Drift inference requires
 independent calibrations and at least three common items with usable joint
 covariance information. Otherwise the function returns a descriptive link.
+Fitted calibrations must have converged.
 }
 \examples{
 set.seed(1); d <- seq(-1.5, 1.5, length.out = 8)

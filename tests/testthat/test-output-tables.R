@@ -187,3 +187,46 @@ test_that("the fit and targeting summaries are complete tidy tables", {
               is.finite(as.numeric(ttm$value[ttm$statistic == "Coefficient alpha"])))
   expect_no_error(fit_summary_table(fm))
 })
+
+test_that("structural summaries name response cells and withhold alpha", {
+  d <- simulate_mfrm(40, 4, 3, seed = 18)
+  f <- rasch_mfrm(d, person = "person", item = "item", score = "score",
+                  facets = "rater")
+  fs <- fit_summary_table(f)
+  ts <- targeting_table(f)
+  expect_true(any(fs$statistic == "Total response-cell-trait chi-square"))
+  expect_true(any(fs$statistic ==
+                    "Response cells with adjusted chi-square p < .05"))
+  expect_true(any(ts$statistic == "Response-cell location SD"))
+  expect_true(any(ts$statistic == "Calibration threshold minimum"))
+  expect_identical(ts$value[ts$statistic == "Coefficient alpha"],
+                   "not applicable")
+  expect_true(is.na(f$alpha$alpha))
+  expect_false(f$alpha$design_applicable)
+  expect_null(score_table(f))
+  saved_before_flag <- f
+  saved_before_flag$alpha$design_applicable <- NULL
+  expect_error(ctt_table(saved_before_flag), "several frame or facet response cells")
+  expect_error(guttman_table(saved_before_flag), "several frame or facet response cells")
+
+  e <- simulate_efrm(n_per_group = 80, items_per_set = 4, n_sets = 1,
+                     n_groups = 2, seed = 19)
+  tr <- attr(e, "truth")
+  ef <- rasch_efrm(e, item_sets = tr$item_sets, groups = "group", id = "id",
+                   boot_reps = 0)
+  expect_true(is.na(ef$alpha$alpha))
+  expect_false(ef$alpha$design_applicable)
+  expect_null(score_table(ef))
+})
+
+test_that("lr_test refuses PCM fits that are already constrained", {
+  set.seed(46)
+  tau <- list(c(-1, 0, 1), c(-.7, .1, 1.1), c(-1.2, -.1, .8),
+              c(-.8, .2, 1.2), c(-1.1, 0, .9))
+  X <- sapply(tau, function(tt) vapply(rnorm(350), function(th)
+    sample(0:3, 1, prob = item_moments(th, tt)$P), 0L))
+  colnames(X) <- paste0("Q", seq_len(ncol(X)))
+  anchored <- rasch(X, anchors = data.frame(item = "Q1", k = 1, tau = -1))
+  expect_error(lr_test(anchored), "unrestricted PCM")
+  expect_error(lr_test(rasch(X, pc_components = 2)), "unrestricted PCM")
+})

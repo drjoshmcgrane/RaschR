@@ -43,7 +43,11 @@ test_that("EFRM recovers item-set units from common persons (polytomous)", {
   colnames(X) <- sprintf("S%dI%02d", sets, 1:18)
 
   fit <- rasch_efrm(data.frame(X, g = "all"), groups = "g",
-                    item_sets = split(colnames(X), sets))
+                    item_sets = split(colnames(X), sets), boot_reps = 0)
+  expect_true(fit$est$stage1_converged)
+  expect_identical(fit$est$converged,
+                   fit$est$stage1_converged &&
+                     all(fit$linking$alpha_edges$converged %in% TRUE))
   expect_lt(max(abs(log(fit$alpha_table$alpha) - log(alpha_true))), 0.15)
   expect_true(all(fit$phi_table$phi == 1))
   mu_real <- tapply(sapply(dd, mean), sets, mean)
@@ -71,7 +75,7 @@ test_that("EFRM recovers the full unit grid (two sets x two groups)", {
   colnames(X) <- sprintf("%sI%02d", sets, seq_along(sets))
 
   fit <- rasch_efrm(data.frame(X, g = grp), groups = "g",
-                    item_sets = split(colnames(X), sets))
+                    item_sets = split(colnames(X), sets), boot_reps = 80)
   fr <- fit$frames
   rho_true <- outer(alpha_true, phi_true)[cbind(fr$set, fr$group)]
   expect_gt(cor(log(fr$rho), log(rho_true)), 0.95)
@@ -97,6 +101,49 @@ test_that("a single frame reduces to the ordinary rasch fit", {
   est <- setNames(fe$item_arbitrary$location, fe$item_arbitrary$item)
   expect_equal(unname(est[fr$items$item]), fr$items$location, tolerance = 1e-6)
   expect_equal(fe$person$theta, fr$person$theta, tolerance = 1e-6)
+  expect_equal(fe$alpha$alpha, fr$alpha$alpha, tolerance = 1e-12)
+  expect_true(fe$alpha$design_applicable)
+  expect_equal(score_table(fe), score_table(fr), tolerance = 1e-8)
+  expect_equal(ctt_table(fe)$table$item, colnames(X))
+  expect_equal(colnames(guttman_table(fe)$matrix),
+               colnames(X)[order(fr$items$location)])
+  saved_before_flag <- fe
+  saved_before_flag$alpha$design_applicable <- NULL
+  expect_equal(ctt_table(saved_before_flag)$table$item, colnames(X))
+  expect_equal(colnames(guttman_table(saved_before_flag)$matrix),
+               colnames(X)[order(fr$items$location)])
+})
+
+test_that("one-cell EFRM keeps classical summaries but not a heterogeneous-unit score table", {
+  d <- simulate_efrm(n_per_group = 250, items_per_set = 5, n_sets = 2,
+                     n_groups = 1, set_unit_ratio = 1.3, seed = 92)
+  tr <- attr(d, "truth")
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  expect_true(f$alpha$design_applicable)
+  expect_true(is.finite(f$alpha$alpha))
+  expect_equal(ctt_table(f)$table$item,
+               unlist(tr$item_sets, use.names = FALSE))
+  expect_null(score_table(f))
+})
+
+test_that("frame ICCs can separate observed means by a non-frame DIF factor", {
+  set.seed(27); n <- 180; L <- 6
+  grp <- rep(c("g1", "g2"), each = n / 2)
+  cohort <- rep(c("early", "late"), length.out = n)
+  th <- rnorm(n)
+  d <- seq(-1.2, 1.2, length.out = L)
+  phi <- c(g1 = 0.85, g2 = 1 / 0.85)
+  X <- sapply(d, function(x)
+    rbinom(n, 1, plogis(phi[grp] * (th - x))))
+  colnames(X) <- sprintf("I%02d", seq_len(L))
+  f <- rasch_efrm(data.frame(X, grp, cohort),
+                  item_sets = list(core = colnames(X)), groups = "grp",
+                  factors = "cohort", boot_reps = 0)
+  p <- tempfile(fileext = ".pdf")
+  grDevices::pdf(p); on.exit({ grDevices::dev.off(); unlink(p) }, add = TRUE)
+  expect_no_error(plot_icc_frames(f, "I03", group = "cohort"))
+  expect_error(plot_icc_frames(f, "I03", group = "grp"), "frame-defining")
 })
 
 test_that("unlinked structures produce informative errors", {
@@ -116,8 +163,8 @@ test_that("unlinked structures produce informative errors", {
 
 test_that("sets too short for the unit correction refuse loudly", {
   # 3 dichotomous items per set = 2 interior score categories: the
-  # moment correction degenerates there (-0.27 silent log-ratio bias in
-  # the limits study), so the link must refuse rather than estimate
+  # score basis is too weak to support the guarded scale link, so the fit
+  # must refuse rather than return an apparently precise unit estimate
   set.seed(4); n <- 300
   th <- rnorm(n, 0, 1.3)
   X <- sapply(seq(-1, 1, length.out = 6), function(d)
@@ -161,7 +208,7 @@ test_that("the weighted score, not the raw score, drives person estimates", {
     sample(0:2, 1, prob = simEF(t, d[i] + c(-0.5, 0.5), alpha_true[sets[i]]))))
   colnames(X) <- sprintf("S%dI%02d", sets, seq_along(sets))
   fit <- rasch_efrm(data.frame(X, g = "all"), groups = "g",
-                    item_sets = split(colnames(X), sets))
+                    item_sets = split(colnames(X), sets), boot_reps = 0)
   p <- fit$person
   # two persons with the same raw score but different weighted scores
   # must receive different locations
@@ -186,7 +233,7 @@ test_that("the weighted score, not the raw score, drives person estimates", {
   expect_lt(diff(range(p$theta[who])), 1e-12)
 })
 
-test_that("the error-variance correction beats the naive SD ratio", {
+test_that("the semiparametric set link beats the naive SD ratio", {
   set.seed(13); Np <- 500
   alpha_true <- c(0.7, 10 / 7); alpha_true <- alpha_true / exp(mean(log(alpha_true)))
   th <- rnorm(Np, 0, 1.2)
@@ -196,7 +243,7 @@ test_that("the error-variance correction beats the naive SD ratio", {
     sample(0:2, 1, prob = simEF(t, d[i] + c(-0.5, 0.5), alpha_true[sets[i]]))))
   colnames(X) <- sprintf("S%dI%02d", sets, seq_along(sets))
   fit <- rasch_efrm(data.frame(X, g = "all"), groups = "g",
-                    item_sets = split(colnames(X), sets))
+                    item_sets = split(colnames(X), sets), boot_reps = 0)
   # naive ratio from observed SDs of the same per-set person estimates
   dtl <- fit$thresholds_arbitrary
   u <- lapply(1:2, function(s) {
@@ -213,6 +260,60 @@ test_that("the error-variance correction beats the naive SD ratio", {
   est_ratio <- fit$alpha_table$alpha[2] / fit$alpha_table$alpha[1]
   expect_lt(abs(log(est_ratio) - log(true_ratio)),
             abs(log(naive) - log(true_ratio)))
+})
+
+test_that("the semiparametric set link handles a bimodal person distribution", {
+  set.seed(100003); n <- 500; ips <- 8; ratio <- 1.4
+  alpha_true <- c(set1 = ratio^(-0.5), set2 = ratio^0.5)
+  theta <- sample(c(-2.2, 2.2), n, replace = TRUE) + rnorm(n, 0, 0.6)
+  sets <- rep(names(alpha_true), each = ips)
+  delta <- rep(seq(-1.5, 1.5, length.out = ips), 2)
+  X <- vapply(seq_along(sets), function(i)
+    rbinom(n, 1, plogis(alpha_true[sets[i]] * (theta - delta[i]))),
+    numeric(n))
+  colnames(X) <- sprintf("%sI%02d", sets, seq_along(sets))
+  item_sets <- split(colnames(X), sets)
+  fit <- rasch_efrm(data.frame(X, group = "g1"), item_sets = item_sets,
+                    groups = "group", boot_reps = 0)
+  got <- with(fit$alpha_table, setNames(alpha, set))
+  expect_lt(abs(log(got["set2"] / got["set1"]) - log(ratio)), 0.12)
+
+  # Set names are sorted before linking. Relabel the same sets so that the
+  # other response set defines the finite-grid coordinate, then map the
+  # estimates back to the original sets. The grid approximation should not
+  # make the reported scale ratio depend materially on that direction.
+  rev_fit <- rasch_efrm(
+    data.frame(X, group = "g1"),
+    item_sets = list(z_first = item_sets$set1, a_second = item_sets$set2),
+    groups = "group", boot_reps = 0
+  )
+  rev_got <- with(rev_fit$alpha_table, setNames(alpha, set))
+  expect_equal(unname(log(rev_got["a_second"] / rev_got["z_first"])),
+               unname(log(got["set2"] / got["set1"])), tolerance = 0.01)
+})
+
+test_that("EFRM linking permits different person distributions by group", {
+  set.seed(100004)
+  ng <- 700L; ips <- 8L
+  grp <- rep(c("lower", "upper"), each = ng)
+  theta <- c(rnorm(ng, -1.4, 0.8),
+             sample(c(0.7, 2.4), ng, replace = TRUE) + rnorm(ng, 0, 0.45))
+  alpha <- c(set1 = 1.4^(-0.5), set2 = 1.4^0.5)
+  phi <- c(lower = 1.5^(-0.5), upper = 1.5^0.5)
+  sets <- rep(names(alpha), each = ips)
+  delta <- rep(seq(-1.8, 1.8, length.out = ips), 2L)
+  X <- vapply(seq_along(sets), function(i)
+    rbinom(length(theta), 1,
+           plogis(alpha[sets[i]] * phi[grp] * (theta - delta[i]))),
+    numeric(length(theta)))
+  colnames(X) <- sprintf("%sI%02d", sets, seq_along(sets))
+  f <- rasch_efrm(data.frame(X, group = grp),
+                  item_sets = split(colnames(X), sets), groups = "group",
+                  boot_reps = 0)
+  got_a <- with(f$alpha_table, setNames(alpha, set))
+  got_p <- with(f$phi_table, setNames(phi, group))
+  expect_lt(abs(log(got_a["set2"] / got_a["set1"]) - log(1.4)), 0.12)
+  expect_lt(abs(log(got_p["upper"] / got_p["lower"]) - log(1.5)), 0.14)
 })
 
 test_that("EFRM honours the -1 missing code", {
@@ -297,7 +398,7 @@ test_that("unit Wald tests accompany the equal-unit comparison", {
     sample(0:2, 1, prob = simEF(t, d2[i] + c(-0.5, 0.5), alpha_true[sets[i]]))))
   colnames(X2) <- sprintf("S%dI%02d", sets, seq_along(sets))
   f2 <- rasch_efrm(data.frame(X2, g = "all"), groups = "g",
-                   item_sets = split(colnames(X2), sets))
+                   item_sets = split(colnames(X2), sets), boot_reps = 80)
   expect_lt(abs(f2$efrm_vs_rasch$two_delta_ll), 1e-3)   # invariant by construction
   expect_match(f2$efrm_vs_rasch$informative_for, "person-side")
   ut2 <- f2$efrm_vs_rasch$unit_tests
@@ -318,6 +419,16 @@ test_that("the joint stage-1 covariance is coherent and its draws honest", {
                tolerance = 1e-10)
   expect_equal(unname(uc$cov_joint[K + seq_len(G), K + seq_len(G)]),
                unname(uc$cov_log_phi), tolerance = 1e-10)
+  expect_equal(dim(uc$cov_log_alpha_phi), c(2L, 2L))
+  expect_equal(dim(uc$cov_log_alpha), c(2L, 2L))
+  fr <- fit$frames[1, ]
+  ia <- match(fr$set, fit$alpha_table$set)
+  ig <- match(fr$group, fit$phi_table$group)
+  expected_rho_se <- sqrt(pmax(
+    fit$alpha_table$se_log_alpha[ia]^2 +
+      fit$phi_table$se_log_phi[ig]^2 +
+      2 * uc$cov_log_alpha_phi[ia, ig], 0))
+  expect_equal(fr$se_log_rho, expected_rho_se, tolerance = 1e-12)
   # the log-phi block respects the sum-to-zero centring: every row of the
   # phi sub-block sums to zero, so every draw's log phi perturbation does too
   expect_lt(max(abs(rowSums(uc$cov_joint[K + seq_len(G), K + seq_len(G),
@@ -360,7 +471,7 @@ test_that("frame_invariance tests the invariance the model assumes", {
   inv <- frame_invariance(f)
   expect_s3_class(inv, "rasch_frame_invariance")
   expect_equal(inv$summary$n_location, 0L)
-  expect_equal(inv$summary$n_discrimination, 0L)
+  expect_true(is.na(inv$summary$n_discrimination))
   expect_lt(inv$summary$ratio, 1.5)
   expect_output(print(inv), "No item's location differs")
 
@@ -393,11 +504,8 @@ test_that("frame_invariance tests the invariance the model assumes", {
   expect_error(frame_invariance(f1), "at least two person groups")
 })
 
-test_that("frame_invariance separates location from discrimination", {
-  # a steeper item keeps its location, so only the fit-statistic
-  # comparison can see it
-  skip_on_cran()   # needs a large sample for the discrimination test
-  set.seed(21); N <- 2000; K <- 8
+test_that("conditional frame invariance reports discrimination descriptively", {
+  set.seed(21); N <- 700; K <- 8
   phi <- c(0.845, 1.183); delta <- seq(-1.5, 1.5, length.out = K)
   mk <- function(g, disc) {
     th <- rnorm(N, 0, 1.3)
@@ -412,14 +520,17 @@ test_that("frame_invariance separates location from discrimination", {
   f <- rasch_efrm(d, item_sets = list(set1 = colnames(X)), groups = "group",
                   id = "id", boot_reps = 0)
   inv <- frame_invariance(f)
-  expect_true(all(c("I03", "I06") %in%
-                    inv$discrimination$item[inv$discrimination$flagged]))
-  # the test comes from infit; the disc columns are descriptive only
   expect_true(all(c("infit_1", "infit_2", "infit_z", "p_adj",
                     "disc_1", "disc_2", "disc_ratio") %in%
                     names(inv$discrimination)))
   expect_false("statistic" %in% names(inv$discrimination))
-  expect_output(print(inv), "Discrimination differs")
+  expect_true(all(is.na(inv$discrimination$p)))
+  expect_true(all(is.na(inv$discrimination$p_adj)))
+  expect_true(all(is.na(inv$discrimination$flagged)))
+  expect_true(all(is.finite(inv$discrimination$disc_ratio)))
+  expect_equal(inv$locations$p_adj, p.adjust(inv$locations$p, "holm"))
+  expect_output(print(inv), "descriptive")
+  expect_output(print(inv), "bootstrap")
 })
 
 test_that("adjust chooses the screening threshold without hiding either p", {
@@ -441,20 +552,20 @@ test_that("adjust chooses the screening threshold without hiding either p", {
                   group = rep(c("g1", "g2"), each = N), check.names = FALSE)
   f <- rasch_efrm(d, item_sets = list(set1 = colnames(X)), groups = "group",
                   id = "id", boot_reps = 0)
-  fl <- function(inv) sort(unique(c(
-    inv$locations$item[inv$locations$flagged],
-    inv$discrimination$item[inv$discrimination$flagged])))
+  fl <- function(inv) sort(unique(inv$locations$item[
+    inv$locations$flagged %in% TRUE]))
   strict <- frame_invariance(f, adjust = "holm")
   loose <- frame_invariance(f, adjust = "none")
 
-  # the loose screen can only ever flag a superset, and here flags more
+  # the loose screen can only ever flag a superset
   expect_true(all(fl(strict) %in% fl(loose)))
-  expect_gt(length(fl(loose)), length(fl(strict)))
-  # only the flag moves: both probabilities are reported either way, and
-  # the statistics themselves are untouched
+  # only the location flag moves: both probabilities are reported either
+  # way, and the descriptive discrimination statistics are untouched
   expect_identical(strict$locations$p, loose$locations$p)
   expect_identical(strict$locations$p_adj, loose$locations$p_adj)
   expect_identical(strict$discrimination$infit_z, loose$discrimination$infit_z)
+  expect_true(all(is.na(strict$discrimination$p)))
+  expect_true(all(is.na(loose$discrimination$p_adj)))
   # the printed output names the rule it applied, so a screen is not
   # mistaken for a confirmed difference
   expect_output(print(loose), "unadjusted, screening")

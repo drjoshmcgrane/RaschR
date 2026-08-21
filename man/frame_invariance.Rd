@@ -2,139 +2,90 @@
 % Please edit documentation in R/frame-invariance.R
 \name{frame_invariance}
 \alias{frame_invariance}
-\title{Test the item invariance a frame model assumes}
+\title{Test item invariance across frames}
 \usage{
-frame_invariance(fit, alpha = 0.05, adjust = c("holm", "none"))
+frame_invariance(
+  fit,
+  alpha = 0.05,
+  adjust = c("holm", "none"),
+  se_method = c("conditional", "bootstrap"),
+  boot_reps = 200,
+  seed = NULL
+)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch_efrm}}.}
 
-\item{alpha}{Significance level for flagging items.}
+\item{alpha}{Significance level used for flags.}
 
-\item{adjust}{Multiplicity adjustment used to flag items: \code{"holm"},
-applied within the location table and within the discrimination table
-separately, or \code{"none"} for screening. Both probabilities are
-reported regardless, so the choice changes only \code{flagged}.}
+\item{adjust}{Either \code{"holm"} or \code{"none"}. Both raw and
+adjusted probabilities are returned.}
+
+\item{se_method}{\code{"conditional"} treats the estimated frame units as
+fixed; \code{"bootstrap"} refits the complete analysis to person
+resamples within frame.}
+
+\item{boot_reps}{Number of bootstrap replicates. At least 30 are required.}
+
+\item{seed}{Optional bootstrap seed.}
 }
 \value{
-A list of class \code{"rasch_frame_invariance"} with five
-  elements. \code{locations} holds one row per item, item set, and frame
-  pair: the set, the two frames, the locations on the common scale, their
-  difference, its standard error, statistic, both probabilities, and the
-  flag. \code{discrimination} holds the same rows compared
-  on their within-frame infit statistics: \code{infit_1}, \code{infit_2},
-  the standardised difference \code{infit_z}, both probabilities, the
-  flag, and alongside them the estimated discrimination for each frame
-  (\code{disc_1}, \code{disc_2}) and its ratio. \code{summary} holds one
-  row per set and frame pair: the number of items, the root mean squared
-  difference, the root mean squared standard error, their ratio, and the
-  number of items flagged on each count. \code{alpha} and \code{adjust}
-  record the significance level and multiplicity rule the flags used.
+An object of class \code{"rasch_frame_invariance"}. The
+  \code{locations} and \code{discrimination} tables contain the pairwise
+  item comparisons; \code{summary} contains set-level RMSD and RMSE
+  summaries. Under the conditional method, discrimination \code{p},
+  \code{p_adj}, and \code{flagged} are \code{NA}. \code{excluded} lists
+  items whose observed category structures differed between calibrations.
+  The remaining components record the multiplicity and uncertainty settings.
 }
 \description{
-Calibrates each frame separately and compares each item across the frames
-it appears in, on two counts: whether it keeps its location once the
-frame units are accounted for, and whether it discriminates alike. A
-frame model assumes both, differing only by the frame's unit; this
-function tests the assumption rather than imposing it.
+Calibrates each frame separately and compares the locations and
+discriminations of items administered in more than one frame.
 }
 \details{
-The comparison is possible only where an item set is taken by more than
-one person group, since an item must appear in at least two frames to be
-compared across them. Item sets partition the items, so there is no
-equivalent test across sets: screen those with the ordinary item fit
-statistics within each set instead.
+Let \eqn{\hat\delta_{if}} be the location of item \eqn{i} from a separate
+calibration of frame \eqn{f}, and let \eqn{\hat\rho_f} be that frame's
+unit from the fitted EFRM. The common-scale location is
+\eqn{\hat\delta_{if}^{*}=\hat\delta_{if}/\hat\rho_f}. Because each
+separate calibration has its own origin, pairwise differences are centred
+over the common thresholds before testing.
 
-Each frame is refitted with \code{\link{rasch}} on its own persons and
-items, giving locations in that frame's natural unit and centred on that
-frame's origin. Dividing by the frame unit from the original fit puts
-them on the common scale, where the model says they should agree. The
-reported difference is between the two calibrations, its standard error
-combines theirs (the person samples are disjoint, so the calibrations are
-independent), and probabilities are Holm-adjusted across items.
+The conditional method treats the fitted frame units as fixed.
+Let \eqn{w_i=m_i/\sum_jm_j}, where \eqn{m_i} is the number of
+thresholds for item \eqn{i}. If
+\eqn{C=I-\mathbf{1}\mathbf{w}^{\mathsf T}} centres the common items on the
+threshold-weighted origin, the covariance of the location differences is
+\deqn{C\{V_1/\hat\rho_1^2+V_2/\hat\rho_2^2\}C^{\mathsf T}.}
+This is fast and conditions on the estimated units. The discrimination
+table gives the difference between the two standardised infit statistics,
+divided by \eqn{\sqrt{2}}, together with fitted slopes and their ratio.
+These quantities are descriptive under the conditional method; it does not
+report discrimination probabilities.
 
-The summary compares the root mean squared difference with the root mean
-squared standard error, following Humphry (2005). A root mean squared
-difference materially larger than the root mean squared standard error
-indicates item behaviour that the frame units do not account for, whether
-or not individual items reach significance.
+With \code{se_method = "bootstrap"}, persons are resampled within frame
+and the EFRM and separate frame calibrations are refitted. Location tests
+then use the empirical covariance of the centred differences. The
+discrimination test uses the bootstrap standard error of the log slope
+ratio. This includes uncertainty in the fitted frame units but is more
+computationally demanding.
 
-A location comparison cannot detect a difference in discrimination: a
-steeper item still crosses one half in the same place, so its location
-survives intact. The second comparison uses the within-frame fit
-statistics, which carry no unit because each is computed against its own
-frame's model, and treats the difference of two independent standardised
-infit statistics as having variance 2. It is conservative and needs a
-reasonable sample: with 8 items and two of them discriminating half again
-as steeply in one frame, it flagged those two in 14\% of replicates at
-500 persons per frame, 45\% at 1,000 and 88\% at 2,000.
+Raw and Holm-adjusted probabilities are reported. With conditional
+uncertainty, Holm adjustment covers the location comparisons. With
+bootstrap uncertainty, it covers the combined family of location and
+discrimination comparisons.
+The summary gives the root mean squared location difference and root mean
+squared standard error for each set and frame pair. Items from different
+sets cannot be compared because the sets partition the items.
+Location differences are relative to the mean difference of the common
+items. Concentrated DIF can therefore produce non-zero centred contrasts
+for items that were not themselves shifted. The table identifies the
+pattern of relative departures; item content or external anchors are needed
+to determine which items provide the defensible reference.
 
-The two comparisons are therefore not equally sensitive, and the gap
-matters because the two departures do comparable damage. Matched so that
-each moves a unit ratio by six or seven per cent -- two items shifted a
-logit, against two items discriminating half again as steeply -- the
-location comparison found the shifted items 95\% of the time at 500
-persons per frame and always by 1,000, where the discrimination
-comparison reached 14\% and 45\%. A clean result at a few hundred
-persons per frame is thus much stronger evidence against differential
-item functioning than against differential discrimination: it has ruled
-out one departure and barely tested the other.
-
-Under a true null -- frames differing by a unit ratio and nothing else --
-both comparisons flag between 0.1 and 1.5\% of items, Holm across the
-family making them conservative. That calibration does not survive
-contamination on the location side. Where two items of eight really are
-shifted, the remaining six differ from the compromise the model settles
-on, and the comparison flags them more readily the larger the sample:
-19\% of sound items at 500 persons per frame, 44\% at 1,000 and 61\% at
-2,000. Read a long list of flagged locations as evidence that some item
-is displaced rather than that all of them are.
-
-The discrimination table also reports a Winsteps-style index for each
-frame (\code{disc_1}, \code{disc_2}) and their ratio, because a
-standardised difference says only that something differs while the index
-says how much and in which direction. It is fitted by maximum likelihood
-on each item's own responses with the person measures and item location
-held at their Rasch values, so it is relative to the frame's own model
-and the unit cancels. Read it as description rather than estimate: the
-measures are estimated including the item being scored, which biased the
-index to about 1.19 for a true discrimination of 1.0 in simulation and
-attenuated a true frame ratio of 1.5 to about 1.22. Tested on its own it
-is also the weaker instrument, detecting a 1.5-fold difference in 63\%
-of replicates at 2,000 persons per frame against the infit comparison's
-90\%, which is why the test column comes from the latter.
-
-Which item to flag is a screening decision, not a confirmatory one, and
-the two call for different thresholds. \code{adjust} chooses: Holm across
-every item and frame pair, or none. Both probabilities are reported
-either way, so the choice changes only \code{flagged}. Screening the ten
-items measured, Holm cost between 8 and 42 points of sensitivity in
-simulation, and that shows up in the repair: dropping the flagged items
-from a planted unit ratio of 1.40 left the ratio at 1.479 under Holm and
-1.433 unadjusted, against 1.406 for dropping the items actually planted.
-The loose screen is not free -- where misfit is strong it flags sound
-items too, and \code{\link{drop_items}} then refuses drops that would
-empty a set -- so use \code{"none"} to decide which items to examine and
-\code{"holm"} to report which ones differ.
-
-Dropping is a complete cure where the item is found: removing the
-planted items restored the ratio in every simulated departure, so what
-limits the repair is detection rather than removal. With two items of ten
-breaking invariance a screen recovers most of the ratio; with four of ten
-none tested rescues it, and the item set itself is the problem. Where
-between those two the repair gives out has not been measured.
-
-A flagged item has two remedies, and the diagnosis here is
-frame-specific while one of them is not. \code{\link{drop_items}} takes
-the item out of every frame, so it stops measuring anyone, including in
-the frames it behaved perfectly well in.
-\code{\link{resolve_frames}} gives it a separate location per frame
-instead: it stops linking the frames, which is what this test found
-wrong with it, and goes on measuring the person within their own frame.
-Resolving costs a parameter per extra frame and leaves the group units
-resting on the items that remain common; dropping costs every person
-that item's contribution. Prefer resolving when the item measures well
-inside each frame, and dropping when it does not measure well anywhere.
+A flagged item may be resolved with \code{\link{resolve_frames}} when it
+remains useful within frames, or removed with \code{\link{drop_items}}
+when it fits poorly more generally. Either change requires a refit. The
+invariance tests require a converged frame calibration.
 }
 \examples{
 d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,

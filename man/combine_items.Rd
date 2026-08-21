@@ -17,7 +17,11 @@ almost always required because subtests change the maximum scores.}
 }
 \value{
 A new \code{\link{rasch}} fit on the combined structure, with the
-  combinations recorded in its notes.
+  combinations recorded in its notes. Person and item estimates are
+  recalculated. Fit grouping, external anchors on unchanged items, keyed
+  scoring, PCM constraints and optimisation controls are retained.
+  Anchored items cannot be combined because the resulting superitem has no
+  corresponding external anchor.
 }
 \description{
 Replaces each nominated item group by a polytomous super-item whose score is

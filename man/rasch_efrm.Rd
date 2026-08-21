@@ -37,8 +37,11 @@ Several columns define crossed group cells. Their units are returned in
 omnibus Wald tests. Structurally unidentified units are refused. Very
 imprecise but identified units are retained with a warning.}
 
-\item{id, factors, items, n_groups, adjust_N, na_codes}{As in
-\code{\link{rasch}}.}
+\item{id}{Person identifier, either a column name or one value per row.
+EFRM data require one response row per person, so identifiers must be
+unique.}
+
+\item{factors, items, n_groups, adjust_N, na_codes}{As in \code{\link{rasch}}.}
 
 \item{maxit, tol}{Outer iteration cap and convergence tolerance of the
 bilinear pairwise stage.}
@@ -51,7 +54,8 @@ propagation; fast, default) or \code{"bootstrap"} (full person
 bootstrap of all stages).}
 
 \item{boot_reps}{Bootstrap replicates; defaults to 300 for the linking
-bootstrap and 200 for the full bootstrap.}
+bootstrap and 200 for the full bootstrap. Use zero to omit unit
+uncertainty; otherwise at least 30 are required.}
 }
 \value{
 An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
@@ -73,155 +77,55 @@ differ across item-set by person-group frames. For item \eqn{i} in set
 }
 \details{
 The partial credit model holds within each frame in its natural unit.
-Person-group units \eqn{\phi_g} and centred set thresholds are estimated by
-within-frame pairwise conditional maximum likelihood.
+Person-group units \eqn{\phi_g} are identified from common item thresholds
+across groups. Item sets partition the items, so set units \eqn{\alpha_s}
+are identified instead from persons observed in more than one set. The
+set-linking graph and the group-by-set frame graph must each connect to a
+common scale.
 
-The two kinds of unit are estimated by different routes, because the
-design offers different information about each. A set taken by two
-person groups gives the same items calibrated at two scales, so the
-threshold pattern identifies \eqn{\phi_g} conditionally, without
-reference to person estimates. Item sets partition the items, so no item
-is calibrated at two scales and \eqn{\alpha_s} has no such channel: it is
-identified person-side, from the dispersion of the estimates of persons
-common to two sets. That route carries estimation error into the
-quantity being compared, which is why it needs the correction described
-next, and why the set units are less precise than the group units at the
-same sample size. Placing an item in two sets would create the missing
-channel but requires administering it twice to the same person, and the
-resulting carry-over biases the recovered ratio far more than the error
-it would avoid; overlapping sets are therefore refused.
+Set units use a semiparametric likelihood for persons observed in each
+linked pair of sets. For sets \eqn{a} and \eqn{b}, it maximises
+\deqn{\prod_n\int P(X_{na}\mid u)P(X_{nb}\mid ru+c)\,dF_{g(n)}(u),}
+where the masses of each observed group's \eqn{F_g}, the scale ratio
+\eqn{r} and the offset \eqn{c} are estimated jointly on a fixed grid. This
+avoids prescribing a normal or common person distribution across groups.
+The conditional thresholds and group units are held fixed in this step;
+only \eqn{r}, \eqn{c}, and the nuisance masses are estimated. The linked
+parameters are then
+\deqn{\delta_{ik}=\widetilde\delta_{ik}/\alpha_s+\mu_s,
+\qquad \rho_{sg}=\alpha_s\phi_g.}
+Score moments supply starting values and screen weak links. Response
+patterns must span a score range of at least four within a set. Overlapping
+item sets are not permitted. The public
+convergence flag covers both estimation stages; \code{stage1_converged}
+records the conditional stage separately.
 
-Item-set units \eqn{\alpha_s} and set locations are estimated from persons
-common to linked sets by true-score variance ratios, with the true-score variance
-recovered by a truncated-score-moment correction: the mean and variance
-of the weighted likelihood score map over the non-extreme scores are
-exact functions of the person location given the fitted thresholds, and
-their person-distribution expectations are estimated through score
-weights that are unbiased for any person distribution because the raw
-score is sufficient. The naive \eqn{var(\hat u) - mean(SE^2)} correction
-is badly calibrated on short tests (the reported error variance
-overstates the actual one and weighted likelihood shrinkage makes the
-errors covary negatively with the locations); its residual distortion
-biased the log unit ratio upward by about 0.05 at eight dichotomous
-items per set, confirmed against an external TAM 2PL slope-group
-anchor, while the corrected estimator is unbiased there. The linking
-graph must connect all sets to a common scale, and each linking
-person's response pattern must span a score range of at least 4 within
-a set (at least four dichotomous items; six or more are recommended)
--- shorter patterns cannot support the correction and are refused.
-The correction computes score distributions from the fitted
-within-frame model, so it inherits violations of it: within-set
-discrimination heterogeneity or guessing bias the recovered units
-roughly in proportion, mistargeting by two logits adds a few per cent,
-and person distributions concentrated far off-target (such as widely
-separated modes) can bias the ratio substantially without warning --
-inspect targeting before trusting units from such designs.
+The hybrid covariance combines the pairwise Godambe covariance with a
+person bootstrap for set linking. Each replicate jointly redraws the
+within-frame thresholds and group units, then rebuilds the link. The joint
+draws retain covariance among common-scale thresholds, set units and group
+units. With \code{se_method = "bootstrap"}, the complete model is refitted
+to each person resample.
 
-The default hybrid standard errors combine the pairwise Godambe covariance,
-a person bootstrap for set linking, and delta-method propagation. Each
-linking replicate also draws the within-frame parameters from their joint
-stage-one covariance: without that redraw the set-unit standard errors
-understate by about 20\% and the unit tests reject a true null at 9-10\%;
-with it they reject at 4.9\% over 1,200 simulated replicates, stable
-across item counts, sample sizes, imbalance, and weak linking, and
-matching a full-bootstrap benchmark. The corrected set-unit estimator
-holds this calibration across designs: null size 3--5\% with 93--99\%
-coverage over 5--15 items per set, unit ratios 1--2, partial credit
-items, booklet missingness, pairwise-only person overlap, and person
-skewness to 2.8 -- where it stays unbiased while a normal-population
-MML anchor drifts. The estimator's fixed-design offset is small --
-around one per cent on the unit ratio at eight dichotomous items per
-set, decaying with set length -- and intervals remain calibrated to at
-least five thousand linking persons at fine Monte Carlo resolution;
-only near ten thousand does the offset approach the sampling error,
-and there longer or polytomous sets, not more persons, buy further
-accuracy. The person-group units are unaffected: estimated in the
-within-frame conditional stage rather than through the linking
-variance ratio, they show no detectable bias (0.000 over 60 replicates
-at twelve items per set) with 95\% interval coverage, and they are the
-more precise of the two: the conditional channel is close to twice as
-precise as the linking channel at eight items per frame, narrowing to
-about 15\% by twenty. A significant group unit beside a
-non-significant set unit therefore reflects the design as much as the
-data. With \code{se_method = "bootstrap"}, the complete
-model is refitted to each person resample and all reported covariance comes
-from the bootstrap distribution.
+The \code{efrm_vs_rasch} component records the within-frame composite
+log-likelihood comparison between group-dependent and equal group units.
+This difference is descriptive and contains no information about set units,
+which are identified at the linking stage. The accompanying Wald omnibus
+tests provide inference for the group- and set-unit families.
 
-Screen the items before interpreting a unit. Both units are ratios of
-quantities estimated within frames, so an item that misbehaves in one
-frame and not another enters the estimate as though it were a unit
-difference. The two units are exposed differently, because their frames
-are built differently.
+The model assumes that an item retains its location and discrimination
+across the frames in which it appears, apart from the frame unit.
+\code{\link{frame_invariance}} examines this assumption by separate frame
+calibrations. Misfit concentrated within one item set can also distort its
+estimated unit; inspect item fit and targeting before interpreting unit
+differences. \code{\link{drop_items}} and \code{\link{resolve_frames}}
+provide refitted sensitivity analyses.
 
-Person-group units are exposed to ordinary DIF. The same items are
-answered by every group, so an item can sit differently in one group
-than another: two items in twelve carrying a one-logit shift moved a
-recovered ratio by 7 to 11\% in simulation, and four items whose
-discrimination differed by half moved it by 10 to 12\%. Neither the
-fitted object nor \code{\link{dif_anova}} can detect this. The fit holds
-one location per item, shared across the frames it appears in and scaled
-by the frame unit, so its per-frame estimates agree by construction; and
-the grouping factor that defines the frames is constant within each
-frame, so \code{dif_anova} refuses it. Testing the assumption means
-stepping outside the model, which is what \code{\link{frame_invariance}}
-does: it calibrates each frame separately, puts the locations on the
-common scale, and compares them item by item.
-
-Item-set units are exposed to something else entirely. Sets partition
-the items, so no item appears in two sets and DIF across sets is not
-defined. What distorts a set unit is misfit CONCENTRATED IN ONE SET,
-which the other set carries nothing to offset. This is the largest
-effect measured anywhere for these estimators: with 8 items per set,
-two over-discriminating items in one set moved a planted ratio of 1.40
-to 1.17, two under-discriminating items moved it to 1.73, and four
-over-discriminating items to 1.02 -- a real 40\% unit difference read
-as none at all. The same misfit spread evenly across both sets cancels
-almost exactly (1.41).
-
-Screen on the standardised fit residual, \code{fit_resid} in
-\code{items}, and repair with \code{\link{drop_items}}. Of the fit
-statistics compared in simulation it is the one that restores the ratio:
-against a planted 1.40 read as 1.69 under two under-discriminating
-items, dropping on the fit residual recovered 1.44 where the chi-square
-item fit test reached only 1.64, and dropping the items actually planted
-gave 1.43.
-
-Rank on it; do not threshold on it. A fixed cut such as
-\code{abs(fit_resid) > 2} is a statement about detectability rather than
-about magnitude, so it flags more items the more persons there are: with
-two of eight items in a set discriminating twice as steeply, the
-remaining items genuinely depart from the compromise the model settles
-on, and that departure clears the cut in 0.8 of 14 sound items at 500
-persons but 7.0 at 6,000. On the Rosenberg Self-Esteem data used by the
-wording case study, at 6,000 respondents, the cut selects 7 of the 10
-items and \code{\link{drop_items}} then refuses the drop for emptying a
-set.
-
-Order the items by \code{abs(fit_resid)} instead, drop the largest
-departure, and refit. Stop when the sets no longer differ in unit, which
-is a question for the test in \code{efrm_vs_rasch$unit_tests} rather than
-for the ratio: once there is no difference left, a further drop has
-nothing to explain and is fitting noise. On the self-esteem data the
-ranking puts Q8 first at 22.5 and Q4 second at 12.4 -- the same two items
-a free-slope model fitted to the same respondents ranks lowest, and the
-two orderings agree on the extreme three. Dropping Q8 alone moves the
-ratio from 1.24 to 1.03 at p = 0.63; dropping Q4 as well does not improve
-on that but returns a significant difference of 1.16, which is what
-ignoring the stopping rule costs.
-
-Treat a badly fitting item as evidence about its set membership: an
-item that shares no unit with its set, such as an ambivalently worded
-item filed among the negatively worded ones, is better removed than
-retained, and cannot be given a set of its own because a single item
-carries no dispersion to estimate a unit from.
-
-The dichotomous model and the theory of frame-dependent units follow
-Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
-an error-corrected method-of-moments implementation of the variance-ratio
-argument in Humphry (2005), rather than the likelihood proposed in section
-5.3 of that thesis. The polytomous, multigroup, and crossed-frame forms are
-extensions implemented in this package. For these designs, the full
-bootstrap gives the least conditional account of uncertainty.
+The dichotomous model follows Humphry (2005) and Humphry and Andrich
+(2008). The polytomous, multigroup and crossed-frame forms are extensions
+implemented in this package. The discrete nonparametric margin follows the
+Rasch estimation approach of Follmann (1988); its use for linked item-set
+units is an extension implemented here.
 }
 \examples{
 \donttest{
@@ -250,6 +154,10 @@ Journal of Applied Measurement, 4(3), 205--221.
 
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
+
+Follmann, D. (1988). Consistent estimation in the Rasch model based on
+nonparametric margins. Psychometrika, 53, 553--562.
+\doi{10.1007/BF02294407}
 
 Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 Measurement. PhD thesis, Murdoch University.

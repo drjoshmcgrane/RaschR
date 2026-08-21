@@ -14,6 +14,55 @@
   out
 }
 
+# Crossed factor cells must be keyed by the factor codes, not by pasting the
+# labels and refactoring the result. Pasted labels can collide (for example,
+# A = "a:b", B = "c" and A = "a", B = "b:c"). The ordinary labels are
+# retained where unique; only genuinely ambiguous labels receive a cell tag.
+.factor_keys <- function(x) {
+  x <- as.data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
+  if (!ncol(x)) stop("at least one factor is needed")
+  parts <- lapply(x, function(v) {
+    z <- as.character(v)
+    ifelse(is.na(z), "N;", paste0("S", nchar(z, type = "bytes"), ":", z, ";"))
+  })
+  do.call(paste0, parts)
+}
+
+.factor_cells <- function(x, sep = ":") {
+  x <- as.data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
+  if (!ncol(x)) stop("at least one factor is needed")
+  fs <- lapply(x, function(v) {
+    if (is.factor(v)) droplevels(v) else factor(v)
+  })
+  code <- rep(1, nrow(x)); mult <- 1
+  for (f in fs) {
+    code <- code + (as.integer(f) - 1) * mult
+    mult <- mult * max(nlevels(f), 1)
+  }
+  present <- sort(unique(code[!is.na(code)]))
+  first <- match(present, code)
+  labels <- vapply(first, function(i)
+    paste(vapply(fs, function(f) as.character(f[i]), ""), collapse = sep), "")
+  clash <- duplicated(labels) | duplicated(labels, fromLast = TRUE)
+  if (any(clash))
+    labels[clash] <- paste0(labels[clash], " [cell ", present[clash], "]")
+  # A literal user label can itself equal a generated disambiguation label.
+  # In that exceptional case the stable mixed-radix code is unambiguous.
+  if (anyDuplicated(labels)) labels <- paste0("cell ", present, ": ", labels)
+  factor(code, levels = present, labels = labels)
+}
+
+.check_column_names <- function(x) {
+  if (!is.data.frame(x)) return(invisible(NULL))
+  nm <- names(x)
+  if (anyNA(nm) || any(!nzchar(nm)))
+    stop("data column names must be non-missing and non-empty")
+  if (anyDuplicated(nm))
+    stop("data column names must be unique: ",
+         paste(unique(nm[duplicated(nm)]), collapse = ", "))
+  invisible(NULL)
+}
+
 # obs_p and est_p are observed and expected category PROPORTIONS, not
 # probabilities from a test: a category nobody chose has an observed
 # proportion of exactly zero, which "< 0.001" would misreport.

@@ -74,7 +74,8 @@ test_that("frame_invariance results print without scientific notation", {
   expect_false(any(grepl("e[-+][0-9]", capture.output(print(inv$locations)))))
   # the returned elements match what the documentation claims
   expect_setequal(names(inv), c("locations", "discrimination", "summary",
-                                "alpha", "adjust"))
+                                "excluded", "alpha", "adjust", "se_method",
+                                "boot_reps_used"))
 })
 
 test_that("a frame model's virtual item name resolves to its source item", {
@@ -125,9 +126,9 @@ test_that("the report and saved outputs carry the invariance test", {
   # is a question about power, tested elsewhere, not about the report
   expect_true(any(grepl("Locations differing across frames", x)) ||
                 any(grepl("No item's location differs", x)))
-  expect_true(any(grepl("Discrimination differing across frames", x)) ||
-                any(grepl("No item's discrimination differs", x)))
-  expect_true(any(grepl("root mean squared", x)))     # the summary is there
+  expect_true(any(grepl("Descriptive discrimination comparisons", x)))
+  expect_true(any(grepl("bootstrap", x, ignore.case = TRUE)))
+  expect_true(any(grepl("<th>rmsd</th>", x, fixed = TRUE))) # summary is there
   expect_false(any(grepl(">[0-9.]+e[-+][0-9]+<", x)))
 
   dir <- tempfile(); dir.create(dir)

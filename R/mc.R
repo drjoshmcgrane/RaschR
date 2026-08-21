@@ -190,12 +190,16 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
   if (!item %in% colnames(fit$mc$raw)) stop("no such keyed item: ", item)
   r <- fit$mc$raw[, item]
   idx <- match(item, colnames(fit$X))
-  th <- .person_estimates(fit$X[, -idx, drop = FALSE],
-                          fit$tau_list[-idx])$theta     # rest measure
-  ok <- !is.na(r) & !is.na(th)
-  ng <- min(n_groups, max(2, floor(sum(ok) / 25)))
-  ci <- cut(rank(th[ok], ties.method = "first"), ng, labels = FALSE)
-  mid <- tapply(th[ok], ci, mean)
+  rp <- .person_estimates(fit$X[, -idx, drop = FALSE],
+                          fit$tau_list[-idx])          # rest measure
+  th <- rp$theta
+  candidate <- !is.na(r) & !is.na(th) & !rp$extreme
+  if (sum(candidate) < 4L)
+    stop("fewer than 4 non-extreme rest measures are available for this item")
+  ng <- min(n_groups, max(2, floor(sum(candidate) / 25)))
+  ci <- .class_intervals(ifelse(is.na(r), NA_real_, th), rp$extreme, ng)
+  ok <- !is.na(ci)
+  mid <- tapply(th[ok], ci[ok], mean)
   opts <- sort(unique(r[ok]))
   m <- fit$mc$map[[item]]
   sc <- unname(m[opts]); sc[is.na(sc)] <- 0L
@@ -205,7 +209,7 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
                    paste0(item, "  (key: ", fit$mc$key[item], ")"))
   on.exit(par(op))
   for (j in seq_along(opts)) {
-    pr <- tapply(r[ok] == opts[j], ci, mean)
+    pr <- tapply(r[ok] == opts[j], ci[ok], mean)
     colr <- .rr$pal[(j - 1L) %% length(.rr$pal) + 1L]
     lines(mid, pr, lwd = if (keyed_v[j]) 3.2 else if (sc[j] > 0) 2.4 else 1.8,
           lty = if (keyed_v[j]) 1 else if (sc[j] > 0) 2 else 5, col = colr)

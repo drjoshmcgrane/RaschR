@@ -50,9 +50,9 @@ range, or one location per item.}
 \item{threshold_spread}{Half-range of the category thresholds about each
 item location (polytomous).}
 
-\item{discrimination}{The item slope, supplied as one value or one per
-item. Values above 1 over-discriminate (Guttman-like, negative fit
-residual); values below 1 under-discriminate (positive residual).}
+\item{discrimination}{The item slope, supplied as one value or one per item.
+Values above 1 produce steeper responses and negative fit residuals.
+Values below 1 produce flatter responses and positive fit residuals.}
 
 \item{guessing}{Scalar or length-\code{n_items} lower asymptote
 (dichotomous): low-location persons answer correctly by chance.}

@@ -126,7 +126,8 @@ test_that("residual dependence displays generalise to MFRM and EFRM fits", {
   expect_no_error(plot_resid_cor(mf, stat = "q3star"))
   mi <- test_information(mf, grid = c(-1, 0, 1))
   expect_true("design" %in% names(mi))
-  expect_equal(length(unique(mi$design)), 2L)
+  expect_equal(length(unique(mi$design)), 1L)
+  expect_match(unique(mi$design), "rater=A.*rater=B")
   expect_no_error(plot_tif(mf, grid = c(-1, 0, 1)))
   expect_no_error(plot_tcc(mf, grid = c(-1, 0, 1)))
 

@@ -13,12 +13,10 @@ run_app(...)
 Called for its side effect of launching the app.
 }
 \description{
-Opens the guided Shiny application for users who prefer a graphical
-workflow. The app supports data import; assignment of item, person, group,
-rater, and comparison roles; model selection and fitting; interactive
-diagnostics, tables, plots, and export. The corresponding R
-call is shown for each analysis, but users do not need to write R analysis
-code to use the principal workflows.
+Opens the Shiny application for fitting models and examining their tables,
+plots and diagnostics. The R code for each result is available in the app.
+Analyses can be saved and reopened, or exported as HTML, Word or PDF
+reports.
 }
 \details{
 The app's display packages ('shiny', 'bslib', 'DT', 'bsicons') are

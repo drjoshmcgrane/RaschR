@@ -32,6 +32,10 @@ test_that("dif_anova reports the full two-way table with effect sizes", {
   expect_true(all(su$eta2_uniform > 0 & su$eta2_uniform < 1, na.rm = TRUE))
   # the class-interval main effect lives in the full terms table
   expect_true(all(is.finite(da$terms$F_value[da$terms$term == "ci"])))
+  tested <- !da$terms$term %in% c("Residuals", "ci") &
+    is.finite(da$terms$p)
+  expect_equal(da$terms$p_adj[tested],
+               p.adjust(da$terms$p[tested], method = "BH"))
   # familywise option flows through
   db <- dif_anova(fit, p_adjust = "bonferroni")
   expect_true(all(db$summary$p_uniform_adj >= su$p_uniform_adj - 1e-12,
@@ -73,6 +77,23 @@ test_that("multi-level factors get familywise pairwise comparisons in logits", {
   # the extreme pair is flagged practical, and a-c also significant
   sel <- ds$pairs$level_a == "a" & ds$pairs$level_b == "c"
   expect_true(ds$pairs$significant[sel] && ds$pairs$practical[sel])
+})
+
+test_that("EFRM DIF is reported by item, not by frame response cell", {
+  set.seed(140)
+  d <- simulate_efrm(n_per_group = 180, items_per_set = 5, n_sets = 1,
+                     n_groups = 2, seed = 141)
+  tr <- attr(d, "truth")
+  d$site <- factor(rep(c("north", "south"), length.out = nrow(d)))
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  factors = "site", boot_reps = 0)
+  z <- dif_anova(f)
+
+  expect_setequal(unique(z$summary$item), unlist(tr$item_sets,
+                                                 use.names = FALSE))
+  expect_false(any(unique(z$summary$item) %in% f$virtual_map$vkey))
+  expect_false(any(z$summary$term == "group"))
+  expect_match(paste(z$notes, collapse = " "), "underlying items")
 })
 
 test_that("factorial procedure: interaction post-hocs and sizes for significant terms", {
@@ -169,11 +190,13 @@ test_that("MFRM facet fit reports margin and pooled statistics with df", {
   tau <- list(A = c(-1, 1), B = c(-0.5, 1.2), C = c(-1.2, 0.4))
   dd <- expand.grid(person = persons, item = names(tau), rater = raters,
                     stringsAsFactors = FALSE)
+  dd$cohort <- rep(c("early", "late"), length.out = length(persons))[
+    match(dd$person, persons)]
   dd$score <- mapply(function(p, i, r)
     sample(0:2, 1, prob = simP(th[p], tau[[i]] + rho[r])),
     dd$person, dd$item, dd$rater)
   mf <- rasch_mfrm(dd, person = "person", item = "item", score = "score",
-                   facets = "rater")
+                   facets = "rater", factors = "cohort")
   fe <- mf$facet_effects$rater
   expect_true(all(c("fit_resid", "fit_resid_pooled", "df_fit") %in% names(fe)))
   expect_true(all(is.finite(fe$fit_resid)))
@@ -186,6 +209,9 @@ test_that("MFRM facet fit reports margin and pooled statistics with df", {
   expect_equal(fe$df_fit, mf$summary_stats$df_factor * fe$n, tolerance = 1e-8)
   expect_true(all(is.finite(mf$item_effects$df_fit)))
   expect_true(all(is.finite(mf$item_effects$fit_resid_pooled)))
+  p <- tempfile(fileext = ".pdf")
+  grDevices::pdf(p); on.exit({ grDevices::dev.off(); unlink(p) }, add = TRUE)
+  expect_no_error(plot_icc(mf, "A", group = "cohort"))
 })
 
 test_that("the factorial summary pivots to uniform/non-uniform per group term", {
@@ -347,6 +373,21 @@ test_that("resolve_dif splits DIF items by effect size and protects anchors", {
   expect_gte(10L - length(unique(rp$splits$item)), 3L)
 })
 
+test_that("resolve_dif leaves non-uniform DIF visible", {
+  d <- simulate_rasch(n_persons = 1600, n_items = 12,
+                      difficulty = c(-1.8, 1.8), n_groups = 2,
+                      dif = list(items = "I06", uniform = 0,
+                                 nonuniform = 1.2), seed = 8472)
+  fit <- rasch(d, id = "id", factors = "group")
+  before <- dif_anova(fit, p_adjust = "BH")$summary
+  expect_true(before$nonuniform_DIF[before$item == "I06"])
+  rr <- resolve_dif(fit, max_splits = 1)
+  expect_false("I06" %in% rr$splits$item)
+  expect_true(any(rr$dif$item == "I06" & rr$dif$nonuniform))
+  expect_gt(rr$n_nonuniform, 0L)
+  expect_match(rr$stopped, "non-uniform DIF requires item review")
+})
+
 test_that("resolve_dif does not split a uniform flag that thin cells cannot confirm", {
   set.seed(2); n_a <- 400; n_b <- 12; n <- n_a + n_b
   grp <- factor(c(rep("A", n_a), rep("B", n_b)))
@@ -360,6 +401,30 @@ test_that("resolve_dif does not split a uniform flag that thin cells cannot conf
   rr <- resolve_dif(fit, max_splits = 1, min_anchors = 3)
   expect_equal(rr$n_splits, 0L)
   expect_match(rr$notes, "not split")
+})
+
+test_that("DIF follow-ups keep punctuated factor names structural", {
+  set.seed(31); n <- 900
+  ab <- factor(rep(c("low", "high"), each = n / 2))
+  sex <- factor(rep(c("F", "M"), length.out = n))
+  th <- rnorm(n); d <- seq(-1.5, 1.5, length.out = 7)
+  sh <- matrix(0, n, 7); sh[ab == "high", 2] <- 1.3
+  X <- matrix(rbinom(n * 7, 1, plogis(outer(th, d, "-") - sh)), n, 7)
+  colnames(X) <- paste0("P", 1:7)
+  dat <- data.frame(X, check.names = FALSE)
+  dat[["age:band"]] <- ab; dat$sex <- sex
+  fit <- rasch(dat, factors = c("age:band", "sex"))
+  da <- dif_anova(fit, effects = "factorial")
+  main <- which(vapply(da$summary_factors, identical, TRUE, "age:band"))
+  expect_true(length(main) > 0L)
+  expect_true(all(da$summary$term[main] == "`age:band`"))
+  inter <- which(vapply(da$summary_factors, identical, TRUE,
+                        c("age:band", "sex")))
+  expect_true(length(inter) > 0L)
+  ph <- dif_posthoc(fit, "P2", term = "age:band",
+                    factors = c("age:band", "sex"))
+  expect_identical(ph$term, "`age:band`")
+  expect_s3_class(resolve_dif(fit, max_splits = 0), "rasch_resolve_dif")
 })
 
 test_that("mixed-design DIF survives missing data (strata dedup)", {

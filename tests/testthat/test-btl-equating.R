@@ -80,6 +80,28 @@ test_that("btl_equate flags a planted drift and essentially only that object", {
   expect_equal(eq$table$object[which.max(abs(eq$table$t))], "O4")
 })
 
+test_that("clustered equating uses contrast-specific finite degrees of freedom", {
+  objs <- paste0("O", 1:5)
+  C <- 0.04 * (diag(5) - matrix(1 / 5, 5, 5))
+  make_fit <- function(loc, prefix) structure(list(
+    objects = data.frame(object = objs, location = loc,
+                         se = sqrt(diag(C))),
+    cov_beta = C, converged = TRUE, m = 1L, categories = 0:1,
+    thr_structure = "none",
+    comparisons = data.frame(judge = rep(paste0(prefix, 1:12), each = 2))),
+    class = "rasch_btl")
+  f1 <- make_fit(c(-1, -0.4, 0, 0.5, 0.9), "A")
+  f2 <- make_fit(c(-1, -0.4, 0.35, 0.5, 0.55), "B")
+  eq <- btl_equate(f1, f2, independent = TRUE, p_adjust = "none")
+  expect_true(all(is.finite(eq$table$df)))
+  expect_equal(eq$table$df, rep(22, 5), tolerance = 1e-8)
+  expect_equal(eq$table$p,
+               2 * pt(-abs(eq$table$t), df = eq$table$df),
+               tolerance = 1e-12)
+  expect_false(isTRUE(all.equal(eq$table$p,
+                                2 * pnorm(-abs(eq$table$t)))))
+})
+
 test_that("a bank link is descriptive without its joint covariance", {
   set.seed(22)
   objs <- paste0("O", 1:8)

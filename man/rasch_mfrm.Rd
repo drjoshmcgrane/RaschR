@@ -61,12 +61,12 @@ here.}
 }
 \value{
 An object of classes \code{"rasch_mfrm"} and \code{"rasch"}.
-  Model-specific components are \code{facet_effects}, \code{item_effects},
-  \code{item_thresholds}, and \code{facet_spec}. Interactive fits also
-  contain \code{interaction_test} and \code{interaction_effects}.
-  \code{fit_resid} averages virtual-item residuals within a margin;
-  \code{fit_resid_pooled} is the response-weighted pooled statistic, with
-  degrees of freedom in \code{df_fit}.
+  Model-specific components describe the facets, items, thresholds, and
+  facet specification. Interactive fits also contain an omnibus test and
+  the corresponding item-by-facet effects. The component \code{fit_resid}
+  averages virtual-item residuals within a margin. Its response-weighted
+  counterpart is \code{fit_resid_pooled}; its degrees of freedom are in
+  \code{df_fit}.
 }
 \description{
 Fits an additive many-facet Rasch model (Linacre 1989) to scored responses

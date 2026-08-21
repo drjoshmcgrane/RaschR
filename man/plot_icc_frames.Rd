@@ -4,7 +4,13 @@
 \alias{plot_icc_frames}
 \title{Plot an item's characteristic curves across frames}
 \usage{
-plot_icc_frames(fit, item, n_groups = fit$n_groups, grid = seq(-5, 5, 0.05))
+plot_icc_frames(
+  fit,
+  item,
+  n_groups = fit$n_groups,
+  grid = seq(-5, 5, 0.05),
+  group = NULL
+)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch_efrm}}.}
@@ -14,14 +20,19 @@ plot_icc_frames(fit, item, n_groups = fit$n_groups, grid = seq(-5, 5, 0.05))
 \item{n_groups}{Number of class intervals for the observed means.}
 
 \item{grid}{Logit grid.}
+
+\item{group}{Optional person grouping vector, or one or more names of
+non-frame factors nominated in the fit. Several names define their
+factor-combination cells.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Plots the model expected-score curve for one item in each person group, with
-observed class-interval means overlaid. Differences between the curves
-reflect the fitted group units.
+Plots the model expected-score curve for one item in each frame,
+with observed class-interval means overlaid. Differences between the model
+curves reflect the fitted frame units. A nominated non-frame person factor
+separates the observed means within each frame for a DIF display.
 }
 \examples{
 \donttest{

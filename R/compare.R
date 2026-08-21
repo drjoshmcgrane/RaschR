@@ -17,10 +17,12 @@
 # the CL-BIC log(n) taken over the independent units (persons; judges for
 # paired comparisons). Smaller is better, valid across models of the same
 # data whether or not they nest.
-# (3) Calibration-free fit descriptors that remain comparable across
-# different data preparations: the total item-trait chi-square against its
-# degrees of freedom, the spread of the item and person fit residuals
-# (ideal SD 1), the person separation index, and Cronbach's alpha.
+# (3) Likelihood-free fit descriptors retained as descriptive context when
+# the data preparation changes: the total trait chi-square against its degrees
+# of freedom, the spread of the calibration and person fit residuals (ideal
+# SD 1), the person separation index, and coefficient alpha where it is
+# defined for an administered item matrix. They are not a formal selection
+# criterion across different responses.
 # ===========================================================================
 
 # Composite-likelihood information criteria for one fit: effective parameter
@@ -73,25 +75,13 @@
 #' printed note) for MFRM and EFRM fits, which do not carry their Godambe
 #' matrices.
 #'
-#' In simulation (400 replicates per condition, fixed truths) the criteria
-#' reproduce the classical selection properties. Where the alternatives
-#' differ by several parameters, \code{cl_aic} selects the larger model
-#' under the null at close to its theoretical rate -- 5.2\% for partial
-#' credit against rating scale (eight three-category items) and 4.5\% for
-#' free against two-component thresholds (eight four-category items) --
-#' and detects a quadratic threshold departure of 0.3 logits in 99\% of
-#' replicates. Where they differ by a single parameter (comparative
-#' judgement free versus principal-component thresholds), \code{cl_aic}
-#' prefers the larger model in about 17\% of null replicates, the familiar
-#' single-parameter AIC rate. \code{cl_bic} is stricter throughout (no
-#' false selections in the multi-parameter conditions) at the price of
-#' little power against mild departures.
-#'
 #' Across different data preparations (subtests, splits, facet or frame
-#' structures) the likelihoods are not comparable and the calibration-free
-#' columns carry the comparison: total item-trait chi-square per degree of
-#' freedom, item and person fit residual SDs (ideal 1), PSI, and alpha
-#' (OSI for paired comparisons).
+#' structures) the likelihoods are not comparable. The table retains
+#' descriptive context: total trait chi-square per degree of freedom,
+#' calibration and person fit-residual SDs (ideal 1), PSI, and alpha where
+#' applicable (OSI for paired comparisons). Alpha is \code{NA} when an MFRM
+#' or EFRM item is represented by several response cells. These columns do
+#' not provide a formal selection test across different response data.
 #'
 #' @param ... Two or more fitted objects, preferably named. Supply either all
 #'   Rasch-family fits or all \code{btl} fits. For \code{btl}, fits of the same
@@ -249,9 +239,9 @@ compare_fits <- function(..., reference = 1) {
              "independent clusters)")
     else "",
     ". two_delta_ll is the raw composite difference against the reference, ",
-    "descriptive only. Across different data preparations compare ",
-    "chisq_per_df, the fit residual SDs (ideal 1), and the ",
-    "separation/reliability columns.")
+    "descriptive only. Across different data preparations, chisq_per_df, ",
+    "the fit residual SDs and separation/reliability columns provide ",
+    "descriptive context rather than a formal selection criterion.")
   class(out) <- c("rasch_compare", "data.frame")
   out
 }
@@ -291,16 +281,12 @@ print.rasch_compare <- function(x, ...) {
 #' Use \code{p_adj} for inference. The unadjusted \code{p} is retained for
 #' descriptive comparison with conventional displays. The adjustment is a
 #' first-order approximation and can be mildly anti-conservative in small
-#' samples with long polytomous tests: in simulation the rejection rate at
-#' the 0.05 level was 4.7\% for 500 persons and 8 three-category items
-#' (2,000 model-true replicates), and 6.1\% for 300 persons and 12
-#' four-category items among the 1,927 of 2,000 replicates whose data
-#' admitted the comparison (72 refusals from randomly empty categories,
-#' one non-convergence). Interpret \code{p_adj} values near 0.05 cautiously
-#' in such designs.
+#' samples with long polytomous tests. Interpret values near the nominal
+#' level cautiously in such designs.
 #'
-#' @param fit A \code{"PCM"} fit from \code{\link{rasch}} with equal maximum
-#'   scores across items (the rating parameterisation requires them).
+#' @param fit An unrestricted, unanchored \code{"PCM"} fit from
+#'   \code{\link{rasch}} with equal maximum scores across items (the rating
+#'   parameterisation requires them).
 #' @param maxit,tol Passed to the rating-scale refit.
 #' @return A list of class \code{"rasch_lr"}: raw \code{chisq}, \code{df},
 #'   \code{p} (the conventional display); adjusted \code{chisq_adj}, \code{p_adj},
@@ -326,8 +312,17 @@ lr_test <- function(fit, maxit = 60, tol = 1e-8) {
     stop("the rating parameterisation requires equal maximum scores across items")
   if (max(fit$m) < 2L)
     stop("with dichotomous items the two parameterisations coincide")
+  if (!isTRUE(fit$est$converged))
+    stop("the PCM fit did not converge; its likelihood cannot support a model comparison")
+  spec <- fit$refit_spec
+  if (!is.null(spec$anchors) && nrow(spec$anchors))
+    stop("lr_test() requires an unrestricted PCM fit; fixed threshold anchors change the null constraints")
+  if (!is.null(spec$pc_components))
+    stop("lr_test() requires an unrestricted PCM fit; principal-component threshold constraints are already a restricted model")
   rsm <- rasch(fit$X, model = "RSM", n_groups = fit$n_groups, maxit = maxit,
                tol = tol)
+  if (!isTRUE(rsm$est$converged))
+    stop("the rating-scale refit did not converge; the model comparison is unavailable")
   chisq <- 2 * (fit$est$loglik - rsm$est$loglik)
   df <- fit$est$n_parameters - rsm$est$n_parameters
 

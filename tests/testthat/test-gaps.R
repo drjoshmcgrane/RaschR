@@ -298,3 +298,15 @@ test_that("maxit and tol are honoured by the estimators", {
   f_def <- rasch(X)
   expect_equal(f_tight$items$location, f_def$items$location, tolerance = 1e-6)
 })
+
+test_that("MFRM virtual cells accept colon-bearing labels without collision", {
+  set.seed(48)
+  d <- expand.grid(person = sprintf("P%03d", 1:120),
+                   item = c("A:B", "A", "D"),
+                   rater = c("C", "B:C"), stringsAsFactors = FALSE)
+  d$score <- rbinom(nrow(d), 2, .5)
+  f <- rasch_mfrm(d, person = "person", item = "item", score = "score",
+                  facets = "rater")
+  expect_false(anyDuplicated(f$virtual_map$vkey) > 0L)
+  expect_equal(nrow(f$virtual_map), 6L)
+})

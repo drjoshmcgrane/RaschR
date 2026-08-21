@@ -28,10 +28,17 @@
 #' and \eqn{\hat d} is their mean (eq. 24.7 of Andrich and Marais 2019).
 #' The resolved threshold estimates share the calibration of the remaining
 #' items and are therefore correlated. The standard error of \eqn{\hat d} is
-#' calculated from their full sandwich covariance: treating them as
-#' independent understates it, rejecting a true null at 7.5\% in simulation,
-#' while the covariance-based standard error restores the nominal rate
-#' (4.8\% dichotomous, 3.5\% partial credit).
+#' calculated from their full sandwich covariance.
+#'
+#' Polytomous resolution requires an unconstrained partial credit model so
+#' that each resolved threshold can move independently. A rating scale or
+#' principal-component threshold constraint is therefore refused. The refit
+#' otherwise retains the original fit grouping, keyed scoring, anchors on
+#' items that remain, and optimisation controls. Both calibrations must
+#' converge before the magnitude and its standard error are reported. MFRM
+#' virtual items are resolved through this unconstrained PCM. EFRM virtual
+#' frames are mutually exclusive and must first be reduced to an observable
+#' frame or linked design block.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param dependent,independent Item names or indices: the item hypothesised
@@ -58,12 +65,23 @@
 #' @export
 dependence_magnitude <- function(fit, dependent, independent) {
   if (!inherits(fit, "rasch")) stop("dependence_magnitude needs a rasch fit")
+  if (inherits(fit, "rasch_efrm"))
+    .refuse("dependence magnitude is not defined across mutually exclusive ",
+            "EFRM virtual frames; extract and calibrate an observable frame ",
+            "or linked design block first")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; dependence magnitude is unavailable")
   j <- .item_idx(fit, dependent); i <- .item_idx(fit, independent)
   if (i == j) stop("dependent and independent must be different items")
   mi <- fit$m[i]; mj <- fit$m[j]
   if (mi != mj)
     stop("the two items must share the same maximum score (here ",
          mj, " and ", mi, "); see Andrich, Humphry and Marais (2012)")
+  if (mi > 1L && (identical(fit$model, "RSM") ||
+                  !is.null(fit$refit_spec$pc_components)))
+    stop("polytomous dependence magnitude needs an unconstrained PCM ",
+         "resolution; refit with model = \"PCM\" and no principal-component ",
+         "threshold constraint")
   X <- fit$X
   nm_i <- colnames(X)[i]; nm_j <- colnames(X)[j]
 
@@ -82,10 +100,16 @@ dependence_magnitude <- function(fit, dependent, independent) {
                    paste(obs, collapse = ",")))
     Xn <- cbind(Xn, col)
     res_names[x + 1] <- sprintf("%s|%s=%d", nm_j, nm_i, x)
+    if (res_names[x + 1] %in% colnames(Xn)[-ncol(Xn)])
+      stop("generated resolved-item name already exists: ", res_names[x + 1])
     colnames(Xn)[ncol(Xn)] <- res_names[x + 1]
   }
-  refit <- rasch(Xn, model = fit$model, id = fit$person$id,
-                 factors = fit$factors, n_groups = fit$n_groups)
+  # The resolution method requires every resolved threshold to be free. This
+  # also routes an MFRM virtual-item analysis through the ordinary PCM rather
+  # than handing the structural model label to rasch().
+  refit <- .rasch_refit(fit, Xn, model = "PCM", require_anchor = FALSE)
+  if (!isTRUE(refit$est$converged))
+    stop("the resolved calibration did not converge; dependence magnitude is unavailable")
   if (!all(res_names %in% refit$items$item))
     stop("a resolved item was dropped during re-analysis; too little data")
 
@@ -145,16 +169,21 @@ print.rasch_dependence <- function(x, ...) {
 #' independent dichotomous items; different difficulties only raise it.
 #' A spread estimate below the bound therefore indicates response
 #' dependence among the members (Andrich and Marais 2019, Table 24.1).
-#' Typically applied after \code{\link{combine_items}}, whose super-items
-#' are exactly such subtests.
+#' Applied to the superitems recorded by \code{\link{combine_items}}. The
+#' binomial bound applies only when every component was dichotomous; a
+#' composite containing a polytomous item is shown but its bound and verdict
+#' are withheld. The input calibration and the principal-components refit
+#' must both converge.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param maxit,tol Passed to the \code{\link{pcml_pc}} refit.
-#' @return A data frame with one row per polytomous item: \code{item},
-#'   \code{m}, the \code{spread} estimate and its \code{se}, the bound
-#'   \code{lub} (available for maximum scores 2 to 8), \code{z} =
+#' @return A data frame with one row per recorded superitem: \code{item},
+#'   \code{m}, whether the binomial bound is \code{eligible}, the
+#'   \code{spread} estimate and its \code{se}, the bound \code{lub}
+#'   (available for dichotomous-component subtests with maximum scores 2 to
+#'   8), \code{z} =
 #'   (spread - lub)/se, and \code{dependent} = spread below the bound.
-#'   Dichotomous items carry no spread and are omitted.
+#'   Items not formed by \code{combine_items()} are omitted.
 #' @references
 #' Andrich, D. (1985). An elaboration of Guttman scaling with Rasch models
 #' for measurement. In N. B. Tuma (Ed.), Sociological Methodology 1985
@@ -173,15 +202,37 @@ print.rasch_dependence <- function(x, ...) {
 #' @export
 spread_test <- function(fit, maxit = 60, tol = 1e-8) {
   if (!inherits(fit, "rasch")) stop("spread_test needs a rasch fit")
-  poly <- which(fit$m >= 2)
-  if (!length(poly)) stop("no polytomous items: no spread parameters to test")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; the spread test is unavailable")
+  sub_names <- intersect(names(fit$subtest_map), fit$items$item)
+  if (!length(sub_names))
+    stop("no recorded superitems: form dichotomous items into subtests with combine_items() first")
+  idx_fit <- match(sub_names, fit$items$item)
+  eligible <- vapply(sub_names, function(it)
+    isTRUE(fit$subtest_binary[[it]]) && fit$m[match(it, fit$items$item)] %in%
+      as.integer(names(.spread_lub)), logical(1))
+  if (!any(eligible)) {
+    out <- data.frame(item = sub_names, m = fit$m[idx_fit], eligible = FALSE,
+                      spread = NA_real_, se = NA_real_, lub = NA_real_,
+                      z = NA_real_, dependent = NA)
+    class(out) <- c("rasch_spread", "data.frame")
+    return(out)
+  }
   pc <- pcml_pc(fit$X, maxit = maxit, tol = tol)
+  if (!isTRUE(pc$converged))
+    stop("the principal-components refit did not converge; the spread test is unavailable")
   cmp <- pc$components
-  out <- data.frame(item = cmp$item[poly], m = fit$m[poly],
-                    spread = cmp$spread[poly], se = cmp$spread_se[poly],
-                    lub = unname(.spread_lub[as.character(fit$m[poly])]))
+  idx_pc <- match(sub_names, cmp$item)
+  if (anyNA(idx_pc))
+    stop("a recorded superitem was dropped during the spread refit")
+  out <- data.frame(item = cmp$item[idx_pc], m = fit$m[idx_fit],
+                    eligible = eligible,
+                    spread = cmp$spread[idx_pc], se = cmp$spread_se[idx_pc],
+                    lub = ifelse(eligible,
+                      unname(.spread_lub[as.character(fit$m[idx_fit])]), NA_real_))
   out$z <- (out$spread - out$lub) / out$se
-  out$dependent <- !is.na(out$lub) & !is.na(out$spread) & out$spread < out$lub
+  out$dependent <- ifelse(out$eligible & is.finite(out$spread),
+                          out$spread < out$lub, NA)
   rownames(out) <- NULL
   class(out) <- c("rasch_spread", "data.frame")
   out

@@ -24,9 +24,10 @@
 # only one internal pair (CDU/CSU vs FDP) and the sample splits it nearly
 # evenly, so that set carries no stable information about the panel-unit
 # ratios and its own unit is weakly identified. The fit detects both,
-# screens the set out of the phi reconciliation, reports a boundary-unstable
-# alpha as NA, and says so in notes -- the honest answers to questions this
-# design cannot support, and a lesson for comparative-judgment designs:
+# screens the set out of the phi reconciliation and reports its alpha with a
+# very large standard error. The independent-outcome bootstrap is less stable
+# still and withholds that standard error. These are the honest answers to
+# questions this design cannot support, and a lesson for comparative-judgment designs:
 # set units want three or more objects per set with decisive internal
 # contests.
 #
@@ -72,7 +73,8 @@ crisis_of <- setNames(d$crisis[!duplicated(d$judge)],
                       d$judge[!duplicated(d$judge)])
 set.seed(25)
 f <- btl_efrm(d, "object_a", "object_b", "winner", "judge",
-              panels = crisis_of, object_sets = blocs, boot_reps = 80)
+              panels = crisis_of, object_sets = blocs,
+              se_method = "judge_bootstrap", boot_reps = 80)
 print(f)
 print(f$frames, digits = 3)
 print(f$objects[order(-f$objects$v), c("object", "set", "v", "se_v")],
@@ -82,39 +84,50 @@ print(f$objects[order(-f$objects$v), c("object", "set", "v", "se_v")],
 # order (Gruene > SPD > CDU/CSU > FDP > Linke). Crisis-affected respondents
 # judge party contests with a smaller unit than the unaffected (phi 0.87
 # versus 1.15, a discernment ratio of 1.33) -- less decisively, not more --
-# but the difference does not reach significance by either standard error.
-# The judge-clustered conditional z is 1.26 and does not move; the
-# bootstrap z depends on the resampling draw and runs around 1.1 to 1.6
-# across seeds at this many judges -- a reminder to read a bootstrap
-# standard error as itself estimated, and to raise the replicate count
-# when a decision would turn on it (see below).
-# The right bloc's origin is firmly below the left's on the common scale
-# (kappa = -0.35, z = -5.6): in this university-town sample the left bloc
+# but the judge-bootstrap omnibus does not reject equal panel units
+# (F(1, 191) = 1.21, p = .27).
+#
+# The right bloc's origin is below the left's on the common scale
+# (kappa = -0.35, p = .006): in this university-town sample the left bloc
 # is preferred wholesale, consistent with the equal-unit locations. The
-# right bloc's unit alpha, by contrast, is weakly identified -- its only
+# right bloc's unit alpha, by contrast, is weakly identified. Its only
 # internal pair (CDU/CSU vs FDP, 55:45) provides almost no internal spread
-# to compare against the cross-bloc scale -- and the fit says so twice: the
-# set is screened out of the panel-unit reconciliation, and the bootstrap
-# reports the alpha SE as NA after log(alpha) reached the boundary in a
-# minority of replicates. The per-frame fit residuals are all |z| < 1, so
-# the cross-frame convention (cross-set contests judged at phi_g on the
-# common scale) is consistent with these data.
+# to compare against the cross-bloc scale. The judge bootstrap estimates
+# alpha at 0.42 with se(log alpha) = 1.24 and p = .48; the fit also notes
+# that this set carries no stable panel-ratio information. The frame
+# residuals are modest, although the equal-unit object fit flags CDU/CSU
+# for review. The data therefore support an origin difference, not a
+# defensible claim about the right bloc's unit.
 
-# bootstrap versus judge-clustered errors ------------------------------------
-# The parametric bootstrap resamples comparisons independently at the fitted
-# probabilities -- self-consistent, since the model has no judge parameter --
-# while the conditional stage-one errors are judge-clustered and guard
-# against extra-model dependence within a respondent's ten choices. They
-# disagree modestly here (se log phi 0.089 versus 0.112); the cautious
-# reading takes the larger, and the phi conclusion is the same under either.
+# uncertainty methods --------------------------------------------------------
+# The default resamples whole judges within panels, retaining dependence among
+# each respondent's comparisons. The independent-outcome bootstrap instead
+# draws comparisons from the fitted probabilities. It is a useful sensitivity
+# analysis when independent outcomes are defensible, but not the primary
+# analysis here. Conditional standard errors hold stage one fixed and are
+# descriptive; the package withholds their unit probabilities because they do
+# not carry stage-one uncertainty into the link.
+set.seed(25)
+fp <- btl_efrm(d, "object_a", "object_b", "winner", "judge",
+               panels = crisis_of, object_sets = blocs,
+               se_method = "bootstrap", boot_reps = 80)
 fc <- btl_efrm(d, "object_a", "object_b", "winner", "judge",
                panels = crisis_of, object_sets = blocs,
                se_method = "conditional")
-cat(sprintf("se(log phi): bootstrap %.3f, judge-clustered conditional %.3f\n",
-            f$phi_table$se_log_phi[1], fc$phi_table$se_log_phi[1]))
-cat(sprintf("phi ratio %.2f: z = %.2f (bootstrap), %.2f (conditional)\n",
-            max(f$phi_table$phi) / min(f$phi_table$phi),
-            abs(f$phi_table$t[1]), abs(fc$phi_table$t[1])))
+p_for <- function(fit, term) {
+  i <- match(term, fit$unit_omnibus$term)
+  if (is.na(i)) NA_real_ else fit$unit_omnibus$p[i]
+}
+print(data.frame(
+  method = c("judge bootstrap", "independent-outcome bootstrap",
+             "conditional (descriptive)"),
+  se_log_phi = c(f$phi_table$se_log_phi[1], fp$phi_table$se_log_phi[1],
+                 fc$phi_table$se_log_phi[1]),
+  p_panel = c(p_for(f, "panel units (phi)"),
+              p_for(fp, "panel units (phi)"), NA_real_),
+  p_origin = c(p_for(f, "set origins (kappa)"),
+               p_for(fp, "set origins (kappa)"), NA_real_)),
+  digits = 3, row.names = FALSE)
 
 # sensitivity: other panel definitions ---------------------------------------
 # Neither gender nor education (university versus school-level, the sample's
@@ -127,7 +140,8 @@ for (pv in c("gender", "educ")) {
   ds <- d[d$judge %in% names(pmap), ]
   set.seed(25)
   fs <- btl_efrm(ds, "object_a", "object_b", "winner", "judge",
-                 panels = pmap, object_sets = blocs, boot_reps = 80)
+                 panels = pmap, object_sets = blocs,
+                 se_method = "judge_bootstrap", boot_reps = 80)
   cat(sprintf("%s: phi = %s; |z| = %.2f\n", pv,
               paste(sprintf("%.2f (%s)", fs$phi_table$phi,
                             fs$phi_table$panel), collapse = ", "),

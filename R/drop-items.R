@@ -1,56 +1,158 @@
 # rasch :: removing items from a fitted analysis
 # ===========================================================================
+
+.frame_group_vars <- function(fit) {
+  fg <- fit$frame_group
+  if (is.null(fg) || !length(fg)) stop("the frame variables are not recorded")
+  if (length(fg) > 1L) fg[-1L] else fg[1L]
+}
+
+.frame_group_values <- function(fit) {
+  fg <- fit$frame_group[1L]
+  if (is.null(fit$factors) || !fg %in% names(fit$factors))
+    stop("the fitted frame membership is not available")
+  fit$factors[[fg]]
+}
+
+# Recover the unexpanded item responses through the explicit virtual map.
+# Virtual names are deliberately not parsed: item and level labels may contain
+# colons, regular-expression metacharacters, or other valid punctuation.
+.efrm_source_matrix <- function(fit, items = names(fit$set_of)) {
+  vm <- fit$virtual_map
+  if (is.null(vm) || !all(c("item", "vkey") %in% names(vm)))
+    stop("the fitted frame-to-item map is not available")
+  bad <- setdiff(items, unique(vm$item))
+  if (length(bad)) stop("item(s) absent from the frame-to-item map: ",
+                        paste(bad, collapse = ", "))
+  src <- vapply(items, function(it) {
+    cols <- vm$vkey[vm$item == it & vm$vkey %in% colnames(fit$X)]
+    v <- rep(NA_real_, nrow(fit$X))
+    for (cc in cols) {
+      take <- !is.na(fit$X[, cc])
+      v[take] <- fit$X[take, cc]
+    }
+    v
+  }, numeric(nrow(fit$X)))
+  if (!is.matrix(src)) src <- matrix(src, ncol = length(items))
+  colnames(src) <- items
+  src
+}
+
+.efrm_refit <- function(fit, source, set_of, boot_reps = NULL,
+                        ids = fit$person$id, factors = fit$factors,
+                        se_method = NULL) {
+  spec <- fit$refit_spec
+  if (is.null(spec)) spec <- list()
+  group_vars <- spec$groups
+  if (is.null(group_vars) || !all(group_vars %in% names(factors)))
+    group_vars <- .frame_group_vars(fit)
+  extra <- spec$factors
+  if (is.null(extra)) extra <- setdiff(names(factors), fit$frame_group)
+  extra <- intersect(extra, names(factors))
+  need <- unique(c(group_vars, extra))
+  d <- data.frame(.rasch_id = ids, source, factors[, need, drop = FALSE],
+                  check.names = FALSE, stringsAsFactors = FALSE)
+  reps <- if (is.null(boot_reps)) spec$boot_reps else boot_reps
+  if (is.null(reps)) {
+    reps <- fit$boot_reps_used
+    if (is.null(reps) || !is.finite(reps))
+      reps <- if (any(is.finite(fit$alpha_table$se_log_alpha))) NULL else 0L
+  }
+  do.call(rasch_efrm, list(
+    data = d, item_sets = split(names(set_of), unname(set_of)),
+    groups = group_vars, id = ".rasch_id",
+    factors = if (length(extra)) extra else NULL, items = colnames(source),
+    n_groups = spec$n_groups %||% fit$n_groups,
+    adjust_N = spec$adjust_N %||% NA_real_, na_codes = spec$na_codes %||% -1,
+    maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7,
+    min_link_persons = spec$min_link_persons %||% 30,
+    se_method = se_method %||% spec$se_method %||% fit$se_method,
+    boot_reps = reps))
+}
+
+.rasch_refit <- function(fit, source, model = NULL, key_extra = NULL,
+                         require_anchor = TRUE) {
+  spec <- fit$refit_spec
+  if (is.null(spec)) spec <- list()
+  source <- as.data.frame(source, check.names = FALSE,
+                          stringsAsFactors = FALSE)
+  keep <- names(source)
+  key <- spec$key
+  if (!is.null(fit$mc) && !is.null(key)) {
+    raw_items <- intersect(colnames(fit$mc$raw), keep)
+    for (it in raw_items) source[[it]] <- fit$mc$raw[, it]
+    if (is.data.frame(key)) {
+      key <- key[as.character(key$item) %in% keep, , drop = FALSE]
+    } else {
+      key <- key[intersect(names(key), keep)]
+    }
+  }
+  if (!is.null(key_extra)) {
+    if (!is.data.frame(key) && !is.null(key))
+      stop("internal refit cannot combine incompatible key formats")
+    key <- rbind(key, key_extra)
+  }
+  if (is.data.frame(key) && !nrow(key)) key <- NULL
+  if (!is.data.frame(key) && !is.null(key) && !length(key)) key <- NULL
+  anchors <- spec$anchors
+  if (!is.null(anchors)) {
+    anchor_items <- as.character(anchors$item)
+    anchors <- anchors[anchor_items %in% keep, , drop = FALSE]
+    if (!nrow(anchors) && require_anchor)
+      stop("dropping those items would remove every anchor and lose the ",
+           "fitted scale origin; retain an anchor or refit explicitly")
+    if (!nrow(anchors)) anchors <- NULL
+  }
+  do.call(rasch, list(
+    data = source, model = model %||% spec$model %||% fit$model,
+    id = fit$person$id,
+    factors = fit$factors, n_groups = spec$n_groups %||% fit$n_groups,
+    adjust_N = spec$adjust_N %||% NA_real_, anchors = anchors,
+    na_codes = spec$na_codes %||% -1, key = key,
+    pc_components = spec$pc_components,
+    maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8))
+}
+
+.rasch_refit_after_drop <- function(fit, keep) {
+  .rasch_refit(fit, fit$X[, keep, drop = FALSE])
+}
 # Item screening is a step in an analysis, not a preliminary to it: an item
 # is judged by its behaviour in the fit, and judging it means refitting
-# without it. For frame models the refit matters more than usual, because a
-# set unit is estimated from the dispersion its own items produce, so an
-# item that shares no unit with its set moves the very quantity used to
-# decide whether the set differs from another.
+# without it. For frame models the refit matters more than usual: an item that
+# does not follow its set's unit changes both the within-frame calibration and
+# the person-side link used to compare that set with another.
 # ===========================================================================
 
 #' Drop items and refit
 #'
-#' Removes named items from a fitted analysis and refits it, keeping the
-#' original model, person identifiers, factors, and (for frame models) the
-#' set structure and standard-error method. The result is an ordinary fit of
-#' the same class, so every diagnostic applies to it unchanged.
+#' Removes named items and refits the analysis with the same model
+#' specification.
 #'
 #' @details
-#' Screening items is part of an analysis of frames rather than a step before
-#' it. A person-group unit is estimated from the same items in every frame,
-#' so an item with differential item functioning distorts it; an item-set
-#' unit is estimated from the dispersion of person estimates within each set,
-#' so an item that fits its set badly distorts that set alone, with nothing
-#' in the other set to offset it. In simulation the second effect is large:
-#' at eight items per set, two under-discriminating items in one set moved a
-#' planted unit ratio of 1.40 to 1.73, and four over-discriminating items
-#' moved it to 1.02. Dropping such an item and comparing the units before
-#' and after is therefore a substantive sensitivity analysis, not
-#' housekeeping.
+#' The refit retains person identifiers and factors, class-interval settings,
+#' optimisation controls, anchors, multiple-choice scoring and PCM component
+#' constraints. An EFRM refit also retains the item-set and crossed-frame
+#' design, linking controls and uncertainty method. The operation is refused
+#' if it would remove every anchor, empty an item set or leave the model
+#' unidentified.
 #'
-#' An item that fits no set well is usually better removed than reassigned,
-#' and it cannot be given a set of its own: a single item carries no
-#' dispersion from which to estimate a unit.
+#' Item removal changes both the item calibration and the person estimates.
+#' For an EFRM it can also change the estimated frame units. Compare the
+#' original and refitted results as a sensitivity analysis.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} or
 #'   \code{\link{rasch_efrm}}. Many-facet fits are refused: remove the
 #'   item's rows from the long-format data and refit
 #'   \code{\link{rasch_mfrm}} instead.
 #' @param items Item names to remove.
-#' @param boot_reps Bootstrap replicates for the refit. The default keeps the
-#'   character of the fit it came from: a fit whose unit standard errors came
-#'   from a bootstrap passes its replicate count on, a fit that has unit
-#'   standard errors by the analytic route takes the package default, and a
-#'   fit asked for no standard errors is refitted without them. Pass a number
-#'   to override all three.
+#' @param boot_reps Bootstrap replicates for an EFRM refit. The default retains
+#'   the fitted specification; a number overrides it.
 #' @return A refitted object of the same class as \code{fit}, carrying a note
 #'   recording which items were dropped.
-#' @seealso \code{\link{frame_invariance}}, which identifies the items a
-#'   frame model's assumption does not hold for;
-#'   \code{\link{resolve_frames}}, which gives such an item a location per
-#'   frame rather than removing it; \code{\link{split_items}}
-#'   and \code{\link{resolve_dif}}, which resolve an item rather than
-#'   remove it; and \code{\link{combine_items}}.
+#' @seealso \code{\link{frame_invariance}} and
+#'   \code{\link{resolve_frames}} for frame models;
+#'   \code{\link{split_items}} and \code{\link{resolve_dif}} for DIF; and
+#'   \code{\link{combine_items}} for response dependence.
 #' @examples
 #' d <- simulate_rasch(300, 8, seed = 1)
 #' fit <- rasch(d, id = "id")
@@ -85,41 +187,8 @@ drop_items <- function(fit, items, boot_reps = NULL) {
       stop("dropping those items would leave a single item set, so no set ",
            "unit is identified; drop fewer items or refit with rasch()")
 
-    # rebuild the source responses: each person answered an item in exactly
-    # one frame, so the item's virtual columns are complementary
-    grp <- fit$factors[[fit$frame_group]]
-    glev <- levels(factor(grp))
-    src <- vapply(keep, function(it) {
-      cols <- intersect(paste0(it, ":", glev), colnames(fit$X))
-      v <- rep(NA_real_, nrow(fit$X))
-      for (cc in cols) {
-        w <- !is.na(fit$X[, cc])
-        v[w] <- fit$X[w, cc]
-      }
-      v
-    }, numeric(nrow(fit$X)))
-    colnames(src) <- keep
-
-    d <- data.frame(id = fit$person$id, src, fit$factors,
-                    check.names = FALSE, stringsAsFactors = FALSE)
-    extra <- setdiff(names(fit$factors), fit$frame_group)
-    # boot_reps_used is NA for two different fits: one whose standard errors
-    # came from the analytic route rather than a bootstrap, which is ordinary
-    # for a single person group, and one asked for no standard errors at all.
-    # Reading both as zero refits the first without the standard errors it
-    # had, leaving no test on the set units. Tell them apart by whether the
-    # source fit carries any, so the refit keeps the character of the fit it
-    # came from. An explicit boot_reps is still honoured.
-    reps <- boot_reps
-    if (is.null(reps)) {
-      reps <- fit$boot_reps_used
-      if (is.null(reps) || !is.finite(reps))
-        reps <- if (any(is.finite(fit$alpha_table$se_log_alpha))) NULL else 0L
-    }
-    refit <- rasch_efrm(d, item_sets = split(keep, sets_left),
-                        groups = fit$frame_group, id = "id",
-                        factors = if (length(extra)) extra else NULL,
-                        se_method = fit$se_method, boot_reps = reps)
+    src <- .efrm_source_matrix(fit, keep)
+    refit <- .efrm_refit(fit, src, sets_left, boot_reps = boot_reps)
   } else {
     bad <- setdiff(items, colnames(fit$X))
     if (length(bad))
@@ -127,9 +196,17 @@ drop_items <- function(fit, items, boot_reps = NULL) {
     keep <- setdiff(colnames(fit$X), items)
     if (length(keep) < 2L)
       stop("dropping those items would leave fewer than two items")
-    refit <- rasch(fit$X[, keep, drop = FALSE], model = fit$model,
-                   id = fit$person$id, factors = fit$factors,
-                   n_groups = fit$n_groups)
+    refit <- .rasch_refit_after_drop(fit, keep)
+  }
+  if (!isTRUE(refit$est$converged))
+    stop("the reduced calibration did not converge; the dropped-item analysis is unavailable")
+  if (inherits(refit, "rasch_efrm") &&
+      any(refit$linking$alpha_edges$converged %in% FALSE))
+    stop("the reduced calibration's set-unit link did not converge; the dropped-item analysis is unavailable")
+  if (length(fit$subtest_map)) {
+    sk <- intersect(names(fit$subtest_map), refit$items$item)
+    refit$subtest_map <- fit$subtest_map[sk]
+    refit$subtest_binary <- fit$subtest_binary[sk]
   }
   refit$notes <- c(refit$notes,
                    sprintf("dropped item(s): %s", paste(items, collapse = ", ")))

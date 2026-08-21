@@ -110,6 +110,7 @@
 #' Drift inference requires
 #' independent calibrations and at least three common items with usable joint
 #' covariance information. Otherwise the function returns a descriptive link.
+#' Fitted calibrations must have converged.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param reference A second \code{\link{rasch}} fit, or a data frame with
@@ -156,6 +157,10 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
     stop("fit must be an ordinary person-by-item Rasch calibration")
   if (inherits(reference, "rasch_efrm") || inherits(reference, "rasch_mfrm"))
     stop("reference must be an ordinary Rasch calibration or item bank")
+  if (!isTRUE(fit$est$converged))
+    stop("the current calibration did not converge; equating is unavailable")
+  if (inherits(reference, "rasch") && !isTRUE(reference$est$converged))
+    stop("the reference calibration did not converge; equating is unavailable")
   ref <- .equate_ref(reference)
   cur <- data.frame(item = fit$items$item, location = fit$items$location,
                     se = fit$items$se, max = fit$items$max)

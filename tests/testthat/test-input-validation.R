@@ -557,15 +557,16 @@ test_that("btl reads count/order through labels and refuses bad anchors", {
   expect_equal(f_num$objects$location, f_fac$objects$location, tolerance = 1e-8)
 })
 
-test_that("rasch_mfrm refuses colon-bearing item/facet labels", {
+test_that("rasch_mfrm preserves colon-bearing item and facet labels", {
   set.seed(202)
   d <- expand.grid(person = sprintf("P%03d", 1:60),
                    item = c("A", "A:B", "Q2"),
                    rater = c("R1", "R2"), stringsAsFactors = FALSE)
   d$score <- sample(0:1, nrow(d), replace = TRUE)
-  expect_error(rasch_mfrm(d, person = "person", item = "item",
-                          score = "score", facets = "rater"),
-               "':' separator|reserved")
+  f <- rasch_mfrm(d, person = "person", item = "item",
+                  score = "score", facets = "rater")
+  expect_true(all(c("A", "A:B", "Q2") %in% f$virtual_map$item))
+  expect_equal(anyDuplicated(f$virtual_map$vkey), 0L)
 })
 
 test_that("mc scoring refuses NA keys and warns on unmatched key items", {
@@ -590,6 +591,62 @@ test_that("rasch refuses to score a numeric identifier column as an item", {
   f <- rasch(st, id = "id", factors = "time", items = paste0("Q", 1:4))
   expect_true(anyDuplicated(f$person$id) > 0)
   expect_equal(sort(f$items$item), sort(paste0("Q", 1:4)))
+})
+
+test_that("all model entry points refuse duplicate item names", {
+  set.seed(19)
+  X <- matrix(rbinom(300 * 4, 1, .5), 300, 4,
+              dimnames = list(NULL, c("A", "A", "B", "C")))
+  expect_error(rasch(X), "must be unique")
+  expect_error(rasch_efrm(X, item_sets = list(s = c("A", "B", "C")),
+                          groups = rep(c("g1", "g2"), each = 150),
+                          boot_reps = 0), "must be unique")
+
+  d <- data.frame(a = c("A", "B"), b = c("B", "A"),
+                  win = c("A", "A"), check.names = FALSE)
+  names(d)[2] <- "a"
+  expect_error(btl(d, "a", "a", "win"), "must be unique")
+
+  long <- data.frame(person = 1:2, item = c("I1", "I2"), score = 0:1,
+                     rater = c("R1", "R2"), check.names = FALSE)
+  names(long)[4] <- "item"
+  expect_error(rasch_mfrm(long, "person", "item", "score", "item"),
+               "must be unique")
+})
+
+test_that("EFRM bootstrap counts are valid before estimation", {
+  d <- data.frame(I1 = c(0, 1), I2 = c(1, 0), group = c("a", "b"))
+  sets <- list(core = c("I1", "I2"))
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = -1),
+               "non-negative whole number")
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = 2.5),
+               "non-negative whole number")
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = 20),
+               "zero or at least 30")
+})
+
+test_that("EFRM requires one response row per person", {
+  d <- data.frame(id = c("p1", "p1", "p2", "p3"),
+                  I1 = c(0, 1, 0, 1), I2 = c(1, 0, 1, 0),
+                  group = c("a", "a", "b", "b"))
+  expect_error(rasch_efrm(d, list(core = c("I1", "I2")), "group",
+                          id = "id", boot_reps = 0),
+               "one response row per person")
+})
+
+test_that("BTL-EFRM bootstrap counts are valid before estimation", {
+  d <- data.frame(object_a = "A", object_b = "B", winner = "A",
+                  judge = "J1", panel = "P1")
+  sets <- list(core = c("A", "B"))
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = -1),
+               "non-negative whole number")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 2.5),
+               "non-negative whole number")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 20),
+               "at least 30")
 })
 
 test_that("available-case ctt alpha is withheld when the covariance is invalid", {

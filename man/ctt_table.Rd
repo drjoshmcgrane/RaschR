@@ -7,7 +7,9 @@
 ctt_table(fit, missing = c("complete", "available"))
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}}.}
+\item{fit}{A fitted object from \code{\link{rasch}} whose columns form one
+administered item set. Expanded EFRM and MFRM response-cell matrices are
+not accepted; one-cell-per-item reductions are.}
 
 \item{missing}{\code{"complete"} (default) computes the classical table on
 respondents who answered every item, matching the textbook total-score
@@ -28,8 +30,11 @@ The classical companion table conventionally reported alongside a Rasch
 analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
-upper third of total scores minus the lower third), and alpha if the
-item is deleted; plus coefficient alpha, the raw-score mean, SD, and the
+upper third of total scores minus the lower third). Equal total scores
+remain in the same third, so the group sizes can differ and DI is withheld
+when three distinct score groups cannot be formed. The table also gives
+alpha if the item is deleted; the summary gives coefficient alpha, the
+raw-score mean, SD, and the
 classical standard error of measurement \eqn{s\sqrt{1 - \alpha}}, which
 unlike the Rasch SE is one value for all persons.
 }

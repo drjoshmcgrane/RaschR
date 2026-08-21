@@ -76,6 +76,14 @@ mechanism existed carry none. Documentation-only edits under `R/` move the tree 
 later commits without touching any estimator, so a result file's hash
 identifies the sources it ran against, not necessarily HEAD.
 
+The current-estimator studies run on 2026-08-21 carry R-tree hash
+`360e3609691b`: `alpha-correction-limits.csv`,
+`alpha-npml-coverage.csv`, `btl-efrm-current.csv`,
+`btl-efrm-bias-sweep.csv`, `mfrm-pooled-dif.csv`,
+`tailored-bootstrap-topup.csv`, `btl-equating-clustered.csv`, and
+`cross-package-validation.csv`. Their script hashes identify the exact study
+files used.
+
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the
 package git SHA (`+dirty` when the R code differs from HEAD), and the run
@@ -93,17 +101,19 @@ granularity deliberately).
   corrections and are superseded); `tailored-bootstrap` documents the
   bootstrap's strong conservatism at feasible replicate counts, which is
   the procedure's documented design.
-- `results/efrm-fix-sweep.csv` and `results/efrm-fix/` — the extended
-  frame set-unit correction: pre-fix 9.4% null rejection (1,000
-  replicates), the corrected hybrid at 4.9% across eight design cells, the
-  seed-paired marginal-vs-joint draw comparison (identical decisions in
-  all 400 replicates), and the full-bootstrap benchmark arm (ratio 0.963)
-  showing the corrected hybrid prices the same uncertainty.
+- `results/efrm-fix-sweep.csv` and `results/efrm-fix/` — covariance checks
+  for the superseded moment-based set link. They established the need to
+  propagate within-frame calibration uncertainty, which the current
+  semiparametric link retains, but they do not validate its point estimator.
 - `results/round2-followups.csv` — the adjudication trail for every
   round-2 suspect: the MFRM q=25 exoneration (600 fixed-truth replicates
   per cell), the btl_efrm origin-test correction (8.5% pre-fix to 5.5%
   post-fix at 400 replicates each), the PCM item-level guard validation,
   and the concentration guard's field behaviour.
+- `results/btl-equating-clustered.csv` — common-object drift under two
+  independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
+  adjustment gave 4.4% familywise rejection over 1,000 null replicates; the
+  superseded normal reference gave 7.4% on the same fitted samples.
 - `results/comparison-validation.csv` — the release gate for the app's
   automatic model-comparison cards: every comparison surface validated
   under its null model and at least two departure magnitudes. Citation
@@ -117,20 +127,16 @@ granularity deliberately).
   at the stronger departures; CL-BIC selects the smaller model almost
   always under nulls with little power against mild departures. Effect
   tests: position/exposure nulls 5.8%/5.9% (800 replicates); carry-over
-  8.3% at 14 judges falling to 5.3% at 30 judges (the few-cluster
-  elevation round 1 flagged as a soft note, now characterised); power at
-  0.6 logits 62/39/77%.
-- `results/cross-package-validation.csv` also carries (post-correction
-  rerun): the corrected EFRM item-set ratio anchored at −0.005 vs TAM's
-  +0.001; the person-group unit phi at +0.003 vs a per-group
-  `lme4::glmer` coefficient-slope anchor at −0.003 (phi's first external
-  check); the crossed 2x2 design clean on both units (alpha +0.009, phi
-  +0.0004 against per-cell GLMM anchors); the polytomous item side at
-  +0.008 vs TAM `GPCM.design` set-constrained slopes at +0.002 (note:
-  TAM's `2PL.groups` frees the category loadings on polytomous data and
-  is unsound as a GPCM anchor); and `rasch_mfrm` vs `tam.mml.mfr` with
-  item, rater, and threshold correlations at 0.9999+ and agreement to
-  ~0.01 logits.
+  8.3% at 14 judges falling to 5.3% at 30 judges, which is why its
+  probability is now withheld below 30 judges; power at 0.6 logits was
+  62/39/77%.
+- `results/cross-package-validation.csv` carries current-estimator checks.
+  The EFRM log set-unit bias is +0.0036 against TAM's +0.0008 for
+  dichotomous data and +0.0035 against +0.0020 for polytomous data. In a
+  crossed two-set by two-group design, EFRM log-alpha bias is +0.0141 and
+  log-phi bias +0.0004. The person-group unit is +0.003 against a per-group
+  `lme4::glmer` coefficient-slope anchor at −0.003. `rasch_mfrm` and
+  `tam.mml.mfr` item and rater estimates correlate above 0.9999.
 - `harness.R` — shared reporting helpers for the second-round studies: one
   row per scenario with bias, empirical SD, mean reported SE, SE ratio,
   95% coverage, Type I / familywise error or power, refusal and
@@ -144,52 +150,47 @@ granularity deliberately).
   comparators agree to the expected order: `sirt::rasch.pairwise` mean
   max-difference 0.02 logits, `eRm` full conditional ML 0.07
   (dichotomous) and 0.15 (PCM thresholds, worst 0.34 at sparse
-  extremes), with equal truth RMSE. The EFRM item-set unit ratio shows
-  its documented few-per-cent upward bias (+0.046 in the log at 8
-  dichotomous items per set) against an essentially unbiased
-  `TAM::tam.mml.2pl` slope-group anchor (+0.001); the `btl_efrm`
-  panel-unit ratio is unbiased within Monte Carlo error and tracks a
+  extremes), with equal truth RMSE. Current EFRM comparisons are summarised
+  above. The `btl_efrm` panel-unit ratio is unbiased within Monte Carlo error
+  and tracks a
   per-panel intercept-free adjacent-category anchor.
-- `results/alpha-correction.csv` — the truncated-score-moment correction
-  of the EFRM item-set unit linking. Diagnosis: the naive construction
-  (observed variance minus mean squared standard error) under-recovers
-  the true-score variance by more than half per set at 8 dichotomous
-  items — the reported SE^2 overstates the actual error variance and WLE
-  shrinkage makes the errors covary negatively with the true values —
-  and its imperfect cancellation between sets biased the log unit ratio
-  by +0.046 at 8 items and −0.036 at 15 (a sign flip: the distortions
-  rebalance with length, so the old estimator was uncontrolled, not
-  merely short-test-biased). Corrected estimator on the default hybrid
-  path: null bias −0.002 with omnibus size 4.8% and coverage 95.3% (400
-  replicates), unbiased at 5, 8, and 15 items per set, two-group frame
-  grid size 3.5%, and the TAM-anchored same-seed rerun at −0.005 against
-  the anchor's +0.001 (pre-correction: +0.046 on identical seeds).
-- `results/alpha-correction-designs.csv` — design robustness of the
-  corrected estimator: unit-ratio sweep 1.0–2.0 (bias within ±0.015
-  everywhere, a mild +0.01 at ratios ≥1.5), person-skewness
-  dose-response 0.5–2.8 (corrected flat at +0.008 to +0.014 while the
-  TAM normal-population anchor drifts monotonically to −0.026),
-  polytomous frames via `simulate_efrm(n_categories = 4)` (null size
-  3.3%, power 100% at ratio 1.4), three sets linked by pairwise-only
-  person overlap (size 2.7%), booklet-style within-set missingness
-  exercising the per-pattern correction moments (size 3.3%), and 15
-  items per set (coverage 98%).
-- `results/alpha-correction-limits.csv` — deliberate stress tests mapping
-  where the corrected set-unit estimator breaks, and how. Loud failures
-  (informative refusals): sets whose patterns span a score range under 4
-  (three dichotomous items previously collapsed to a silent −0.27 with
-  near-zero variance — now guarded and refused). Silent-but-moderate:
-  mistargeting by 1.5–2.5 logits ≈ +0.04 (common offsets do not cancel),
-  ratio 3.5 ≈ +0.05, t3 tails ≈ +0.03; silent-and-large: widely
-  bimodal persons (modes ±2.2) ≈ +0.18 — flagged in the documentation.
-  Inherited model violations degrade in proportion (discrimination
-  jitter −0.017/−0.035 at sd 0.25/0.5; guessing −0.017); ability-
-  dependent missingness measured benign (+0.013) after fixing a crash it
-  exposed. Citation rows carry the fixed-design floor curve
-  (`alpha-floor-curve.R`, N=20,000): corrected +0.012 → +0.006 from 8 to
-  32 items (~1/sqrt(I)), while the raw construction returns NaN at 4–6
-  items and still sits at −0.02 to −0.04 at 16–32 — it never converges
-  in the tested range.
+- `results/alpha-correction.csv`, `alpha-correction-designs.csv`,
+  `alpha-n-sweep.csv` and `studies/alpha-bootstrap-pointest.R` evaluate the
+  superseded moment-based set link. They are retained to document why it was
+  replaced and must not be cited as evidence for the current estimator.
+- `results/alpha-correction-limits.csv` — point-estimator stress tests for the
+  current finite-grid semiparametric link. The study covers targeting, unit
+  ratios, short sets, small samples, heavy-tailed and bimodal populations,
+  missingness, guessing and within-set discrimination departures. Sets with
+  fewer than four score steps are refused by design. Absolute bias is at most
+  0.022 under the model. At 80 persons, 11% of datasets are refused and 2%
+  do not converge; the 41- and 101-point grid results are effectively equal.
+- `results/alpha-npml-coverage.csv` — sampling calibration of the current
+  estimator under normal, wide bimodal and deliberately different group
+  distributions. Hybrid set-unit Type I is 4.0--5.0%, SE ratios are
+  0.97--1.05, and coverage is 0.927--0.960. Common-scale item SE ratios are
+  0.97--1.04. The complete bootstrap is mildly conservative under the null
+  (2.5% rejection, 0.975 coverage) and calibrated under the planted ratio
+  (SE ratio 0.99, coverage 0.938).
+- `results/btl-efrm-current.csv` — current judge- and independent-outcome
+  bootstrap calibration for BTL-EFRM. Judge-bootstrap Type I is 3.7% for
+  panel units, 3.3% for set units and 5.3% for origins; the corresponding
+  independent-outcome rates are 3.7%, 6.7% and 3.0%. Coverage over null and
+  planted conditions is 0.933--0.970.
+- `results/btl-efrm-bias-sweep.csv` — finite-sample attenuation from the
+  staged BTL-EFRM set link. Log set-unit bias decreases from −0.108 at 10
+  repetitions per pair to −0.041 at 20, −0.016 at 50 and −0.007 at 100
+  (500 datasets per cell). The bootstrap study above shows calibrated
+  coverage at 20 repetitions despite this point-estimate bias.
+- `results/mfrm-pooled-dif.csv` — null calibration after putting uniform and
+  non-uniform item tests in the one multiplicity family used for decisions.
+  Familywise rejection is 4.7% with balanced raters and 3.8% when the second
+  group has only two raters (1,000 attempted datasets per cell).
+- `results/tailored-bootstrap-topup.csv` — full automatic anchor selection
+  repeated inside each of 399 person-bootstrap draws. Clean-item familywise
+  error is 2.5% at guessing 0.15 and 0% at 0.30. At least one of two planted
+  hard items is detected in 17.5% and 26.3% of datasets respectively, showing
+  that calibration is conservative and power is limited for this design.
 - `results/cross-package-diagnostics.csv` — the diagnostics checked
   against independent implementations, at the level each comparison
   supports. Formula parity: alpha vs `psych::alpha` to 4e-15. Value
@@ -211,32 +212,6 @@ granularity deliberately).
   external parallel (dependence_magnitude, spread_test, the tailored
   bootstrap, the comparative judgement family, equate_tests), which
   remain simulation-validated only.
-- `results/alpha-n-sweep.csv` — the corrected set-unit estimator across
-  linking samples N = 250 to 10,000 at the shipped configuration,
-  uniform 100 replicates per cell (coverage resolved to ±0.02; the
-  original 60-replicate cells were topped up under their fixed seeds and
-  combined exactly): reported SEs track the empirical SD at every size
-  (ratios 0.91–1.06) while both shrink with the square root of N; the
-  bias sits flat in the +0.001 to +0.008 band with the large-N plateau
-  at ~+0.004 in log alpha[set2] -- which is +0.008 on the log RATIO, so
-  about 0.8% on the ratio scale; the per-set log is half the log ratio,
-  an easy factor-of-two trap when quoting these figures -- instead of
-  vanishing; coverage runs
-  92–99% through N = 5,000 with a mild slip to 91% at N = 10,000,
-  consistent with the offset-to-SE arithmetic (0.32 SE units predicts
-  ~94%). The apparent sharp erosion in the initial 60-replicate pass
-  (0.867 at N = 10,000) did not survive uniform replication. Operating
-  consequence in the rasch_efrm help: calibrated to at least five
-  thousand linking persons; beyond that, accuracy is bounded by the
-  design, not the sample.
-- `studies/alpha-bootstrap-pointest.R` — the answer to "could a bootstrap
-  make the unit estimate better?": no. Bagging and bootstrap bias
-  correction both fail to beat the shipped point estimate on RMSE (0.090
-  and 0.092 against 0.0895 over 20 datasets x 30 resamples), bias
-  correction being worse on bias as well because it removes the
-  small-sample Jensen term that partly offsets the fixed-design floor.
-  Resampling redistributes information already present; the constraint is
-  the linking channel's width, so set length is the lever.
 - `results/humphry-item-side.csv` — is the item-side variance-ratio
   argument (Humphry 2005, eq. 2.27) biased? Not detectably. Over 15 design
   cells (8 to 40 items, 200 to 5,000 persons per frame, planted unit ratio
@@ -278,13 +253,11 @@ granularity deliberately).
   ratio by about 12 per cent and a full logit by 17, in every cell, with no
   decay in sample size or item count — a person repeating their first
   answer makes the second administration look more consistent, which the
-  calibration reads as a larger unit. For scale, the person-side link's
-  corrected defect was 5 per cent. Since item sets are defined by item
+  calibration reads as a larger unit. Since item sets are defined by item
   properties, an item belongs to one set, so a bridge means literal
   re-administration and conditional independence is not credible. The
-  person-side link is therefore the only sound route to item-set units,
-  and the truncated-score-moment correction was necessary rather than
-  avoidable. The dependence would at least be detectable: paired
+  person-side link is therefore the practical route to item-set units. The
+  dependence would at least be detectable: paired
   administrations show a large Q3 in `residual_correlations`, though
   detection only tells you to abandon the bridge.
 - `results/humphry-pgd-replication.csv` — a simulation of the
@@ -313,26 +286,25 @@ granularity deliberately).
   contamination resistance. The discipline the method needs is screening
   the common items for DIF and misfit before computing the ratio, which is
   what his own RMSD 0.24 against RMSE 0.12 diagnostic was detecting.
-- `results/channel-head-to-head.csv` — Humphry's item-side estimator and
-  ours on identical simulated data (same persons, same items, two frames
-  differing only in unit, conditional independence given theta). Both are
-  unbiased everywhere, so the comparison is of efficiency: the item-side
+- `results/channel-head-to-head.csv` — a historical comparison of Humphry's
+  item-side estimator and the superseded score-moment person-side link on
+  identical simulated data (same persons, same items, two frames differing
+  only in unit, conditional independence given theta). Both are unbiased
+  everywhere, so the comparison is of efficiency: the item-side
   channel is 1.96 times more precise at 8 items and 980 persons, 1.46
   times at 12 items, and 1.15 to 1.33 times by 20 to 40 items. Adding
-  persons sharpens item locations and helps his channel; adding items
-  sharpens person estimates and helps ours. The person-side route is
-  therefore costly on short sets and close to equivalent on long ones.
-- `results/misfit-both-channels.csv` — ordinary item misfit, over- and
-  under-discriminating items equally in both frames, as distinct from the
-  frame-specific departures in `humphry-pgd-misfit.csv`. It largely
-  cancels in a ratio, on both channels: four of twelve items with
-  discrimination doubled or halved attenuate the recovered ratio by 2.3
-  per cent (item side) or 1.0 (person side), and scattering every item's
-  discrimination log-normally costs about 1 per cent. Compare +10.4 per
-  cent for the same number of items when the discrimination differs
-  ACROSS frames. The screening a unit ratio requires is therefore for
-  frame-specific departures, not for poor fit as such.
-- `results/humphry-isd-replication.csv` — his ITEM-SET discrimination
+  persons sharpens item locations and helps the item-side channel; adding
+  items sharpens person estimates and helps the score-moment channel. This
+  comparison does not validate the current semiparametric link.
+- `results/misfit-both-channels.csv` — a historical comparison of ordinary
+  item misfit in the item-side and superseded score-moment channels. Four of
+  twelve items with discrimination doubled or halved attenuate the recovered
+  ratio by 2.3 per cent (item side) or 1.0 per cent (score-moment side), and
+  scattering every item's discrimination log-normally costs about 1 per cent.
+  It does not validate the current semiparametric link; the corresponding
+  current-estimator departures are in `alpha-correction-limits.csv`.
+- `results/humphry-isd-replication.csv` — historical comparison of the
+  earlier item-set estimators on Humphry's item-set discrimination
   study replicated on its own design (4 sets of 10 items spanning -4 to 4,
   N = 1000, planted ISDs 0.604/0.906/1.209/1.511). ISD is estimated
   person-side in the thesis -- "a matrix of log ratios of standard
@@ -340,7 +312,7 @@ granularity deliberately).
   2.29, var(WLE) minus the mean squared standard error -- which is the
   construction this package replaced. On his design the uncorrected ratio
   is attenuated to 2.089 against a planted 2.502 end-to-end; equation 2.29
-  overshoots to 2.698 (+7.8 per cent); the truncated-score-moment
+  overshoots to 2.698 (+7.8 per cent); the superseded score-moment
   correction lands at 2.483 (-0.8 per cent). Note that the product
   constraint fixes the mean of log alpha, so mean bias is zero by
   construction for every estimator and only the SPREAD can be wrong --
@@ -350,7 +322,8 @@ granularity deliberately).
   inconsistent about the person spread (his expected SDs imply 1.51, the
   text reports a generated 1.76) and he used RUMM2020's WLEs, so a design
   detail differs; the ordering of the three estimators is unaffected since
-  all three run on identical data.
+  all three run on identical data. These results do not validate the current
+  semiparametric estimator.
 - `results/pgd-ours-vs-his.csv` — the like-for-like comparison on a
   common-item linking design. Given common items and disjoint person
   groups this package does not use its person-side link at all: it
@@ -533,8 +506,8 @@ granularity deliberately).
   clean analysis had them, 0.7267 and 0.8498 — indistinguishable from never
   having had the problem. It buys this with one parameter per extra frame
   and by removing the item from the link, so the group units then rest on
-  the items that remain common; `resolve_frames()` refuses when that would
-  leave a set with fewer than two.
+  the items that remain common; `resolve_frames()` refuses when the remaining
+  frame graph or information matrix no longer identifies those units.
 
   So the two remedies are not a trade-off on this evidence: where an item
   measures well within each frame and only its comparability fails,
@@ -560,44 +533,32 @@ granularity deliberately).
 
   What the chain costs is precision, not accuracy. The chained ratio's
   empirical standard deviation runs about 1.4 times the direct one at every
-  sample size — 0.171 against 0.119, 0.115 against 0.080, 0.068 against
-  0.051 — which is the square root of two you would expect from compounding
-  two links rather than reading one.
-
-  The reported standard errors are the weak part. At 300 per year they are
-  far too conservative, a mean of 0.205 against an empirical spread of 0.119
-  for the direct ratio and 0.279 against 0.171 for the chained one. By 2,000
-  they have crossed over and understate slightly, 0.044 against 0.051 and
-  0.051 against 0.068. So a chained comparison at a few hundred per year is
-  better than its standard error suggests, and one at a few thousand is
-  marginally worse; read the interval with that in mind.
-- `results/frame-invariance-power.csv` — the power of the two comparisons
-  `frame_invariance()` reports, and the provenance those figures previously
-  lacked. The help page asserted them; no study stood behind them. It does
-  now, and the figures moved a little.
-
-  Two departures matched on the damage they do rather than on nominal size,
-  each moving the planted group-unit ratio by six or seven per cent: two
-  items of eight shifted a logit in frame 2, against two discriminating half
-  again as steeply there. 200 replicates, flags at the function's default.
-
-  The asymmetry is real and large. The location comparison finds the shifted
-  items 95 per cent of the time at 500 persons per frame and always by
-  1,000; the discrimination comparison finds the steeper items 14 per cent
-  at 500, 45 per cent at 1,000 and 88 per cent at 2,000. So a clean result
-  at a few hundred per frame rules out one departure and barely tests the
-  other, and the two only converge near two thousand.
-
-  Under a true null both channels are conservative, flagging 0.1 to 1.5 per
-  cent of items, Holm across the family doing the work. That calibration
-  does not survive contamination on the location side, and this is the
-  finding the help page had missed: where two items of eight really are
-  shifted, the other six differ from the compromise the model settles on and
-  get flagged more readily the larger the sample — 19 per cent of sound
-  items at 500 persons per frame, 44 per cent at 1,000, 61 per cent at
-  2,000. The discrimination channel does not do this, staying near 2 per
-  cent throughout. A long list of flagged locations is evidence that some
-  item is displaced, not that all of them are.
+  sample size — 0.171 against 0.119, 0.115 against 0.080, and 0.068 against
+  0.051. Contrast standard errors use \eqn{c^T V c}. They track the empirical
+  spread closely from 700 persons per year; at 300, the indirect-link mean SE
+  is conservative (0.374 against 0.171).
+- `results/frame-invariance-conditional-topup.csv` — the 2,000-replicate
+  null check that led to conditional discrimination probabilities being
+  withdrawn. The standardised-infit comparison produced 7.1% combined Holm
+  familywise error, with rejection strongly dependent on item position. The
+  descriptive infit and fitted-slope columns remain useful, but they are not
+  treated as tests.
+- `results/frame-invariance-bootstrap.csv` — calibration of the replacement
+  bootstrap inference at 500 persons per frame. Across 300 null replicates,
+  empirical-SD/mean-SE ratios were 1.002 for locations and 1.034 for log
+  discrimination ratios, coverage was 0.948 and 0.954, and the combined Holm
+  familywise error was 3.0%. At two planted items, power was 96.3% for a
+  one-logit location shift and 9.6% for a 1.5-fold discrimination change over
+  120 replicates. The latter comparison is valid but weak at this design.
+- `results/frame-invariance-power.csv` — the conditional location study,
+  with 1,000 null and 400 departure replicates at 500, 1,000 and 2,000
+  persons per frame. Empirical-SD/mean-SE ratios were 0.908--0.916, coverage
+  was 0.966--0.968, and Holm familywise error was 1.9--2.6%. Holm-adjusted
+  power for each of two one-logit shifts was 95.1% at 500 persons and 100% at
+  1,000 and 2,000. Because separate frame origins centre the common items,
+  unshifted items can carry non-zero relative contrasts when a few items
+  move; the study records that rate rather than treating it as an ordinary
+  false-positive rate.
 - `sha-map-2026-08-16.txt` — commit-ID map (old, new) from the 2026-08-16
   message-only history rewrite. `package_sha` values stamped in result
   tables before that date are pre-rewrite IDs; look them up in the first

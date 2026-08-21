@@ -50,6 +50,75 @@ test_that("Shiny explainers remain succinct", {
               info = paste(names(which.max(words)), "has", max(words), "words"))
 })
 
+test_that("the app retains the agreed model labels and frame safeguards", {
+  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  if (!file.exists(app)) app <- system.file("shiny", "app.R", package = "rasch")
+  src <- paste(readLines(app, warn = FALSE), collapse = "\n")
+
+  expect_match(src, '"Multiple Ratings \\(MFRM\\)" = "mfrm"')
+  expect_match(src, '"Extended Frames \\(EFRM\\)" = "efrm"')
+  expect_false(grepl('"Many-facet \\(MFRM\\)" = "mfrm"', src))
+  expect_false(grepl('"Rated / many-facet \\(MFRM\\)" = "mfrm"', src))
+
+  # Adding BTL frames must not silently discard specifications unsupported by
+  # btl_efrm(): each case is stopped before the frame fit is called.
+  for (text in c("uses external anchors", "uses aggregated count weights",
+                 "has ordered response categories", "assigns half a win to ties",
+                 "includes within-judge order effects"))
+    expect_match(src, text, fixed = TRUE)
+
+  expect_match(src, 'if (inherits(f, "rasch_efrm")) f$item_arbitrary',
+               fixed = TRUE)
+  expect_match(src, "before <- app_item_estimates(analysis())", fixed = TRUE)
+  expect_match(src, "after <- app_item_estimates(fit())", fixed = TRUE)
+  expect_match(src, "rho = phi / alpha", fixed = TRUE)
+  expect_false(grepl("rho = phi x alpha", src, fixed = TRUE))
+  expect_match(src, 'style_lo_red(num_dt(d), d, "p_adj", 0.05)',
+               fixed = TRUE)
+  expect_match(src, '"p_adj_kappa"', fixed = TRUE)
+  expect_match(src, "maxit = eo$maxit, tol = eo$tol", fixed = TRUE)
+
+  # Inference defaults and structural remedies are deliberately conservative.
+  expect_match(src, '"Judge bootstrap (recommended)" = "judge_bootstrap"',
+               fixed = TRUE)
+  expect_match(src, '"Parametric bootstrap" = "bootstrap"', fixed = TRUE)
+  expect_match(src, 'input$btlef_se %||% "judge_bootstrap"', fixed = TRUE)
+  expect_false(grepl('input$pc_id', src, fixed = TRUE))
+  expect_match(src, 'unique(f$virtual_map$item)', fixed = TRUE)
+  expect_match(src, "A location split cannot model", fixed = TRUE)
+  expect_match(src, "Summary counts must use the same reporting rule",
+               fixed = TRUE)
+})
+
+test_that("the app uses structurally stable responsive control layouts", {
+  skip_if_not_installed("xml2")
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  old_cache <- Sys.getenv("R_USER_CACHE_DIR", unset = NA_character_)
+  Sys.setenv(R_USER_CACHE_DIR = file.path(tempdir(), "r-cache"))
+  on.exit(if (is.na(old_cache)) Sys.unsetenv("R_USER_CACHE_DIR") else
+    Sys.setenv(R_USER_CACHE_DIR = old_cache), add = TRUE)
+  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  if (!file.exists(app)) app <- system.file("shiny", "app.R", package = "rasch")
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+  doc <- xml2::read_html(htmltools::renderTags(e$ui)$html)
+  bad <- xml2::xml_find_all(doc,
+    "//*[contains(concat(' ',normalize-space(@class),' '),' bslib-sidebar-layout ')]")
+  expect_length(bad, 0L)
+  top <- xml2::xml_find_all(doc,
+    "//body/div[contains(@class,'container-fluid')]/div[contains(@class,'tab-content')]")
+  expect_length(top, 1L)
+  # Accordion headings are themselves buttons. An information button inside
+  # one is invalid HTML and causes Chromium to close the tab container early.
+  expect_length(xml2::xml_find_all(doc, "//button//button"), 0L)
+  values <- xml2::xml_attr(xml2::xml_find_all(top,
+    "./div[contains(concat(' ',normalize-space(@class),' '),' tab-pane ')]"),
+    "data-value")
+  expect_true(all(c("p_data", "p_targeting", "p_dif", "p_frames", "p_export")
+                  %in% values))
+})
+
 test_that("every analytical result has an R-code disclosure", {
   app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
   if (!file.exists(app)) app <- system.file("shiny", "app.R", package = "rasch")

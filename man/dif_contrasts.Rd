@@ -18,7 +18,8 @@ dif_contrasts(
 )
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}}.}
+\item{fit}{A fitted object from \code{\link{rasch}} or
+\code{\link{rasch_mfrm}}.}
 
 \item{factors}{A data frame of person factors, a character vector naming
 factors nominated in the fit, or a single grouping vector. Defaults to
@@ -31,8 +32,8 @@ time). Detected automatically when \code{id} is supplied and a factor
 varies within an id.}
 
 \item{id}{Person identifier with one entry per row, or the name of a
-nominated factor holding it; required for stacked designs where the
-same person occupies several rows.}
+nominated factor holding it. By default the identifier stored by the
+fitted model is used, so stacked designs retain their pairing.}
 
 \item{contrasts}{\code{"auto"} (derive the family from the factor
 structure) or a named list of numeric cell-weight vectors, each named
@@ -86,7 +87,10 @@ standardised residuals,
 and tested over persons. Between-person contrasts use Welch tests of person
 means; mixed interactions use Welch tests of the within-person contrast
 scores. The sign of each residual test is aligned with the resolved logit
-contrast.
+contrast. Contrasts require a converged calibration.
+For an MFRM fit, underlying items are pooled over their facet cells by
+default. EFRM fits are excluded because the required split refit would
+discard the frame units.
 }
 \examples{
 set.seed(1); n <- 600

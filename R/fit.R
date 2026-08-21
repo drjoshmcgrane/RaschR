@@ -203,6 +203,10 @@
 .class_intervals <- function(theta, extreme, n_groups = NULL) {
   g <- rep(NA_integer_, length(theta))
   use <- which(!is.na(theta) & !extreme)
+  if (!length(use)) {
+    attr(g, "n_groups") <- 0L
+    return(g)
+  }
   if (is.null(n_groups)) n_groups <- .default_n_groups(length(use))
   g[use] <- .ci_allocate(theta[use], n_groups)
   attr(g, "n_groups") <- max(g[use], na.rm = TRUE)
@@ -378,13 +382,32 @@ chisq_detail <- function(fit, item) {
 .alpha <- function(X) {
   Xc <- X[stats::complete.cases(X), , drop = FALSE]
   applicable <- nrow(Xc) == nrow(X)
-  if (nrow(Xc) < 3 || ncol(Xc) < 2) return(list(alpha = NA_real_, n = nrow(Xc),
-                                                applicable = applicable))
+  if (nrow(Xc) < 3 || ncol(Xc) < 2) return(list(
+    alpha = NA_real_, n = nrow(Xc), applicable = applicable,
+    design_applicable = TRUE))
   L <- ncol(Xc); vi <- apply(Xc, 2, var); vt <- var(rowSums(Xc))
   if (!is.finite(vt) || vt <= 0)          # constant total score: undefined
-    return(list(alpha = NA_real_, n = nrow(Xc), applicable = applicable))
+    return(list(alpha = NA_real_, n = nrow(Xc), applicable = applicable,
+                design_applicable = TRUE))
   list(alpha = L / (L - 1) * (1 - sum(vi) / vt), n = nrow(Xc),
-       applicable = applicable)
+       applicable = applicable, design_applicable = TRUE)
+}
+
+# Whether a structural fit reduces to one observable response cell per item.
+# Current fits record this in alpha$design_applicable. The map fallback keeps
+# projects saved before that field was introduced safe: an absent flag is not
+# permission unless the fitted response cells can be matched one-to-one to
+# items.
+.classical_design_applicable <- function(fit) {
+  structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
+  if (!structural) return(TRUE)
+  vm <- fit$virtual_map
+  if (is.null(vm) || !all(c("vkey", "item") %in% names(vm)) ||
+      is.null(colnames(fit$X))) return(FALSE)
+  item_names <- vm$item[match(colnames(fit$X), vm$vkey)]
+  map_ok <- !anyNA(item_names) && !anyDuplicated(item_names)
+  recorded <- fit$alpha$design_applicable
+  if (length(recorded)) isTRUE(recorded) && map_ok else map_ok
 }
 
 # Qualitative power-of-test-of-fit assessment, driven by the PSI.
@@ -412,7 +435,8 @@ chisq_detail <- function(fit, item) {
 # Administrable virtual-item blocks of a fit: one per design a person
 # could actually take. Ordinary fits: the whole test. EFRM: one block per
 # person group AND per item-set administration pattern observed in that
-# group. MFRM: one block per observed facet design. Shared by
+# group. MFRM: one block per set of facet conditions observed together for
+# a person. Shared by
 # test_information() and the test-level curve plots so they cannot
 # disagree.
 .design_blocks <- function(fit) {
@@ -426,34 +450,69 @@ chisq_detail <- function(fit, item) {
     # ever took, understating their SEM -- so split each group by the
     # distinct set-administration patterns actually observed
     vm <- fit$virtual_map
-    blocks <- list(); ord <- character(0)
+    blocks <- list(); labels <- character(0)
     for (g in unique(vm$group)) {
       gcols <- which(vm$group == g)
       grows <- rowSums(!is.na(fit$X[, gcols, drop = FALSE])) > 0
       if (!any(grows)) next
       sets_of_col <- vm$set[gcols]
       # per person: which of the group's sets they answered at all
-      pat <- apply(!is.na(fit$X[grows, gcols, drop = FALSE]), 1, function(r)
-        paste(sort(unique(sets_of_col[r])), collapse = "+"))
+      gsets <- sort(unique(sets_of_col))
+      answered <- !is.na(fit$X[grows, gcols, drop = FALSE])
+      present <- vapply(gsets, function(s)
+        rowSums(answered[, sets_of_col == s, drop = FALSE]) > 0L,
+        logical(sum(grows)))
+      if (is.null(dim(present))) present <- matrix(present, ncol = 1L)
+      pat <- .factor_keys(as.data.frame(present, check.names = FALSE))
       for (p in unique(pat)) {
-        psets <- strsplit(p, "+", fixed = TRUE)[[1]]
-        lab <- paste0("group=", g, if (length(unique(vm$set)) > 1L)
-          paste0(", sets=", p) else "")
-        if (!lab %in% names(blocks)) {
-          blocks[[lab]] <- gcols[sets_of_col %in% psets]
-          ord <- c(ord, lab)
-        }
+        first <- match(p, pat)
+        psets <- gsets[present[first, ]]
+        key <- .factor_keys(data.frame(group = g, pattern = p,
+                                       stringsAsFactors = FALSE))
+        blocks[[key]] <- gcols[sets_of_col %in% psets]
+        labels[key] <- paste0("group=", g, if (length(unique(vm$set)) > 1L)
+          paste0(", sets=", paste(psets, collapse = "+")) else "")
       }
     }
-    blocks <- blocks[ord]
+    # Readable labels are for display only. If literal group or set names make
+    # two labels look the same, retain both designs and mark them distinctly.
+    lab <- unname(labels[names(blocks)])
+    if (anyDuplicated(lab)) {
+      dup <- duplicated(lab) | duplicated(lab, fromLast = TRUE)
+      lab[dup] <- paste0(lab[dup], " [design ", seq_along(lab)[dup], "]")
+    }
+    names(blocks) <- lab
   } else if (inherits(fit, "rasch_mfrm")) {
     vm <- fit$virtual_map
     fs <- fit$facet_spec
-    key <- interaction(vm[, fs, drop = FALSE], drop = TRUE, sep = ", ")
-    blocks <- split(seq_len(nrow(vm)), key)
-    labs <- vapply(blocks, function(ii)
-      paste(paste0(fs, "=", unlist(vm[ii[1L], fs, drop = FALSE])),
-            collapse = ", "), "")
+    cell <- .factor_keys(vm[, fs, drop = FALSE])
+    cells <- unique(cell)
+    cell_lab <- stats::setNames(vapply(cells, function(k) {
+      i <- match(k, cell)
+      paste(paste0(fs, "=", unlist(vm[i, fs, drop = FALSE])),
+            collapse = ", ")
+    }, ""), cells)
+    observed <- !is.na(fit$X)
+    present <- vapply(cells, function(k)
+      rowSums(observed[, cell == k, drop = FALSE]) > 0L,
+      logical(nrow(fit$X)))
+    if (is.null(dim(present))) present <- matrix(present, ncol = 1L)
+    pattern <- .factor_keys(as.data.frame(present, check.names = FALSE))
+    blocks <- list()
+    for (p in unique(pattern)) {
+      first <- match(p, pattern)
+      active <- cells[present[first, ]]
+      blocks[[p]] <- which(cell %in% active)
+    }
+    labs <- vapply(unique(pattern), function(p) {
+      first <- match(p, pattern)
+      active <- cells[present[first, ]]
+      paste(unname(cell_lab[active]), collapse = " + ")
+    }, "")
+    if (anyDuplicated(labs)) {
+      dup <- duplicated(labs) | duplicated(labs, fromLast = TRUE)
+      labs[dup] <- paste0(labs[dup], " [design ", seq_along(labs)[dup], "]")
+    }
     names(blocks) <- labs
   }
   blocks
@@ -466,9 +525,10 @@ chisq_detail <- function(fit, item) {
 #' curve. EFRM fits return one curve per person group and per item-set
 #' administration pattern actually observed within that group (in a linking
 #' design, persons who took only the core set get a core-only curve, and the
-#' linking subsample gets the pooled one), and MFRM fits return one curve per
-#' observed facet design; mutually exclusive virtual-item blocks, and item
-#' sets no single person took together, are never added together.
+#' linking subsample gets the pooled one). MFRM fits return one curve per set
+#' of facet conditions observed together for a person, so ratings that jointly
+#' inform the same person measure are added and mutually exclusive designs
+#' remain separate.
 #'
 #' @details
 #' For an administrable block \eqn{\mathcal A}, the information and standard
@@ -483,7 +543,7 @@ chisq_detail <- function(fit, item) {
 #' @param grid Logit grid over which to evaluate the information.
 #' @return A data frame with \code{theta}, \code{info}, and \code{sem}. For
 #'   EFRM and MFRM fits it also contains a \code{design} column identifying
-#'   the administrable group or facet design.
+#'   the administrable frame or facet design.
 #' @references
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.

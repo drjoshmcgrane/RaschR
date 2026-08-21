@@ -57,18 +57,18 @@ refitted. \code{"conditional"} uses
 analytic stage-one standard errors for \code{beta} and \code{phi}, and
 inverse observed information for \code{alpha} and \code{kappa}
 conditional on the stage-one estimates. It is faster, but does not
-propagate stage-one uncertainty into the linking parameters.}
+propagate stage-one uncertainty into the linking parameters; unit
+probabilities and omnibus tests are therefore withheld.}
 
 \item{boot_reps}{Number of replicates for \code{se_method = "bootstrap"}
-or \code{"judge_bootstrap"}.}
+or \code{"judge_bootstrap"}; at least 30 are required.}
 
 \item{maxit, tol}{Newton iteration cap and convergence tolerance.}
 }
 \value{
-An object of class \code{"rasch_btl_efrm"}. Principal components
-  are \code{objects}, \code{phi_table}, \code{alpha_table},
-  \code{kappa_table}, \code{unit_omnibus}, \code{frames},
-  \code{equal_unit}, \code{n_cross}, \code{notes}, and \code{converged}.
+An object of class \code{"rasch_btl_efrm"}. It contains the object
+  estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
+  frame definitions, convergence information, and analysis notes.
 }
 \description{
 Fits paired comparisons when judges belong to panels and objects belong to
@@ -99,10 +99,12 @@ this package.
 
 The default judge bootstrap resamples judges within panels and refits both
 stages. The parametric bootstrap draws independent outcomes from the fitted
-probabilities. \code{se_method = "conditional"} uses analytic stage-one
+probabilities and uses normal and chi-square reference distributions.
+\code{se_method = "conditional"} uses analytic stage-one
 errors and conditions the linking errors on stage one; it is intended for
-preliminary inspection. Bootstrap failures and boundary estimates are
-reported in \code{notes}.
+preliminary inspection. Its unit probabilities and omnibus tests are
+withheld because it does not propagate stage-one uncertainty. Bootstrap
+failures and boundary estimates are reported in \code{notes}.
 
 With one set, the model contains panel units only. With one set and one
 panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference

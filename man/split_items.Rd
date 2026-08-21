@@ -16,7 +16,10 @@ vector with one entry per person.}
 }
 \value{
 A new \code{\link{rasch}} fit in which each split item appears as
-  \code{"item (level)"}, with the splits recorded in its notes.
+  \code{"item (level)"}, with the splits recorded in its notes. Person and
+  item estimates are recalculated with the fitted grouping, keyed scoring,
+  anchors on unchanged items, PCM constraints and optimisation controls.
+  An anchored item cannot be split.
 }
 \description{
 Replaces each nominated item with one item per level of a person factor,

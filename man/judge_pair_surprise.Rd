@@ -30,6 +30,7 @@ stronger object won less than its lead predicts -- the judge backed the
 underdog. A matchup is an unexpected judgement when \code{z} falls at or
 below \code{-flag_z} and the pair was seen at least \code{min_n} times, i.e.
 the judge favoured the weaker object further than sampling noise explains.
+The fitted model must have converged.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

@@ -43,6 +43,10 @@
 #' residual_correlations(rasch(X))$average
 #' @export
 residual_correlations <- function(fit, flag = NULL) {
+  if (!inherits(fit, "rasch"))
+    stop("residual_correlations needs a rasch fit")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; residual correlations are unavailable")
   if (!is.null(flag) && (length(flag) != 1L || !is.finite(flag) || flag <= 0))
     stop("flag must be NULL or one positive finite heuristic threshold")
   Z <- fit$residuals
@@ -93,6 +97,9 @@ residual_correlations <- function(fit, flag = NULL) {
 #' residual_pca(rasch(X))$first_eigen
 #' @export
 residual_pca <- function(fit, n_components = 10) {
+  if (!inherits(fit, "rasch")) stop("residual_pca needs a rasch fit")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; residual PCA is unavailable")
   if (length(n_components) != 1L || !is.finite(n_components) ||
       n_components < 1L || n_components != floor(n_components))
     stop("n_components must be one positive whole number")
@@ -172,6 +179,8 @@ residual_pca <- function(fit, n_components = 10) {
   X <- fit$X[keep, , drop = FALSE]
   th0 <- fit$person$theta[keep]
   obs <- !is.na(X); N <- nrow(X)
+  spec <- fit$refit_spec
+  if (is.null(spec)) spec <- list()
   probs <- function(i) {
     m <- length(tau_list[[i]]); xc <- 0:m
     eta <- outer(th0, xc) -
@@ -192,9 +201,13 @@ residual_pca <- function(fit, n_components = 10) {
     Xr[!obs] <- NA
     colnames(Xr) <- colnames(X)
     fr <- tryCatch(suppressWarnings(
-      rasch(Xr, model = fit$model, n_groups = fit$n_groups)),
+      rasch(Xr, model = fit$model, n_groups = fit$n_groups,
+            adjust_N = spec$adjust_N %||% NA_real_,
+            anchors = spec$anchors, pc_components = spec$pc_components,
+            maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
       error = function(e) NULL)
-    if (is.null(fr) || ncol(fr$X) != L) return(rep(NA_real_, k))
+    if (is.null(fr) || !isTRUE(fr$est$converged) || ncol(fr$X) != L)
+      return(rep(NA_real_, k))
     tryCatch(residual_pca(fr, n_components = k)$eigenvalues[seq_len(k)],
              error = function(e) rep(NA_real_, k))
   })
@@ -272,7 +285,8 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
 #' (their weighted-likelihood estimates are most biased there). The
 #' proportion of significant tests is reported with an exact
 #' (Clopper-Pearson) binomial confidence interval; a lower bound above
-#' \code{alpha} signals multidimensionality.
+#' \code{alpha} signals multidimensionality. The test requires a converged
+#' calibration.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param alpha Nominal significance level for the per-person t-tests.
@@ -318,6 +332,9 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
 dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
                                 items_negative = NULL, component = 1,
                                 min_score_points = 15L) {
+  if (!inherits(fit, "rasch")) stop("dimensionality_test needs a rasch fit")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; the dimensionality test is unavailable")
   if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
     stop("alpha must be one probability strictly between 0 and 1")
   if (length(component) != 1L || !is.finite(component) || component < 1L ||
@@ -430,7 +447,8 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
 #' the latent correlation between subscales is \eqn{\rho = 1/(1 + c^2)},
 #' and \eqn{A = S/(S + c^2)} is the proportion of common (non-unique,
 #' non-error) variance. Both the person separation index and coefficient
-#' alpha versions are reported (Andrich and Marais 2019, ch. 24).
+#' alpha versions are reported (Andrich and Marais 2019, ch. 24). Both the
+#' original and subtest calibrations must converge.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param subtests A list of character vectors assigning \emph{every} item
@@ -456,6 +474,8 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
 #' @export
 dimensionality_magnitude <- function(fit, subtests) {
   if (!inherits(fit, "rasch")) stop("dimensionality_magnitude needs a rasch fit")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; dimensionality magnitude is unavailable")
   if (!is.list(subtests) || length(subtests) < 2)
     stop("supply a list of at least two subscales")
   allit <- unlist(subtests)
@@ -467,6 +487,8 @@ dimensionality_magnitude <- function(fit, subtests) {
   K <- lengths(subtests)[1L]
   g <- S * (K - 1) / (S * K - 1)
   refit <- combine_items(fit, subtests)
+  if (!isTRUE(refit$est$converged))
+    stop("the subtest calibration did not converge; dimensionality magnitude is unavailable")
   ratio <- function(r1, r2) {
     if (any(!is.finite(c(r1, r2))) || r2 <= 0) return(rep(NA_real_, 4))
     c2 <- max(S * (r1 / r2 - 1) / g, 0)

@@ -31,7 +31,8 @@ over-rated) or less (\code{z < 0}, under-rated) that judge favoured it than
 its consensus location predicts. A surprise is an object the judge treated
 against its standing: a strong object under-rated, or a weak object
 over-rated (residual opposite in sign to the location), beyond
-\code{flag_z} and seen at least \code{min_n} times.
+\code{flag_z} and seen at least \code{min_n} times. The fitted model must
+have converged.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

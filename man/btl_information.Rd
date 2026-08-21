@@ -32,7 +32,8 @@ including replication counts.
 \code{se_naive = 1/sqrt(information)} treats each object's comparisons in
 isolation. It is a description of the design, not the fitted standard error
 or a bound on it. The fitted standard error also reflects joint estimation,
-the identifying constraint, and judge clustering.
+the identifying constraint, and judge clustering. The fitted model must
+have converged.
 }
 \examples{
 set.seed(1)

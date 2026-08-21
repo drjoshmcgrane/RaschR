@@ -18,7 +18,9 @@
 #' polytomous fits are rejected rather than forced into an invalid whole-item
 #' deterministic order.
 #'
-#' @param fit A fitted object from \code{\link{rasch}}.
+#' @param fit A fitted object from \code{\link{rasch}} whose columns form one
+#'   administered item set. Expanded EFRM and MFRM response-cell matrices are
+#'   not accepted; one-cell-per-item reductions are.
 #' @return A list with the ordered score matrix \code{matrix} (persons by
 #'   items, row and column names carrying the ID and item labels), the person
 #'   and item orderings, and the coefficient of reproducibility \code{CR}.
@@ -33,7 +35,21 @@
 #' guttman_table(rasch(X))$CR
 #' @export
 guttman_table <- function(fit) {
+  if (!inherits(fit, "rasch")) stop("guttman_table needs a rasch fit")
+  structural <- inherits(fit, c("rasch_efrm", "rasch_mfrm"))
+  if (!.classical_design_applicable(fit))
+    stop("the whole-item scalogram is not defined when an item is ",
+         "represented by several frame or facet response cells; construct ",
+         "it for one observable item design instead")
   X <- fit$X; m <- fit$m
+  if (structural) {
+    item_names <- fit$virtual_map$item[
+      match(colnames(X), fit$virtual_map$vkey)]
+    if (anyNA(item_names) || anyDuplicated(item_names))
+      stop("the one-cell-per-item reduction could not be matched to its ",
+           "item names")
+    colnames(X) <- item_names
+  }
   if (any(m != 1L))
     stop("guttman_table currently supports dichotomous items only; ",
          "polytomous category steps can interleave and require a step-level ",
@@ -43,7 +59,7 @@ guttman_table <- function(fit) {
   iorder <- order(fit$items$location)
   G <- X[porder, iorder, drop = FALSE]
   rownames(G) <- as.character(fit$person$id)[porder]
-  colnames(G) <- fit$items$item[iorder]
+  colnames(G) <- colnames(X)[iorder]
 
   # coefficient of reproducibility: 1 - errors / responses, where the
   # error count compares each observed score with the deterministic pattern

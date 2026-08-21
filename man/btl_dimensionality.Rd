@@ -32,7 +32,8 @@ This is an experimental diagnostic. The reference is conditional on the
 fitted point estimates because the model is not re-estimated in each
 replicate. Ordered-response fits use the same points-proportion residual in
 the data and simulations. Fits with exposure or carry-over effects simulate
-those effects through each judge's observed sequence.
+those effects through each judge's observed sequence. The fitted model must
+have converged.
 
 A categorical result is withheld if any object pair is unobserved. It is
 also withheld when every judge receives essentially the same comparison

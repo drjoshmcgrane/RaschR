@@ -76,6 +76,20 @@
   C
 }
 
+# Residual degrees of freedom carried by a calibration covariance. A clustered
+# BTL fit has judges as its independent sampling units. An external bank may
+# supply the corresponding value explicitly; otherwise its covariance is
+# treated as asymptotically normal.
+.btl_equate_cov_df <- function(x) {
+  if (inherits(x, "rasch_btl") && !is.null(x$comparisons$judge) &&
+      any(!is.na(x$comparisons$judge)))
+    return(max(length(unique(x$comparisons$judge[!is.na(x$comparisons$judge)])) -
+                 1L, 1L))
+  z <- attr(x, "df_location", exact = TRUE)
+  if (!is.null(z) && length(z) == 1L && is.finite(z) && z > 0) return(z)
+  Inf
+}
+
 #' Equate two paired-comparison calibrations through their common objects
 #'
 #' Places two Bradley--Terry--Luce calibrations on a common origin using their
@@ -83,10 +97,10 @@
 #' calibration may be a fitted model or an object bank.
 #'
 #' @details
-#' Let \eqn{d} contain the location differences for the common objects and
-#' \eqn{V} their joint covariance. The origin shift is
-#' \deqn{\hat s=\frac{\mathbf{1}'V^{-1}d}
-#' {\mathbf{1}'V^{-1}\mathbf{1}}.}
+#' Let \eqn{d_j} be the location difference for common object \eqn{j} and
+#' \eqn{v_j} its marginal variance. The origin shift is the precision-weighted
+#' mean
+#' \deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j}.}
 #' Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
 #' covariance calculation retains the dependence induced by the sum-zero
 #' constraints. Drift tests require independent calibrations and at least
@@ -104,7 +118,10 @@
 #'   names must be unique and locations finite. Bank-based drift inference
 #'   requires the joint location covariance as a square matrix in
 #'   \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
-#'   object), unless the bank is treated as fixed with zero SEs. For a polytomous
+#'   object), unless the bank is treated as fixed with zero SEs. A bank whose
+#'   covariance was estimated from a finite number of independent sampling
+#'   units may carry their residual degrees of freedom in
+#'   \code{attr(fit2, "df_location")}. For a polytomous
 #'   fit the bank must carry
 #'   \code{attr(bank, "m")} matching the number of fitted score steps.
 #' @param alpha Significance level for the (multiplicity-adjusted) drift tests.
@@ -234,7 +251,7 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
       }
     }
   }
-  shift_se <- NA_real_; se_diff <- t <- p <- p_adj <-
+  shift_se <- NA_real_; se_diff <- t <- df <- p <- p_adj <-
     rep(NA_real_, length(common)); drifting <- rep(NA, length(common))
   if (inferential) {
     u <- w / sum(w)
@@ -255,7 +272,21 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     var_d <- pmax(diag(Sg) - 2 * Su + drop(t(u) %*% Su), 1e-10)
     se_diff[usable] <- sqrt(var_d)
     t[usable] <- (d[usable] - c0) / se_diff[usable]
-    p[usable] <- 2 * pnorm(-abs(t[usable]))
+    # Welch-Satterthwaite reference for independent fitted calibrations. Each
+    # shifted contrast h = e_i - u receives the finite-judge contribution from
+    # each panel separately; a non-clustered fit or fixed/external bank has
+    # infinite df and contributes no denominator term.
+    df1 <- .btl_equate_cov_df(fit1)
+    df2 <- .btl_equate_cov_df(fit2)
+    Hc <- diag(length(u)) - matrix(u, nrow = length(u), ncol = length(u),
+                                  byrow = TRUE)
+    v1 <- pmax(diag(Hc %*% S1 %*% t(Hc)), 0)
+    v2 <- pmax(diag(Hc %*% S2 %*% t(Hc)), 0)
+    den <- if (is.finite(df1)) v1^2 / df1 else rep(0, length(v1))
+    if (is.finite(df2)) den <- den + v2^2 / df2
+    dfs <- ifelse(den > 0, (v1 + v2)^2 / den, Inf)
+    df[usable] <- dfs
+    p[usable] <- 2 * stats::pt(-abs(t[usable]), df = dfs)
     p_adj[usable] <- p.adjust(p[usable], method = p_adjust)
     drifting[usable] <- p_adj[usable] < alpha
   }
@@ -263,7 +294,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
                     location_1 = a$location, se_1 = a$se,
                     location_2 = b$location, se_2 = b$se,
                     difference = d, shifted_difference = d - c0,
-                    se_diff = se_diff, t = t, p = p, p_adj = p_adj,
+                    se_diff = se_diff, t = t, df = df,
+                    p = p, p_adj = p_adj,
                     drifting = drifting, stringsAsFactors = FALSE)
   rownames(tab) <- NULL
   # the second calibration, whole, carried onto fit1's scale
@@ -278,6 +310,10 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     notes <- c(notes, paste0(
       "Drift tests unavailable for objects without standard errors: ",
       paste(common[!usable], collapse = ", "), "."))
+  if (inferential && any(is.finite(df)))
+    notes <- c(notes, paste(
+      "Drift probabilities use contrast-specific Welch-Satterthwaite",
+      "degrees of freedom for the finite judge-cluster covariances."))
   if (is.null(independent) && inherits(fit2, "rasch_btl"))
     notes <- c(notes, paste(
       "Drift tests withheld because independence between fitted",

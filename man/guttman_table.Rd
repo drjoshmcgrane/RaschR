@@ -7,7 +7,9 @@
 guttman_table(fit)
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}}.}
+\item{fit}{A fitted object from \code{\link{rasch}} whose columns form one
+administered item set. Expanded EFRM and MFRM response-cell matrices are
+not accepted; one-cell-per-item reductions are.}
 }
 \value{
 A list with the ordered score matrix \code{matrix} (persons by

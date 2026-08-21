@@ -12,11 +12,13 @@ spread_test(fit, maxit = 60, tol = 1e-08)
 \item{maxit, tol}{Passed to the \code{\link{pcml_pc}} refit.}
 }
 \value{
-A data frame with one row per polytomous item: \code{item},
-  \code{m}, the \code{spread} estimate and its \code{se}, the bound
-  \code{lub} (available for maximum scores 2 to 8), \code{z} =
+A data frame with one row per recorded superitem: \code{item},
+  \code{m}, whether the binomial bound is \code{eligible}, the
+  \code{spread} estimate and its \code{se}, the bound \code{lub}
+  (available for dichotomous-component subtests with maximum scores 2 to
+  8), \code{z} =
   (spread - lub)/se, and \code{dependent} = spread below the bound.
-  Dichotomous items carry no spread and are omitted.
+  Items not formed by \code{combine_items()} are omitted.
 }
 \description{
 Andrich's (1985) least-upper-bound screen: the spread component
@@ -27,8 +29,11 @@ binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
 A spread estimate below the bound therefore indicates response
 dependence among the members (Andrich and Marais 2019, Table 24.1).
-Typically applied after \code{\link{combine_items}}, whose super-items
-are exactly such subtests.
+Applied to the superitems recorded by \code{\link{combine_items}}. The
+binomial bound applies only when every component was dichotomous; a
+composite containing a polytomous item is shown but its bound and verdict
+are withheld. The input calibration and the principal-components refit
+must both converge.
 }
 \examples{
 set.seed(1); N <- 600

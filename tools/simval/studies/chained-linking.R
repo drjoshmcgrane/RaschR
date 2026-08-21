@@ -24,7 +24,7 @@
 # the mean reported standard error of each so calibration can be judged
 # alongside bias.
 #
-# 200 replicates. Serial, ~20 min.
+# 200 replicates per cell. Set SV_CORES on Unix-like systems to parallelise.
 #   Rscript tools/simval/studies/chained-linking.R
 
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
@@ -65,21 +65,32 @@ gen <- function(seed, N) {
 
 run_cell <- function(N) {
   lab <- sprintf("chain 3-5-7, N = %d per year", N)
-  ld <- li <- sd_ <- si <- rep(NA_real_, R)
-  n_ref <- 0L
-  for (r in seq_len(R)) {
+  one <- function(r) {
     f <- tryCatch(rasch_efrm(gen(700000 + r, N), items = items,
                              item_sets = list(set1 = items), groups = "group",
                              id = "id", boot_reps = 0),
                   error = function(e) NULL)
-    if (is.null(f)) { n_ref <- n_ref + 1L; next }
+    if (is.null(f)) return(c(ld = NA, li = NA, sd = NA, si = NA,
+                             refused = 1))
     i <- match(names(phi0), f$phi_table$group)
     p <- f$phi_table$phi[i]
-    s <- f$phi_table$se_log_phi[i]
-    ld[r] <- log(p[2] / p[1]); li[r] <- log(p[3] / p[1])
-    # the reported standard error of a ratio of two independent-ish units
-    sd_[r] <- sqrt(s[2]^2 + s[1]^2); si[r] <- sqrt(s[3]^2 + s[1]^2)
+    # The centred log-unit estimates are correlated. Ratio uncertainty is the
+    # variance of the corresponding contrast, c' V c, not the sum of marginal
+    # variances.
+    V <- f$unit_cov$cov_log_phi[i, i, drop = FALSE]
+    cd <- c(-1, 1, 0); ci <- c(-1, 0, 1)
+    c(ld = log(p[2] / p[1]), li = log(p[3] / p[1]),
+      sd = sqrt(max(drop(t(cd) %*% V %*% cd), 0)),
+      si = sqrt(max(drop(t(ci) %*% V %*% ci), 0)), refused = 0)
   }
+  cores <- suppressWarnings(as.integer(Sys.getenv("SV_CORES", "1")))
+  if (!is.finite(cores) || cores < 1L) cores <- 1L
+  z <- if (cores > 1L && .Platform$OS.type != "windows")
+    parallel::mclapply(seq_len(R), one, mc.cores = cores, mc.set.seed = FALSE)
+  else lapply(seq_len(R), one)
+  z <- do.call(rbind, z)
+  ld <- z[, "ld"]; li <- z[, "li"]; sd_ <- z[, "sd"]; si <- z[, "si"]
+  n_ref <- sum(z[, "refused"])
   ok <- is.finite(ld) & is.finite(li)
   add(paste0(lab, " | direct (year5/year3, shared anchor)"), "log phi ratio",
       sum(ok), bias = mean(ld[ok]) - lt_direct, emp_sd = stats::sd(ld[ok]),

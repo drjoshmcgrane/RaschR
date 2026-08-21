@@ -118,12 +118,12 @@
 #'   here.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
 #' @return An object of classes \code{"rasch_mfrm"} and \code{"rasch"}.
-#'   Model-specific components are \code{facet_effects}, \code{item_effects},
-#'   \code{item_thresholds}, and \code{facet_spec}. Interactive fits also
-#'   contain \code{interaction_test} and \code{interaction_effects}.
-#'   \code{fit_resid} averages virtual-item residuals within a margin;
-#'   \code{fit_resid_pooled} is the response-weighted pooled statistic, with
-#'   degrees of freedom in \code{df_fit}.
+#'   Model-specific components describe the facets, items, thresholds, and
+#'   facet specification. Interactive fits also contain an omnibus test and
+#'   the corresponding item-by-facet effects. The component \code{fit_resid}
+#'   averages virtual-item residuals within a margin. Its response-weighted
+#'   counterpart is \code{fit_resid_pooled}; its degrees of freedom are in
+#'   \code{df_fit}.
 #' @references
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.
@@ -155,6 +155,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
                        items = NULL, n_groups = NULL,
                        adjust_N = NA, na_codes = -1, interaction = NULL,
                        factors = NULL, maxit = 60, tol = 1e-8) {
+  .check_column_names(data)
   # wide entry: item score columns are melted to the long form internally
   if (!is.null(items)) {
     if (!is.null(item) || !is.null(score))
@@ -257,19 +258,10 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     item_m[it] <- length(sort(unique(sc[sel]))) - 1L
   }
 
-  # virtual items are keyed and displayed as item:facet:...; a literal
-  # colon in an item or facet-level label would make two structurally
-  # different combinations collide on one key (and one virtual item),
-  # silently pooling unrelated responses -- refuse it and name the culprit
-  colon_lab <- c(grep(":", items_u, value = TRUE),
-                 unlist(lapply(fac, function(v) grep(":", unique(v), value = TRUE))))
-  if (length(colon_lab))
-    stop("item or facet label(s) contain the ':' separator used to key ",
-         "virtual items: ", paste(unique(colon_lab), collapse = ", "),
-         " -- rename them (':' is reserved)")
   # virtual items: item x facet-level combinations present in the data
-  fkey <- do.call(paste, c(fac, list(sep = ":")))
-  vkey <- paste(itm, fkey, sep = ":")
+  fkey <- as.character(.factor_cells(fac, sep = ":"))
+  vkey <- as.character(.factor_cells(data.frame(item = itm, cell = fkey),
+                                     sep = ":"))
   vlev <- unique(vkey[order(match(itm, items_u), fkey)])
   vmap <- data.frame(vkey = vlev,
                      item = itm[match(vlev, vkey)],
@@ -370,6 +362,10 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     }
   }
   sol <- .pcml_solve(Xv, thr_v, m_v, B, rep(0, P), maxit = maxit, tol = tol)
+  if (!isTRUE(sol$converged))
+    warning("MFRM estimation did NOT converge in ", sol$iterations,
+            " iterations; increase maxit or inspect the design",
+            call. = FALSE)
 
   thr_v$tau <- sol$tau; thr_v$se <- sol$se_tau; thr_v$anchored <- FALSE
   # a virtual item threshold resting on a near-empty category is a boundary
@@ -425,6 +421,22 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   }
   fit <- .assemble_fit("MFRM", Xv, est, persons_u, fac_df, n_groups,
                        adjust_N, notes)
+  # When an item is represented by several facet cells, the expanded
+  # columns are not one administered item set. Alpha and a universal
+  # raw-score conversion over those columns have no test-level interpretation.
+  # Retain both for the one-cell-per-item reduction, which is an ordinary
+  # administered matrix despite having been fitted through this interface.
+  expanded_cells <- any(table(vmap$item) > 1L)
+  if (expanded_cells) {
+    fit$alpha <- list(
+      alpha = NA_real_, n = NA_integer_, applicable = FALSE,
+      design_applicable = FALSE,
+      reason = "not applicable when an item has several facet response cells")
+    fit$score_table <- NULL
+    fit$notes <- unique(c(fit$notes, paste(
+      "a universal raw-score conversion is not defined across the expanded",
+      "facet response cells; use the design-specific information curves")))
+  } else fit$alpha$design_applicable <- TRUE
 
   # --- structural effects -----------------------------------------------------
   covb <- sol$cov_beta
@@ -528,7 +540,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
 
 #' @export
 print.rasch_mfrm <- function(x, ...) {
-  cat(sprintf("rasch many-facet analysis: %d items x %s = %d virtual items, %d persons\n",
+  cat(sprintf("rasch multiple ratings analysis: %d items x %s = %d response cells, %d persons\n",
               nrow(x$item_effects),
               paste(vapply(x$facet_spec, function(f)
                 sprintf("%d %s level(s)", nrow(x$facet_effects[[f]]), f), ""),

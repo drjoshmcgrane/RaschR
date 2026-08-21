@@ -18,43 +18,27 @@
 
 #' Resolve items that do not hold across frames
 #'
-#' Gives named items a separate location in each frame and refits, so they
-#' continue to measure persons within their own frame while no longer
-#' constraining the comparison between frames. The result is an ordinary
-#' frame fit, so every diagnostic applies to it unchanged.
+#' Gives each named item a separate location in every frame in which it was
+#' administered, then refits the EFRM.
 #'
 #' @details
-#' The fitted model represents an item's threshold in a frame as the frame
-#' unit times one location shared across frames, so an item that behaves
-#' differently in one frame is misrepresented in all of them, and the group
-#' units absorb part of the discrepancy.
-#' \code{\link{frame_invariance}} tests for such items;
-#' this function and \code{\link{drop_items}} are the two remedies.
+#' A resolved item continues to contribute to person measurement within each
+#' frame but no longer constrains the link between those frames. Its versions
+#' are named \code{"item (frame)"}. The remaining common items and the linked
+#' set design must still identify the frame units; otherwise the refit is
+#' refused by the model's connectivity and rank checks.
 #'
-#' Resolving is the milder one. The item is replaced by one version per
-#' frame, named \code{"item (frame)"}, each answered by that frame's persons
-#' alone. Each version keeps its own location, so the item still contributes
-#' to the person estimates of everyone who answered it, and it no longer
-#' contributes to the link between frames. Dropping the item removes that
-#' contribution as well, from every frame at once.
-#'
-#' The link is what pays for it. Person-group units are identified by the
-#' items two frames have in common, so a resolved item leaves the units
-#' resting on the items that remain shared, and resolving too many leaves
-#' them unidentified. This function refuses when a set would be left with
-#' fewer than two common items; the model's own connectivity check catches
-#' the remaining cases.
-#'
-#' Prefer resolving when the item measures well inside each frame and only
-#' its comparability is in doubt, and dropping when the item is a poor
-#' measure wherever it appears. The distinction is empirical: compare the
-#' unit estimates and the person standard errors the two remedies produce.
+#' Resolve an item when its within-frame measurement remains defensible but
+#' its cross-frame location does not. This refit does not estimate a separate
+#' discrimination and therefore does not resolve a discrimination-only flag
+#' from \code{\link{frame_invariance}}. Review or remove such an item instead.
+#' Use \code{\link{drop_items}} when the item should no longer contribute to
+#' measurement.
 #'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param items Item names to resolve.
-#' @param boot_reps Bootstrap replicates for the refit, resolved as in
-#'   \code{\link{drop_items}}: the refit keeps the character of the fit it
-#'   came from unless a number is given.
+#' @param boot_reps Bootstrap replicates for the refit. The default retains
+#'   the fitted specification; a number overrides it.
 #' @return A refitted object of class \code{"rasch_efrm"}, carrying a note
 #'   for each item resolved. The resolved versions appear in the item table
 #'   as \code{"item (frame)"}.
@@ -86,35 +70,11 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
          "; the fit holds: ", paste(utils::head(all_items, 8), collapse = ", "),
          if (length(all_items) > 8) ", ..." else "")
 
-  # a resolved item is common to no two frames, so it stops identifying the
-  # group units; the items left shared have to carry that on their own
-  common <- setdiff(all_items, items)
-  by_set <- split(common, fit$set_of[common])
-  short <- setdiff(unique(fit$set_of), names(by_set))
-  thin <- c(short, names(by_set)[vapply(by_set, length, 0L) < 2L])
-  if (length(thin))
-    stop("resolving those items would leave set(s) ",
-         paste(sort(thin), collapse = ", "),
-         " with fewer than two items common to the frames, so the group ",
-         "units would be unidentified; resolve fewer items, or use ",
-         "drop_items() if the item does not measure well in any frame")
-
-  grp <- fit$factors[[fit$frame_group]]
+  grp <- .frame_group_values(fit)
   glev <- levels(factor(grp))
   gvec <- as.character(grp)
 
-  # the virtual columns of one item across frames are complementary, so the
-  # source response is the non-missing value among them
-  src <- vapply(all_items, function(it) {
-    cols <- intersect(paste0(it, ":", glev), colnames(fit$X))
-    v <- rep(NA_real_, nrow(fit$X))
-    for (cc in cols) {
-      w <- !is.na(fit$X[, cc])
-      v[w] <- fit$X[w, cc]
-    }
-    v
-  }, numeric(nrow(fit$X)))
-  colnames(src) <- all_items
+  src <- .efrm_source_matrix(fit, all_items)
 
   cols <- list()
   new_set <- character()
@@ -130,25 +90,21 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
       v[is.na(gvec) | gvec != lv] <- NA
       if (all(is.na(v))) next          # the item was not taken in this frame
       nm <- paste0(it, " (", lv, ")")
+      if (nm %in% all_items || nm %in% names(cols))
+        stop("generated resolved-item name already exists: ", nm)
       cols[[nm]] <- v
       new_set[nm] <- fit$set_of[[it]]
       made[[it]] <- c(made[[it]], lv)
     }
   }
 
-  d <- data.frame(id = fit$person$id, as.data.frame(cols, check.names = FALSE),
-                  fit$factors, check.names = FALSE, stringsAsFactors = FALSE)
-  extra <- setdiff(names(fit$factors), fit$frame_group)
-  reps <- boot_reps
-  if (is.null(reps)) {
-    reps <- fit$boot_reps_used
-    if (is.null(reps) || !is.finite(reps))
-      reps <- if (any(is.finite(fit$alpha_table$se_log_alpha))) NULL else 0L
-  }
-  refit <- rasch_efrm(d, item_sets = split(names(new_set), new_set),
-                      groups = fit$frame_group, id = "id",
-                      factors = if (length(extra)) extra else NULL,
-                      se_method = fit$se_method, boot_reps = reps)
+  source <- as.data.frame(cols, check.names = FALSE,
+                         stringsAsFactors = FALSE)
+  refit <- .efrm_refit(fit, source, new_set, boot_reps = boot_reps)
+  if (!isTRUE(refit$est$converged))
+    stop("the resolved frame calibration did not converge; the sensitivity analysis is unavailable")
+  if (any(refit$linking$alpha_edges$converged %in% FALSE))
+    stop("the resolved set-unit link did not converge; the sensitivity analysis is unavailable")
   refit$notes <- c(refit$notes,
                    vapply(names(made), function(it)
                      sprintf("item %s resolved by frame into: %s", it,

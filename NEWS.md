@@ -1,173 +1,106 @@
 # rasch 1.12.0
 
-This update extends the model suite, adds mixed-design DIF analysis, and
-strengthens identification and uncertainty checks.
+## Models and inference
+
+* `rasch_mfrm()` supports several facets and an optional item-by-facet
+  interaction. Omnibus and cell follow-up tests use the fitted joint
+  covariance.
+* `rasch_efrm()` supports crossed person-group factors and reports their GLS
+  factorial decomposition. Set-unit linking uses a finite-grid
+  semiparametric likelihood, with a separate nuisance distribution for each
+  observed person group. Hybrid standard errors retain the joint uncertainty
+  of the within-frame calibration and set link; full person-bootstrap
+  inference remains available. The convergence flag covers both estimation
+  stages, and non-converged links are excluded from bootstrap covariance
+  calculations. EFRM data require one response row per person.
+* `frame_invariance()` compares item locations and discrimination across
+  separately calibrated frames. The conditional method tests locations and
+  reports discrimination descriptively. The person-within-frame bootstrap
+  provides inference for both, with one combined Holm family.
+* MFRM and EFRM summaries report item estimates separately from the
+  item-by-facet or item-by-frame response cells used in estimation.
+  Coefficient alpha is not reported for the expanded response-cell matrix.
+  EFRM DIF tests pool residual evidence by item and exclude the person factors
+  that define the frames.
+* `btl()`, `btl_dif()` and `btl_efrm()` add ordered paired comparisons,
+  judge-clustered inference, judge-factor DIF, linked object sets and judge
+  panels. Paired-comparison diagnostics now include equating, transitivity,
+  residual dimensions, design information and adaptive pair selection.
+* Carry-over probabilities are withheld below 30 judges. `btl_equate()` uses
+  Welch--Satterthwaite degrees of freedom when fitted calibrations have a
+  finite number of judge clusters. Conditional BTL-EFRM unit probabilities
+  are withheld; the application defaults to the judge bootstrap. BTL-EFRM
+  judge bootstraps use finite-judge references, whereas its independent-outcome
+  parametric bootstrap uses normal and chi-square references.
 
 ## Differential item functioning
 
-* `dif_anova()` fits several person factors jointly. It supports additive or
-  factorial effects and uses Type II sums of squares.
-* Repeated measurements are analysed with the person as the sampling unit.
-  Between-person and within-person terms use their respective error strata,
-  with a Greenhouse--Geisser correction for multilevel within-person factors.
-* `dif_contrasts()` provides planned logit contrasts, including
-  between-by-within interactions. `dif_size()` separates descriptive logit
-  magnitude from repeated-measures inference.
-* MFRM residuals can be pooled to their underlying items for DIF analysis.
-  Person factors not used to define an EFRM frame can also be tested.
-* `resolve_dif()` splits items iteratively, beginning with the largest
-  confirmed effect, while retaining a minimum anchor set.
+* `dif_anova()` fits several person factors jointly using Type II sums of
+  squares. Repeated measurements use the person as the sampling unit and
+  separate between- and within-person error strata. Multiplicity adjustment
+  covers the complete family of uniform and non-uniform DIF tests rather than
+  treating each term as a separate family; `btl_dif()` follows the same rule.
+* `dif_contrasts()` and `dif_posthoc()` provide planned and post-hoc logit
+  contrasts, including simple effects and difference-in-differences for
+  interactions. MFRM follow-ups pool the fitted facet cells of an underlying
+  item; resolved EFRM follow-ups are withheld because an ordinary split would
+  discard the frame units.
+* `dif_size()` reports resolved pairwise logit differences. Dichotomous
+  items receive the itemwise ETS A/B/C classification. Polytomous items
+  report the PCM signed expected-score area descriptively, without importing
+  an incompatible score-metric classification.
+* `resolve_dif()` splits confirmed DIF items iteratively while retaining a
+  minimum anchor set. Automatic splitting is restricted to uniform DIF;
+  non-uniform DIF remains visible for item review. MFRM residuals can be
+  pooled to their source items, and EFRM factors that do not define frames can
+  be tested.
+* `btl_dif()` retains anchors and fitted dependence terms in its resolution
+  refit. BTL-EFRM fits require a frame-specific analysis rather than the
+  equal-unit resolution model.
 
-## Facet, frame, and paired-comparison models
+## Diagnostics and model changes
 
-* `rasch_mfrm()` accepts several facets and optional item-by-facet
-  interaction. The interaction family has an omnibus test with adjusted cell
-  follow-ups.
-* `rasch_efrm()` accepts crossed person-group factors and returns their GLS
-  factorial decomposition. Hybrid and full-bootstrap standard errors propagate
-  uncertainty in the estimated units.
-* `btl()` supports ordered paired comparisons, judge-clustered covariance,
-  position effects, and within-judge exposure and carry-over effects.
-* `btl_dif()` tests object invariance over one or more judge factors using a
-  judge-level split-plot analysis.
-* `btl_efrm()` fits linked object sets and judge panels with set and panel
-  units. Judge bootstrap inference refits both estimation stages.
-* Paired-comparison functions now cover common-object equating, transitivity,
-  residual bimensions, design information, and adaptive pair selection.
+* Identification checks now cover item, facet, frame and paired-comparison
+  graphs, rank, separation and sparse categories. Unidentified estimates are
+  refused; identified but weak estimates are marked or have inference
+  withheld.
+* `dependence_magnitude()` uses the joint covariance of resolved thresholds.
+  Equating tests require independent calibrations and the covariance of
+  banked locations.
+* `spread_test()` applies the binomial least-upper-bound only to superitems
+  formed entirely from dichotomous components. The component structure is
+  retained through subsequent item splits and removals.
+* The tailored-analysis bootstrap resamples complete persons, including all
+  rows of a repeated-measures record.
+* `drop_items()`, `resolve_frames()`, DIF splitting and superitem
+  construction refit the active model and update downstream item and person
+  estimates. Refit specifications retain anchors, keyed scoring, threshold
+  constraints, factors and frame-linking controls; a non-converged downstream
+  calibration is not returned as a completed analysis.
+* Classical whole-test statistics and the Guttman scalogram are withheld when
+  an item is represented by several facet or frame response cells. They remain
+  available for a one-cell-per-item reduction.
+* MFRM characteristic and information curves now combine facet conditions
+  administered to the same person. Distinct rating designs receive separate
+  curves rather than being added into a test no person received.
+* Automatic model comparisons are available for the main model families.
+  Structural changes are accompanied by before-and-after item and person
+  summaries.
 
-## Statistical corrections and identification
+## Application and documentation
 
-* `dependence_magnitude()` uses the full covariance of the resolved
-  thresholds when calculating its standard error.
-* The EFRM item-set unit linking recovers the true-score variance by a
-  truncated-score-moment correction. The previous construction (observed
-  variance minus mean squared standard error) under-recovers the
-  true-score variance on short tests and biased recovered unit ratios
-  upward by about five per cent at eight dichotomous items per set; the
-  corrected estimator is unbiased there, confirmed against an external
-  TAM slope-group anchor.
-* The hybrid EFRM set-unit covariance includes uncertainty from the
-  within-frame calibration.
-* Judge-clustered BTL inference requires enough nominal and effective judges,
-  residual cluster degrees of freedom, and a sufficiently balanced workload.
-* BTL-EFRM unit tests use judge-limited F and t reference distributions.
-* Standard errors are withheld for an item's thresholds when any response
-  category is critically sparse.
-* Item, facet, frame, and paired-comparison models check connectedness, rank,
-  and separation before reporting estimates. Structurally unidentified
-  parameters are refused; identified but imprecise parameters are marked.
-* Equating tests require independent calibrations and the joint covariance of
-  banked locations. Links without the required covariance remain descriptive.
-* Information curves are calculated for item sets and facet designs that can
-  actually be administered together.
-* Classical statistics use complete responders by default. Available-case
-  results are labelled exploratory.
-
-## Follow-ups, comparisons, projects, and reports
-
-* `frame_invariance()` tests the item invariance a frame model assumes
-  rather than imposing it. The fitted model holds one location per item,
-  shared across frames and scaled by the frame unit, so the assumption
-  cannot be checked from the fit; the function calibrates each frame
-  separately, puts the locations on the common scale, and compares them
-  item by item, reporting the root mean squared difference against the root
-  mean squared standard error. Its `adjust` argument chooses between Holm
-  across all comparisons and no adjustment, because screening for items to
-  examine and reporting a difference are different jobs: across the ten
-  items measured the adjustment cost between 8 and 42 points of sensitivity, and
-  simulation shows that carrying through to the repaired unit ratio. Both
-  probabilities are reported either way, and the printed output names the
-  rule it applied. The application exposes the choice as a switch.
-* Case study: `inst/casestudies/wording_units_height.R` applies the item-set
-  units to a balanced inventory of 26 items, 13 worded in each direction, and
-  reads it against a criterion collected outside the inventory. It is the
-  counterpart to the self-esteem study rather than a repeat of it: there a
-  significant set-level difference turns out to be one ambivalent item, while
-  here the difference survives every single-item removal and still leaves the
-  person ordering unchanged. A unit difference can be decisive and
-  inconsequential at the same time, and only the criterion says which.
-* The item summary reports `disc`, the slope that maximises an item's own
-  likelihood with the person measures and its thresholds held at the values
-  the model gave them, following the index Winsteps reports as DISCRIM and
-  generalised here to polytomous items. It is a description of how steeply an
-  item sorts the people the model has already located, not an estimate of a
-  discrimination parameter: it runs high, because the measures are estimated
-  from a set that includes the item being scored, and its ordering is more
-  dependable than its level. `frame_invariance()` reports it per frame
-  alongside the comparison it tests, which stays on the fit statistics.
-* Results tables print in decimals rather than exponents. Tables read
-  directly off a fitted object carried no print method, so base R formatted
-  them and a probability below 1e-4 arrived as `4.00e-83` where the package's
-  own print methods read `< 0.001`. They now share one formatting vocabulary,
-  with the values untouched. Saved tables and the application's downloads
-  keep full precision without the exponent.
-* `dif_size()` reports the ETS A, B and C categories beside the magnitude,
-  signed for direction as ETS signs them. They convert exactly rather than by
-  analogy: the Mantel-Haenszel common odds ratio on the delta scale and the
-  conditional difference in item location estimate the same quantity under
-  the Rasch model, at 2.35 delta units to the logit, so A is not significant
-  or below 0.426 logits and C is at or above 0.638 and significantly beyond
-  0.426. The letter is documented as answering whether an item distorts the
-  total score rather than whether it is invariant, because A permits a
-  difference of 10.6 percentage points in success at the item's own location.
-  Polytomous items are classified on the same metric: under the partial
-  credit model an item's difficulty decomposes as a location plus its
-  thresholds, so a shift that leaves the thresholds alone gives a signed area
-  of the number of thresholds times that shift, and the same cut-values apply
-  per threshold (Golia 2012, after Cohen, Kim and Baker 1993). The separate
-  ETS convention for polytomous items, at 0.17 and 0.25 on a standardised
-  mean difference, is a statistic in the observed-score metric rather than
-  this one.
-* `resolve_frames()` gives an item that does not hold across frames a
-  separate location in each frame and refits, so it goes on measuring the
-  person inside their own frame while no longer constraining the comparison
-  between frames. It is the milder of the two remedies for an item
-  `frame_invariance()` flags, and on simulation the milder one dominates:
-  against a planted group-unit ratio of 1.40 with one item shifted 1.2
-  logits in one frame, resolving and dropping recover the ratio equally
-  (1.401 and 1.400), but dropping raises the mean person standard error from
-  0.727 to 0.759 and lowers the correlation between person estimates and the
-  locations that generated them from 0.850 to 0.837, while resolving leaves
-  both where the clean analysis had them. Resolving costs a parameter per
-  extra frame and removes the item from the link that identifies the group
-  units, so it refuses when a set would be left with fewer than two items
-  common to the frames.
-* `drop_items()` removes items from a fitted analysis and refits it,
-  keeping the model, person identifiers, factors, and -- for frame models
-  -- the set structure and standard-error method. The application offers
-  the same action on the selected item, recorded as an undoable step. For
-  frame models this is a sensitivity analysis rather than housekeeping: a
-  set unit is estimated from the dispersion its own items produce, so an
-  item that fits its set badly moves the unit that decides whether the
-  sets differ.
-* `dif_posthoc()` provides post-hoc pairwise DIF comparisons after a
-  significant omnibus term: resolved item-location differences in logits
-  with the joint contrast covariance, Holm-adjusted, with trend and
-  adjacent-level contrasts for ordered factors and simple-effect and
-  difference-of-differences contrasts for interactions.
-* The application presents automatic model comparisons beside each
-  analysis (partial credit against rating scale, free against
-  principal-component thresholds, additive against interactive
-  many-facet, frame models against their equal-unit restrictions, and
-  paired-comparison effect terms), separating formal tests,
-  composite-likelihood information criteria, and descriptive fit changes.
-  Structure-altering procedures show before-and-after summaries instead.
-* Analyses can be saved as `.rasch` project files and reopened exactly;
-  `report_document()` renders self-contained HTML and editable Word
-  reports for every model family.
-
-## Simulation, documentation, and interface
-
-* New simulation functions cover each model family and retain the generating
-  parameters for recovery studies. `sim_replicate()`, `sim_apply()`, and
-  `sim_recovery()` support repeated simulation.
-* Six vignettes cover the main Rasch workflow, mixed-design DIF, MFRM, EFRM,
-  paired comparisons, and simulation studies.
-* The Shiny application includes the extended model suite, model comparison,
-  downloadable tables and plots, and the R call corresponding to each fit.
-* The package and function documentation now state the fitted models,
-  identification constraints, uncertainty methods, and principal references
-  more directly.
+* The Shiny application uses responsive control and result columns, compact
+  explainers for outputs and options, scalable plots and downloadable tables.
+  Plot controls sit below the plot, and related item curves may be overlaid.
+* Analyses can be saved as `.rasch` projects and reopened. Reports can be
+  produced as self-contained HTML, Word or PDF documents; the R code for each
+  displayed result is available in the application.
+* The application covers the extended model suite, including model comparison,
+  DIF follow-ups, frame-invariance checks and refitted structural changes.
+* The manuals and vignettes have been revised to state the fitted models,
+  estimands, identification requirements and uncertainty methods directly.
+* The shipped EFRM and BTL-EFRM case studies now use the current linking and
+  uncertainty methods.
 
 # rasch 1.11.7
 

@@ -14,6 +14,14 @@
 # difficult items becoming harder in the tailored analysis.
 # ===========================================================================
 
+.tailored_boot_rows <- function(id) {
+  clusters <- split(seq_along(id), match(id, unique(id)))
+  picked <- sample.int(length(clusters), length(clusters), replace = TRUE)
+  parts <- clusters[picked]
+  list(rows = unlist(parts, use.names = FALSE),
+       id = rep(seq_along(parts), lengths(parts)))
+}
+
 #' Tailored analysis for guessing
 #'
 #' Runs the four-step tailored procedure of Andrich, Marais and Humphry
@@ -30,7 +38,8 @@
 #' analysis than in the origin-equated one; the comparison table and
 #' \code{\link{plot_equate}} on the two calibrations show it directly.
 #'
-#' @param fit A dichotomous fit from \code{\link{rasch}}.
+#' @param fit An unanchored, unconstrained dichotomous fit from
+#'   \code{\link{rasch}}. The procedure estimates its own common origin.
 #' @param chance The guessing floor: the probability of success by chance
 #'   (1/number of options; default 0.25).
 #' @param anchor_items Items whose mean location fixes the common origin in
@@ -42,6 +51,8 @@
 #'   descriptively. \code{"bootstrap"} resamples persons and repeats the
 #'   complete four-step procedure, including automatic anchor selection, to
 #'   obtain standard errors, percentile intervals, and Holm-adjusted tests.
+#'   When a person identifier occurs on several rows, all of that person's
+#'   rows are resampled together.
 #' @param boot_reps Person-bootstrap replicates when
 #'   \code{se_method = "bootstrap"}; at least 50, default 999. The
 #'   sign-count bootstrap p-value has resolution floor \code{2/(boot_reps
@@ -80,6 +91,14 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("tailored_analysis currently requires an ordinary dichotomous Rasch fit")
   if (max(fit$m) > 1L)
     stop("tailored analysis applies to dichotomous (multiple-choice) items")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; tailored analysis is unavailable")
+  spec <- fit$refit_spec
+  if (is.null(spec)) spec <- list()
+  if (!is.null(spec$anchors) && nrow(spec$anchors))
+    stop("tailored_analysis() requires an unanchored calibration because it estimates its own common origin")
+  if (!is.null(spec$pc_components))
+    stop("tailored_analysis() is not defined for principal-component constrained thresholds")
   if (length(chance) != 1L || !is.finite(chance) || chance <= 0 || chance >= 1)
     stop("chance must be one finite value strictly between 0 and 1")
 
@@ -92,7 +111,11 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("no responses fall below the chance level; nothing to tailor")
   Xt[cut_cells] <- NA
   tailored <- rasch(Xt, model = fit$model, id = fit$person$id,
-                    factors = fit$factors, n_groups = fit$n_groups)
+                    factors = fit$factors, n_groups = fit$n_groups,
+                    adjust_N = spec$adjust_N %||% NA_real_,
+                    maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)
+  if (!isTRUE(tailored$est$converged))
+    stop("the tailored calibration did not converge; the comparison is unavailable")
   if (!identical(tailored$items$item, fit$items$item))
     stop("tailoring removed an item entirely; lower 'chance' or drop the item first")
 
@@ -115,7 +138,11 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   a3 <- data.frame(item = anchor_items, k = NA, tau = ta_loc)
   origin_equated <- rasch(fit$X, model = fit$model, id = fit$person$id,
                           factors = fit$factors, n_groups = fit$n_groups,
-                          anchors = a3)
+                          adjust_N = spec$adjust_N %||% NA_real_,
+                          anchors = a3, maxit = spec$maxit %||% 60,
+                          tol = spec$tol %||% 1e-8)
+  if (!isTRUE(origin_equated$est$converged))
+    stop("the common-origin calibration did not converge; the comparison is unavailable")
 
   # step 4: original data, every item fixed at its tailored value, persons
   # free. With no free item parameter there is nothing for pcml() to do, so
@@ -148,14 +175,20 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
         boot_reps != floor(boot_reps))
       stop("boot_reps must be one whole number of at least 50 for tailored bootstrap inference")
     boot_reps <- as.integer(boot_reps)
-    N <- nrow(fit$X); draws <- list()
+    draws <- list()
+    # One identifier can occur on several rows in a stacked repeated design.
+    # Those rows are one sampling unit: resampling them separately would
+    # discard their within-person dependence and understate uncertainty.
     for (bb in seq_len(boot_reps)) {
-      take <- sample.int(N, N, replace = TRUE)
+      bs <- .tailored_boot_rows(fit$person$id)
+      take <- bs$rows
       Xb <- fit$X[take, , drop = FALSE]
       fb <- tryCatch(suppressWarnings(rasch(
-        Xb, model = fit$model, id = seq_len(N),
+        Xb, model = fit$model, id = bs$id,
         factors = if (is.null(fit$factors)) NULL else
-          fit$factors[take, , drop = FALSE], n_groups = fit$n_groups)),
+          fit$factors[take, , drop = FALSE], n_groups = fit$n_groups,
+        adjust_N = spec$adjust_N %||% NA_real_,
+        maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
         error = function(e) NULL)
       tb <- if (is.null(fb)) NULL else tryCatch(suppressWarnings(
         tailored_analysis(fb, chance = chance,

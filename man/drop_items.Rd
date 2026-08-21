@@ -14,39 +14,28 @@ item's rows from the long-format data and refit
 
 \item{items}{Item names to remove.}
 
-\item{boot_reps}{Bootstrap replicates for the refit. The default keeps the
-character of the fit it came from: a fit whose unit standard errors came
-from a bootstrap passes its replicate count on, a fit that has unit
-standard errors by the analytic route takes the package default, and a
-fit asked for no standard errors is refitted without them. Pass a number
-to override all three.}
+\item{boot_reps}{Bootstrap replicates for an EFRM refit. The default retains
+the fitted specification; a number overrides it.}
 }
 \value{
 A refitted object of the same class as \code{fit}, carrying a note
   recording which items were dropped.
 }
 \description{
-Removes named items from a fitted analysis and refits it, keeping the
-original model, person identifiers, factors, and (for frame models) the
-set structure and standard-error method. The result is an ordinary fit of
-the same class, so every diagnostic applies to it unchanged.
+Removes named items and refits the analysis with the same model
+specification.
 }
 \details{
-Screening items is part of an analysis of frames rather than a step before
-it. A person-group unit is estimated from the same items in every frame,
-so an item with differential item functioning distorts it; an item-set
-unit is estimated from the dispersion of person estimates within each set,
-so an item that fits its set badly distorts that set alone, with nothing
-in the other set to offset it. In simulation the second effect is large:
-at eight items per set, two under-discriminating items in one set moved a
-planted unit ratio of 1.40 to 1.73, and four over-discriminating items
-moved it to 1.02. Dropping such an item and comparing the units before
-and after is therefore a substantive sensitivity analysis, not
-housekeeping.
+The refit retains person identifiers and factors, class-interval settings,
+optimisation controls, anchors, multiple-choice scoring and PCM component
+constraints. An EFRM refit also retains the item-set and crossed-frame
+design, linking controls and uncertainty method. The operation is refused
+if it would remove every anchor, empty an item set or leave the model
+unidentified.
 
-An item that fits no set well is usually better removed than reassigned,
-and it cannot be given a set of its own: a single item carries no
-dispersion from which to estimate a unit.
+Item removal changes both the item calibration and the person estimates.
+For an EFRM it can also change the estimated frame units. Compare the
+original and refitted results as a sensitivity analysis.
 }
 \examples{
 d <- simulate_rasch(300, 8, seed = 1)
@@ -55,10 +44,8 @@ fit2 <- drop_items(fit, "I03")
 nrow(fit2$items)
 }
 \seealso{
-\code{\link{frame_invariance}}, which identifies the items a
-  frame model's assumption does not hold for;
-  \code{\link{resolve_frames}}, which gives such an item a location per
-  frame rather than removing it; \code{\link{split_items}}
-  and \code{\link{resolve_dif}}, which resolve an item rather than
-  remove it; and \code{\link{combine_items}}.
+\code{\link{frame_invariance}} and
+  \code{\link{resolve_frames}} for frame models;
+  \code{\link{split_items}} and \code{\link{resolve_dif}} for DIF; and
+  \code{\link{combine_items}} for response dependence.
 }

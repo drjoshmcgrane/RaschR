@@ -9,7 +9,7 @@ plot_btl_targeting(fit, grid = NULL)
 \arguments{
 \item{fit}{A paired-comparison fit from \code{\link{btl}}.}
 
-\item{grid}{Optional location grid for the reference curve.}
+\item{grid}{Optional location grid for the equal-unit reference curve.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
@@ -18,14 +18,12 @@ Called for its plotting side effect; invisibly \code{NULL}.
 The paired-comparison counterpart of a test-information display. Every
 object is a dot at its location (x) and its design information (y, the
 pooled Fisher information of the comparisons it took part in), the dot
-sized by how many comparisons that is. A reference curve, read on the
-right axis, traces the information a single \emph{new} comparison would
-carry against an opponent at each location -- anchored at the centre of
-the scale, so it peaks at gap zero and falls away with the gap. The curve
-is the visual explanation of why an adaptive design chases near-neighbour
-contests: information is bought most cheaply where the two objects are
-close, and a well-targeted design lifts the low dots by pairing their
-objects against opponents near them.
+sized by how many comparisons that is. For an equal-unit fit, a reference
+curve on the right axis traces the information a single \emph{new}
+comparison would carry against an opponent at each location. It peaks at
+gap zero and explains why adaptive designs favour near neighbours. A frame
+fit has no single reference curve because the information also depends on
+the fitted panel and set units.
 }
 \examples{
 set.seed(1)

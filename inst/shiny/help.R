@@ -13,8 +13,13 @@ APP_HELP <- c(
     "change, this refers to the current fitted response matrix."
   ),
   metric_items = paste(
-    "Number of item columns in the active analysis. A superitem reduces this",
-    "count; a DIF split can increase it."
+    "Number of items represented in the active analysis. A superitem reduces",
+    "this count; a DIF split can increase it."
+  ),
+  metric_cells = paste(
+    "Number of calibrated response columns. These are items in an ordinary",
+    "fit and item-by-frame or item-by-facet cells in the corresponding",
+    "structural model."
   ),
   metric_psi = paste(
     "Person Separation Index: the proportion of observed person-location",
@@ -22,13 +27,15 @@ APP_HELP <- c(
     "more reproducible separation of persons."
   ),
   metric_alpha = paste(
-    "Coefficient alpha calculated from the scored responses. It describes raw-",
-    "score internal consistency and is reported alongside the model-based PSI."
+    "Coefficient alpha describes raw-score internal consistency and is",
+    "reported beside the model-based PSI for an ordinary administered item",
+    "matrix. It is not applicable when an item is represented by several",
+    "frame or facet response cells."
   ),
   metric_item_trait = paste(
-    "Adjusted probability for the overall item-trait chi-square. Small values",
-    "indicate that at least one item's ordering changes more over class intervals",
-    "than expected under the model."
+    "Adjusted probability for the overall item- or response-cell-trait",
+    "chi-square. Small values indicate that at least one ordering changes",
+    "more over class intervals than expected under the model."
   ),
   metric_power = paste(
     "Qualitative power of the item-trait test at the observed sample size and",
@@ -69,12 +76,12 @@ APP_HELP <- c(
   # Summary ---------------------------------------------------------------
   fitsum_tbl = paste(
     "Summarises overall Rasch model fit, including the item-trait",
-    "chi-square and the distribution of item and person fit residuals.",
-    "The item-trait test examines whether item difficulties remain invariant",
+    "chi-square and the distribution of calibration-cell and person fit",
+    "residuals. The test examines whether fitted orderings remain invariant",
     "over class intervals."
   ),
   targeting_tbl = paste(
-    "Summarises the alignment of person locations and item thresholds,",
+    "Summarises the alignment of person locations and calibration thresholds,",
     "together with separation and reliability. Targeting is strongest when",
     "the thresholds cover the part of the scale occupied by the persons."
   ),
@@ -94,9 +101,14 @@ APP_HELP <- c(
 
   # Item, object and person tables ----------------------------------------
   items_tbl = paste(
-    "Reports item locations, standard errors and fit statistics. Select a row",
-    "to inspect that item; marked cells identify working fit criteria and",
-    "should be interpreted with the corresponding plots and substantive context."
+    "Reports item fit for ordinary calibrations and response-cell fit for",
+    "Extended Frames or Multiple Ratings. Select a row to inspect its curves;",
+    "marked cells identify working criteria rather than a single decision rule."
+  ),
+  structural_items_tbl = paste(
+    "Reports item locations on the common scale for an Extended Frames or",
+    "Multiple Ratings fit. Item-by-frame or item-by-facet response-cell fit is",
+    "reported separately because those cells are not additional items."
   ),
   distractor_tbl = paste(
     "Reports how each response option relates to person location and item score.",
@@ -147,7 +159,8 @@ APP_HELP <- c(
   ),
   ctt_tbl = paste(
     "Reports conventional item statistics alongside the Rasch estimates,",
-    "including endorsement, item-total association and alpha if removed."
+    "including endorsement, item-total association and alpha if removed.",
+    "It is withheld when an item is represented by several response cells."
   ),
   rescore_tbl = paste(
     "Summarises the evidence used to propose ordered partial-credit scores for",
@@ -207,9 +220,9 @@ APP_HELP <- c(
   ),
   dif_size_tbl = paste(
     "Compares resolved interaction cells pairwise. Use these rows to locate the",
-    "pattern after reading the interaction contrasts above. ETS letters, where",
-    "judge whether the item distorts the total score, not whether it is",
-    "invariant: A allows up to 0.43 logits."
+    "pattern after reading the interaction contrasts above. ETS letters apply",
+    "to dichotomous items. Polytomous items report the PCM signed",
+    "expected-score area descriptively."
   ),
   resolve_tbl = paste(
     "Records each automatic item split, its triggering term and effect size.",
@@ -241,8 +254,10 @@ APP_HELP <- c(
   ),
   alpha_tbl = paste(
     "Reports the relative measurement unit for each item set in an EFRM.",
-    "A value of one is the equal-unit reference; set origins are reported",
-    "separately."
+    "The link uses persons observed in more than one set and estimates their",
+    "distribution on a finite grid within each person group rather than",
+    "assuming a normal shape or a common distribution across groups.",
+    "A value of one is the equal-unit reference; set origins are separate."
   ),
   frame_tbl = paste(
     "Reports the unit and fit for each observed item-set by person-group frame.",
@@ -255,7 +270,8 @@ APP_HELP <- c(
   ),
   btlef_units_tbl = paste(
     "Reports set units and origins for linked comparative judgement sets.",
-    "Units describe scale changes; origins describe translations between sets."
+    "Units describe scale changes; origins describe translations between sets.",
+    "The two adjusted probabilities are Holm follow-ups within their families."
   ),
   btlef_frames_tbl = paste(
     "Reports the unit, comparison count and fit of each panel-by-set frame.",
@@ -271,12 +287,13 @@ APP_HELP <- c(
     "can be replaced by its equal-unit restriction."
   ),
   efrm_cmp_tbl = paste(
-    "Compares the extended-frame and equal-unit fits using the same within-frame",
-    "conditional information. The likelihood difference is descriptive."
+    "Compares group-dependent and equal group units using the same within-frame",
+    "conditional information. It does not test item-set units; the likelihood",
+    "difference is descriptive."
   ),
   efrm_omnibus_tbl = paste(
-    "Jointly tests whether the group and item-set units can be replaced by their",
-    "equal-unit restrictions."
+    "Jointly tests the equal-unit restriction for the group and item-set unit",
+    "families. These Wald tests provide the inferential model comparison."
   ),
 
   # Dimensionality and local dependence ----------------------------------
@@ -305,9 +322,9 @@ APP_HELP <- c(
     "estimates the overall dependence magnitude in logits."
   ),
   spread_tbl = paste(
-    "Compares each polytomous item's observed threshold spread with its least",
-    "upper bound. A shortfall is evidence consistent with response dependence;",
-    "the test is commonly used after dependent items have been combined."
+    "Compares each recorded superitem's threshold spread with the binomial",
+    "bound. A shortfall is evidence consistent with response dependence. The",
+    "bound is available only when the superitem contains dichotomous items."
   ),
   cormat_q3_tbl = paste(
     "Shows Yen's Q3 residual correlations between items. Large positive values",
@@ -345,18 +362,21 @@ APP_HELP <- c(
     "bootstrap inference was requested."
   ),
   frame_inv_loc_tbl = paste(
-    "The model holds each item at one location across frames, so the fit",
-    "cannot test that assumption. Each frame is calibrated separately here",
-    "and the locations compared on the common scale. A flagged item behaves",
-    "differently across frames. Screen drops the multiplicity adjustment,",
-    "which finds more of them at the cost of flagging sound ones."
+    "Compares item locations from separate frame calibrations after conversion",
+    "to the common unit and centring over common items. The selected uncertainty",
+    "method is shown with the result."
+  ),
+  frame_inv_summary_tbl = paste(
+    "Summarises each set and frame comparison. RMSD is the observed spread of",
+    "the location differences; RMSE is their expected sampling spread. The",
+    "counts give the items tested, excluded and flagged. Discrimination counts",
+    "are available with bootstrap uncertainty."
   ),
   frame_inv_disc_tbl = paste(
-    "A location comparison cannot see a steeper item, which crosses one half",
-    "in the same place. This table compares each item's fit within its own",
-    "frame instead. It is far less sensitive: near 500 persons it finds such",
-    "an item one time in six, so Screen helps most here. The disc columns",
-    "describe size and direction, and run high."
+    "Compares item discrimination across separate frame calibrations. Slopes",
+    "show direction and relative size; a boundary flag marks estimates at the",
+    "fitted limit. Conditional results are descriptive; bootstrap results include",
+    "probabilities and Holm adjustment."
   ),
   cmp_tbl = paste(
     "Compares fits retained during this session. Information criteria are",
@@ -389,37 +409,39 @@ APP_HELP <- c(
 
   # Plots: core Rasch ------------------------------------------------------
   wright = paste(
-    "Places person locations and item thresholds on the same logit scale.",
+    "Places person locations and calibration thresholds on the same logit scale.",
+    "Extended Frames and Multiple Ratings use response-cell thresholds.",
     "Good targeting places thresholds across the range occupied by the persons."
   ),
   pim_p = paste(
-    "Compares the distributions of person locations and item thresholds on",
+    "Compares the distributions of person locations and calibration thresholds on",
     "their common logit scale. Dashed lines mark the means. Test information",
     "can be added on the right-hand scale."
   ),
   thrmap = paste(
-    "Displays every item threshold on the common logit scale. It shows the",
-    "location and spread of the category transitions within and between items."
+    "Displays every fitted threshold on the common logit scale. Extended Frames",
+    "and Multiple Ratings show the response cells used in estimation."
   ),
   tcc = paste(
-    "Shows the modelled expected total score over the latent trait. The curve",
-    "translates locations on the logit scale into expected raw scores."
+    "Shows the modelled expected total score over the latent trait. Extended",
+    "Frames and Multiple Ratings draw a curve for each administrable design."
   ),
   tif = paste(
-    "Shows test information over the latent trait. Higher information indicates",
-    "greater measurement precision and a smaller conditional standard error."
+    "Shows information over the latent trait for each administrable design.",
+    "Higher information indicates greater precision; a single design also",
+    "shows its conditional standard error on the right-hand scale."
   ),
   imap = paste(
-    "Plots item locations against item fit residuals. Items far from the central",
-    "fit band warrant closer inspection."
+    "Plots fitted locations against fit residuals. Extended Frames and Multiple",
+    "Ratings show response cells; points outside the band warrant inspection."
   ),
   pfit = paste(
     "Plots person locations against person fit residuals. Select or hover over",
     "unusual points to identify response patterns for further review."
   ),
   rdist_i = paste(
-    "Shows the distribution of item fit residuals against the standard normal",
-    "reference expected under adequate fit."
+    "Shows the distribution of item or response-cell fit residuals against the",
+    "standard normal reference expected under adequate fit."
   ),
   rdist_p = paste(
     "Shows the distribution of person fit residuals against the standard normal",
@@ -433,7 +455,8 @@ APP_HELP <- c(
   guttman = paste(
     "Orders items by difficulty and compares the person's responses with a",
     "deterministic Guttman pattern. The Rasch model remains probabilistic; this",
-    "display is a descriptive response-pattern check."
+    "display is a descriptive response-pattern check for an ordinary",
+    "dichotomous item matrix."
   ),
   scree = paste(
     "Shows residual eigenvalues and, where available, their simulated reference",
@@ -500,8 +523,8 @@ APP_HELP <- c(
   ),
   btl_targeting_plot = paste(
     "Plots object location against design information, with point size showing",
-    "comparison count. The reference curve shows information expected from one",
-    "new comparison against an opponent at each location."
+    "comparison count. Equal-unit fits also show the information expected from",
+    "one new comparison; frame fits have no single reference curve."
   ),
   btl_eq_plot = paste(
     "Compares linked object locations from two comparative judgement calibrations.",

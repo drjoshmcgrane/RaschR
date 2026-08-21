@@ -158,8 +158,9 @@ person_wle <- function(tau_list, disc = 1) {
 #'   \code{"extrapolated"} applies the geometric extrapolation.
 #' @return A data frame with \code{score}, \code{theta}, \code{se},
 #'   \code{freq}, \code{cum_pct} (omitted when no complete responders
-#'   exist), and \code{extrapolated}; \code{NULL} for
-#'   fits without a common raw-score metric (EFRM).
+#'   exist), and \code{extrapolated}; \code{NULL} when the fitted items do not
+#'   share one discrimination or an item is represented by several MFRM or
+#'   EFRM response cells.
 #' @references
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.

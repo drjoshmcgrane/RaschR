@@ -57,7 +57,7 @@ test_that("resolving refuses to leave the group units unidentified", {
   # the group units are identified by the items two frames share, and a
   # resolved item is shared by nobody
   expect_error(resolve_frames(z$fit, z$items, boot_reps = 0),
-               "fewer than two items common to the frames")
+               "unidentified")
   expect_error(resolve_frames(z$fit, z$items[1:9], boot_reps = 0),
                "unidentified")
   expect_error(resolve_frames(z$fit, "NOPE"), "not in the fit")
@@ -71,17 +71,13 @@ test_that("resolve_frames refuses the fits it cannot serve", {
   expect_error(resolve_frames(f, "I01"), "split_items")
 })
 
-test_that("the unit-linking bootstrap accepts the replicate count it is given", {
-  # a flat floor of 30 rejected every boot_reps below 30 without a single
-  # replicate having failed, and reported it as a weak linking design
+test_that("the unit-linking bootstrap accepts its minimum supported size", {
   skip_on_cran()
   d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 2,
                      n_groups = 2, set_unit_ratio = 1.3, seed = 11)
   tr <- attr(d, "truth")
-  for (b in c(5, 20, 29)) {
-    f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
-                    boot_reps = b)
-    expect_s3_class(f, "rasch_efrm")
-    expect_true(all(is.finite(f$alpha_table$alpha)))
-  }
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 30)
+  expect_s3_class(f, "rasch_efrm")
+  expect_true(all(is.finite(f$alpha_table$alpha)))
 })

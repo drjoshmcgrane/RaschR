@@ -18,7 +18,8 @@ dif_anova(
 )
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}}.}
+\item{fit}{A fitted object from \code{\link{rasch}},
+\code{\link{rasch_mfrm}}, or \code{\link{rasch_efrm}}.}
 
 \item{factors}{A vector (one factor), a data frame of person factors, or a
 character vector naming factor columns nominated in the fit. Defaults to
@@ -29,7 +30,7 @@ smallest joint factor cell to retain about 30 expected responses per
 interval and cell, with between 2 and 10 intervals. The selected value is
 returned in \code{n_groups}.}
 
-\item{p_adjust}{Multiplicity adjustment across items within each term;
+\item{p_adjust}{Multiplicity adjustment over all item-by-term tests;
 default \code{"BH"}.}
 
 \item{alpha}{Significance level applied to the adjusted probabilities.}
@@ -53,7 +54,8 @@ Details for the mixed-design analysis.}
 \item{pool_facets}{For MFRM fits: pool residuals to the underlying
 items (the default), so DIF is tested per item rather than per
 item-by-facet cell; \code{FALSE} tests each cell as its own item.
-Ignored for other fits.}
+EFRM response cells are always pooled by item, so this argument does not
+alter EFRM fits. Ignored for ordinary fits.}
 }
 \value{
 A list with:
@@ -62,8 +64,9 @@ A list with:
   uniform and non-uniform tests, partial eta-squared, adjusted
   probabilities, DIF flags, and supersession flag.}
   \item{\code{terms}}{The complete item-wise analysis-of-variance tables.}
-  \item{\code{tukey}}{Tukey comparisons for significant,
-  non-superseded terms with more than two levels.}
+  \item{\code{tukey}}{Residual-mean Tukey comparisons retained for
+  compatibility in between-person designs. Use \code{posthoc} for
+  logit-scale follow-ups.}
   \item{\code{sizes}}{When requested, pairwise logit differences for the
   significant, non-superseded item-terms.}
   \item{\code{posthoc}}{When \code{sizes = TRUE}, marginal pairwise
@@ -85,8 +88,10 @@ With one factor \eqn{G} and class interval \eqn{C}, the residual model is
 The factor term tests uniform DIF and its interaction with class interval
 tests non-uniform DIF. With several factors, \code{effects = "main"} fits
 \code{(f1 + f2 + ...) * ci}; \code{effects = "factorial"} also includes
-factor-by-factor interactions. Type II sums of squares are used, and
-probabilities are adjusted across items separately within each term.
+factor-by-factor interactions. Type II sums of squares are used. The
+multiplicity adjustment covers all item-by-DIF-term tests, including both
+uniform and non-uniform DIF; the class-interval main effect is a nuisance
+term and is not included.
 
 When identifiers repeat, the person is the unit of analysis. Between-person
 terms use person means and the between-person error stratum. Within-person
@@ -100,8 +105,10 @@ A significant higher-order factor term supersedes its component terms in
 the summary. For EFRM fits, frame-defining factors are excluded because
 they define the model rather than a separate DIF contrast; testing such a
 factor means stepping outside the model, which is what
-\code{\link{frame_invariance}} does. MFRM residuals
-are pooled to underlying items unless \code{pool_facets = FALSE}.
+\code{\link{frame_invariance}} does. MFRM residuals are pooled to
+underlying items unless \code{pool_facets = FALSE}. EFRM response cells
+are always pooled by item; the frame-defining factors remain excluded.
+Inference is available only from a converged calibration.
 }
 \examples{
 set.seed(1); n <- 800

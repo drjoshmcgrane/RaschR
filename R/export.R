@@ -195,12 +195,10 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 
 #' Save the outputs of a Rasch analysis
 #'
-#' Writes all tables (item statistics, thresholds with standard errors, person
-#' estimates including ID and factors, the score-to-measure table, residual
-#' correlations, principal-component loadings, category frequencies, and DIF
-#' results for every nominated factor) as CSV; every plot, including the
-#' per-item characteristic, category, threshold, and frequency plots, as PNG
-#' and optionally PDF; and a plain-text analysis summary.
+#' Writes the summary, estimates, diagnostic tables, person measures, and
+#' model-specific results as CSV. Plots are written as PNG and, optionally,
+#' PDF, together with a plain-text analysis summary. For MFRM and EFRM fits,
+#' item estimates and response-cell diagnostics are saved separately.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param dir Output directory; created if absent.
@@ -226,10 +224,15 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                              object_plots = item_plots))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
+  structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   idir <- file.path(pdir, "items")
+  cdir <- if (structural) file.path(pdir, "response_cells") else idir
   dir.create(tdir, showWarnings = FALSE)
   dir.create(pdir, showWarnings = FALSE)
-  if (item_plots) dir.create(idir, showWarnings = FALSE)
+  if (item_plots) {
+    dir.create(cdir, showWarnings = FALSE)
+    if (inherits(fit, "rasch_efrm")) dir.create(idir, showWarnings = FALSE)
+  }
   files <- character(0)
   wtab <- function(d, name) {
     path <- file.path(tdir, paste0(name, ".csv"))
@@ -238,11 +241,16 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   }
 
   # --- tables ---------------------------------------------------------------
-  wtab(fit$items, "item_statistics")
-  wtab(fit$item_anova, "item_anova_fit")
+  wtab(fit_summary_table(fit), "fit_summary")
+  wtab(targeting_table(fit), "targeting_and_reliability")
+  wtab(fit$items, if (structural) "response_cell_statistics" else
+    "item_statistics")
+  wtab(fit$item_anova, if (structural) "response_cell_anova_fit" else
+    "item_anova_fit")
   thr <- fit$thresholds
   thr$item <- fit$items$item[thr$item]
-  wtab(thr[, c("item", "k", "tau", "se")], "thresholds")
+  wtab(thr[, c("item", "k", "tau", "se")], if (structural)
+    "response_cell_thresholds" else "thresholds")
   if (!is.null(fit$est$components)) wtab(fit$est$components, "principal_components")
   wtab(fit$person, "person_estimates")
   if (!is.null(fit$score_table)) wtab(score_table(fit), "score_to_measure")
@@ -252,12 +260,17 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     cd <- chisq_detail(fit, it)
     cbind(item = cd$item, cd$intervals)
   }))
-  wtab(cd_all, "chisq_class_interval_detail")
+  wtab(cd_all, if (structural) "response_cell_chisq_class_interval_detail"
+       else "chisq_class_interval_detail")
   rc <- residual_correlations(fit)
   wtab(data.frame(item = rownames(rc$matrix), round(rc$matrix, 4),
-                  check.names = FALSE), "residual_correlations")
-  wtab(rc$pairs, "q3_statistics")
-  if (nrow(rc$flagged)) wtab(rc$flagged, "local_dependence_flagged")
+                  check.names = FALSE), if (structural)
+                    "response_cell_residual_correlations" else
+                      "residual_correlations")
+  wtab(rc$pairs, if (structural) "response_cell_q3_statistics" else
+    "q3_statistics")
+  if (nrow(rc$flagged)) wtab(rc$flagged, if (structural)
+    "response_cell_local_dependence_flagged" else "local_dependence_flagged")
   # residual PCA refuses structurally disjoint designs (extended-frame
   # groups, facet cells) -- record the reason instead of failing the export
   pc <- tryCatch(residual_pca(fit), error = function(e)
@@ -271,8 +284,10 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   cf <- do.call(rbind, lapply(fit$thresholds_diag, function(d)
     data.frame(item = d$item, category = seq_along(d$category_counts) - 1L,
                count = d$category_counts)))
-  wtab(cf, "category_frequencies")
-  if (all(fit$m == 1L)) {
+  wtab(cf, if (structural) "response_cell_category_frequencies" else
+    "category_frequencies")
+  whole_item_design <- .classical_design_applicable(fit)
+  if (whole_item_design && all(fit$m == 1L)) {
     gt <- guttman_table(fit)
     wtab(data.frame(id = rownames(gt$matrix), gt$matrix, check.names = FALSE),
          "guttman_ordered_responses")
@@ -283,18 +298,35 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     wtab(fit$item_thresholds, "item_structural_thresholds")
     for (f in fit$facet_spec)
       wtab(fit$facet_effects[[f]], paste0("facet_", gsub("[^A-Za-z0-9_.-]", "_", f)))
-    if (!is.null(fit$interaction_effects))
+    if (!is.null(fit$interaction_effects)) {
+      wtab(fit$interaction_test, "interaction_omnibus_test")
       wtab(fit$interaction_effects, "item_by_facet_interactions")
+    }
   }
   if (inherits(fit, "rasch_efrm")) {
     wtab(fit$frames, "frames")
+    x <- fit$efrm_vs_rasch
+    wtab(data.frame(
+      model = c("Equal group units", "Group-dependent units"),
+      loglik = c(x$ll_equal, x$ll_efrm),
+      unit_parameters = c(0L, x$extra_parameters),
+      two_delta_loglik = c(NA_real_, x$two_delta_ll)),
+      "frame_model_comparison")
+    wtab(x$unit_omnibus, "unit_omnibus_tests")
+    wtab(x$unit_tests, "unit_contrasts")
     # the fit holds each item at one location across frames, so the units are
     # only as good as that assumption; save the test of it beside them
-    inv <- tryCatch(frame_invariance(fit), error = function(e) NULL)
-    if (!is.null(inv)) {
+    inv <- tryCatch(frame_invariance(fit), error = function(e) e)
+    if (inherits(inv, "error")) {
+      wtab(data.frame(note = paste("Frame invariance was not available:",
+                                   conditionMessage(inv))),
+           "frame_invariance_summary")
+    } else {
       wtab(inv$summary, "frame_invariance_summary")
       wtab(inv$locations, "frame_invariance_locations")
       wtab(inv$discrimination, "frame_invariance_discrimination")
+      if (!is.null(inv$excluded) && nrow(inv$excluded))
+        wtab(inv$excluded, "frame_invariance_excluded")
     }
     wtab(fit$phi_table, "group_units_phi")
     wtab(fit$alpha_table, "set_units_alpha")
@@ -339,19 +371,23 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   # --- test-level plots --------------------------------------------------------
   sp <- function(f, stem) files <<- c(files,
     .rr_save_plot(f, stem, pdir, formats, width, height, dpi))
-  sp(function() plot_pimap(fit), "person_item_distribution")
+  sp(function() plot_pimap(fit), if (structural)
+    "person_calibration_distribution" else "person_item_distribution")
   sp(function() plot_wright(fit), "wright_map")
-  sp(function() plot_threshold_map(fit), "threshold_map")
+  sp(function() plot_threshold_map(fit), if (structural)
+    "calibration_threshold_map" else "threshold_map")
   sp(function() plot_tcc(fit), "test_characteristic_curve")
   sp(function() plot_tif(fit), "test_information")
-  sp(function() plot_item_map(fit), "item_fit_map")
+  sp(function() plot_item_map(fit), if (structural)
+    "response_cell_fit_map" else "item_fit_map")
   sp(function() plot_person_fit(fit), "person_fit")
   sp(function() plot_resid_cor(fit), "residual_correlations")
   sp(function() plot_pca(fit), "pca_loadings")
   sp(function() plot_scree(fit), "scree")
-  if (all(fit$m == 1L))
+  if (whole_item_design && all(fit$m == 1L))
     sp(function() plot_guttman(fit), "guttman_scalogram")
-  sp(function() plot_resid_dist(fit, "items"), "item_residual_distribution")
+  sp(function() plot_resid_dist(fit, "items"), if (structural)
+    "response_cell_residual_distribution" else "item_residual_distribution")
   sp(function() plot_resid_dist(fit, "persons"), "person_residual_distribution")
   if (inherits(fit, "rasch_mfrm")) {
     for (f in fit$facet_spec) local({
@@ -384,13 +420,13 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
       safe <- gsub("[^A-Za-z0-9_.-]", "_", it)
       files <- c(files,
         .rr_save_plot(function() plot_icc(fit, it),
-                      paste0(safe, "_icc"), idir, formats, width, height, dpi),
+                      paste0(safe, "_icc"), cdir, formats, width, height, dpi),
         .rr_save_plot(function() plot_ccc(fit, it),
-                      paste0(safe, "_categories"), idir, formats, width, height, dpi),
+                      paste0(safe, "_categories"), cdir, formats, width, height, dpi),
         .rr_save_plot(function() plot_threshold_prob(fit, it),
-                      paste0(safe, "_thresholds"), idir, formats, width, height, dpi),
+                      paste0(safe, "_thresholds"), cdir, formats, width, height, dpi),
         .rr_save_plot(function() plot_catfreq(fit, it),
-                      paste0(safe, "_frequencies"), idir, formats, width, height, dpi))
+                      paste0(safe, "_frequencies"), cdir, formats, width, height, dpi))
     }
   }
   invisible(files)
@@ -423,8 +459,10 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
        border-bottom: 2px solid #e2e8f0; }
   .meta { color: #64748b; font-size: .85rem; margin-bottom: 1.5rem; }
   .note { color: #64748b; font-size: .82rem; margin: .3rem 0 .8rem; }
+  .table-wrap { width: 100%; overflow-x: auto; margin: .4rem 0 1rem;
+                -webkit-overflow-scrolling: touch; }
   table { border-collapse: collapse; width: 100%; font-size: .82rem;
-          background: #fff; margin: .4rem 0 1rem; }
+          background: #fff; }
   th { text-align: left; font-weight: 600; border-bottom: 2px solid #cbd5e1;
        padding: .35rem .55rem; white-space: nowrap; }
   td { border-bottom: 1px solid #eef2f7; padding: .3rem .55rem; }
@@ -436,7 +474,15 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   .chip { display: inline-block; background: #eff6ff; color: #1d4ed8;
           border-radius: 999px; padding: .1rem .6rem; font-size: .78rem;
           margin-right: .35rem; }
+  @media (max-width: 620px) {
+    .wrap { padding: 1.25rem .75rem 2.5rem; }
+    h1 { font-size: 1.35rem; }
+    table { min-width: 620px; }
+  }
 "
+
+.html_escape <- function(x)
+  gsub(">", "&gt;", gsub("<", "&lt;", gsub("&", "&amp;", as.character(x))))
 
 .html_table <- function(d, digits = 3, max_rows = 500) {
   if (is.null(d) || !nrow(d)) return("")
@@ -446,8 +492,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                           max_rows, nrow(d))
     d <- d[seq_len(max_rows), , drop = FALSE]
   }
-  esc <- function(x) gsub(">", "&gt;", gsub("<", "&lt;",
-                          gsub("&", "&amp;", as.character(x))))
+  esc <- .html_escape
   # drop all-FALSE logical flag columns and constant 'max' columns
   drop <- vapply(seq_along(d), function(j)
     (is.logical(d[[j]]) && !any(d[[j]], na.rm = TRUE)) ||
@@ -466,8 +511,9 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     paste0("<tr>", paste0("<td", ifelse(num, " class='num'", ""), ">",
                           cells[i, ], "</td>", collapse = ""), "</tr>")
   }, ""), collapse = "\n")
-  paste0(trunc_note, "<table><thead><tr>", head_html,
-         "</tr></thead><tbody>", body_html, "</tbody></table>")
+  paste0(trunc_note, "<div class='table-wrap'><table><thead><tr>",
+         head_html, "</tr></thead><tbody>", body_html,
+         "</tbody></table></div>")
 }
 
 #' Write a self-contained HTML report of a Rasch analysis
@@ -507,22 +553,36 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   esc <- function(x) gsub(">", "&gt;", gsub("<", "&lt;",
                           gsub("&", "&amp;", as.character(x))))
   title <- esc(title)
+  structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
+  alpha_design <- .classical_design_applicable(fit)
+  physical_items <- if (inherits(fit, "rasch_mfrm")) nrow(fit$item_effects)
+    else if (inherits(fit, "rasch_efrm")) nrow(fit$item_arbitrary)
+    else ncol(fit$X)
   chips <- s("<span class='chip'>", esc(fit$model), "</span>",
              "<span class='chip'>", nrow(fit$X), " persons</span>",
-             "<span class='chip'>", ncol(fit$X), " items</span>",
+             "<span class='chip'>", physical_items, " items</span>",
+             if (structural) s("<span class='chip'>", ncol(fit$X),
+                               " response cells</span>") else "",
              sprintf("<span class='chip'>PSI %.3f</span>", fit$psi$PSI),
-             sprintf("<span class='chip'>alpha %.3f</span>", fit$alpha$alpha))
+             if (alpha_design && is.finite(fit$alpha$alpha))
+               sprintf("<span class='chip'>alpha %.3f</span>",
+                       fit$alpha$alpha) else "")
+  calibration_unit <- if (structural) "response-cell" else "item"
+  fit_unit <- if (structural) "Response-cell" else "Item"
+  separation_unit <- if (structural) "response-cell" else "item"
   summ <- s(
     sprintf("<p>Pairwise conditional estimation %s in %d iterations. ",
             if (isTRUE(fit$est$converged)) "converged" else "did <b>not</b> converge",
             fit$est$iterations),
-    sprintf("Total item-trait chi-square %.2f on %d df (p = %s). ",
-            fit$total_chisq, fit$total_df, .fmt_p(fit$total_chisq_p)),
-    sprintf("Item fit residual mean %.2f, SD %.2f; person fit residual mean %.2f, SD %.2f. ",
-            fit$item_fit_summary$mean, fit$item_fit_summary$sd,
+    sprintf("Total %s-trait chi-square %.2f on %d df (p = %s). ",
+            calibration_unit, fit$total_chisq, fit$total_df,
+            .fmt_p(fit$total_chisq_p)),
+    sprintf("%s fit residual mean %.2f, SD %.2f; person fit residual mean %.2f, SD %.2f. ",
+            fit_unit, fit$item_fit_summary$mean, fit$item_fit_summary$sd,
             fit$person_fit_summary$mean, fit$person_fit_summary$sd),
-    sprintf("PSI %.3f (%.3f without extremes); item separation %.3f; power of the test of fit: %s.</p>",
-            fit$psi$PSI, fit$psi_noext$PSI, fit$isi$PSI, fit$power_of_fit),
+    sprintf("PSI %.3f (%.3f without extremes); %s separation reliability %.3f; power of the test of fit: %s.</p>",
+            fit$psi$PSI, fit$psi_noext$PSI, separation_unit,
+            fit$isi$PSI, fit$power_of_fit),
     if (length(fit$notes))
       s("<p class='note'>Notes: ", esc(paste(fit$notes, collapse = "; ")), "</p>")
     else "")
@@ -537,6 +597,32 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
              sprintf("<p class='note'>%s</p>", esc(dt$caution)) else "")
   else sprintf("<p class='note'>%s</p>", esc(dt$note))
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
+  item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
+    if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
+  item_cols <- intersect(c("item", "set", "max", "location", "se", "n",
+                           "fit_resid", "fit_resid_pooled", "infit_ms",
+                           "outfit_ms", "chisq", "df", "p_adj", "weak"),
+                         names(item_tab))
+  common_thresholds <- if (inherits(fit, "rasch_mfrm")) fit$item_thresholds
+    else if (inherits(fit, "rasch_efrm")) fit$thresholds_arbitrary
+    else {
+      th <- fit$thresholds
+      th$item <- fit$items$item[th$item]
+      th[, c("item", "k", "tau", "se")]
+    }
+  if ("delta" %in% names(common_thresholds) &&
+      !"tau" %in% names(common_thresholds))
+    names(common_thresholds)[names(common_thresholds) == "delta"] <- "tau"
+  common_thresholds <- common_thresholds[, intersect(
+    c("item", "set", "k", "tau", "se", "weak"),
+    names(common_thresholds)), drop = FALSE]
+  cell_thresholds <- NULL
+  if (structural) {
+    cell_thresholds <- fit$thresholds
+    cell_thresholds$item <- fit$items$item[cell_thresholds$item]
+    cell_thresholds <- cell_thresholds[, c("item", "k", "tau", "se"),
+                                       drop = FALSE]
+  }
 
   html <- s(
     "<!DOCTYPE html><html><head><meta charset='utf-8'/>",
@@ -551,27 +637,37 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     "<h2>Targeting</h2>",
     shot(function() plot_pimap(fit), "targeting"),
     shot(function() plot_wright(fit), "wright_map"),
-    "<h2>Item statistics</h2>",
-    .html_table(fit$items[, intersect(c("item", "max", "location", "se",
-                                        "fit_resid", "infit_ms", "outfit_ms",
-                                        "chisq", "df", "p_adj"),
-                                      names(fit$items))]),
+    "<h2>", if (structural) "Common-scale item estimates" else
+      "Item statistics", "</h2>",
+    if (structural)
+      "<p class='note'>Item estimates on the common measurement scale.</p>"
+    else "",
+    .html_table(item_tab[, item_cols, drop = FALSE]),
     shot(function() plot_item_map(fit), "item_map"),
-    "<h2>Thresholds</h2>",
-    .html_table({ th <- fit$thresholds
-                  th$item <- fit$items$item[th$item]
-                  th[, c("item", "k", "tau", "se")] }),
+    "<h2>", if (structural) "Common-scale threshold estimates" else
+      "Thresholds", "</h2>",
+    .html_table(common_thresholds),
+    if (structural) s("<h2>Response-cell fit</h2>",
+      "<p class='note'>Observed item-by-frame or item-by-facet cells used in estimation.</p>",
+      .html_table(fit$items[, intersect(
+        c("item", "max", "location", "se", "fit_resid", "infit_ms",
+          "outfit_ms", "chisq", "df", "p_adj"), names(fit$items)),
+        drop = FALSE]),
+      "<h2>Response-cell thresholds</h2>", .html_table(cell_thresholds)) else "",
     { dis <- names(which(vapply(fit$thresholds_diag, function(dd)
         !dd$ordered && length(dd$thresholds) > 1L, TRUE)))
-      if (length(dis)) sprintf("<p class='flag'>Disordered thresholds: %s.</p>",
+      if (length(dis)) sprintf("<p class='flag'>Disordered %sthresholds: %s.</p>",
+                               if (structural) "response-cell " else "",
                                esc(paste(dis, collapse = ", ")))
+      else if (structural)
+        "<p class='note'>All polytomous response cells have ordered thresholds.</p>"
       else "<p class='note'>All polytomous items have ordered thresholds.</p>" },
     shot(function() plot_threshold_map(fit), "threshold_map"),
     "<h2>Test characteristic and information</h2>",
     shot(function() plot_tcc(fit), "tcc"),
     shot(function() plot_tif(fit), "tif"),
-    "<h2>Score to measure</h2>",
-    .html_table(score_table(fit)),
+    if (!is.null(fit$score_table)) s("<h2>Score to measure</h2>",
+      .html_table(score_table(fit))) else "",
     "<h2>Fit residual distributions</h2>",
     shot(function() plot_resid_dist(fit, "items"), "resid_items"),
     shot(function() plot_resid_dist(fit, "persons"), "resid_persons"),
@@ -600,13 +696,40 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
       "<p class='note'>Locations use the rest measure; a distractor whose takers are abler than the keyed option's flags a possible miskey.</p>",
       .html_table(tryCatch(distractor_analysis(fit), error = function(e) NULL))) else "",
     if (inherits(fit, "rasch_mfrm")) s("<h2>Facet severities</h2>",
-      paste(vapply(fit$facet_spec, function(f) s("<h3>", f, "</h3>",
+      paste(vapply(fit$facet_spec, function(f) s("<h3>", esc(f), "</h3>",
         .html_table(fit$facet_effects[[f]][, intersect(c("level", "severity",
-          "se", "n", "fit_resid"), names(fit$facet_effects[[f]]))])), ""),
-        collapse = "")) else "",
-    if (inherits(fit, "rasch_efrm")) s("<h2>Frames and units</h2>",
-      .html_table(fit$frames[, intersect(c("set", "group", "rho", "se_log_rho",
-        "origin", "fit_resid", "n_responses"), names(fit$frames))])) else "",
+          "se", "n", "fit_resid", "fit_resid_pooled", "infit_ms",
+          "outfit_ms"), names(fit$facet_effects[[f]])), drop = FALSE])), ""),
+        collapse = ""),
+      if (!is.null(fit$interaction_test)) s(
+        "<h2>Item-by-facet interaction</h2>",
+        "<p class='note'>The omnibus test assesses the complete interaction. Cell comparisons are Holm-adjusted follow-ups.</p>",
+        .html_table(fit$interaction_test),
+        .html_table(fit$interaction_effects[, intersect(
+          c("item", "level", "gamma", "se", "z", "p_adj", "significant"),
+          names(fit$interaction_effects)), drop = FALSE])) else "") else "",
+    if (inherits(fit, "rasch_efrm")) {
+      x <- fit$efrm_vs_rasch
+      s("<h2>Frame model comparison</h2>",
+        "<p class='note'>Within-frame thresholds and group units use pairwise conditional calibration. Item-set units use common persons and a finite-grid semiparametric link with a separate nuisance distribution for each observed person group.</p>",
+        "<p class='note'>The likelihood difference concerns the group-unit stage. The available Wald tests assess the group- and set-unit families.</p>",
+        .html_table(data.frame(
+          model = c("Equal group units", "Group-dependent units"),
+          loglik = c(x$ll_equal, x$ll_efrm),
+          unit_parameters = c(0L, x$extra_parameters),
+          two_delta_loglik = c(NA_real_, x$two_delta_ll))),
+        "<h2>Unit tests</h2>",
+        "<h3>Omnibus tests</h3>", .html_table(x$unit_omnibus),
+        "<h3>Unit contrasts</h3>", .html_table(x$unit_tests),
+        "<h2>Frames and units</h2>",
+        "<h3>Frames</h3>",
+        .html_table(fit$frames[, intersect(c("set", "group", "rho",
+          "se_log_rho", "origin", "fit_resid", "n_responses"),
+          names(fit$frames)), drop = FALSE]),
+        "<h3>Group units</h3>", .html_table(fit$phi_table),
+        "<h3>Item-set units</h3>", .html_table(fit$alpha_table),
+        "<h3>Item-set locations</h3>", .html_table(fit$set_table))
+    } else "",
     if (inherits(fit, "rasch_efrm")) .html_frame_invariance(fit) else "",
     "<h2>Person estimates</h2>",
     .html_table(fit$person[, intersect(c("id", names(fit$factors), "raw",
@@ -697,30 +820,45 @@ report_document <- function(fit, file,
 # report that shows the units without the test invites the reader to trust
 # them further than the analysis warrants, so the test travels with them.
 .html_frame_invariance <- function(fit) {
-  inv <- tryCatch(frame_invariance(fit), error = function(e) NULL)
-  if (is.null(inv)) return("")
-  fl <- inv$locations[isTRUE_or_false(inv$locations$flagged), , drop = FALSE]
-  fd <- inv$discrimination[isTRUE_or_false(inv$discrimination$flagged), ,
+  inv <- tryCatch(frame_invariance(fit), error = function(e) e)
+  if (inherits(inv, "error"))
+    return(paste0("<h2>Item invariance across frames</h2>",
+      "<p class='note'>Frame invariance was not available: ",
+      .html_escape(conditionMessage(inv)), "</p>"))
+  bootstrap <- identical(inv$se_method, "bootstrap")
+  fl <- inv$locations[inv$locations$flagged %in% TRUE, , drop = FALSE]
+  fd <- inv$discrimination[inv$discrimination$flagged %in% TRUE, ,
                            drop = FALSE]
   paste0("<h2>Item invariance across frames</h2>",
-    "<p class='note'>The fitted model holds each item at one location across",
-    " frames, so it cannot test that assumption; each frame is calibrated",
-    " separately here and the locations compared on the common scale. A root",
-    " mean squared difference above the root mean squared standard error is",
-    " item behaviour the frame units do not account for.</p>",
+    if (bootstrap) paste0(
+      "<p class='note'>Each frame is calibrated separately and compared on the",
+      " common scale. Person-within-frame bootstrap uncertainty includes the",
+      " fitted frame units; Holm adjustment covers the location and",
+      " discrimination comparisons together.</p>") else paste0(
+      "<p class='note'>Each frame is calibrated separately and compared on the",
+      " common scale. Conditional location tests treat the fitted frame units",
+      " as fixed and are Holm-adjusted as one location family. Discrimination",
+      " comparisons are descriptive; bootstrap uncertainty is required for",
+      " discrimination tests.</p>"),
     .html_table(as.data.frame(inv$summary)),
+    if (!is.null(inv$excluded) && nrow(inv$excluded))
+      paste0("<h3>Excluded comparisons</h3>",
+             .html_table(as.data.frame(inv$excluded))) else "",
     if (nrow(fl)) paste0("<h3>Locations differing across frames</h3>",
       .html_table(as.data.frame(fl[, intersect(
         c("set", "frame_1", "frame_2", "item", "location_1", "location_2",
           "difference", "se", "statistic", "p_adj"), names(fl))])))
     else "<p class='note'>No item's location differs across frames.</p>",
-    if (nrow(fd)) paste0("<h3>Discrimination differing across frames</h3>",
-      "<p class='note'>The test is the comparison of within-frame infit; the",
-      " disc columns describe size and direction only, and run high.</p>",
-      .html_table(as.data.frame(fd[, intersect(
+    if (!bootstrap) paste0("<h3>Descriptive discrimination comparisons</h3>",
+      .html_table(as.data.frame(inv$discrimination[, intersect(
         c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
-          "infit_z", "p_adj", "disc_1", "disc_2", "disc_ratio"), names(fd))])))
+          "infit_z", "disc_1", "disc_2", "disc_ratio", "disc_boundary"),
+        names(inv$discrimination)), drop = FALSE])))
+    else if (nrow(fd)) paste0(
+      "<h3>Discrimination differing across frames</h3>",
+      .html_table(as.data.frame(fd[, intersect(
+        c("set", "frame_1", "frame_2", "item", "log_disc_ratio",
+          "se_log_disc_ratio", "statistic", "p_adj", "disc_1", "disc_2",
+          "disc_ratio", "disc_boundary"), names(fd)), drop = FALSE])))
     else "<p class='note'>No item's discrimination differs across frames.</p>")
 }
-
-isTRUE_or_false <- function(x) !is.na(x) & x

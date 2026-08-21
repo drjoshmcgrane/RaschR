@@ -13,7 +13,8 @@ tailored_analysis(
 )
 }
 \arguments{
-\item{fit}{A dichotomous fit from \code{\link{rasch}}.}
+\item{fit}{An unanchored, unconstrained dichotomous fit from
+\code{\link{rasch}}. The procedure estimates its own common origin.}
 
 \item{chance}{The guessing floor: the probability of success by chance
 (1/number of options; default 0.25).}
@@ -27,7 +28,9 @@ procedure trusts.}
 \item{se_method}{\code{"none"} (default) reports the item shifts
 descriptively. \code{"bootstrap"} resamples persons and repeats the
 complete four-step procedure, including automatic anchor selection, to
-obtain standard errors, percentile intervals, and Holm-adjusted tests.}
+obtain standard errors, percentile intervals, and Holm-adjusted tests.
+When a person identifier occurs on several rows, all of that person's
+rows are resampled together.}
 
 \item{boot_reps}{Person-bootstrap replicates when
 \code{se_method = "bootstrap"}; at least 50, default 999. The

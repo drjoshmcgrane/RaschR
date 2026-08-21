@@ -16,8 +16,9 @@ rather than their original sequence.}
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Each item's threshold locations on a common logit scale, ordered by item
-location, with disordered thresholds highlighted.
+Each fitted column's threshold locations on a common logit scale, ordered
+by location, with disordered thresholds highlighted. The columns are
+response cells for MFRM and EFRM fits.
 }
 \examples{
 set.seed(1)

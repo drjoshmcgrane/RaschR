@@ -1,14 +1,12 @@
 # STUDY: alpha-correction-limits
 #
-# Deliberate stress tests of the corrected EFRM item-set unit estimator:
+# Deliberate stress tests of the semiparametric EFRM item-set unit estimator:
 # where does it break, and does it break loudly (refusals) or silently
 # (bias without warning)? Cells target the construction's own weak
 # points: differential mistargeting, extreme ratios, minimal score
 # bases, tiny linking samples, heavy-tailed persons, and the two
-# inherited-model-violation modes (within-set misfit from
-# discrimination heterogeneity or guessing, and ability-dependent
-# missingness), which the correction cannot see because it computes
-# score distributions from the fitted model.
+# inherited-model-violation modes (within-set misfit from discrimination
+# heterogeneity or guessing, and ability-dependent missingness).
 # Serial. Rscript tools/simval/studies/alpha-correction-limits.R
 
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
@@ -53,24 +51,37 @@ gen <- function(n, ips, ratio, seed, theta_fun = function(n) rnorm(n, 0, 1.3),
                         set2 = items[ips + seq_len(ips)]))
 }
 
-cell <- function(scen, R, seed0, ..., ratio = 1.4, n = 500, ips = 8) {
-  lr <- rep(NA_real_, R); n_ref <- 0L
-  for (r in seq_len(R)) {
+cell <- function(scen, R, seed0, ..., ratio = 1.4, n = 500, ips = 8,
+                 grid_n = 61L) {
+  old_grid <- getOption("rasch.efrm_link_grid_n")
+  on.exit(options(rasch.efrm_link_grid_n = old_grid), add = TRUE)
+  options(rasch.efrm_link_grid_n = grid_n)
+  one <- function(r) {
     g <- gen(n, ips, ratio, seed0 + r, ...)
     fe <- tryCatch(rasch_efrm(g$d, item_sets = g$item_sets, groups = "group",
                               id = "id", boot_reps = 0),
                    error = function(e) NULL)
-    if (is.null(fe)) { n_ref <- n_ref + 1L; next }
+    if (is.null(fe)) return(c(lr = NA_real_, refused = 1, nonconv = 0))
+    link_converged <- nrow(fe$linking$alpha_edges) == 0L ||
+      all(fe$linking$alpha_edges$converged %in% TRUE)
+    if (!isTRUE(fe$est$converged) || !link_converged)
+      return(c(lr = NA_real_, refused = 0, nonconv = 1))
     a <- fe$alpha_table$alpha
-    lr[r] <- log(a[2] / a[1])
+    c(lr = log(a[2] / a[1]), refused = 0, nonconv = 0)
   }
+  cores <- suppressWarnings(as.integer(Sys.getenv("SV_CORES", "1")))
+  if (!is.finite(cores) || cores < 1L) cores <- 1L
+  z <- if (cores > 1L && .Platform$OS.type != "windows")
+    parallel::mclapply(seq_len(R), one, mc.cores = cores, mc.set.seed = FALSE)
+  else lapply(seq_len(R), one)
+  z <- do.call(rbind, z); lr <- z[, "lr"]; n_ref <- sum(z[, "refused"])
+  n_nc <- sum(z[, "nonconv"])
   ok <- is.finite(lr)
   add(scen, "log unit ratio bias", sum(ok),
       bias = mean(lr[ok]) - log(ratio), emp_sd = sd(lr[ok]),
-      n_attempted = R, n_refused = n_ref,
-      refusal_rate = n_ref / R)
-  tick("%s: bias %+.4f (sd %.4f) refusals %d/%d", scen,
-       mean(lr[ok]) - log(ratio), sd(lr[ok]), n_ref, R)
+      n_attempted = R, n_refused = n_ref, n_nonconv = n_nc)
+  tick("%s: bias %+.4f (sd %.4f) refusals %d/%d nonconvergence %d/%d", scen,
+       mean(lr[ok]) - log(ratio), sd(lr[ok]), n_ref, R, n_nc, R)
 }
 
 ## targeting
@@ -102,24 +113,9 @@ cell("within-set discrimination jitter sd 0.5", 60L, 102e3,
 cell("guessing 0.15 on half of set 2", 60L, 103e3, guess2 = 0.15)
 cell("ability-dependent missingness (low skip hard)", 60L, 104e3,
      inform_miss = 0.8)
-
-
-## citation rows: the fixed-design floor curve (alpha-floor-curve.R,
-## N = 20,000 x 25 replicates per length, isolating the probability-limit
-## offset from sampling noise)
-add("floor curve, normal persons (citation row)",
-    "probability-limit offset by items/set", 25L,
-    notes = paste("corrected: -0.009(4) +0.011(6) +0.0124(8) +0.0092(12)",
-                  "+0.0119(16) +0.0085(24) +0.0064(32) ~ 1/sqrt(I);",
-                  "raw: NaN at 4-6 items (negative variances),",
-                  "+0.057(8) then -0.024..-0.035 persisting to 32 items --",
-                  "the raw construction never converges in this range"))
-add("floor curve, skewed persons chi-sq(3) (citation row)",
-    "probability-limit offset by items/set", 25L,
-    notes = paste("corrected: -0.003(4) +0.0156(8) +0.0017(16) -0.0067(32);",
-                  "raw: NaN(4) +0.093(8) -0.025(16) -0.023(32).",
-                  "At practical N the small-sample Jensen term offsets the",
-                  "corrected floor, giving net ~0 from 8 items"))
+## finite-grid sensitivity, seed-paired with the ordinary ratio-1.4 design
+cell("41-point linking grid", 60L, 105e3, grid_n = 41L)
+cell("101-point linking grid", 60L, 105e3, grid_n = 101L)
 
 sv_write(do.call(rbind, rows), "alpha-correction-limits")
 cat(sprintf("TOTAL elapsed: %.1f min\n", as.numeric(Sys.time() - t0, units = "mins")))

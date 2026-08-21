@@ -78,42 +78,51 @@ large-sample approximations.
 ```{r analysis}
 fit <- rasch(dat, id = "pid", factors = c("group", "occasion"),
              items = sprintf("I%02d", 1:8))
-da <- dif_anova(fit, within = "occasion")
+da <- dif_anova(fit, within = "occasion", sizes = TRUE)
 da$summary
 ```
-
-The planted effects are I03 by group and I06 by occasion, and both are
-flagged. This run also flags I05 by occasion, where nothing was planted:
-with eight items tested against every term, an occasional spurious flag is
-expected at any fixed level, which is why adjusted probabilities and effect
-sizes should be read together before an item is acted on. The `dif_size`
-step below shows the planted effects are large where the spurious flag is
-not.
 
 The multiplicity adjustment is applied across items separately within each
 term. Uniform DIF is a factor effect that is stable over the trait; a
 factor-by-class-interval effect is non-uniform DIF. If person-factor
 interactions are substantively required, use `effects = "factorial"` and
 interpret a significant higher-order term before its component main effects.
+Read adjusted probabilities with effect sizes before changing an item.
 
 ## Quantify the departure
 
 ANOVA identifies evidence against invariance; it does not state the size of
 the departure in logits. `dif_size` resolves an item by a between-person
-factor. `dif_contrasts` is the corresponding planned-contrast approach and
-uses person-level differencing for within-person questions.
+factor. `dif_contrasts` provides planned contrasts and uses person-level
+differencing for within-person questions.
 
 ```{r magnitude}
 dif_size(fit, "I03", by = "group")
-dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion",
-                    id = fit$person$id)
+dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion")
 dc$table
+da$posthoc
 ```
+
+`dif_posthoc()` is the general follow-up for a significant term. A main
+effect with more than two levels is reported as pairwise marginal differences
+over the other fitted factors. An interaction is reported as a
+difference-in-differences, or its higher-order counterpart. These comparisons
+use the joint covariance of the resolved item locations and Holm adjustment
+over the stated family. They are preferable to an ordinary Tukey comparison
+of residual means because the result is on the logit scale and respects the
+factor structure used in the DIF analysis.
 
 For repeated-person contrasts, significance comes from person-level residual
 contrast scores. The resolved logit difference remains the magnitude, but its
 row-independent calibration covariance is not a repeated-measures standard
 error; the package therefore withholds the logit SE and interval in this case.
+The fitted person identifier is used unless `id` is supplied explicitly.
+
+For a many-facet fit, follow-ups may name the underlying item; its virtual
+facet cells are pooled with common weights so facet severity cancels from the
+group contrast. Extended-frame fits support the residual ANOVA for factors
+outside the frame definition, but not an ordinary resolved-item magnitude:
+that refit would discard the fitted frame units.
 
 A statistical flag should be considered with the logit magnitude, targeting,
 item content, and the intended use of the scale. Resolving an item changes the

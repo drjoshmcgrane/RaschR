@@ -51,6 +51,6 @@ exponent. The planted set- and group-unit ratios are recovered by
 d <- simulate_efrm(200, 6, set_unit_ratio = 1.3, seed = 1)
 tr <- attr(d, "truth")
 ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
-                 boot_reps = 30)   # small design keeps the example quick
+                 boot_reps = 0)    # point estimates only
 ef$alpha_table   # planted ratio 1.3, recovered within small-sample noise
 }

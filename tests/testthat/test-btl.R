@@ -108,6 +108,18 @@ test_that("ties, extremes, counts, and disconnection are handled", {
   expect_error(btl(dd, "a", "b", "win"), "disconnected")
 })
 
+test_that("comparison histories key judges and objects structurally", {
+  a <- c("A\rB", "B", "A\rB", "B")
+  b <- c("C", "D", "D", "C")
+  judge <- c("J", "J\rA", "J", "J\rA")
+  x <- c(1, 0, 0, 1)
+  got <- .btl_exposure(a, b, x, 1, judge, c(1, 1, 2, 2))
+  a2 <- c("X", "Y", "X", "Y")
+  judge2 <- c("U", "V", "U", "V")
+  expected <- .btl_exposure(a2, b, x, 1, judge2, c(1, 1, 2, 2))
+  expect_identical(got, expected)
+})
+
 test_that("plot_btl draws and print method runs", {
   beta <- c(A = -1, B = 0, C = 0.4, D = 0.6)
   ft <- btl(sim_btl(beta, 40, seed = 5), "a", "b", "win")
@@ -347,6 +359,9 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   f <- btl(d, "a", "b", winner = "win", judge = "judge")
   dif <- btl_dif(f, grp)
   expect_s3_class(dif, "rasch_btl_dif")
+  tested <- dif$terms$term != "band" & is.finite(dif$terms$p)
+  expect_equal(dif$terms$p_adj[tested],
+               p.adjust(dif$terms$p[tested], method = "BH"))
   # summary route: a single factor gives one "group" term, only S06 flagged
   expect_true(dif$summary$uniform_DIF[dif$summary$object == "S06"])
   expect_equal(sum(dif$summary$uniform_DIF), 1L)
@@ -359,6 +374,19 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   # grouped characteristic curve renders
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_btl_icc(f, "S06", group = grp))
+
+  old_graded <- rasch:::.btl_graded
+  testthat::local_mocked_bindings(
+    .btl_graded = function(...) {
+      z <- old_graded(...)
+      z$converged <- FALSE
+      z
+    },
+    .package = "rasch")
+  failed_resolution <- btl_dif(f, grp)
+  expect_null(failed_resolution$sizes)
+  expect_true(any(grepl("resolved calibration did not converge",
+                        failed_resolution$notes)))
 })
 
 test_that("btl_dif fits several judge factors jointly (main and factorial)", {
@@ -583,6 +611,8 @@ test_that("graded free-threshold fits with dependence estimate correctly (C1)", 
   dep <- setNames(f$dependence$estimate, f$dependence$effect)
   expect_lt(abs(dep[["exposure"]] - 0.4), 3 * f$dependence$se[1])
   expect_lt(abs(dep[["carry_over"]] - 0.8), 3 * f$dependence$se[2])
+  expect_true(is.na(f$dependence$p[f$dependence$effect == "carry_over"]))
+  expect_match(paste(f$notes, collapse = " "), "fewer than 30 judges")
   # thresholds recovered too (the corrupted block used to distort them)
   expect_lt(max(abs(f$thresholds$tau - tau)), 0.25)
 })
@@ -1045,4 +1075,41 @@ test_that("btl_next_pairs one-step priority beats the lowest-priority pair", {
   expect_lt(addvar(np$object_a[1], np$object_b[1]),
             addvar(np$object_a[nrow(np)], np$object_b[nrow(np)]))
   expect_true("E3" %in% c(np$object_a[1], np$object_b[1]))
+})
+
+test_that("model-based BTL diagnostics refuse an unconverged calibration", {
+  set.seed(87)
+  objs <- LETTERS[1:5]
+  pr <- t(utils::combn(objs, 2))
+  d <- data.frame(a = rep(pr[, 1], each = 20),
+                  b = rep(pr[, 2], each = 20),
+                  judge = rep(sprintf("J%02d", 1:10), length.out = 200))
+  d$win <- ifelse(stats::runif(nrow(d)) < .5, d$a, d$b)
+  f <- btl(d, "a", "b", "win", judge = "judge")
+  f$converged <- FALSE
+  expect_error(btl_information(f), "did not converge")
+  expect_error(btl_next_pairs(f), "did not converge")
+  expect_error(btl_dimensionality(f, reps = 20), "did not converge")
+  expect_error(judge_surprise(f, "J01"), "did not converge")
+  expect_error(judge_pair_surprise(f, "J01"), "did not converge")
+})
+
+test_that("BTL DIF does not redefine an externally anchored object", {
+  set.seed(49)
+  beta <- c(A = -1, B = -.5, C = 0, D = .5, E = 1)
+  pr <- t(combn(names(beta), 2))
+  d <- data.frame(a = rep(pr[, 1], each = 100),
+                  b = rep(pr[, 2], each = 100))
+  judges <- sprintf("J%02d", 1:20)
+  d$judge <- rep(judges, length.out = nrow(d))
+  grp <- setNames(rep(c("g1", "g2"), each = 10), judges)
+  shift <- ifelse(grp[d$judge] == "g2" & d$a == "C", 2,
+            ifelse(grp[d$judge] == "g2" & d$b == "C", -2, 0))
+  p <- plogis(beta[d$a] - beta[d$b] + shift)
+  d$win <- ifelse(runif(nrow(d)) < p, d$a, d$b)
+  f <- btl(d, "a", "b", "win", judge = "judge", anchors = c(C = 0))
+  z <- btl_dif(f, grp, objects = "C")
+  expect_true(z$summary$uniform_DIF)
+  expect_null(z$sizes)
+  expect_true(any(grepl("externally anchored", z$notes)))
 })

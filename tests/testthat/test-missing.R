@@ -14,11 +14,17 @@ test_that("CTT statistics support complete- and available-case summaries", {
   colnames(X) <- sprintf("I%02d", 1:8)
   f0 <- rasch(X); c0 <- ctt_table(f0)
   tot <- rowSums(X)
-  thirds <- cut(rank(tot, ties.method = "first"), 3, labels = FALSE)
+  thirds <- .class_intervals(tot, rep(FALSE, length(tot)), 3)
   i <- 3
   expect_equal(c0$table$item_total[i], cor(X[, i], tot), tolerance = 1e-10)
   expect_equal(c0$table$item_rest[i], cor(X[, i], tot - X[, i]),
                tolerance = 1e-10)
+
+  # Equal total scores remain together. The discrimination index therefore
+  # cannot change when the same response rows are presented in another order.
+  ord <- sample.int(nrow(X))
+  c1 <- ctt_table(rasch(X[ord, , drop = FALSE]))
+  expect_equal(c1$table$di, c0$table$di, tolerance = 1e-12)
   expect_equal(c0$table$di[i],
                (mean(X[thirds == 3, i]) - mean(X[thirds == 1, i])) / 2,
                tolerance = 1e-10)

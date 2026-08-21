@@ -130,9 +130,9 @@
 #'   range, or one location per item.
 #' @param threshold_spread Half-range of the category thresholds about each
 #'   item location (polytomous).
-#' @param discrimination The item slope, supplied as one value or one per
-#'   item. Values above 1 over-discriminate (Guttman-like, negative fit
-#'   residual); values below 1 under-discriminate (positive residual).
+#' @param discrimination The item slope, supplied as one value or one per item.
+#'   Values above 1 produce steeper responses and negative fit residuals.
+#'   Values below 1 produce flatter responses and positive fit residuals.
 #' @param guessing Scalar or length-\code{n_items} lower asymptote
 #'   (dichotomous): low-location persons answer correctly by chance.
 #' @param second_dim \code{NULL}, or \code{list(items=, rho=)}: the named items
@@ -722,7 +722,7 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
 #' d <- simulate_efrm(200, 6, set_unit_ratio = 1.3, seed = 1)
 #' tr <- attr(d, "truth")
 #' ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
-#'                  boot_reps = 30)   # small design keeps the example quick
+#'                  boot_reps = 0)    # point estimates only
 #' ef$alpha_table   # planted ratio 1.3, recovered within small-sample noise
 #' @export
 simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,

@@ -38,24 +38,16 @@
 # alpha_s are exactly confounded with the spread of the set's thresholds,
 # so neither is a parameter of this stage.
 #
-# Route 2 (person-side linking): alpha_s and set locations mu_s from
-# persons common to two sets. Within set s a person's frame estimate is
-# u = alpha_s * (theta - mu_s), so the ratio of true-score variances over
-# common persons estimates squared alpha ratios, and the offsets give the
-# relative set locations; the log-ratios are reconciled over the linking
-# graph by weighted least squares. The true-score variance is recovered by
-# the truncated-score-moment correction
-#     var_true = (var(u_hat) - E[w]) / E[g']^2,
-# where g(u) and w(u) are the exact mean and variance of the WLE score map
-# over the non-extreme score distribution at u (from the fitted
-# thresholds), and E[.] over the person distribution is estimated by
-# score-weight vectors phi solving E[phi(R)|u] ~ target(u) on a grid --
-# unbiased for any person distribution because the raw score is
-# sufficient. The naive correction var(u_hat) - mean(se^2) is badly
-# calibrated on short tests: the reported SE^2 overstates the actual error
-# variance and WLE shrinkage induces cov(u, error) < 0; at 8 dichotomous
-# items per set both distortions exceed 50% of the variance and their
-# imperfect cancellation biased the log unit ratio by +0.05.
+# Route 2 (person-side linking): alpha_s and set locations mu_s from persons
+# common to two sets. In set s a person's natural coordinate is
+# u_s = alpha_s * (theta - mu_s), hence u_b = r*u_a + c for a linked set pair.
+# The response likelihood is integrated over masses estimated jointly with
+# the link on a grid in u_a. This semiparametric mixing distribution can
+# represent skewed, heavy-tailed and multimodal person populations without a
+# prespecified normal shape.
+# The pairwise log ratios and offsets are reconciled over the set-linking graph
+# by weighted least squares. Truncated-score moments provide stable starting
+# values and screen links whose score range is too weak to identify a scale.
 #
 # Identification: sum dtilde = 0 per set; sum_g log phi_g = 0;
 # sum_s log alpha_s = 0; mean_s mu_s = 0. Together these give the
@@ -259,9 +251,10 @@
 # The linking needs E[w(u)] and E[g'(u)] over the (unobserved) person
 # distribution; because the raw score is sufficient, score-weight vectors
 # phi with E[phi(R) | u] ~ target(u) on a grid make mean(phi(R_i)) an
-# estimate of E[target(u)] that is unbiased for ANY person distribution
-# (both targets are bounded and tail-flat, so the ridge least-squares
-# inversion is stable, unlike a direct representation of u^2). Returns
+# estimate of E[target(u)] over a broad class of person distributions. These
+# moments now provide starting values and identification checks for the
+# semiparametric likelihood link rather than the final set-unit estimate.
+# Returns
 # per-person phi_w(R_i) and phi_g(R_i), NA for extreme or empty rows.
 .person_link_moments <- function(X, tau_list, disc = 1) {
   N <- nrow(X)
@@ -274,10 +267,9 @@
     tl <- tau_list[cols]
     maxr <- sum(vapply(tl, length, 1L))
     # a pattern needs a score range of at least 4 (>= 3 interior score
-    # categories) to support the moment correction: at 2 interior
-    # categories the map slope is degenerate and the estimator collapses
-    # to a confidently wrong value (-0.27 log-ratio bias, near-zero
-    # variance, in the limits study) rather than getting noisier
+    # categories) to provide a stable scale start and guard check. With only
+    # 2 interior categories the score-map slope is too weak to support the
+    # flexible distributional link reliably.
     if (maxr < 4L) next
     W <- person_wle(tl, disc = disc)$theta[as.character(0:maxr)]
     Wi <- W[-c(1L, maxr + 1L)]
@@ -318,16 +310,169 @@
   list(w = w_i, g = g_i)
 }
 
+# Semiparametric likelihood link for two item sets. The common persons'
+# distribution is represented by jointly estimated masses on a fixed grid in
+# the first set's natural unit; the second set is evaluated at r*u + c. This
+# retains the Rasch response model without prescribing a normal or unimodal
+# person distribution. Response rows are compressed by
+# observed-item pattern and weighted score before the EM iterations, so the
+# link remains practical inside the person bootstrap.
+.efrm_npml_pair <- function(Xm, vmap, tau_v, disc_v, sets_u, a, b, idx,
+                            init_log_ratio, init_offset,
+                            min_link_persons, grid_n = 61L) {
+  ca <- which(vmap$set == sets_u[a]); cb <- which(vmap$set == sets_u[b])
+  Xa <- Xm[idx, ca, drop = FALSE]; Xb <- Xm[idx, cb, drop = FALSE]
+  oa <- !is.na(Xa); ob <- !is.na(Xb)
+  keep <- rowSums(oa) > 0L & rowSums(ob) > 0L
+  Xa <- Xa[keep, , drop = FALSE]; Xb <- Xb[keep, , drop = FALSE]
+  oa <- oa[keep, , drop = FALSE]; ob <- ob[keep, , drop = FALSE]
+  if (nrow(Xa) < min_link_persons) return(NULL)
+
+  da <- disc_v[ca]; db <- disc_v[cb]
+  score_a <- rowSums(sweep(Xa, 2L, da, "*"), na.rm = TRUE)
+  score_b <- rowSums(sweep(Xb, 2L, db, "*"), na.rm = TRUE)
+  pa <- apply(oa, 1L, paste0, collapse = "")
+  pb <- apply(ob, 1L, paste0, collapse = "")
+  key <- paste(pa, formatC(score_a, digits = 12L, format = "fg"),
+               pb, formatC(score_b, digits = 12L, format = "fg"), sep = "\r")
+  lev <- unique(key); grp <- match(key, lev)
+  reps <- match(lev, key); count <- tabulate(grp, nbins = length(lev))
+  oa <- oa[reps, , drop = FALSE]; ob <- ob[reps, , drop = FALSE]
+  score_a <- score_a[reps]; score_b <- score_b[reps]
+  # Group membership is observed and the person populations need not have the
+  # same location, spread or shape. Keep one nonparametric margin per observed
+  # group while estimating a common set transformation. A single pooled margin
+  # would impose an avoidable population-distribution restriction whenever the
+  # fitted group units differ.
+  mix_group <- vapply(seq_len(nrow(oa)), function(i) {
+    ja <- which(oa[i, ])
+    jb <- which(ob[i, ])
+    ga <- if (length(ja)) unique(vmap$group[ca[ja]]) else character(0)
+    gb <- if (length(jb)) unique(vmap$group[cb[jb]]) else character(0)
+    gg <- unique(c(ga, gb))
+    if (length(gg) != 1L) stop("internal EFRM link mixes person groups")
+    gg
+  }, character(1L))
+  mix_levels <- sort(unique(mix_group))
+  mix_idx <- match(mix_group, mix_levels)
+
+  # Log likelihood up to response-pattern constants, which cancel from the
+  # posterior masses and do not depend on r or c.
+  likelihood <- function(u, obs, score, taus, discs) {
+    L <- outer(score, u)
+    patterns <- apply(obs, 1L, paste0, collapse = "")
+    for (pattern in unique(patterns)) {
+      rows <- which(patterns == pattern)
+      jj <- which(obs[rows[1L], ])
+      den <- numeric(length(u))
+      for (j in jj) {
+        tt <- taus[[j]]; x <- 0:length(tt)
+        lp <- discs[j] * (outer(u, x) -
+          matrix(c(0, cumsum(tt)), nrow = length(u),
+                 ncol = length(x), byrow = TRUE))
+        mx <- apply(lp, 1L, max)
+        den <- den + mx + log(rowSums(exp(lp - mx)))
+      }
+      L[rows, ] <- L[rows, , drop = FALSE] -
+        matrix(den, nrow = length(rows), ncol = length(u), byrow = TRUE)
+    }
+    L
+  }
+
+  grid <- seq(-8, 8, length.out = as.integer(grid_n))
+  La <- likelihood(grid, oa, score_a, tau_v[ca], da)
+  par <- c(init_log_ratio, init_offset)
+  if (any(!is.finite(par))) par <- c(0, 0)
+  # Joint NPML by coordinate ascent. For a fixed link, the EM step estimates
+  # the grid masses from both sets; for fixed masses, a bounded likelihood
+  # step estimates the log scale ratio and offset. Using both sets in the
+  # mixing-distribution step matters: estimating the masses from the first
+  # set alone would turn the second into a plug-in prediction problem rather
+  # than maximise the likelihood of the linked responses.
+  add_weights <- function(L, logw)
+    L + logw[mix_idx, , drop = FALSE]
+  fit_weights <- function(L, logw, maxit = 100L) {
+    conv <- FALSE; step <- Inf
+    for (it in seq_len(maxit)) {
+      A <- add_weights(L, logw); mx <- apply(A, 1L, max)
+      post <- exp(A - mx); post <- post / rowSums(post)
+      w <- matrix(NA_real_, nrow(logw), ncol(logw))
+      for (h in seq_len(nrow(logw))) {
+        sel <- mix_idx == h
+        wh <- pmax(colSums(post[sel, , drop = FALSE] * count[sel]) /
+                     sum(count[sel]), 1e-10)
+        w[h, ] <- wh / sum(wh)
+      }
+      next_logw <- log(w)
+      # Log changes are unstable for support points whose masses approach
+      # zero. Convergence concerns the mixing distribution itself.
+      step <- max(abs(w - exp(logw)))
+      if (step < 1e-7) {
+        logw <- next_logw; conv <- TRUE; break
+      }
+      logw <- next_logw
+    }
+    list(logw = logw, converged = conv, step = step)
+  }
+  logw <- matrix(-log(length(grid)), length(mix_levels), length(grid),
+                 dimnames = list(mix_levels, NULL))
+  converged <- FALSE
+  op <- NULL
+  last_step <- Inf
+  for (outer in seq_len(20L)) {
+    old <- par
+    Lb <- likelihood(exp(par[1L]) * grid + par[2L], ob, score_b,
+                     tau_v[cb], db)
+    ew <- fit_weights(La + Lb, logw)
+    logw <- ew$logw
+    objective <- function(z) {
+      Lbz <- likelihood(exp(z[1L]) * grid + z[2L], ob, score_b,
+                        tau_v[cb], db)
+      A <- add_weights(La + Lbz, logw); mx <- apply(A, 1L, max)
+      -sum(count * (mx + log(rowSums(exp(A - mx)))))
+    }
+    op <- stats::optim(par, objective, method = "L-BFGS-B",
+                       lower = c(log(0.1), -20), upper = c(log(10), 20),
+                       control = list(maxit = 30L, factr = 1e7))
+    par <- op$par
+    last_step <- max(abs(par - old))
+    if (op$convergence == 0L && last_step < 1e-3) {
+      converged <- TRUE; break
+    }
+  }
+  # Refresh the nuisance distribution at the reported link and evaluate the
+  # corresponding joint log likelihood.
+  Lb <- likelihood(exp(par[1L]) * grid + par[2L], ob, score_b,
+                   tau_v[cb], db)
+  ew <- fit_weights(La + Lb, logw)
+  logw <- ew$logw; w <- exp(logw)
+  A <- add_weights(La + Lb, logw); mx <- apply(A, 1L, max)
+  ll <- sum(count * (mx + log(rowSums(exp(A - mx)))))
+  converged <- converged || (!is.null(op) && op$convergence == 0L &&
+                              last_step < 1e-3)
+  edge_mass_by_group <- w[, 1L] + w[, ncol(w)]
+  edge_mass <- max(edge_mass_by_group)
+  if (isTRUE(getOption("rasch.efrm_link_debug", FALSE)))
+    message("EFRM NPML: step=", signif(last_step, 4),
+            ", mass step=", signif(ew$step, 4),
+            ", optim=", op$convergence,
+            ", max group edge mass=", signif(edge_mass, 4))
+  if (!all(is.finite(par)) || !is.finite(ll) || edge_mass > 0.02) return(NULL)
+  list(log_ratio = par[1L], offset = par[2L], n = sum(count),
+       converged = converged, edge_mass = edge_mass, loglik = ll)
+}
+
 # Stage 2: alpha_s and set locations mu_s from persons common to set pairs,
-# with the truncated-score-moment correction (see .person_link_moments).
+# with semiparametric person-distribution linking. Score moments provide
+# stable starting values and guard checks; the pair likelihood supplies the
+# reported scale ratio and offset.
 # Standard errors and the joint covariance of (log alpha, mu) come from a
 # person bootstrap of the whole linking stage: each replicate resamples
-# persons, recomputes the corrected variance ratios and offsets per set
-# pair, and re-solves the linking least squares. This captures the
-# nonlinearity of the correction and the reconciliation over the linking
-# graph, which a leave-one-out jackknife of the raw log slope understates.
+# persons, refits the nuisance masses and link for each set pair, and
+# re-solves the linking least squares. This captures the nonlinearity of the
+# semiparametric link and its reconciliation over the linking graph.
 .efrm_link_sets <- function(u_mat, w_mat, g_mat, sets_u, min_link_persons,
-                            boot_reps = 300, regen = NULL) {
+                            boot_reps = 300, regen = NULL, pair_link = NULL) {
   S <- ncol(u_mat)
   A <- rbind(diag(S - 1L), rep(-1, S - 1L))
 
@@ -336,23 +481,29 @@
   # to the point-estimate person matrices; the bootstrap can pass
   # regenerated ones (see below).
   link_once <- function(idx, um = u_mat, wm = w_mat, gm = g_mat,
-                        hard = FALSE) {
+                        hard = FALSE, pair_fun = pair_link) {
     edges <- list(); ls_est <- off_est <- off_n <- numeric(0)
+    link_converged <- link_edge_mass <- link_loglik <- numeric(0)
     for (a in seq_len(S - 1)) for (b in (a + 1):S) {
-      ok <- idx[is.finite(um[idx, a]) & is.finite(um[idx, b]) &
-                is.finite(wm[idx, a]) & is.finite(wm[idx, b]) &
-                is.finite(gm[idx, a]) & is.finite(gm[idx, b])]
-      if (length(ok) < min_link_persons) next
-      u1 <- um[ok, a]; u2 <- um[ok, b]
-      d1 <- mean(gm[ok, a]); d2 <- mean(gm[ok, b])
+      # Non-extreme scores are needed only for the corrected-moment start and
+      # the weak-link screen. The likelihood itself must retain every common
+      # person, including an extreme score in either set: dropping them would
+      # condition on the realised responses without including that selection
+      # in the likelihood.
+      ok_start <- idx[is.finite(um[idx, a]) & is.finite(um[idx, b]) &
+                        is.finite(wm[idx, a]) & is.finite(wm[idx, b]) &
+                        is.finite(gm[idx, a]) & is.finite(gm[idx, b])]
+      if (length(ok_start) < min_link_persons) next
+      u1 <- um[ok_start, a]; u2 <- um[ok_start, b]
+      d1 <- mean(gm[ok_start, a]); d2 <- mean(gm[ok_start, b])
       if (!is.finite(d1) || !is.finite(d2) || d1 < 0.1 || d2 < 0.1) {
         if (hard)
           stop("the score maps of sets '", sets_u[a], "' and '", sets_u[b],
                "' are too flat to link (degenerate map slope)")
         next
       }
-      v1 <- (var(u1) - mean(wm[ok, a])) / d1^2
-      v2 <- (var(u2) - mean(wm[ok, b])) / d2^2
+      v1 <- (var(u1) - mean(wm[ok_start, a])) / d1^2
+      v2 <- (var(u2) - mean(wm[ok_start, b])) / d2^2
       if (!is.finite(v1) || !is.finite(v2) || v1 <= 0 || v2 <= 0) {
         if (hard)
           stop("too little true person variance to link sets '", sets_u[a],
@@ -360,17 +511,38 @@
         next
       }
       ls <- 0.5 * (log(v2) - log(v1))                # log(alpha_b / alpha_a)
+      off <- mean(u2) - exp(ls) * mean(u1)
+      np <- NULL
+      if (!is.null(pair_fun)) {
+        np <- pair_fun(a, b, idx, ls, off)
+        if (is.null(np)) {
+          if (hard)
+            stop("the semiparametric likelihood link failed for sets '",
+                 sets_u[a], "' and '", sets_u[b], "'")
+          next
+        }
+        # Retain a usable point estimate with an explicit warning, but do not
+        # admit a link that missed its numerical tolerance to a bootstrap
+        # covariance calculation.
+        if (!hard && !isTRUE(np$converged)) next
+        ls <- np$log_ratio; off <- np$offset
+      }
       edges[[length(edges) + 1L]] <- c(a, b)
       ls_est <- c(ls_est, ls)
-      off_est <- c(off_est, mean(u2) - exp(ls) * mean(u1))  # alpha_b (mu_a - mu_b)
-      off_n <- c(off_n, length(ok))
+      off_est <- c(off_est, off)  # alpha_b (mu_a - mu_b)
+      off_n <- c(off_n, if (is.null(pair_fun)) length(ok_start) else np$n)
+      link_converged <- c(link_converged,
+                          if (is.null(np)) NA else np$converged)
+      link_edge_mass <- c(link_edge_mass,
+                          if (is.null(np)) NA else np$edge_mass)
+      link_loglik <- c(link_loglik, if (is.null(np)) NA else np$loglik)
     }
     if (!length(edges)) {
       if (hard) stop("no set pairs share enough persons with informative ",
                      "score patterns to link the units: each person's ",
                      "pattern needs a score range of at least 4 within a ",
                      "set (at least four dichotomous items, or fewer ",
-                     "polytomous ones) for the set-unit correction")
+                 "polytomous ones) for semiparametric set linking")
       return(NULL)
     }
     comp <- .efrm_components(S, edges)
@@ -390,11 +562,14 @@
     Cm <- matrix(0, length(edges), S)
     for (e in seq_along(edges)) { Cm[e, edges[[e]][1]] <- 1; Cm[e, edges[[e]][2]] <- -1 }
     mu <- drop(A %*% qr.coef(qr((Cm %*% A) * sw), dmu * sw)); mu[is.na(mu)] <- 0
-    list(la = la, mu = mu, edges = edges, ls_est = ls_est, off_n = off_n)
+    list(la = la, mu = mu, edges = edges, ls_est = ls_est, off_n = off_n,
+         link_converged = link_converged, link_edge_mass = link_edge_mass,
+         link_loglik = link_loglik)
   }
 
   N <- nrow(u_mat)
   point <- link_once(seq_len(N), hard = TRUE)
+  point_converged <- !any(point$link_converged %in% FALSE)
 
   # person bootstrap of the linking stage (skipped inside an outer
   # bootstrap). When a regen closure is supplied, each replicate also
@@ -407,7 +582,9 @@
   # understates by ~20% in simulation and the unit tests reject at ~9-10%
   # instead of 5%.
   cov_link <- NULL
-  if (boot_reps > 0) {
+  cov_alpha_phi <- NULL
+  link_reps <- dtilde_reps <- NULL
+  if (boot_reps > 0 && point_converged) {
     # a pool of parameter draws cycled across the person resamples: each
     # replicate pairs one draw with one resample, so the replicate spread
     # still carries both variance components, at a fraction of the regen
@@ -420,6 +597,7 @@
     }
     draws <- if (n_draws > 0L) vector("list", n_draws)
     reps <- matrix(NA_real_, boot_reps, 2L * S)
+    phi_reps <- NULL
     for (r in seq_len(boot_reps)) {
       mats <- if (n_draws == 0L) NULL else {
         di <- ((r - 1L) %% n_draws) + 1L
@@ -428,17 +606,43 @@
       }
       b <- if (is.null(mats)) link_once(sample.int(N, N, replace = TRUE))
            else link_once(sample.int(N, N, replace = TRUE),
-                          um = mats$u, wm = mats$w, gm = mats$g)
+                          um = mats$u, wm = mats$w, gm = mats$g,
+                          pair_fun = mats$pair_link %||% pair_link)
       if (!is.null(b)) reps[r, ] <- c(b$la, b$mu)
+      if (!is.null(mats$log_phi)) {
+        if (is.null(phi_reps))
+          phi_reps <- matrix(NA_real_, boot_reps, length(mats$log_phi),
+                             dimnames = list(NULL, names(mats$log_phi)))
+        phi_reps[r, ] <- mats$log_phi
+      }
+      if (!is.null(mats$dtilde)) {
+        if (is.null(dtilde_reps))
+          dtilde_reps <- matrix(NA_real_, boot_reps, length(mats$dtilde))
+        dtilde_reps[r, ] <- mats$dtilde
+      }
     }
-    reps <- reps[stats::complete.cases(reps), , drop = FALSE]
+    complete <- stats::complete.cases(reps)
+    reps_ok <- reps[complete, , drop = FALSE]
     # scale the requirement to what was asked for: a flat "< 30" rejects every
     # boot_reps below 30 without a single replicate having failed, and then
     # blames the design for it
-    if (nrow(reps) < max(2L, min(30L, boot_reps %/% 2L)))
+    if (nrow(reps_ok) < max(2L, min(30L, boot_reps %/% 2L)))
       stop("the unit-linking bootstrap failed in most replicates; the linking ",
            "design is too weak for stable alpha estimation")
-    cov_link <- stats::cov(reps)
+    cov_link <- stats::cov(reps_ok)
+    link_reps <- reps_ok
+    if (!is.null(dtilde_reps))
+      dtilde_reps <- dtilde_reps[complete, , drop = FALSE]
+    if (!is.null(phi_reps)) {
+      joint_ok <- complete & stats::complete.cases(phi_reps)
+      if (sum(joint_ok) >= 2L) {
+        C <- stats::cov(cbind(reps[joint_ok, seq_len(S), drop = FALSE],
+                              phi_reps[joint_ok, , drop = FALSE]))
+        cov_alpha_phi <- C[seq_len(S), S + seq_len(ncol(phi_reps)),
+                           drop = FALSE]
+        dimnames(cov_alpha_phi) <- list(sets_u, colnames(phi_reps))
+      }
+    }
   }
 
   list(alpha = setNames(exp(point$la), sets_u),
@@ -446,9 +650,15 @@
          else setNames(sqrt(pmax(diag(cov_link)[seq_len(S)], 0)), sets_u),
        mu = setNames(point$mu, sets_u),
        cov_link = cov_link,
+       cov_alpha_phi = cov_alpha_phi,
+       link_reps = link_reps,
+       dtilde_reps = dtilde_reps,
        edges = data.frame(set_a = sets_u[vapply(point$edges, `[`, 1L, 1)],
                           set_b = sets_u[vapply(point$edges, `[`, 1L, 2)],
-                          n = point$off_n, log_slope = point$ls_est))
+                          n = point$off_n, log_slope = point$ls_est,
+                          converged = point$link_converged,
+                          edge_mass = point$link_edge_mass,
+                          loglik = point$link_loglik))
 }
 
 # Person estimation under unequal frame units: the weighted score
@@ -508,156 +718,55 @@
 #'
 #' @details
 #' The partial credit model holds within each frame in its natural unit.
-#' Person-group units \eqn{\phi_g} and centred set thresholds are estimated by
-#' within-frame pairwise conditional maximum likelihood.
+#' Person-group units \eqn{\phi_g} are identified from common item thresholds
+#' across groups. Item sets partition the items, so set units \eqn{\alpha_s}
+#' are identified instead from persons observed in more than one set. The
+#' set-linking graph and the group-by-set frame graph must each connect to a
+#' common scale.
 #'
-#' The two kinds of unit are estimated by different routes, because the
-#' design offers different information about each. A set taken by two
-#' person groups gives the same items calibrated at two scales, so the
-#' threshold pattern identifies \eqn{\phi_g} conditionally, without
-#' reference to person estimates. Item sets partition the items, so no item
-#' is calibrated at two scales and \eqn{\alpha_s} has no such channel: it is
-#' identified person-side, from the dispersion of the estimates of persons
-#' common to two sets. That route carries estimation error into the
-#' quantity being compared, which is why it needs the correction described
-#' next, and why the set units are less precise than the group units at the
-#' same sample size. Placing an item in two sets would create the missing
-#' channel but requires administering it twice to the same person, and the
-#' resulting carry-over biases the recovered ratio far more than the error
-#' it would avoid; overlapping sets are therefore refused.
+#' Set units use a semiparametric likelihood for persons observed in each
+#' linked pair of sets. For sets \eqn{a} and \eqn{b}, it maximises
+#' \deqn{\prod_n\int P(X_{na}\mid u)P(X_{nb}\mid ru+c)\,dF_{g(n)}(u),}
+#' where the masses of each observed group's \eqn{F_g}, the scale ratio
+#' \eqn{r} and the offset \eqn{c} are estimated jointly on a fixed grid. This
+#' avoids prescribing a normal or common person distribution across groups.
+#' The conditional thresholds and group units are held fixed in this step;
+#' only \eqn{r}, \eqn{c}, and the nuisance masses are estimated. The linked
+#' parameters are then
+#' \deqn{\delta_{ik}=\widetilde\delta_{ik}/\alpha_s+\mu_s,
+#' \qquad \rho_{sg}=\alpha_s\phi_g.}
+#' Score moments supply starting values and screen weak links. Response
+#' patterns must span a score range of at least four within a set. Overlapping
+#' item sets are not permitted. The public
+#' convergence flag covers both estimation stages; \code{stage1_converged}
+#' records the conditional stage separately.
 #'
-#' Item-set units \eqn{\alpha_s} and set locations are estimated from persons
-#' common to linked sets by true-score variance ratios, with the true-score variance
-#' recovered by a truncated-score-moment correction: the mean and variance
-#' of the weighted likelihood score map over the non-extreme scores are
-#' exact functions of the person location given the fitted thresholds, and
-#' their person-distribution expectations are estimated through score
-#' weights that are unbiased for any person distribution because the raw
-#' score is sufficient. The naive \eqn{var(\hat u) - mean(SE^2)} correction
-#' is badly calibrated on short tests (the reported error variance
-#' overstates the actual one and weighted likelihood shrinkage makes the
-#' errors covary negatively with the locations); its residual distortion
-#' biased the log unit ratio upward by about 0.05 at eight dichotomous
-#' items per set, confirmed against an external TAM 2PL slope-group
-#' anchor, while the corrected estimator is unbiased there. The linking
-#' graph must connect all sets to a common scale, and each linking
-#' person's response pattern must span a score range of at least 4 within
-#' a set (at least four dichotomous items; six or more are recommended)
-#' -- shorter patterns cannot support the correction and are refused.
-#' The correction computes score distributions from the fitted
-#' within-frame model, so it inherits violations of it: within-set
-#' discrimination heterogeneity or guessing bias the recovered units
-#' roughly in proportion, mistargeting by two logits adds a few per cent,
-#' and person distributions concentrated far off-target (such as widely
-#' separated modes) can bias the ratio substantially without warning --
-#' inspect targeting before trusting units from such designs.
+#' The hybrid covariance combines the pairwise Godambe covariance with a
+#' person bootstrap for set linking. Each replicate jointly redraws the
+#' within-frame thresholds and group units, then rebuilds the link. The joint
+#' draws retain covariance among common-scale thresholds, set units and group
+#' units. With \code{se_method = "bootstrap"}, the complete model is refitted
+#' to each person resample.
 #'
-#' The default hybrid standard errors combine the pairwise Godambe covariance,
-#' a person bootstrap for set linking, and delta-method propagation. Each
-#' linking replicate also draws the within-frame parameters from their joint
-#' stage-one covariance: without that redraw the set-unit standard errors
-#' understate by about 20\% and the unit tests reject a true null at 9-10\%;
-#' with it they reject at 4.9\% over 1,200 simulated replicates, stable
-#' across item counts, sample sizes, imbalance, and weak linking, and
-#' matching a full-bootstrap benchmark. The corrected set-unit estimator
-#' holds this calibration across designs: null size 3--5\% with 93--99\%
-#' coverage over 5--15 items per set, unit ratios 1--2, partial credit
-#' items, booklet missingness, pairwise-only person overlap, and person
-#' skewness to 2.8 -- where it stays unbiased while a normal-population
-#' MML anchor drifts. The estimator's fixed-design offset is small --
-#' around one per cent on the unit ratio at eight dichotomous items per
-#' set, decaying with set length -- and intervals remain calibrated to at
-#' least five thousand linking persons at fine Monte Carlo resolution;
-#' only near ten thousand does the offset approach the sampling error,
-#' and there longer or polytomous sets, not more persons, buy further
-#' accuracy. The person-group units are unaffected: estimated in the
-#' within-frame conditional stage rather than through the linking
-#' variance ratio, they show no detectable bias (0.000 over 60 replicates
-#' at twelve items per set) with 95\% interval coverage, and they are the
-#' more precise of the two: the conditional channel is close to twice as
-#' precise as the linking channel at eight items per frame, narrowing to
-#' about 15\% by twenty. A significant group unit beside a
-#' non-significant set unit therefore reflects the design as much as the
-#' data. With \code{se_method = "bootstrap"}, the complete
-#' model is refitted to each person resample and all reported covariance comes
-#' from the bootstrap distribution.
+#' The \code{efrm_vs_rasch} component records the within-frame composite
+#' log-likelihood comparison between group-dependent and equal group units.
+#' This difference is descriptive and contains no information about set units,
+#' which are identified at the linking stage. The accompanying Wald omnibus
+#' tests provide inference for the group- and set-unit families.
 #'
-#' Screen the items before interpreting a unit. Both units are ratios of
-#' quantities estimated within frames, so an item that misbehaves in one
-#' frame and not another enters the estimate as though it were a unit
-#' difference. The two units are exposed differently, because their frames
-#' are built differently.
+#' The model assumes that an item retains its location and discrimination
+#' across the frames in which it appears, apart from the frame unit.
+#' \code{\link{frame_invariance}} examines this assumption by separate frame
+#' calibrations. Misfit concentrated within one item set can also distort its
+#' estimated unit; inspect item fit and targeting before interpreting unit
+#' differences. \code{\link{drop_items}} and \code{\link{resolve_frames}}
+#' provide refitted sensitivity analyses.
 #'
-#' Person-group units are exposed to ordinary DIF. The same items are
-#' answered by every group, so an item can sit differently in one group
-#' than another: two items in twelve carrying a one-logit shift moved a
-#' recovered ratio by 7 to 11\% in simulation, and four items whose
-#' discrimination differed by half moved it by 10 to 12\%. Neither the
-#' fitted object nor \code{\link{dif_anova}} can detect this. The fit holds
-#' one location per item, shared across the frames it appears in and scaled
-#' by the frame unit, so its per-frame estimates agree by construction; and
-#' the grouping factor that defines the frames is constant within each
-#' frame, so \code{dif_anova} refuses it. Testing the assumption means
-#' stepping outside the model, which is what \code{\link{frame_invariance}}
-#' does: it calibrates each frame separately, puts the locations on the
-#' common scale, and compares them item by item.
-#'
-#' Item-set units are exposed to something else entirely. Sets partition
-#' the items, so no item appears in two sets and DIF across sets is not
-#' defined. What distorts a set unit is misfit CONCENTRATED IN ONE SET,
-#' which the other set carries nothing to offset. This is the largest
-#' effect measured anywhere for these estimators: with 8 items per set,
-#' two over-discriminating items in one set moved a planted ratio of 1.40
-#' to 1.17, two under-discriminating items moved it to 1.73, and four
-#' over-discriminating items to 1.02 -- a real 40\% unit difference read
-#' as none at all. The same misfit spread evenly across both sets cancels
-#' almost exactly (1.41).
-#'
-#' Screen on the standardised fit residual, \code{fit_resid} in
-#' \code{items}, and repair with \code{\link{drop_items}}. Of the fit
-#' statistics compared in simulation it is the one that restores the ratio:
-#' against a planted 1.40 read as 1.69 under two under-discriminating
-#' items, dropping on the fit residual recovered 1.44 where the chi-square
-#' item fit test reached only 1.64, and dropping the items actually planted
-#' gave 1.43.
-#'
-#' Rank on it; do not threshold on it. A fixed cut such as
-#' \code{abs(fit_resid) > 2} is a statement about detectability rather than
-#' about magnitude, so it flags more items the more persons there are: with
-#' two of eight items in a set discriminating twice as steeply, the
-#' remaining items genuinely depart from the compromise the model settles
-#' on, and that departure clears the cut in 0.8 of 14 sound items at 500
-#' persons but 7.0 at 6,000. On the Rosenberg Self-Esteem data used by the
-#' wording case study, at 6,000 respondents, the cut selects 7 of the 10
-#' items and \code{\link{drop_items}} then refuses the drop for emptying a
-#' set.
-#'
-#' Order the items by \code{abs(fit_resid)} instead, drop the largest
-#' departure, and refit. Stop when the sets no longer differ in unit, which
-#' is a question for the test in \code{efrm_vs_rasch$unit_tests} rather than
-#' for the ratio: once there is no difference left, a further drop has
-#' nothing to explain and is fitting noise. On the self-esteem data the
-#' ranking puts Q8 first at 22.5 and Q4 second at 12.4 -- the same two items
-#' a free-slope model fitted to the same respondents ranks lowest, and the
-#' two orderings agree on the extreme three. Dropping Q8 alone moves the
-#' ratio from 1.24 to 1.03 at p = 0.63; dropping Q4 as well does not improve
-#' on that but returns a significant difference of 1.16, which is what
-#' ignoring the stopping rule costs.
-#'
-#' Treat a badly fitting item as evidence about its set membership: an
-#' item that shares no unit with its set, such as an ambivalently worded
-#' item filed among the negatively worded ones, is better removed than
-#' retained, and cannot be given a set of its own because a single item
-#' carries no dispersion to estimate a unit from.
-#'
-#' The dichotomous model and the theory of frame-dependent units follow
-#' Humphry (2005) and Humphry and Andrich (2008). The item-set linking step is
-#' an error-corrected method-of-moments implementation of the variance-ratio
-#' argument in Humphry (2005), rather than the likelihood proposed in section
-#' 5.3 of that thesis. The polytomous, multigroup, and crossed-frame forms are
-#' extensions implemented in this package. For these designs, the full
-#' bootstrap gives the least conditional account of uncertainty.
-#'
+#' The dichotomous model follows Humphry (2005) and Humphry and Andrich
+#' (2008). The polytomous, multigroup and crossed-frame forms are extensions
+#' implemented in this package. The discrete nonparametric margin follows the
+#' Rasch estimation approach of Follmann (1988); its use for linked item-set
+#' units is an extension implemented here.
 #' @param data Persons-by-items data (matrix or data frame, like
 #'   \code{\link{rasch}}), plus a person-group column.
 #' @param item_sets A named list mapping set names to item-column names, or
@@ -670,8 +779,10 @@
 #'   \code{phi_factorial_tests} contain the GLS factorial decomposition and
 #'   omnibus Wald tests. Structurally unidentified units are refused. Very
 #'   imprecise but identified units are retained with a warning.
-#' @param id,factors,items,n_groups,adjust_N,na_codes As in
-#'   \code{\link{rasch}}.
+#' @param id Person identifier, either a column name or one value per row.
+#'   EFRM data require one response row per person, so identifiers must be
+#'   unique.
+#' @param factors,items,n_groups,adjust_N,na_codes As in \code{\link{rasch}}.
 #' @param maxit,tol Outer iteration cap and convergence tolerance of the
 #'   bilinear pairwise stage.
 #' @param min_link_persons Minimum number of common persons required for a
@@ -680,7 +791,8 @@
 #'   propagation; fast, default) or \code{"bootstrap"} (full person
 #'   bootstrap of all stages).
 #' @param boot_reps Bootstrap replicates; defaults to 300 for the linking
-#'   bootstrap and 200 for the full bootstrap.
+#'   bootstrap and 200 for the full bootstrap. Use zero to omit unit
+#'   uncertainty; otherwise at least 30 are required.
 #' @return An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
 #'   Model-specific components include \code{frames}, \code{phi_table},
 #'   \code{alpha_table}, \code{set_table}, common-unit item and threshold
@@ -697,6 +809,10 @@
 #'
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.
+#'
+#' Follmann, D. (1988). Consistent estimation in the Rasch model based on
+#' nonparametric margins. Psychometrika, 53, 553--562.
+#' \doi{10.1007/BF02294407}
 #'
 #' Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 #' Measurement. PhD thesis, Murdoch University.
@@ -742,8 +858,24 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                        min_link_persons = 30,
                        se_method = c("hybrid", "bootstrap"),
                        boot_reps = NULL) {
+  .check_column_names(data)
+  n_groups_requested <- n_groups
   se_method <- match.arg(se_method)
   if (is.null(boot_reps)) boot_reps <- if (se_method == "hybrid") 300L else 200L
+  if (length(boot_reps) != 1L || !is.finite(boot_reps) || boot_reps < 0L ||
+      boot_reps != floor(boot_reps))
+    stop("boot_reps must be one non-negative whole number")
+  boot_reps <- as.integer(boot_reps)
+  if (boot_reps > 0L && boot_reps < 30L)
+    stop("EFRM uncertainty needs either zero or at least 30 bootstrap replicates")
+  # Simulation-only grid override used to verify that reported links are not
+  # artefacts of the 61-point default. It is deliberately not a public model
+  # option: changing the grid is a validation exercise, not an analyst choice.
+  link_grid_n <- getOption("rasch.efrm_link_grid_n", 61L)
+  if (length(link_grid_n) != 1L || !is.finite(link_grid_n) ||
+      link_grid_n != floor(link_grid_n) || link_grid_n < 21L)
+    stop("option rasch.efrm_link_grid_n must be one whole number of at least 21")
+  link_grid_n <- as.integer(link_grid_n)
   # --- roles ----------------------------------------------------------------
   id_vec <- NULL; fac_df <- NULL; grp <- NULL; grp_name <- "group"
   grp_components <- NULL
@@ -763,7 +895,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
         # cells, and a factorial decomposition of the cell units is
         # reported in phi_factorial
         grp_components <- data[groups]
-        grp <- interaction(grp_components, sep = ":", drop = TRUE)
+        grp <- .factor_cells(grp_components, sep = ":")
         grp_name <- paste(groups, collapse = ":")
       }
     }
@@ -777,6 +909,11 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       fac_df <- data[, factors, drop = FALSE]
     } else if (is.data.frame(factors) && nrow(factors) == nrow(data))
       fac_df <- factors
+    # Frame-defining columns are already stored below as part of the frame
+    # structure. Repeating them as ordinary factors creates duplicate names
+    # and can make a later DIF or refit select the wrong column.
+    if (!is.null(fac_df) && is.character(groups))
+      fac_df <- fac_df[, !names(fac_df) %in% groups, drop = FALSE]
     drop_cols <- c(if (is.character(id)) id else NULL,
                    if (is.character(factors)) factors
                    else if (is.data.frame(factors)) intersect(names(factors), nm),
@@ -794,6 +931,18 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   grp <- factor(grp)
   if (nlevels(grp) < 1L) stop("no person groups found")
   if (is.null(id_vec)) id_vec <- seq_len(nrow(X))
+  present_id <- !is.na(id_vec)
+  if (anyDuplicated(as.character(id_vec[present_id])))
+    stop("rasch_efrm needs one response row per person; duplicate identifiers ",
+         "would be treated as independent people by the set-link likelihood")
+  # The crossed-cell column is internal metadata. Keep its readable name
+  # unless it would collide with a component or an ordinary person factor.
+  taken_factor_names <- unique(c(names(grp_components), names(fac_df)))
+  if (grp_name %in% taken_factor_names) {
+    grp_name <- ".frame_group"
+    while (grp_name %in% taken_factor_names)
+      grp_name <- paste0(grp_name, ".")
+  }
 
   prep <- .prepare_X(X, na_codes = na_codes); X <- prep$X
   notes <- prep$notes
@@ -838,7 +987,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   vmap <- expand.grid(item = colnames(X), group = glevs,
                       KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
   vmap$set <- set_of[vmap$item]
-  vmap$vkey <- paste(vmap$item, vmap$group, sep = ":")
+  vmap$vkey <- as.character(.factor_cells(vmap[c("item", "group")],
+                                           sep = ":"))
   Xv <- matrix(NA_integer_, nrow(X), nrow(vmap),
                dimnames = list(NULL, vmap$vkey))
   for (v in seq_len(nrow(vmap))) {
@@ -902,6 +1052,10 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
 
   sol <- .efrm_solve(Xv, thr_v, m_v, vmap, pairs, drow, A_D,
                      maxit = maxit, tol = tol)
+  if (!isTRUE(sol$converged))
+    warning("EFRM estimation did NOT converge in ", sol$iterations,
+            " iterations; increase maxit or inspect the frame design",
+            call. = FALSE)
   # STRUCTURAL non-identification (a flat direction of the information
   # along a unit) is an error: every common-unit quantity would silently
   # depend on the arbitrary point the optimiser stopped at. PRACTICAL
@@ -972,8 +1126,18 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     }
     list(u = u, w = w, g = g)
   }
+  make_pair_link <- function(Xm, dt, phiv) {
+    tau_v_link <- lapply(seq_len(ncol(Xm)), function(v)
+      dt[drow[which(thr_v$item == v)]])
+    disc_v_link <- unname(phiv[vmap$group])
+    function(a, b, idx, init_ls, init_off)
+      .efrm_npml_pair(Xm, vmap, tau_v_link, disc_v_link, sets_u,
+                      a, b, idx, init_ls, init_off, min_link_persons,
+                      grid_n = link_grid_n)
+  }
   if (S > 1L) {
     pm <- person_mats(Xv, dtil, phi)
+    pair_link <- make_pair_link(Xv, dtil, phi)
     # calibration-noise propagation into the linking bootstrap: a
     # symmetric square root of each stage-1 covariance, used to redraw
     # (dtilde, log phi) per bootstrap replicate under the documented
@@ -997,21 +1161,35 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     L_j <- mat_sqrt(cj)
     regen <- if (!is.null(L_j)) function() {
       v <- drop(L_j %*% stats::rnorm(ncol(L_j)))
-      person_mats(Xv, dtil + v[seq_len(K_dt)],
-                  phi * exp(v[K_dt + seq_along(phi)]))
+      phi_draw <- phi * exp(v[K_dt + seq_along(phi)])
+      dt_draw <- dtil + v[seq_len(K_dt)]
+      c(person_mats(Xv, dt_draw, phi_draw),
+        list(log_phi = log(phi_draw),
+             dtilde = dt_draw,
+             pair_link = make_pair_link(Xv, dt_draw, phi_draw)))
     } else NULL
     link <- .efrm_link_sets(pm$u, pm$w, pm$g, sets_u, min_link_persons,
-                            boot_reps = boot_reps, regen = regen)
+                            boot_reps = boot_reps, regen = regen,
+                            pair_link = pair_link)
     alpha <- link$alpha; mu <- link$mu
+    if (any(link$edges$converged %in% FALSE)) {
+      warning("one or more semiparametric set links stopped before the scale ",
+              "step met its convergence tolerance; inspect fit$linking$alpha_edges",
+              call. = FALSE)
+      notes <- c(notes, paste(
+        "one or more semiparametric set links stopped before the scale step",
+        "met its convergence tolerance"))
+    }
   } else {
     alpha <- setNames(1, sets_u); mu <- setNames(0, sets_u)
     link <- list(alpha = alpha, se_log_alpha = setNames(0, sets_u), mu = mu,
-                 cov_link = NULL, edges = data.frame())
+                 cov_link = NULL, cov_alpha_phi = NULL, edges = data.frame())
   }
 
   # --- optional full person bootstrap of all stages ----------------------------
   boot <- NULL
-  if (se_method == "bootstrap") {
+  if (se_method == "bootstrap" &&
+      !any(link$edges$converged %in% FALSE)) {
     Npers <- nrow(Xv)
     boot_replicate <- function(idx) {
       Xb <- Xv[idx, , drop = FALSE]
@@ -1019,10 +1197,13 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       if (!length(pb)) return(NULL)
       sb <- .efrm_solve(Xb, thr_v, m_v, vmap, pb, drow, A_D,
                         maxit = maxit, tol = tol)
+      if (!isTRUE(sb$converged)) return(NULL)
       if (S > 1L) {
         pm_b <- person_mats(Xb, sb$dtilde, sb$phi)
         lb <- .efrm_link_sets(pm_b$u, pm_b$w, pm_b$g, sets_u,
-                              min_link_persons, boot_reps = 0)
+                              min_link_persons, boot_reps = 0,
+                              pair_link = make_pair_link(Xb, sb$dtilde, sb$phi))
+        if (any(lb$edges$converged %in% FALSE)) return(NULL)
         ab <- lb$alpha; mb <- lb$mu
       } else { ab <- setNames(1, sets_u); mb <- setNames(0, sets_u) }
       db <- sb$dtilde / ab[set_of_drow] + mb[set_of_drow]
@@ -1046,12 +1227,26 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   rho_v <- alpha[vmap$set] * phi[vmap$group]
   thr_v$tau <- delta[drow]
 
-  # covariance of delta = dtilde/alpha + mu: the pairwise (conditional)
-  # component plus the unit component propagated by the delta method; the
-  # item-side and person-side information are treated as independent
+  # Covariance of delta = dtilde/alpha + mu. The full bootstrap supplies
+  # delta directly. In the hybrid bootstrap, each calibration draw is used to
+  # rebuild the set link; retaining that draw beside its linked alpha and mu
+  # preserves their covariance. Adding the two variance components as if
+  # independent would discard precisely this shared-calibration term.
   cov_delta <- sol$cov_dtilde / tcrossprod(alpha[set_of_drow])
   if (!is.null(boot)) {
     cov_delta <- stats::cov(boot[, G + 2L * S + seq_len(Md), drop = FALSE])
+  } else if (S > 1L && !is.null(link$link_reps) &&
+             !is.null(link$dtilde_reps)) {
+    lr <- link$link_reps
+    dr <- link$dtilde_reps
+    delta_reps <- matrix(NA_real_, nrow(lr), Md)
+    for (r in seq_len(nrow(lr))) {
+      ar <- exp(lr[r, seq_len(S)])
+      mr <- lr[r, S + seq_len(S)]
+      delta_reps[r, ] <- dr[r, ] / ar[match(set_of_drow, sets_u)] +
+        mr[match(set_of_drow, sets_u)]
+    }
+    cov_delta <- stats::cov(delta_reps)
   } else if (S > 1L && !is.null(link$cov_link)) {
     Sidx <- match(set_of_drow, sets_u)
     Caa <- link$cov_link[seq_len(S), seq_len(S), drop = FALSE]
@@ -1072,9 +1267,12 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   thr_v$weak <- weak$flag
   thr_v$se[weak$flag] <- NA_real_
   if (length(weak$notes)) notes <- c(notes, weak$notes)
+  link_converged <- S == 1L || !any(link$edges$converged %in% FALSE)
   est <- list(model = "EFRM", thr = thr_v, cov_tau = cov_tau,
               loglik = sol$loglik, iterations = sol$iterations,
-              converged = sol$converged, m = m_v, anchors = NULL,
+              converged = isTRUE(sol$converged) && link_converged,
+              stage1_converged = sol$converged,
+              m = m_v, anchors = NULL,
               n_parameters = (Md - S) + (G - 1L) + 2L * (S - 1L))
 
   fac_all <- data.frame(g = as.character(grp), stringsAsFactors = FALSE)
@@ -1087,6 +1285,22 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   if (!is.null(fac_df)) fac_all <- cbind(fac_all, fac_df)
   fit <- .assemble_fit("EFRM", Xv, est, id_vec, fac_all, n_groups, adjust_N,
                        notes, disc = rho_v)
+  # Several frame-specific copies of one item are calibration cells, not
+  # additional administered items. Alpha and one raw-score conversion over
+  # the expanded columns are therefore undefined. Retain both for the
+  # one-frame reduction, where the fitted columns are the items and
+  # the model is the ordinary Rasch model.
+  expanded_cells <- any(table(vmap$item) > 1L)
+  if (expanded_cells) {
+    fit$alpha <- list(
+      alpha = NA_real_, n = NA_integer_, applicable = FALSE,
+      design_applicable = FALSE,
+      reason = "not applicable when an item has several frame response cells")
+    fit$score_table <- NULL
+    fit$notes <- unique(c(fit$notes, paste(
+      "a universal raw-score conversion is not defined across the expanded",
+      "frame response cells; use score_curves and design-specific information")))
+  } else fit$alpha$design_applicable <- TRUE
   # every frame-defining factor (the crossed cell and its components) is
   # frame structure, not a testable DIF factor
   fit$frame_group <- c(grp_name,
@@ -1111,9 +1325,11 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   # phi_factorial_tests (coefficient-wise z would not be an omnibus test
   # for factors with more than two levels).
   if (!is.null(grp_components)) {
-    cell_lab <- strsplit(glevs, ":", fixed = TRUE)
-    dd <- as.data.frame(do.call(rbind, cell_lab), stringsAsFactors = FALSE)
-    names(dd) <- names(grp_components)
+    # Recover component values from the recorded design rather than parsing
+    # the composite label. Component levels may themselves contain colons.
+    first <- match(glevs, as.character(grp))
+    dd <- as.data.frame(lapply(grp_components, function(x)
+      as.character(x[first])), stringsAsFactors = FALSE)
     for (cn in names(dd)) dd[[cn]] <- factor(dd[[cn]])
     estimable <- all(vapply(dd, nlevels, 1L) >= 2L) &&
       nrow(dd) > sum(vapply(dd, nlevels, 1L) - 1L) &&
@@ -1202,15 +1418,20 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                rho = unname(alpha[fr$set[j]] * phi[fr$group[j]]),
                # with bootstrap replicates the SE of log rho comes from
                # the JOINT draws (log phi + log alpha per replicate), so
-               # cross-stage dependence is captured; the analytic fallback
-               # has no cross-stage covariance and treats the two stages
-               # as uncorrelated, which the frames documentation states
+               # cross-stage dependence is captured. The hybrid calculation
+               # uses the matching covariance from its joint calibration
+               # redraws rather than adding the two marginal variances.
                se_log_rho = if (!is.null(boot))
                  stats::sd(boot[, match(fr$group[j], glevs)] +
                            boot[, G + match(fr$set[j], sets_u)])
-               else sqrt(
-                 fit$alpha_table$se_log_alpha[match(fr$set[j], sets_u)]^2 +
-                 fit$phi_table$se_log_phi[match(fr$group[j], glevs)]^2),
+               else {
+                 is <- match(fr$set[j], sets_u)
+                 ig <- match(fr$group[j], glevs)
+                 cross <- if (is.null(link$cov_alpha_phi)) 0 else
+                   link$cov_alpha_phi[is, ig]
+                 sqrt(pmax(fit$alpha_table$se_log_alpha[is]^2 +
+                             fit$phi_table$se_log_phi[ig]^2 + 2 * cross, 0))
+               },
                origin = unname(mu[fr$set[j]]),
                infit_ms = gf$infit_ms, outfit_ms = gf$outfit_ms,
                fit_resid = gf$fit_resid, n_responses = gf$n)
@@ -1262,7 +1483,9 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   }
   fit$unit_cov <- list(cov_dtilde = sol$cov_dtilde,
                        cov_log_phi = sol$cov_log_phi,
-                       cov_joint = sol$cov_joint)
+                       cov_log_alpha = Sig_alpha,
+                       cov_joint = sol$cov_joint,
+                       cov_log_alpha_phi = link$cov_alpha_phi)
   fit$efrm_vs_rasch <- list(ll_efrm = sol$loglik, ll_equal = glh0$ll,
                             two_delta_ll = 2 * (sol$loglik - glh0$ll),
                             extra_parameters = G - 1L,
@@ -1281,11 +1504,23 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                               disc = r_i[i])$V, 0)), 0)
     data.frame(group = g, theta = grid, expected_score = ew, sem = 1 / sqrt(info))
   }))
-  fit$linking <- list(phi_edges = edges_g, alpha_edges = link$edges)
+  fit$linking <- list(
+    phi_edges = edges_g,
+    alpha_edges = link$edges,
+    alpha_method = if (S > 1L)
+      "finite-grid semiparametric maximum likelihood" else "not applicable",
+    alpha_grid = if (S > 1L)
+      c(lower = -8, upper = 8, points = link_grid_n) else NULL)
   fit$se_method <- if (!is.null(boot)) "bootstrap" else "hybrid"
   fit$boot_reps_used <- if (!is.null(boot)) nrow(boot) else NA_integer_
   fit$virtual_map <- vmap
   fit$set_of <- set_of
+  fit$refit_spec <- list(
+    groups = if (!is.null(grp_components)) names(grp_components) else grp_name,
+    factors = setdiff(names(fit$factors), fit$frame_group),
+    n_groups = n_groups_requested, adjust_N = adjust_N, na_codes = na_codes,
+    maxit = maxit, tol = tol, min_link_persons = min_link_persons,
+    se_method = se_method, boot_reps = boot_reps)
   fit <- .tag_tables(fit)
   class(fit) <- c("rasch_efrm", "rasch")
   fit
@@ -1371,14 +1606,18 @@ plot_frames <- function(fit, band = 2.5) {
 
 #' Plot an item's characteristic curves across frames
 #'
-#' Plots the model expected-score curve for one item in each person group, with
-#' observed class-interval means overlaid. Differences between the curves
-#' reflect the fitted group units.
+#' Plots the model expected-score curve for one item in each frame,
+#' with observed class-interval means overlaid. Differences between the model
+#' curves reflect the fitted frame units. A nominated non-frame person factor
+#' separates the observed means within each frame for a DIF display.
 #'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param item Underlying item name.
 #' @param n_groups Number of class intervals for the observed means.
 #' @param grid Logit grid.
+#' @param group Optional person grouping vector, or one or more names of
+#'   non-frame factors nominated in the fit. Several names define their
+#'   factor-combination cells.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' \donttest{
@@ -1386,34 +1625,80 @@ plot_frames <- function(fit, band = 2.5) {
 #' }
 #' @export
 plot_icc_frames <- function(fit, item, n_groups = fit$n_groups,
-                            grid = seq(-5, 5, 0.05)) {
+                            grid = seq(-5, 5, 0.05), group = NULL) {
   if (!inherits(fit, "rasch_efrm")) stop("plot_icc_frames needs a rasch_efrm fit")
   vm <- fit$virtual_map
   rows <- which(vm$item == item)
   if (!length(rows)) stop("no such item: ", item)
+  group_label <- NULL
+  if (is.character(group) && length(group) < nrow(fit$X)) {
+    bad <- intersect(group, fit$frame_group %||% character(0))
+    if (length(bad))
+      stop("frame-defining factors belong to the frame curves, not the DIF overlay: ",
+           paste(bad, collapse = ", "))
+    if (is.null(fit$factors) || !all(group %in% names(fit$factors)))
+      stop("every named group must be a person factor in the fit")
+    group_label <- paste(group, collapse = " x ")
+    group <- if (length(group) == 1L) fit$factors[[group]] else
+      .factor_cells(fit$factors[group], sep = ":")
+  }
+  if (!is.null(group) && length(group) != nrow(fit$X))
+    stop("group must have one value per person")
+  gf <- if (is.null(group)) NULL else droplevels(factor(group))
+  if (!is.null(gf) && nlevels(gf) < 2L)
+    stop("group must contain at least two observed levels")
   thr <- fit$thresholds_arbitrary
   tau_i <- thr$delta[thr$item == item]
   mmax <- length(tau_i)
-  op <- .rr_canvas(range(grid), c(0, mmax), "Person location (logits, common unit)",
-                   "Expected score", item)
+  op <- .rr_canvas(range(grid), c(0, mmax),
+                   "Person location (logits, common unit)", "Expected score",
+                   if (is.null(group_label)) item else
+                     sprintf("%s by %s", item, group_label))
   on.exit(par(op))
   th_all <- fit$person$theta
+  frame_cols <- .rr$pal[(seq_along(rows) - 1L) %% length(.rr$pal) + 1L]
+  group_pch <- if (is.null(gf)) 21 else
+    rep(c(21:25, 0:20), length.out = nlevels(gf))
   for (j in seq_along(rows)) {
     v <- rows[j]
     rho <- fit$disc[v]
-    colr <- .rr$pal[(j - 1L) %% length(.rr$pal) + 1L]
+    colr <- frame_cols[j]
     Ecurve <- vapply(grid, function(t) item_moments(t, tau_i, disc = rho)$E, 0)
     lines(grid, Ecurve, lwd = 2.6, col = colr)
-    x <- fit$X[, v]; ok <- !is.na(th_all) & !is.na(x)
-    if (sum(ok) >= 2 * n_groups) {
-      ci <- cut(rank(th_all[ok], ties.method = "first"),
-                min(n_groups, max(2, floor(sum(ok) / 15))), labels = FALSE)
-      points(tapply(th_all[ok], ci, mean), tapply(x[ok], ci, mean),
-             pch = 21, bg = colr, col = "white", cex = 1.3, lwd = 1)
+    x <- fit$X[, v]
+    candidate <- !is.na(th_all) & !is.na(x) & !fit$person$extreme
+    if (sum(candidate) >= 2 * n_groups) {
+      ng <- min(n_groups, max(2, floor(sum(candidate) / 15)))
+      ci <- .class_intervals(ifelse(is.na(x), NA_real_, th_all),
+                             fit$person$extreme, ng)
+      ok <- !is.na(ci)
+      if (is.null(gf)) {
+        points(tapply(th_all[ok], ci[ok], mean), tapply(x[ok], ci[ok], mean),
+               pch = 21, bg = colr, col = "white", cex = 1.3, lwd = 1)
+      } else {
+        g <- gf[ok]
+        for (k in seq_len(nlevels(gf))) {
+          take <- g == levels(gf)[k]
+          if (sum(take) < 2L) next
+          points(tapply(th_all[ok][take], ci[ok][take], mean),
+                 tapply(x[ok][take], ci[ok][take], mean),
+                 pch = group_pch[k], bg = colr, col = colr,
+                 cex = 1.15, lwd = 1)
+        }
+      }
     }
   }
   .rr_legend("topleft",
              sprintf("%s (rho %.3f)", vm$group[rows], fit$disc[rows]),
-             lwd = 2.6, col = .rr$pal[seq_along(rows)])
+             lwd = 2.6, col = frame_cols)
+  if (is.null(gf)) {
+    .rr_legend("bottomright", c("Model", "Observed"),
+               lwd = c(2.6, NA), pch = c(NA, 21),
+               pt.bg = c(NA, .rr$ink), col = c(.rr$ink, "white"),
+               pt.cex = 1.15)
+  } else {
+    .rr_legend("bottomright", levels(gf), pch = group_pch,
+               pt.bg = "white", col = .rr$ink, pt.cex = 1.05)
+  }
   invisible(NULL)
 }

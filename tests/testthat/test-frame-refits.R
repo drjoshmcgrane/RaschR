@@ -1,0 +1,256 @@
+test_that("frame helpers support crossed factors and punctuated labels", {
+  skip_on_cran()
+  set.seed(13)
+  N <- 800; K <- 8
+  a <- rep(c("A+B", "C.D"), each = N / 2)
+  b <- rep(rep(c("X", "Y"), each = N / 4), 2)
+  theta <- rnorm(N, 0, 1.3)
+  delta <- seq(-1.4, 1.4, length.out = K)
+  X <- vapply(delta, function(d) rbinom(N, 1, plogis(theta - d)), numeric(N))
+  colnames(X) <- paste0("item:", seq_len(K))
+  d <- data.frame(id = seq_len(N), X, a = a, b = b, check.names = FALSE)
+  f <- suppressWarnings(rasch_efrm(
+    d, item_sets = list(core = colnames(X)), groups = c("a", "b"),
+    id = "id", items = colnames(X), boot_reps = 0))
+
+  expect_s3_class(frame_invariance(f), "rasch_frame_invariance")
+  expect_s3_class(drop_items(f, "item:8", boot_reps = 0), "rasch_efrm")
+  expect_s3_class(resolve_frames(f, "item:8", boot_reps = 0), "rasch_efrm")
+})
+
+test_that("frame invariance is unchanged by the first item's missingness and order", {
+  d <- simulate_efrm(n_per_group = 350, items_per_set = 8, n_sets = 1,
+                     n_groups = 2, seed = 19)
+  tr <- attr(d, "truth")
+  items <- unlist(tr$item_sets, use.names = FALSE)
+  set.seed(20)
+  d[sample(which(d$group == levels(factor(d$group))[1]), 45), items[1]] <- NA
+  f1 <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                   boot_reps = 0)
+  inv1 <- frame_invariance(f1)
+
+  rev_items <- rev(items)
+  f2 <- rasch_efrm(d[, c("id", rev_items, "group")],
+                   item_sets = list(set1 = rev_items), groups = "group",
+                   id = "id", boot_reps = 0)
+  inv2 <- frame_invariance(f2)
+  a <- inv1$locations[order(inv1$locations$item), ]
+  b <- inv2$locations[order(inv2$locations$item), ]
+  expect_equal(a$difference, b$difference, tolerance = 1e-8)
+  expect_equal(a$se, b$se, tolerance = 1e-8)
+})
+
+test_that("polytomous frame differences use the threshold-weighted origin", {
+  d <- simulate_efrm(n_per_group = 450, items_per_set = 7, n_sets = 1,
+                     n_groups = 2, n_categories = 4, seed = 37)
+  tr <- attr(d, "truth")
+  items <- unlist(tr$item_sets, use.names = FALSE)
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  z <- frame_invariance(f)
+  vm <- f$virtual_map
+  m <- vapply(z$locations$item, function(it) {
+    j <- which(vm$item == it & vm$group == z$locations$frame_1[1])[1]
+    f$m[match(vm$vkey[j], colnames(f$X))]
+  }, 0)
+  expect_equal(sum(m * z$locations$difference), 0, tolerance = 1e-8)
+
+  g2 <- d$group == levels(factor(d$group))[2]
+  d[g2 & d[[items[1]]] == 3, items[1]] <- 2
+  f2 <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                   boot_reps = 0)
+  z2 <- frame_invariance(f2)
+  expect_true(items[1] %in% z2$excluded$item)
+})
+
+test_that("frame-invariance bootstrap refits the units and controls one family", {
+  skip_on_cran()
+  d <- simulate_efrm(n_per_group = 160, items_per_set = 6, n_sets = 1,
+                     n_groups = 2, seed = 41)
+  tr <- attr(d, "truth")
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  set.seed(42)
+  before <- .Random.seed
+  z <- frame_invariance(f, se_method = "bootstrap", boot_reps = 30, seed = 43)
+  expect_identical(.Random.seed, before)
+  expect_equal(z$boot_reps_used, 30)
+  expect_true(all(is.finite(z$locations$se)))
+  p_all <- p.adjust(c(z$locations$p, z$discrimination$p), "holm")
+  expect_equal(z$locations$p_adj, head(p_all, nrow(z$locations)))
+  expect_equal(z$discrimination$p_adj,
+               tail(p_all, nrow(z$discrimination)))
+})
+
+test_that("drop_items preserves anchors and principal-component PCM", {
+  d <- simulate_rasch(400, 8, seed = 4)
+  anchors <- data.frame(item = "I01", k = 1, tau = 1)
+  f <- rasch(d, id = "id", anchors = anchors, n_groups = 7,
+             adjust_N = 500, maxit = 80, tol = 1e-9)
+  f2 <- drop_items(f, "I08")
+  expect_equal(as.character(f2$est$anchors$item), "I01")
+  expect_equal(f2$refit_spec$adjust_N, 500)
+  expect_equal(f2$refit_spec$n_groups, 7)
+  expect_error(drop_items(f, c("I01", "I08")), "remove every anchor")
+
+  p <- simulate_rasch(400, 8, model = "PCM", n_categories = 4, seed = 8)
+  fp <- rasch(p, id = "id", pc_components = 2)
+  fp2 <- drop_items(fp, "I08")
+  expect_equal(fp2$est$n_components, 2)
+  expect_equal(fp2$refit_spec$pc_components, 2)
+})
+
+test_that("drop_items preserves polytomous option scoring", {
+  set.seed(31)
+  d <- data.frame(
+    M1 = sample(c("A", "B", "C"), 600, TRUE),
+    M2 = sample(c("A", "B", "C"), 600, TRUE),
+    I3 = rbinom(600, 1, 0.5), I4 = rbinom(600, 1, 0.5),
+    check.names = FALSE)
+  key <- data.frame(
+    item = rep(c("M1", "M2"), each = 2),
+    option = rep(c("A", "B"), 2),
+    score = rep(c(2L, 1L), 2))
+  f <- rasch(d, key = key)
+  f2 <- drop_items(f, "I4")
+  expect_equal(f2$mc$map, f$mc$map)
+  expect_equal(f2$X[, c("M1", "M2")], f$X[, c("M1", "M2")])
+  expect_true(is.data.frame(f2$refit_spec$key))
+})
+
+test_that("subtests and DIF splits retain the active Rasch specification", {
+  set.seed(32)
+  n <- 600
+  grp <- rep(c("A", "B"), each = n / 2)
+  d <- data.frame(
+    M1 = sample(c("A", "B", "C"), n, TRUE),
+    M2 = sample(c("A", "B", "C"), n, TRUE),
+    I3 = rbinom(n, 1, .5), I4 = rbinom(n, 1, .5), grp = grp,
+    check.names = FALSE)
+  key <- data.frame(
+    item = rep(c("M1", "M2"), each = 2),
+    option = rep(c("A", "B"), 2), score = rep(c(2L, 1L), 2))
+  f <- rasch(d, factors = "grp", key = key, n_groups = 7,
+             adjust_N = 750, maxit = 80, tol = 1e-9)
+
+  sp <- split_items(f, "M1", by = "grp")
+  expect_setequal(colnames(sp$mc$raw), c("M2", "M1 (A)", "M1 (B)"))
+  expect_equal(sp$refit_spec$n_groups, 7)
+  expect_equal(sp$refit_spec$adjust_N, 750)
+  expect_equal(sp$refit_spec$maxit, 80)
+
+  su <- combine_items(f, list(c("M1", "I3")))
+  expect_identical(colnames(su$mc$raw), "M2")
+  expect_true("M1+I3" %in% su$items$item)
+  expect_equal(su$refit_spec$n_groups, 7)
+  expect_equal(su$subtest_map[["M1+I3"]], c("M1", "I3"))
+  expect_false(su$subtest_binary[["M1+I3"]])
+
+  X <- f$X
+  colnames(X)[1] <- "M1 (original)"
+  fp <- rasch(data.frame(X, grp = grp, check.names = FALSE), factors = "grp")
+  spp <- split_items(fp, "M1 (original)", by = "grp")
+  expect_true(all(spp$split_map[grep("M1", names(spp$split_map))] ==
+                    "M1 (original)"))
+})
+
+test_that("structural refits do not silently transform external anchors", {
+  d <- simulate_rasch(500, 8, seed = 35)
+  a <- data.frame(item = "I01", k = 1, tau = 1)
+  f <- rasch(d, id = "id", anchors = a)
+  expect_error(split_items(f, "I01", by = rep(c("A", "B"), each = 250)),
+               "anchored item cannot be split")
+  expect_error(combine_items(f, list(c("I01", "I02"))),
+               "anchored item cannot be combined")
+  expect_equal(as.character(
+    split_items(f, "I02", by = rep(c("A", "B"), each = 250))$
+      est$anchors$item), "I01")
+  expect_equal(as.character(combine_items(f, list(c("I02", "I03")))$
+                              est$anchors$item), "I01")
+})
+
+test_that("resolve_frames uses global frame connectivity", {
+  d <- simulate_efrm(n_per_group = 350, items_per_set = 6, n_sets = 2,
+                     n_groups = 2, seed = 23)
+  tr <- attr(d, "truth")
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  resolved <- resolve_frames(f, tr$item_sets[[1]], boot_reps = 0)
+  expect_s3_class(resolved, "rasch_efrm")
+  expect_true(all(is.finite(resolved$phi_table$phi)))
+})
+
+test_that("ETS classification uses its interval-null rule", {
+  # ETS uses the itemwise probability, not a family-adjusted substitute.
+  expect_equal(.ets_category(0.8, 0.1, 0.01), "C+")
+  expect_equal(.ets_category(0.8, 0.1, 0.20), "A")
+  expect_equal(.ets_category(0.6, 0.2, 0.01), "B+")
+})
+
+test_that("DIF resolution returns its final residual-DIF table", {
+  d <- simulate_rasch(500, 8, n_groups = 2, seed = 41)
+  f <- rasch(d, id = "id", factors = "group")
+  rr <- resolve_dif(f, max_splits = 0)
+  expect_named(rr, c("fit", "splits", "n_splits", "stopped", "dif",
+                     "notes", "n_remaining_dif", "n_nonuniform"))
+  expect_equal(rr$n_remaining_dif, if (is.null(rr$dif)) 0L else nrow(rr$dif))
+  expect_error(resolve_dif(f, min_anchors = ncol(f$X)), "min_anchors")
+
+  bad <- f; bad$est$converged <- FALSE
+  expect_error(dif_anova(bad), "did not converge")
+  expect_error(dif_size(bad, "I01", "group"), "did not converge")
+  expect_error(dif_contrasts(bad), "did not converge")
+  expect_error(equate_tests(bad, f, independent = TRUE), "did not converge")
+})
+
+test_that("frame invariance compares exact observed category structures", {
+  d <- simulate_efrm(n_per_group = 250, items_per_set = 6, n_sets = 1,
+                     n_groups = 2, seed = 44)
+  tr <- attr(d, "truth")
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  vm <- f$virtual_map
+  g2 <- unique(vm$group)[2]
+  item <- tr$item_sets[[1]][1]
+  v <- vm$vkey[vm$item == item & vm$group == g2]
+  f$X[f$X[, v] == 1, v] <- 2L
+  z <- frame_invariance(f)
+  expect_true(item %in% z$excluded$item)
+  expect_true(all(grepl("category structure", z$excluded$reason)))
+})
+
+test_that("crossed EFRM cells remain distinct with colon-bearing levels", {
+  d <- simulate_efrm(n_per_group = 220, items_per_set = 6, n_sets = 1,
+                     n_groups = 2, seed = 45)
+  tr <- attr(d, "truth")
+  d$g1 <- ifelse(d$group == unique(d$group)[1], "a:b", "a")
+  d$g2 <- ifelse(d$group == unique(d$group)[1], "c", "b:c")
+  d[["g1:g2"]] <- rep(c("x", "y"), length.out = nrow(d))
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = c("g1", "g2"),
+                  id = "id", factors = c("g1", "g2", "g1:g2"),
+                  boot_reps = 0)
+  expect_equal(nrow(f$phi_table), 2L)
+  expect_false(anyDuplicated(f$phi_table$group) > 0L)
+  expect_false(anyDuplicated(f$virtual_map$vkey) > 0L)
+  expect_false(anyDuplicated(names(f$factors)) > 0L)
+  expect_true("g1:g2" %in% names(f$factors))
+  expect_true(f$frame_group[1] != "g1:g2")
+})
+
+test_that("frame resolution refuses a generated item-name collision", {
+  d <- simulate_efrm(n_per_group = 180, items_per_set = 6, n_sets = 1,
+                     n_groups = 2, seed = 46)
+  tr <- attr(d, "truth")
+  it <- tr$item_sets[[1]][1]
+  other <- tr$item_sets[[1]][2]
+  clash <- paste0(it, " (", levels(factor(d$group))[1], ")")
+  names(d)[names(d) == other] <- clash
+  sets <- tr$item_sets
+  sets[[1]][sets[[1]] == other] <- clash
+  f <- rasch_efrm(d, item_sets = sets, groups = "group", id = "id",
+                  boot_reps = 0)
+  expect_error(resolve_frames(f, it, boot_reps = 0),
+               "resolved-item name already exists")
+  f$est$converged <- FALSE
+  expect_error(frame_invariance(f), "did not converge")
+})

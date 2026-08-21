@@ -16,7 +16,7 @@
 library(rasch)
 set.seed(25)
 
-src <- "http://openpsychometrics.org/_rawdata/RSE.zip"
+src <- "https://openpsychometrics.org/_rawdata/RSE.zip"
 tmp <- tempfile(fileext = ".zip")
 download.file(src, tmp, quiet = TRUE)
 unzip(tmp, exdir = dirname(tmp))
@@ -35,8 +35,10 @@ df <- df[sample(nrow(df), 6000), ]
 
 # equal-unit Rasch versus wording-set EFRM
 f0 <- rasch(df, factors = "gender", items = items)
+set.seed(26)
 f1 <- rasch_efrm(df, items = items, groups = rep("all", nrow(df)),
-                 item_sets = list(positive = positive, negative = negative))
+                 item_sets = list(positive = positive, negative = negative),
+                 se_method = "hybrid", boot_reps = 300)
 
 print(f1$alpha_table, digits = 3)
 print(f1$efrm_vs_rasch$unit_tests, digits = 3)
@@ -66,20 +68,22 @@ par(op)
 # The single set unit is an average over the items in a set, so a badly
 # behaved item moves it. Refit without the suspects rather than asserting
 # what would happen.
-unit_ratio <- function(drop = character()) {
+unit_ratio <- function(drop = character(), seed = 31L) {
   it <- setdiff(items, drop)
+  set.seed(seed)
   f <- rasch_efrm(df[, c(it, "gender")], items = it,
                   groups = rep("all", nrow(df)),
                   item_sets = list(positive = setdiff(positive, drop),
-                                   negative = setdiff(negative, drop)))
+                                   negative = setdiff(negative, drop)),
+                  se_method = "hybrid", boot_reps = 300)
   c(ratio = unname(f$alpha_table$alpha[f$alpha_table$set == "positive"] /
                    f$alpha_table$alpha[f$alpha_table$set == "negative"]),
     p_adj = min(f$efrm_vs_rasch$unit_tests$p_adj))
 }
 apriori <- c("Q8", "Q4")   # the usual suspects, named in advance
-print(round(rbind(all_items = unit_ratio(),
-                  drop_first = unit_ratio(apriori[1]),
-                  drop_both = unit_ratio(apriori)), 4))
+print(signif(rbind(all_items = unit_ratio(seed = 31),
+                   drop_first = unit_ratio(apriori[1], seed = 32),
+                   drop_both = unit_ratio(apriori, seed = 33)), 4))
 
 # let the model nominate the suspects ----------------------------------------
 # The drops above were chosen a priori, from what is already known about the
@@ -103,11 +107,12 @@ cat(sprintf("ranked first and second: %s; named in advance: %s\n",
             paste(fr$item[1:2], collapse = " "),
             paste(apriori, collapse = " ")))
 
-# Read that table as a sequence and the stopping rule is the unit test, not
-# the ratio. After the first drop the sets no longer differ in unit at all,
-# so nothing remains for a second drop to explain -- and the third row shows
-# what ignoring that costs: removing the next-ranked item does not push the
-# ratio nearer one, it reintroduces a significant difference.
+# Read that table as a sensitivity sequence rather than an automatic deletion
+# rule. Removing Q8 reduces the ratio from about 1.32 to 1.08, although the
+# large sample still gives an adjusted p-value near .03. Removing Q4 as well
+# moves the ratio away from one again. The conclusion is therefore that Q8
+# carries most, but not all, of the original difference and that the result is
+# sensitive to the composition of these short wording sets.
 
 # cross-check against free slopes --------------------------------------------
 # A generalized partial credit model frees one slope per item, on the same
@@ -119,13 +124,10 @@ cat(sprintf("ranked first and second: %s; named in advance: %s\n",
 # fit residuals and the free slopes are computed from different quantities
 # and agree on which items are extreme.
 #
-# Reading the analyses together: with all ten items the wording sets differ
-# in unit by about a quarter, decisively so on the Wald test. Drop Q8 alone
-# and the difference vanishes -- the ratio falls to about one, nowhere near
-# significance -- while dropping the weakest positive as well brings the
-# difference back, significant again and still favouring the positive set.
-# The set-level wording effect here is therefore carried mainly by individual
-# anomalous items rather than by wording as such: a conclusion the
+# Reading the analyses together: with all ten items the positive/negative unit
+# ratio is about 1.32. Dropping Q8 reduces it to about 1.08; dropping Q4 as well
+# raises it to about 1.19. The set-level effect is therefore carried mainly by
+# individual anomalous items rather than by wording alone: a conclusion the
 # single-parameter frame model cannot reach on its own, which is why the
 # free-slope cross-check belongs here.
 #

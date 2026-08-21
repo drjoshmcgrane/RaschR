@@ -32,12 +32,10 @@ threshold curve, and frequency chart per item).}
 Invisibly, the vector of files written.
 }
 \description{
-Writes all tables (item statistics, thresholds with standard errors, person
-estimates including ID and factors, the score-to-measure table, residual
-correlations, principal-component loadings, category frequencies, and DIF
-results for every nominated factor) as CSV; every plot, including the
-per-item characteristic, category, threshold, and frequency plots, as PNG
-and optionally PDF; and a plain-text analysis summary.
+Writes the summary, estimates, diagnostic tables, person measures, and
+model-specific results as CSV. Plots are written as PNG and, optionally,
+PDF, together with a plain-text analysis summary. For MFRM and EFRM fits,
+item estimates and response-cell diagnostics are saved separately.
 }
 \examples{
 set.seed(1)

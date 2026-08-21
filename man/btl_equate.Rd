@@ -15,7 +15,10 @@ columns \code{object}, \code{location}, and optionally \code{se}; object
 names must be unique and locations finite. Bank-based drift inference
 requires the joint location covariance as a square matrix in
 \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
-object), unless the bank is treated as fixed with zero SEs. For a polytomous
+object), unless the bank is treated as fixed with zero SEs. A bank whose
+covariance was estimated from a finite number of independent sampling
+units may carry their residual degrees of freedom in
+\code{attr(fit2, "df_location")}. For a polytomous
 fit the bank must carry
 \code{attr(bank, "m")} matching the number of fitted score steps.}
 
@@ -48,10 +51,10 @@ shared objects, then tests the shared objects for drift. The second
 calibration may be a fitted model or an object bank.
 }
 \details{
-Let \eqn{d} contain the location differences for the common objects and
-\eqn{V} their joint covariance. The origin shift is
-\deqn{\hat s=\frac{\mathbf{1}'V^{-1}d}
-{\mathbf{1}'V^{-1}\mathbf{1}}.}
+Let \eqn{d_j} be the location difference for common object \eqn{j} and
+\eqn{v_j} its marginal variance. The origin shift is the precision-weighted
+mean
+\deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j}.}
 Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
 covariance calculation retains the dependence induced by the sum-zero
 constraints. Drift tests require independent calibrations and at least

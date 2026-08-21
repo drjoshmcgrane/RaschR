@@ -76,8 +76,14 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   expect_true(all(is.na(ds$levels$se)))
   expect_true(all(is.na(ds$pairs$se)) && all(is.na(ds$pairs$significant)))
   expect_match(paste(ds$notes, collapse = " "), "sampling SEs")
-  # within requires id
-  expect_error(dif_contrasts(fit, items = "I4", within = "time"), "id")
+  # the fitted identifier is used automatically when it is not repeated in
+  # the call
+  auto <- dif_contrasts(fit, items = "I4", within = "time")
+  expect_true(auto$paired)
+  expect_identical(auto$within, "time")
+  expect_equal(auto$table$df[auto$table$contrast == "time: 2 - 1"], n - 1)
+  expect_error(dif_contrasts(fit, items = "I4", within = "time",
+                             id = seq_len(10)), "one value per")
 })
 
 test_that("custom cell-weight contrasts are accepted and normalised", {

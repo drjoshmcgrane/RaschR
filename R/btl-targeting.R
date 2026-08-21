@@ -47,7 +47,8 @@
 #' \code{se_naive = 1/sqrt(information)} treats each object's comparisons in
 #' isolation. It is a description of the design, not the fitted standard error
 #' or a bound on it. The fitted standard error also reflects joint estimation,
-#' the identifying constraint, and judge clustering.
+#' the identifying constraint, and judge clustering. The fitted model must
+#' have converged.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @return A list of class \code{"rasch_btl_info"}: \code{objects} (per
@@ -71,6 +72,8 @@
 #' @export
 btl_information <- function(fit) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; design information is unavailable")
   objs <- fit$objects$object
   K <- length(objs)
   beta <- setNames(fit$objects$location, objs)
@@ -170,17 +173,15 @@ print.rasch_btl_info <- function(x, ...) {
 #' The paired-comparison counterpart of a test-information display. Every
 #' object is a dot at its location (x) and its design information (y, the
 #' pooled Fisher information of the comparisons it took part in), the dot
-#' sized by how many comparisons that is. A reference curve, read on the
-#' right axis, traces the information a single \emph{new} comparison would
-#' carry against an opponent at each location -- anchored at the centre of
-#' the scale, so it peaks at gap zero and falls away with the gap. The curve
-#' is the visual explanation of why an adaptive design chases near-neighbour
-#' contests: information is bought most cheaply where the two objects are
-#' close, and a well-targeted design lifts the low dots by pairing their
-#' objects against opponents near them.
+#' sized by how many comparisons that is. For an equal-unit fit, a reference
+#' curve on the right axis traces the information a single \emph{new}
+#' comparison would carry against an opponent at each location. It peaks at
+#' gap zero and explains why adaptive designs favour near neighbours. A frame
+#' fit has no single reference curve because the information also depends on
+#' the fitted panel and set units.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
-#' @param grid Optional location grid for the reference curve.
+#' @param grid Optional location grid for the equal-unit reference curve.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @seealso \code{\link{btl_information}}, \code{\link{btl_next_pairs}}
 #' @examples
@@ -271,6 +272,7 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' design. Applied to a sandwich covariance, the update ranks pairs but does
 #' not give an exact variance reduction. Adaptive selection can also inflate a
 #' separation reliability calculated from the same comparisons (Bramley 2015).
+#' The fitted model must have converged.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param n Number of pairs to return.
@@ -300,6 +302,8 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' @export
 btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; pair recommendations are unavailable")
   if (inherits(fit, "rasch_btl_efrm"))
     stop("next-pair recommendations for a frame fit also require the panel ",
          "and object set in which each new comparison will be made; use the ",

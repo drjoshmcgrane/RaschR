@@ -15,10 +15,12 @@
 # Both channels are measured on the same data:
 #   item-side    ratio of the SDs of the item locations (Humphry 2005)
 #   person-side  corrected true-score variance ratio over common persons
-#                (what this package uses for item-set units)
+#                (the score-moment link formerly used by this package)
+# The current finite-grid semiparametric link is tested separately in
+# alpha-correction-limits.R.
 #
 # 12 items and 980 persons, matching the published design; planted unit
-# ratio 1.30. Serial.
+# ratio 1.30. Set SV_CORES on Unix-like systems to parallelise.
 #   Rscript tools/simval/studies/misfit-both-channels.R
 
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
@@ -35,11 +37,11 @@ K <- 12L
 N <- 980L
 delta <- seq(-2, 2, length.out = K)
 R <- 100L
+N_CORES <- suppressWarnings(as.integer(Sys.getenv("SV_CORES", "1")))
+if (!is.finite(N_CORES) || N_CORES < 1L) N_CORES <- 1L
 
 run_cell <- function(label, disc_fun) {
-  m <- matrix(NA_real_, R, 2, dimnames = list(NULL, c("item", "person")))
-  n_ref <- 0L
-  for (r in seq_len(R)) {
+  one <- function(r) {
     set.seed(180000 + nchar(label) * 977 + r)
     a <- disc_fun(K)                       # SAME discriminations in both frames
     th <- rnorm(N, 0, 1.3)
@@ -49,20 +51,29 @@ run_cell <- function(label, disc_fun) {
       colnames(X) <- sprintf("I%02d", seq_len(K))
       tryCatch(rasch(X), error = function(e) NULL)
     })
-    if (any(vapply(fits, is.null, TRUE))) { n_ref <- n_ref + 1L; next }
-    m[r, "item"] <- log(sd(fits[[2]]$items$location) /
-                        sd(fits[[1]]$items$location))
+    if (any(vapply(fits, is.null, TRUE)))
+      return(c(item = NA, person = NA, refused = 1))
+    item <- log(sd(fits[[2]]$items$location) /
+                sd(fits[[1]]$items$location))
     ok <- !fits[[1]]$person$extreme & !fits[[2]]$person$extreme
-    if (sum(ok) < 30) { n_ref <- n_ref + 1L; next }
+    if (sum(ok) < 30) return(c(item = NA, person = NA, refused = 1))
     v <- vapply(1:2, function(g) {
       f <- fits[[g]]
       uh <- f$person$theta[ok]
       lm <- .person_link_moments(as.matrix(f$X), f$tau_list)
       (var(uh) - mean(lm$w[ok])) / mean(lm$g[ok])^2
     }, 0)
-    if (any(!is.finite(v)) || any(v <= 0)) { n_ref <- n_ref + 1L; next }
-    m[r, "person"] <- 0.5 * (log(v[2]) - log(v[1]))
+    if (any(!is.finite(v)) || any(v <= 0))
+      return(c(item = NA, person = NA, refused = 1))
+    c(item = item, person = 0.5 * (log(v[2]) - log(v[1])), refused = 0)
   }
+  z <- if (N_CORES > 1L && .Platform$OS.type != "windows")
+    parallel::mclapply(seq_len(R), one, mc.cores = min(N_CORES, R),
+                       mc.preschedule = FALSE, mc.set.seed = FALSE)
+  else lapply(seq_len(R), one)
+  z <- do.call(rbind, z)
+  m <- z[, c("item", "person"), drop = FALSE]
+  n_ref <- sum(z[, "refused"])
   for (ch in colnames(m)) {
     ok <- is.finite(m[, ch])
     add(label, sprintf("log unit ratio, %s channel", ch), sum(ok),

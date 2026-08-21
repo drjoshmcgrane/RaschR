@@ -14,12 +14,17 @@
 #' analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
 #' maximum), the item-total and corrected item-rest correlations, the
 #' discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
-#' upper third of total scores minus the lower third), and alpha if the
-#' item is deleted; plus coefficient alpha, the raw-score mean, SD, and the
+#' upper third of total scores minus the lower third). Equal total scores
+#' remain in the same third, so the group sizes can differ and DI is withheld
+#' when three distinct score groups cannot be formed. The table also gives
+#' alpha if the item is deleted; the summary gives coefficient alpha, the
+#' raw-score mean, SD, and the
 #' classical standard error of measurement \eqn{s\sqrt{1 - \alpha}}, which
 #' unlike the Rasch SE is one value for all persons.
 #'
-#' @param fit A fitted object from \code{\link{rasch}}.
+#' @param fit A fitted object from \code{\link{rasch}} whose columns form one
+#'   administered item set. Expanded EFRM and MFRM response-cell matrices are
+#'   not accepted; one-cell-per-item reductions are.
 #' @param missing \code{"complete"} (default) computes the classical table on
 #'   respondents who answered every item, matching the textbook total-score
 #'   definitions. \code{"available"} retains itemwise and pairwise available
@@ -42,8 +47,22 @@
 #' ctt_table(rasch(X))
 #' @export
 ctt_table <- function(fit, missing = c("complete", "available")) {
+  if (!inherits(fit, "rasch")) stop("ctt_table needs a rasch fit")
+  structural <- inherits(fit, c("rasch_efrm", "rasch_mfrm"))
+  if (!.classical_design_applicable(fit))
+    stop("traditional whole-test statistics are not defined when an item is ",
+         "represented by several frame or facet response cells; ",
+         "summarise an observable item design instead")
   missing <- match.arg(missing)
   Xall <- fit$X
+  if (structural) {
+    item_names <- fit$virtual_map$item[
+      match(colnames(Xall), fit$virtual_map$vkey)]
+    if (anyNA(item_names) || anyDuplicated(item_names))
+      stop("the one-cell-per-item reduction could not be matched to its ",
+           "item names")
+    colnames(Xall) <- item_names
+  }
   X <- if (missing == "complete")
     Xall[stats::complete.cases(Xall), , drop = FALSE] else Xall
   L <- ncol(X)
@@ -71,8 +90,8 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
   thirds <- rep(NA_integer_, nrow(X))
   has_total <- is.finite(tot_p)
   if (sum(has_total) >= 3L)
-    thirds[has_total] <- cut(rank(tot_p[has_total], ties.method = "first"),
-                             3, labels = FALSE)
+    thirds[has_total] <- .class_intervals(
+      tot_p[has_total], rep(FALSE, sum(has_total)), 3)
   # pairwise covariance carries the alpha-if-deleted computation under
   # missing data (equal to the variance form when data are complete). A
   # pairwise-complete covariance need not be positive semidefinite, and a
@@ -198,11 +217,16 @@ print.rasch_ctt <- function(x, ...) {
 #' @export
 rack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
+  .check_column_names(data)
   for (col in c(person, time)) if (!col %in% names(data))
     stop("column not found: ", col)
   bad <- setdiff(items, names(data))
   if (length(bad)) stop("item column(s) not found: ", paste(bad, collapse = ", "))
   times <- sort(unique(data[[time]]))
+  made <- unlist(lapply(times, function(tt) paste0(items, "@", tt)),
+                 use.names = FALSE)
+  if (anyDuplicated(c("id", made)))
+    stop("generated racked column names are not unique; rename the items or time levels")
   ids <- unique(data[[person]])
   out <- data.frame(id = ids)
   for (tt in times) {
@@ -222,15 +246,23 @@ rack_data <- function(data, person, time, items) {
 #' @export
 stack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
+  .check_column_names(data)
   for (col in c(person, time)) if (!col %in% names(data))
     stop("column not found: ", col)
   bad <- setdiff(items, names(data))
   if (length(bad)) stop("item column(s) not found: ", paste(bad, collapse = ", "))
-  key <- interaction(data[[person]], data[[time]], drop = TRUE, lex.order = TRUE)
+  reserved <- intersect(items, c("id", "row_id", "time"))
+  if (length(reserved))
+    stop("item name(s) reserved by the stacked output: ",
+         paste(reserved, collapse = ", "), "; rename them before stacking")
+  key <- .factor_cells(data.frame(person = data[[person]],
+                                  time = data[[time]]), sep = "\r")
   if (anyDuplicated(key))
     stop("more than one row for a person at the same time point")
+  row_id <- .factor_cells(data.frame(person = data[[person]],
+                                     time = data[[time]]), sep = "@")
   out <- data.frame(id = data[[person]],
-                    row_id = paste0(data[[person]], "@", data[[time]]),
+                    row_id = row_id,
                     time = factor(data[[time]]),
                     data[, items, drop = FALSE], check.names = FALSE)
   rownames(out) <- NULL

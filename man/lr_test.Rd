@@ -7,8 +7,9 @@
 lr_test(fit, maxit = 60, tol = 1e-08)
 }
 \arguments{
-\item{fit}{A \code{"PCM"} fit from \code{\link{rasch}} with equal maximum
-scores across items (the rating parameterisation requires them).}
+\item{fit}{An unrestricted, unanchored \code{"PCM"} fit from
+\code{\link{rasch}} with equal maximum scores across items (the rating
+parameterisation requires them).}
 
 \item{maxit, tol}{Passed to the rating-scale refit.}
 }
@@ -38,13 +39,8 @@ with \eqn{r} degrees of freedom.
 Use \code{p_adj} for inference. The unadjusted \code{p} is retained for
 descriptive comparison with conventional displays. The adjustment is a
 first-order approximation and can be mildly anti-conservative in small
-samples with long polytomous tests: in simulation the rejection rate at
-the 0.05 level was 4.7\% for 500 persons and 8 three-category items
-(2,000 model-true replicates), and 6.1\% for 300 persons and 12
-four-category items among the 1,927 of 2,000 replicates whose data
-admitted the comparison (72 refusals from randomly empty categories,
-one non-convergence). Interpret \code{p_adj} values near 0.05 cautiously
-in such designs.
+samples with long polytomous tests. Interpret values near the nominal
+level cautiously in such designs.
 }
 \examples{
 set.seed(1)

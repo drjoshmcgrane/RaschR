@@ -124,10 +124,14 @@ test_that("dif_size reports an ETS category beside the magnitude", {
   expect_equal(clean$ets, "A")
 })
 
-test_that("a polytomous item is classified on the same metric", {
-  # under the partial credit model a uniform shift of the item location is
-  # the signed area divided by the number of thresholds, so the published
-  # cut-values apply per threshold rather than needing a separate statistic
+test_that("a polytomous DIF comparison reports signed area descriptively", {
+  ta <- c(-1, 0, 1) + 0.4
+  tb <- c(-1, 0, 1) - 0.2
+  numeric_area <- stats::integrate(function(th)
+    vapply(th, function(z) item_moments(z, tb)$E -
+                     item_moments(z, ta)$E, 0), -20, 20)$value
+  expect_equal(numeric_area, sum(ta - tb), tolerance = 1e-6)
+
   set.seed(5)
   N <- 2000; K <- 6
   th <- stats::rnorm(N, 0, 1.3)
@@ -145,6 +149,66 @@ test_that("a polytomous item is classified on the same metric", {
              factors = "grp")
   p <- dif_size(f, "I02", "grp")$pairs
   expect_true(all(f$items$max == 3))          # genuinely polytomous
-  expect_false(is.na(p$ets))                  # and still classified
-  expect_match(p$ets, "^[BC]")
+  expect_true(is.na(p$ets))                   # ETS is dichotomous
+  expect_equal(p$signed_area, 3 * p$difference)
+  expect_identical(dif_size(f, "I02", "grp")$classification,
+                   "PCM signed expected-score area (descriptive)")
+
+  # A group-specific empty category changes the fitted threshold structure;
+  # neither a PCM location contrast nor its signed area is then comparable.
+  X2 <- X
+  X2[g == "foc", 2][X2[g == "foc", 2] == 3] <- 2
+  f2 <- rasch(data.frame(id = seq_len(N), X2, grp = g), id = "id",
+              factors = "grp")
+  d2 <- dif_size(f2, "I02", "grp")
+  expect_true(is.na(d2$pairs$difference))
+  expect_true(is.na(d2$pairs$signed_area))
+  expect_match(d2$notes, "different observed response-category")
+
+  # Equal maxima are not enough: different intermediate observed categories
+  # would be collapsed differently by the two resolved calibrations.
+  X3 <- X
+  X3[g == "ref", 2][X3[g == "ref", 2] == 1] <- 0
+  X3[g == "foc", 2][X3[g == "foc", 2] == 2] <- 1
+  f3 <- rasch(data.frame(id = seq_len(N), X3, grp = g), id = "id",
+              factors = "grp")
+  d3 <- dif_size(f3, "I02", "grp")
+  expect_true(is.na(d3$pairs$difference))
+  expect_true(is.na(d3$pairs$signed_area))
+})
+
+test_that("crossed factor cells cannot collapse when labels contain separators", {
+  x <- data.frame(A = c("a:b", "a"), B = c("c", "b:c"),
+                  check.names = FALSE)
+  z <- .factor_cells(x, sep = ":")
+  expect_equal(nlevels(z), 2L)
+  expect_false(z[1] == z[2])
+  expect_true(all(grepl("a:b:c", as.character(z), fixed = TRUE)))
+})
+
+test_that("factor keys are stable across subsets and punctuation", {
+  x <- data.frame(
+    A = c("a:b", "a", "a:b", NA),
+    B = c("c", "b:c", "c", "N;"),
+    stringsAsFactors = FALSE
+  )
+  k <- .factor_keys(x)
+  expect_identical(k[c(1, 3)], .factor_keys(x[c(1, 3), ]))
+  expect_false(k[1] == k[2])
+  expect_false(k[4] == .factor_keys(data.frame(A = "N;", B = "N;")))
+})
+
+test_that("EFRM information designs do not parse set labels", {
+  fit <- structure(list(
+    tau_list = rep(list(0), 4),
+    virtual_map = data.frame(
+      item = paste0("I", 1:4), group = rep("G", 4),
+      set = c("A+B", "C", "A", "B+C"), stringsAsFactors = FALSE),
+    X = matrix(c(1, 0, NA, NA,
+                 NA, NA, 1, 0), nrow = 2, byrow = TRUE)
+  ), class = c("rasch_efrm", "rasch"))
+  z <- .design_blocks(fit)
+  expect_length(z, 2L)
+  expect_setequal(unname(z), list(1:2, 3:4))
+  expect_equal(length(unique(names(z))), 2L)
 })

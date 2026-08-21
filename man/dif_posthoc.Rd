@@ -18,19 +18,25 @@ dif_posthoc(
 )
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}}.}
+\item{fit}{A fitted object from \code{\link{rasch}} or
+\code{\link{rasch_mfrm}}. EFRM fits are excluded because resolved
+comparisons would discard their frame units.}
 
 \item{item}{Item name or index.}
 
-\item{term}{A factor name for a main effect, or factor names joined by
-\code{":"} for an interaction.}
+\item{term}{A factor name for a main effect, or a character vector of
+factor names for an interaction. A single colon-separated string is
+also accepted when the factor names themselves contain no colon.}
 
 \item{factors}{The complete person-factor design, specified as for
 \code{\link{dif_contrasts}}. Other factors are retained when calculating
 marginal comparisons.}
 
-\item{within, id}{Within-person factor names and person identifiers, specified
-as for \code{\link{dif_contrasts}}.}
+\item{within}{Within-person factor names, specified as for
+\code{\link{dif_contrasts}}.}
+
+\item{id}{Person identifiers, specified as for
+\code{\link{dif_contrasts}}.}
 
 \item{p_adjust}{Familywise adjustment over this post-hoc family; default
 \code{"holm"}.}

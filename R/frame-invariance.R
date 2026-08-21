@@ -8,138 +8,93 @@
 # comparing, which is what this function does.
 # ===========================================================================
 
-#' Test the item invariance a frame model assumes
+.item_location_covariance <- function(fit) {
+  thr <- fit$thresholds
+  V <- fit$est$cov_tau
+  if (is.null(V) || !nrow(thr) || nrow(V) != nrow(thr)) return(NULL)
+  item_names <- fit$items$item
+  A <- matrix(0, length(item_names), nrow(thr),
+              dimnames = list(item_names, NULL))
+  for (i in seq_along(item_names)) {
+    rows <- which(thr$item == match(item_names[i], colnames(fit$X)))
+    if (length(rows)) A[i, rows] <- 1 / length(rows)
+  }
+  A %*% V %*% t(A)
+}
+
+#' Test item invariance across frames
 #'
-#' Calibrates each frame separately and compares each item across the frames
-#' it appears in, on two counts: whether it keeps its location once the
-#' frame units are accounted for, and whether it discriminates alike. A
-#' frame model assumes both, differing only by the frame's unit; this
-#' function tests the assumption rather than imposing it.
+#' Calibrates each frame separately and compares the locations and
+#' discriminations of items administered in more than one frame.
 #'
 #' @details
-#' The comparison is possible only where an item set is taken by more than
-#' one person group, since an item must appear in at least two frames to be
-#' compared across them. Item sets partition the items, so there is no
-#' equivalent test across sets: screen those with the ordinary item fit
-#' statistics within each set instead.
+#' Let \eqn{\hat\delta_{if}} be the location of item \eqn{i} from a separate
+#' calibration of frame \eqn{f}, and let \eqn{\hat\rho_f} be that frame's
+#' unit from the fitted EFRM. The common-scale location is
+#' \eqn{\hat\delta_{if}^{*}=\hat\delta_{if}/\hat\rho_f}. Because each
+#' separate calibration has its own origin, pairwise differences are centred
+#' over the common thresholds before testing.
 #'
-#' Each frame is refitted with \code{\link{rasch}} on its own persons and
-#' items, giving locations in that frame's natural unit and centred on that
-#' frame's origin. Dividing by the frame unit from the original fit puts
-#' them on the common scale, where the model says they should agree. The
-#' reported difference is between the two calibrations, its standard error
-#' combines theirs (the person samples are disjoint, so the calibrations are
-#' independent), and probabilities are Holm-adjusted across items.
+#' The conditional method treats the fitted frame units as fixed.
+#' Let \eqn{w_i=m_i/\sum_jm_j}, where \eqn{m_i} is the number of
+#' thresholds for item \eqn{i}. If
+#' \eqn{C=I-\mathbf{1}\mathbf{w}^{\mathsf T}} centres the common items on the
+#' threshold-weighted origin, the covariance of the location differences is
+#' \deqn{C\{V_1/\hat\rho_1^2+V_2/\hat\rho_2^2\}C^{\mathsf T}.}
+#' This is fast and conditions on the estimated units. The discrimination
+#' table gives the difference between the two standardised infit statistics,
+#' divided by \eqn{\sqrt{2}}, together with fitted slopes and their ratio.
+#' These quantities are descriptive under the conditional method; it does not
+#' report discrimination probabilities.
 #'
-#' The summary compares the root mean squared difference with the root mean
-#' squared standard error, following Humphry (2005). A root mean squared
-#' difference materially larger than the root mean squared standard error
-#' indicates item behaviour that the frame units do not account for, whether
-#' or not individual items reach significance.
+#' With \code{se_method = "bootstrap"}, persons are resampled within frame
+#' and the EFRM and separate frame calibrations are refitted. Location tests
+#' then use the empirical covariance of the centred differences. The
+#' discrimination test uses the bootstrap standard error of the log slope
+#' ratio. This includes uncertainty in the fitted frame units but is more
+#' computationally demanding.
 #'
-#' A location comparison cannot detect a difference in discrimination: a
-#' steeper item still crosses one half in the same place, so its location
-#' survives intact. The second comparison uses the within-frame fit
-#' statistics, which carry no unit because each is computed against its own
-#' frame's model, and treats the difference of two independent standardised
-#' infit statistics as having variance 2. It is conservative and needs a
-#' reasonable sample: with 8 items and two of them discriminating half again
-#' as steeply in one frame, it flagged those two in 14\% of replicates at
-#' 500 persons per frame, 45\% at 1,000 and 88\% at 2,000.
+#' Raw and Holm-adjusted probabilities are reported. With conditional
+#' uncertainty, Holm adjustment covers the location comparisons. With
+#' bootstrap uncertainty, it covers the combined family of location and
+#' discrimination comparisons.
+#' The summary gives the root mean squared location difference and root mean
+#' squared standard error for each set and frame pair. Items from different
+#' sets cannot be compared because the sets partition the items.
+#' Location differences are relative to the mean difference of the common
+#' items. Concentrated DIF can therefore produce non-zero centred contrasts
+#' for items that were not themselves shifted. The table identifies the
+#' pattern of relative departures; item content or external anchors are needed
+#' to determine which items provide the defensible reference.
 #'
-#' The two comparisons are therefore not equally sensitive, and the gap
-#' matters because the two departures do comparable damage. Matched so that
-#' each moves a unit ratio by six or seven per cent -- two items shifted a
-#' logit, against two items discriminating half again as steeply -- the
-#' location comparison found the shifted items 95\% of the time at 500
-#' persons per frame and always by 1,000, where the discrimination
-#' comparison reached 14\% and 45\%. A clean result at a few hundred
-#' persons per frame is thus much stronger evidence against differential
-#' item functioning than against differential discrimination: it has ruled
-#' out one departure and barely tested the other.
+#' A flagged item may be resolved with \code{\link{resolve_frames}} when it
+#' remains useful within frames, or removed with \code{\link{drop_items}}
+#' when it fits poorly more generally. Either change requires a refit. The
+#' invariance tests require a converged frame calibration.
 #'
-#' Under a true null -- frames differing by a unit ratio and nothing else --
-#' both comparisons flag between 0.1 and 1.5\% of items, Holm across the
-#' family making them conservative. That calibration does not survive
-#' contamination on the location side. Where two items of eight really are
-#' shifted, the remaining six differ from the compromise the model settles
-#' on, and the comparison flags them more readily the larger the sample:
-#' 19\% of sound items at 500 persons per frame, 44\% at 1,000 and 61\% at
-#' 2,000. Read a long list of flagged locations as evidence that some item
-#' is displaced rather than that all of them are.
-#'
-#' The discrimination table also reports a Winsteps-style index for each
-#' frame (\code{disc_1}, \code{disc_2}) and their ratio, because a
-#' standardised difference says only that something differs while the index
-#' says how much and in which direction. It is fitted by maximum likelihood
-#' on each item's own responses with the person measures and item location
-#' held at their Rasch values, so it is relative to the frame's own model
-#' and the unit cancels. Read it as description rather than estimate: the
-#' measures are estimated including the item being scored, which biased the
-#' index to about 1.19 for a true discrimination of 1.0 in simulation and
-#' attenuated a true frame ratio of 1.5 to about 1.22. Tested on its own it
-#' is also the weaker instrument, detecting a 1.5-fold difference in 63\%
-#' of replicates at 2,000 persons per frame against the infit comparison's
-#' 90\%, which is why the test column comes from the latter.
-#'
-#' Which item to flag is a screening decision, not a confirmatory one, and
-#' the two call for different thresholds. \code{adjust} chooses: Holm across
-#' every item and frame pair, or none. Both probabilities are reported
-#' either way, so the choice changes only \code{flagged}. Screening the ten
-#' items measured, Holm cost between 8 and 42 points of sensitivity in
-#' simulation, and that shows up in the repair: dropping the flagged items
-#' from a planted unit ratio of 1.40 left the ratio at 1.479 under Holm and
-#' 1.433 unadjusted, against 1.406 for dropping the items actually planted.
-#' The loose screen is not free -- where misfit is strong it flags sound
-#' items too, and \code{\link{drop_items}} then refuses drops that would
-#' empty a set -- so use \code{"none"} to decide which items to examine and
-#' \code{"holm"} to report which ones differ.
-#'
-#' Dropping is a complete cure where the item is found: removing the
-#' planted items restored the ratio in every simulated departure, so what
-#' limits the repair is detection rather than removal. With two items of ten
-#' breaking invariance a screen recovers most of the ratio; with four of ten
-#' none tested rescues it, and the item set itself is the problem. Where
-#' between those two the repair gives out has not been measured.
-#'
-#' A flagged item has two remedies, and the diagnosis here is
-#' frame-specific while one of them is not. \code{\link{drop_items}} takes
-#' the item out of every frame, so it stops measuring anyone, including in
-#' the frames it behaved perfectly well in.
-#' \code{\link{resolve_frames}} gives it a separate location per frame
-#' instead: it stops linking the frames, which is what this test found
-#' wrong with it, and goes on measuring the person within their own frame.
-#' Resolving costs a parameter per extra frame and leaves the group units
-#' resting on the items that remain common; dropping costs every person
-#' that item's contribution. Prefer resolving when the item measures well
-#' inside each frame, and dropping when it does not measure well anywhere.
-#'
+#' @name frame_invariance
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
-#' @param alpha Significance level for flagging items.
-#' @param adjust Multiplicity adjustment used to flag items: \code{"holm"},
-#'   applied within the location table and within the discrimination table
-#'   separately, or \code{"none"} for screening. Both probabilities are
-#'   reported regardless, so the choice changes only \code{flagged}.
-#' @return A list of class \code{"rasch_frame_invariance"} with five
-#'   elements. \code{locations} holds one row per item, item set, and frame
-#'   pair: the set, the two frames, the locations on the common scale, their
-#'   difference, its standard error, statistic, both probabilities, and the
-#'   flag. \code{discrimination} holds the same rows compared
-#'   on their within-frame infit statistics: \code{infit_1}, \code{infit_2},
-#'   the standardised difference \code{infit_z}, both probabilities, the
-#'   flag, and alongside them the estimated discrimination for each frame
-#'   (\code{disc_1}, \code{disc_2}) and its ratio. \code{summary} holds one
-#'   row per set and frame pair: the number of items, the root mean squared
-#'   difference, the root mean squared standard error, their ratio, and the
-#'   number of items flagged on each count. \code{alpha} and \code{adjust}
-#'   record the significance level and multiplicity rule the flags used.
+#' @param alpha Significance level used for flags.
+#' @param adjust Either \code{"holm"} or \code{"none"}. Both raw and
+#'   adjusted probabilities are returned.
+#' @param se_method \code{"conditional"} treats the estimated frame units as
+#'   fixed; \code{"bootstrap"} refits the complete analysis to person
+#'   resamples within frame.
+#' @param boot_reps Number of bootstrap replicates. At least 30 are required.
+#' @param seed Optional bootstrap seed.
+#' @return An object of class \code{"rasch_frame_invariance"}. The
+#'   \code{locations} and \code{discrimination} tables contain the pairwise
+#'   item comparisons; \code{summary} contains set-level RMSD and RMSE
+#'   summaries. Under the conditional method, discrimination \code{p},
+#'   \code{p_adj}, and \code{flagged} are \code{NA}. \code{excluded} lists
+#'   items whose observed category structures differed between calibrations.
+#'   The remaining components record the multiplicity and uncertainty settings.
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 #' Measurement}. PhD thesis, Murdoch University.
 #' @seealso \code{\link{resolve_frames}} to give a flagged item a location
 #'   per frame, \code{\link{drop_items}} to remove it altogether, and
 #'   \code{\link{rasch_efrm}} for the model whose assumption is tested.
-#' @export
 #' @examples
 #' d <- simulate_efrm(n_per_group = 300, items_per_set = 8, n_sets = 1,
 #'                    n_groups = 2, group_unit_ratio = 1.4, seed = 2)
@@ -147,64 +102,83 @@
 #' fit <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
 #'                   id = "id", boot_reps = 0)
 #' frame_invariance(fit)
+NULL
 
-frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none")) {
-  if (!inherits(fit, "rasch_efrm"))
-    stop("frame_invariance needs a fit from rasch_efrm()")
-  adjust <- match.arg(adjust)
-  grp <- fit$factors[[fit$frame_group]]
+.frame_invariance_conditional <- function(fit) {
+  if (!isTRUE(fit$est$converged)) return(NULL)
+  grp <- .frame_group_values(fit)
   glev <- levels(factor(grp))
-  if (length(glev) < 2L)
-    stop("item invariance across frames needs at least two person groups: ",
-         "with one group each item appears in a single frame, and item sets ",
-         "partition the items, so use the item fit statistics within each ",
-         "set instead")
-
   sets <- unique(fit$set_of)
   rho <- fit$frames
-  out <- list(); dsc <- list()
+  vm <- fit$virtual_map
+  spec <- fit$refit_spec
+  if (is.null(spec)) spec <- list()
+  out <- list(); dsc <- list(); excluded <- list()
   for (s in sets) {
-    its <- names(fit$set_of)[fit$set_of == s]
-    # calibrate the set separately within each group
     cal <- list()
     for (g in glev) {
-      cols <- intersect(paste0(its, ":", g), colnames(fit$X))
-      if (!length(cols)) next
-      Xg <- fit$X[!is.na(fit$X[, cols[1]]), cols, drop = FALSE]
-      colnames(Xg) <- sub(paste0(":", g, "$"), "", colnames(Xg))
-      f <- tryCatch(rasch(Xg), error = function(e) NULL)
-      if (is.null(f)) next
+      vr <- vm$set == s & vm$group == g & vm$vkey %in% colnames(fit$X)
+      if (!any(vr)) next
+      rows <- !is.na(grp) & as.character(grp) == g
+      Xg <- fit$X[rows, vm$vkey[vr], drop = FALSE]
+      colnames(Xg) <- vm$item[vr]
+      Xg <- Xg[, colSums(!is.na(Xg)) > 0L, drop = FALSE]
+      if (ncol(Xg) < 2L) next
+      category_signature <- vapply(seq_len(ncol(Xg)), function(j)
+        paste(sort(unique(Xg[!is.na(Xg[, j]), j])), collapse = ","), "")
+      names(category_signature) <- colnames(Xg)
+      f <- tryCatch(do.call(rasch, list(
+        data = Xg, model = "PCM", n_groups = spec$n_groups,
+        adjust_N = spec$adjust_N %||% NA_real_,
+        maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7)),
+        error = function(e) NULL)
+      if (is.null(f) || !isTRUE(f$est$converged)) next
       r <- rho$rho[rho$set == s & rho$group == g]
-      if (!length(r) || !is.finite(r) || r <= 0) next
-      cal[[g]] <- data.frame(item = f$items$item,
-                             loc = f$items$location / r,
-                             se = f$items$se / r,
-                             infit = f$items$infit_ms,
-                             infit_z = f$items$infit_z,
-                             disc = f$items$disc,
-                             stringsAsFactors = FALSE)
+      if (length(r) != 1L || !is.finite(r) || r <= 0) next
+      V <- .item_location_covariance(f)
+      if (is.null(V) || any(!is.finite(V))) next
+      V <- V / r^2
+      cal[[g]] <- list(
+        table = data.frame(item = f$items$item,
+          loc = f$items$location / r, se = f$items$se / r,
+          n_thresholds = f$m,
+          category_signature = unname(category_signature[f$items$item]),
+          infit = f$items$infit_ms, infit_z = f$items$infit_z,
+          disc = f$items$disc, stringsAsFactors = FALSE), covariance = V)
     }
     if (length(cal) < 2L) next
     gg <- names(cal)
     for (a in seq_len(length(gg) - 1L)) for (b in (a + 1L):length(gg)) {
-      m <- merge(cal[[gg[a]]], cal[[gg[b]]], by = "item",
+      m <- merge(cal[[gg[a]]]$table, cal[[gg[b]]]$table, by = "item",
                  suffixes = c("_1", "_2"))
       if (!nrow(m)) next
-      d <- m$loc_2 - m$loc_1
-      d <- d - mean(d)                       # origins are separately centred
-      se <- sqrt(m$se_1^2 + m$se_2^2)
+      comparable <- m$n_thresholds_1 == m$n_thresholds_2 &
+        m$category_signature_1 == m$category_signature_2
+      if (any(!comparable)) {
+        excluded[[length(excluded) + 1L]] <- data.frame(
+          set = s, frame_1 = gg[a], frame_2 = gg[b],
+          item = m$item[!comparable],
+          reason = "different observed category structure",
+          stringsAsFactors = FALSE)
+        m <- m[comparable, , drop = FALSE]
+      }
+      if (nrow(m) < 2L) next
+      raw_d <- m$loc_2 - m$loc_1
+      w <- m$n_thresholds_1 / sum(m$n_thresholds_1)
+      C <- diag(nrow(m)) - outer(rep(1, nrow(m)), w)
+      d <- drop(C %*% raw_d)
+      V1 <- cal[[gg[a]]]$covariance
+      V2 <- cal[[gg[b]]]$covariance
+      V1 <- V1[m$item, m$item, drop = FALSE]
+      V2 <- V2[m$item, m$item, drop = FALSE]
+      Vd <- C %*% (V1 + V2) %*% C
+      se <- sqrt(pmax(diag(Vd), 0))
       z <- d / se
       out[[length(out) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
         location_1 = m$loc_1, location_2 = m$loc_2,
         difference = d, se = se, statistic = z,
         p = 2 * stats::pnorm(-abs(z)), stringsAsFactors = FALSE)
-      # discrimination: a location comparison cannot see a slope
-      # difference, since a steeper item still crosses one half in the
-      # same place. Fit statistics can: each is computed against its own
-      # frame's model, so it carries no unit and the frames are
-      # comparable directly. Two independent standardised statistics
-      # differ with variance 2.
       zd <- (m$infit_z_1 - m$infit_z_2) / sqrt(2)
       dsc[[length(dsc) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
@@ -212,37 +186,165 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none")) {
         infit_z = zd, p = 2 * stats::pnorm(-abs(zd)),
         disc_1 = m$disc_1, disc_2 = m$disc_2,
         disc_ratio = m$disc_2 / m$disc_1,
+        disc_boundary = m$disc_1 <= 0.050001 | m$disc_1 >= 4.9999 |
+          m$disc_2 <= 0.050001 | m$disc_2 >= 4.9999,
         stringsAsFactors = FALSE)
     }
   }
-  if (!length(out))
+  excluded <- if (length(excluded)) do.call(rbind, excluded) else
+    data.frame(set = character(), frame_1 = character(),
+               frame_2 = character(), item = character(),
+               reason = character())
+  if (!length(out)) {
+    if (!nrow(excluded)) return(NULL)
+    return(list(
+      locations = data.frame(
+        set = character(), frame_1 = character(), frame_2 = character(),
+        item = character(), location_1 = numeric(), location_2 = numeric(),
+        difference = numeric(), se = numeric(), statistic = numeric(),
+        p = numeric()),
+      discrimination = data.frame(
+        set = character(), frame_1 = character(), frame_2 = character(),
+        item = character(), infit_1 = numeric(), infit_2 = numeric(),
+        infit_z = numeric(), p = numeric(), disc_1 = numeric(),
+        disc_2 = numeric(), disc_ratio = numeric(),
+        disc_boundary = logical()),
+      excluded = excluded))
+  }
+  list(locations = do.call(rbind, out), discrimination = do.call(rbind, dsc),
+       excluded = excluded)
+}
+
+#' @rdname frame_invariance
+#' @export
+frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
+                             se_method = c("conditional", "bootstrap"),
+                             boot_reps = 200, seed = NULL) {
+  if (!inherits(fit, "rasch_efrm"))
+    stop("frame_invariance needs a fit from rasch_efrm()")
+  if (!isTRUE(fit$est$converged))
+    stop("the frame calibration did not converge; invariance tests are unavailable")
+  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
+    stop("alpha must be one number between 0 and 1")
+  adjust <- match.arg(adjust)
+  se_method <- match.arg(se_method)
+  grp <- .frame_group_values(fit)
+  glev <- levels(factor(grp))
+  if (length(glev) < 2L)
+    stop("item invariance across frames needs at least two person groups: ",
+         "with one group each item appears in a single frame, and item sets ",
+         "partition the items, so use the item fit statistics within each ",
+         "set instead")
+
+  ans <- .frame_invariance_conditional(fit)
+  if (is.null(ans))
     stop("no item set is taken by two person groups, so no item appears in ",
          "two frames to be compared")
-  # both probabilities are always reported; adjust chooses which one flags
-  cmp <- do.call(rbind, out)
-  cmp$p_adj <- stats::p.adjust(cmp$p, method = "holm")
-  cmp$flagged <- (if (adjust == "holm") cmp$p_adj else cmp$p) < alpha
+  cmp <- ans$locations
+  dsc <- ans$discrimination
+  reps_used <- 0L
+  if (se_method == "bootstrap") {
+    if (length(boot_reps) != 1L || !is.finite(boot_reps) ||
+        boot_reps < 30L || boot_reps != floor(boot_reps))
+      stop("boot_reps must be a whole number of at least 30")
+    if (!is.null(seed)) {
+      if (length(seed) != 1L || !is.finite(seed)) stop("seed must be one number")
+      old_seed <- if (exists(".Random.seed", .GlobalEnv, inherits = FALSE))
+        get(".Random.seed", .GlobalEnv) else NULL
+      on.exit(if (is.null(old_seed)) {
+        if (exists(".Random.seed", .GlobalEnv, inherits = FALSE))
+          rm(".Random.seed", envir = .GlobalEnv)
+      } else assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+      set.seed(seed)
+    }
+    source <- .efrm_source_matrix(fit)
+    strata <- split(seq_len(nrow(source)), as.character(grp), drop = TRUE)
+    key4 <- function(x) .factor_keys(
+      x[, c("set", "frame_1", "frame_2", "item"), drop = FALSE])
+    lk <- key4(cmp)
+    dk <- key4(dsc)
+    bd <- matrix(NA_real_, boot_reps, nrow(cmp))
+    ba <- matrix(NA_real_, boot_reps, nrow(dsc))
+    for (b in seq_len(boot_reps)) {
+      ii <- unlist(lapply(strata, sample, replace = TRUE), use.names = FALSE)
+      fb <- tryCatch(.efrm_refit(
+        fit, source[ii, , drop = FALSE], fit$set_of, boot_reps = 0,
+        ids = sprintf("B%04dP%06d", b, seq_along(ii)),
+        factors = fit$factors[ii, , drop = FALSE], se_method = "hybrid"),
+        error = function(e) NULL)
+      if (is.null(fb)) next
+      if (!isTRUE(fb$est$converged) ||
+          any(fb$linking$alpha_edges$converged %in% FALSE)) next
+      ib <- .frame_invariance_conditional(fb)
+      if (is.null(ib)) next
+      xk <- key4(ib$locations)
+      yk <- key4(ib$discrimination)
+      bd[b, ] <- ib$locations$difference[match(lk, xk)]
+      ba[b, ] <- log(ib$discrimination$disc_ratio[match(dk, yk)])
+    }
+    good <- rowSums(is.finite(bd)) == ncol(bd) &
+      rowSums(is.finite(ba)) == ncol(ba)
+    reps_used <- sum(good)
+    if (reps_used < max(30L, ceiling(0.8 * boot_reps)))
+      stop("only ", reps_used, " of ", boot_reps,
+           " frame-invariance bootstrap refits succeeded")
+    cmp$se <- apply(bd[good, , drop = FALSE], 2, stats::sd)
+    cmp$statistic <- cmp$difference / cmp$se
+    cmp$p <- 2 * stats::pnorm(-abs(cmp$statistic))
+    dsc$log_disc_ratio <- log(dsc$disc_ratio)
+    dsc$se_log_disc_ratio <- apply(ba[good, , drop = FALSE], 2, stats::sd)
+    dsc$statistic <- dsc$log_disc_ratio / dsc$se_log_disc_ratio
+    dsc$p <- 2 * stats::pnorm(-abs(dsc$statistic))
+  } else {
+    # The standardised-infit comparison was anti-conservative in the
+    # validation study (7.1% combined Holm FWER over 2,000 null replicates,
+    # with strong item-position dependence). Retain its descriptive value,
+    # but do not attach an inferential probability to it.
+    dsc$p <- NA_real_
+  }
+  # Conditional inference covers locations only. The validated bootstrap
+  # adds discrimination and controls the two tables as one family.
+  allp <- c(cmp$p, dsc$p)
+  padj <- rep(NA_real_, length(allp))
+  usable <- is.finite(allp)
+  padj[usable] <- stats::p.adjust(allp[usable], method = "holm")
+  cmp$p_adj <- padj[seq_len(nrow(cmp))]
+  dsc$p_adj <- padj[nrow(cmp) + seq_len(nrow(dsc))]
+  p_cmp <- if (adjust == "holm") cmp$p_adj else cmp$p
+  cmp$flagged <- ifelse(is.finite(p_cmp), p_cmp < alpha, NA)
   rownames(cmp) <- NULL
-  dsc <- do.call(rbind, dsc)
-  dsc$p_adj <- stats::p.adjust(dsc$p, method = "holm")
-  dsc$flagged <- (if (adjust == "holm") dsc$p_adj else dsc$p) < alpha
+  p_dsc <- if (adjust == "holm") dsc$p_adj else dsc$p
+  dsc$flagged <- ifelse(is.finite(p_dsc), p_dsc < alpha, NA)
   rownames(dsc) <- NULL
 
-  key <- paste(cmp$set, cmp$frame_1, cmp$frame_2, sep = "|")
-  keyd <- paste(dsc$set, dsc$frame_1, dsc$frame_2, sep = "|")
-  smry <- do.call(rbind, lapply(unique(key), function(k) {
-    z <- cmp[key == k, ]; y <- dsc[keyd == k, ]
+  frame_pairs <- unique(cmp[c("set", "frame_1", "frame_2")])
+  smry <- lapply(seq_len(nrow(frame_pairs)), function(i) {
+    k <- frame_pairs[i, ]
+    same <- function(d) d$set == k$set & d$frame_1 == k$frame_1 &
+      d$frame_2 == k$frame_2
+    z <- cmp[same(cmp), ]; y <- dsc[same(dsc), ]
+    nx <- sum(same(ans$excluded))
     data.frame(set = z$set[1], frame_1 = z$frame_1[1], frame_2 = z$frame_2[1],
-      n_items = nrow(z),
+      n_items = nrow(z), n_excluded = nx,
       rmsd = sqrt(mean(z$difference^2)),
       rmse = sqrt(mean(z$se^2)),
       ratio = sqrt(mean(z$difference^2)) / sqrt(mean(z$se^2)),
-      n_location = sum(z$flagged), n_discrimination = sum(y$flagged),
+      n_location = sum(z$flagged %in% TRUE),
+      n_discrimination = if (identical(se_method, "bootstrap"))
+        sum(y$flagged %in% TRUE) else NA_integer_,
       stringsAsFactors = FALSE)
-  }))
+  })
+  smry <- if (length(smry)) do.call(rbind, smry) else data.frame(
+    set = character(), frame_1 = character(), frame_2 = character(),
+    n_items = integer(), n_excluded = integer(), rmsd = numeric(),
+    rmse = numeric(), ratio = numeric(), n_location = integer(),
+    n_discrimination = integer())
   rownames(smry) <- NULL
   structure(.tag_tables(list(locations = cmp, discrimination = dsc,
-                             summary = smry, alpha = alpha, adjust = adjust)),
+                             summary = smry, excluded = ans$excluded,
+                             alpha = alpha, adjust = adjust,
+                             se_method = se_method,
+                             boot_reps_used = reps_used)),
             class = "rasch_frame_invariance")
 }
 
@@ -252,9 +354,16 @@ print.rasch_frame_invariance <- function(x, ...) {
   pcol <- if (adj == "holm") "p_adj" else "p"
   rule <- if (adj == "holm") "Holm-adjusted" else "unadjusted, screening"
   cat("Item invariance across frames (each frame calibrated separately)\n\n")
+  cat("Uncertainty:", if (identical(x$se_method, "bootstrap"))
+    sprintf("person-within-frame bootstrap (%d successful refits)",
+            x$boot_reps_used) else "conditional on the fitted frame units",
+    "\n\n")
   print(.fmt_df(x$summary), row.names = FALSE)
+  if (!is.null(x$excluded) && nrow(x$excluded))
+    cat(sprintf("\n%d item comparison(s) excluded because the observed category structure differed between frames.\n",
+                nrow(x$excluded)))
   cat("\nrmsd/rmse above 1 indicates item behaviour the frame units do not account for\n")
-  fl <- x$locations[x$locations$flagged, ]
+  fl <- x$locations[x$locations$flagged %in% TRUE, , drop = FALSE]
   if (nrow(fl)) {
     cat(sprintf("\nLocation differs across frames for %d item(s) at alpha = %.2f (%s):\n",
                 nrow(fl), x$alpha, rule))
@@ -264,16 +373,25 @@ print.rasch_frame_invariance <- function(x, ...) {
     cat(sprintf("\nNo item's location differs across frames at alpha = %.2f (%s).\n",
                 x$alpha, rule))
   }
-  fd <- x$discrimination[x$discrimination$flagged, ]
+  if (!identical(x$se_method, "bootstrap")) {
+    cat("\nThe discrimination comparisons are descriptive:\n")
+    cols <- c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
+              "infit_z", "disc_1", "disc_2", "disc_ratio", "disc_boundary")
+    print(.fmt_df(x$discrimination[, intersect(cols,
+                                                names(x$discrimination)),
+                                           drop = FALSE]), row.names = FALSE)
+    cat("Use se_method = \"bootstrap\" for discrimination probabilities.\n")
+    return(invisible(x))
+  }
+  fd <- x$discrimination[x$discrimination$flagged %in% TRUE, , drop = FALSE]
   if (nrow(fd)) {
     cat(sprintf("\nDiscrimination differs across frames for %d item(s):\n",
                 nrow(fd)))
-    print(.fmt_df(fd[, c("set", "frame_1", "frame_2", "item", "infit_1",
-                         "infit_2", "infit_z", pcol, "disc_1", "disc_2",
-                         "disc_ratio")]), row.names = FALSE)
-    cat("The test is the infit comparison (infit_z, ", pcol, "). The disc\n",
-        "columns describe size and direction only: they run high, and their\n",
-        "ratio understates the difference.\n", sep = "")
+    cols <- c("set", "frame_1", "frame_2", "item", "log_disc_ratio",
+              "se_log_disc_ratio", "statistic", pcol, "disc_1", "disc_2",
+              "disc_ratio", "disc_boundary")
+    print(.fmt_df(fd[, intersect(cols, names(fd)), drop = FALSE]),
+          row.names = FALSE)
   } else {
     cat("\nNo item's discrimination differs across frames.\n")
   }

@@ -287,7 +287,8 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' fitted point estimates because the model is not re-estimated in each
 #' replicate. Ordered-response fits use the same points-proportion residual in
 #' the data and simulations. Fits with exposure or carry-over effects simulate
-#' those effects through each judge's observed sequence.
+#' those effects through each judge's observed sequence. The fitted model must
+#' have converged.
 #'
 #' A categorical result is withheld if any object pair is unobserved. It is
 #' also withheld when every judge receives essentially the same comparison
@@ -315,6 +316,8 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' @export
 btl_dimensionality <- function(fit, reps = 200L) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; dimensionality inference is unavailable")
   if (length(reps) != 1L || !is.finite(reps) || reps < 20L ||
       reps != floor(reps))
     stop("reps must be one whole number of at least 20")
@@ -362,9 +365,13 @@ btl_dimensionality <- function(fit, reps = 200L) {
       cnt <- new.env(hash = TRUE, parent = emptyenv())
       tot <- new.env(hash = TRUE, parent = emptyenv())
       gets <- function(e, k) if (is.null(v <- e[[k]])) 0 else v
+      key_a <- .factor_keys(data.frame(judge = sjd, object = sa,
+                                       stringsAsFactors = FALSE))
+      key_b <- .factor_keys(data.frame(judge = sjd, object = sb,
+                                       stringsAsFactors = FALSE))
       resp <- integer(length(sa))
       for (r in seq_along(sa)) {
-        ka <- paste0(sjd[r], "\r", sa[r]); kb <- paste0(sjd[r], "\r", sb[r])
+        ka <- key_a[r]; kb <- key_b[r]
         na_ <- gets(cnt, ka); nb_ <- gets(cnt, kb)
         z_exp <- as.numeric(na_ > 0) - as.numeric(nb_ > 0)
         z_cry <- (if (na_ > 0) gets(tot, ka) / na_ else 0) -
@@ -676,7 +683,8 @@ plot_btl_dim_map <- function(x, ...) {
 #' its consensus location predicts. A surprise is an object the judge treated
 #' against its standing: a strong object under-rated, or a weak object
 #' over-rated (residual opposite in sign to the location), beyond
-#' \code{flag_z} and seen at least \code{min_n} times.
+#' \code{flag_z} and seen at least \code{min_n} times. The fitted model must
+#' have converged.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}} with judges.
 #' @param judge The judge to profile (a value of the fit's judge column).
@@ -697,6 +705,8 @@ plot_btl_dim_map <- function(x, ...) {
 #' @export
 judge_surprise <- function(fit, judge, min_n = 2L, flag_z = 1.96) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; judge residuals are unavailable")
   cmp <- fit$comparisons
   if (all(is.na(cmp$judge))) stop("no judges in this fit")
   judge <- as.character(judge)
@@ -754,6 +764,7 @@ print.rasch_btl_judge <- function(x, ...) {
 #' underdog. A matchup is an unexpected judgement when \code{z} falls at or
 #' below \code{-flag_z} and the pair was seen at least \code{min_n} times, i.e.
 #' the judge favoured the weaker object further than sampling noise explains.
+#' The fitted model must have converged.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}} with judges.
 #' @param judge The judge to profile.
@@ -774,6 +785,8 @@ print.rasch_btl_judge <- function(x, ...) {
 #' @export
 judge_pair_surprise <- function(fit, judge, min_n = 1L, flag_z = 1.96) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; judge residuals are unavailable")
   cmp <- fit$comparisons
   if (all(is.na(cmp$judge))) stop("no judges in this fit")
   judge <- as.character(judge)

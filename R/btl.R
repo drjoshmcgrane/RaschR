@@ -32,8 +32,12 @@
   cnt <- new.env(hash = TRUE, parent = emptyenv())
   tot <- new.env(hash = TRUE, parent = emptyenv())
   gets <- function(e, k) if (is.null(v <- e[[k]])) 0 else v
+  key_a <- .factor_keys(data.frame(judge = jd, object = a,
+                                   stringsAsFactors = FALSE))
+  key_b <- .factor_keys(data.frame(judge = jd, object = b,
+                                   stringsAsFactors = FALSE))
   for (r in order(jd, ord)) {
-    ka <- paste0(jd[r], "\r", a[r]); kb <- paste0(jd[r], "\r", b[r])
+    ka <- key_a[r]; kb <- key_b[r]
     na_ <- gets(cnt, ka); nb_ <- gets(cnt, kb)
     Fa[r] <- as.numeric(na_ > 0); Fb[r] <- as.numeric(nb_ > 0)
     if (na_ > 0) Wa[r] <- gets(tot, ka) / na_
@@ -85,10 +89,7 @@
 #' withheld when there are fewer than ten judges, fewer than eight effective
 #' judges, or no residual cluster degrees of freedom. A caution is attached
 #' when the effective count is below 9.5 or one judge supplies more than 20
-#' per cent of the comparisons. The thresholds are simulation-calibrated:
-#' a true null is rejected at about 9\% with four effective judges and 7\%
-#' at six to seven, while balanced designs are nominal from ten judges up
-#' and a single judge above a 20\% share adds a mild edge near 6\%.
+#' per cent of the comparisons.
 #'
 #' Dichotomous data may be supplied as a winner, with ties dropped or divided
 #' equally between the two outcomes. Ordered data may instead be supplied
@@ -100,12 +101,10 @@
 #' If comparison order is supplied, exposure and carry-over effects are
 #' estimated from each judge's preceding comparisons. The \code{position}
 #' term estimates a first-presentation effect. These coefficients enter the
-#' model jointly with the object locations and are reported in logits.
-#' In simulation the position and exposure null tests hold their 5\% level
-#' (5.8\% and 5.9\% at 800 replicates); the carry-over null runs near 8\%
-#' with 14 judges -- a few-cluster elevation, gone by 30 judges (5.3\%) --
-#' and effects of 0.6 logits are detected in 62\% (position), 39\%
-#' (exposure), and 77\% (carry-over) of replicates.
+#' model jointly with the object locations and are reported in logits. The
+#' carry-over estimate and clustered SE remain descriptive below 30 judges;
+#' its probability is withheld because null calibration is mildly
+#' anti-conservative at smaller judge counts.
 #' Anchors fix nominated object locations and replace the sum-zero origin.
 #'
 #' @param data A data frame with one comparison per row.
@@ -189,6 +188,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
                 position = FALSE, anchors = NULL,
                 ties = c("drop", "half", "error"),
                 thresholds = c("free", "pc"), maxit = 60, tol = 1e-8) {
+  .check_column_names(data)
   ties <- match.arg(ties)
   thresholds <- match.arg(thresholds)
   data <- as.data.frame(data)
@@ -693,7 +693,7 @@ plot_btl <- function(fit, band = 2.5) {
   }
   nb <- ncol(Bmat)
   pz <- if (is.null(Z)) 0L else ncol(Z)
-  Zfull <- Z                         # all effect columns, for the audit table
+  Zfull <- Z                         # all effect columns, for the diagnostic table
   if (pz) {
     keepz <- colSums(abs(Z)) > 0
     if (!all(keepz)) {
@@ -1039,6 +1039,21 @@ plot_btl <- function(fit, band = 2.5) {
       # information about each effect
       n_informative = vapply(seq_len(ncol(Z)), function(j)
         sum(w[Z[, j] != 0]), 0))
+    # The sequential carry-over statistic is more persistent within judge than
+    # the position and exposure covariates. Two independent null batteries at
+    # 14 judges rejected 7.5% and 8.25% of the time; the rate returned to 5.25%
+    # at 30 judges. Retain its estimate and clustered SE for description, but
+    # do not attach an uncalibrated probability below the validated boundary.
+    carry_small <- !is.null(jd) && nc < 30L &
+      dependence$effect == "carry_over"
+    if (any(carry_small)) {
+      dependence$df[carry_small] <- NA_real_
+      dependence$p[carry_small] <- NA_real_
+      notes <- c(notes, paste0(
+        "carry-over probability withheld with fewer than 30 judges: null ",
+        "simulation found mild anti-conservatism at 14 judges; the estimate ",
+        "and clustered standard error remain descriptive"))
+    }
     rownames(dependence) <- NULL
   }
   thresholds <- NULL; components <- NULL
@@ -1502,7 +1517,9 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' analysis then tests judge factors between judges and band effects within
 #' judges. Each factor level requires at least two judges. Confirmatory Wald
 #' tests are available only when the base fit supplies a valid judge-clustered
-#' covariance.
+#' covariance. The base paired-comparison calibration must have converged.
+#' BTL-EFRM fits are not accepted: the ordinary residual and resolution
+#' models do not contain the fitted panel and set units.
 #'
 #' A significant uniform term is followed by a joint refit in which the object
 #' has one location per factor cell. Differences between these locations are
@@ -1513,8 +1530,11 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' Objects are resolved one at a time against the common locations of the
 #' remaining objects. With DIF in several objects, this can induce compensating
 #' apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
+#' An externally anchored object is not resolved: fixing each of its copies at
+#' the same anchor would define their difference as zero. Anchors on the other
+#' objects are retained in the joint refit.
 #'
-#' @param fit An object from \code{\link{btl}}.
+#' @param fit An ordinary paired-comparison fit from \code{\link{btl}}.
 #' @param factors One judge factor, or a named list containing several. Each
 #'   factor may have one value per comparison row or be a vector named by
 #'   judge.
@@ -1522,9 +1542,9 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' @param effects \code{"main"} (default) models several factors additively
 #'   (each factor's main effect and its band interaction); \code{"factorial"}
 #'   also crosses the factors with one another.
-#' @param p_adjust Multiplicity adjustment across objects within each term;
-#'   the resolved-size probabilities are adjusted in one pool over all
-#'   objects, terms, and cell pairs.
+#' @param p_adjust Multiplicity adjustment over all object-by-term tests;
+#'   the resolved-size probabilities are adjusted separately in one pool over
+#'   all objects, terms, and cell pairs.
 #' @param alpha Significance level for adjusted probabilities.
 #' @param flag_logits Absolute resolved difference flagged as practically
 #'   significant.
@@ -1567,6 +1587,15 @@ btl_dif <- function(fit, factors, objects = NULL,
                     effects = c("main", "factorial"),
                     p_adjust = "BH", alpha = 0.05, flag_logits = 0.5,
                     min_n = 20, maxit = 60, tol = 1e-8) {
+  if (!inherits(fit, "rasch_btl"))
+    stop("btl_dif needs a paired-comparison fit from btl()")
+  if (inherits(fit, "rasch_btl_efrm"))
+    stop("judge-group DIF is not defined after a BTL-EFRM frame adjustment; ",
+         "the ordinary residual and resolution models do not carry the ",
+         "fitted panel and set units. Examine frame-specific fit, or fit the ",
+         "equal-frame BTL model for an explicitly conditional DIF analysis")
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; DIF inference is unavailable")
   effects <- match.arg(effects)
   cm <- fit$comparisons
   if (is.null(cm)) stop("the fit carries no comparisons")
@@ -1679,7 +1708,8 @@ btl_dif <- function(fit, factors, objects = NULL,
     # terms are tested between judges, band terms and their interactions
     # within judges -- the same design logic as the mixed-design person
     # DIF ANOVA.
-    cellkey <- if (nb > 1L) interaction(d$judge_unit, d$band, drop = TRUE)
+    cellkey <- if (nb > 1L)
+      .factor_cells(data.frame(judge = d$judge_unit, band = d$band), sep = "\r")
                else droplevels(d$judge_unit)
     zbar <- tapply(d$z * d$w, cellkey, sum) / tapply(d$w, cellkey, sum)
     firsts <- which(!duplicated(cellkey))
@@ -1741,12 +1771,11 @@ btl_dif <- function(fit, factors, objects = NULL,
   terms <- do.call(rbind, term_rows); rownames(terms) <- NULL
   terms$eta2_partial <- terms$sum_sq / (terms$sum_sq + terms$resid_ss)
   terms$resid_ss <- NULL
-  # adjust across objects within each term
+  # Uniform and non-uniform flags feed one reported DIF decision, so the
+  # object-by-term tests form one multiplicity family.
   terms$p_adj <- NA_real_
-  for (tt in unique(terms$term)) {
-    sel <- terms$term == tt
-    terms$p_adj[sel] <- p.adjust(terms$p[sel], method = p_adjust)
-  }
+  sel_test <- terms$term != "band" & is.finite(terms$p)
+  terms$p_adj[sel_test] <- p.adjust(terms$p[sel_test], method = p_adjust)
   terms$significant <- !is.na(terms$p_adj) & terms$p_adj < alpha
   # a significant higher-order GROUP term supersedes lower-order group terms
   # built from a subset of its factors, within the same object. Band-crossing
@@ -1755,11 +1784,12 @@ btl_dif <- function(fit, factors, objects = NULL,
   terms$superseded <- FALSE
   is_group <- !vapply(terms$term, function(t) "band" %in% tvars(t), TRUE)
   for (ob in unique(terms$object)) {
-    sel <- which(terms$object == ob & terms$significant & is_group)
-    for (i in sel) for (k in sel) if (i != k) {
-      vi <- tvars(terms$term[i]); vk <- tvars(terms$term[k])
-      if (length(vi) < length(vk) && all(vi %in% vk))
-        terms$superseded[i] <- TRUE
+    all_terms <- which(terms$object == ob & is_group)
+    higher <- all_terms[terms$significant[all_terms]]
+    for (lo in all_terms) for (hi in higher) {
+      vl <- tvars(terms$term[lo]); vh <- tvars(terms$term[hi])
+      if (length(vl) < length(vh) && all(vl %in% vh))
+        terms$superseded[lo] <- TRUE
     }
   }
   # map a term's syntactic stand-ins (f1..fk) back to the nominated factor
@@ -1768,7 +1798,8 @@ btl_dif <- function(fit, factors, objects = NULL,
   # for display, after all term classification is done on the stand-ins.
   relab <- function(x) vapply(x, function(t) {
     toks <- strsplit(t, ":", fixed = TRUE)[[1]]
-    i <- match(toks, safe); toks[!is.na(i)] <- fnames[i[!is.na(i)]]
+    i <- match(toks, safe)
+    toks[!is.na(i)] <- vapply(fnames[i[!is.na(i)]], .dif_term_label, "")
     # a user factor literally named "band" would otherwise be
     # indistinguishable from the opponent-strength band in the display
     if ("band" %in% fnames)
@@ -1800,6 +1831,8 @@ btl_dif <- function(fit, factors, objects = NULL,
       superseded = isTRUE(u$superseded))
   }
   summary_tab <- if (length(srows)) do.call(rbind, srows) else NULL
+  summary_factors <- if (is.null(summary_tab)) list() else
+    lapply(summary_tab$term, function(tt) fnames[match(tvars(tt), safe)])
 
   # resolution: for each flagged, non-superseded group term, resolve the object
   # into one copy per cell of the term's factors and report the location
@@ -1811,7 +1844,8 @@ btl_dif <- function(fit, factors, objects = NULL,
   for (r in flagged) {
     ob <- summary_tab$object[r]; tt <- summary_tab$term[r]; ttd <- relab(tt)
     jf <- match(tvars(tt), safe)
-    cell <- do.call(paste, c(lapply(jf, function(j) gvs[[j]]), sep = ":"))
+    cell <- as.character(.factor_cells(as.data.frame(
+      lapply(jf, function(j) gvs[[j]]), check.names = FALSE), sep = ":"))
     inv <- ok & (cm$object_a == ob | cm$object_b == ob)
     # cell sizes in comparisons (count-weighted), not rows
     lev_n <- tapply(cm$weight[inv], cell[inv], sum)
@@ -1826,6 +1860,12 @@ btl_dif <- function(fit, factors, objects = NULL,
       notes <- c(notes, sprintf(
         "%s [%s]: cell(s) dropped with fewer than %d comparisons: %s",
         ob, ttd, min_n, paste(setdiff(names(lev_n), use_lev), collapse = ", ")))
+    if (!is.null(fit$anchors) && ob %in% names(fit$anchors)) {
+      notes <- c(notes, sprintf(
+        "%s [%s]: the object is externally anchored and cannot be resolved; fixing every copy at the anchor would define its DIF as zero",
+        ob, ttd))
+      next
+    }
     rsel <- ok & (!(cm$object_a == ob | cm$object_b == ob) | cell %in% use_lev)
     a2 <- cm$object_a[rsel]; b2 <- cm$object_b[rsel]; c2 <- cell[rsel]
     a2 <- ifelse(a2 == ob, paste0(ob, " (", c2, ")"), a2)
@@ -1835,10 +1875,13 @@ btl_dif <- function(fit, factors, objects = NULL,
     rf <- tryCatch(.btl_graded(
       a2, b2, cm$response[rsel], if (is.null(jd_all)) NULL else jd_all[rsel],
       cm$weight[rsel], cats, maxit, tol, character(0), thr = thr,
-      Z = if (is.null(Zc)) NULL else Zc[rsel, , drop = FALSE]),
+      Z = if (is.null(Zc)) NULL else Zc[rsel, , drop = FALSE],
+      anchors = fit$anchors),
       error = function(e) NULL)
-    if (is.null(rf)) {
-      notes <- c(notes, sprintf("%s [%s]: resolution failed", ob, ttd))
+    if (is.null(rf) || !isTRUE(rf$converged)) {
+      notes <- c(notes, sprintf(
+        "%s [%s]: the resolved calibration did not converge; magnitude withheld",
+        ob, ttd))
       next
     }
     idx <- match(paste0(ob, " (", use_lev, ")"), rf$objects$object)
@@ -1892,7 +1935,8 @@ btl_dif <- function(fit, factors, objects = NULL,
   if (!is.null(sizes)) sizes$term <- relab(sizes$term)
   if (!is.null(levels_df)) levels_df$term <- relab(levels_df$term)
   out <- list(summary = summary_tab, terms = terms, levels = levels_df,
-              sizes = sizes, effects = effects, factors = fnames,
+              sizes = sizes, summary_factors = summary_factors,
+              effects = effects, factors = fnames,
               alpha = alpha, p_adjust = p_adjust, flag_logits = flag_logits,
               notes = unique(notes))
   out <- .tag_tables(out)

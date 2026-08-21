@@ -32,7 +32,8 @@ Andrich 2008), with \eqn{S} subscales of \eqn{K} items,
 the latent correlation between subscales is \eqn{\rho = 1/(1 + c^2)},
 and \eqn{A = S/(S + c^2)} is the proportion of common (non-unique,
 non-error) variance. Both the person separation index and coefficient
-alpha versions are reported (Andrich and Marais 2019, ch. 24).
+alpha versions are reported (Andrich and Marais 2019, ch. 24). Both the
+original and subtest calibrations must converge.
 }
 \examples{
 set.seed(1); N <- 500

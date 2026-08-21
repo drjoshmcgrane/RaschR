@@ -144,3 +144,9 @@ test_that("class intervals never split persons sharing a location", {
   # sizes are as equal as tie-preservation allows (no interval empty)
   expect_true(all(tabulate(ci[ok]) > 0))
 })
+
+test_that("class intervals handle an empty usable sample", {
+  ci <- .class_intervals(c(NA_real_, 0), c(FALSE, TRUE), 3)
+  expect_true(all(is.na(ci)))
+  expect_identical(attr(ci, "n_groups"), 0L)
+})

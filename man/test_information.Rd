@@ -14,7 +14,7 @@ test_information(fit, grid = seq(-6, 6, by = 0.1))
 \value{
 A data frame with \code{theta}, \code{info}, and \code{sem}. For
   EFRM and MFRM fits it also contains a \code{design} column identifying
-  the administrable group or facet design.
+  the administrable frame or facet design.
 }
 \description{
 Fisher information over a grid of person locations, with the corresponding
@@ -22,9 +22,10 @@ standard error of measurement. Ordinary Rasch fits return one whole-test
 curve. EFRM fits return one curve per person group and per item-set
 administration pattern actually observed within that group (in a linking
 design, persons who took only the core set get a core-only curve, and the
-linking subsample gets the pooled one), and MFRM fits return one curve per
-observed facet design; mutually exclusive virtual-item blocks, and item
-sets no single person took together, are never added together.
+linking subsample gets the pooled one). MFRM fits return one curve per set
+of facet conditions observed together for a person, so ratings that jointly
+inform the same person measure are added and mutually exclusive designs
+remain separate.
 }
 \details{
 For an administrable block \eqn{\mathcal A}, the information and standard

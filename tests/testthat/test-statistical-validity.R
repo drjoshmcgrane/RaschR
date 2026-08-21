@@ -218,7 +218,7 @@ test_that("BTL-EFRM inference refuses an inadequately clustered panel", {
   keep <- d$panel != "panel2" | d$judge == d$judge[d$panel == "panel2"][1]
   expect_error(
     btl_efrm(d[keep, ], "object_a", "object_b", "winner", "judge", "panel",
-             os, se_method = "judge_bootstrap", boot_reps = 20),
+             os, se_method = "judge_bootstrap", boot_reps = 30),
     "at least 10 judges|more judge clusters than parameters")
 })
 
@@ -562,6 +562,9 @@ test_that("dif_anova integrates with EFRM and MFRM fits", {
   d2 <- dif_anova(f2)
   expect_true(any(grepl("frame structure", d2$notes)))
   expect_gt(nrow(d2$summary), 0)
+  expect_error(dif_contrasts(f2), "not available for EFRM")
+  expect_error(dif_posthoc(f2, f2$items$item[1], term = "sex"),
+               "not available for EFRM")
 
   set.seed(1)
   simP <- function(th, tau) { x <- 0:length(tau)
@@ -626,6 +629,12 @@ test_that("MFRM DIF pools to underlying items and resolves magnitudes", {
   ds <- dif_size(mf, "B", by = "sex")
   expect_lt(abs(abs(ds$pairs$difference) - 0.7), 3 * ds$pairs$se)
   expect_true(ds$pairs$significant)
+  ph <- dif_posthoc(mf, "B", term = "sex")
+  expect_s3_class(ph, "rasch_dif_posthoc")
+  expect_equal(nrow(ph$table), 1L)
+  expect_true(is.finite(ph$table$estimate))
+  dc <- dif_contrasts(mf, factors = "sex", items = "B")
+  expect_equal(unique(dc$table$item), "B")
   dsz <- dif_anova(mf, sizes = TRUE)
   expect_gt(nrow(dsz$sizes), 0)
 })
@@ -703,12 +712,15 @@ test_that("phi_factorial_tests recover a planted region unit effect", {
   lu <- f$phi_factorial$log_unit[f$phi_factorial$term == "region1"]
   expect_gt(exp(2 * abs(lu)), 1.2)
   expect_lt(exp(2 * abs(lu)), 1.9)
-  # bootstrap draws feed se_log_rho jointly: finite and positive
+  # Full-bootstrap draws feed se_log_rho jointly. Use enough replicates for
+  # the covariance threshold and verify that no hybrid fallback occurred.
   fb <- rasch_efrm(X, groups = c("grp", "region"),
                    items = paste0("v", 1:16),
                    item_sets = list(A = paste0("v", 1:8),
                                     B = paste0("v", 9:16)),
-                   se_method = "bootstrap", boot_reps = 40)
+                   se_method = "bootstrap", boot_reps = 50)
+  expect_identical(fb$se_method, "bootstrap")
+  expect_gte(fb$boot_reps_used, 30L)
   expect_true(all(is.finite(fb$frames$se_log_rho)))
   expect_true(all(fb$frames$se_log_rho > 0))
 })
@@ -988,7 +1000,17 @@ test_that("EFRM fits export and report despite the residual-PCA refusal", {
                     item_sets = list(core = colnames(X)), groups = "grp")
   out <- file.path(tempdir(), "efrm-export-regression")
   expect_no_error(save_outputs(fit, out, formats = "png"))
-  expect_no_error(report_html(fit, file.path(tempdir(), "efrm-rep.html")))
+  for (nm in c("response_cell_statistics.csv", "items_common_unit.csv",
+               "thresholds_common_unit.csv", "frame_model_comparison.csv",
+               "unit_omnibus_tests.csv", "unit_contrasts.csv"))
+    expect_true(file.exists(file.path(out, "tables", nm)), info = nm)
+  expect_false(file.exists(file.path(out, "tables", "item_statistics.csv")))
+  hfile <- file.path(tempdir(), "efrm-rep.html")
+  expect_no_error(report_html(fit, hfile))
+  html <- paste(readLines(hfile, warn = FALSE), collapse = "\n")
+  expect_match(html, "Common-scale item estimates", fixed = TRUE)
+  expect_match(html, "Response-cell fit", fixed = TRUE)
+  expect_match(html, "Frame model comparison", fixed = TRUE)
   # dimensionality_test carries the refusal as its standard note, not a crash
   dt <- dimensionality_test(fit)
   expect_true(is.na(dt$multidimensional))
@@ -1034,6 +1056,30 @@ test_that("test_information splits EFRM groups by administration pattern", {
   expect_gt(sem_core, sem_both)          # fewer items -> larger SEM, honestly
 })
 
+test_that("MFRM information combines facets administered to the same person", {
+  fit <- structure(list(
+    tau_list = rep(list(0), 4),
+    disc = rep(1, 4),
+    virtual_map = data.frame(
+      vkey = paste0("v", 1:4), item = rep(c("I1", "I2"), 2),
+      rater = rep(c("A", "B"), each = 2), stringsAsFactors = FALSE),
+    facet_spec = "rater",
+    X = matrix(c(1, 0, 1, 0,
+                 0, 1, 0, 1,
+                 1, 0, NA, NA,
+                 NA, NA, 0, 1), nrow = 4, byrow = TRUE)
+  ), class = c("rasch_mfrm", "rasch"))
+  z <- rasch:::.design_blocks(fit)
+  expect_length(z, 3L)
+  expect_true(any(vapply(z, function(i) setequal(i, 1:4), logical(1))))
+  expect_true(any(vapply(z, function(i) setequal(i, 1:2), logical(1))))
+  expect_true(any(vapply(z, function(i) setequal(i, 3:4), logical(1))))
+  ti <- test_information(fit, grid = 0)
+  both <- grepl("rater=A.*rater=B", ti$design)
+  expect_equal(ti$info[both], 1, tolerance = 1e-12)
+  expect_equal(sort(ti$info[!both]), c(0.5, 0.5), tolerance = 1e-12)
+})
+
 test_that("MFRM interaction omnibus uses the Hotelling-style F reference", {
   set.seed(31)
   simP <- function(th, tau) { x <- 0:length(tau)
@@ -1057,6 +1103,13 @@ test_that("MFRM interaction omnibus uses the Hotelling-style F reference", {
   # cells use a t reference (p >= the normal-reference p)
   ie <- fit$interaction_effects
   expect_true(all(ie$p >= 2 * pnorm(-abs(ie$z)) - 1e-12))
+  out <- tempfile("mfrm-export-")
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+  invisible(save_outputs(fit, out, formats = "png", item_plots = FALSE))
+  expect_true(file.exists(file.path(out, "tables",
+                                    "interaction_omnibus_test.csv")))
+  expect_true(file.exists(file.path(out, "tables",
+                                    "response_cell_statistics.csv")))
 })
 
 test_that("btl eff_params is withheld with clustered inference", {

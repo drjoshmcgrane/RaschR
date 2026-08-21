@@ -36,7 +36,8 @@
 # reading of it is Humphry's. The paired-comparison form fitted here is this
 # package's extension, stated for dichotomous winner data.
 #
-# Estimation is in two conditional stages, mirroring rasch_efrm():
+# Estimation is in two likelihood stages, mirroring the staged structure of
+# rasch_efrm() but not its person-distribution link:
 #
 # Stage 1 (within frames): for each set the within-set comparisons, pooled
 # over panels, fit the bilinear model logit = rho_{gs} (b_a - b_b) with
@@ -525,10 +526,12 @@
 #'
 #' The default judge bootstrap resamples judges within panels and refits both
 #' stages. The parametric bootstrap draws independent outcomes from the fitted
-#' probabilities. \code{se_method = "conditional"} uses analytic stage-one
+#' probabilities and uses normal and chi-square reference distributions.
+#' \code{se_method = "conditional"} uses analytic stage-one
 #' errors and conditions the linking errors on stage one; it is intended for
-#' preliminary inspection. Bootstrap failures and boundary estimates are
-#' reported in \code{notes}.
+#' preliminary inspection. Its unit probabilities and omnibus tests are
+#' withheld because it does not propagate stage-one uncertainty. Bootstrap
+#' failures and boundary estimates are reported in \code{notes}.
 #'
 #' With one set, the model contains panel units only. With one set and one
 #' panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference
@@ -560,14 +563,14 @@
 #'   analytic stage-one standard errors for \code{beta} and \code{phi}, and
 #'   inverse observed information for \code{alpha} and \code{kappa}
 #'   conditional on the stage-one estimates. It is faster, but does not
-#'   propagate stage-one uncertainty into the linking parameters.
+#'   propagate stage-one uncertainty into the linking parameters; unit
+#'   probabilities and omnibus tests are therefore withheld.
 #' @param boot_reps Number of replicates for \code{se_method = "bootstrap"}
-#'   or \code{"judge_bootstrap"}.
+#'   or \code{"judge_bootstrap"}; at least 30 are required.
 #' @param maxit,tol Newton iteration cap and convergence tolerance.
-#' @return An object of class \code{"rasch_btl_efrm"}. Principal components
-#'   are \code{objects}, \code{phi_table}, \code{alpha_table},
-#'   \code{kappa_table}, \code{unit_omnibus}, \code{frames},
-#'   \code{equal_unit}, \code{n_cross}, \code{notes}, and \code{converged}.
+#' @return An object of class \code{"rasch_btl_efrm"}. It contains the object
+#'   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
+#'   frame definitions, convergence information, and analysis notes.
 #' @references Andrich, D. (1978). Relationships between the Thurstone and
 #'   Rasch approaches to item scaling. Applied Psychological Measurement,
 #'   2(3), 451--462.
@@ -612,8 +615,15 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                      se_method = c("judge_bootstrap", "bootstrap",
                                    "conditional"),
                      boot_reps = 200, maxit = 60, tol = 1e-8) {
+  .check_column_names(data)
   ties <- match.arg(ties)
   se_method <- match.arg(se_method)
+  if (length(boot_reps) != 1L || !is.finite(boot_reps) || boot_reps < 0L ||
+      boot_reps != floor(boot_reps))
+    stop("boot_reps must be one non-negative whole number")
+  boot_reps <- as.integer(boot_reps)
+  if (se_method %in% c("bootstrap", "judge_bootstrap") && boot_reps < 30L)
+    stop("BTL-EFRM bootstrap inference needs at least 30 replicates")
   if (!is.null(response))
     stop("btl_efrm fits dichotomous winner data only in this first ",
          "implementation; a polytomous `response` is not supported. Reduce the ",
@@ -724,10 +734,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     if (!length(cross))
       stop("no cross-set comparisons: the sets cannot be linked to a common ",
            "scale (set units alpha and origins kappa are unidentified)")
-    key <- ifelse(sa[cross] < sb[cross], paste(sa[cross], sb[cross]),
-                  paste(sb[cross], sa[cross]))
+    isa <- match(sa[cross], sets_u); isb <- match(sb[cross], sets_u)
+    key <- paste(pmin(isa, isb), pmax(isa, isb))
     tab <- table(key); parts <- do.call(rbind, strsplit(names(tab), " ", fixed = TRUE))
-    n_cross <- data.frame(set_a = parts[, 1], set_b = parts[, 2],
+    n_cross <- data.frame(set_a = sets_u[as.integer(parts[, 1])],
+                          set_b = sets_u[as.integer(parts[, 2])],
                           n = as.integer(tab), stringsAsFactors = FALSE)
     rownames(n_cross) <- NULL
     used <- n_cross$n >= min_link
@@ -767,7 +778,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                  collapse = "} and {"), "}")
   }
 
-  # --- the staged conditional estimator, callable on any outcome vector -----
+  # --- the two-stage estimator, callable on any outcome vector ---------------
   # (one function for the observed data and for every bootstrap replicate, so
   # the resampled pipeline is identical to the reported one)
   fit_once <- function(yy) {
@@ -901,6 +912,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
          "the cross-set comparisons cannot place the sets on one scale ",
          "(a flat direction of the information loads on a set origin ",
          "kappa) -- add cross-set comparisons that link every set")
+  if (!isTRUE(fit0$converged))
+    warning("BTL-EFRM estimation did NOT converge; increase maxit or inspect ",
+            "the within- and cross-set comparison design", call. = FALSE)
   if (any(fit0$s2_alpha_unident))
     notes <- c(notes, paste0(
       "set unit(s) unidentified for ",
@@ -1115,10 +1129,12 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                  "the omnibus Wald tests on the unit families carry the inference"))
 
   # --- structural tables ----------------------------------------------------
-  # t reference with judges as the independent units: the unit covariances
-  # rest on resampling ~10-20 judges, and a normal reference at that unit
-  # count is anti-conservative (see the omnibus note below)
-  df_j <- max(length(unique(jd)) - 1L, 1L)
+  # Judge-resampling inference uses a finite-sample t reference because the
+  # judges are the independent sampling units. The parametric bootstrap draws
+  # comparison outcomes independently conditional on the fitted design, so a
+  # judge-based denominator is not its reference distribution.
+  df_j <- if (se_method == "judge_bootstrap")
+    max(length(unique(jd)) - 1L, 1L) else Inf
   z_phi <- log(phi) / se_log_phi
   phi_table <- data.frame(panel = panels_u, phi = unname(phi),
                           se_log_phi = unname(se_log_phi),
@@ -1145,6 +1161,24 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   phi_table <- adjust_unit_table(phi_table)
   alpha_table <- adjust_unit_table(alpha_table)
   kappa_table <- adjust_unit_table(kappa_table)
+  if (identical(se_method, "conditional")) {
+    # Conditional linking errors omit stage-one uncertainty. Null simulation
+    # rejected 17.5% (phi) and 35.5% (alpha) at nominal 5%, so ordinary-looking
+    # probabilities are not defensible. Retain estimates and their explicitly
+    # conditional SEs for preliminary inspection, but withhold inference.
+    withhold <- function(tab) {
+      tab$t <- NA_real_; tab$df <- NA_real_; tab$p <- NA_real_
+      tab$p_adj <- NA_real_; tab$significant <- NA
+      tab
+    }
+    phi_table <- withhold(phi_table)
+    alpha_table <- withhold(alpha_table)
+    kappa_table <- withhold(kappa_table)
+    notes <- c(notes, paste0(
+      "unit probabilities and omnibus tests withheld for conditional standard ",
+      "errors, which do not propagate stage-one uncertainty; use the judge ",
+      "bootstrap for inference"))
+  }
 
   # Hotelling-style F reference with judges as the independent units: the
   # unit covariances are judge-limited (the bootstrap resamples ~10-20
@@ -1152,7 +1186,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   # units rejects a true null at ~8.7% for the set origins in simulation
   # (550 replicates, 12 judges); W * (n - q) / (q (n - 1)) ~ F(q, n - q)
   # restores the nominal rate, exactly as for the MFRM interaction omnibus.
-  n_units_j <- length(unique(jd))
+  n_units_j <- if (se_method == "judge_bootstrap") length(unique(jd)) else Inf
   wald_unit <- function(est, V, term) {
     if (!length(est) || is.null(V)) return(NULL)
     ok <- is.finite(est) & is.finite(diag(V))
@@ -1167,7 +1201,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
     W <- drop(t(est) %*% Vinv %*% est)
     q <- sum(use)
-    if (n_units_j > q) {
+    if (is.infinite(n_units_j)) {
+      data.frame(term = term, df = q, df2 = Inf, wald = W,
+                 f = W / q,
+                 p = stats::pchisq(W, q, lower.tail = FALSE))
+    } else if (n_units_j > q) {
       Fs <- W * (n_units_j - q) / (q * (n_units_j - 1))
       data.frame(term = term, df = q, df2 = n_units_j - q, wald = W,
                  f = Fs, p = stats::pf(Fs, q, n_units_j - q,
@@ -1185,6 +1223,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                            cov2[length(free) + seq_along(free),
                                 length(free) + seq_along(free), drop = FALSE],
                            "set origins (kappa)"))))
+  if (identical(se_method, "conditional") && !is.null(unit_omnibus)) {
+    unit_omnibus$df2 <- NA_real_
+    unit_omnibus$f <- NA_real_
+    unit_omnibus$p <- NA_real_
+  }
 
   objects <- data.frame(object = objs_all, set = unname(set_of[objs_all]),
                         location = unname(v), se = unname(se_v),
@@ -1264,7 +1307,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                       "judges")
               else if (se_method == "bootstrap")
                 paste("standard errors from a parametric bootstrap of the",
-                      "whole two-stage pipeline: the staged conditional",
+                      "whole two-stage pipeline: the two-stage",
                       "estimates are unchanged, and their errors carry the",
                       "stage-one uncertainty into the linking")
               else
@@ -1284,7 +1327,7 @@ print.rasch_btl_efrm <- function(x, ...) {
                      "%d objects in %d set(s) x %d panel(s), %d comparisons\n"),
               nrow(x$objects), nrow(x$alpha_table), nrow(x$phi_table),
               x$n_comparisons))
-  cat(sprintf("Two-stage conditional ML: %s; SEs %s\n",
+  cat(sprintf("Two-stage maximum likelihood: %s; SEs %s\n",
               if (x$converged) "converged" else "NOT converged",
               if (identical(x$se_method, "judge_bootstrap"))
                 sprintf("by judge-resampling bootstrap (B = %d)", x$boot_reps)
@@ -1350,7 +1393,9 @@ print.rasch_btl_efrm <- function(x, ...) {
   d$frame <- ifelse(d$set_opponent == set_o,
                     paste(d$panel, "within", set_o),
                     paste(d$panel, "vs", d$set_opponent))
-  sp <- split(seq_len(nrow(d)), paste(d$frame, d$opponent, sep = "\r"))
+  sp <- split(seq_len(nrow(d)), .factor_keys(
+    data.frame(frame = d$frame, opponent = d$opponent,
+               stringsAsFactors = FALSE)))
   obs <- do.call(rbind, lapply(sp, function(ii) data.frame(
     frame = d$frame[ii[1]], opponent = d$opponent[ii[1]],
     loc = ob$location[match(d$opponent[ii[1]], ob$object)],

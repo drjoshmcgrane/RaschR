@@ -24,9 +24,10 @@ defaults to every nominated factor.}
 
 \item{p_adjust}{Multiplicity adjustment across items each round.}
 
-\item{min_anchors}{Minimum number of original items to leave unsplit; the
-procedure stops before the anchor set falls below this (pervasive DIF is
-not artificial DIF). Default \code{max(3, items / 4)}.}
+\item{min_anchors}{Minimum number of original items to leave unsplit as the
+internal reference set. The procedure stops before this set becomes
+smaller; pervasive DIF is not artificial DIF. Default
+\code{max(3, items / 4)}.}
 
 \item{max_splits}{Hard cap on the number of splits. Default: the number
 of items.}
@@ -34,16 +35,21 @@ of items.}
 \value{
 A list of class \code{"rasch_resolve_dif"}: the final resolved
   \code{fit}, the \code{splits} performed (order, item, factor, partial
-  eta-squared, DIF magnitude in logits), the \code{stopped} reason, and
-  the residual \code{dif} table for the final fit.
+  eta-squared, source item, DIF magnitude in logits), the \code{stopped}
+  reason, and the residual \code{dif} table for the final fit.
 }
 \description{
-Splits DIF items one at a time, beginning with the largest estimated effect,
+Splits items with uniform DIF one at a time, beginning with the largest
+estimated effect,
 and refits after each split. This order addresses the artificial DIF that a
 large departure can induce in otherwise invariant items (Andrich and
 Hagquist 2012, 2015). Each split gives the item a separate location and
-threshold structure in every factor cell. The procedure stops when no item
-is flagged or the remaining anchor set reaches \code{min_anchors}.
+threshold structure in every factor cell. A location split does not model a
+group-specific discrimination, so items with non-uniform DIF are left for
+review rather than being made untestable by a split. The procedure stops
+when no resolvable uniform DIF remains or the remaining unsplit reference
+set reaches \code{min_anchors}. Items fixed by external anchors are not
+split.
 }
 \examples{
 set.seed(1); n <- 600

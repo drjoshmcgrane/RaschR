@@ -22,9 +22,9 @@ Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
 The conventional vertical person-item map (Wright and Stone 1979): the
-person distribution to the left of a shared logit axis and the item
-thresholds, labelled by item (and threshold number for polytomous items),
-stacked to its right.
+person distribution to the left of a shared logit axis and the calibration
+thresholds stacked to its right. MFRM and EFRM labels identify
+item-by-facet or item-by-frame response cells rather than additional items.
 }
 \examples{
 set.seed(1)

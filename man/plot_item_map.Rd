@@ -15,8 +15,9 @@ plot_item_map(fit, band = 2.5)
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Items plotted by location and fit residual, with the conventional
-acceptance band at +/- 2.5 and misfitting items labelled.
+Fitted columns plotted by location and fit residual, with the conventional
+acceptance band at +/- 2.5. MFRM and EFRM points are response cells;
+ordinary Rasch points are items.
 }
 \examples{
 set.seed(1)

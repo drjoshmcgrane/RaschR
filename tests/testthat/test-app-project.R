@@ -49,3 +49,37 @@ test_that("invalid app analysis files are refused", {
   saveRDS(future, bad)
   expect_error(.read_app_project(bad), "unsupported")
 })
+
+test_that("opening a project retains results tied to its active fit", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+  set.seed(82)
+  X <- matrix(rbinom(500, 1, .5), 100, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  fit <- rasch(X)
+  project <- list(
+    format = "rasch-shiny-project", schema = 1L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), rcode = "fit <- rasch(dat)",
+    kept_fits = list(), kept_fit_code = list(), simulation = list(),
+    results = list(lr = list(marker = 17L)))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+  .save_app_project(project, path)
+
+  shiny::testServer(e$server, {
+    session$setInputs(project_file = list(
+      datapath = path, name = "test.rasch", size = file.info(path)$size,
+      type = "application/octet-stream"))
+    session$flushReact()
+    expect_identical(lr_res()$marker, 17L)
+    expect_s3_class(fit(), "rasch")
+  })
+})

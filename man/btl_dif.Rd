@@ -18,7 +18,7 @@ btl_dif(
 )
 }
 \arguments{
-\item{fit}{An object from \code{\link{btl}}.}
+\item{fit}{An ordinary paired-comparison fit from \code{\link{btl}}.}
 
 \item{factors}{One judge factor, or a named list containing several. Each
 factor may have one value per comparison row or be a vector named by
@@ -30,9 +30,9 @@ judge.}
 (each factor's main effect and its band interaction); \code{"factorial"}
 also crosses the factors with one another.}
 
-\item{p_adjust}{Multiplicity adjustment across objects within each term;
-the resolved-size probabilities are adjusted in one pool over all
-objects, terms, and cell pairs.}
+\item{p_adjust}{Multiplicity adjustment over all object-by-term tests;
+the resolved-size probabilities are adjusted separately in one pool over
+all objects, terms, and cell pairs.}
 
 \item{alpha}{Significance level for adjusted probabilities.}
 
@@ -68,7 +68,9 @@ aggregated to one weighted mean per judge and opponent band. A split-plot
 analysis then tests judge factors between judges and band effects within
 judges. Each factor level requires at least two judges. Confirmatory Wald
 tests are available only when the base fit supplies a valid judge-clustered
-covariance.
+covariance. The base paired-comparison calibration must have converged.
+BTL-EFRM fits are not accepted: the ordinary residual and resolution
+models do not contain the fitted panel and set units.
 
 A significant uniform term is followed by a joint refit in which the object
 has one location per factor cell. Differences between these locations are
@@ -79,6 +81,9 @@ and carry-over effects in both the residual analysis and refit.
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce compensating
 apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
+An externally anchored object is not resolved: fixing each of its copies at
+the same anchor would define their difference as zero. Anchors on the other
+objects are retained in the joint refit.
 }
 \examples{
 set.seed(1)

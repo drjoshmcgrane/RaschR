@@ -15,7 +15,8 @@ plot_tcc(fit, grid = seq(-6, 6, 0.05))
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Expected total score against person location for the whole instrument.
+Expected total score against person location. Structural fits draw one
+curve for each administrable frame or facet design.
 }
 \examples{
 set.seed(1)

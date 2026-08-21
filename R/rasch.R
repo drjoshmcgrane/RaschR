@@ -22,6 +22,11 @@
   notes <- character(0)
   X <- as.matrix(X)
   if (is.null(colnames(X))) colnames(X) <- sprintf("I%02d", seq_len(ncol(X)))
+  if (anyNA(colnames(X)) || any(!nzchar(colnames(X))))
+    stop("item column names must be non-missing and non-empty")
+  if (anyDuplicated(colnames(X)))
+    stop("item column names must be unique: ",
+         paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
   Xn <- suppressWarnings(apply(X, 2, function(col) as.numeric(as.character(col))))
   Xi <- suppressWarnings(apply(X, 2, function(col) as.integer(as.character(col))))
   dim(Xn) <- dim(X); dim(Xi) <- dim(X); dimnames(Xi) <- dimnames(X)
@@ -145,30 +150,14 @@
 #'   This can stabilise sparse categories. Component estimates are stored in
 #'   the estimation details. Available for PCM fits without anchors.
 #' @section Estimated item discrimination:
-#' The item summary reports \code{disc}, the slope that maximises an item's
-#' own likelihood with the person measures and the item's thresholds held at
-#' the values the model gave them. It follows the index Linacre's Winsteps
-#' reports as DISCRIM, generalised here to polytomous items, where the same
-#' slope multiplies every threshold of the item. The Rasch model does not
-#' estimate it; it is computed afterwards, one item at a time, to describe
-#' how steeply each item sorts the people the model has already located.
-#'
-#' Read it as description, not as an estimate of a discrimination parameter.
-#' The person measures are estimated from a set that includes the item being
-#' scored, which biases the index upward -- about 1.19 for a true 1.0 in
-#' simulation -- and pulls extreme items toward the rest, so a true ratio of
-#' 1.5 between two items recovers as roughly 1.2. Its ordering is more
-#' dependable than its level: with one steep and one flat item planted among
-#' six, the planted pair came back at the extremes of the column while the
-#' unplanted items spread between them. An item whose responses do not vary
-#' among the non-extreme persons has no slope and is reported as \code{NA}.
-#'
-#' Where a test of discrimination is wanted rather than a description, use
-#' the fit statistics: they are the calibrated instrument, and
-#' \code{\link{frame_invariance}} tests discrimination across frames on the
-#' within-frame infit rather than on this index, which is the weaker of the
-#' two.
-#'
+#' The item summary includes a post-estimation slope \code{disc}. For item
+#' \eqn{i}, it maximises that item's response likelihood over \eqn{a_i} while
+#' holding the fitted person locations and thresholds fixed:
+#' \deqn{\hat a_i=\arg\max_{a_i}
+#'   \sum_n\log P(X_{ni}=x_{ni}\mid\hat\theta_n,\hat\delta_i,a_i).}
+#' The same slope multiplies every threshold of a polytomous item. It is a
+#' descriptive index, not a freely estimated parameter of the Rasch model,
+#' and no sampling standard error or hypothesis test is attached to it.
 #' @return An object of class \code{"rasch"}. Its principal components are
 #'   the item summary, threshold table, person table, score table, residuals,
 #'   reliability, targeting, item-trait statistics, threshold diagnostics,
@@ -211,6 +200,8 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
                   items = NULL, n_groups = NULL, adjust_N = NA, anchors = NULL,
                   na_codes = -1, key = NULL, pc_components = NULL,
                   maxit = 60, tol = 1e-8) {
+  .check_column_names(data)
+  n_groups_requested <- n_groups
   # name for a factors= vector passed by value (not by column name)
   .factors_sym <- substitute(factors)
   .factors_label <- if (is.name(.factors_sym)) as.character(.factors_sym) else "factor"
@@ -419,6 +410,26 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   fit <- .assemble_fit(model, X, est, id_vec, fac_df, n_groups, adjust_N,
                        c(prep$notes, est$notes))
   fit$mc <- mc
+  # Keep the arguments that define the fitted model. Post-fit operations such
+  # as drop_items() must not silently change the identification, threshold
+  # parameterisation, fit grouping, or optimiser controls when they refit.
+  # Anchors are stored by item name so their meaning survives column removal.
+  anchors_named <- anchors
+  if (!is.null(anchors_named) &&
+      !(is.character(anchors_named$item) || is.factor(anchors_named$item)))
+    anchors_named$item <- colnames(X)[as.integer(anchors_named$item)]
+  key_spec <- NULL
+  if (!is.null(mc)) {
+    key_spec <- do.call(rbind, lapply(names(mc$map), function(it) {
+      data.frame(item = it, option = names(mc$map[[it]]),
+                 score = unname(mc$map[[it]]), stringsAsFactors = FALSE)
+    }))
+    rownames(key_spec) <- NULL
+  }
+  fit$refit_spec <- list(
+    model = model, n_groups = n_groups_requested, adjust_N = adjust_N,
+    anchors = anchors_named, na_codes = na_codes, key = key_spec,
+    pc_components = pc_components, maxit = maxit, tol = tol)
   fit
 }
 
@@ -593,20 +604,27 @@ print.rasch <- function(x, ...) {
 #' @export
 summary.rasch <- function(object, ...) {
   x <- object
+  structural <- inherits(x, c("rasch_mfrm", "rasch_efrm"))
+  unit <- if (structural) "Response-cell" else "Item"
+  units <- if (structural) "response cells" else "items"
   print(x)
-  cat(sprintf("\nTargeting: person mean %.3f (SD %.3f); thresholds span %.3f to %.3f\n",
+  cat(sprintf("\nTargeting: person mean %.3f (SD %.3f); %sthresholds span %.3f to %.3f\n",
               x$targeting$person_mean, x$targeting$person_sd,
+              if (structural) "calibration " else "",
               x$targeting$threshold_range[1], x$targeting$threshold_range[2]))
-  cat(sprintf("Item fit residual mean %.3f SD %.3f (skew %.2f, kurt %.2f); person fit residual mean %.3f SD %.3f (skew %.2f, kurt %.2f)\n",
+  cat(sprintf("%s fit residual mean %.3f SD %.3f (skew %.2f, kurt %.2f); person fit residual mean %.3f SD %.3f (skew %.2f, kurt %.2f)\n",
+              unit,
               x$item_fit_summary$mean, x$item_fit_summary$sd,
               x$item_fit_summary$skewness, x$item_fit_summary$kurtosis,
               x$person_fit_summary$mean, x$person_fit_summary$sd,
               x$person_fit_summary$skewness, x$person_fit_summary$kurtosis))
-  cat(sprintf("Fit residual-location correlation: items %.3f, persons %.3f; cell df factor %.3f\n",
+  cat(sprintf("Fit residual-location correlation: %s %.3f, persons %.3f; cell df factor %.3f\n",
+              units,
               x$summary_stats$cor_item_fit_location,
               x$summary_stats$cor_person_fit_location,
               x$summary_stats$df_factor))
-  cat(sprintf("Items with adjusted chi-square p < 0.05: %d of %d\n\n",
+  cat(sprintf("%s with adjusted chi-square p < 0.05: %d of %d\n\n",
+              if (structural) "Response cells" else "Items",
               sum(x$items$p_adj < 0.05, na.rm = TRUE), nrow(x$items)))
   core <- c("item", "max", "location", "se", "fit_resid", "infit_ms",
             "outfit_ms", "chisq", "df", "p_adj")
@@ -615,6 +633,8 @@ summary.rasch <- function(object, ...) {
       " ANOVA fit, Bonferroni probabilities)\n", sep = "")
   dis <- vapply(x$thresholds_diag, function(d) !d$ordered, TRUE) &
     vapply(x$thresholds_diag, function(d) length(d$thresholds) > 1L, TRUE)
-  if (any(dis)) cat(sprintf("\nDisordered thresholds: %s\n", paste(names(dis)[dis], collapse = ", ")))
+  if (any(dis)) cat(sprintf("\nDisordered %sthresholds: %s\n",
+                            if (structural) "response-cell " else "",
+                            paste(names(dis)[dis], collapse = ", ")))
   invisible(x)
 }

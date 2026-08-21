@@ -123,7 +123,9 @@ okC <- stats::complete.cases(lr); lt <- log(1.4)
 add("EFRM item-set log unit ratio (truth log 1.4 = 0.3365)",
     "bias of rasch_efrm", sum(okC), bias = mean(lr[okC,"efrm"]) - lt,
     emp_sd = sd(lr[okC,"efrm"]), n_attempted = R, n_refused = n_refC,
-    notes = "variance-ratio linking estimator; the vignette documents recovered set units sitting a few per cent above planted values")
+    notes = paste("semiparametric finite-grid link with the within-set",
+                  "calibrations held fixed; one latent distribution is",
+                  "estimated for each observed person group"))
 add("EFRM item-set log unit ratio (truth log 1.4 = 0.3365)",
     "bias of TAM 2PL.groups anchor", sum(okC), bias = mean(lr[okC,"tam"]) - lt,
     emp_sd = sd(lr[okC,"tam"]),

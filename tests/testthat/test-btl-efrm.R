@@ -20,9 +20,11 @@ test_that("G = 1, S = 1 reduces exactly to btl()", {
   expect_equal(fit$objects$v, fit$objects$beta_set)
   expect_equal(nrow(fit$alpha_table), 1L)
   expect_equal(fit$alpha_table$alpha, 1)
+  expect_error(btl_dif(fit, factors = rep("g", nrow(fit$comparisons))),
+               "not defined after a BTL-EFRM frame adjustment")
 })
 
-test_that("planted panel units (phi) are recovered and Wald-flagged", {
+test_that("conditional panel units are recovered but inference is withheld", {
   phi_true <- c(0.7, 1.0, 1.43); phi_true <- phi_true / exp(mean(log(phi_true)))
   d <- simulate_btl_efrm(n_objects_per_set = 8, n_sets = 1, n_panels = 3,
                          n_judges_per_panel = 20, reps_within = 120,
@@ -36,11 +38,8 @@ test_that("planted panel units (phi) are recovered and Wald-flagged", {
   expect_lt(max(abs(z)), 3)                              # each within 3 SE
   # geometric-mean-one normalisation
   expect_equal(exp(mean(log(pt$phi))), 1, tolerance = 1e-8)
-  # the two panels with phi != 1 flag; the phi = 1 panel does not
-  flagged <- pt$p < 0.05
-  expect_true(flagged[pt$panel == "panel1"])            # 0.70
-  expect_true(flagged[pt$panel == "panel3"])            # 1.43
-  expect_false(flagged[pt$panel == "panel2"])           # 1.00
+  expect_true(all(is.na(pt$p)))
+  expect_true(all(is.na(pt$p_adj)))
   # single set: no set units estimated
   expect_equal(nrow(fit$alpha_table), 1L)
 })
@@ -70,12 +69,13 @@ test_that("planted set units (alpha) and origins (kappa) are recovered", {
   expect_setequal(fit$unit_omnibus$term,
                   c("panel units (phi)", "set units (alpha)",
                     "set origins (kappa)"))
+  expect_true(all(is.na(fit$unit_omnibus$p)))
   expect_true(all(c("p_adj", "significant") %in%
                     names(fit$alpha_table)))
 })
 
-test_that("units are not spuriously flagged under the null", {
-  base <- 300L; flags <- 0L; diffs <- numeric(12)
+test_that("conditional equal-unit fits remain numerically stable under the null", {
+  base <- 300L; diffs <- numeric(12)
   for (k in seq_len(12)) {
     d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
                            n_judges_per_panel = 10, reps_within = 20,
@@ -83,11 +83,10 @@ test_that("units are not spuriously flagged under the null", {
     fit <- befit(d, "object_a", "object_b", winner = "winner",
                     judge = "judge", panels = "panel",
                     object_sets = attr(d, "truth")$object_sets)
-    flags <- flags + any(fit$phi_table$p < 0.05, na.rm = TRUE) +
-      any(fit$alpha_table$p < 0.05, na.rm = TRUE)
+    expect_true(all(is.na(fit$phi_table$p)))
+    expect_true(all(is.na(fit$alpha_table$p)))
     diffs[k] <- fit$equal_unit$difference
   }
-  expect_lte(flags, 2L)                                 # loose binomial bound
   expect_lt(max(abs(diffs)), 25)                        # equal-unit gap small
 })
 
@@ -228,6 +227,16 @@ test_that("bootstrap SEs propagate linking uncertainty (estimates unchanged)", {
   expect_equal(fb$objects$v, fc$objects$v)
   # the bootstrap carries stage-one noise the conditional errors omit
   expect_gt(fb$alpha_table$se_log_alpha[2], fc$alpha_table$se_log_alpha[2])
+  expect_true(all(is.finite(fb$unit_omnibus$df2)))
+
+  # The model-based bootstrap draws comparison outcomes independently. Its
+  # reference is therefore normal/chi-square, not the finite-judge reference
+  # used after resampling judges.
+  set.seed(10)
+  fp <- btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel", os,
+                 se_method = "bootstrap", boot_reps = 30)
+  expect_true(all(is.infinite(fp$unit_omnibus$df2)))
+  expect_true(all(is.infinite(fp$alpha_table$df)))
 })
 
 test_that("bootstrap SEs are calibrated on the chain-linked design", {

@@ -117,6 +117,9 @@ $$
 A same-set comparison in panel $g$ has logit
 $\phi_g(\beta_A-\beta_B)$; a cross-set comparison has logit
 $\phi_g(v_A-v_B)$. Cross-set comparisons identify the set units and origins.
+The cross-set likelihood holds the within-set locations and panel units fixed.
+It estimates the set transformations directly from the comparison outcomes
+and does not use the finite-grid person-distribution link in `rasch_efrm()`.
 
 ```{r efrm}
 de <- simulate_btl_efrm(
@@ -137,9 +140,19 @@ ef$kappa_table
 
 The default judge bootstrap resamples judges within panels and refits both
 stages. The parametric bootstrap (`se_method = "bootstrap"`) draws independent
-outcomes from the fitted model. The conditional option used above does not
-propagate stage-one uncertainty into the set-linking parameters. Omnibus tests
-cover the unit families; individual contrasts are Holm-adjusted follow-ups.
+outcomes from the fitted model. The conditional option used above reports
+estimates and conditional standard errors but withholds probabilities because
+it does not propagate stage-one uncertainty into the set link. With either
+bootstrap, omnibus tests cover the unit families and individual contrasts are
+Holm-adjusted follow-ups.
+
+With 12 judges and 20 repetitions per pair, null rejection for the three unit
+families was 3.3--5.3 per cent under the judge bootstrap and 3.0--6.7 per cent
+under the independent-outcome bootstrap. The staged set-unit estimate has
+small finite-sample attenuation when the within-set locations are imprecise:
+log-unit bias was -0.041 at 20 repetitions per pair, -0.016 at 50 and -0.007
+at 100. The bootstrap intervals retained nominal coverage at the 20-repetition
+design.
 
 ## A worked analysis on real data
 

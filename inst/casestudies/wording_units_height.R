@@ -1,9 +1,9 @@
 # Case study: a real wording effect that leaves the person ordering alone
 # ===========================================================================
 # The companion case study, wording_units_selfesteem.R, finds a set-unit
-# difference between positively and negatively worded items that turns out
-# to be carried by a single anomalous item: drop Q8 and the difference
-# vanishes. This one is the opposite case, and the pair is the point.
+# difference between positively and negatively worded items that is heavily
+# attenuated when one anomalous item, Q8, is removed. This study asks whether
+# the same sensitivity appears in a deliberately balanced wording design.
 #
 # The Height Inventory (Recka, 2018) asks 26 questions about self-perceived
 # height, 13 worded in the tall direction ("I often have to ask others to
@@ -41,8 +41,10 @@ cat(sprintf("%d respondents with a complete inventory and a reported height\n",
 
 # equal-unit Rasch versus wording-set EFRM -----------------------------------
 f0 <- rasch(df, items = items, factors = "gender")
+set.seed(26)
 f1 <- rasch_efrm(df, items = items, groups = rep("all", nrow(df)),
-                 item_sets = list(tall = tall, short = short))
+                 item_sets = list(tall = tall, short = short),
+                 se_method = "hybrid", boot_reps = 300)
 print(f1$alpha_table, digits = 3)
 print(f1$efrm_vs_rasch$unit_tests, digits = 3)
 
@@ -122,10 +124,10 @@ cat(sprintf("difference between them: t = %.3f on %d df, p = %.3f\n",
 cat(sprintf("correlation between the two sets of measures: %.5f\n", r23))
 
 # what the pair of case studies shows ----------------------------------------
-# Here the unit difference is real in a way the self-esteem one is not. The
-# worst-fitting item departs barely further than the next, every single-item
-# removal leaves the ratio well above one, and a free-slope model fitted to
-# the same people agrees on the size. It is a property of the wording.
+# Here the unit difference is distributed across the wording sets rather than
+# concentrated in one item. The two largest fit residuals are nearly equal,
+# every single-item removal leaves the ratio above one (1.19 to 1.32), and a
+# free-slope model fitted to the same people gives the same ratio, 1.258.
 #
 # And it does not matter for measuring a person. The frame model spreads
 # people who share a raw score by up to half a logit and moves most of the
@@ -134,9 +136,9 @@ cat(sprintf("correlation between the two sets of measures: %.5f\n", r23))
 # marginally the better predictor. A unit difference decisive at p < 1e-30
 # is not thereby consequential for person measurement.
 #
-# So the two studies fail in opposite directions, and neither failure is
-# visible from the unit test alone. In the self-esteem data a significant
-# set-level effect was one item. Here a genuine set-level effect leaves the
-# person ordering where it was. What the frame model buys in both cases is
-# an account of how the ITEMS behave; read it as a claim about persons only
-# after checking against something outside the model.
+# The comparison with the self-esteem study is therefore one of stability,
+# not merely statistical significance. There, removing Q8 reduces the ratio
+# from about 1.32 to 1.08; here no single removal removes the difference.
+# What the frame model supplies in both cases is an account of how the items
+# behave. Read it as a claim about persons only after checking against
+# something outside the model.
