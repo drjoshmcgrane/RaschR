@@ -35,7 +35,7 @@ test_that("dif_anova reports the full two-way table with effect sizes", {
   tested <- !da$terms$term %in% c("Residuals", "ci") &
     is.finite(da$terms$p)
   expect_equal(da$terms$p_adj[tested],
-               p.adjust(da$terms$p[tested], method = "BH"))
+               p.adjust(da$terms$p[tested], method = "holm"))
   # familywise option flows through
   db <- dif_anova(fit, p_adjust = "bonferroni")
   expect_true(all(db$summary$p_uniform_adj >= su$p_uniform_adj - 1e-12,

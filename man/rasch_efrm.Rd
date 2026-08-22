@@ -62,8 +62,9 @@ An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
   Model-specific components include \code{frames}, \code{phi_table},
   \code{alpha_table}, \code{set_table}, common-unit item and threshold
   tables, group-specific \code{score_curves}, \code{efrm_vs_rasch}, and
-  \code{linking}. See the extended frame of reference vignette for their
-  interpretation.
+  \code{linking}, and the person support used for unit inference in
+  \code{unit_support}. See the extended frame of reference vignette for
+  their interpretation.
 }
 \description{
 Fits Humphry's extended frame of reference model, in which the unit can
@@ -111,7 +112,10 @@ The \code{efrm_vs_rasch} component records the within-frame composite
 log-likelihood comparison between group-dependent and equal group units.
 This difference is descriptive and contains no information about set units,
 which are identified at the linking stage. The accompanying Wald omnibus
-tests provide inference for the group- and set-unit families.
+tests provide inference for the group- and set-unit families. Unit estimates
+are retained for sparse designs, but probabilities require at least 50
+persons or effective persons in every group and at least 50 common persons
+on every set-link edge.
 
 The model assumes that an item retains its location and discrimination
 across the frames in which it appears, apart from the frame unit.

@@ -244,7 +244,7 @@ split_items <- function(fit, items, by) {
 #'   \code{\link{drop_items}} to remove an item instead, and
 #'   \code{\link{dif_anova}} for the test it resolves.
 #' @export
-resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "BH",
+resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
                         min_anchors = NULL, max_splits = NULL) {
   if (!inherits(fit, "rasch") || inherits(fit, c("rasch_mfrm", "rasch_efrm")))
     stop("resolve_dif needs an ordinary rasch fit with person factors")

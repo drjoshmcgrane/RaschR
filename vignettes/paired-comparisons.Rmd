@@ -89,10 +89,10 @@ the reference distribution.
 `btl_dif` tests whether object locations differ across nominated judge factors.
 The omnibus analysis uses judges as the independent units. A significant term
 is resolved into factor-specific object locations and pairwise logit
-differences. Pairwise inference requires at least eight effective judges in
-each level; with thinner levels, the locations and differences are reported
-descriptively. The pairwise table gives the raw and effective judge counts for
-both levels, so concentrated workloads remain visible.
+differences. HC3 covariance allows the precision of judge means to vary with
+their comparison workloads. Omnibus and pairwise inference require at least
+eight judges and eight effective judges in each factor level; estimates remain
+descriptive below that boundary. The tables report both counts.
 
 ```{r btl-dif-example, eval = FALSE}
 judge_group <- setNames(panel_data$discipline, panel_data$judge)
@@ -161,7 +161,8 @@ outcomes from the fitted model. The conditional option used above reports
 estimates and conditional standard errors but withholds probabilities because
 it does not propagate stage-one uncertainty into the set link. With either
 bootstrap, omnibus tests cover the unit families and individual contrasts are
-Holm-adjusted follow-ups.
+Holm-adjusted follow-ups. Judge-bootstrap tests require at least six judges
+and 5.5 effective judges in every panel, and eight of each on a set link.
 
 With 12 judges and 20 repetitions per pair, null rejection for the three unit
 families was 3.3--5.3 per cent under the judge bootstrap and 3.0--6.7 per cent

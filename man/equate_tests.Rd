@@ -31,7 +31,7 @@ returned but inferential drift columns are withheld.}
 }
 \value{
 A list with the comparison \code{table} (locations, standard
-  errors, difference, t, raw and BH-adjusted p, drift flag), the
+  errors, difference, t, raw and Holm-adjusted p, drift flag), the
   estimated \code{shift},
   the location \code{correlation}, the root mean square difference after
   shifting (\code{rmsd}), the number of common items \code{n_common}, the

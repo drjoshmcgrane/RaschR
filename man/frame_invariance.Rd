@@ -35,7 +35,8 @@ An object of class \code{"rasch_frame_invariance"}. The
   item comparisons; \code{summary} contains set-level RMSD and RMSE
   summaries. Under the conditional method, discrimination \code{p},
   \code{p_adj}, and \code{flagged} are \code{NA}. \code{excluded} lists
-  items whose observed category structures differed between calibrations.
+  items whose observed category structures differed between calibrations
+  or whose separate-frame estimate was weakly determined.
   The remaining components record the multiplicity and uncertainty settings.
 }
 \description{
@@ -81,6 +82,9 @@ items. Concentrated DIF can therefore produce non-zero centred contrasts
 for items that were not themselves shifted. The table identifies the
 pattern of relative departures; item content or external anchors are needed
 to determine which items provide the defensible reference.
+A compared set-by-frame cell must contain at least 50 persons with two or
+more responses. Items with weakly determined standard errors in either
+separate calibration are listed in \code{excluded} rather than tested.
 
 A flagged item may be resolved with \code{\link{resolve_frames}} when it
 remains useful within frames, or removed with \code{\link{drop_items}}

@@ -83,8 +83,8 @@
 # over the class intervals. Under fit the interval means share a common
 # zero mean, so the between-interval F on (G - 1, n - G) degrees of freedom
 # tests the same item-trait interaction as the chi-square but through the
-# ANOVA calibration. Reported with Benjamini-Hochberg (false discovery
-# rate) and Bonferroni (familywise) adjustments across items.
+# ANOVA calibration. Reported with Holm and Bonferroni familywise
+# adjustments across items.
 .item_anova <- function(Z, ci, extreme, ci_list = NULL) {
   L <- ncol(Z)
   out <- data.frame(item = colnames(Z), F_anova = NA_real_, df1 = NA_integer_,
@@ -106,7 +106,7 @@
     out$df1[i] <- G - 1L; out$df2[i] <- n - G
     out$p[i] <- pf(out$F_anova[i], G - 1, n - G, lower.tail = FALSE)
   }
-  out$p_adj <- p.adjust(out$p, method = "BH")
+  out$p_adj <- p.adjust(out$p, method = "holm")
   out$p_bonf <- p.adjust(out$p, method = "bonferroni")
   out
 }
@@ -259,7 +259,7 @@
   n_used <- sum(!is.na(ci))
   if (!is.na(adjust_N)) chi <- chi * (adjust_N / n_used)
   p <- pchisq(chi, df_i, lower.tail = FALSE)
-  p_adj <- p.adjust(p, method = "BH")
+  p_adj <- p.adjust(p, method = "holm")
   data.frame(item = colnames(X), chisq = chi, df = df_i, p = p,
              p_adj = p_adj, p_bonf = p.adjust(p, method = "bonferroni"))
 }

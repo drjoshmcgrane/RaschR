@@ -68,7 +68,8 @@ or \code{"judge_bootstrap"}; at least 30 are required.}
 \value{
 An object of class \code{"rasch_btl_efrm"}. It contains the object
   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
-  frame definitions, convergence information, and analysis notes.
+  unit-specific judge support, frame definitions, convergence information,
+  and analysis notes.
 }
 \description{
 Fits paired comparisons when judges belong to panels and objects belong to
@@ -109,6 +110,10 @@ failures and boundary estimates are reported in \code{notes}.
 With one set, the model contains panel units only. With one set and one
 panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference
 for the unit families; individual contrasts are Holm-adjusted follow-ups.
+Judge-bootstrap probabilities require at least six judges and 5.5 effective
+judges in every contributing panel, and eight of each on a set link. The
+support is returned in \code{unit_support}; estimates remain descriptive
+when a probability is withheld.
 }
 \examples{
 \donttest{

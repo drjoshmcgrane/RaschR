@@ -2,6 +2,12 @@
 
 ## Models and inference
 
+* Sparse-unit safeguards now use the sampling units that inform each test.
+  MFRM interaction tests use the least-supported facet level; EFRM unit tests
+  require adequate persons on every group or set link; BTL-EFRM judge
+  bootstraps require adequate effective judges in every panel or link; and
+  frame-invariance tests exclude weak frame calibrations.
+
 * `rasch_mfrm()` supports several facets and an optional item-by-facet
   interaction. Omnibus and cell follow-up tests use the fitted joint
   covariance.
@@ -34,6 +40,13 @@
   parametric bootstrap uses normal and chi-square references.
 
 ## Differential item functioning
+
+* Confirmatory multiplicity defaults are now consistently Holm familywise
+  adjustments across item fit, DIF, equating and the application. BH remains
+  available where false-discovery-rate screening is explicitly requested.
+  BTL DIF uses HC3 covariance for unequal judge workloads and withholds
+  omnibus probabilities below eight judges or eight effective judges in a
+  factor cell.
 
 * `dif_anova()` fits several person factors jointly using Type II sums of
   squares. Repeated measurements use the person as the sampling unit and

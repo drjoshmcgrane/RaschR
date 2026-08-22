@@ -89,7 +89,10 @@
 #' An item-by-facet interaction retains equal discrimination but allows facet
 #' differences to vary by item. The omnibus Wald test in
 #' \code{interaction_test} is the primary test; cell tests are Holm-adjusted
-#' follow-ups.
+#' follow-ups. Interaction probabilities require at least
+#' \eqn{\max\{30,q+2\}} persons and effective persons at every level of the
+#' interactive facet, where \eqn{q} is the omnibus degrees of freedom.
+#' Estimates remain descriptive when this condition is not met.
 #'
 #' @param data Long-format data frame.
 #' @param person Name of the person identifier column.
@@ -500,6 +503,30 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       item = rep(items_u, R0),
       level = rep(flevs[[interaction]], each = Li),
       gamma = gvec, se = sqrt(pmax(diag(cov_g), 0)))
+    # Inferential support is set by the least-observed interaction level, not
+    # by the total calibration sample. A sparse rater or task level cannot
+    # borrow denominator degrees of freedom from people who never contributed
+    # to that level. Response counts supply Kish weights, so highly unequal
+    # coverage also reduces the effective number of persons.
+    lev_support <- lapply(flevs[[interaction]], function(lv) {
+      cc <- which(vmap[[interaction]] == lv)
+      nr <- rowSums(!is.na(fit$X[, cc, drop = FALSE]))
+      nr[fit$person$extreme] <- 0
+      ww <- nr[nr > 0]
+      data.frame(level = lv, n_persons = length(ww),
+                 effective_persons = if (length(ww))
+                   sum(ww)^2 / sum(ww^2) else 0,
+                 stringsAsFactors = FALSE)
+    })
+    fit$interaction_support <- do.call(rbind, lev_support)
+    q_int <- length(sol$beta[idx])
+    min_required <- max(30L, q_int + 2L)
+    fit$interaction_support$minimum_required <- min_required
+    support_ok <- all(fit$interaction_support$n_persons >= min_required &
+      fit$interaction_support$effective_persons >=
+        min_required - sqrt(.Machine$double.eps))
+    n_units <- floor(min(fit$interaction_support$effective_persons))
+
     # inferential reference: the sandwich covariance is ESTIMATED from the
     # persons' score contributions, so a chi-square reference for the
     # multi-degree-of-freedom Wald is anticonservative in realistic samples
@@ -508,11 +535,10 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     # showed ~13% rejection at nominal 5% under the chi-square reference).
     # Use the T-squared-style F reference with persons as the units, and a
     # t reference for the per-cell follow-ups.
-    n_units <- sum(!fit$person$extreme &
-                     rowSums(!is.na(fit$X)) >= 2L)
     fit$interaction_effects$z <- with(fit$interaction_effects, gamma / se)
-    fit$interaction_effects$p <- with(fit$interaction_effects,
-      2 * stats::pt(-abs(z), df = max(n_units - 1L, 1L)))
+    fit$interaction_effects$p <- if (support_ok)
+      with(fit$interaction_effects,
+        2 * stats::pt(-abs(z), df = max(n_units - 1L, 1L))) else NA_real_
     fit$interaction_effects$p_adj <- stats::p.adjust(
       fit$interaction_effects$p, method = "holm")
     fit$interaction_effects$significant <-
@@ -522,13 +548,19 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     Wg <- tryCatch(drop(t(bg) %*% solve(Vg) %*% bg),
                    error = function(e) NA_real_)
     q_int <- length(bg)
-    if (is.finite(Wg) && n_units > q_int + 1L) {
+    if (support_ok && is.finite(Wg) && n_units > q_int + 1L) {
       Fg <- Wg * (n_units - q_int) / (q_int * (n_units - 1L))
       pg <- stats::pf(Fg, q_int, n_units - q_int, lower.tail = FALSE)
     } else { Fg <- NA_real_; pg <- NA_real_ }
     fit$interaction_test <- data.frame(
       facet = interaction, df = q_int, wald = Wg,
-      f = Fg, df2 = max(n_units - q_int, 0L), p = pg)
+      f = Fg, df2 = if (support_ok) max(n_units - q_int, 0L) else NA_real_,
+      p = pg, min_effective_persons = n_units,
+      minimum_required = min_required,
+      inference_available = support_ok)
+    if (!support_ok) fit$notes <- unique(c(fit$notes, sprintf(
+      "the %s interaction estimates are descriptive because at least one level has fewer than %d persons or effective persons; probabilities are withheld",
+      interaction, min_required)))
     fit$interaction <- interaction
   }
   fit$facet_spec <- facets

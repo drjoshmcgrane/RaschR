@@ -8,7 +8,7 @@ dif_anova(
   fit,
   factors = NULL,
   n_groups = NULL,
-  p_adjust = "BH",
+  p_adjust = "holm",
   alpha = 0.05,
   effects = c("main", "factorial"),
   sizes = FALSE,
@@ -31,7 +31,8 @@ interval and cell, with between 2 and 10 intervals. The selected value is
 returned in \code{n_groups}.}
 
 \item{p_adjust}{Multiplicity adjustment over all item-by-term tests;
-default \code{"BH"}.}
+default \code{"holm"}. Use \code{"BH"} only for
+false-discovery-rate screening rather than familywise control.}
 
 \item{alpha}{Significance level applied to the adjusted probabilities.}
 
@@ -142,9 +143,8 @@ subset(mixed_dif$summary, uniform_DIF | nonuniform_DIF)
 }
 }
 \references{
-Benjamini, Y. and Hochberg, Y. (1995). Controlling the false discovery
-rate: a practical and powerful approach to multiple testing. Journal of
-the Royal Statistical Society: Series B, 57(1), 289--300.
+Holm, S. (1979). A simple sequentially rejective multiple test procedure.
+Scandinavian Journal of Statistics, 6(2), 65--70.
 
 Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
 differential item functioning in health research using the Rasch model.

@@ -1145,9 +1145,9 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
         numericInput("dif_alpha", "Significance level (alpha)", value = 0.05,
                      min = 0.001, max = 0.5, step = 0.01),
         selectInput("dif_padj", "Multiplicity adjustment",
-                    c("Benjamini-Hochberg" = "BH",
-                      "Holm" = "holm",
-                      "Bonferroni" = "bonferroni",
+                    c("Holm (familywise)" = "holm",
+                      "Benjamini-Hochberg (FDR)" = "BH",
+                      "Bonferroni (familywise)" = "bonferroni",
                       "None" = "none")),
         conditionalPanel("output.dif_refit_available == true",
           hr(),
@@ -1274,14 +1274,14 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
         accordion_panel("DIF analysis of variance", value = "bdif_anova",
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("bdif_anova_tbl",
-              info = "ANOVA of the standardised residuals of each object's comparisons, oriented to the object: a significant judge-group effect indicates uniform DIF, a significant group-by-opponent-band interaction non-uniform DIF; probabilities are adjusted across objects by Benjamini-Hochberg. Click a row to see that object's characteristic curves by judge group on the right.",
+              info = "ANOVA of each object's standardised residuals. A judge-group effect indicates uniform DIF; a group-by-opponent-band interaction indicates non-uniform DIF. Probabilities use the selected multiplicity adjustment, Holm by default. Click a row to show the characteristic curves by judge group.",
               footer = uiOutput("bdif_notes")),
             plotCard("bdif_occ", "Characteristic curves by group",
               info = "The object characteristic curve with the observed mean response per opponent overlaid separately for each judge group: the graphical display of DIF for the object of the selected table row.",
               hover = TRUE))),
         accordion_panel("DIF magnitude in logits", value = "bdif_size_panel",
           tableCard("bdif_sizes_tbl",
-            note = "Pairwise differences between the resolved per-group locations, in logits, with Benjamini-Hochberg adjustment across objects; differences of at least 0.5 logits are flagged as practically significant.")))
+            note = "Pairwise differences between resolved group locations, in logits, using the selected multiplicity adjustment. Differences of at least 0.5 logits are flagged as practically significant.")))
     ))
   )
 
@@ -3165,7 +3165,7 @@ server <- function(input, output, session) {
   observeEvent(input$resolve_all, {
     run_factors <- names(fit()$factors)
     run_alpha <- dif_alpha()
-    run_adjust <- input$dif_padj %||% "BH"
+    run_adjust <- input$dif_padj %||% "holm"
     rr <- tryCatch(
       resolve_dif(fit(), factors = run_factors, alpha = run_alpha,
                   p_adjust = run_adjust),
@@ -3508,6 +3508,10 @@ server <- function(input, output, session) {
     eta2_nonuniform = "Non-uniform η²",
     eta2_partial = "Partial η²",
     uniform_DIF = "Uniform DIF", nonuniform_DIF = "Non-uniform DIF",
+    min_judges = "Min judges",
+    min_effective_judges = "Min effective judges",
+    uniform_inference = "Uniform inference",
+    nonuniform_inference = "Non-uniform inference",
     superseded = "Superseded", sum_sq = "Sum Sq", mean_sq = "Mean Sq",
     F_value = "F",
     mean_location = "Mean location", point_biserial = "Point-biserial",
@@ -4377,7 +4381,7 @@ server <- function(input, output, session) {
   dif_res <- reactive({
     f <- fit(); req(!is.null(f$factors))
     soft(dif_anova(f, effects = input$dif_effects %||% "main",
-                   p_adjust = input$dif_padj %||% "BH", alpha = dif_alpha()))
+                   p_adjust = input$dif_padj %||% "holm", alpha = dif_alpha()))
   })
   # code footer: omit the effects argument when there is only one factor
   dif_effects_arg <- function()
@@ -4394,7 +4398,7 @@ server <- function(input, output, session) {
     style_lo_red(dt, d, "p_nonuniform_adj", dif_alpha())
   }, code = function()
     sprintf('dif_anova(fit, %sp_adjust = %s, alpha = %s)$summary',
-            dif_effects_arg(), qstr(input$dif_padj %||% "BH"), dif_alpha()))
+            dif_effects_arg(), qstr(input$dif_padj %||% "holm"), dif_alpha()))
   # full per-item ANOVA table: every model term, computed lazily when its
   # disclosure is first switched on (the DT renders only once visible)
   register_table("dif_full_tbl", function() dif_res()$terms, function() {
@@ -4404,7 +4408,7 @@ server <- function(input, output, session) {
     style_lo_red(num_dt(d), d, "p_adj", dif_alpha())
   }, code = function()
     sprintf('dif_anova(fit, %sp_adjust = %s, alpha = %s)$terms',
-            dif_effects_arg(), qstr(input$dif_padj %||% "BH"), dif_alpha()))
+            dif_effects_arg(), qstr(input$dif_padj %||% "holm"), dif_alpha()))
   output$dif_note <- renderUI({
     r <- dif_res(); d <- r$summary
     sig <- sum(d$uniform_DIF | d$nonuniform_DIF, na.rm = TRUE)
@@ -5286,8 +5290,10 @@ server <- function(input, output, session) {
     validate(need(!is.null(r),
                   "Choose one or more judge factors in the sidebar and run the DIF analysis."))
     d <- r$summary[, intersect(c("object", "term", "F_uniform",
-                                 "p_uniform_adj", "F_nonuniform",
-                                 "p_nonuniform_adj", "superseded"),
+                                 "p_uniform_adj", "min_judges",
+                                 "min_effective_judges", "uniform_inference",
+                                 "F_nonuniform", "p_nonuniform_adj",
+                                 "nonuniform_inference", "superseded"),
                                names(r$summary)), drop = FALSE]
     # a superseded row's flags are read on its higher-order term instead
     d$superseded <- ifelse(d$superseded, "(superseded)", "")
@@ -5299,8 +5305,10 @@ server <- function(input, output, session) {
   }, code = function()
     paste0("# dat: the comparison data; bt: the fit from the Data page\n",
            bdif_code_grp(), "\n",
-           sprintf('btl_dif(bt, factors, effects = %s, alpha = %s)$summary',
-                   qstr(bdif_shown_effects()), bdif_shown_alpha())))
+           sprintf(paste0('btl_dif(bt, factors, effects = %s, ',
+                          'p_adjust = %s, alpha = %s)$summary'),
+                   qstr(bdif_shown_effects()),
+                   qstr(bdif_res()$p_adjust), bdif_shown_alpha())))
   register_table("bdif_sizes_tbl", function() {
     r <- bdif_res(); req(!is.null(r), !is.null(r$sizes)); r$sizes
   }, function() {

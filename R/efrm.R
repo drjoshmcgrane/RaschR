@@ -752,7 +752,10 @@
 #' log-likelihood comparison between group-dependent and equal group units.
 #' This difference is descriptive and contains no information about set units,
 #' which are identified at the linking stage. The accompanying Wald omnibus
-#' tests provide inference for the group- and set-unit families.
+#' tests provide inference for the group- and set-unit families. Unit estimates
+#' are retained for sparse designs, but probabilities require at least 50
+#' persons or effective persons in every group and at least 50 common persons
+#' on every set-link edge.
 #'
 #' The model assumes that an item retains its location and discrimination
 #' across the frames in which it appears, apart from the frame unit.
@@ -797,8 +800,9 @@
 #'   Model-specific components include \code{frames}, \code{phi_table},
 #'   \code{alpha_table}, \code{set_table}, common-unit item and threshold
 #'   tables, group-specific \code{score_curves}, \code{efrm_vs_rasch}, and
-#'   \code{linking}. See the extended frame of reference vignette for their
-#'   interpretation.
+#'   \code{linking}, and the person support used for unit inference in
+#'   \code{unit_support}. See the extended frame of reference vignette for
+#'   their interpretation.
 #' @references
 #' Andrich, D. (1982). An extension of the Rasch model for ratings providing
 #' both location and dispersion parameters. Psychometrika, 47(1), 105--113.
@@ -1313,6 +1317,44 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
            else unname(link$se_log_alpha)
   fit$phi_table <- data.frame(group = glevs, phi = unname(phi),
                               se_log_phi = se_lp)
+  # Unit tests need support for the unit being tested. For phi, each person
+  # contributes through within-frame item pairs; for alpha, support is the
+  # number of common persons on the weakest edge of the set-linking graph.
+  # The estimates remain available below the boundary, but normal/Wald
+  # probabilities are not reported. Sparse-null simulations showed material
+  # size inflation at 10--30 persons and nominal behaviour at 100; 50 is the
+  # prespecified minimum for inferential use.
+  min_unit_persons <- 50L
+  group_support <- do.call(rbind, lapply(glevs, function(g) {
+    cc <- which(vmap$group == g)
+    nr <- rowSums(!is.na(Xv[, cc, drop = FALSE]))
+    ww <- choose(nr[nr >= 2L], 2L)
+    data.frame(group = g, n_persons = length(ww),
+               effective_persons = if (length(ww))
+                 sum(ww)^2 / sum(ww^2) else 0,
+               stringsAsFactors = FALSE)
+  }))
+  phi_ok <- all(group_support$n_persons >= min_unit_persons &
+    group_support$effective_persons >=
+      min_unit_persons - sqrt(.Machine$double.eps))
+  set_support <- data.frame(set = sets_u, n_common_persons = Inf,
+                            stringsAsFactors = FALSE)
+  if (S > 1L) for (ss in sets_u) {
+    ee <- link$edges$n[link$edges$set_a == ss | link$edges$set_b == ss]
+    set_support$n_common_persons[set_support$set == ss] <-
+      if (length(ee)) min(ee) else 0
+  }
+  alpha_ok <- S == 1L || all(set_support$n_common_persons >= min_unit_persons)
+  fit$unit_support <- list(group = group_support, set = set_support,
+                           minimum_persons = min_unit_persons,
+                           phi_inference = phi_ok,
+                           alpha_inference = alpha_ok)
+  if (!phi_ok) fit$notes <- unique(c(fit$notes, paste0(
+    "group-unit probabilities are withheld because at least one group has ",
+    "fewer than 50 persons or effective persons contributing within-frame pairs")))
+  if (!alpha_ok) fit$notes <- unique(c(fit$notes, paste0(
+    "set-unit probabilities are withheld because at least one set-link edge ",
+    "has fewer than 50 common persons")))
   # factorial decomposition of the cell units: generalised least squares
   # of log phi_cell on sum-coded main effects (and the interaction when
   # every cell is observed), using the JOINT covariance of the cell
@@ -1375,6 +1417,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
             stringsAsFactors = FALSE)
         }
         fit$phi_factorial_tests <- do.call(rbind, tests)
+        if (!phi_ok) fit$phi_factorial_tests$p <- NA_real_
       }
     }
   }
@@ -1466,19 +1509,30 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   unit_omnibus <- do.call(rbind, Filter(Negate(is.null), list(
     if (G > 1L) wald_zero(log(phi), Sig_phi, "group units (phi)"),
     if (S > 1L) wald_zero(log(alpha), Sig_alpha, "set units (alpha)"))))
+  if (!is.null(unit_omnibus)) {
+    unit_omnibus$p[unit_omnibus$term == "group units (phi)" & !phi_ok] <- NA_real_
+    unit_omnibus$p[unit_omnibus$term == "set units (alpha)" & !alpha_ok] <- NA_real_
+  }
 
   ut <- rbind(
     if (G > 1L) data.frame(parameter = paste0("log phi[", glevs, "]"),
                            estimate = log(fit$phi_table$phi),
-                           se = fit$phi_table$se_log_phi),
+                           se = fit$phi_table$se_log_phi,
+                           family = "phi"),
     if (S > 1L) data.frame(parameter = paste0("log alpha[", sets_u, "]"),
                            estimate = log(alpha),
-                           se = fit$alpha_table$se_log_alpha))
+                           se = fit$alpha_table$se_log_alpha,
+                           family = "alpha"))
   if (!is.null(ut)) {
     ut$z <- ut$estimate / ut$se
     ut$p <- 2 * pnorm(-abs(ut$z))
-    ut$p_adj <- stats::p.adjust(ut$p, method = "holm")
-    ut$significant <- ut$p_adj < 0.05
+    ut$p[ut$family == "phi" & !phi_ok] <- NA_real_
+    ut$p[ut$family == "alpha" & !alpha_ok] <- NA_real_
+    ut$p_adj <- NA_real_
+    usable <- is.finite(ut$p)
+    ut$p_adj[usable] <- stats::p.adjust(ut$p[usable], method = "holm")
+    ut$significant <- ifelse(is.finite(ut$p_adj), ut$p_adj < 0.05, NA)
+    ut$family <- NULL
     rownames(ut) <- NULL
   }
   fit$unit_cov <- list(cov_dtilde = sol$cov_dtilde,

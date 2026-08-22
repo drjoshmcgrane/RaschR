@@ -127,6 +127,11 @@ granularity deliberately).
   level, the current pair-specific reference rejected exactly 5.0% over 2,000
   datasets. A diagnostic minimum-cell reference rejected 3.55% and was not
   adopted. There were no refused or non-converged fits.
+- `results/btl-dif-hc3.csv` — null calibration of the between-judge residual
+  test under a fourfold variance ratio. With 8 versus 16 judges, the classical
+  equal-variance test rejected 11.72% or 1.78%, depending on which group was
+  less precise; HC3 gave 5.57% and 4.04%. With eight judges per group, HC3
+  gave 4.13% (10,000 replicates per condition).
 - `results/btl-equating-clustered.csv` — common-object drift under two
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the

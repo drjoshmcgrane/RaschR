@@ -66,6 +66,9 @@
 #' for items that were not themselves shifted. The table identifies the
 #' pattern of relative departures; item content or external anchors are needed
 #' to determine which items provide the defensible reference.
+#' A compared set-by-frame cell must contain at least 50 persons with two or
+#' more responses. Items with weakly determined standard errors in either
+#' separate calibration are listed in \code{excluded} rather than tested.
 #'
 #' A flagged item may be resolved with \code{\link{resolve_frames}} when it
 #' remains useful within frames, or removed with \code{\link{drop_items}}
@@ -87,7 +90,8 @@
 #'   item comparisons; \code{summary} contains set-level RMSD and RMSE
 #'   summaries. Under the conditional method, discrimination \code{p},
 #'   \code{p_adj}, and \code{flagged} are \code{NA}. \code{excluded} lists
-#'   items whose observed category structures differed between calibrations.
+#'   items whose observed category structures differed between calibrations
+#'   or whose separate-frame estimate was weakly determined.
 #'   The remaining components record the multiplicity and uncertainty settings.
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
@@ -137,18 +141,28 @@ NULL
       if (length(r) != 1L || !is.finite(r) || r <= 0) next
       V <- .item_location_covariance(f)
       if (is.null(V) || any(!is.finite(V))) next
+      good <- is.finite(f$items$location) & is.finite(f$items$se)
+      weak_items <- f$items$item[!good]
+      if (sum(good) < 2L) next
+      V <- V[good, good, drop = FALSE]
       V <- V / r^2
       cal[[g]] <- list(
-        table = data.frame(item = f$items$item,
-          loc = f$items$location / r, se = f$items$se / r,
-          n_thresholds = f$m,
-          category_signature = unname(category_signature[f$items$item]),
-          infit = f$items$infit_ms, infit_z = f$items$infit_z,
-          disc = f$items$disc, stringsAsFactors = FALSE), covariance = V)
+        table = data.frame(item = f$items$item[good],
+          loc = f$items$location[good] / r, se = f$items$se[good] / r,
+          n_thresholds = f$m[good],
+          category_signature = unname(category_signature[f$items$item[good]]),
+          infit = f$items$infit_ms[good], infit_z = f$items$infit_z[good],
+          disc = f$items$disc[good], stringsAsFactors = FALSE),
+        covariance = V, weak_items = weak_items)
     }
     if (length(cal) < 2L) next
     gg <- names(cal)
     for (a in seq_len(length(gg) - 1L)) for (b in (a + 1L):length(gg)) {
+      weak_pair <- union(cal[[gg[a]]]$weak_items, cal[[gg[b]]]$weak_items)
+      if (length(weak_pair)) excluded[[length(excluded) + 1L]] <- data.frame(
+        set = s, frame_1 = gg[a], frame_2 = gg[b], item = weak_pair,
+        reason = "weakly determined in a separate frame calibration",
+        stringsAsFactors = FALSE)
       m <- merge(cal[[gg[a]]]$table, cal[[gg[b]]]$table, by = "item",
                  suffixes = c("_1", "_2"))
       if (!nrow(m)) next
@@ -235,6 +249,25 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
          "with one group each item appears in a single frame, and item sets ",
          "partition the items, so use the item fit statistics within each ",
          "set instead")
+
+  # A separate-frame calibration supplies the covariance used by every item
+  # comparison. Small frames produced valid-looking but unstable normal tests
+  # in simulation, so require 50 informative persons in every observed
+  # set-by-frame cell before reporting invariance probabilities.
+  vm <- fit$virtual_map
+  fr <- unique(vm[, c("set", "group")])
+  n_frames_by_set <- table(fr$set)
+  sparse <- vapply(seq_len(nrow(fr)), function(i) {
+    if (n_frames_by_set[fr$set[i]] < 2L) return(FALSE)
+    cc <- which(vm$set == fr$set[i] & vm$group == fr$group[i] &
+                  vm$vkey %in% colnames(fit$X))
+    if (length(cc) < 2L) return(FALSE)
+    sum(rowSums(!is.na(fit$X[, vm$vkey[cc], drop = FALSE])) >= 2L) < 50L
+  }, logical(1))
+  if (any(sparse)) stop(
+    "frame-invariance inference needs at least 50 persons with two or more ",
+    "responses in every compared set-by-frame cell; sparse cell(s): ",
+    paste(paste(fr$set[sparse], fr$group[sparse], sep = "/"), collapse = ", "))
 
   ans <- .frame_invariance_conditional(fit)
   if (is.null(ans))

@@ -239,6 +239,22 @@ test_that("bootstrap SEs propagate linking uncertainty (estimates unchanged)", {
   expect_true(all(is.infinite(fp$alpha_table$df)))
 })
 
+test_that("judge-bootstrap unit tests respect panel-specific judge support", {
+  skip_on_cran()
+  d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 1, n_panels = 2,
+                         n_judges_per_panel = 10, reps_within = 35, seed = 81)
+  by_judge <- unique(d[c("judge", "panel")])
+  move <- by_judge$judge[by_judge$panel == "panel2"][1:8]
+  d$panel[d$judge %in% move] <- "panel1"
+  fit <- btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel",
+                  attr(d, "truth")$object_sets,
+                  se_method = "judge_bootstrap", boot_reps = 30)
+  expect_lt(min(fit$unit_support$panel$n_judges), 6)
+  expect_true(all(is.na(fit$phi_table$p)))
+  expect_true(all(is.na(fit$unit_omnibus$p)))
+  expect_true(all(is.finite(fit$phi_table$phi)))
+})
+
 test_that("bootstrap SEs are calibrated on the chain-linked design", {
   skip_on_cran()   # ~6 x 41 pipeline fits; the full battery: tools/calibration.R
   la <- se <- numeric(6)

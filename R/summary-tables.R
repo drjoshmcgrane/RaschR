@@ -48,7 +48,7 @@ fit_summary_table <- function(fit) {
     "Person fit residual skewness", "Person fit residual kurtosis",
     paste0("Fit-location correlation (", tolower(units), ")"),
     "Fit-location correlation (persons)",
-    paste(units, "with adjusted chi-square p < .05"),
+    paste(units, "with Holm-adjusted chi-square p < .05"),
     if (structural) "Disordered response-cell thresholds" else
       "Disordered thresholds"),
     value = c(

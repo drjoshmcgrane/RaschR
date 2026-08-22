@@ -141,6 +141,9 @@ The omnibus Wald tests assess the set- and group-unit families. Individual
 unit contrasts are Holm-adjusted follow-ups. The raw composite-likelihood
 difference is descriptive and compares the group-unit stage only. Set units
 are identified in the linking stage and are assessed by their Wald test.
+Probabilities require at least 50 persons or effective persons in every group
+and at least 50 common persons on every set-link edge. Sparse designs retain
+the unit estimates without an inferential probability.
 
 Simulation under normal, bimodal and deliberately different group
 distributions gave set-unit bias within 0.004 log-units, empirical-to-reported
@@ -153,7 +156,9 @@ not identified; four-item sets were recovered without bias.
 
 The fitted EFRM gives an item one location across its frames, scaled by the
 frame unit. `frame_invariance()` examines that restriction by calibrating
-each frame separately.
+each frame separately. Each compared frame needs at least 50 persons with two
+or more responses. Items with weak separate-frame standard errors are excluded
+from the comparison.
 
 For frame \(f\), the common-scale item location is
 \(\hat\delta_{if}^{*}=\hat\delta_{if}/\hat\rho_f\). The separate

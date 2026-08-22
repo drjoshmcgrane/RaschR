@@ -9,7 +9,7 @@ btl_dif(
   factors,
   objects = NULL,
   effects = c("main", "factorial"),
-  p_adjust = "BH",
+  p_adjust = "holm",
   alpha = 0.05,
   flag_logits = 0.5,
   min_n = 20,
@@ -50,7 +50,8 @@ A list of class \code{"rasch_btl_dif"}: \code{summary} (one row per
   eta-squared -- the term itself -- the non-uniform ones -- the term
   crossed with the opponent band -- plus \code{uniform_DIF},
   \code{nonuniform_DIF} and \code{superseded} flags); \code{terms} (the
-  full per-object analysis-of-variance table); \code{levels} (resolved
+  full per-object analysis-of-variance table, including its raw and
+  effective judge support); \code{levels} (resolved
   location, SE, comparison count, judge count and effective judge count per
   object, term and cell); \code{sizes} (per object, term and cell pair:
   difference in logits, judge support for both cells, SE, t, degrees of
@@ -81,6 +82,11 @@ descriptive. Pairwise tests use degrees of freedom based on the effective
 judges in the two cells. Higher-order terms supersede their component terms.
 Models fitted with \code{order} retain the exposure and carry-over effects
 in both the residual analysis and refit.
+Between-judge tests use HC3 covariance so unequal comparison workloads do
+not impose equal precision on judge means. Omnibus probabilities require
+at least eight judges and eight effective judges in every factor cell.
+Holm adjustment is the default; \code{"BH"} remains available for
+false-discovery-rate screening.
 
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce compensating
@@ -112,4 +118,8 @@ Andrich, D., & Hagquist, C. (2012). Real and artificial
   Modelling the effect of subject-specific covariates in paired
   comparison studies with an application to university rankings.
   \emph{Journal of the Royal Statistical Society C}, 47(4), 511-525.
+
+  MacKinnon, J. G., & White, H. (1985). Some heteroskedasticity-consistent
+  covariance matrix estimators with improved finite sample properties.
+  \emph{Journal of Econometrics}, 29(3), 305--325.
 }

@@ -82,6 +82,19 @@ test_that("frame-invariance bootstrap refits the units and controls one family",
                tail(p_all, nrow(z$discrimination)))
 })
 
+test_that("frame invariance requires adequate support in every frame", {
+  set.seed(4401)
+  n <- 60; L <- 6
+  grp <- rep(c("A", "B"), each = n / 2)
+  X <- matrix(rbinom(n * L, 1,
+    plogis(outer(rnorm(n), seq(-1.2, 1.2, length.out = L), "-"))), n, L)
+  colnames(X) <- paste0("I", seq_len(L))
+  fit <- rasch_efrm(data.frame(X, group = grp),
+                    item_sets = list(all = colnames(X)), groups = "group",
+                    boot_reps = 0)
+  expect_error(frame_invariance(fit), "at least 50 persons")
+})
+
 test_that("drop_items preserves anchors and principal-component PCM", {
   d <- simulate_rasch(400, 8, seed = 4)
   anchors <- data.frame(item = "I01", k = 1, tau = 1)

@@ -361,7 +361,7 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   expect_s3_class(dif, "rasch_btl_dif")
   tested <- dif$terms$term != "band" & is.finite(dif$terms$p)
   expect_equal(dif$terms$p_adj[tested],
-               p.adjust(dif$terms$p[tested], method = "BH"))
+               p.adjust(dif$terms$p[tested], method = "holm"))
   # summary route: a single factor gives one "group" term, only S06 flagged
   expect_true(dif$summary$uniform_DIF[dif$summary$object == "S06"])
   expect_equal(sum(dif$summary$uniform_DIF), 1L)
@@ -413,20 +413,13 @@ test_that("btl_dif withholds pairwise inference for thin judge-factor levels", {
              judge = "judge")
   out <- btl_dif(fit, grp, objects = "O3")
 
-  expect_true(out$summary$uniform_DIF)
-  expect_true(all(out$levels$n_judges == 4))
-  expect_true(all(out$levels$effective_judges < 8))
-  expect_true(all(out$sizes$n_judges_a == 4))
-  expect_true(all(out$sizes$n_judges_b == 4))
-  expect_true(all(out$sizes$effective_judges_a < 8))
-  expect_true(all(out$sizes$effective_judges_b < 8))
-  expect_true(all(is.na(out$levels$se)))
-  expect_true(all(is.na(out$sizes$se)))
-  expect_true(all(is.na(out$sizes$df)))
-  expect_true(all(is.na(out$sizes$p)) &&
-                all(is.na(out$sizes$significant)))
-  expect_true(all(is.finite(out$sizes$difference)))
-  expect_match(paste(out$notes, collapse = " "), "below eight effective")
+  expect_true(is.na(out$summary$p_uniform))
+  expect_false(out$summary$uniform_DIF)
+  expect_false(out$terms$inference_available[out$terms$term == "group"])
+  expect_null(out$levels)
+  expect_null(out$sizes)
+  expect_match(paste(out$notes, collapse = " "),
+               "below eight judges or eight effective judges")
 })
 
 test_that("btl_dif uses effective rather than raw judges for concentrated levels", {
@@ -456,13 +449,15 @@ test_that("btl_dif uses effective rather than raw judges for concentrated levels
   expect_true(fit$cl$inference_available)
   out <- btl_dif(fit, grp, objects = "O3")
 
-  expect_true(out$summary$uniform_DIF)
-  expect_true(all(out$levels$n_judges == 10))
-  expect_lt(out$levels$effective_judges[out$levels$level == "g1"], 8)
-  expect_gte(out$levels$effective_judges[out$levels$level == "g2"], 9.5)
-  expect_true(all(is.na(out$sizes$se)))
-  expect_true(all(is.na(out$sizes$p_adj)))
-  expect_match(paste(out$notes, collapse = " "), "below eight effective")
+  expect_true(is.na(out$summary$p_uniform))
+  expect_false(out$summary$uniform_DIF)
+  tr <- out$terms[out$terms$term == "group", ]
+  expect_equal(tr$min_judges, 10)
+  expect_lt(tr$min_effective_judges, 8)
+  expect_false(tr$inference_available)
+  expect_null(out$levels)
+  expect_null(out$sizes)
+  expect_match(paste(out$notes, collapse = " "), "eight effective judges")
 })
 
 test_that("btl_dif fits several judge factors jointly (main and factorial)", {
@@ -475,8 +470,8 @@ test_that("btl_dif fits several judge factors jointly (main and factorial)", {
   pr <- t(combn(objs, 2))
   d <- data.frame(a = rep(pr[, 1], each = 28), b = rep(pr[, 2], each = 28))
   d$judge <- sample(jids, nrow(d), TRUE)
-  shift <- ifelse(A[d$judge] == "g2" & d$a == "S06", 1,
-           ifelse(A[d$judge] == "g2" & d$b == "S06", -1, 0))
+  shift <- ifelse(A[d$judge] == "g2" & d$a == "S06", 2,
+           ifelse(A[d$judge] == "g2" & d$b == "S06", -2, 0))
   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b] + shift),
                   d$a, d$b)
   f <- btl(d, "a", "b", winner = "win", judge = "judge")
@@ -602,8 +597,8 @@ test_that("btl_dif tolerates adversarial factor names (band, f1)", {
   pr <- t(combn(objs, 2))
   d <- data.frame(a = rep(pr[, 1], each = 28), b = rep(pr[, 2], each = 28))
   d$judge <- sample(jids, nrow(d), TRUE)
-  sh <- ifelse(g[d$judge] == "hi" & d$a == "S06", 1,
-        ifelse(g[d$judge] == "hi" & d$b == "S06", -1, 0))
+  sh <- ifelse(g[d$judge] == "hi" & d$a == "S06", 2,
+        ifelse(g[d$judge] == "hi" & d$b == "S06", -2, 0))
   d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b] + sh), d$a, d$b)
   f <- btl(d, "a", "b", winner = "win", judge = "judge")
   # a factor named "band" must not collide with the opponent-band variable
@@ -736,11 +731,11 @@ test_that("btl_dif holds fitted dependence effects fixed (H1)", {
 test_that("btl_dif weights count-aggregated comparisons correctly (H2)", {
   set.seed(5)
   objs <- sprintf("S%d", 1:6); beta <- setNames(seq(-1, 1, length.out = 6), objs)
-  jids <- sprintf("J%d", 1:12); grp <- setNames(rep(c("g1", "g2"), each = 6), jids)
+  jids <- sprintf("J%d", 1:16); grp <- setNames(rep(c("g1", "g2"), each = 8), jids)
   pr <- t(combn(objs, 2)); rows <- list()
   for (i in seq_len(nrow(pr))) for (j in jids) {
-    sh <- ifelse(grp[j] == "g2" & pr[i, 1] == "S3", 0.9,
-          ifelse(grp[j] == "g2" & pr[i, 2] == "S3", -0.9, 0))
+    sh <- ifelse(grp[j] == "g2" & pr[i, 1] == "S3", 1.8,
+          ifelse(grp[j] == "g2" & pr[i, 2] == "S3", -1.8, 0))
     wins <- rbinom(1, 5, plogis(beta[pr[i, 1]] - beta[pr[i, 2]] + sh))
     rows[[length(rows) + 1]] <- data.frame(a = pr[i, 1], b = pr[i, 2],
                                            judge = j, win = pr[i, 1], k = wins)

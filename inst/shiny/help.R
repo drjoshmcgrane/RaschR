@@ -195,8 +195,8 @@ APP_HELP <- c(
   # DIF -------------------------------------------------------------------
   dif_tbl = paste(
     "Summarises uniform and non-uniform DIF for the selected item and factor",
-    "terms. Adjusted probabilities control multiplicity across items within",
-    "each tested term."
+    "terms. Holm-adjusted probabilities control the complete item-by-term",
+    "family by default."
   ),
   dif_full_tbl = paste(
     "Contains the complete item-by-term DIF results. Uniform DIF is associated",
@@ -206,7 +206,8 @@ APP_HELP <- c(
   bdif_anova_tbl = paste(
     "Summarises object DIF across judge factors. A factor effect indicates a",
     "location difference between judge groups; an opponent-band interaction",
-    "indicates non-uniform DIF."
+    "indicates non-uniform DIF. HC3 inference allows judge workloads to differ;",
+    "a factor cell needs at least eight judges and eight effective judges."
   ),
   bdif_sizes_tbl = paste(
     "Reports resolved object-location differences between judge-factor levels",
@@ -244,7 +245,8 @@ APP_HELP <- c(
   ),
   facet_int_omnibus = paste(
     "Tests the complete item-by-facet interaction family. This omnibus result",
-    "should be read before examining individual interaction cells."
+    "should be read before examining individual interaction cells. Inference",
+    "uses the least-supported level of the interactive facet."
   ),
   facet_int_tbl = paste(
     "Reports item-by-facet departures from the additive many-facet model.",
@@ -287,7 +289,8 @@ APP_HELP <- c(
   ),
   btlef_omnibus_tbl = paste(
     "Jointly tests whether each family of panel units, set units or set origins",
-    "can be replaced by its equal-unit restriction."
+    "can be replaced by its equal-unit restriction. Judge-bootstrap tests need",
+    "six judges and 5.5 effective judges per panel, and eight per set link."
   ),
   efrm_cmp_tbl = paste(
     "Compares group-dependent and equal group units using the same within-frame",
@@ -296,7 +299,8 @@ APP_HELP <- c(
   ),
   efrm_omnibus_tbl = paste(
     "Jointly tests the equal-unit restriction for the group and item-set unit",
-    "families. These Wald tests provide the inferential model comparison."
+    "families. These Wald tests provide the inferential model comparison when",
+    "every group and set link has at least 50 contributing persons."
   ),
 
   # Dimensionality and local dependence ----------------------------------
@@ -374,7 +378,8 @@ APP_HELP <- c(
     "Summarises each set and frame comparison. RMSD is the observed spread of",
     "the location differences; RMSE is their expected sampling spread. The",
     "counts give the items tested, excluded and flagged. Discrimination counts",
-    "are available with bootstrap uncertainty."
+    "are available with bootstrap uncertainty. Each compared frame requires",
+    "at least 50 informative persons; weak item estimates are excluded."
   ),
   frame_inv_disc_tbl = paste(
     "Compares item discrimination across separate frame calibrations. Slopes",

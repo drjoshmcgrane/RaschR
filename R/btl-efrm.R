@@ -536,6 +536,10 @@
 #' With one set, the model contains panel units only. With one set and one
 #' panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference
 #' for the unit families; individual contrasts are Holm-adjusted follow-ups.
+#' Judge-bootstrap probabilities require at least six judges and 5.5 effective
+#' judges in every contributing panel, and eight of each on a set link. The
+#' support is returned in \code{unit_support}; estimates remain descriptive
+#' when a probability is withheld.
 #'
 #' @param data A data frame with one comparison per row.
 #' @param object_a,object_b Names of the columns holding the two compared
@@ -570,7 +574,8 @@
 #' @param maxit,tol Newton iteration cap and convergence tolerance.
 #' @return An object of class \code{"rasch_btl_efrm"}. It contains the object
 #'   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
-#'   frame definitions, convergence information, and analysis notes.
+#'   unit-specific judge support, frame definitions, convergence information,
+#'   and analysis notes.
 #' @references Andrich, D. (1978). Relationships between the Thurstone and
 #'   Rasch approaches to item scaling. Applied Psychological Measurement,
 #'   2(3), 451--462.
@@ -1129,32 +1134,99 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                  "the omnibus Wald tests on the unit families carry the inference"))
 
   # --- structural tables ----------------------------------------------------
+  # Judge-bootstrap inference is limited by the judges who contribute to the
+  # particular unit. Count both raw and Kish-effective judges from their
+  # comparison workloads. Sparse panels or cross-set links cannot borrow
+  # denominator degrees of freedom from judges who informed other units.
+  judge_support <- function(rows) {
+    ww <- table(jd[rows]); ww <- as.numeric(ww[ww > 0])
+    c(n_judges = length(ww), effective_judges = if (length(ww))
+      sum(ww)^2 / sum(ww^2) else 0)
+  }
+  panel_support <- do.call(rbind, lapply(panels_u, function(g) {
+    z <- judge_support(within & pan == g)
+    data.frame(panel = g, n_judges = z[1L], effective_judges = z[2L],
+               stringsAsFactors = FALSE)
+  }))
+  pa <- pmin(sa, sb); pb <- pmax(sa, sb)
+  edge_key <- paste(pa, pb, sep = "\r")
+  edge_levels <- unique(edge_key[!within])
+  edge_support <- do.call(rbind, lapply(edge_levels, function(e) {
+    z <- judge_support(!within & edge_key == e)
+    ab <- strsplit(e, "\r", fixed = TRUE)[[1L]]
+    data.frame(set_a = ab[1L], set_b = ab[2L], n_judges = z[1L],
+               effective_judges = z[2L], stringsAsFactors = FALSE)
+  }))
+  if (is.null(edge_support)) edge_support <- data.frame(
+    set_a = character(), set_b = character(), n_judges = numeric(),
+    effective_judges = numeric())
+  set_support <- do.call(rbind, lapply(sets_u, function(s) {
+    rr <- edge_support$set_a == s | edge_support$set_b == s
+    data.frame(set = s,
+      n_judges = if (any(rr)) min(edge_support$n_judges[rr]) else 0,
+      effective_judges = if (any(rr))
+        min(edge_support$effective_judges[rr]) else 0,
+      stringsAsFactors = FALSE)
+  }))
+  panel_ok <- panel_support$n_judges >= 6L &
+    panel_support$effective_judges >= 5.5 - sqrt(.Machine$double.eps)
+  set_ok <- set_support$n_judges >= 8L &
+    set_support$effective_judges >= 8 - sqrt(.Machine$double.eps)
+  if (se_method == "judge_bootstrap" && any(!panel_ok))
+    notes <- c(notes, paste0(
+      "panel-unit inference is withheld because panel(s) ",
+      paste(panel_support$panel[!panel_ok], collapse = ", "),
+      " have fewer than six judges or 5.5 effective judges"))
+  if (se_method == "judge_bootstrap" &&
+      (any(!panel_ok) || any(!set_ok[set_support$set %in% free])))
+    notes <- c(notes, paste0(
+      "set-unit and set-origin inference is withheld because a contributing ",
+      "panel has fewer than six judges or 5.5 effective judges, or a link ",
+      "has fewer than eight"))
+  if (se_method == "judge_bootstrap") {
+    pc <- panel_ok & panel_support$effective_judges < 8
+    sc <- set_ok & set_support$effective_judges < 9.5 &
+      set_support$set %in% free
+    if (any(pc)) notes <- c(notes, paste0(
+      "panel(s) ", paste(panel_support$panel[pc], collapse = ", "),
+      " have 5.5--7.9 effective judges; interpret unit inference cautiously"))
+    if (any(sc)) notes <- c(notes, paste0(
+      "set link(s) ", paste(set_support$set[sc], collapse = ", "),
+      " have 8.0--9.4 effective judges; interpret unit inference cautiously"))
+  }
   # Judge-resampling inference uses a finite-sample t reference because the
   # judges are the independent sampling units. The parametric bootstrap draws
   # comparison outcomes independently conditional on the fitted design, so a
   # judge-based denominator is not its reference distribution.
-  df_j <- if (se_method == "judge_bootstrap")
-    max(length(unique(jd)) - 1L, 1L) else Inf
+  df_phi <- if (se_method == "judge_bootstrap" && all(panel_ok))
+    max(floor(sum(panel_support$effective_judges)) - 1L, 1L)
+    else if (se_method == "judge_bootstrap") NA_real_ else Inf
   z_phi <- log(phi) / se_log_phi
   phi_table <- data.frame(panel = panels_u, phi = unname(phi),
                           se_log_phi = unname(se_log_phi),
-                          t = unname(z_phi), df = df_j,
-                          p = unname(2 * pt(-abs(z_phi), df_j)),
+                          t = unname(z_phi), df = df_phi,
+                          p = unname(2 * pt(-abs(z_phi), df_phi)),
                           stringsAsFactors = FALSE)
+  df_set <- if (se_method == "judge_bootstrap") {
+    z <- pmax(floor(set_support$effective_judges) - 1L, 1L)
+    z[!set_ok | !all(panel_ok)] <- NA_real_; setNames(z, set_support$set)
+  } else setNames(rep(Inf, S), sets_u)
   z_al <- log(alpha) / se_log_alpha
   alpha_table <- data.frame(set = sets_u, alpha = unname(alpha),
                             se_log_alpha = unname(se_log_alpha),
-                            t = unname(z_al), df = df_j,
-                            p = unname(2 * pt(-abs(z_al), df_j)),
+                            t = unname(z_al), df = unname(df_set[sets_u]),
+                            p = unname(2 * pt(-abs(z_al), df_set[sets_u])),
                             stringsAsFactors = FALSE)
   z_ka <- kappa / se_kappa
   kappa_table <- data.frame(set = sets_u, kappa = unname(kappa),
                             se_kappa = unname(se_kappa),
-                            t = unname(z_ka), df = df_j,
-                            p = unname(2 * pt(-abs(z_ka), df_j)),
+                            t = unname(z_ka), df = unname(df_set[sets_u]),
+                            p = unname(2 * pt(-abs(z_ka), df_set[sets_u])),
                             stringsAsFactors = FALSE)
   adjust_unit_table <- function(tab) {
-    tab$p_adj <- stats::p.adjust(tab$p, method = "holm")
+    tab$p_adj <- NA_real_
+    usable <- is.finite(tab$p)
+    tab$p_adj[usable] <- stats::p.adjust(tab$p[usable], method = "holm")
     tab$significant <- ifelse(is.na(tab$p_adj), NA, tab$p_adj < 0.05)
     tab
   }
@@ -1186,8 +1258,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   # units rejects a true null at ~8.7% for the set origins in simulation
   # (550 replicates, 12 judges); W * (n - q) / (q (n - 1)) ~ F(q, n - q)
   # restores the nominal rate, exactly as for the MFRM interaction omnibus.
-  n_units_j <- if (se_method == "judge_bootstrap") length(unique(jd)) else Inf
-  wald_unit <- function(est, V, term) {
+  wald_unit <- function(est, V, term, n_units = Inf, available = TRUE) {
     if (!length(est) || is.null(V)) return(NULL)
     ok <- is.finite(est) & is.finite(diag(V))
     if (!any(ok)) return(NULL)
@@ -1201,28 +1272,45 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
     W <- drop(t(est) %*% Vinv %*% est)
     q <- sum(use)
-    if (is.infinite(n_units_j)) {
+    if (!available) {
+      data.frame(term = term, df = q, df2 = NA_real_, wald = W,
+                 f = NA_real_, p = NA_real_)
+    } else if (is.infinite(n_units)) {
       data.frame(term = term, df = q, df2 = Inf, wald = W,
                  f = W / q,
                  p = stats::pchisq(W, q, lower.tail = FALSE))
-    } else if (n_units_j > q) {
-      Fs <- W * (n_units_j - q) / (q * (n_units_j - 1))
-      data.frame(term = term, df = q, df2 = n_units_j - q, wald = W,
-                 f = Fs, p = stats::pf(Fs, q, n_units_j - q,
+    } else if (n_units > q) {
+      Fs <- W * (n_units - q) / (q * (n_units - 1))
+      data.frame(term = term, df = q, df2 = n_units - q, wald = W,
+                 f = Fs, p = stats::pf(Fs, q, n_units - q,
                                        lower.tail = FALSE))
     } else
       data.frame(term = term, df = q, df2 = NA_real_, wald = W,
                  f = NA_real_, p = NA_real_)
   }
-  unit_omnibus <- do.call(rbind, Filter(Negate(is.null), list(
-    if (G > 1L) wald_unit(log(phi), cov_log_phi, "panel units (phi)"),
-    if (S > 1L) wald_unit(log(alpha[free]),
-                           cov2[seq_along(free), seq_along(free), drop = FALSE],
-                           "set units (alpha)"),
-    if (S > 1L) wald_unit(kappa[free],
-                           cov2[length(free) + seq_along(free),
-                                length(free) + seq_along(free), drop = FALSE],
-                           "set origins (kappa)"))))
+  omni_parts <- list()
+  if (G > 1L) omni_parts[[length(omni_parts) + 1L]] <- wald_unit(
+    log(phi), cov_log_phi, "panel units (phi)",
+    n_units = if (se_method == "judge_bootstrap")
+      floor(sum(panel_support$effective_judges)) else Inf,
+    available = se_method != "judge_bootstrap" || all(panel_ok))
+  if (S > 1L) {
+    set_n <- if (se_method == "judge_bootstrap")
+      floor(min(set_support$effective_judges[
+        match(free, set_support$set)])) else Inf
+    set_available <- se_method != "judge_bootstrap" ||
+      (all(panel_ok) && all(set_ok[match(free, set_support$set)]))
+    omni_parts[[length(omni_parts) + 1L]] <- wald_unit(
+      log(alpha[free]),
+      cov2[seq_along(free), seq_along(free), drop = FALSE],
+      "set units (alpha)", n_units = set_n, available = set_available)
+    omni_parts[[length(omni_parts) + 1L]] <- wald_unit(
+      kappa[free],
+      cov2[length(free) + seq_along(free),
+           length(free) + seq_along(free), drop = FALSE],
+      "set origins (kappa)", n_units = set_n, available = set_available)
+  }
+  unit_omnibus <- do.call(rbind, Filter(Negate(is.null), omni_parts))
   if (identical(se_method, "conditional") && !is.null(unit_omnibus)) {
     unit_omnibus$df2 <- NA_real_
     unit_omnibus$f <- NA_real_
@@ -1277,6 +1365,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   out <- list(objects = objects, phi_table = phi_table,
               alpha_table = alpha_table, kappa_table = kappa_table,
               unit_omnibus = unit_omnibus,
+              unit_support = list(panel = panel_support, edge = edge_support,
+                                  set = set_support,
+                                  minimum_panel_judges = 6L,
+                                  minimum_panel_effective_judges = 5.5,
+                                  minimum_link_judges = 8L),
               frames = frames, equal_unit = equal_unit, n_cross = n_cross,
               sets = sets_u, panels = panels_u, reference_set = sets_u[1],
               n_comparisons = length(a),

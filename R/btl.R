@@ -1529,6 +1529,11 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' judges in the two cells. Higher-order terms supersede their component terms.
 #' Models fitted with \code{order} retain the exposure and carry-over effects
 #' in both the residual analysis and refit.
+#' Between-judge tests use HC3 covariance so unequal comparison workloads do
+#' not impose equal precision on judge means. Omnibus probabilities require
+#' at least eight judges and eight effective judges in every factor cell.
+#' Holm adjustment is the default; \code{"BH"} remains available for
+#' false-discovery-rate screening.
 #'
 #' Objects are resolved one at a time against the common locations of the
 #' remaining objects. With DIF in several objects, this can induce compensating
@@ -1559,7 +1564,8 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   eta-squared -- the term itself -- the non-uniform ones -- the term
 #'   crossed with the opponent band -- plus \code{uniform_DIF},
 #'   \code{nonuniform_DIF} and \code{superseded} flags); \code{terms} (the
-#'   full per-object analysis-of-variance table); \code{levels} (resolved
+#'   full per-object analysis-of-variance table, including its raw and
+#'   effective judge support); \code{levels} (resolved
 #'   location, SE, comparison count, judge count and effective judge count per
 #'   object, term and cell); \code{sizes} (per object, term and cell pair:
 #'   difference in logits, judge support for both cells, SE, t, degrees of
@@ -1573,6 +1579,10 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   Modelling the effect of subject-specific covariates in paired
 #'   comparison studies with an application to university rankings.
 #'   \emph{Journal of the Royal Statistical Society C}, 47(4), 511-525.
+#'
+#'   MacKinnon, J. G., & White, H. (1985). Some heteroskedasticity-consistent
+#'   covariance matrix estimators with improved finite sample properties.
+#'   \emph{Journal of Econometrics}, 29(3), 305--325.
 #' @examples
 #' set.seed(1)
 #' beta <- c(A = -1, B = -0.3, C = 0.4, D = 0.9)
@@ -1589,7 +1599,7 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' @export
 btl_dif <- function(fit, factors, objects = NULL,
                     effects = c("main", "factorial"),
-                    p_adjust = "BH", alpha = 0.05, flag_logits = 0.5,
+                    p_adjust = "holm", alpha = 0.05, flag_logits = 0.5,
                     min_n = 20, maxit = 60, tol = 1e-8) {
   if (!inherits(fit, "rasch_btl"))
     stop("btl_dif needs a paired-comparison fit from btl()")
@@ -1748,7 +1758,10 @@ btl_dif <- function(fit, factors, objects = NULL,
     pdat_o <- ag[jfirst[match(levels(jk), as.character(jk[jfirst]))],
                  c("judge_unit", safe), drop = FALSE]
     pdat_o$z <- as.numeric(pzj)
-    ft_b <- .dif_type2(pdat_o, bterms_o)
+    # Group comparisons are made between judges. HC3 protects the Type-II
+    # tests against the unequal precision of judge means when comparison
+    # workloads differ.
+    ft_b <- .dif_type2(pdat_o, bterms_o, variance = "hc3")
     ft_w <- NULL
     if (nb > 1L && length(wterms_o)) {
       Yw <- tapply(ag$z, list(jk, ag$band), mean)
@@ -1765,11 +1778,51 @@ btl_dif <- function(fit, factors, objects = NULL,
     }
     ft <- rbind(ft_b, ft_w)
     if (is.null(ft)) next
-    ft <- ft[ft$term != "Residuals" & is.finite(ft$F_value), , drop = FALSE]
+    ft <- ft[ft$term != "Residuals", , drop = FALSE]
+    # The global cluster guard does not ensure adequate support in every
+    # level of a DIF factor. For each tested term, count the judges and their
+    # Kish effective number from this object's comparison workloads. The
+    # estimate remains visible when a cell is sparse, but its probability is
+    # withheld below the calibrated eight-effective-judge boundary.
+    jw <- tapply(d$w, d$judge_unit, sum)
+    support <- lapply(ft$term, function(tt) {
+      vv <- setdiff(tvars(tt), "band")
+      if (!length(vv)) return(c(raw = Inf, effective = Inf))
+      cells <- .factor_cells(pdat_o[, vv, drop = FALSE], sep = "\r")
+      vals <- lapply(levels(cells), function(cc) {
+        ids <- as.character(pdat_o$judge_unit[cells == cc])
+        ww <- unname(jw[ids]); ww <- ww[is.finite(ww) & ww > 0]
+        c(raw = length(ww), effective = if (length(ww))
+          sum(ww)^2 / sum(ww^2) else 0)
+      })
+      Reduce(pmin, vals)
+    })
+    ft$min_judges <- vapply(support, `[[`, 0, "raw")
+    ft$min_effective_judges <- vapply(support, `[[`, 0, "effective")
+    ft$inference_available <- is.infinite(ft$min_effective_judges) |
+      (ft$min_judges >= 8L &
+         ft$min_effective_judges >= 8 - sqrt(.Machine$double.eps))
+    withheld <- !ft$inference_available & ft$term != "band"
+    if (any(withheld)) {
+      ft$F_value[withheld] <- NA_real_
+      ft$p[withheld] <- NA_real_
+      notes <- c(notes, sprintf(
+        "%s: DIF inference withheld for term(s) below eight judges or eight effective judges in a factor cell: %s",
+        o, paste(ft$term[withheld], collapse = ", ")))
+    }
+    caution <- ft$inference_available & is.finite(ft$min_effective_judges) &
+      ft$min_effective_judges < 9.5
+    if (any(caution)) notes <- c(notes, sprintf(
+      "%s: term(s) %s have 8.0--9.4 effective judges in their smallest cell; interpret inference cautiously",
+      o, paste(ft$term[caution], collapse = ", ")))
     for (k in seq_len(nrow(ft)))
       term_rows[[length(term_rows) + 1L]] <- data.frame(
         object = o, term = ft$term[k], df = ft$df[k], sum_sq = ft$sum_sq[k],
-        F_value = ft$F_value[k], p = ft$p[k], resid_ss = ft$resid_ss[k])
+        df_denom = ft$df_denom[k], F_value = ft$F_value[k], p = ft$p[k],
+        min_judges = ft$min_judges[k],
+        min_effective_judges = ft$min_effective_judges[k],
+        inference_available = ft$inference_available[k],
+        resid_ss = ft$resid_ss[k])
   }
   if (!length(term_rows)) stop("no object yielded an estimable DIF ANOVA")
   terms <- do.call(rbind, term_rows); rownames(terms) <- NULL
@@ -1827,11 +1880,15 @@ btl_dif <- function(fit, factors, objects = NULL,
       object = ob, term = tt,
       F_uniform = u$F_value, p_uniform = u$p, p_uniform_adj = u$p_adj,
       eta2_uniform = u$eta2_partial, uniform_DIF = isTRUE(u$significant),
+      min_judges = u$min_judges,
+      min_effective_judges = u$min_effective_judges,
+      uniform_inference = u$inference_available,
       F_nonuniform = if (nrow(nu)) nu$F_value else NA_real_,
       p_nonuniform = if (nrow(nu)) nu$p else NA_real_,
       p_nonuniform_adj = if (nrow(nu)) nu$p_adj else NA_real_,
       eta2_nonuniform = if (nrow(nu)) nu$eta2_partial else NA_real_,
       nonuniform_DIF = nrow(nu) > 0 && isTRUE(nu$significant),
+      nonuniform_inference = if (nrow(nu)) nu$inference_available else NA,
       superseded = isTRUE(u$superseded))
   }
   summary_tab <- if (length(srows)) do.call(rbind, srows) else NULL

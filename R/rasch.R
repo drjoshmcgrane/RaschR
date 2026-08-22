@@ -623,7 +623,7 @@ summary.rasch <- function(object, ...) {
               x$summary_stats$cor_item_fit_location,
               x$summary_stats$cor_person_fit_location,
               x$summary_stats$df_factor))
-  cat(sprintf("%s with adjusted chi-square p < 0.05: %d of %d\n\n",
+  cat(sprintf("%s with Holm-adjusted chi-square p < 0.05: %d of %d\n\n",
               if (structural) "Response cells" else "Items",
               sum(x$items$p_adj < 0.05, na.rm = TRUE), nrow(x$items)))
   core <- c("item", "max", "location", "se", "fit_resid", "infit_ms",

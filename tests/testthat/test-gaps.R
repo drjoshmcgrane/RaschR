@@ -63,6 +63,8 @@ test_that("equate_tests flags drifted common items only", {
   expect_gt(eq0$correlation, 0.99)
 
   eq1 <- equate_tests(f1, mk(drift = 0.8), independent = TRUE)
+  expect_equal(eq1$table$p_adj,
+               p.adjust(eq1$table$p, method = "holm"))
   expect_identical(eq1$table$item[eq1$table$drift], "I04")
 
   # reference table path (item bank style)

@@ -131,7 +131,7 @@
 #'   \code{FALSE} is supplied. When \code{FALSE}, descriptive equating is
 #'   returned but inferential drift columns are withheld.
 #' @return A list with the comparison \code{table} (locations, standard
-#'   errors, difference, t, raw and BH-adjusted p, drift flag), the
+#'   errors, difference, t, raw and Holm-adjusted p, drift flag), the
 #'   estimated \code{shift},
 #'   the location \code{correlation}, the root mean square difference after
 #'   shifting (\code{rmsd}), the number of common items \code{n_common}, the
@@ -253,7 +253,7 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   p <- 2 * pnorm(-abs(t))
   n <- sum(usable)
   p_adj <- rep(NA_real_, length(p))
-  if (inferential) p_adj[usable] <- p.adjust(p[usable], method = "BH")
+  if (inferential) p_adj[usable] <- p.adjust(p[usable], method = "holm")
   tab <- data.frame(item = common,
                     location_1 = a$location, se_1 = a$se,
                     location_2 = b$location, se_2 = b$se,
@@ -275,7 +275,7 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
 #'
 #' Scatter of the two calibrations' common-item locations with the shifted
 #' identity line and per-item 95 per cent bands; drifting items
-#' (BH-adjusted) are highlighted and labelled.
+#' (Holm-adjusted) are highlighted and labelled.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param reference A second \code{\link{rasch}} fit, or a data frame with

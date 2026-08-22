@@ -196,7 +196,7 @@ test_that("structural summaries name response cells and withhold alpha", {
   ts <- targeting_table(f)
   expect_true(any(fs$statistic == "Total response-cell-trait chi-square"))
   expect_true(any(fs$statistic ==
-                    "Response cells with adjusted chi-square p < .05"))
+                    "Response cells with Holm-adjusted chi-square p < .05"))
   expect_true(any(ts$statistic == "Response-cell location SD"))
   expect_true(any(ts$statistic == "Calibration threshold minimum"))
   expect_identical(ts$value[ts$statistic == "Coefficient alpha"],

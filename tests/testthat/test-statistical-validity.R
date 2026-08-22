@@ -1112,6 +1112,27 @@ test_that("MFRM interaction omnibus uses the Hotelling-style F reference", {
                                     "response_cell_statistics.csv")))
 })
 
+test_that("MFRM interaction inference uses the least-supported facet level", {
+  set.seed(3101)
+  simP <- function(th, tau) {
+    x <- 0:length(tau); p <- exp(x * th - c(0, cumsum(tau))); p / sum(p)
+  }
+  persons <- sprintf("P%03d", 1:90); items <- paste0("I", 1:4)
+  d <- expand.grid(person = persons, item = items,
+                   rater = paste0("R", 1:3), stringsAsFactors = FALSE)
+  d <- d[d$rater != "R3" | d$person %in% persons[1:12], ]
+  theta <- setNames(rnorm(length(persons)), persons)
+  d$score <- vapply(seq_len(nrow(d)), function(i)
+    sample(0:2, 1, prob = simP(theta[d$person[i]], c(-0.5, 0.5))), 0L)
+  fit <- rasch_mfrm(d, "person", "item", "score", facets = "rater",
+                    interaction = "rater")
+  expect_false(fit$interaction_test$inference_available)
+  expect_equal(min(fit$interaction_support$n_persons), 12)
+  expect_true(is.na(fit$interaction_test$p))
+  expect_true(all(is.na(fit$interaction_effects$p)))
+  expect_true(all(is.finite(fit$interaction_effects$gamma)))
+})
+
 test_that("btl eff_params is withheld with clustered inference", {
   set.seed(3)
   K <- 6; b <- seq(-1, 1, length.out = K); n <- 200

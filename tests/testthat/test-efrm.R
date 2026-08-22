@@ -89,6 +89,23 @@ test_that("EFRM recovers the full unit grid (two sets x two groups)", {
                     names(fit$efrm_vs_rasch$unit_tests)))
 })
 
+test_that("EFRM withholds unit tests for a sparsely represented group", {
+  set.seed(901)
+  n <- 200; L <- 8
+  grp <- c(rep("large", 190), rep("small", 10))
+  theta <- rnorm(n); delta <- seq(-1.5, 1.5, length.out = L)
+  X <- matrix(rbinom(n * L, 1, plogis(outer(theta, delta, "-"))), n, L)
+  colnames(X) <- paste0("I", seq_len(L))
+  fit <- rasch_efrm(data.frame(X, group = grp),
+                    item_sets = list(all = colnames(X)), groups = "group",
+                    boot_reps = 0)
+  expect_false(fit$unit_support$phi_inference)
+  expect_equal(min(fit$unit_support$group$n_persons), 10)
+  expect_true(all(is.na(fit$efrm_vs_rasch$unit_omnibus$p)))
+  expect_true(all(is.na(fit$efrm_vs_rasch$unit_tests$p)))
+  expect_true(all(is.finite(fit$phi_table$phi)))
+})
+
 test_that("a single frame reduces to the ordinary rasch fit", {
   set.seed(2); Np <- 400; L <- 8
   d <- seq(-1.5, 1.5, length.out = L)

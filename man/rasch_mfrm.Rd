@@ -99,7 +99,10 @@ before fitting the model.
 An item-by-facet interaction retains equal discrimination but allows facet
 differences to vary by item. The omnibus Wald test in
 \code{interaction_test} is the primary test; cell tests are Holm-adjusted
-follow-ups.
+follow-ups. Interaction probabilities require at least
+\eqn{\max\{30,q+2\}} persons and effective persons at every level of the
+interactive facet, where \eqn{q} is the omnibus degrees of freedom.
+Estimates remain descriptive when this condition is not met.
 }
 \examples{
 set.seed(1)

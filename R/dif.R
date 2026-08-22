@@ -8,8 +8,8 @@
 # default, factor-by-factor interactions optional), with Tukey HSD
 # comparisons on the significant group terms and the convention that a
 # significant interaction supersedes the main effects of the factors
-# involved. Multiplicity across items is handled by Benjamini-Hochberg
-# false-discovery-rate adjustment.
+# involved. Multiplicity across items is handled by Holm familywise
+# adjustment.
 # ===========================================================================
 
 .dif_factors <- function(fit, factors) {
@@ -83,7 +83,9 @@
 # correction (Maxwell & Delaney 2004): classical split-plot strata assume
 # sphericity, and a nonspherical 4-level null rejected at ~9% nominal 5%.
 # ---------------------------------------------------------------------------
-.dif_type2 <- function(d, term_labels, resp = "z") {
+.dif_type2 <- function(d, term_labels, resp = "z",
+                       variance = c("classical", "hc3")) {
+  variance <- match.arg(variance)
   mk <- function(tl) stats::as.formula(paste(
     resp, "~", if (length(tl)) paste(tl, collapse = " + ") else "1"))
   full <- tryCatch(stats::lm(mk(term_labels), data = d),
@@ -104,10 +106,45 @@
     if (df_t < 1) next
     ss_t <- max(sum(stats::resid(m0)^2) - sum(stats::resid(m1)^2), 0)
     Fv <- (ss_t / df_t) / mse
+    p_t <- stats::pf(Fv, df_t, df_res, lower.tail = FALSE)
+    df_denom <- df_res
+    # Judge-level residual means can have very different precision when
+    # comparison workloads differ. HC3 retains the equal-judge estimand but
+    # does not impose a common residual variance. The robust Wald statistic is
+    # reported as an F with the model residual denominator; the separate
+    # cell-support guard below avoids presenting this small-sample
+    # approximation where a factor level has too few independent judges.
+    if (variance == "hc3") {
+      Fv <- p_t <- NA_real_
+      X <- stats::model.matrix(m1)
+      asg <- attr(X, "assign")
+      labs <- attr(stats::terms(m1), "term.labels")
+      ti <- match(tt, labs)
+      jj <- which(asg == ti)
+      qrX <- qr(X)
+      if (length(jj) && qrX$rank == ncol(X)) {
+        Xi <- tryCatch(solve(crossprod(X)), error = function(e) NULL)
+        if (!is.null(Xi)) {
+          h <- pmin(stats::hatvalues(m1), 1 - 1e-8)
+          ae <- stats::residuals(m1) / pmax(1 - h, 1e-8)
+          meat <- crossprod(X * ae)
+          Vr <- Xi %*% meat %*% Xi
+          Vt <- Vr[jj, jj, drop = FALSE]
+          bt <- stats::coef(m1)[jj]
+          Wr <- tryCatch(drop(t(bt) %*% solve(Vt, bt)),
+                         error = function(e) NA_real_)
+          if (is.finite(Wr)) {
+            Fv <- Wr / length(jj)
+            p_t <- if (is.finite(df_denom) && df_denom > 0)
+              stats::pf(Fv, length(jj), df_denom, lower.tail = FALSE) else NA_real_
+          }
+        }
+      }
+    }
     out[[length(out) + 1L]] <- data.frame(
-      term = tt, df = df_t, df_denom = df_res, gg_epsilon = NA_real_,
+      term = tt, df = df_t, df_denom = df_denom, gg_epsilon = NA_real_,
       sum_sq = ss_t, mean_sq = ss_t / df_t,
-      F_value = Fv, p = stats::pf(Fv, df_t, df_res, lower.tail = FALSE),
+      F_value = Fv, p = p_t,
       resid_ss = rss_full, stringsAsFactors = FALSE)
   }
   if (!length(out)) return(NULL)
@@ -316,7 +353,8 @@
 #'   interval and cell, with between 2 and 10 intervals. The selected value is
 #'   returned in \code{n_groups}.
 #' @param p_adjust Multiplicity adjustment over all item-by-term tests;
-#'   default \code{"BH"}.
+#'   default \code{"holm"}. Use \code{"BH"} only for
+#'   false-discovery-rate screening rather than familywise control.
 #' @param alpha Significance level applied to the adjusted probabilities.
 #' @param effects \code{"main"} (default) models several factors additively
 #'   (each factor's main effect and its class-interval interaction, but no
@@ -353,9 +391,8 @@
 #' The remaining components record the factors, class intervals, adjustment,
 #' significance level, and design settings.
 #' @references
-#' Benjamini, Y. and Hochberg, Y. (1995). Controlling the false discovery
-#' rate: a practical and powerful approach to multiple testing. Journal of
-#' the Royal Statistical Society: Series B, 57(1), 289--300.
+#' Holm, S. (1979). A simple sequentially rejective multiple test procedure.
+#' Scandinavian Journal of Statistics, 6(2), 65--70.
 #'
 #' Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
 #' differential item functioning in health research using the Rasch model.
@@ -398,7 +435,7 @@
 #' }
 #' @export
 dif_anova <- function(fit, factors = NULL, n_groups = NULL,
-                                p_adjust = "BH", alpha = 0.05,
+                                p_adjust = "holm", alpha = 0.05,
                                 effects = c("main", "factorial"),
                                 sizes = FALSE, id = NULL, within = NULL,
                                 pool_facets = TRUE) {
