@@ -61,6 +61,62 @@ test_that("PCM and RSM thresholds match eRm's CML decomposition", {
   expect_lt(max(abs(our_r - erm_r)), 0.08)
 })
 
+test_that("LLTM design estimates agree with eRm's full CML", {
+  skip_if_not_installed("eRm")
+  set.seed(73)
+  N <- 900; L <- 10
+  pred <- data.frame(item = paste0("I", seq_len(L)),
+                     operation = rep(1:2, each = L / 2),
+                     format = rep(c(1, 2), L / 2))
+  W <- as.matrix(pred[, c("operation", "format")])
+  delta <- drop(W %*% c(.8, .35)); theta <- rnorm(N)
+  X <- sapply(delta, function(d) rbinom(N, 1, plogis(theta - d)))
+  colnames(X) <- pred$item
+
+  ours <- rasch_explanatory(X, pred, ~ 0 + operation + format)
+  erm <- eRm::LLTM(X, W = W)
+  loc_ours <- ours$items$location
+  loc_erm <- -unname(erm$betapar)
+  loc_ours <- loc_ours - mean(loc_ours)
+  loc_erm <- loc_erm - mean(loc_erm)
+  expect_gt(cor(loc_ours, loc_erm), .999)
+  expect_lt(max(abs(loc_ours - loc_erm)), .08)
+})
+
+test_that("LPCM threshold restrictions agree with eRm's full CML", {
+  skip_if_not_installed("eRm")
+  set.seed(74)
+  N <- 900; L <- 8
+  pred <- data.frame(item = paste0("I", seq_len(L)),
+                     format = rep(c("A", "B"), L / 2))
+  theta <- rnorm(N)
+  tau <- lapply(seq_len(L), function(i) {
+    b <- as.integer(pred$format[i] == "B")
+    c(-.7 + .2 * b, .7 + .6 * b)
+  })
+  X <- matrix(0L, N, L, dimnames = list(NULL, pred$item))
+  for (j in seq_len(L))
+    X[, j] <- vapply(theta, function(b)
+      sample.int(3L, 1L, prob = item_moments(b, tau[[j]])$P) - 1L,
+      integer(1))
+
+  ours <- rasch_explanatory(
+    X, pred, ~ format + threshold + format:threshold)
+  # eRm maps its design to cumulative category parameters. Convert the
+  # adjacent-threshold design used by rasch before passing the same
+  # restriction to eRm::LPCM().
+  W <- ours$explanatory$base_B
+  for (j in seq_len(L)) {
+    rows <- (2L * j - 1L):(2L * j)
+    W[rows, ] <- apply(W[rows, , drop = FALSE], 2L, cumsum)
+  }
+  erm <- eRm::LPCM(X, W = W)
+  erm_tau <- as.vector(t(eRm::thresholds(erm)$threshtable[[1]][, -1]))
+
+  expect_gt(cor(ours$thresholds$tau, erm_tau), .999)
+  expect_lt(max(abs(ours$thresholds$tau - erm_tau)), .08)
+})
+
 test_that("btl() equals psychotools::btmodel to machine precision", {
   skip_if_not_installed("psychotools")
   data("GermanParties2009", package = "psychotools")

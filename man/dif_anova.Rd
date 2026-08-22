@@ -65,14 +65,13 @@ A list with:
   uniform and non-uniform tests, partial eta-squared, adjusted
   probabilities, DIF flags, and supersession flag.}
   \item{\code{terms}}{The complete item-wise analysis-of-variance tables.}
-  \item{\code{tukey}}{Residual-mean Tukey comparisons retained for
-  compatibility in between-person designs. Use \code{posthoc} for
-  logit-scale follow-ups.}
   \item{\code{sizes}}{When requested, pairwise logit differences for the
   significant, non-superseded item-terms.}
   \item{\code{posthoc}}{When \code{sizes = TRUE}, marginal pairwise
   differences for main effects and difference-in-differences magnitudes
   for interactions, calculated by \code{\link{dif_posthoc}}.}
+  \item{\code{between_covariance}}{The covariance reference used for
+  uniform between-person terms.}
 }
 The remaining components record the factors, class intervals, adjustment,
 significance level, and design settings.
@@ -100,7 +99,16 @@ terms use orthonormal contrasts of person-by-cell means. A
 Greenhouse--Geisser correction is applied to within-person factors with
 more than two levels. Persons missing a required cell are excluded from the
 corresponding within-person test. In incomplete mixed designs, within-cell
-effects are removed before the between-person analysis.
+effects are removed before the between-person analysis. Uniform
+between-person factor terms use HC3 covariance so unequal group sizes,
+leverage, and differing precision of person means do not impose a common
+residual variance. Class-interval interactions retain the residual-ANOVA
+reference used to test non-uniform DIF.
+For between-person design matrix \eqn{X}, residuals \eqn{e_i}, and leverages
+\eqn{h_i},
+\deqn{\widehat{V}_{\mathrm{HC3}}=(X^{\mathsf T}X)^{-1}X^{\mathsf T}
+\operatorname{diag}\left\{\frac{e_i^2}{(1-h_i)^2}\right\}X
+(X^{\mathsf T}X)^{-1}.}
 
 A significant higher-order factor term supersedes its component terms in
 the summary. For EFRM fits, frame-defining factors are excluded because
@@ -149,6 +157,10 @@ Scandinavian Journal of Statistics, 6(2), 65--70.
 Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
 differential item functioning in health research using the Rasch model.
 Health and Quality of Life Outcomes, 15, 181.
+
+MacKinnon, J. G. and White, H. (1985). Some heteroskedasticity-consistent
+covariance matrix estimators with improved finite sample properties.
+Journal of Econometrics, 29(3), 305--325.
 
 Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
 Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.

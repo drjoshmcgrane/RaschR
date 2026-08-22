@@ -2,6 +2,23 @@
 
 ## Models and inference
 
+* `rasch_explanatory()` fits the linear logistic test model and linear partial
+  credit model from continuous, categorical or ordinal item- or
+  threshold-level predictors. Formulae may include selected interactions.
+  `explanatory_test()` compares the restrictions with
+  a free calibration using the Kent adjustment; `explanatory_diagnostics()`
+  and `relax_explanatory()` support fixed item and threshold departures.
+  Refitted departures propagate to item and person estimates and are retained
+  through item deletion, DIF splitting, superitem construction and
+  response-dependence resolution. Keyed option responses remain available
+  after item deletion, splitting and fixed-departure refits.
+* `btl_explanatory()` applies a fixed explanatory design to object locations
+  in dichotomous or ordered comparative judgements. It supports the same
+  model comparison, Holm-adjusted diagnostics and fixed departures while
+  retaining the nominated ordered-response threshold structure.
+* A worked case study uses the verbal aggression data to develop and check an
+  explanatory partial credit model.
+
 * Sparse-unit safeguards now use the sampling units that inform each test.
   MFRM interaction tests use the least-supported facet level; EFRM unit tests
   require adequate persons on every group or set link; BTL-EFRM judge
@@ -48,16 +65,24 @@
   omnibus probabilities below eight judges or eight effective judges in a
   factor cell.
 
+* Item-fit documentation now distinguishes the principal item-trait test from
+  the supplementary class-interval ANOVA and notes the limits of both in short
+  administrations. HC3 was evaluated for item fit and was not adopted.
+
 * `dif_anova()` fits several person factors jointly using Type II sums of
   squares. Repeated measurements use the person as the sampling unit and
   separate between- and within-person error strata. Multiplicity adjustment
   covers the complete family of uniform and non-uniform DIF tests rather than
   treating each term as a separate family; `btl_dif()` follows the same rule.
+  Uniform between-person terms now use HC3 covariance. Class-interval
+  interactions retain the residual-ANOVA reference used for non-uniform DIF.
 * `dif_contrasts()` and `dif_posthoc()` provide planned and post-hoc logit
   contrasts, including simple effects and difference-in-differences for
   interactions. MFRM follow-ups pool the fitted facet cells of an underlying
   item; resolved EFRM follow-ups are withheld because an ordinary split would
   discard the frame units.
+  The residual-mean Tukey table has been removed from `dif_anova()`;
+  `dif_posthoc()` is the supported follow-up for multilevel terms.
 * Repeated-measures DIF follow-ups use the full design-cell weights in their
   person-level tests. Reported resolved estimates and probabilities therefore
   address the same marginal contrast when nuisance factors are imbalanced.

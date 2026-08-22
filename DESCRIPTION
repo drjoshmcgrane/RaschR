@@ -8,8 +8,12 @@ Description: Fits models within Rasch Measurement Theory, whose defining
     properties include sufficiency and invariance (Rasch, 1960
     <ISBN:9780226705538>; Andrich and Marais, 2019
     <doi:10.1007/978-981-13-7496-8>). Models include the dichotomous Rasch,
-    partial credit, rating scale, many-facet and extended frame of reference
-    models, together with comparative judgement models for dichotomous
+    partial credit, rating scale, explanatory, many-facet and extended frame
+    of reference models. Explanatory models include the linear logistic test
+    model (Fischer, 1973 <doi:10.1016/0001-6918(73)90003-6>) and linear partial
+    credit model (Fischer and Ponocny, 1994 <doi:10.1007/BF02295182>).
+    Comparative judgement models, including explanatory object models, are
+    available for dichotomous
     (Andrich, 1978 <doi:10.1177/014662167800200319>) and ordered pairwise
     responses (Tutz, 1986 <doi:10.1016/0022-2496(86)90034-9>). Item
     parameters for item-response models are estimated by pairwise conditional

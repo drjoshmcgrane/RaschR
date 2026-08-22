@@ -7,9 +7,10 @@
 <!-- badges: end -->
 
 `rasch` fits and evaluates models within Rasch Measurement Theory. It includes
-models for item responses, ratings, linked frames of reference, and paired
-comparisons, with a common set of functions for examining fit, invariance,
-targeting, dimensionality, and local dependence.
+models for item responses, explanatory item and threshold structures,
+multiple ratings, linked frames of reference, and paired comparisons, with a
+common set of functions for examining fit, invariance, targeting,
+dimensionality, and local dependence.
 
 The original dichotomous model is (Rasch, 1960)
 
@@ -35,7 +36,11 @@ thresholds (Andrich, 1978b; Masters, 1982); the many-facet model adds rater
 and task locations to the composite (Linacre, 1989); the extended frame of
 reference model links frames measured in different units (Humphry and
 Andrich, 2008); polytomous comparative judgement applies the thresholds to
-ordered pair judgements (Tutz, 1986).
+ordered pair judgements (Tutz, 1986). The linear logistic test model and
+linear partial credit model express item or threshold locations as functions
+of observed characteristics (Fischer, 1973; Fischer and Ponocny, 1994). The
+same explanatory formulation can be applied to object locations in
+dichotomous or ordered comparative judgements.
 
 The package treats fit to the model as an empirical question. Its diagnostics
 examine whether comparisons remain invariant across persons, items, groups,
@@ -46,6 +51,8 @@ occasions, raters, and other parts of the measurement design.
 | Function | Model |
 |---|---|
 | `rasch()` | Dichotomous Rasch, partial credit, and rating scale models |
+| `rasch_explanatory()` | Linear logistic test and linear partial credit models |
+| `btl_explanatory()` | Explanatory comparative judgement models |
 | `rasch_mfrm()` | Many-facet Rasch model |
 | `rasch_efrm()` | Extended frame of reference model |
 | `btl()` | Comparative judgement models for dichotomous and polytomous paired comparisons |
@@ -57,6 +64,10 @@ designs can be fitted when their observed response structure identifies a
 common scale.
 
 The item-response models follow Rasch (1960) and Andrich and Marais (2019).
+The explanatory item models follow Fischer (1973) and Fischer and Ponocny
+(1994). Continuous, categorical or ordinal characteristics may be used; the
+comparative-judgement formulation applies the same fixed design to
+Bradley--Terry--Luce object locations.
 The frame models follow Humphry (2005) and Humphry and Andrich (2008). The
 comparative judgement models follow Bradley and Terry (1952), Luce (1959),
 Andrich (1978a), and Tutz (1986).
@@ -123,8 +134,9 @@ plot_icc(fit, "I05", group = "group")
 The [function reference](https://drjoshmcgrane.github.io/rasch/reference/index.html)
 documents the data requirements and returned values for each analysis. The
 [vignettes](https://drjoshmcgrane.github.io/rasch/articles/) give worked
-examples for the main model families, DIF with repeated measures, and
-simulation.
+examples for the main model families, including an
+[explanatory analysis of the verbal aggression data](https://drjoshmcgrane.github.io/rasch/articles/case-study-verbal-aggression.html),
+DIF with repeated measures, and simulation.
 
 ## References
 
@@ -141,6 +153,16 @@ Measuring in the Educational, Social and Health Sciences*. Springer.
 Bradley, R. A., and Terry, M. E. (1952). Rank analysis of incomplete block
 designs: I. The method of paired comparisons. *Biometrika*, 39(3/4),
 324–345.
+
+De Boeck, P., and Wilson, M. (Eds.). (2004). *Explanatory Item Response
+Models: A Generalized Linear and Nonlinear Approach*. Springer.
+
+Fischer, G. H. (1973). The linear logistic test model as an instrument in
+educational research. *Acta Psychologica*, 37(6), 359–374.
+
+Fischer, G. H., and Ponocny, I. (1994). An extension of the partial credit
+model with an application to the measurement of change. *Psychometrika*,
+59(2), 177–192.
 
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
@@ -159,6 +181,10 @@ ordered categories. *Psychometrika*, 47(2), 149–174.
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
 Tests*. Danish Institute for Educational Research. Expanded edition,
 University of Chicago Press, 1980.
+
+Smits, D. J. M., De Boeck, P., and Vansteelandt, K. (2004). The inhibition
+of verbally aggressive behaviour. *European Journal of Personality*, 18,
+537–555.
 
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response. *Journal
 of Mathematical Psychology*, 30(3), 306–316.

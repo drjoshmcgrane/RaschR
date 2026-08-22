@@ -131,6 +131,18 @@ descriptive index, not a freely estimated parameter of the Rasch model,
 and no sampling standard error or hypothesis test is attached to it.
 }
 
+\section{Item-fit probabilities}{
+
+The item-trait chi-square supplies the principal inferential test of
+invariance over class intervals. The class-interval ANOVA is a conventional
+residual diagnostic whose F reference is approximate. Its probability can
+be anti-conservative in short tests because each response contributes
+appreciably to the person grouping used to test that item. The same issue
+can affect the item-trait probability when fewer than about ten responses
+locate each person. In short administrations, read the statistics with the
+characteristic curve and residual fit rather than as stand-alone decisions.
+}
+
 \examples{
 set.seed(1)
 d <- seq(-2, 2, length.out = 8)

@@ -53,6 +53,8 @@ articles:
   - dif-repeated-measures
   - many-facet
   - extended-frame-reference
+  - explanatory-models
+  - case-study-verbal-aggression
   - paired-comparisons
   - plant-and-detect
 
@@ -64,6 +66,12 @@ reference:
   - rasch
   - rasch_mfrm
   - rasch_efrm
+  - rasch_explanatory
+  - btl_explanatory
+  - explanatory_test
+  - explanatory_diagnostics
+  - relax_explanatory
+  - relax_btl_explanatory
   - pcml
   - pcml_pc
   - threshold_index

@@ -5,8 +5,8 @@
 # trait class interval: a factor main effect indicates uniform DIF and a
 # factor-by-interval interaction indicates non-uniform DIF. With several
 # person factors they are modelled jointly by dif_anova (main effects by
-# default, factor-by-factor interactions optional), with Tukey HSD
-# comparisons on the significant group terms and the convention that a
+# default, factor-by-factor interactions optional), with covariance-aware
+# logit contrasts on significant group terms and the convention that a
 # significant interaction supersedes the main effects of the factors
 # involved. Multiplicity across items is handled by Holm familywise
 # adjustment.
@@ -84,7 +84,7 @@
 # sphericity, and a nonspherical 4-level null rejected at ~9% nominal 5%.
 # ---------------------------------------------------------------------------
 .dif_type2 <- function(d, term_labels, resp = "z",
-                       variance = c("classical", "hc3")) {
+                       variance = c("classical", "hc3"), robust_terms = NULL) {
   variance <- match.arg(variance)
   mk <- function(tl) stats::as.formula(paste(
     resp, "~", if (length(tl)) paste(tl, collapse = " + ") else "1"))
@@ -114,7 +114,7 @@
     # reported as an F with the model residual denominator; the separate
     # cell-support guard below avoids presenting this small-sample
     # approximation where a factor level has too few independent judges.
-    if (variance == "hc3") {
+    if (variance == "hc3" && (is.null(robust_terms) || tt %in% robust_terms)) {
       Fv <- p_t <- NA_real_
       X <- stats::model.matrix(m1)
       asg <- attr(X, "assign")
@@ -332,7 +332,16 @@
 #' Greenhouse--Geisser correction is applied to within-person factors with
 #' more than two levels. Persons missing a required cell are excluded from the
 #' corresponding within-person test. In incomplete mixed designs, within-cell
-#' effects are removed before the between-person analysis.
+#' effects are removed before the between-person analysis. Uniform
+#' between-person factor terms use HC3 covariance so unequal group sizes,
+#' leverage, and differing precision of person means do not impose a common
+#' residual variance. Class-interval interactions retain the residual-ANOVA
+#' reference used to test non-uniform DIF.
+#' For between-person design matrix \eqn{X}, residuals \eqn{e_i}, and leverages
+#' \eqn{h_i},
+#' \deqn{\widehat{V}_{\mathrm{HC3}}=(X^{\mathsf T}X)^{-1}X^{\mathsf T}
+#' \operatorname{diag}\left\{\frac{e_i^2}{(1-h_i)^2}\right\}X
+#' (X^{\mathsf T}X)^{-1}.}
 #'
 #' A significant higher-order factor term supersedes its component terms in
 #' the summary. For EFRM fits, frame-defining factors are excluded because
@@ -379,14 +388,13 @@
 #'   uniform and non-uniform tests, partial eta-squared, adjusted
 #'   probabilities, DIF flags, and supersession flag.}
 #'   \item{\code{terms}}{The complete item-wise analysis-of-variance tables.}
-#'   \item{\code{tukey}}{Residual-mean Tukey comparisons retained for
-#'   compatibility in between-person designs. Use \code{posthoc} for
-#'   logit-scale follow-ups.}
 #'   \item{\code{sizes}}{When requested, pairwise logit differences for the
 #'   significant, non-superseded item-terms.}
 #'   \item{\code{posthoc}}{When \code{sizes = TRUE}, marginal pairwise
 #'   differences for main effects and difference-in-differences magnitudes
 #'   for interactions, calculated by \code{\link{dif_posthoc}}.}
+#'   \item{\code{between_covariance}}{The covariance reference used for
+#'   uniform between-person terms.}
 #' }
 #' The remaining components record the factors, class intervals, adjustment,
 #' significance level, and design settings.
@@ -397,6 +405,10 @@
 #' Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
 #' differential item functioning in health research using the Rasch model.
 #' Health and Quality of Life Outcomes, 15, 181.
+#'
+#' MacKinnon, J. G. and White, H. (1985). Some heteroskedasticity-consistent
+#' covariance matrix estimators with improved finite sample properties.
+#' Journal of Econometrics, 29(3), 305--325.
 #'
 #' Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
 #' Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence Erlbaum.
@@ -568,7 +580,7 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     any(.term_vars(tt) %in% wsafe), TRUE)]
   wterms <- setdiff(all_terms, bterms)
 
-  fits <- vector("list", L); rows <- list()
+  rows <- list()
   incomplete_note <- 0L
   for (i in seq_len(L)) {
     d <- data.frame(z = Z[, i], ci = ci)
@@ -625,7 +637,13 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
                c("pid", "ci", bsafe), drop = FALSE]
     pdat$z <- as.numeric(pz)
 
-    ft_b <- .dif_type2(pdat, bterms)
+    # Person means need not have equal precision in unbalanced or incomplete
+    # designs. HC3 retains the equal-person estimand while correcting the
+    # between-person covariance for heteroskedasticity and leverage.
+    robust_terms <- bterms[!vapply(bterms, function(tt)
+      "ci" %in% .term_vars(tt), TRUE)]
+    ft_b <- .dif_type2(pdat, bterms, variance = "hc3",
+                       robust_terms = robust_terms)
     ft_w <- NULL
     if (mixed && length(wterms)) {
       # complete within-cell matrix per person; incomplete persons are
@@ -647,15 +665,6 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     }
     ft <- rbind(ft_b, ft_w)
     if (is.null(ft)) next
-    # a person-level aov (class interval first, BETWEEN factors only, one
-    # row per person) retained solely for the Tukey HSD follow-ups: cell
-    # means and the between-person error MS are what Tukey needs. Within
-    # factors are excluded -- ordinary Tukey on repeated cells would treat
-    # them as independent, so within-term follow-ups are not offered.
-    fits[i] <- list(if (length(bsafe)) tryCatch(stats::aov(
-      stats::as.formula(paste("z ~ ci + (",
-                              paste(bsafe, collapse = op), ")")),
-      data = pdat), error = function(e) NULL) else NULL)
     rows[[length(rows) + 1L]] <- data.frame(item = colnames(Z)[i], ft)
   }
   if (!length(rows)) stop("no item yielded an estimable factorial ANOVA")
@@ -695,46 +704,6 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
         terms$superseded[lo] <- TRUE
     }
   }
-
-  # Tukey HSD for significant, non-superseded terms that do not involve the
-  # class interval (the group structure itself)
-  tk <- list(); tukey_note <- NULL
-  for (i in seq_len(L)) {
-    a <- fits[[i]]; if (is.null(a)) next
-    it <- colnames(Z)[i]
-    cand <- terms[terms$item == it & terms$significant & !terms$superseded, ]
-    # group terms only; and no comparisons for a two-level main effect,
-    # where the F test is already the only contrast
-    keep_t <- !vapply(cand$term, function(tt) "ci" %in% .term_vars(tt), TRUE) &
-      !(cand$df == 1L & !grepl(":", cand$term, fixed = TRUE)) &
-      # within-subject terms have no place in an ordinary Tukey HSD (the
-      # follow-up aov is person-level and between-factors only)
-      !vapply(cand$term, function(tt)
-        any(.term_vars(tt) %in% wsafe), TRUE)
-    cand <- cand$term[keep_t]
-    if (!length(cand)) next
-    # TukeyHSD has no method for the multi-stratum aov of a mixed design;
-    # say so rather than return an empty table silently
-    if (inherits(a, "aovlist")) {
-      tukey_note <- paste("Tukey comparisons are unavailable for",
-                          "within-subject (mixed) designs; use the",
-                          "resolved DIF magnitudes (sizes) instead")
-      next
-    }
-    th <- tryCatch(stats::TukeyHSD(a, which = cand), error = function(e) NULL)
-    if (is.null(th)) next
-    for (tt in names(th)) {
-      tb <- as.data.frame(th[[tt]])
-      tk[[length(tk) + 1L]] <- data.frame(
-        item = it, term = tt, comparison = rownames(tb),
-        difference = tb$diff, lower = tb$lwr, upper = tb$upr,
-        p_tukey = tb$`p adj`, row.names = NULL)
-    }
-  }
-  tukey <- if (length(tk)) do.call(rbind, tk) else
-    data.frame(item = character(), term = character(),
-               comparison = character(), difference = numeric(),
-               lower = numeric(), upper = numeric(), p_tukey = numeric())
 
   # map a term's syntactic stand-ins (f1..fk) back to the nominated factor
   # names by exact whole-token match, so a factor named like a stand-in
@@ -831,7 +800,6 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
   # relabel the stand-ins to the nominated names for display, now that all
   # classification is done
   terms$term <- relabel(terms$term)
-  tukey$term <- relabel(tukey$term)
   summary_tab$term <- relabel(summary_tab$term)
   if (!is.null(size_tab) && nrow(size_tab))
     size_tab$term <- relabel(size_tab$term)
@@ -851,13 +819,13 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     notes <- c(notes, paste(
       "term(s) reported NA were non-estimable after complete-panel",
       "filtering (a between level lost all its complete within panels)"))
-  out <- list(summary = summary_tab, terms = terms, tukey = tukey,
+  out <- list(summary = summary_tab, terms = terms,
               summary_factors = summary_factors,
               n_groups = nlevels(as.factor(ci)), within = within,
               factor_names = fnames,
+              between_covariance = "HC3 for uniform factor terms",
               effects = effects, alpha = alpha, p_adjust = p_adjust,
               notes = notes)
-  if (!is.null(tukey_note)) out$tukey_note <- tukey_note
   if (isTRUE(sizes)) {
     out$sizes <- size_tab
     out$posthoc <- posthoc_tab
@@ -879,6 +847,7 @@ print.rasch_dif <- function(x, ...) {
               if (length(x$within))
                 sprintf("; within-subject: %s", paste(x$within, collapse = ", "))
               else ""))
+  cat("Uniform between-person terms use HC3 covariance; class-interval interactions retain the residual-ANOVA reference.\n")
   show <- s[, c("item", "term", "F_uniform", "p_uniform_adj", "uniform_DIF",
                 "F_nonuniform", "p_nonuniform_adj", "nonuniform_DIF")]
   print(.fmt_df(show), row.names = FALSE)
@@ -1795,12 +1764,10 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
 #' Higher-order interactions use the corresponding tensor-product contrast.
 #' Standard errors use the full covariance of the resolved locations.
 #'
-#' This is the preferred follow-up to a significant DIF term with more than
-#' two levels. It reports effects in Rasch logits, adjusts the chosen family
-#' of comparisons, and uses person-level scores with the same equal-cell
-#' marginal weights in repeated-measures designs. Tukey's HSD in
-#' \code{\link{dif_anova}} instead compares residual means and is limited to
-#' between-person analysis-of-variance terms.
+#' This is the follow-up to a significant DIF term with more than two levels.
+#' It reports effects in Rasch logits, adjusts the chosen family of comparisons,
+#' and uses person-level scores with the same equal-cell marginal weights in
+#' repeated-measures designs.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} or
 #'   \code{\link{rasch_mfrm}}. EFRM fits are excluded because resolved

@@ -46,7 +46,9 @@ items that remain, and optimisation controls. Both calibrations must
 converge before the magnitude and its standard error are reported. MFRM
 virtual items are resolved through this unconstrained PCM. EFRM virtual
 frames are mutually exclusive and must first be reduced to an observable
-frame or linked design block.
+frame or linked design block. For an explanatory fit, the remaining items
+retain their explanatory restrictions and the resolved copies receive free
+fixed departures.
 }
 \examples{
 set.seed(1); N <- 700

@@ -68,9 +68,10 @@ dat <- data.frame(
 
 The repeated person identifier is carried into the fit. `dif_anova` detects
 occasion as within-person; it can also be declared explicitly. Persons, not
-stacked rows, are the units of analysis. Between-person tests use Type II sums
-of squares. Within-person tests use person-level contrasts, with a
-Greenhouse--Geisser correction when a factor has more than two levels.
+stacked rows, are the units of analysis. Uniform between-person terms use
+Type II tests with HC3 covariance. Class-interval interactions retain the
+residual-ANOVA reference. Within-person tests use person-level contrasts, with
+a Greenhouse--Geisser correction when a factor has more than two levels.
 This mixed-design analysis extends the single-factor residual analysis of
 variance described by Andrich and Marais (2019). Its F references are
 large-sample approximations.
@@ -82,8 +83,8 @@ da <- dif_anova(fit, within = "occasion", sizes = TRUE)
 da$summary
 ```
 
-The multiplicity adjustment is applied across items separately within each
-term. Uniform DIF is a factor effect that is stable over the trait; a
+The multiplicity adjustment covers the complete family of item-by-DIF-term
+tests. Uniform DIF is a factor effect that is stable over the trait; a
 factor-by-class-interval effect is non-uniform DIF. If person-factor
 interactions are substantively required, use `effects = "factorial"` and
 interpret a significant higher-order term before its component main effects.
@@ -108,8 +109,7 @@ effect with more than two levels is reported as pairwise marginal differences
 over the other fitted factors. An interaction is reported as a
 difference-in-differences, or its higher-order counterpart. These comparisons
 use the joint covariance of the resolved item locations and Holm adjustment
-over the stated family. They are preferable to an ordinary Tukey comparison
-of residual means because the result is on the logit scale and respects the
+over the stated family. The result is on the logit scale and respects the
 factor structure used in the DIF analysis.
 
 For repeated-person contrasts, significance comes from person-level residual

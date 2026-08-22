@@ -67,6 +67,12 @@ of residual misfit, the item-trait interaction, category thresholds, and the
 substantive content of an item. Targeting determines how much information the
 scale supplies over the observed person distribution.
 
+The item-trait chi-square is the principal inferential test over class
+intervals. The residual ANOVA is a supplementary diagnostic. Both references
+are approximate in short administrations, where each response materially
+affects the person grouping; read them with the characteristic curve and
+residual fit rather than as stand-alone decisions.
+
 ```{r summaries}
 fit_summary_table(fit)
 targeting_table(fit)

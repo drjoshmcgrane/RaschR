@@ -108,7 +108,7 @@ test_that("interactive facet mode recovers a planted item-by-rater effect", {
                           interaction = "nope"), "must name one of the facets")
 })
 
-test_that("factorial DIF: full table, Tukey rules, main-effects mode", {
+test_that("factorial DIF: full table, logit follow-ups, main-effects mode", {
   set.seed(1); n <- 1500
   d <- seq(-1.5, 1.5, length.out = 8)
   g1 <- rep(c("a", "b"), each = n / 2)                      # 2 levels, DIF on I3
@@ -131,14 +131,13 @@ test_that("factorial DIF: full table, Tukey rules, main-effects mode", {
   t3 <- df$terms[df$terms$item == "I3", ]
   expect_true(t3$significant[t3$term == "g1"])
   expect_false(t3$superseded[t3$term == "g1"])
-  # two-level main effect: significant, but no Tukey (the F test suffices)
-  expect_equal(nrow(df$tukey[df$tukey$item == "I3" & df$tukey$term == "g1", ]), 0)
-  # three-level main effect: Tukey gives the choose(3, 2) level contrasts
+  expect_false("tukey" %in% names(df))
+  # A three-level main effect is followed by covariance-aware logit contrasts.
   t6 <- df$terms[df$terms$item == "I6", ]
   expect_true(t6$significant[t6$term == "g2"])
-  tk6 <- df$tukey[df$tukey$item == "I6" & df$tukey$term == "g2", ]
-  expect_equal(nrow(tk6), 3)
-  expect_lt(min(tk6$p_tukey), 0.01)
+  ph6 <- dif_posthoc(fit, "I6", term = "g2")$table
+  expect_equal(nrow(ph6), 3)
+  expect_lt(min(ph6$p_adj), 0.01)
 
   # main-effects mode drops the factor-by-factor terms
   dm <- dif_anova(fit, effects = "main")
@@ -170,9 +169,10 @@ test_that("a significant interaction supersedes its main effects", {
   for (tt in c("g1", "g2"))
     if (t2$significant[t2$term == tt]) expect_true(t2$superseded[t2$term == tt])
   expect_false(t2$superseded[t2$term == "g1:g2"])
-  # Tukey on the interaction compares the four cells
-  tki <- df$tukey[df$tukey$item == "I2" & df$tukey$term == "g1:g2", ]
-  expect_equal(nrow(tki), 6)   # choose(4, 2) cell contrasts
+  # The interaction follow-up is the logit difference-in-differences.
+  phi <- dif_posthoc(fit, "I2", term = c("g1", "g2"))$table
+  expect_equal(nrow(phi), 1)
+  expect_true(phi$practical)
 })
 
 test_that("multiple-choice scoring and miskey detection work", {

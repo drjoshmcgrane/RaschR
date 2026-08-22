@@ -19,7 +19,8 @@ btl(
   ties = c("drop", "half", "error"),
   thresholds = c("free", "pc"),
   maxit = 60,
-  tol = 1e-08
+  tol = 1e-08,
+  .object_design = NULL
 )
 }
 \arguments{
@@ -66,6 +67,9 @@ category instead.}
 threshold; \code{"pc"} retains only the symmetric spread component.}
 
 \item{maxit, tol}{Newton-Raphson iteration cap and convergence tolerance.}
+
+\item{.object_design}{Internal object-location design used by
+\code{\link{btl_explanatory}}.}
 }
 \value{
 A \code{"rasch_btl"} object. Principal components are

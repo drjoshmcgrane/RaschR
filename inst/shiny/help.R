@@ -72,6 +72,20 @@ APP_HELP <- c(
     "Number of persons with an absolute fit residual above the working value of",
     "2.5. This is a screening count rather than a classification rule."
   ),
+  metric_expl_model = paste(
+    "LLTM denotes a dichotomous explanatory model; LPCM denotes its",
+    "polytomous threshold extension. Explanatory CJ models object locations."
+  ),
+  metric_expl_terms = paste(
+    "Number of estimable predictor coefficients after fixing the scale origin."
+  ),
+  metric_expl_relax = paste(
+    "Number of fixed item, threshold or object departures in the active model."
+  ),
+  metric_expl_test = paste(
+    "Kent-adjusted comparison of the active explanatory restrictions with a",
+    "free calibration of the same responses."
+  ),
 
   # Summary ---------------------------------------------------------------
   fitsum_tbl = paste(
@@ -98,12 +112,33 @@ APP_HELP <- c(
     "Compares original and active person locations after a structural change,",
     "showing how the revised calibration propagates into person measurement."
   ),
+  expl_test_tbl = paste(
+    "Compares the active explanatory model with a free calibration of the same",
+    "responses. Use the Kent-adjusted probability for inference."
+  ),
+  expl_coef_tbl = paste(
+    "Reports predictor effects on item, threshold or object location in logits, with",
+    "standard errors and Holm-adjusted probabilities."
+  ),
+  expl_diag_tbl = paste(
+    "Tests each available fixed item, threshold or object departure separately from",
+    "the active model. Holm adjustment covers the complete displayed family."
+  ),
+  expl_calibration = paste(
+    "Compares explanatory and freely estimated locations on the same logit",
+    "scale. Points far from the diagonal identify the largest restrictions."
+  ),
+  expl_relax_tbl = paste(
+    "Lists the fixed departures in the active explanatory calibration."
+  ),
 
   # Item, object and person tables ----------------------------------------
   items_tbl = paste(
     "Reports item fit for ordinary calibrations and response-cell fit for",
     "Extended Frames or Multiple Ratings. Select a row to inspect its curves;",
-    "marked cells identify working criteria rather than a single decision rule."
+    "marked cells identify working criteria rather than a single decision rule.",
+    "Class-interval probabilities are approximate, particularly when fewer",
+    "than ten responses locate each person."
   ),
   structural_items_tbl = paste(
     "Reports item locations on the common scale for an Extended Frames or",
@@ -196,7 +231,8 @@ APP_HELP <- c(
   dif_tbl = paste(
     "Summarises uniform and non-uniform DIF for the selected item and factor",
     "terms. Holm-adjusted probabilities control the complete item-by-term",
-    "family by default."
+    "family by default. Uniform between-person terms use HC3 covariance;",
+    "class-interval interactions retain the residual-ANOVA reference."
   ),
   dif_full_tbl = paste(
     "Contains the complete item-by-term DIF results. Uniform DIF is associated",

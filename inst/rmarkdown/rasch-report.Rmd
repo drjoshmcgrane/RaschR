@@ -66,6 +66,20 @@ if (length(fit$notes))
 
 ```{r rasch-results, results='asis'}
 if (!is_btl) {
+  if (inherits(fit, "rasch_explanatory")) {
+    cat("\n# Explanatory model\n\n")
+    cat("Formula: `", fit$explanatory$formula_text, "`\n\n", sep = "")
+    cat("\n## Comparison with free calibration\n\n")
+    print(show_table(explanatory_test(fit)))
+    cat("\n## Predictor effects\n\n")
+    print(show_table(fit$est$coefficients))
+    cat("\n## Fixed-departure diagnostics\n\n")
+    print(show_table(explanatory_diagnostics(fit)))
+    if (nrow(fit$explanatory$relaxations)) {
+      cat("\n## Fixed departures\n\n")
+      print(show_table(fit$explanatory$relaxations))
+    }
+  }
   cat("\n# Item estimates\n\n")
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
     if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
@@ -184,6 +198,20 @@ if (!is_btl) {
 
 ```{r btl-results, results='asis'}
 if (is_btl) {
+  if (inherits(fit, "rasch_btl_explanatory")) {
+    cat("\n# Explanatory model\n\n")
+    cat("Formula: `", fit$explanatory$formula_text, "`\n\n", sep = "")
+    cat("\n## Comparison with free calibration\n\n")
+    print(show_table(explanatory_test(fit)))
+    cat("\n## Predictor effects\n\n")
+    print(show_table(fit$object_coefficients))
+    cat("\n## Fixed-departure diagnostics\n\n")
+    print(show_table(explanatory_diagnostics(fit)))
+    if (nrow(fit$explanatory$relaxations)) {
+      cat("\n## Fixed departures\n\n")
+      print(show_table(fit$explanatory$relaxations))
+    }
+  }
   cat("\n# Object estimates\n\n")
   print(show_table(report_columns(fit$objects,
     c("object", "location", "se", "fit_resid", "infit_ms", "outfit_ms"))))

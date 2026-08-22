@@ -309,6 +309,14 @@ css <- HTML("
     margin-bottom: 0; width: auto;
   }
   .rasch-inline-select select.form-select { padding: .15rem 1.6rem .15rem .5rem; font-size: .78rem; }
+  .rasch-predictor-types { display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem; }
+  .rasch-predictor-type { min-width: 0; padding: .55rem .6rem;
+    border: 1px solid var(--bs-border-color); border-radius: .5rem;
+    background: var(--bs-tertiary-bg); }
+  .rasch-predictor-type .form-group,
+  .rasch-predictor-type .shiny-input-container { width: 100%; margin-bottom: .35rem; }
+  .rasch-predictor-type .shiny-input-container:last-child { margin-bottom: 0; }
   /* collapsed advanced-settings disclosure inside the sidebar accordion */
   .rasch-advanced { margin-top: .5rem; }
   .rasch-advanced summary { cursor: pointer; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color); margin-bottom: .35rem; }
@@ -668,36 +676,56 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                             span("First-position advantage",
                                  info_icon("Object A is the first-presented of each pair; estimates the positional advantage (Davidson and Beaver 1977).")),
                             FALSE),
-              fileInput("bt_anchor_file",
-                        span("Anchor objects (CSV: object, location)",
-                             info_icon("Holds the named objects at their given locations and estimates the rest around them.")),
-                        accept = ".csv", placeholder = "optional"),
+              conditionalPanel("input.rasch_calibration != 'explanatory'",
+                fileInput("bt_anchor_file",
+                          span("Anchor objects (CSV: object, location)",
+                               info_icon("Holds the named objects at their given locations and estimates the rest around them.")),
+                          accept = ".csv", placeholder = "optional")),
               conditionalPanel("!input.bt_response && !input.bt_margin",
                 radioButtons("bt_ties", "Ties",
                              c("Drop" = "drop", "Half a win each" = "half")))
             )),
           accordion_panel("Estimation options", icon = bs_icon("gear"),
-            conditionalPanel("input.model_type == 'rasch'",
-              radioButtons("thr_structure", info_label("Threshold structure",
-                           paste("Dichotomous items need no setting. The rating scale",
-                                 "model requires equal maximum scores; lr_test() compares",
-                                 "it with the partial credit model.")),
-                           c("Partial credit (item-specific)" = "pcm",
-                             "Rating scale (common across items)" = "rsm")),
-              conditionalPanel("input.thr_structure == 'pcm'",
-                radioButtons("thr_mode", "Threshold estimation",
-                             c("Free thresholds" = "free",
-                               "Principal components (Andrich)" = "pc")),
-                conditionalPanel("input.thr_mode == 'pc'",
-                  selectInput("pc_rank", info_label("Components",
-                              paste("Constrains thresholds to a polynomial trend",
-                                    "across categories, which can stabilise sparse",
-                                    "categories. This option cannot be combined with anchors.")),
-                              c("Location only" = "1",
-                                "+ spread (equal spread)" = "2",
-                                "+ skewness" = "3",
-                                "+ kurtosis (full PC)" = "4"),
-                              selected = "4")))),
+            conditionalPanel("input.model_type == 'rasch' || input.model_type == 'btl'",
+              radioButtons("rasch_calibration", info_label("Calibration",
+                           paste("Free calibration estimates item thresholds or object locations directly.",
+                                 "Explanatory calibration expresses them as functions",
+                                 "of observed characteristics.")),
+                           c("Free" = "free", "Explanatory" = "explanatory")),
+              conditionalPanel("input.model_type == 'rasch' && input.rasch_calibration != 'explanatory'",
+                radioButtons("thr_structure", info_label("Threshold structure",
+                             paste("Dichotomous items need no setting. The rating scale",
+                                   "model requires equal maximum scores; lr_test() compares",
+                                   "it with the partial credit model.")),
+                             c("Partial credit (item-specific)" = "pcm",
+                               "Rating scale (common across items)" = "rsm")),
+                conditionalPanel("input.thr_structure == 'pcm'",
+                  radioButtons("thr_mode", "Threshold estimation",
+                               c("Free thresholds" = "free",
+                                 "Principal components (Andrich)" = "pc")),
+                  conditionalPanel("input.thr_mode == 'pc'",
+                    selectInput("pc_rank", info_label("Components",
+                                paste("Constrains thresholds to a polynomial trend",
+                                      "across categories, which can stabilise sparse",
+                                      "categories. This option cannot be combined with anchors.")),
+                                c("Location only" = "1",
+                                  "+ spread (equal spread)" = "2",
+                                  "+ skewness" = "3",
+                                  "+ kurtosis (full PC)" = "4"),
+                                selected = "4")))),
+              conditionalPanel("input.rasch_calibration == 'explanatory'",
+                fileInput("exp_predictors", info_label("Predictor metadata (CSV)",
+                          paste("Use one row per item or object.",
+                                "Threshold-level Rasch files also identify each threshold.")),
+                          accept = ".csv", placeholder = "names and predictor columns"),
+                conditionalPanel("input.model_type == 'rasch'",
+                  radioButtons("exp_level", info_label("Predictor level",
+                               paste("Item predictors are repeated over that item's thresholds.",
+                                     "Threshold predictors may differ within an item.")),
+                               c("Item locations" = "item",
+                                 "Individual thresholds" = "threshold"))),
+                uiOutput("exp_predictor_types"),
+                uiOutput("exp_formula_controls"))),
             conditionalPanel(
               "input.model_type == 'btl' && (input.bt_response || input.bt_margin)",
               radioButtons("bt_thr", info_label("Threshold structure",
@@ -736,15 +764,16 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                         span("Scoring key (CSV)",
                              info_icon("Columns item,key for a multiple-choice key — use \"A/C\" for a double key — or item,option,score for polytomous option scoring.")),
                         accept = ".csv", placeholder = "optional"),
-              fileInput("anchor_file", info_label("Anchors for equating (CSV: item,k,tau)",
-                        paste("Names not present are ignored. Individual anchoring fixes",
-                              "each threshold; average anchoring fixes each item's mean",
-                              "while its thresholds remain free.")),
-                        accept = ".csv", placeholder = "optional"),
-              radioButtons("anchor_type", "Anchor as",
-                           c("Individual thresholds" = "individual",
-                           "Average item locations" = "average"),
-                           inline = TRUE)))
+              conditionalPanel("input.rasch_calibration != 'explanatory'",
+                fileInput("anchor_file", info_label("Anchors for equating (CSV: item,k,tau)",
+                          paste("Names not present are ignored. Individual anchoring fixes",
+                                "each threshold; average anchoring fixes each item's mean",
+                                "while its thresholds remain free.")),
+                          accept = ".csv", placeholder = "optional"),
+                radioButtons("anchor_type", "Anchor as",
+                             c("Individual thresholds" = "individual",
+                             "Average item locations" = "average"),
+                             inline = TRUE))))
         ),
         input_task_button("run", "Estimate", icon = bs_icon("play-fill"),
                           type = "primary", class = "w-100 btn-lg mt-2"),
@@ -1019,6 +1048,49 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
           tableCard("btl_pairs_tbl",
                     note = "Observed against expected win proportions (mean polytomous responses for a polytomous fit) for every pair; the total chi-square tests the pairwise comparison structure."))))
   )
+
+# --------------------------------------------------------- EXPLANATORY --
+panel_explanatory <- nav_panel("Explanatory", value = "p_explanatory",
+    icon = bs_icon("bezier2"),
+    uiOutput("expl_boxes"),
+    rcode_details("expl_boxes"),
+    layout_columns(col_widths = breakpoints(sm = 12, xl = c(5, 7)),
+      tableCard("expl_test_tbl", "Model comparison",
+        info = paste("Compares the active explanatory restrictions with the",
+                     "free calibration of the same responses. Inference uses",
+                     "the Kent adjustment for pairwise composite likelihood.")),
+      tableCard("expl_coef_tbl", "Predictor effects",
+        info = paste("Estimated effects of the nominated item, threshold or object",
+                     "characteristics in logits. Holm adjustment covers the",
+                     "displayed coefficient family."))),
+    plotCard("expl_calibration", "Explanatory and free calibration",
+      info = paste("Each point compares an active explanatory threshold or object",
+                   "location with its freely estimated counterpart. The diagonal denotes",
+                   "agreement; labels identify parameters with the largest",
+                   "departures.")),
+    card(class = "mb-3",
+      card_header_bar("Fixed-departure diagnostics",
+        info = paste("Each candidate is added separately to the active model.",
+                     "Item location moves all thresholds together; threshold",
+                     "structure changes their relative positions; CJ uses fixed",
+                     "object-location departures. Probabilities",
+                     "use Kent calibration and Holm adjustment."),
+        buttons = downloadButton("expl_diag_tbl_csv", "CSV",
+                                 class = "btn-outline-secondary btn-xs")),
+      card_body(fillable = FALSE,
+        p(class = "text-muted small mb-2",
+          "Select a row to approve that fixed departure and repeat the complete calibration."),
+        DTOutput("expl_diag_tbl"),
+        uiOutput("expl_selected_note"),
+        div(class = "d-flex gap-2 justify-content-end mt-2",
+          input_task_button("expl_relax", "Add selected departure and refit",
+                            type = "primary")),
+        rcode_details("expl_diag_tbl"))),
+    conditionalPanel("output.has_expl_relaxations == true",
+      tableCard("expl_relax_tbl", "Fixed departures",
+        info = paste("The fixed departures included in the active calibration.",
+                     "Every downstream table and plot uses this recalibrated",
+                     "model; use Undo or Reset on the Data page to reverse it."))))
 
 # -------------------------------------------------------------- PERSONS --
 panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("people"),
@@ -1959,6 +2031,7 @@ ui <- page_navbar(
   panel_data,
   panel_summary,
   panel_items,
+  panel_explanatory,
   panel_persons,
   panel_targeting,
   nav_menu("Independence", value = "menu_independence",
@@ -2206,6 +2279,172 @@ server <- function(input, output, session) {
       return(NULL)
     }
     a
+  })
+
+  exp_predictors_raw <- reactive({
+    req(input$exp_predictors)
+    p <- tryCatch(read.csv(input$exp_predictors$datapath,
+                           check.names = FALSE, stringsAsFactors = FALSE),
+                  error = function(e) e)
+    if (inherits(p, "error"))
+      stop("could not read the predictor metadata: ", conditionMessage(p))
+    key <- if (identical(input$model_type, "btl")) "object" else "item"
+    if (!key %in% names(p))
+      stop("predictor metadata needs a ", key, " column")
+    p
+  })
+  exp_predictor_vars <- reactive(setdiff(names(exp_predictors_raw()),
+    c("item", "object", "threshold", "threshold_number")))
+  exp_predictor_type <- function(p, nm) {
+    j <- match(nm, exp_predictor_vars())
+    input[[paste0("exp_type_", j)]] %||%
+      if (is.numeric(p[[nm]])) "continuous" else "categorical"
+  }
+  exp_level_order <- function(p, nm) {
+    j <- match(nm, exp_predictor_vars())
+    raw <- input[[paste0("exp_order_", j)]] %||% ""
+    lev <- trimws(strsplit(raw, "[>,;]", perl = TRUE)[[1]])
+    lev <- lev[nzchar(lev)]
+    observed <- unique(as.character(p[[nm]][!is.na(p[[nm]])]))
+    if (!length(lev)) lev <- if (is.numeric(p[[nm]]))
+      as.character(sort(unique(p[[nm]][!is.na(p[[nm]])]))) else observed
+    if (anyDuplicated(lev) || !setequal(lev, observed))
+      stop("ordinal order for ", nm,
+           " must list every observed level exactly once")
+    lev
+  }
+  exp_category_levels <- function(p, nm) {
+    observed <- unique(as.character(p[[nm]][!is.na(p[[nm]])]))
+    lev <- if (is.numeric(p[[nm]]))
+      as.character(sort(unique(p[[nm]][!is.na(p[[nm]])]))) else
+        sort(observed)
+    if (!length(lev)) stop("predictor ", nm, " has no observed values")
+    j <- match(nm, exp_predictor_vars())
+    ref <- input[[paste0("exp_ref_", j)]] %||% lev[1]
+    if (!ref %in% lev) stop("categorical reference for ", nm,
+                             " is not an observed level")
+    c(ref, setdiff(lev, ref))
+  }
+  exp_predictors_in <- reactive({
+    p <- exp_predictors_raw()
+    for (nm in exp_predictor_vars()) {
+      type <- exp_predictor_type(p, nm)
+      if (type == "ordinal") {
+        p[[nm]] <- ordered(as.character(p[[nm]]),
+                           levels = exp_level_order(p, nm))
+      } else if (type == "categorical") {
+        p[[nm]] <- factor(p[[nm]], levels = exp_category_levels(p, nm))
+      } else {
+        original_na <- is.na(p[[nm]])
+        value <- suppressWarnings(as.numeric(as.character(p[[nm]])))
+        if (anyNA(value) && any(!original_na & is.na(value)))
+          stop("continuous predictor ", nm, " contains non-numeric values")
+        p[[nm]] <- value
+      }
+    }
+    p
+  })
+  output$exp_predictor_types <- renderUI({
+    if (is.null(input$exp_predictors)) return(NULL)
+    p <- tryCatch(exp_predictors_raw(), error = function(e) NULL)
+    if (is.null(p)) return(NULL)
+    vars <- exp_predictor_vars()
+    tagList(
+      div(class = "small text-muted mb-2",
+          info_label("Predictor types",
+            paste("Categorical predictors compare levels with a selected reference.",
+                  "Ordinal predictors estimate adjacent changes along the",
+                  "declared order. Continuous predictors estimate a linear",
+                  "effect per unit."))),
+      div(class = "rasch-predictor-types", lapply(vars, function(nm) {
+        j <- match(nm, vars)
+        type <- exp_predictor_type(p, nm)
+        default <- if (is.numeric(p[[nm]]))
+          sort(unique(p[[nm]][!is.na(p[[nm]])])) else
+            unique(as.character(p[[nm]][!is.na(p[[nm]])]))
+        div(class = "rasch-predictor-type",
+          selectInput(paste0("exp_type_", j), nm,
+            choices = c("Categorical" = "categorical",
+                        "Ordinal" = "ordinal",
+                        "Continuous" = "continuous"),
+            selected = type),
+          if (type == "categorical")
+            selectInput(paste0("exp_ref_", j), "Reference level",
+              choices = exp_category_levels(p, nm),
+              selected = (input[[paste0("exp_ref_", j)]] %||%
+                            exp_category_levels(p, nm)[1])),
+          if (type == "ordinal")
+            textInput(paste0("exp_order_", j), paste("Order for", nm),
+              value = paste(default, collapse = " > "),
+              placeholder = "lowest > middle > highest"))
+      })))
+  })
+  exp_predictor_code <- reactive({
+    p <- exp_predictors_raw()
+    vapply(exp_predictor_vars(), function(nm) {
+      type <- exp_predictor_type(p, nm)
+      if (type == "ordinal")
+        return(sprintf(
+          "predictors[[%s]] <- ordered(predictors[[%s]], levels = %s)",
+          qstr(nm), qstr(nm), qvec(exp_level_order(p, nm))))
+      if (type == "categorical")
+        return(sprintf("predictors[[%s]] <- factor(predictors[[%s]], levels = %s)",
+                       qstr(nm), qstr(nm), qvec(exp_category_levels(p, nm))))
+      sprintf("predictors[[%s]] <- as.numeric(predictors[[%s]])",
+              qstr(nm), qstr(nm))
+    }, character(1))
+  })
+  output$exp_formula_controls <- renderUI({
+    if (is.null(input$exp_predictors))
+      return(p(class = "text-muted small",
+               "Upload predictor metadata to choose effects and interactions."))
+    p <- tryCatch(exp_predictors_raw(), error = function(e) NULL)
+    if (is.null(p)) return(p(class = "text-danger small",
+                             "The predictor metadata could not be read."))
+    is_cj <- identical(input$model_type, "btl")
+    vars <- setdiff(names(p), c("item", "object", "threshold",
+                                "threshold_number"))
+    # `threshold` is supplied by the estimator even for item-level metadata.
+    # It is selected by default only when the nominated responses appear
+    # polytomous.
+    its <- input$item_cols
+    poly <- FALSE
+    if (length(its)) {
+      d <- raw_data()[, its, drop = FALSE]
+      poly <- any(vapply(d, function(v)
+        suppressWarnings(max(as.numeric(as.character(v)), na.rm = TRUE)) > 1,
+        logical(1)))
+    }
+    choices <- c(vars, if (!is_cj) c("threshold", "threshold_number"))
+    selected <- c(vars, if (!is_cj && poly) "threshold")
+    tagList(
+      selectizeInput("exp_main", info_label("Main effects",
+        if (is_cj) "Predictors of object location." else
+          paste("Predictors of item or threshold location. Threshold denotes",
+                "a categorical within-item threshold effect; threshold_number",
+                "fits one linear effect per threshold number.")),
+        choices = choices, selected = selected, multiple = TRUE,
+        options = list(placeholder = "choose at least one")),
+      selectizeInput("exp_interactions", info_label("Two-way interactions",
+        paste("Allows one selected predictor's effect to differ over another.",
+              "Both main effects remain in the model.")),
+        choices = character(0), multiple = TRUE,
+        options = list(placeholder = "none")))
+  })
+  observeEvent(input$exp_main, {
+    z <- input$exp_main
+    choices <- if (length(z) >= 2L)
+      apply(utils::combn(z, 2L), 2L, paste, collapse = ":") else character(0)
+    keep <- intersect(input$exp_interactions %||% character(0), choices)
+    updateSelectizeInput(session, "exp_interactions", choices = choices,
+                         selected = keep, server = TRUE)
+  }, ignoreNULL = FALSE)
+
+  exp_formula <- reactive({
+    main <- input$exp_main
+    if (!length(main)) stop("choose at least one explanatory main effect")
+    terms <- c(main, input$exp_interactions %||% character(0))
+    stats::reformulate(terms)
   })
 
   # paired-comparison anchors: a two-column CSV (object, location) that places
@@ -2621,6 +2860,8 @@ server <- function(input, output, session) {
           bt_marg <- !bt_graded && !is.null(input$bt_margin) &&
             nzchar(input$bt_margin)
           bt_thr <- input$bt_thr %||% "free"
+          bt_exp <- identical(input$rasch_calibration %||% "free",
+                              "explanatory")
           # the judgment-order column enables the within-judge dependence
           # analysis (exposure and carry-over); it only exists with a judge
           bt_ord <- if (!is.null(input$bt_order) && nzchar(input$bt_order) &&
@@ -2630,13 +2871,26 @@ server <- function(input, output, session) {
           # pair) and equating anchors (a named location per object) both feed
           # btl() directly; anchors come from a two-column CSV
           bt_pos <- isTRUE(input$bt_position)
-          bt_anc_df <- bt_anchors_in()
+          bt_anc_df <- if (bt_exp) NULL else bt_anchors_in()
           bt_anchor_vec <- if (!is.null(bt_anc_df))
             setNames(bt_anc_df$location, bt_anc_df$object) else NULL
           if (any(c(input$bt_a, input$bt_b) == NONE) ||
               (!bt_graded && identical(input$bt_win, NONE)))
             stop("nominate the object A, object B, and winner (or polytomous response) columns")
-          code_call <- paste0("bt <- btl(dat,\n  ", paste(c(
+          if (bt_exp) {
+            ep <- exp_predictors_in()
+            ef <- exp_formula()
+            code_notes <- c(
+              paste0("predictors <- read.csv(", qstr(input$exp_predictors$name),
+                     ", check.names = FALSE)"),
+              exp_predictor_code(),
+              paste0("explanatory_formula <- ",
+                     paste(deparse(ef), collapse = " ")))
+          }
+          code_call <- paste0("bt <- ",
+            if (bt_exp) "btl_explanatory" else "btl", "(dat,\n  ", paste(c(
+            if (bt_exp) "predictors = predictors",
+            if (bt_exp) "formula = explanatory_formula",
             paste0("object_a = ", qstr(input$bt_a)),
             paste0("object_b = ", qstr(input$bt_b)),
             if (bt_graded) paste0("response = ", qstr(input$bt_response))
@@ -2659,14 +2913,17 @@ server <- function(input, output, session) {
           # one shared argument list; the entry path (polytomous response,
           # winner + margin, winner only) contributes its own arguments
           bt_args <- c(
-            list(df, object_a = input$bt_a, object_b = input$bt_b,
+            list(df),
+            if (bt_exp) list(predictors = ep, formula = ef) else list(),
+            list(object_a = input$bt_a, object_b = input$bt_b,
                  judge = if (!is.null(input$bt_judge) &&
                              input$bt_judge != NONE) input$bt_judge else NULL,
                  order = bt_ord,
-                 position = bt_pos, anchors = bt_anchor_vec,
+                 position = bt_pos,
                  count = if (!is.null(input$bt_count) &&
                              input$bt_count != NONE) input$bt_count else NULL,
                  maxit = eo$maxit, tol = eo$tol),
+            if (!bt_exp) list(anchors = bt_anchor_vec) else list(),
             if (bt_graded)
               list(response = input$bt_response, thresholds = bt_thr)
             else if (bt_marg)
@@ -2674,7 +2931,7 @@ server <- function(input, output, session) {
                    thresholds = bt_thr)
             else
               list(winner = input$bt_win, ties = input$bt_ties %||% "drop"))
-          do.call(btl, bt_args)
+          do.call(if (bt_exp) btl_explanatory else btl, bt_args)
         } else if (identical(input$model_type, "efrm")) {
           sm <- ef_setmap()
           code_call <- paste0("fit <- rasch_efrm(dat,\n  ", paste(c(
@@ -2764,6 +3021,38 @@ server <- function(input, output, session) {
           } else if (identical(input$demo_choice, "dich")) {
             mc_key <- .demo_dich_key()
           }
+          exp_on <- identical(input$rasch_calibration %||% "free",
+                              "explanatory")
+          if (exp_on) {
+            ep <- exp_predictors_in()
+            ef <- exp_formula()
+            level <- input$exp_level %||% "item"
+            code_notes <- c(
+              paste0("predictors <- read.csv(",
+                     qstr(input$exp_predictors$name),
+                     ", check.names = FALSE)"),
+              exp_predictor_code(),
+              paste0("explanatory_formula <- ",
+                     paste(deparse(ef), collapse = " ")))
+            code_call <- paste0("fit <- rasch_explanatory(dat,\n  ", paste(c(
+              "predictors = predictors",
+              "formula = explanatory_formula",
+              paste0("level = ", qstr(level)),
+              if (!is.null(idc)) paste0("id = ", qstr(idc)),
+              if (!is.null(fac)) paste0("factors = ", qvec(fac)),
+              if (!is.null(its)) paste0("items = ", qvec(its)),
+              code_args_common,
+              if (!is.null(mc_key) && !is.null(input$key_file))
+                paste0("key = read.csv(", qstr(input$key_file$name), ")")
+              else if (!is.null(mc_key))
+                'key = setNames(rep("A", 15), sprintf("I%02d", 1:15))',
+              code_est), collapse = ",\n  "), ")")
+            rasch_explanatory(
+              df, predictors = ep, formula = ef, level = level,
+              id = idc, factors = fac, items = its,
+              n_groups = ng, adjust_N = adjN, key = mc_key,
+              maxit = eo$maxit, tol = eo$tol)
+          } else {
           # anchors match by item name; rows for absent items are ignored
           anc <- anchors_in()
           if (!is.null(anc)) {
@@ -2819,6 +3108,7 @@ server <- function(input, output, session) {
                 n_groups = ng, adjust_N = adjN, anchors = anc,
                 key = mc_key, pc_components = pcc,
                 maxit = eo$maxit, tol = eo$tol)
+          }
         }
       }, error = function(e) e)
     })
@@ -2957,6 +3247,8 @@ server <- function(input, output, session) {
         character(0)
     show("p_summary", rasch_on || btl_on)
     show("p_items", rasch_on || btl_on)
+    show("p_explanatory", inherits(f, "rasch_explanatory") ||
+           inherits(bf, "rasch_btl_explanatory"))
     show("p_persons", rasch_on || (btl_on && !is.null(bf$judges)))
     # Targeting is model aware. Common-item equating is defined only for an
     # ordinary person-by-item calibration; paired comparisons have their own
@@ -2995,6 +3287,24 @@ server <- function(input, output, session) {
   outputOptions(output, "has_interaction", suspendWhenHidden = FALSE)
   output$is_btl <- reactive(!is.null(btl_fit()))
   outputOptions(output, "is_btl", suspendWhenHidden = FALSE)
+  output$is_explanatory <- reactive({
+    inherits(tryCatch(fit(), error = function(e) NULL), "rasch_explanatory") ||
+      inherits(tryCatch({
+        s <- active_btl_step(); if (is.null(s)) btl_fit() else s$fit
+      }, error = function(e) NULL), "rasch_btl_explanatory")
+  })
+  outputOptions(output, "is_explanatory", suspendWhenHidden = FALSE)
+  output$has_expl_relaxations <- reactive({
+    f <- tryCatch({
+      b <- btl_fit()
+      if (!is.null(b)) {
+        s <- active_btl_step(); if (is.null(s)) b else s$fit
+      } else fit()
+    }, error = function(e) NULL)
+    inherits(f, c("rasch_explanatory", "rasch_btl_explanatory")) &&
+      nrow(f$explanatory$relaxations) > 0L
+  })
+  outputOptions(output, "has_expl_relaxations", suspendWhenHidden = FALSE)
   output$dep_magnitude_available <- reactive({
     f <- tryCatch(fit(), error = function(e) NULL)
     !is.null(f) && !inherits(f, "rasch_efrm")
@@ -3534,7 +3844,7 @@ server <- function(input, output, session) {
     n_informative = "Informative comparisons")
   # p-value columns render as "<0.001" / 3 dp on the client, so sorting
   # still uses the raw value; detection runs on the ORIGINAL column names
-  P_COL_RE <- "^p$|^p_|_p$|^prob$|p_tukey|p_anova|p_adj|p_bonf|p_uniform|p_nonuniform"
+  P_COL_RE <- "^p$|^p_|_p$|^prob$|p_anova|p_adj|p_bonf|p_uniform|p_nonuniform"
   P_RENDER <- DT::JS("function(data,type,row){ if(type==='display'){ if(data===null||data==='') return ''; var x=Number(data); return x<0.001 ? '&lt;0.001' : x.toFixed(3);} return data; }")
   # fit flags, consistent across every model table: a fit residual beyond
   # |2.5|, an outfit mean square outside 0.7-1.3, and an infit mean square
@@ -3657,7 +3967,7 @@ server <- function(input, output, session) {
   # ------------------------------------------------ navbar status summary --
   # A single quiet capsule replaces the row of coloured bubbles. On narrower
   # screens the sample-size details drop away, leaving model and reliability.
-  physical_item_count <- function(f) {
+  item_count_app <- function(f) {
     if (inherits(f, "rasch_mfrm")) nrow(f$item_effects)
     else if (inherits(f, "rasch_efrm")) nrow(f$item_arbitrary)
     else ncol(f$X)
@@ -3671,7 +3981,9 @@ server <- function(input, output, session) {
       osi <- b$osi$PSI
       return(div(class = "rasch-nav-summary",
         span(class = "rasch-nav-model",
-             if (inherits(b, "rasch_btl_efrm")) "CJ Extended Frames" else "CJ"),
+             if (inherits(b, "rasch_btl_efrm")) "CJ Extended Frames"
+             else if (inherits(b, "rasch_btl_explanatory")) "Explanatory CJ"
+             else "CJ"),
         span(class = "rasch-nav-secondary", sep,
              paste(nrow(b$objects), "objects"), sep,
              sprintf("%.0f comparisons", b$n_comparisons)),
@@ -3687,13 +3999,14 @@ server <- function(input, output, session) {
     # polytomous items, so an all-dichotomous fit reads "Dichotomous"
     model_lab <- if (inherits(f, "rasch_mfrm")) "MFRM"
       else if (inherits(f, "rasch_efrm")) "EFRM"
+      else if (inherits(f, "rasch_explanatory")) f$explanatory_model
       else if (max(f$m) == 1L) "Dichotomous"
       else f$model
     div(class = "rasch-nav-summary",
       span(class = "rasch-nav-model", model_lab),
       span(class = "rasch-nav-secondary", sep,
            paste(nrow(f$X), "persons"), sep,
-           paste(physical_item_count(f), "items")),
+           paste(item_count_app(f), "items")),
       sep,
       span(class = if (finite1(psi) && psi >= 0.7)
         "rasch-nav-good" else "rasch-nav-warn",
@@ -3706,7 +4019,7 @@ server <- function(input, output, session) {
     metric_grid(
       metric_tile("metric_persons", "Persons", nrow(f$X),
                   icon = "distribution", status = "neutral"),
-      metric_tile("metric_items", "Items", physical_item_count(f),
+      metric_tile("metric_items", "Items", item_count_app(f),
                   icon = "ruler", status = "neutral"),
       metric_tile("metric_psi", "PSI",
                   if (finite1(f$psi$PSI)) sprintf("%.3f", f$psi$PSI) else "—",
@@ -3781,7 +4094,8 @@ server <- function(input, output, session) {
       else "pairwise conditional ML"
       tagList(
         div(class = "stat-head",
-            f$model, " · ", method, " · ", conv),
+            if (inherits(f, "rasch_explanatory")) f$explanatory_model else f$model,
+            " · ", method, " · ", conv),
         stat_rows(
           stat_row(if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
                      "Response-cell-trait chi-square" else
@@ -3941,6 +4255,168 @@ server <- function(input, output, session) {
     if (inherits(fit(), c("rasch_mfrm", "rasch_efrm")))
       "Response-cell statistics" else "Item statistics"
   })
+
+  # Explanatory calibration: the same fit object feeds the comparison,
+  # coefficient, diagnostic and downstream pages. Diagnostics are cached until
+  # the active calibration changes because each row requires a constrained
+  # refit.
+  expl_fit <- reactive({
+    b <- tryCatch(btl_fit(), error = function(e) NULL)
+    if (!is.null(b)) {
+      s <- active_btl_step()
+      f <- if (is.null(s)) b else s$fit
+    } else f <- fit()
+    validate(need(inherits(f, c("rasch_explanatory",
+                                "rasch_btl_explanatory")),
+                  "Fit an explanatory model to use this page."))
+    f
+  })
+  expl_is_cj <- reactive(inherits(expl_fit(), "rasch_btl_explanatory"))
+  expl_coef <- reactive({
+    f <- expl_fit()
+    if (inherits(f, "rasch_btl_explanatory")) f$object_coefficients
+    else f$est$coefficients
+  })
+  expl_diag <- reactive(explanatory_diagnostics(expl_fit(), p_adjust = "holm"))
+  output$expl_boxes <- renderUI({
+    f <- expl_fit(); tst <- explanatory_test(f)
+    p <- tst$p_kent[1L]
+    metric_grid(
+      metric_tile("metric_expl_model", "Model",
+                  if (inherits(f, "rasch_btl_explanatory"))
+                    "Explanatory CJ" else f$explanatory_model,
+                  icon = "distribution", status = "accent"),
+      metric_tile("metric_expl_terms", "Predictor effects",
+                  nrow(expl_coef()), icon = "ruler"),
+      metric_tile("metric_expl_relax", "Fixed departures",
+                  nrow(f$explanatory$relaxations), icon = "separation"),
+      metric_tile("metric_expl_test", "Against free calibration", p_lab(p),
+                  icon = "chisq",
+                  status = if (is.finite(p) && p < .05) "warning" else "good"))
+  })
+  expl_object_name <- reactive(if (expl_is_cj()) "bt" else "fit")
+  register_code("expl_boxes", function() sprintf(
+    "list(formula = %s$explanatory$formula_text, test = explanatory_test(%s))",
+    expl_object_name(), expl_object_name()))
+  register_table("expl_test_tbl", function() explanatory_test(expl_fit()),
+    function() num_dt(explanatory_test(expl_fit()), p_bold = c("p_kent")),
+    code = function() sprintf("explanatory_test(%s)", expl_object_name()))
+  register_table("expl_coef_tbl", function() expl_coef(),
+    function() num_dt(expl_coef(),
+                       p_bold = c("p", "p_adj")),
+    code = function() paste0(expl_object_name(),
+      if (expl_is_cj()) "$object_coefficients" else "$est$coefficients"))
+  register_table("expl_diag_tbl", function() expl_diag(), function() {
+    num_dt(expl_diag(), page_len = 15, selection = "single",
+           p_bold = c("p", "p_adj"))
+  }, code = function() sprintf(
+    "explanatory_diagnostics(%s, p_adjust = \"holm\")", expl_object_name()))
+  register_table("expl_relax_tbl", function() expl_fit()$explanatory$relaxations,
+    function() num_dt(expl_fit()$explanatory$relaxations),
+    code = function() paste0(expl_object_name(), "$explanatory$relaxations"))
+
+  expl_selected <- reactive({
+    i <- input$expl_diag_tbl_rows_selected
+    d <- expl_diag()
+    validate(need(length(i) == 1L && i >= 1L && i <= nrow(d),
+                  "Select one diagnostic row."))
+    d[i, , drop = FALSE]
+  })
+  output$expl_selected_note <- renderUI({
+    z <- tryCatch(expl_selected(), error = function(e) NULL)
+    if (is.null(z))
+      return(p(class = "text-muted small mt-2", "No departure selected."))
+    name <- if ("object" %in% names(z)) z$object else z$item
+    p(class = "small mt-2",
+      sprintf("Selected: %s, %s; adjusted p = %s.", name,
+              tolower(z$component), fmt_p(z$p_adj)))
+  })
+  observeEvent(input$expl_relax, {
+    z <- expl_selected()
+    if (expl_is_cj()) {
+      f <- tryCatch(relax_btl_explanatory(expl_fit(), z$object),
+                    error = function(e) e)
+      if (inherits(f, "error")) {
+        showNotification(paste("Refit failed:", conditionMessage(f)),
+                         type = "error", duration = 10)
+        return()
+      }
+      lab <- sprintf("fixed explanatory departure for %s", z$object)
+      push_btl_analysis_step(
+        type = "explanatory_relax", label = lab, fitted = f,
+        details = as.list(z),
+        code = sprintf("bt <- relax_btl_explanatory(bt, %s)",
+                       qstr(z$object)))
+      showNotification(paste("Added", lab, "and repeated the calibration."),
+                       type = "message", duration = 6)
+      return()
+    }
+    component <- if (identical(z$component, "Item location"))
+      "location" else "thresholds"
+    f <- tryCatch(relax_explanatory(expl_fit(), z$item, component),
+                  error = function(e) e)
+    if (inherits(f, "error")) {
+      showNotification(paste("Refit failed:", conditionMessage(f)),
+                       type = "error", duration = 10)
+      return()
+    }
+    lab <- sprintf("fixed explanatory departure for %s (%s)",
+                   z$item, tolower(z$component))
+    push_analysis_step(
+      type = "explanatory_relax", label = lab, fitted = f,
+      details = as.list(z),
+      code = sprintf("fit <- relax_explanatory(fit, %s, component = %s)",
+                     qstr(z$item), qstr(component)))
+    showNotification(paste("Added", lab, "and repeated the calibration."),
+                     type = "message", duration = 6)
+  })
+  expl_plot_data <- reactive({
+    f <- expl_fit()
+    if (inherits(f, "rasch_btl_explanatory")) {
+      a <- f$objects; b <- f$reference_fit$objects
+      j <- match(a$object, b$object)
+      return(data.frame(name = a$object, explanatory = a$location,
+                        free = b$location[j], label = a$object,
+                        stringsAsFactors = FALSE))
+    }
+    a <- f$thresholds[, c("item", "k", "tau"), drop = FALSE]
+    b <- f$reference_fit$thresholds[, c("item", "k", "tau"), drop = FALSE]
+    a$item_name <- colnames(f$X)[a$item]
+    b$item_name <- colnames(f$X)[b$item]
+    a$key <- paste(a$item_name, a$k, sep = "\r")
+    b$key <- paste(b$item_name, b$k, sep = "\r")
+    j <- match(a$key, b$key)
+    data.frame(item = a$item_name, threshold = a$k,
+               explanatory = a$tau, free = b$tau[j],
+               label = paste0(a$item_name, " [", a$k, "]"),
+               stringsAsFactors = FALSE)
+  })
+  draw_expl_calibration <- function() {
+    d <- expl_plot_data()
+    lim <- range(c(d$explanatory, d$free), finite = TRUE)
+    pad <- max(diff(lim) * .06, .15); lim <- lim + c(-pad, pad)
+    unit <- if (expl_is_cj()) "object location" else "threshold"
+    plot(d$free, d$explanatory, pch = 19, col = "#276FBF",
+         xlab = paste("Free", unit, "(logits)"),
+         ylab = paste("Explanatory", unit, "(logits)"),
+         xlim = lim, ylim = lim)
+    abline(0, 1, lty = 2, col = "#69727D")
+    nlab <- min(5L, nrow(d))
+    take <- order(abs(d$explanatory - d$free), decreasing = TRUE)[seq_len(nlab)]
+    text(d$free[take], d$explanatory[take], d$label[take],
+         pos = 4, cex = .75, xpd = NA)
+  }
+  register_plot("expl_calibration", draw_expl_calibration,
+    code = function() if (expl_is_cj()) paste(
+      "active <- bt$objects", "free <- bt$reference_fit$objects",
+      "plot(free$location, active$location,",
+      "     xlab = 'Free object location (logits)',",
+      "     ylab = 'Explanatory object location (logits)')",
+      "abline(0, 1, lty = 2)", sep = "\n") else paste(
+        "active <- fit$thresholds", "free <- fit$reference_fit$thresholds",
+        "plot(free$tau, active$tau, xlab = 'Free threshold (logits)',",
+        "     ylab = 'Explanatory threshold (logits)')",
+        "abline(0, 1, lty = 2)", sep = "\n"))
   register_table("structural_items_tbl", function() structural_items(),
     function() {
       d <- structural_items(); req(!is.null(d))
@@ -4477,9 +4953,8 @@ server <- function(input, output, session) {
   # Primary post-hoc: main effects use pairwise marginal resolved logits;
   # interactions use tensor contrasts (difference-in-differences for two
   # factors), so the displayed magnitude belongs to the interaction itself.
-  # Holm controls precisely the selected post-hoc family and works for the
-  # multifactor and repeated-measures structures in which ordinary Tukey HSD
-  # does not.
+  # Holm controls precisely the selected post-hoc family across multifactor
+  # and repeated-measures structures.
   dif_posthoc_res <- reactive({
     f <- fit(); req(!is.null(f$factors))
     flg <- max(0.05, input$dif_size_flag %||% 0.5)
@@ -5741,6 +6216,14 @@ server <- function(input, output, session) {
   btlef_res <- reactiveVal(NULL)
   observeEvent(input$btlef_run, {
     req(btl_fit())
+    if (inherits(btl_fit(), "rasch_btl_explanatory")) {
+      showNotification(paste(
+        "Explanatory object effects and frame units are not currently",
+        "estimated in one model. Fit the free comparative judgement",
+        "calibration before adding frames."),
+        type = "error", duration = 10)
+      return()
+    }
     if (!is.null(btl_fit()$anchors)) {
       showNotification(paste(
         "The current comparison fit uses external anchors.",

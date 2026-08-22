@@ -1,0 +1,174 @@
+---
+title: "Case study: verbal aggression"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Case study: verbal aggression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+has_data <- requireNamespace("psychotools", quietly = TRUE)
+knitr::opts_chunk$set(eval = has_data)
+library(rasch)
+```
+
+The verbal aggression data contain the responses of 316 students to 24
+items (De Boeck and Wilson, 2004; Smits, De Boeck, and Vansteelandt, 2004).
+Each item combines one of four frustrating situations, one of three possible
+responses---cursing, scolding or shouting---and whether the respondent wants
+to respond that way or would actually do so. Responses are `no`, `perhaps`
+and `yes`, scored 0, 1 and 2.
+
+This crossed item design makes the data useful for illustrating the linear
+partial credit model (LPCM). Rather than estimate every item threshold
+freely, the LPCM explains them from the characteristics used to construct the
+items.
+
+```{r data}
+data("VerbalAggression", package = "psychotools")
+responses <- VerbalAggression$resp
+item_names <- colnames(responses)
+
+item_design <- data.frame(
+  item = item_names,
+  situation = factor(substr(item_names, 1, 2), levels = paste0("S", 1:4)),
+  mode = factor(ifelse(grepl("Want", item_names), "want", "do"),
+                levels = c("do", "want")),
+  behaviour = factor(
+    sub("^S[1-4](Want|Do)", "", item_names),
+    levels = c("Curse", "Scold", "Shout")
+  )
+)
+
+head(item_design)
+```
+
+These are categorical item predictors. Person variables such as gender and
+anger are not item predictors; they may instead be examined later through
+targeting or differential item functioning.
+
+## An additive model
+
+We begin with additive effects for situation, mode and behaviour. The
+reserved `threshold` factor distinguishes the transition from `no` to
+`perhaps` from the transition from `perhaps` to `yes`. Its interaction with
+mode allows that threshold structure to differ between wanting to act and
+actually acting.
+
+```{r additive}
+fit_additive <- rasch_explanatory(
+  responses,
+  predictors = item_design,
+  formula = ~ situation + mode + behaviour + threshold + mode:threshold
+)
+
+explanatory_test(fit_additive)
+```
+
+The Kent-adjusted comparison rejects this restriction
+(\(\chi^2_{39} = 157.72\), \(p < .001\)).
+The additive formulation does not capture all systematic differences among
+the items.
+
+## Interactions in the item design
+
+The factorial construction also permits interactions among situation, mode
+and behaviour. The following model includes every two-way interaction among
+those characteristics and allows each characteristic to alter the response
+threshold structure:
+
+```{r interaction-model}
+fit_explanatory <- rasch_explanatory(
+  responses,
+  predictors = item_design,
+  formula = ~ (situation + mode + behaviour)^2 +
+    threshold * (situation + mode + behaviour)
+)
+
+model_test <- explanatory_test(fit_explanatory)
+model_test
+```
+
+This model estimates 24 explanatory coefficients in place of 47 free
+threshold parameters. Its
+Kent-adjusted comparison with the free calibration is not significant
+(\(\chi^2_{23} = 26.30\), \(p = .287\)).
+The explanatory structure therefore gives a materially smaller calibration
+without a detected loss of fit in these data.
+
+The threshold estimates from the explanatory and free calibrations are shown
+below. Points close to the diagonal indicate where the predictor structure
+reproduces the freely estimated threshold.
+
+```{r threshold-comparison, fig.width=6, fig.height=5, fig.cap="Free and explanatory threshold estimates for the verbal aggression items."}
+threshold_comparison <- merge(
+  fit_explanatory$reference_fit$est$thr[c("item", "k", "tau")],
+  fit_explanatory$est$thr[c("item", "k", "tau")],
+  by = c("item", "k"),
+  suffixes = c("_free", "_explanatory")
+)
+
+plot(
+  threshold_comparison$tau_free,
+  threshold_comparison$tau_explanatory,
+  pch = c(1, 19)[threshold_comparison$k],
+  xlab = "Free threshold estimate (logits)",
+  ylab = "Explanatory threshold estimate (logits)"
+)
+abline(0, 1, lty = 2, col = "grey40")
+legend("topleft", legend = c("First threshold", "Second threshold"),
+       pch = c(1, 19), bty = "n")
+```
+
+The coefficient table is on the threshold-location scale. A positive
+coefficient raises the relevant threshold and makes endorsement less likely;
+a negative coefficient makes it more likely. Main effects refer to the
+reference levels shown in `item_design`, and an interaction modifies the
+corresponding main effect.
+
+```{r coefficients}
+effects <- fit_explanatory$est$coefficients
+effects[effects$p_adj < .05,
+        c("term", "estimate", "se", "z", "p", "p_adj")]
+```
+
+For example, the positive coefficients for `behaviourScold` and
+`behaviourShout` indicate that these responses are harder to endorse than
+cursing in the reference situation and mode. Their interactions show where
+that difference changes. The threshold interactions describe changes in the
+distance between `no`, `perhaps` and `yes`, rather than changes in the item
+location as a whole.
+
+## Checking fixed departures
+
+The model comparison assesses the explanatory restrictions jointly.
+`explanatory_diagnostics()` then checks whether any single item-location or
+threshold-structure departure remains after the active model has been fitted.
+Holm adjustment covers the complete set of candidate departures.
+
+```{r departures}
+departures <- explanatory_diagnostics(fit_explanatory)
+head(departures, 10)
+sum(departures$p_adj < .05, na.rm = TRUE)
+```
+
+No departure remains significant after adjustment, so there is no empirical
+basis here for relaxing a particular item. If a substantively defensible
+departure were found, `relax_explanatory()` would add it as a fixed effect and
+repeat the calibration. The revised thresholds would then flow through to the
+item estimates, person measures, residuals and subsequent analyses.
+
+The sequence above is descriptive. In a confirmatory study, the interaction
+structure should be specified from the item design before the responses are
+examined.
+
+## References
+
+De Boeck, P., and Wilson, M. (Eds.). (2004). *Explanatory Item Response
+Models: A Generalized Linear and Nonlinear Approach*. Springer.
+
+Smits, D. J. M., De Boeck, P., and Vansteelandt, K. (2004). The inhibition of
+verbally aggressive behaviour. *European Journal of Personality*, 18,
+537--555. doi:10.1002/per.529.

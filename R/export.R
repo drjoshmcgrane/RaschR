@@ -147,6 +147,13 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
   wtab(fit$pairs, "pair_fit")
   wtab(fit$judges, "judge_fit")
   wtab(fit$comparisons, "comparisons")
+  if (inherits(fit, "rasch_btl_explanatory")) {
+    wtab(explanatory_test(fit), "explanatory_model_comparison")
+    wtab(fit$object_coefficients, "explanatory_predictor_effects")
+    wtab(explanatory_diagnostics(fit), "explanatory_fixed_departure_diagnostics")
+    if (nrow(fit$explanatory$relaxations))
+      wtab(fit$explanatory$relaxations, "explanatory_fixed_departures")
+  }
   info <- tryCatch(btl_information(fit), error = function(e) NULL)
   if (!is.null(info)) {
     wtab(info$objects, "object_information")
@@ -252,6 +259,13 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   wtab(thr[, c("item", "k", "tau", "se")], if (structural)
     "response_cell_thresholds" else "thresholds")
   if (!is.null(fit$est$components)) wtab(fit$est$components, "principal_components")
+  if (inherits(fit, "rasch_explanatory")) {
+    wtab(explanatory_test(fit), "explanatory_model_comparison")
+    wtab(fit$est$coefficients, "explanatory_predictor_effects")
+    wtab(explanatory_diagnostics(fit), "explanatory_fixed_departure_diagnostics")
+    if (nrow(fit$explanatory$relaxations))
+      wtab(fit$explanatory$relaxations, "explanatory_fixed_departures")
+  }
   wtab(fit$person, "person_estimates")
   if (!is.null(fit$score_table)) wtab(score_table(fit), "score_to_measure")
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
@@ -340,7 +354,6 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     if (!is.null(da)) {
       wtab(da$summary, "dif_anova")
       wtab(da$terms, "dif_anova_terms")
-      if (nrow(da$tukey)) wtab(da$tukey, "dif_tukey")
     }
   }
   if (any(fit$person$extreme)) {
@@ -555,12 +568,14 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   title <- esc(title)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   alpha_design <- .classical_design_applicable(fit)
-  physical_items <- if (inherits(fit, "rasch_mfrm")) nrow(fit$item_effects)
+  item_count <- if (inherits(fit, "rasch_mfrm")) nrow(fit$item_effects)
     else if (inherits(fit, "rasch_efrm")) nrow(fit$item_arbitrary)
     else ncol(fit$X)
-  chips <- s("<span class='chip'>", esc(fit$model), "</span>",
+  model_name <- if (inherits(fit, "rasch_explanatory"))
+    fit$explanatory_model else fit$model
+  chips <- s("<span class='chip'>", esc(model_name), "</span>",
              "<span class='chip'>", nrow(fit$X), " persons</span>",
-             "<span class='chip'>", physical_items, " items</span>",
+             "<span class='chip'>", item_count, " items</span>",
              if (structural) s("<span class='chip'>", ncol(fit$X),
                                " response cells</span>") else "",
              sprintf("<span class='chip'>PSI %.3f</span>", fit$psi$PSI),
@@ -634,6 +649,18 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     " &middot; rasch ", as.character(utils::packageVersion("rasch")), "</p>",
     "<p>", chips, "</p>",
     "<h2>Summary</h2>", summ,
+    if (inherits(fit, "rasch_explanatory")) s(
+      "<h2>Explanatory model</h2>",
+      "<p class='note'>Formula: ", esc(fit$explanatory$formula_text), "</p>",
+      "<h3>Comparison with free calibration</h3>",
+      .html_table(explanatory_test(fit)),
+      "<h3>Predictor effects</h3>",
+      .html_table(fit$est$coefficients),
+      "<h3>Fixed-departure diagnostics</h3>",
+      .html_table(explanatory_diagnostics(fit)),
+      if (nrow(fit$explanatory$relaxations)) s(
+        "<h3>Fixed departures</h3>",
+        .html_table(fit$explanatory$relaxations)) else "") else "",
     "<h2>Targeting</h2>",
     shot(function() plot_pimap(fit), "targeting"),
     shot(function() plot_wright(fit), "wright_map"),

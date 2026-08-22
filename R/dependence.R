@@ -38,7 +38,9 @@
 #' converge before the magnitude and its standard error are reported. MFRM
 #' virtual items are resolved through this unconstrained PCM. EFRM virtual
 #' frames are mutually exclusive and must first be reduced to an observable
-#' frame or linked design block.
+#' frame or linked design block. For an explanatory fit, the remaining items
+#' retain their explanatory restrictions and the resolved copies receive free
+#' fixed departures.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param dependent,independent Item names or indices: the item hypothesised
@@ -107,7 +109,12 @@ dependence_magnitude <- function(fit, dependent, independent) {
   # The resolution method requires every resolved threshold to be free. This
   # also routes an MFRM virtual-item analysis through the ordinary PCM rather
   # than handing the structural model label to rasch().
-  refit <- .rasch_refit(fit, Xn, model = "PCM", require_anchor = FALSE)
+  refit <- if (inherits(fit, "rasch_explanatory")) {
+    inherit <- c(stats::setNames(keep, keep),
+                 stats::setNames(rep(nm_j, length(res_names)), res_names))
+    .explanatory_refit_modified(fit, Xn, inherit = inherit,
+                                fully_relaxed = res_names)
+  } else .rasch_refit(fit, Xn, model = "PCM", require_anchor = FALSE)
   if (!isTRUE(refit$est$converged))
     stop("the resolved calibration did not converge; dependence magnitude is unavailable")
   if (!all(res_names %in% refit$items$item))

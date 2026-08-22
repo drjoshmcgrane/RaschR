@@ -158,6 +158,15 @@
 #' The same slope multiplies every threshold of a polytomous item. It is a
 #' descriptive index, not a freely estimated parameter of the Rasch model,
 #' and no sampling standard error or hypothesis test is attached to it.
+#' @section Item-fit probabilities:
+#' The item-trait chi-square supplies the principal inferential test of
+#' invariance over class intervals. The class-interval ANOVA is a conventional
+#' residual diagnostic whose F reference is approximate. Its probability can
+#' be anti-conservative in short tests because each response contributes
+#' appreciably to the person grouping used to test that item. The same issue
+#' can affect the item-trait probability when fewer than about ten responses
+#' locate each person. In short administrations, read the statistics with the
+#' characteristic curve and residual fit rather than as stand-alone decisions.
 #' @return An object of class \code{"rasch"}. Its principal components are
 #'   the item summary, threshold table, person table, score table, residuals,
 #'   reliability, targeting, item-trait statistics, threshold diagnostics,

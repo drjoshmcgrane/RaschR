@@ -75,7 +75,12 @@ combine_items <- function(fit, groups, model = "PCM") {
     stop("the generated subtest names duplicate an existing item name")
   colnames(Xn) <- c(keep, super_names)
 
-  refit <- .rasch_refit(fit, Xn, model = model)
+  refit <- if (inherits(fit, "rasch_explanatory")) {
+    inherit <- c(stats::setNames(keep, keep),
+                 stats::setNames(vapply(groups, `[`, "", 1L), super_names))
+    .explanatory_refit_modified(fit, Xn, inherit = inherit,
+                                fully_relaxed = super_names)
+  } else .rasch_refit(fit, Xn, model = model)
   if (!isTRUE(refit$est$converged))
     stop("the subtest calibration did not converge; the combined analysis is unavailable")
   old_map <- fit$subtest_map %||% list()
@@ -161,7 +166,8 @@ split_items <- function(fit, items, by) {
     col[is.na(grp) | grp != lv] <- NA
     nm <- paste0(it, " (", lv, ")")
     if (nm %in% names(Xn)) stop("generated split-item name already exists: ", nm)
-    if (!is.null(fit$mc) && it %in% colnames(fit$mc$raw)) {
+    if (!inherits(fit, "rasch_explanatory") &&
+        !is.null(fit$mc) && it %in% colnames(fit$mc$raw)) {
       col <- fit$mc$raw[, it]
       col[is.na(grp) | grp != lv] <- NA
       kr <- fit$refit_spec$key
@@ -174,7 +180,14 @@ split_items <- function(fit, items, by) {
     Xn[[nm]] <- col
     made[[it]] <- c(made[[it]], nm)
   }
-  refit <- .rasch_refit(fit, Xn, key_extra = key_extra)
+  refit <- if (inherits(fit, "rasch_explanatory")) {
+    inherit <- c(stats::setNames(keep, keep),
+                 unlist(lapply(items, function(it)
+                   stats::setNames(rep(it, length(made[[it]])), made[[it]]))))
+    .explanatory_refit_modified(fit, Xn, inherit = inherit,
+                                location_relaxed = unlist(made,
+                                                          use.names = FALSE))
+  } else .rasch_refit(fit, Xn, key_extra = key_extra)
   if (!isTRUE(refit$est$converged))
     stop("the split-item calibration did not converge; the resolved analysis is unavailable")
   if (length(fit$subtest_map)) {

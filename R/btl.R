@@ -138,6 +138,8 @@
 #'   \code{"error"}. With polytomous responses, code ties as a middle
 #'   category instead.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
+#' @param .object_design Internal object-location design used by
+#'   \code{\link{btl_explanatory}}.
 #' @return A \code{"rasch_btl"} object. Principal components are
 #'   \code{objects}, \code{pairs}, \code{judges}, the total pair-fit test,
 #'   \code{osi}, \code{loglik}, composite-likelihood information \code{cl},
@@ -187,7 +189,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
                 margin = NULL, judge = NULL, count = NULL, order = NULL,
                 position = FALSE, anchors = NULL,
                 ties = c("drop", "half", "error"),
-                thresholds = c("free", "pc"), maxit = 60, tol = 1e-8) {
+                thresholds = c("free", "pc"), maxit = 60, tol = 1e-8,
+                .object_design = NULL) {
   .check_column_names(data)
   ties <- match.arg(ties)
   thresholds <- match.arg(thresholds)
@@ -270,7 +273,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       .btl_exposure(a, b, x, length(cats) - 1L, jd, ord, w)
     Z <- add_pos(Z, length(a))
     return(.btl_graded(a, b, x, jd, w, cats, maxit, tol, notes,
-                       thr = thresholds, Z = Z, ord = ord, anchors = anchors))
+                       thr = thresholds, Z = Z, ord = ord, anchors = anchors,
+                       object_design = .object_design))
   }
 
   if (!is.null(margin)) {
@@ -332,7 +336,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       .btl_exposure(a, b, as.integer(x), length(cats) - 1L, jd, ord, w)
     Z <- add_pos(Z, length(a))
     return(.btl_graded(a, b, as.integer(x), jd, w, cats, maxit, tol, notes,
-                       thr = thresholds, Z = Z, ord = ord, anchors = anchors))
+                       thr = thresholds, Z = Z, ord = ord, anchors = anchors,
+                       object_design = .object_design))
   }
 
   wn <- trimws(as.character(data[[winner]]))
@@ -394,7 +399,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     Z <- add_pos(Z, length(a))
     return(.btl_graded(a, b, as.integer(y), jd, w, c("0", "1"), maxit, tol,
                        notes, thr = "free", Z = Z, ord = ord,
-                       anchors = anchors))
+                       anchors = anchors, object_design = .object_design))
   }
 
   # the two-category polytomous engine IS the dichotomous conditional model
@@ -402,7 +407,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   # serves both routes; m == 1 results are presented as wins / win
   # proportions inside .btl_graded
   .btl_graded(a, b, as.integer(y), jd, w, c("0", "1"), maxit, tol,
-              notes, thr = "free", anchors = anchors)
+              notes, thr = "free", anchors = anchors,
+              object_design = .object_design)
 }
 
 #' @export
@@ -521,7 +527,8 @@ plot_btl <- function(fit, band = 2.5) {
 # follow the package conventions established in btl().
 # ---------------------------------------------------------------------------
 .btl_graded <- function(a, b, x, jd, w, cats, maxit, tol, notes,
-                        thr = "free", Z = NULL, ord = NULL, anchors = NULL) {
+                        thr = "free", Z = NULL, ord = NULL, anchors = NULL,
+                        object_design = NULL) {
   m <- length(cats) - 1L
   if (m < 1L) stop("polytomous responses need at least two categories")
   # identifiability: empty EXTREME categories leave no finite spread (the
@@ -671,7 +678,34 @@ plot_btl <- function(fit, band = 2.5) {
   # are held fixed and the rest float with no sum-zero constraint, the origin
   # and scale coming from the anchors (as in an anchored rasch() calibration).
   anch <- NULL
-  if (is.null(anchors)) {
+  object_parameter_names <- NULL
+  if (!is.null(object_design)) {
+    if (!is.null(anchors))
+      stop("explanatory object restrictions cannot be combined with anchors")
+    if (!is.list(object_design) || !is.matrix(object_design$B) ||
+        is.null(rownames(object_design$B)))
+      stop("the internal object design must contain a named matrix `B`")
+    miss <- setdiff(objs, rownames(object_design$B))
+    if (length(miss))
+      stop("object predictor metadata are missing after data preparation: ",
+           paste(miss, collapse = ", "))
+    Bmat <- object_design$B[objs, , drop = FALSE]
+    beta0 <- object_design$offset %||% setNames(numeric(nrow(object_design$B)),
+                                                rownames(object_design$B))
+    if (is.null(names(beta0)))
+      stop("the internal explanatory object offset must be named")
+    beta0 <- as.numeric(beta0[objs])
+    if (anyNA(beta0)) stop("the explanatory object offset is incomplete")
+    if (!ncol(Bmat) || qr(Bmat, tol = 1e-10)$rank < ncol(Bmat) ||
+        qr(cbind(1, Bmat), tol = 1e-10)$rank < ncol(Bmat) + 1L)
+      stop("the explanatory object design is not identified after data preparation")
+    if (ncol(Bmat) > K - 1L)
+      stop("the explanatory object design has more parameters than the free calibration")
+    object_parameter_names <- colnames(Bmat) %||%
+      paste0("object_effect", seq_len(ncol(Bmat)))
+    notes <- c(notes, sprintf("object locations constrained by %d explanatory effect(s)",
+                              ncol(Bmat)))
+  } else if (is.null(anchors)) {
     Bmat <- rbind(diag(K - 1L), rep(-1, K - 1L))
     beta0 <- numeric(K)
   } else {
@@ -1119,6 +1153,22 @@ plot_btl <- function(fit, band = 2.5) {
                         df_fit = vapply(ofit, `[[`, 0, "df"))
   rownames(objects) <- NULL
 
+  object_coefficients <- NULL
+  if (!is.null(object_design)) {
+    bhat <- drop(solve(crossprod(Bmat), crossprod(Bmat, beta - beta0)))
+    bse <- sqrt(pmax(diag(covth)[seq_len(nb)], 0))
+    if (!cluster_inference) bse[] <- NA_real_
+    stat <- bhat / bse
+    ref_df <- if (!is.null(jd)) max(nc - 1L, 1L) else Inf
+    prob <- 2 * stats::pt(-abs(stat), df = ref_df)
+    object_coefficients <- data.frame(
+      term = object_parameter_names, estimate = bhat, se = bse,
+      t = stat, df = ref_df, p = prob, stringsAsFactors = FALSE)
+    object_coefficients$p_adj <- stats::p.adjust(object_coefficients$p,
+                                                 method = "holm")
+    rownames(object_coefficients) <- object_coefficients$term
+  }
+
   judges <- NULL
   if (!is.null(jd)) {
     ju <- sort(unique(jd))
@@ -1199,6 +1249,11 @@ plot_btl <- function(fit, band = 2.5) {
               osi = osi, loglik = loglik, iterations = it,
               converged = converged, n_comparisons = n_rows,
               clustered = !is.null(jd), cov_beta = cov_beta, cl = cl_info,
+              location_design = Bmat, location_offset = beta0,
+              object_design = if (is.null(object_design)) NULL else Bmat,
+              object_offset = if (is.null(object_design)) NULL else beta0,
+              object_coefficients = object_coefficients,
+              sensitivity = H, cov_parameters = covth,
               comparisons = {
                 cmp <- data.frame(object_a = a, object_b = b,
                                   response = x, weight = w,

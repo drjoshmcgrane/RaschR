@@ -161,6 +161,9 @@ compare_fits <- function(..., reference = 1) {
         paste0(" + ", paste(f$dependence$effect, collapse = " + "))
       model_label <- if (inherits(f, "rasch_btl_efrm"))
         "BTL with frame-dependent units"
+      else if (inherits(f, "rasch_btl_explanatory"))
+        paste0("Explanatory BTL (", if (max(f$m) > 1L)
+          "polytomous" else "dichotomous", ")")
       else paste0("BTL (", if (max(f$m) > 1L)
         paste0("polytomous, ", f$thr_structure, " thresholds") else
           "dichotomous", dep, ")")
@@ -201,7 +204,10 @@ compare_fits <- function(..., reference = 1) {
       ic <- if (conv) .cl_ic(f)
             else c(eff = NA_real_, aic = NA_real_, bic = NA_real_)
       data.frame(
-        label = labs[i], model = f$model, converged = conv,
+        label = labs[i],
+        model = if (inherits(f, "rasch_explanatory"))
+          f$explanatory_model else f$model,
+        converged = conv,
         persons = nrow(f$X), items = n_items(f),
         parameters = if (is.null(f$est$n_parameters)) NA_integer_
                      else f$est$n_parameters,

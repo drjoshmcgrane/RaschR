@@ -441,7 +441,7 @@ test_that("a between level with no complete panels yields NA terms, not a crash"
   expect_true(any(grepl("dropped from the within-person", df$notes)))
 })
 
-test_that("significant multilevel within terms never reach ordinary Tukey", {
+test_that("dif_anova has no residual-mean Tukey surface", {
   set.seed(15)
   np <- 150; L <- 6; b <- seq(-1, 1, length.out = L)
   rows <- list(); th0 <- rnorm(np)
@@ -460,8 +460,7 @@ test_that("significant multilevel within terms never reach ordinary Tukey", {
              items = paste0("I", 1:L))
   d <- dif_anova(f)
   expect_s3_class(d, "rasch_dif")
-  # any Tukey rows present concern between terms only
-  if (nrow(d$tukey)) expect_false(any(grepl("occ", d$tukey$term)))
+  expect_false("tukey" %in% names(d))
 })
 
 # --- round 13: BTL / EFRM / MFRM DIF and identification -------------------

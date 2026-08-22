@@ -84,6 +84,15 @@ The current-estimator studies run on 2026-08-21 carry R-tree hash
 `cross-package-validation.csv`. Their script hashes identify the exact study
 files used.
 
+The explanatory-model study run on 2026-08-23 is in
+`studies/explanatory-models.R`, with results in
+`results/explanatory-models.csv`. It covers LLTM and LPCM coefficients,
+dichotomous and ordered comparative judgement, judge-clustered covariance,
+Kent-adjusted comparisons with free calibrations, and Holm-adjusted fixed
+departure diagnostics. Each principal condition used 1,000 replicates; the
+diagnostic conditions used 300. The result rows carry script hash
+`e72c33409a15c6ecc04bc5fb91f413ca` and R-tree hash `dd5f1154d99f`.
+
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the
 package git SHA (`+dirty` when the R code differs from HEAD), and the run
@@ -132,6 +141,112 @@ granularity deliberately).
   equal-variance test rejected 11.72% or 1.78%, depending on which group was
   less precise; HC3 gave 5.57% and 4.04%. With eight judges per group, HC3
   gave 4.13% (10,000 replicates per condition).
+- `results/dif-hc3.csv` — ordinary between-person DIF under balanced groups,
+  a 1:4 ability imbalance, and unequal observations per person. The adopted
+  hybrid (HC3 for uniform terms, residual ANOVA for class-interval
+  interactions) gave 4.0%, 6.4%, and 4.6% Holm familywise rejection. Applying
+  HC3 to every term gave 22.0% under the ability imbalance and was rejected.
+  At a planted 0.6-logit shift, hybrid power was 29.6% against 23.6% for the
+  classical analysis (500 replicates per condition).
+- `results/dif-hc3-multilevel.csv` — a three-level factor with group sizes in
+  the ratio 1:2:3 and different group locations. Hybrid Holm familywise
+  rejection was 6.2%, compared with 6.4% for the classical analysis and 20.2%
+  when HC3 was also applied to the class-interval interaction. At a planted
+  0.6-logit shift, hybrid power was 36.6%, compared with 32.8% classically
+  (500 replicates per condition).
+- `results/dif-hc3-homoskedastic.csv` — balanced group-by-interval cells with
+  independent normal errors and a common variance. Hybrid Holm familywise
+  rejection remained between 4.3% and 5.2%. With ten observations per cell,
+  HC3 reduced planted-item power from 21.7% to 18.8% for a two-level factor
+  and from 23.5% to 21.9% for a three-level factor. The difference was 0.9
+  percentage points with 30 observations per cell; fixed-effect power then
+  approached its ceiling (5,000 replicates per condition).
+- `results/dif-hc3-homoskedastic-local-power.csv` — the same comparison with
+  effects reduced as cell size increased, preventing the larger designs from
+  reaching the power ceiling. For two levels, the classical power advantage
+  declined from 3.10 percentage points at ten observations per cell to 0.84,
+  0.42, and 0.16 points at 30, 75, and 150. For three levels it declined from
+  1.72 points at ten per cell to 0.54 at 50. This confirms a real but diminishing
+  efficiency cost for HC3 when the classical assumptions hold exactly (5,000
+  paired replicates per condition).
+- `results/dif-conditional-bootstrap.csv` — a conditional Rasch null bootstrap
+  that preserves each raw score and refits the model 199 times per dataset. In
+  the balanced null, item-wise rejection was 4.79% versus 4.96% for uniform DIF
+  and 4.04% versus 4.00% for non-uniform DIF (current hybrid versus bootstrap);
+  familywise rejection was 6.33% for both. With 1:4 group sizes and a
+  0.8-logit ability difference, the corresponding rates were 4.75% versus
+  4.42%, 4.46% versus 4.08%, and 7.0% versus 6.0%. The bootstrap reduced power
+  from 29.7% to 24.3% for a 0.6-logit uniform shift. Adjusted power against a
+  centred 0.7 slope departure was low for both procedures (5.7% versus 4.3%).
+  These results do not support replacing the current hybrid (300 datasets per
+  condition).
+- `results/dif-conditional-bootstrap-extended.csv` — the same comparison for
+  four-category PCM and RSM data, a three-level group, and two correlated
+  person factors. For a response vector \(x\) with raw score \(r\), the
+  polytomous sampler draws from
+  \(P(X=x\mid r) \propto \exp\{-\sum_i\sum_{k=1}^{x_i}\tau_{ik}\}\), and every
+  draw is checked against the conditioned score before the model is refitted.
+  Global-null rejection was broadly consistent with 5% in all designs. The
+  bootstrap was usually a little more conservative and a little less
+  powerful than the hybrid analysis. It did not remove artificial flags on
+  invariant items when another item truly had DIF (100 datasets and 99
+  bootstrap refits per condition).
+- `results/dif-conditional-bootstrap-confirm.csv` — fresh-seed confirmation
+  with 200 datasets and 199 bootstrap refits. Under the imbalanced global
+  null, Holm familywise rejection was 3.0% versus 2.5% for the PCM and 4.0%
+  versus 2.5% for the RSM (hybrid versus bootstrap). With a 1.4 slope
+  departure on one item, false flags among the other five items occurred in
+  19.0% versus 13.5% of PCM datasets and 14.5% versus 11.0% of RSM datasets.
+  The bootstrap attenuates score contamination but does not solve it.
+- `results/dif-score-purification.csv` — an initial comparison of leave-one-out,
+  fixed-anchor, and iterative matching scores. Leave-one-out testing was
+  rejected because null familywise error reached 28--34%. Re-estimating the
+  full analysis from a five-item anchor scale also lost too much uniform-DIF
+  power. This screen motivated the staged comparison below (100 datasets per
+  condition).
+- `results/dif-score-purification-refined.csv` — 500-replicate comparison of
+  anchor-based class intervals, full anchor recalibration, strongest-item
+  iteration, and the public split-and-refit workflow. The unmodified hybrid
+  gave global-null Holm familywise error of 4.0% for the PCM, 3.8% for the RSM,
+  and 6.0% with two correlated person factors. Preselecting a five-item anchor
+  scale was liberal (7.2--10.6%) and is not a valid default.
+
+  For a uniform 0.6-logit shift, `resolve_dif()` split the planted item in
+  84.4% of PCM and 86.6% of RSM datasets, against initial detection of 85.0%
+  and 87.4%. It split an invariant item in 0.6% and 1.8%, and the final
+  invariant-item familywise rates were 4.0% and 5.6%. The existing
+  split-and-refit procedure therefore supplies an effective purification step
+  for uniform DIF.
+
+  For a centred 1.4 slope departure, correct-term power was 89.0% for the PCM
+  and 86.8% for the RSM, while familywise flags among invariant items rose to
+  14.8% and 16.8%. A strongest-item, one-at-a-time procedure selected the
+  planted item first in 97.6% and 96.0% of datasets; it selected an invariant
+  item first in 0.2% and 1.0%, and ever excluded one in 3.4% and 5.2%. After
+  anchor recalibration, remaining false flags occurred in 1.6% and 2.0%.
+  Retesting the selected item on the short anchor scale needlessly reduced
+  power. With two correlated person factors, non-target factor error remained
+  controlled (1.6%) but correct non-uniform power was only 12.0%. This is a
+  power limit, not a calibration defect. No method from this study has been
+  installed as an automatic non-uniform-DIF remedy.
+- `results/item-fit-hc3.csv` — sensitivity study for class-interval item fit.
+  HC3 was rejected: item-wise null rejection ranged from 21.9% to 48.3% over
+  8--30 items, against 5.6--17.0% for the conventional ANOVA. The
+  conventional ANOVA remained approximate (Holm familywise rejection 7.5%
+  at 30 items and 11.0--31.5% at 8--15 items). The item-trait test was
+  calibrated from ten items onward (4.0--7.0% familywise) but not with eight
+  items (12.0--17.0%). These results support the short-test qualification in
+  `?rasch`, not an HC3 replacement (200 replicates per condition).
+- `results/item-fit-interval-count.csv` — reducing the requested number of
+  class intervals did not repair short-test calibration and generally reduced
+  power. The interval-count change was therefore rejected (100 replicates per
+  condition).
+- `results/btl-cluster-jackknife.csv` — CR1 versus delete-one-judge covariance
+  for the core BTL fit. CR1 Type I was 5.4% with ten balanced judges and 4.2%
+  with one of twenty judges carrying 20% of the work; jackknife rates were
+  5.6% and 4.0%. The concentrated design below the public effective-judge
+  guard remained mildly liberal under both methods. CR1 therefore remains the
+  default (500 replicates per condition).
 - `results/btl-equating-clustered.csv` — common-object drift under two
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the

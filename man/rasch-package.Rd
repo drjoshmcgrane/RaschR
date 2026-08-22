@@ -6,8 +6,9 @@
 \title{rasch: Models and Diagnostics for Rasch Measurement Theory}
 \description{
 Fits and evaluates models within Rasch Measurement Theory. The package
-includes models for item responses, ratings, linked frames of reference,
-and comparative judgement of paired stimuli, together with functions
+includes models for item responses, explanatory item and threshold
+structures, multiple ratings, linked frames of reference, and comparative
+judgement of paired stimuli, together with functions
 for fit, targeting, reliability, dimensionality, local dependence,
 differential item functioning, equating, and simulation. The suite
 follows Rasch (1960) and Andrich and Marais (2019); the frame of
@@ -30,11 +31,13 @@ examine whether comparisons remain invariant across persons, items, groups,
 occasions, raters, and other parts of the measurement design.
 
 Use \code{\link{rasch}} for the dichotomous, partial credit, and rating
-scale models; \code{\link{rasch_mfrm}} for additive item, rater, and other
+scale models; \code{\link{rasch_explanatory}} for the linear logistic test
+and linear partial credit models; \code{\link{rasch_mfrm}} for additive item, rater, and other
 facet effects; and \code{\link{rasch_efrm}} when the unit varies across
-linked frames. \code{\link{btl}} fits the comparative judgement models
-for dichotomous and polytomous paired comparisons, and
-\code{\link{btl_efrm}} fits their linked-frame extension.
+linked frames. \code{\link{btl}} fits comparative judgement models for
+dichotomous and polytomous paired comparisons;
+\code{\link{btl_explanatory}} constrains object locations by observed
+characteristics; and \code{\link{btl_efrm}} fits the linked-frame extension.
 }
 
 \section{Graphical interface}{
@@ -64,6 +67,13 @@ approaches to item scaling. Applied Psychological Measurement, 2(3),
 
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
+
+Fischer, G. H. (1973). The linear logistic test model as an instrument in
+educational research. Acta Psychologica, 37(6), 359--374.
+
+Fischer, G. H. and Ponocny, I. (1994). An extension of the partial credit
+model with an application to the measurement of change. Psychometrika,
+59(2), 177--192.
 
 Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 Measurement. PhD thesis, Murdoch University.

@@ -77,6 +77,10 @@
   source <- as.data.frame(source, check.names = FALSE,
                           stringsAsFactors = FALSE)
   keep <- names(source)
+  if (inherits(fit, "rasch_explanatory") && all(keep %in% colnames(fit$X)))
+    return(.explanatory_refit_modified(
+      fit, source,
+      inherit = stats::setNames(keep, keep)))
   key <- spec$key
   if (!is.null(fit$mc) && !is.null(key)) {
     raw_items <- intersect(colnames(fit$mc$raw), keep)

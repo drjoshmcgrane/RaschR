@@ -52,7 +52,8 @@ fit_summary_table <- function(fit) {
     if (structural) "Disordered response-cell thresholds" else
       "Disordered thresholds"),
     value = c(
-      fit$model, "pairwise conditional ML",
+      if (inherits(fit, "rasch_explanatory")) fit$explanatory_model else fit$model,
+      "pairwise conditional ML",
       ifelse(isTRUE(fit$est$converged), "yes", "NO"),
       as.character(fit$est$iterations),
       num(fit$total_chisq), as.character(fit$total_df),
@@ -138,6 +139,8 @@ targeting_table <- function(fit) {
   framed <- inherits(fit, "rasch_btl_efrm")
   rows <- list(
     c("Model", if (framed) "Paired comparisons with frame-dependent units"
+      else if (inherits(fit, "rasch_btl_explanatory"))
+        "Explanatory comparative judgement"
       else if (!is.null(fit$m) && fit$m > 1L)
       sprintf("Graded paired comparisons (%d categories)", fit$m + 1L)
       else "Paired comparisons (BTL)"),

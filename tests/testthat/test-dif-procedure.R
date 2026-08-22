@@ -23,6 +23,7 @@ test_that("dif_anova reports the full two-way table with effect sizes", {
   fit <- rasch(data.frame(s$X, grp = s$g), factors = "grp")
   da <- dif_anova(fit)
   su <- da$summary
+  expect_identical(da$between_covariance, "HC3 for uniform factor terms")
   expect_true(all(c("eta2_uniform", "eta2_nonuniform", "uniform_DIF",
                     "nonuniform_DIF") %in% names(su)))
   # one row per item (single factor); the planted item has the largest effect
@@ -40,6 +41,22 @@ test_that("dif_anova reports the full two-way table with effect sizes", {
   db <- dif_anova(fit, p_adjust = "bonferroni")
   expect_true(all(db$summary$p_uniform_adj >= su$p_uniform_adj - 1e-12,
                   na.rm = TRUE))
+})
+
+test_that("ordinary DIF confines HC3 to uniform factor terms", {
+  set.seed(18)
+  d <- data.frame(
+    z = c(rnorm(80, sd = 2), rnorm(240)),
+    group = factor(rep(c("A", "B"), c(80, 240))),
+    ci = factor(rep(1:4, length.out = 320)))
+  terms <- c("group", "ci", "group:ci")
+  classical <- .dif_type2(d, terms, variance = "classical")
+  all_hc3 <- .dif_type2(d, terms, variance = "hc3")
+  hybrid <- .dif_type2(d, terms, variance = "hc3", robust_terms = "group")
+  expect_equal(hybrid$F_value[hybrid$term == "group"],
+               all_hc3$F_value[all_hc3$term == "group"])
+  expect_equal(hybrid$p[hybrid$term == "group:ci"],
+               classical$p[classical$term == "group:ci"])
 })
 
 test_that("dif_size recovers a planted uniform DIF in logits", {
@@ -118,11 +135,13 @@ test_that("factorial procedure: interaction post-hocs and sizes for significant 
   sup <- t3$term[t3$superseded]
   expect_true(all(sup %in% c("g1", "g2")))
 
-  # Tukey post-hocs exist for the interaction cells of the planted item
-  tk3 <- fa$tukey[fa$tukey$item == "I3" & fa$tukey$term == "g1:g2", ]
-  expect_equal(nrow(tk3), 6)               # 4 cells -> 6 pairs
-  worst <- tk3$comparison[which.min(tk3$p_tukey)]
-  expect_true(grepl("b:y", worst))
+  # The public follow-up is the resolved-logit interaction contrast, not a
+  # residual-mean Tukey table.
+  expect_false("tukey" %in% names(fa))
+  ph3 <- fa$posthoc[fa$posthoc$item == "I3" &
+                      fa$posthoc$term == "g1:g2", ]
+  expect_gt(nrow(ph3), 0)
+  expect_true(any(ph3$practical))
 
   # sizes: logit magnitudes for the significant term, the b:y cell apart
   sz <- fa$sizes[fa$sizes$item == "I3" & fa$sizes$term == "g1:g2", ]
@@ -400,7 +419,9 @@ test_that("resolve_dif does not split a uniform flag that thin cells cannot conf
                "fewer than two usable levels")
   rr <- resolve_dif(fit, max_splits = 1, min_anchors = 3)
   expect_equal(rr$n_splits, 0L)
-  expect_match(rr$notes, "not split")
+  # HC3 may prevent the thin-cell residual flag before resolution. If the
+  # item reaches the resolver, it must still be refused rather than split.
+  if (length(rr$notes)) expect_match(rr$notes, "not split")
 })
 
 test_that("DIF follow-ups keep punctuated factor names structural", {
