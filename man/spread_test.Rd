@@ -4,21 +4,28 @@
 \alias{spread_test}
 \title{Spread-parameter test for dependence within subtests}
 \usage{
-spread_test(fit, maxit = 60, tol = 1e-08)
+spread_test(fit, maxit = 60, tol = 1e-08, alpha = 0.05, p_adjust = "holm")
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
 \item{maxit, tol}{Passed to the \code{\link{pcml_pc}} refit.}
+
+\item{alpha}{Significance level for the one-sided dependence screen.}
+
+\item{p_adjust}{Multiplicity adjustment across the eligible superitems;
+one of \code{stats::p.adjust.methods}.}
 }
 \value{
 A data frame with one row per recorded superitem: \code{item},
   \code{m}, whether the binomial bound is \code{eligible}, the
   \code{spread} estimate and its \code{se}, the bound \code{lub}
   (available for dichotomous-component subtests with maximum scores 2 to
-  8), \code{z} =
-  (spread - lub)/se, and \code{dependent} = spread below the bound.
+  8), \code{z} = (spread - lub)/se, the one-sided \code{p} and adjusted
+  \code{p_adj}, \code{below_bound} for the point-estimate comparison, and
+  \code{dependent} for adjusted evidence at \code{alpha}.
   Items not formed by \code{combine_items()} are omitted.
+  The result retains \code{alpha} and \code{p_adjust} as attributes.
 }
 \description{
 Andrich's (1985) least-upper-bound screen: the spread component
@@ -27,8 +34,12 @@ thresholds in the principal-components parameterisation, estimated here
 by \code{\link{pcml_pc}}) cannot fall below the value implied by the
 binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
-A spread estimate below the bound therefore indicates response
-dependence among the members (Andrich and Marais 2019, Table 24.1).
+Sampling uncertainty matters when the fitted spread lies near the bound.
+The function therefore reports whether the point estimate is below the
+bound separately from a one-sided test of \eqn{H_0: \lambda \geq \lambda_0}
+against \eqn{H_1: \lambda < \lambda_0}. Evidence of dependence requires the
+adjusted one-sided probability to be below \code{alpha}; a point estimate
+below the bound alone is not treated as a verdict.
 Applied to the superitems recorded by \code{\link{combine_items}}. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict

@@ -73,9 +73,10 @@ Standard errors use the full covariance of the resolved locations.
 
 This is the preferred follow-up to a significant DIF term with more than
 two levels. It reports effects in Rasch logits, adjusts the chosen family
-of comparisons, and uses person-level scores for repeated-measures designs.
-Tukey's HSD in \code{\link{dif_anova}} instead compares residual means and
-is limited to between-person analysis-of-variance terms.
+of comparisons, and uses person-level scores with the same equal-cell
+marginal weights in repeated-measures designs. Tukey's HSD in
+\code{\link{dif_anova}} instead compares residual means and is limited to
+between-person analysis-of-variance terms.
 }
 \examples{
 set.seed(1); n <- 800

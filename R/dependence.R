@@ -167,8 +167,12 @@ print.rasch_dependence <- function(x, ...) {
 #' by \code{\link{pcml_pc}}) cannot fall below the value implied by the
 #' binomial distribution when the item is a subtest of equally difficult,
 #' independent dichotomous items; different difficulties only raise it.
-#' A spread estimate below the bound therefore indicates response
-#' dependence among the members (Andrich and Marais 2019, Table 24.1).
+#' Sampling uncertainty matters when the fitted spread lies near the bound.
+#' The function therefore reports whether the point estimate is below the
+#' bound separately from a one-sided test of \eqn{H_0: \lambda \geq \lambda_0}
+#' against \eqn{H_1: \lambda < \lambda_0}. Evidence of dependence requires the
+#' adjusted one-sided probability to be below \code{alpha}; a point estimate
+#' below the bound alone is not treated as a verdict.
 #' Applied to the superitems recorded by \code{\link{combine_items}}. The
 #' binomial bound applies only when every component was dichotomous; a
 #' composite containing a polytomous item is shown but its bound and verdict
@@ -177,13 +181,18 @@ print.rasch_dependence <- function(x, ...) {
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param maxit,tol Passed to the \code{\link{pcml_pc}} refit.
+#' @param alpha Significance level for the one-sided dependence screen.
+#' @param p_adjust Multiplicity adjustment across the eligible superitems;
+#'   one of \code{stats::p.adjust.methods}.
 #' @return A data frame with one row per recorded superitem: \code{item},
 #'   \code{m}, whether the binomial bound is \code{eligible}, the
 #'   \code{spread} estimate and its \code{se}, the bound \code{lub}
 #'   (available for dichotomous-component subtests with maximum scores 2 to
-#'   8), \code{z} =
-#'   (spread - lub)/se, and \code{dependent} = spread below the bound.
+#'   8), \code{z} = (spread - lub)/se, the one-sided \code{p} and adjusted
+#'   \code{p_adj}, \code{below_bound} for the point-estimate comparison, and
+#'   \code{dependent} for adjusted evidence at \code{alpha}.
 #'   Items not formed by \code{combine_items()} are omitted.
+#'   The result retains \code{alpha} and \code{p_adjust} as attributes.
 #' @references
 #' Andrich, D. (1985). An elaboration of Guttman scaling with Rasch models
 #' for measurement. In N. B. Tuma (Ed.), Sociological Methodology 1985
@@ -200,8 +209,13 @@ print.rasch_dependence <- function(x, ...) {
 #' fit2 <- combine_items(rasch(X), list(c("I4", "I5", "I6"), c("I1", "I2", "I3")))
 #' spread_test(fit2)
 #' @export
-spread_test <- function(fit, maxit = 60, tol = 1e-8) {
+spread_test <- function(fit, maxit = 60, tol = 1e-8,
+                        alpha = 0.05, p_adjust = "holm") {
   if (!inherits(fit, "rasch")) stop("spread_test needs a rasch fit")
+  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
+    stop("alpha must be one probability strictly between 0 and 1")
+  if (length(p_adjust) != 1L || !p_adjust %in% stats::p.adjust.methods)
+    stop("p_adjust must name a method in stats::p.adjust.methods")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; the spread test is unavailable")
   sub_names <- intersect(names(fit$subtest_map), fit$items$item)
@@ -214,7 +228,10 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8) {
   if (!any(eligible)) {
     out <- data.frame(item = sub_names, m = fit$m[idx_fit], eligible = FALSE,
                       spread = NA_real_, se = NA_real_, lub = NA_real_,
-                      z = NA_real_, dependent = NA)
+                      z = NA_real_, p = NA_real_, p_adj = NA_real_,
+                      below_bound = NA, dependent = NA)
+    attr(out, "alpha") <- alpha
+    attr(out, "p_adjust") <- p_adjust
     class(out) <- c("rasch_spread", "data.frame")
     return(out)
   }
@@ -231,16 +248,25 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8) {
                     lub = ifelse(eligible,
                       unname(.spread_lub[as.character(fit$m[idx_fit])]), NA_real_))
   out$z <- (out$spread - out$lub) / out$se
-  out$dependent <- ifelse(out$eligible & is.finite(out$spread),
-                          out$spread < out$lub, NA)
+  out$p <- ifelse(out$eligible & is.finite(out$z), stats::pnorm(out$z), NA_real_)
+  out$p_adj <- NA_real_
+  use <- out$eligible & is.finite(out$p)
+  out$p_adj[use] <- stats::p.adjust(out$p[use], method = p_adjust)
+  out$below_bound <- ifelse(out$eligible & is.finite(out$spread),
+                            out$spread < out$lub, NA)
+  out$dependent <- ifelse(use, out$p_adj < alpha, NA)
   rownames(out) <- NULL
+  attr(out, "alpha") <- alpha
+  attr(out, "p_adjust") <- p_adjust
   class(out) <- c("rasch_spread", "data.frame")
   out
 }
 
 #' @export
 print.rasch_spread <- function(x, ...) {
-  cat("Spread-parameter screen (Andrich 1985): spread below the binomial bound indicates dependence\n")
+  cat(sprintf(
+    "Spread-parameter screen (Andrich 1985): one-sided evidence below the binomial bound (%s adjustment; alpha %.3f)\n",
+    attr(x, "p_adjust") %||% "holm", attr(x, "alpha") %||% 0.05))
   d <- as.data.frame(x)
   names(d)[names(d) == "lub"] <- "bound"
   print(.fmt_df(d), row.names = FALSE)

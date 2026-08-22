@@ -4,10 +4,11 @@ n_rep <- 200
 K <- 6; J <- 12  # >= 10 judges, clears btl_dif's cluster-inference guard
 grp <- setNames(rep(c("g1", "g2"), each = J/2), sprintf("J%d", 1:J))
 
-## --- null: judge heterogeneity present, group arbitrary/unrelated ---------
-## (the exact scenario the roxygen references: "a null simulation with judge
-## heterogeneity and arbitrary groups falsely flagged uniform DIF in 6 of 10
-## datasets" before the judge-as-unit fix)
+## --- null: common object locations, group arbitrary/unrelated -------------
+## simulate_btl() does not add judge-specific object deviations in this call.
+## The separate source regression in test-statistical-validity.R constructs
+## those deviations explicitly; this historical battery cell checks the
+## equal-location null with random allocation of comparisons to judges.
 any_uniform_flag <- logical(0)
 per_object_flag <- logical(0)
 for (i in seq_len(n_rep)) {
@@ -20,7 +21,7 @@ for (i in seq_len(n_rep)) {
     TRUE
   }, error = function(e) FALSE)
 }
-cat("== btl_dif null calibration (judge heterogeneity, arbitrary group, K=6,J=12) ==\n")
+cat("== btl_dif null calibration (common locations, arbitrary group, K=6,J=12) ==\n")
 cat("replicates completed:", sum(!is.na(any_uniform_flag)), "/", n_rep, "\n")
 cat("per-object false uniform-DIF flag rate (BH-adjusted, alpha=0.05):",
     round(mean(per_object_flag, na.rm=TRUE), 4),

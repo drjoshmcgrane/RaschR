@@ -94,6 +94,12 @@ Binary residual-correlation flags require an analyst-supplied threshold because
 adjusted Q3 has no universal critical value. The dimensionality result carries
 a caution when either opposed subtest contains fewer than 15 score points.
 
+When theory supports treating dependent dichotomous items as one superitem,
+`combine_items()` refits the calibration and `spread_test()` compares its
+threshold spread with the binomial bound. `below_bound` is the point-estimate
+comparison; `dependent` records adjusted one-sided statistical evidence. The
+bound does not apply to a superitem containing a polytomous component.
+
 ## Link calibrations through common items
 
 Two separately fitted tests can be aligned through their common items. Drift

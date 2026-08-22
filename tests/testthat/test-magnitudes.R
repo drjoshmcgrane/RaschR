@@ -82,6 +82,12 @@ test_that("spread_test flags a dependent subtest by the LUB", {
   expect_equal(nrow(st), 3)
   expect_true(all(st$eligible))
   expect_equal(st$lub, rep(0.55, 3))
+  expect_equal(st$below_bound, st$spread < st$lub)
+  expect_equal(st$p, pnorm(st$z), tolerance = 1e-12)
+  expect_equal(st$p_adj, p.adjust(st$p, method = "holm"))
+  expect_equal(st$dependent, st$p_adj < 0.05)
+  expect_equal(attr(st, "alpha"), 0.05)
+  expect_identical(attr(st, "p_adjust"), "holm")
   dep_row <- grep("I1", st$item)
   ind_rows <- setdiff(seq_len(3), dep_row)
   expect_true(st$dependent[dep_row])
@@ -95,7 +101,10 @@ test_that("spread_test flags a dependent subtest by the LUB", {
   pcm$subtest_binary <- c(I01 = FALSE)
   ps <- spread_test(pcm)
   expect_false(ps$eligible)
-  expect_true(is.na(ps$lub) && is.na(ps$dependent))
+  expect_true(is.na(ps$lub) && is.na(ps$below_bound) &&
+                is.na(ps$p) && is.na(ps$p_adj) && is.na(ps$dependent))
+  expect_error(spread_test(fit2, alpha = 1), "strictly between")
+  expect_error(spread_test(fit2, p_adjust = "invalid"), "p.adjust.methods")
 })
 
 test_that("dimensionality_magnitude reproduces the Andrich (2016) block", {

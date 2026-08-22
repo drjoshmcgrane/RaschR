@@ -45,6 +45,9 @@
   interactions. MFRM follow-ups pool the fitted facet cells of an underlying
   item; resolved EFRM follow-ups are withheld because an ordinary split would
   discard the frame units.
+* Repeated-measures DIF follow-ups use the full design-cell weights in their
+  person-level tests. Reported resolved estimates and probabilities therefore
+  address the same marginal contrast when nuisance factors are imbalanced.
 * `dif_size()` reports resolved pairwise logit differences. Dichotomous
   items receive the itemwise ETS A/B/C classification. Polytomous items
   report the PCM signed expected-score area descriptively, without importing
@@ -55,8 +58,11 @@
   pooled to their source items, and EFRM factors that do not define frames can
   be tested.
 * `btl_dif()` retains anchors and fitted dependence terms in its resolution
-  refit. BTL-EFRM fits require a frame-specific analysis rather than the
-  equal-unit resolution model.
+  refit. Resolved pairwise inference is withheld unless each factor cell has
+  at least eight effective judges; pairwise degrees of freedom use the two
+  cells' effective counts, and the pairwise table reports the raw and effective
+  support for both cells. BTL-EFRM fits require a frame-specific analysis rather
+  than the equal-unit resolution model.
 
 ## Diagnostics and model changes
 
@@ -68,8 +74,11 @@
   Equating tests require independent calibrations and the covariance of
   banked locations.
 * `spread_test()` applies the binomial least-upper-bound only to superitems
-  formed entirely from dichotomous components. The component structure is
-  retained through subsequent item splits and removals.
+  formed entirely from dichotomous components. It now distinguishes a point
+  estimate below the bound from adjusted one-sided evidence of dependence. Its
+  significance level and multiplicity adjustment are available in the
+  application. The component structure is retained through subsequent item
+  splits and removals.
 * The tailored-analysis bootstrap resamples complete persons, including all
   rows of a repeated-measures record.
 * `drop_items()`, `resolve_frames()`, DIF splitting and superitem

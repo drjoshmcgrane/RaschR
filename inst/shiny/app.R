@@ -1681,9 +1681,21 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
           card_header_bar(info = app_help("spread_tbl")),
           card_body(
             conditionalPanel("output.spread_available == true",
-              div(class = "mb-2",
-                  input_task_button("run_spread", "Run spread test",
-                                    type = "primary"))),
+              div(class = "d-flex flex-wrap gap-2 align-items-end mb-2",
+                  numericInput("spread_alpha",
+                    info_label("Significance level",
+                      "Applied after adjustment to the one-sided probabilities."),
+                    value = 0.05, min = 0.001, max = 0.25, step = 0.01,
+                    width = "160px"),
+                  selectInput("spread_padj",
+                    info_label("Multiplicity adjustment",
+                      "Adjusts the one-sided probabilities across eligible superitems."),
+                    choices = c("Holm" = "holm", "Bonferroni" = "bonferroni",
+                                "False discovery rate" = "BH", "None" = "none"),
+                    selected = "holm", width = "190px"),
+                  div(class = "mb-3",
+                    input_task_button("run_spread", "Run spread test",
+                                      type = "primary")))),
             conditionalPanel("output.has_spread != true",
               p(class = "text-muted small mb-0",
                 "Run after forming a superitem to compare its spread with the binomial bound.")),
@@ -5298,7 +5310,9 @@ server <- function(input, output, session) {
     validate(need(!is.null(r$sizes),
                   "No object could be resolved (see the notes on the analysis-of-variance panel)."))
     d <- r$sizes[, intersect(c("object", "term", "level_a", "level_b",
-                               "difference", "se", "t", "df", "p_adj"),
+                               "difference", "n_judges_a", "n_judges_b",
+                               "effective_judges_a", "effective_judges_b",
+                               "se", "t", "df", "p_adj"),
                              names(r$sizes)), drop = FALSE]
     # no significant/practical flags: the difference turns red at 0.5 logits,
     # the adjusted p at the run's alpha
@@ -6203,8 +6217,12 @@ server <- function(input, output, session) {
   # spread test against Andrich's least upper bounds
   spread_res <- reactiveVal(NULL)
   observeEvent(input$run_spread, {
+    run_alpha <- input$spread_alpha %||% 0.05
+    run_adjust <- input$spread_padj %||% "holm"
     r <- withProgress(message = "Principal-components refit…", value = 0.4,
-                      tryCatch(spread_test(fit()), error = function(e) e))
+                      tryCatch(spread_test(fit(), alpha = run_alpha,
+                                           p_adjust = run_adjust),
+                               error = function(e) e))
     if (inherits(r, "error"))
       showNotification(paste("Spread test failed:", conditionMessage(r)),
                        type = "error", duration = 10)
@@ -6215,10 +6233,18 @@ server <- function(input, output, session) {
     validate(need(!is.null(r),
                   "Press the button after combining items into a superitem."))
     d <- r
-    d$dependent <- ifelse(d$dependent, "*", "")
-    num_dt(d)
+    d$below_bound <- ifelse(is.na(d$below_bound), "",
+                            ifelse(d$below_bound, "*", ""))
+    d$dependent <- ifelse(is.na(d$dependent), "",
+                          ifelse(d$dependent, "*", ""))
+    style_lo_red(num_dt(d), d, "p_adj", attr(r, "alpha") %||% 0.05)
   })
-  register_code("spread_tbl", function() "spread_test(fit)")
+  register_code("spread_tbl", function() {
+    r <- spread_res()
+    sprintf("spread_test(fit, alpha = %s, p_adjust = %s)",
+            attr(r, "alpha") %||% 0.05,
+            qstr(attr(r, "p_adjust") %||% "holm"))
+  })
   output$spread_tbl_csv <- downloadHandler(
     filename = function() "rasch_spread_test.csv",
     content = function(file) {

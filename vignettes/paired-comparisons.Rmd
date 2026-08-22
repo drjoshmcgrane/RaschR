@@ -84,6 +84,23 @@ The simulation reference for dimensionality uses twenty replicates here to keep
 the vignette quick. A final analysis should use enough replicates to stabilise
 the reference distribution.
 
+## Examine DIF across judge groups
+
+`btl_dif` tests whether object locations differ across nominated judge factors.
+The omnibus analysis uses judges as the independent units. A significant term
+is resolved into factor-specific object locations and pairwise logit
+differences. Pairwise inference requires at least eight effective judges in
+each level; with thinner levels, the locations and differences are reported
+descriptively. The pairwise table gives the raw and effective judge counts for
+both levels, so concentrated workloads remain visible.
+
+```{r btl-dif-example, eval = FALSE}
+judge_group <- setNames(panel_data$discipline, panel_data$judge)
+bd <- btl_dif(fit, judge_group)
+bd$summary
+bd$sizes
+```
+
 ## Equate panels through common objects
 
 `btl_equate` aligns two calibrations that share at least three objects. For two

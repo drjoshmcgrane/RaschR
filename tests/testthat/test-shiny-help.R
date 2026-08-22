@@ -77,6 +77,10 @@ test_that("the app retains the agreed model labels and frame safeguards", {
                fixed = TRUE)
   expect_match(src, '"p_adj_kappa"', fixed = TRUE)
   expect_match(src, "maxit = eo$maxit, tol = eo$tol", fixed = TRUE)
+  expect_match(src, 'input$spread_alpha %||% 0.05', fixed = TRUE)
+  expect_match(src, 'input$spread_padj %||% "holm"', fixed = TRUE)
+  expect_match(src, 'spread_test(fit, alpha = %s, p_adjust = %s)',
+               fixed = TRUE)
 
   # Inference defaults and structural remedies are deliberately conservative.
   expect_match(src, '"Judge bootstrap (recommended)" = "judge_bootstrap"',

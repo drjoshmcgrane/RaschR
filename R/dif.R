@@ -1391,22 +1391,6 @@ print.rasch_dif_size <- function(x, ...) {
   list(family = fam, meta = meta)
 }
 
-# Welch test of a linear combination of independent group means.
-.welch_contrast <- function(vals, g, w) {
-  ok <- !is.na(vals) & !is.na(g)
-  vals <- vals[ok]; g <- droplevels(factor(g[ok]))
-  w <- w[levels(g)]
-  if (any(is.na(w)) || sum(abs(w)) < 1e-10) return(NULL)
-  m <- tapply(vals, g, mean); v <- tapply(vals, g, stats::var)
-  n <- tapply(vals, g, length)
-  if (any(n < 2)) return(NULL)
-  vv <- sum(w^2 * v / n)
-  if (!is.finite(vv) || vv <= 0) return(NULL)
-  df <- vv^2 / sum((w^2 * v / n)^2 / (n - 1))
-  t <- sum(w * m) / sqrt(vv)
-  list(stat = t, df = df, p = 2 * stats::pt(-abs(t), df))
-}
-
 # Test any resolved-cell contrast in a stacked design without treating rows
 # from the same person as independent. The supplied cell weights already
 # encode the desired marginal comparison. Within each between-person cell we
@@ -1526,12 +1510,13 @@ print.rasch_dif_size <- function(x, ...) {
 #' @details
 #' Each logit contrast is calculated from resolved item locations. Weights are
 #' scaled so their positive and negative parts each sum to one. With repeated
-#' persons, inference uses person-level residual contrast scores: within-person
-#' contrasts are tested against zero, between-person contrasts use person
-#' means, and mixed interactions compare within-person contrast scores between
-#' groups. The resolved logit estimate is retained, but its calibration-based
-#' standard error is withheld because it does not include repeated-person
-#' dependence.
+#' persons, inference uses person-level residual contrast scores with the same
+#' cell weights as the resolved estimate. Nuisance-factor cells are averaged
+#' equally rather than in proportion to their sample sizes. Independent
+#' between-person cells are then combined with a Welch--Satterthwaite
+#' reference. The resolved logit estimate is retained, but its
+#' calibration-based standard error is withheld because it does not include
+#' repeated-person dependence.
 #'
 #' For independent rows, a contrast with weights \eqn{\mathbf{c}} is
 #' \deqn{\Delta_i=\mathbf{c}^{\mathsf T}\delta_i,\qquad
@@ -1540,10 +1525,11 @@ print.rasch_dif_size <- function(x, ...) {
 #' In a repeated-measures design, a within-person contrast is formed from the
 #' standardised residuals,
 #' \deqn{s_p=\sum_l c_l z_{pl},}
-#' and tested over persons. Between-person contrasts use Welch tests of person
-#' means; mixed interactions use Welch tests of the within-person contrast
-#' scores. The sign of each residual test is aligned with the resolved logit
-#' contrast. Contrasts require a converged calibration.
+#' and tested over persons. The complete cell-weight vector is retained for
+#' main effects and interactions, so the residual test and resolved estimate
+#' address the same marginal contrast. The sign of each residual test is
+#' aligned with the resolved logit contrast. Contrasts require a converged
+#' calibration.
 #' For an MFRM fit, underlying items are pooled over their facet cells by
 #' default. EFRM fits are excluded because the required split refit would
 #' discard the frame units.
@@ -1714,51 +1700,13 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
           stat <- est / se
           p <- 2 * stats::pnorm(-abs(stat))
         }
-      } else if (isTRUE(mt$within) && length(mt$factors) == 1L &&
-                 mt$factors %in% within && !is.null(mt$fweights)) {
-        # A single within-factor question is the ordinary paired contrast:
-        # one complete contrast score per person, tested against zero.
-        fw <- .dif_norm(mt$fweights[[1]])
-        lev <- as.character(factors[[mt$factors]])
-        zi <- Z[, i]
-        ps <- split(seq_along(zi), id)
-        psi <- vapply(ps, function(rws) {
-          l <- lev[rws]
-          if (anyDuplicated(l) || !all(names(fw) %in% l)) return(NA_real_)
-          sum(fw * zi[rws][match(names(fw), l)])
-        }, 0)
-        psi <- psi[!is.na(psi)]
-        if (length(psi) >= 10) {
-          stat <- -mean(psi) / (stats::sd(psi) / sqrt(length(psi)))
-          df <- length(psi) - 1
-          p <- 2 * stats::pt(-abs(stat), df)
-        }
-      } else if (isTRUE(mt$within) && length(mt$factors) == 2L &&
-                 sum(mt$factors %in% within) == 1L &&
-                 !is.null(mt$fweights)) {
-        # A two-factor mixed contrast compares one within-person contrast
-        # score across the between-person groups.
-        wf <- intersect(mt$factors, within)[1]
-        bf <- setdiff(mt$factors, wf)[1]
-        fw <- .dif_norm(mt$fweights[[match(wf, mt$factors)]])
-        bw <- mt$fweights[[match(bf, mt$factors)]]
-        lev <- as.character(factors[[wf]])
-        blev <- as.character(factors[[bf]])
-        zi <- Z[, i]
-        ps <- split(seq_along(zi), id)
-        psi <- vapply(ps, function(rws) {
-          l <- lev[rws]
-          if (anyDuplicated(l) || !all(names(fw) %in% l)) return(NA_real_)
-          sum(fw * zi[rws][match(names(fw), l)])
-        }, 0)
-        pb <- vapply(ps, function(rws) blev[rws][1], "")
-        ok <- !is.na(psi)
-        bw_test <- if (isTRUE(mt$preserve_scale)) bw else bw / 2
-        wc <- .welch_contrast(psi[ok], pb[ok], bw_test)
-        if (!is.null(wc)) { stat <- -wc$stat; df <- wc$df; p <- wc$p }
       } else {
-        # One generic person-level calculation covers between, within and
-        # mixed contrasts, including interactions of several within factors.
+        # One person-level calculation covers every repeated design. Using
+        # the full resolved-cell weights is essential: a shortcut based on
+        # one score per person silently weights nuisance between-person cells
+        # by their sample sizes, while the reported resolved estimate averages
+        # those cells equally. The test and estimate must address the same
+        # marginal contrast.
         wc <- .dif_paired_cell_contrast(
           Z[, i], factors, grp, id, within, cellmap, w_full)
         if (!is.null(wc)) { stat <- -wc$stat; df <- wc$df; p <- wc$p }
@@ -1812,9 +1760,10 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
 #'
 #' This is the preferred follow-up to a significant DIF term with more than
 #' two levels. It reports effects in Rasch logits, adjusts the chosen family
-#' of comparisons, and uses person-level scores for repeated-measures designs.
-#' Tukey's HSD in \code{\link{dif_anova}} instead compares residual means and
-#' is limited to between-person analysis-of-variance terms.
+#' of comparisons, and uses person-level scores with the same equal-cell
+#' marginal weights in repeated-measures designs. Tukey's HSD in
+#' \code{\link{dif_anova}} instead compares residual means and is limited to
+#' between-person analysis-of-variance terms.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} or
 #'   \code{\link{rasch_mfrm}}. EFRM fits are excluded because resolved

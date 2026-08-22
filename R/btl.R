@@ -1523,9 +1523,12 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'
 #' A significant uniform term is followed by a joint refit in which the object
 #' has one location per factor cell. Differences between these locations are
-#' reported in logits with clustered Wald tests. Higher-order terms supersede
-#' their component terms. Models fitted with \code{order} retain the exposure
-#' and carry-over effects in both the residual analysis and refit.
+#' reported in logits. A cell needs at least eight effective judges for
+#' pairwise inference; otherwise its location and differences remain
+#' descriptive. Pairwise tests use degrees of freedom based on the effective
+#' judges in the two cells. Higher-order terms supersede their component terms.
+#' Models fitted with \code{order} retain the exposure and carry-over effects
+#' in both the residual analysis and refit.
 #'
 #' Objects are resolved one at a time against the common locations of the
 #' remaining objects. With DIF in several objects, this can induce compensating
@@ -1557,10 +1560,11 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   crossed with the opponent band -- plus \code{uniform_DIF},
 #'   \code{nonuniform_DIF} and \code{superseded} flags); \code{terms} (the
 #'   full per-object analysis-of-variance table); \code{levels} (resolved
-#'   location and SE per object, term and cell); \code{sizes} (per object,
-#'   term and cell pair: difference in logits, SE, t, degrees of freedom,
-#'   adjusted p, significance
-#'   and practical flags); \code{effects}, \code{factors}, and \code{notes}.
+#'   location, SE, comparison count, judge count and effective judge count per
+#'   object, term and cell); \code{sizes} (per object, term and cell pair:
+#'   difference in logits, judge support for both cells, SE, t, degrees of
+#'   freedom, adjusted p, significance and practical flags); \code{effects},
+#'   \code{factors}, and \code{notes}.
 #' @references Andrich, D., & Hagquist, C. (2012). Real and artificial
 #'   differential item functioning. \emph{Journal of Educational and
 #'   Behavioral Statistics}, 37(3), 387-416.
@@ -1573,14 +1577,14 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' set.seed(1)
 #' beta <- c(A = -1, B = -0.3, C = 0.4, D = 0.9)
 #' pr <- t(combn(names(beta), 2))
-#' d <- data.frame(a = rep(pr[, 1], each = 60), b = rep(pr[, 2], each = 60),
-#'                 judge = sample(sprintf("J%02d", 1:12), 360, TRUE))
-#' shift <- ifelse(d$judge %in% sprintf("J%02d", 1:6) & d$a == "C", 0.9,
-#'          ifelse(d$judge %in% sprintf("J%02d", 1:6) & d$b == "C", -0.9, 0))
+#' d <- data.frame(a = rep(pr[, 1], each = 100), b = rep(pr[, 2], each = 100),
+#'                 judge = sample(sprintf("J%02d", 1:20), 600, TRUE))
+#' shift <- ifelse(d$judge %in% sprintf("J%02d", 1:10) & d$a == "C", 0.9,
+#'          ifelse(d$judge %in% sprintf("J%02d", 1:10) & d$b == "C", -0.9, 0))
 #' p <- plogis(beta[d$a] - beta[d$b] + shift)
 #' d$win <- ifelse(runif(nrow(d)) < p, d$a, d$b)
 #' f <- btl(d, "a", "b", winner = "win", judge = "judge")
-#' grp <- setNames(rep(c("g1", "g2"), each = 6), sprintf("J%02d", 1:12))
+#' grp <- setNames(rep(c("g1", "g2"), each = 10), sprintf("J%02d", 1:20))
 #' btl_dif(f, grp, objects = "C")
 #' @export
 btl_dif <- function(fit, factors, objects = NULL,
@@ -1884,6 +1888,8 @@ btl_dif <- function(fit, factors, objects = NULL,
         ob, ttd))
       next
     }
+    if (length(rf$notes))
+      notes <- c(notes, sprintf("%s [%s]: %s", ob, ttd, rf$notes))
     idx <- match(paste0(ob, " (", use_lev, ")"), rf$objects$object)
     if (anyNA(idx)) {
       notes <- c(notes, sprintf("%s [%s]: resolved copies missing", ob, ttd))
@@ -1891,16 +1897,62 @@ btl_dif <- function(fit, factors, objects = NULL,
     }
     loc <- rf$objects$location[idx]
     vv <- rf$cov_beta[idx, idx, drop = FALSE]
+    # A resolved cell is a judge-level group estimate. The base fit's global
+    # cluster guard is not enough when a many-level factor leaves only a few
+    # judges in each cell: simulations with four to six judges per level gave
+    # materially anti-conservative pairwise tests despite 12--20 judges
+    # overall. Apply the same calibrated eight-effective-cluster boundary to
+    # EACH resolved level, using only that object's comparisons in the level.
+    # The locations remain useful descriptively when inference is withheld.
+    lev_j <- lev_eff <- setNames(numeric(length(use_lev)), use_lev)
+    for (lv in use_lev) {
+      rr <- inv & cell == lv
+      jw <- tapply(cm$weight[rr], cm$judge[rr], sum)
+      jw <- jw[is.finite(jw) & jw > 0]
+      lev_j[lv] <- length(jw)
+      sh <- jw / sum(jw)
+      lev_eff[lv] <- if (length(sh)) 1 / sum(sh^2) else 0
+    }
+    lev_ok <- lev_j >= 8 & lev_eff >= 8 - sqrt(.Machine$double.eps)
+    if (!isTRUE(rf$cl$inference_available)) {
+      lev_ok[] <- FALSE
+      notes <- c(notes, sprintf(
+        "%s [%s]: the resolved calibration does not support cluster-robust inference; locations are descriptive",
+        ob, ttd))
+    }
+    if (any(!lev_ok))
+      notes <- c(notes, sprintf(
+        "%s [%s]: pairwise inference is withheld for level(s) below eight effective judges: %s; resolved locations and differences remain descriptive",
+        ob, ttd, paste(sprintf("%s (%.1f)", use_lev[!lev_ok],
+                               lev_eff[!lev_ok]), collapse = ", ")))
+    caution <- lev_ok & lev_eff < 9.5
+    if (any(caution))
+      notes <- c(notes, sprintf(
+        "%s [%s]: level(s) %s have 8.0--9.4 effective judges; interpret pairwise inference cautiously",
+        ob, ttd, paste(use_lev[caution], collapse = ", ")))
+    lev_se <- sqrt(pmax(diag(vv), 0))
+    lev_se[!lev_ok] <- NA_real_
     lev_rows[[length(lev_rows) + 1L]] <- data.frame(
       object = ob, term = tt, level = use_lev, location = loc,
-      se = sqrt(pmax(diag(vv), 0)), n = as.numeric(lev_n[use_lev]))
+      se = lev_se, n = as.numeric(lev_n[use_lev]),
+      n_judges = unname(lev_j), effective_judges = unname(lev_eff))
     pr <- t(utils::combn(seq_along(use_lev), 2))
+    pair_ok <- lev_ok[pr[, 1]] & lev_ok[pr[, 2]]
+    pair_se <- sqrt(pmax(diag(vv)[pr[, 1]] + diag(vv)[pr[, 2]] -
+                         2 * vv[pr], 1e-12))
+    pair_se[!pair_ok] <- NA_real_
+    pair_df <- pmax(lev_eff[pr[, 1]] + lev_eff[pr[, 2]] - 2, 1)
+    pair_df[!pair_ok] <- NA_real_
     sz_rows[[length(sz_rows) + 1L]] <- data.frame(
       object = ob, term = tt,
       level_a = use_lev[pr[, 1]], level_b = use_lev[pr[, 2]],
       difference = loc[pr[, 1]] - loc[pr[, 2]],
-      se = sqrt(pmax(diag(vv)[pr[, 1]] + diag(vv)[pr[, 2]] -
-                     2 * vv[pr], 1e-12)))
+      n_judges_a = unname(lev_j[pr[, 1]]),
+      n_judges_b = unname(lev_j[pr[, 2]]),
+      effective_judges_a = unname(lev_eff[pr[, 1]]),
+      effective_judges_b = unname(lev_eff[pr[, 2]]),
+      se = pair_se,
+      df = pair_df)
   }
   # a summary row can be flagged yet carry no magnitude row; say so rather
   # than leave the omission silent
@@ -1918,10 +1970,10 @@ btl_dif <- function(fit, factors, objects = NULL,
   sizes <- if (length(sz_rows)) do.call(rbind, sz_rows) else NULL
   if (!is.null(sizes)) {
     sizes$t <- sizes$difference / sizes$se
-    sizes$df <- length(unique(cm$judge[!is.na(cm$judge)])) - 1L
     sizes$p <- 2 * stats::pt(-abs(sizes$t), df = sizes$df)
     sizes$p_adj <- p.adjust(sizes$p, method = p_adjust)
-    sizes$significant <- sizes$p_adj < alpha
+    sizes$significant <- ifelse(is.finite(sizes$p_adj),
+                                sizes$p_adj < alpha, NA)
     sizes$practical <- abs(sizes$difference) >= flag_logits
     rownames(sizes) <- NULL
   }
@@ -1957,8 +2009,10 @@ print.rasch_btl_dif <- function(x, ...) {
   if (!is.null(x$sizes)) {
     cat(sprintf("\nResolved locations (logits; %s over %d comparison(s); practical %.2f)\n",
                 x$p_adjust, nrow(x$sizes), x$flag_logits))
-    cols <- c("object", "term", "level_a", "level_b", "difference", "se",
-              "t", "df", "p_adj", "significant", "practical")
+    cols <- c("object", "term", "level_a", "level_b", "difference",
+              "n_judges_a", "n_judges_b", "effective_judges_a",
+              "effective_judges_b", "se", "t", "df", "p_adj",
+              "significant", "practical")
     print(.fmt_df(x$sizes[, intersect(cols, names(x$sizes)), drop = FALSE]),
           row.names = FALSE)
   }

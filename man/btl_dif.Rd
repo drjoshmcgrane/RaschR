@@ -51,10 +51,11 @@ A list of class \code{"rasch_btl_dif"}: \code{summary} (one row per
   crossed with the opponent band -- plus \code{uniform_DIF},
   \code{nonuniform_DIF} and \code{superseded} flags); \code{terms} (the
   full per-object analysis-of-variance table); \code{levels} (resolved
-  location and SE per object, term and cell); \code{sizes} (per object,
-  term and cell pair: difference in logits, SE, t, degrees of freedom,
-  adjusted p, significance
-  and practical flags); \code{effects}, \code{factors}, and \code{notes}.
+  location, SE, comparison count, judge count and effective judge count per
+  object, term and cell); \code{sizes} (per object, term and cell pair:
+  difference in logits, judge support for both cells, SE, t, degrees of
+  freedom, adjusted p, significance and practical flags); \code{effects},
+  \code{factors}, and \code{notes}.
 }
 \description{
 Tests whether object locations differ across groups of judges. Several
@@ -74,9 +75,12 @@ models do not contain the fitted panel and set units.
 
 A significant uniform term is followed by a joint refit in which the object
 has one location per factor cell. Differences between these locations are
-reported in logits with clustered Wald tests. Higher-order terms supersede
-their component terms. Models fitted with \code{order} retain the exposure
-and carry-over effects in both the residual analysis and refit.
+reported in logits. A cell needs at least eight effective judges for
+pairwise inference; otherwise its location and differences remain
+descriptive. Pairwise tests use degrees of freedom based on the effective
+judges in the two cells. Higher-order terms supersede their component terms.
+Models fitted with \code{order} retain the exposure and carry-over effects
+in both the residual analysis and refit.
 
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce compensating
@@ -89,14 +93,14 @@ objects are retained in the joint refit.
 set.seed(1)
 beta <- c(A = -1, B = -0.3, C = 0.4, D = 0.9)
 pr <- t(combn(names(beta), 2))
-d <- data.frame(a = rep(pr[, 1], each = 60), b = rep(pr[, 2], each = 60),
-                judge = sample(sprintf("J\%02d", 1:12), 360, TRUE))
-shift <- ifelse(d$judge \%in\% sprintf("J\%02d", 1:6) & d$a == "C", 0.9,
-         ifelse(d$judge \%in\% sprintf("J\%02d", 1:6) & d$b == "C", -0.9, 0))
+d <- data.frame(a = rep(pr[, 1], each = 100), b = rep(pr[, 2], each = 100),
+                judge = sample(sprintf("J\%02d", 1:20), 600, TRUE))
+shift <- ifelse(d$judge \%in\% sprintf("J\%02d", 1:10) & d$a == "C", 0.9,
+         ifelse(d$judge \%in\% sprintf("J\%02d", 1:10) & d$b == "C", -0.9, 0))
 p <- plogis(beta[d$a] - beta[d$b] + shift)
 d$win <- ifelse(runif(nrow(d)) < p, d$a, d$b)
 f <- btl(d, "a", "b", winner = "win", judge = "judge")
-grp <- setNames(rep(c("g1", "g2"), each = 6), sprintf("J\%02d", 1:12))
+grp <- setNames(rep(c("g1", "g2"), each = 10), sprintf("J\%02d", 1:20))
 btl_dif(f, grp, objects = "C")
 }
 \references{

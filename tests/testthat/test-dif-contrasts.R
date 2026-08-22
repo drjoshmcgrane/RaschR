@@ -59,8 +59,10 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   expect_true(dc$paired)
   t <- dc$table
   w4 <- t[t$item == "I4" & t$contrast == "time: 2 - 1", ]
-  # paired t (df = persons - 1), significant, positive drift, sign-aligned
-  expect_equal(w4$df, n - 1)
+  # The time contrast is paired within person and marginalised over gender;
+  # its nuisance-cell means use a Welch--Satterthwaite reference.
+  expect_gt(w4$df, n - 10)
+  expect_lt(w4$df, n)
   expect_true(w4$significant && w4$estimate > 0.4 && w4$statistic > 0)
   expect_true(all(is.na(t$se)))
   expect_true(all(is.na(t$lower)) && all(is.na(t$upper)))
@@ -81,9 +83,76 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   auto <- dif_contrasts(fit, items = "I4", within = "time")
   expect_true(auto$paired)
   expect_identical(auto$within, "time")
-  expect_equal(auto$table$df[auto$table$contrast == "time: 2 - 1"], n - 1)
+  expect_equal(auto$table$df[auto$table$contrast == "time: 2 - 1"], w4$df)
   expect_error(dif_contrasts(fit, items = "I4", within = "time",
                              id = seq_len(10)), "one value per")
+})
+
+test_that("within-person follow-ups marginalise nuisance cells consistently", {
+  set.seed(91)
+  n_a <- 100L; n_b <- 900L; n <- n_a + n_b
+  h <- factor(c(rep("a", n_a), rep("b", n_b)))
+  time <- rep(c("t1", "t2"), each = n)
+  id <- rep(sprintf("P%04d", seq_len(n)), 2)
+  theta <- rnorm(n)
+  difficulty <- seq(-1, 1, length.out = 5)
+  make_wave <- function()
+    matrix(rbinom(n * 5, 1, plogis(outer(theta, difficulty, "-"))), n, 5)
+  X <- rbind(make_wave(), make_wave())
+  colnames(X) <- paste0("I", seq_len(ncol(X)))
+  dat <- data.frame(X, time = time, h = rep(h, 2))
+  fit <- rasch(dat, factors = c("time", "h"), id = id)
+
+  # The equally weighted time contrast is +1 in nuisance cell a and -1 in b,
+  # hence zero after marginalising equally over the two cells. A shortcut that
+  # averages people instead would target 0.1(+1) + 0.9(-1) = -0.8.
+  eps <- ave(rnorm(n, 0, 0.2), h, FUN = function(x) x - mean(x))
+  delta <- ifelse(h == "a", 1, -1) + eps
+  fit$residuals[, 1] <- c(-delta / 2, delta / 2)
+
+  dc <- dif_contrasts(fit, items = "I1", within = "time")
+  row <- dc$table[dc$table$contrast == "time: t2 - t1", ]
+  expect_equal(row$statistic, 0, tolerance = 1e-10)
+  expect_equal(row$p, 1, tolerance = 1e-10)
+
+  # dif_posthoc() uses the same marginal comparison.
+  ph <- dif_posthoc(fit, "I1", "time", within = "time")
+  expect_equal(ph$table$statistic, row$statistic, tolerance = 1e-10)
+  expect_equal(ph$table$p, row$p, tolerance = 1e-10)
+})
+
+test_that("mixed follow-ups retain equal margins over an imbalanced nuisance factor", {
+  set.seed(92)
+  n_s1 <- 120L; n_s2 <- 1080L; n <- n_s1 + n_s2
+  site <- factor(c(rep("s1", n_s1), rep("s2", n_s2)))
+  group <- factor(unlist(lapply(c(n_s1, n_s2), function(nn)
+    rep(c("A", "B"), each = nn / 2))))
+  id <- rep(sprintf("P%03d", seq_len(n)), 2)
+  time <- factor(rep(c("t1", "t2"), each = n))
+  theta <- rnorm(n)
+  difficulty <- seq(-1, 1, length.out = 4)
+  make_wave <- function()
+    matrix(rbinom(n * 4, 1, plogis(outer(theta, difficulty, "-"))), n, 4)
+  X <- rbind(make_wave(), make_wave())
+  colnames(X) <- paste0("I", seq_len(ncol(X)))
+  dat <- data.frame(X, time = time, group = rep(group, 2),
+                    site = rep(site, 2))
+  fit <- rasch(dat, factors = c("time", "group", "site"), id = id)
+
+  # The time-by-group contrast is +1 at site s1 and -1 at site s2. Its
+  # equal-site marginal value is therefore zero, although a person-frequency
+  # shortcut would target 0.1(+1) + 0.9(-1) = -0.8.
+  eps <- ave(rnorm(n, 0, 0.2), interaction(site, group),
+             FUN = function(x) x - mean(x))
+  site_effect <- ifelse(site == "s1", 1, -1)
+  delta <- eps + ifelse(group == "B", site_effect, 0)
+  fit$residuals[, 1] <- c(-delta / 2, delta / 2)
+
+  ph <- dif_posthoc(fit, "I1", term = c("time", "group"),
+                    within = "time")
+  expect_equal(nrow(ph$table), 1L)
+  expect_equal(ph$table$statistic, 0, tolerance = 1e-10)
+  expect_equal(ph$table$p, 1, tolerance = 1e-10)
 })
 
 test_that("custom cell-weight contrasts are accepted and normalised", {

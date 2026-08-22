@@ -218,6 +218,9 @@ provenance in the result tables:
 | `lr_test` adjusted size | 500 persons, 8 items, 3 categories | 4.7% at the 0.05 level (2,000 replicates) |
 | `lr_test` small-sample edge | 300 persons, 12 items, 4 categories | 6.1% among 1,927/2,000 admissible replicates |
 | `dependence_magnitude` size | 800 persons, 10 items | 7.5% pooled-variance (pre-fix) to 4.8% covariance-based |
+| Repeated-measures DIF follow-up | 10:90 nuisance-cell imbalance | 5.25% size for a main effect and 5.4% for a mixed interaction (2,000 replicates each); the superseded person-frequency shortcut targeted a different contrast |
+| BTL-DIF pairwise inference | 6 objects, 8 or 10 judges per factor level | 5.5% and 4.83% size when balanced; 5.0% with 10 raw/9.31 effective judges per level (2,000-replicate top-up); inference is withheld below eight effective judges per level |
+| Superitem spread test | 900 persons, 8 items | 5.2% size at the binomial boundary (1,000 replicates); 100% power under the planted dependence condition (400 replicates) |
 | EFRM set-unit linking | 500-600 persons, 8 items/set | hybrid Type I 4.0-5.0%, SE ratios 0.97-1.05 and coverage 0.927-0.960 under normal, bimodal and contrasting group distributions; full-bootstrap Type I 2.5% and coverage 0.975 |
 | BTL-EFRM unit tests | 12 judges, 6 objects/set | judge-bootstrap Type I 3.3-5.3% for panel units, set units and origins; independent-outcome bootstrap 3.0-6.7% (300 replicates) |
 | MFRM multifactor DIF | 500 persons, 8 items, 6 raters | 4.7% familywise error with balanced raters and 3.8% when one group has two raters (1,000 replicates) |

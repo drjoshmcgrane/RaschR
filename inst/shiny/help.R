@@ -210,13 +210,16 @@ APP_HELP <- c(
   ),
   bdif_sizes_tbl = paste(
     "Reports resolved object-location differences between judge-factor levels",
-    "in logits. Adjusted probabilities and practical flags refer to the full",
-    "displayed contrast family."
+    "in logits, with the number and effective number of judges supporting each",
+    "level. Pairwise inference requires at least eight effective judges in each",
+    "level; otherwise the differences remain descriptive. Adjusted probabilities",
+    "refer to the full displayed contrast family."
   ),
   dif_posthoc_tbl = paste(
     "Resolves the selected DIF term into adjusted comparisons on the logit",
     "scale. Interaction rows are contrasts of contrasts; main-effect rows are",
-    "marginal comparisons over the other fitted factors."
+    "equal-cell marginal comparisons over the other fitted factors. Repeated",
+    "designs use the same cell weights in their person-level tests."
   ),
   dif_size_tbl = paste(
     "Compares resolved interaction cells pairwise. Use these rows to locate the",
@@ -323,7 +326,8 @@ APP_HELP <- c(
   ),
   spread_tbl = paste(
     "Compares each recorded superitem's threshold spread with the binomial",
-    "bound. A shortfall is evidence consistent with response dependence. The",
+    "bound. The one-sided adjusted probability tests whether the spread is",
+    "below that bound; the point-estimate comparison is shown separately. The",
     "bound is available only when the superitem contains dichotomous items."
   ),
   cormat_q3_tbl = paste(

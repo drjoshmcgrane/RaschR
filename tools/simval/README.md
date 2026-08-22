@@ -110,6 +110,23 @@ granularity deliberately).
   per cell), the btl_efrm origin-test correction (8.5% pre-fix to 5.5%
   post-fix at 400 replicates each), the PCM item-level guard validation,
   and the concentration guard's field behaviour.
+- `results/audit3-fixes.csv` — checks the corrections from the third audit.
+  Under a 10:90 nuisance-cell imbalance, the repeated-measures DIF follow-up
+  held its 5% size (5.25%, 2,000 replicates) when it retained the equal-cell
+  estimand; the superseded person-frequency shortcut rejected every dataset
+  because it targeted a different contrast. The corresponding mixed
+  time-by-group interaction had 5.4% size. BTL-DIF pairwise size was 5.5%
+  with eight judges per level and 4.83% with ten. In the five-level design
+  with four judges per level, the superseded global degrees of freedom gave
+  9.45% pairwise rejection; current public inference is withheld in that
+  region. At the binomial spread boundary, the raw estimate fell below the
+  bound in 47.1% of datasets, while the current one-sided test rejected 5.2%
+  (1,000 replicates). The planted-dependence condition had 100% power.
+- `results/audit3-btl-imbalance-topup.csv` — fresh-seed adjudication of the
+  mildly imbalanced BTL-DIF cell. With ten raw and 9.31 effective judges per
+  level, the current pair-specific reference rejected exactly 5.0% over 2,000
+  datasets. A diagnostic minimum-cell reference rejected 3.55% and was not
+  adopted. There were no refused or non-converged fits.
 - `results/btl-equating-clustered.csv` — common-object drift under two
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the

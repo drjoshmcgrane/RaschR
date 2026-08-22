@@ -389,6 +389,82 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
                         failed_resolution$notes)))
 })
 
+test_that("btl_dif withholds pairwise inference for thin judge-factor levels", {
+  set.seed(76001)
+  K <- 6L; J <- 20L
+  objs <- sprintf("O%d", seq_len(K))
+  jids <- sprintf("J%d", seq_len(J))
+  grp <- setNames(rep(sprintf("g%d", 1:5), each = 4), jids)
+  pairs <- t(utils::combn(objs, 2))
+  judge_shift <- matrix(rnorm(J * K, 0, 0.8), J, K,
+                        dimnames = list(jids, objs))
+  rows <- lapply(jids, function(j) {
+    d <- data.frame(a = rep(pairs[, 1], each = 3),
+                    b = rep(pairs[, 2], each = 3), judge = j)
+    beta <- as.numeric(scale(seq_len(K)))
+    planted <- if (grp[j] == "g1") 2.5 else 0
+    eta <- beta[match(d$a, objs)] - beta[match(d$b, objs)] +
+      judge_shift[j, d$a] - judge_shift[j, d$b] +
+      planted * ((d$a == "O3") - (d$b == "O3"))
+    d$winner <- ifelse(runif(nrow(d)) < plogis(eta), d$a, d$b)
+    d
+  })
+  fit <- btl(do.call(rbind, rows), "a", "b", winner = "winner",
+             judge = "judge")
+  out <- btl_dif(fit, grp, objects = "O3")
+
+  expect_true(out$summary$uniform_DIF)
+  expect_true(all(out$levels$n_judges == 4))
+  expect_true(all(out$levels$effective_judges < 8))
+  expect_true(all(out$sizes$n_judges_a == 4))
+  expect_true(all(out$sizes$n_judges_b == 4))
+  expect_true(all(out$sizes$effective_judges_a < 8))
+  expect_true(all(out$sizes$effective_judges_b < 8))
+  expect_true(all(is.na(out$levels$se)))
+  expect_true(all(is.na(out$sizes$se)))
+  expect_true(all(is.na(out$sizes$df)))
+  expect_true(all(is.na(out$sizes$p)) &&
+                all(is.na(out$sizes$significant)))
+  expect_true(all(is.finite(out$sizes$difference)))
+  expect_match(paste(out$notes, collapse = " "), "below eight effective")
+})
+
+test_that("btl_dif uses effective rather than raw judges for concentrated levels", {
+  set.seed(76002)
+  K <- 6L; J <- 20L
+  objs <- sprintf("O%d", seq_len(K))
+  jids <- sprintf("J%d", seq_len(J))
+  grp <- setNames(rep(c("g1", "g2"), each = 10), jids)
+  workload <- setNames(c(5L, rep(1L, 19L)), jids)
+  pairs <- t(utils::combn(objs, 2))
+  judge_shift <- matrix(rnorm(J * K, 0, 0.8), J, K,
+                        dimnames = list(jids, objs))
+  rows <- lapply(jids, function(j) {
+    d <- data.frame(a = rep(pairs[, 1], each = 3 * workload[j]),
+                    b = rep(pairs[, 2], each = 3 * workload[j]),
+                    judge = j)
+    beta <- as.numeric(scale(seq_len(K)))
+    planted <- if (grp[j] == "g1") 2.5 else 0
+    eta <- beta[match(d$a, objs)] - beta[match(d$b, objs)] +
+      judge_shift[j, d$a] - judge_shift[j, d$b] +
+      planted * ((d$a == "O3") - (d$b == "O3"))
+    d$winner <- ifelse(runif(nrow(d)) < plogis(eta), d$a, d$b)
+    d
+  })
+  fit <- btl(do.call(rbind, rows), "a", "b", winner = "winner",
+             judge = "judge")
+  expect_true(fit$cl$inference_available)
+  out <- btl_dif(fit, grp, objects = "O3")
+
+  expect_true(out$summary$uniform_DIF)
+  expect_true(all(out$levels$n_judges == 10))
+  expect_lt(out$levels$effective_judges[out$levels$level == "g1"], 8)
+  expect_gte(out$levels$effective_judges[out$levels$level == "g2"], 9.5)
+  expect_true(all(is.na(out$sizes$se)))
+  expect_true(all(is.na(out$sizes$p_adj)))
+  expect_match(paste(out$notes, collapse = " "), "below eight effective")
+})
+
 test_that("btl_dif fits several judge factors jointly (main and factorial)", {
   set.seed(2)
   K <- 12; objs <- sprintf("S%02d", 1:K)
@@ -487,11 +563,11 @@ test_that("btl_dif resolves interactions by cells and supersedes lower terms", {
   set.seed(1)
   K <- 10; objs <- sprintf("S%02d", 1:K)
   beta <- setNames(seq(-1.0, 1.0, length.out = K), objs)
-  jids <- sprintf("J%02d", 1:32)
-  A <- setNames(rep(c("g1", "g2"), each = 16), jids)
-  B <- setNames(rep(rep(c("h1", "h2"), each = 8), 2), jids)   # A, B crossed
+  jids <- sprintf("J%02d", 1:40)
+  A <- setNames(rep(c("g1", "g2"), each = 20), jids)
+  B <- setNames(rep(rep(c("h1", "h2"), each = 10), 2), jids)  # A, B crossed
   pr <- t(combn(objs, 2))
-  d <- data.frame(a = rep(pr[, 1], each = 32), b = rep(pr[, 2], each = 32))
+  d <- data.frame(a = rep(pr[, 1], each = 40), b = rep(pr[, 2], each = 40))
   d$judge <- sample(jids, nrow(d), TRUE)
   # DIF on S05 concentrated in the single g2:h2 cell: a main effect AND an
   # interaction both surface, so the A main effect is superseded by A:B
