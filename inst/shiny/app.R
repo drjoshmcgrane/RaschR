@@ -5405,7 +5405,6 @@ server <- function(input, output, session) {
       if (!length(fac))
         stop("nominate at least one person factor")
       its <- if (length(input$pc_items)) input$pc_items else NULL
-      idn <- input$pc_id %||% ""
       withProgress(message = "Resolving items…",
                    detail = "one refit per item", value = 0.15,
         dif_contrasts(f, factors = fac, items = its))
@@ -5417,7 +5416,9 @@ server <- function(input, output, session) {
     } else {
       res$run_factors <- fac
       res$run_items <- its
-      res$run_id <- if (nzchar(idn)) idn else NULL
+      # the person-identifier control was retired with the repeated-measures
+      # redesign; the code footer adds an id argument only when one is set
+      res$run_id <- NULL
       contr_res(res)
     }
   })
