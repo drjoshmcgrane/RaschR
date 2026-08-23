@@ -31,7 +31,8 @@ Encoding: UTF-8
 Imports: stats, graphics, grDevices, utils, parallel, Rcpp
 LinkingTo: Rcpp
 Suggests: testthat (>= 3.0.0), shiny, bslib, DT, bsicons, htmltools, xml2,
-    knitr, rmarkdown, eRm, sirt, psychotools, mirt, ShinyItemAnalysis, callr
+    knitr, rmarkdown, eRm, sirt, psychotools, mirt, ShinyItemAnalysis, callr,
+    WrightMap
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3

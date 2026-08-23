@@ -136,7 +136,8 @@
 #'   the location \code{correlation}, the root mean square difference after
 #'   shifting (\code{rmsd}), the number of common items \code{n_common}, the
 #'   number with usable standard errors \code{n}, and whether drift inference
-#'   was available (\code{inferential}).
+#'   was available (\code{inferential}). The \code{notes} component records
+#'   exclusions and the reason inference was withheld, where applicable.
 #' @examples
 #' set.seed(1); d <- seq(-1.5, 1.5, length.out = 8)
 #' mk <- function() {

@@ -611,6 +611,12 @@ test_that("btl_dif tolerates adversarial factor names (band, f1)", {
   expect_true(rf$summary$uniform_DIF[rf$summary$object == "S06" &
                                      rf$summary$term == "x"])
   expect_equal(sum(rf$summary$uniform_DIF[rf$summary$term == "f1"]), 0L)
+
+  sparse <- setNames(ifelse(jids %in% jids[1:5], "rare", "common"), jids)
+  rs <- btl_dif(f, list(cohort = sparse), objects = "S06")
+  note <- paste(rs$notes, collapse = " ")
+  expect_match(note, "cohort")
+  expect_false(grepl("term\\(s\\) f1", note))
 })
 
 test_that("btl stores per-comparison dependence covariates and plots them", {

@@ -48,6 +48,26 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   z <- explanatory_test(f)
   expect_equal(z$df, f$reference_fit$est$n_parameters - f$est$n_parameters)
   expect_true(is.finite(z$p_kent))
+  expect_identical(z$p, z$p_kent)
+  expect_true(is.finite(z$p_naive))
+  free_tau <- f$reference_fit$est$thr$tau
+  active_tau <- f$est$thr$tau
+  departure <- free_tau - active_tau
+  expected_r2 <- 1 - sum((departure - mean(departure))^2) /
+    sum((free_tau - mean(free_tau))^2)
+  expect_equal(z$r_squared, expected_r2)
+  expect_identical(z$r2_basis, "threshold calibration")
+  expect_lte(z$r_squared, 1)
+  weak_fit <- f
+  weak_fit$reference_fit$est$thr$weak[1] <- TRUE
+  weak_fit$est$thr$weak[1] <- TRUE
+  weak_z <- explanatory_test(weak_fit)
+  keep <- seq_along(free_tau) != 1L
+  weak_departure <- free_tau[keep] - active_tau[keep]
+  weak_expected <- 1 -
+    sum((weak_departure - mean(weak_departure))^2) /
+    sum((free_tau[keep] - mean(free_tau[keep]))^2)
+  expect_equal(weak_z$r_squared, weak_expected)
 })
 
 test_that("LPCM accepts threshold effects and selected interactions", {
@@ -61,6 +81,50 @@ test_that("LPCM accepts threshold effects and selected interactions", {
                     f$est$coefficients$term))
   expect_true(all(is.finite(f$est$coefficients$se)))
   expect_equal(nrow(f$explanatory$metadata), sum(f$m))
+})
+
+test_that("large-sample explanatory convergence is judged on parameter scale", {
+  # This seed leaves an absolute projected score of about 2.1e-4 although
+  # the remaining Newton move is only 2.1e-8 and the estimates are stable.
+  set.seed(8400072L)
+  x <- rep(c(-1, -0.5, 0, 0.5, 1), 2L)
+  predictors <- data.frame(item = paste0("I", 1:10), x = x)
+  theta <- rnorm(2000)
+  X <- sapply(seq_along(x), function(i) {
+    tau <- c(-0.8, 0.2, 1) + 0.45 * x[i]
+    vapply(theta, function(th)
+      sample.int(4L, 1L, prob = item_moments(th, tau)$P) - 1L, integer(1))
+  })
+  storage.mode(X) <- "integer"
+  colnames(X) <- predictors$item
+
+  fit <- rasch_explanatory(X, predictors, ~ x + threshold,
+                           maxit = 80L, tol = 1e-8)
+  expect_true(fit$est$converged)
+  expect_true(fit$reference_fit$est$converged)
+  expect_equal(fit$est$coefficients["x", "estimate"], 0.4452621,
+               tolerance = 1e-6)
+})
+
+test_that("a stable small-sample LPCM fit is not rejected at a score boundary", {
+  # The remaining Newton move is about 1.0e-7 although the extensive score
+  # lies just above its absolute cutoff.
+  set.seed(8200119L)
+  x <- rep(c(-1, -0.3, 0.3, 1), 3L)
+  predictors <- data.frame(item = paste0("I", 1:12), x = x)
+  theta <- rnorm(300)
+  X <- sapply(seq_along(x), function(i) {
+    tau <- c(-0.8, 0.2, 1) + 0.45 * x[i]
+    vapply(theta, function(th)
+      sample.int(4L, 1L, prob = item_moments(th, tau)$P) - 1L, integer(1))
+  })
+  storage.mode(X) <- "integer"
+  colnames(X) <- predictors$item
+
+  fit <- rasch_explanatory(X, predictors, ~ x + threshold,
+                           maxit = 80L, tol = 1e-8)
+  expect_true(fit$est$converged)
+  expect_true(fit$reference_fit$est$converged)
 })
 
 test_that("Rasch explanatory predictors may be continuous, categorical or ordinal", {
@@ -225,6 +289,16 @@ test_that("explanatory CJ recovers object effects and compares with a free fit",
   z <- explanatory_test(f)
   expect_equal(z$df, 5L)
   expect_true(is.finite(z$p_kent))
+  expect_identical(z$p, z$p_kent)
+  expect_true(is.finite(z$p_naive))
+  free_location <- f$reference_fit$objects$location[
+    match(f$objects$object, f$reference_fit$objects$object)]
+  departure <- free_location - f$objects$location
+  expected_r2 <- 1 - sum((departure - mean(departure))^2) /
+    sum((free_location - mean(free_location))^2)
+  expect_equal(z$r_squared, expected_r2)
+  expect_identical(z$r2_basis, "object calibration")
+  expect_lte(z$r_squared, 1)
 
   dg <- explanatory_diagnostics(f)
   expect_equal(dg$p_adj, p.adjust(dg$p, "holm"))

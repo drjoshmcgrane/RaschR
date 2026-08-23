@@ -65,6 +65,25 @@ test_that("an item with fewer than two class intervals gets NA, not df = 1", {
   expect_true(is.na(f$total_chisq_p))
 })
 
+test_that("unavailable item-fit tests do not enlarge Holm families", {
+  set.seed(47)
+  ci <- rep(1:2, each = 20)
+  Z <- cbind(I1 = rnorm(40), I2 = rnorm(40), I3 = NA_real_)
+  anova <- .item_anova(Z, ci, extreme = rep(FALSE, 40))
+  ok_a <- is.finite(anova$p)
+  expect_equal(anova$p_adj[ok_a], p.adjust(anova$p[ok_a], "holm"))
+  expect_true(is.na(anova$p_adj[!ok_a]))
+
+  X <- matrix(rbinom(120, 1, 0.5), 40, 3,
+              dimnames = list(NULL, paste0("I", 1:3)))
+  X[ci == 2, 3] <- NA_integer_
+  mo <- list(E = matrix(0.5, 40, 3), V = matrix(0.25, 40, 3))
+  trait <- .item_trait(X, mo, ci)
+  ok_t <- is.finite(trait$p)
+  expect_equal(trait$p_adj[ok_t], p.adjust(trait$p[ok_t], "holm"))
+  expect_true(is.na(trait$p_adj[!ok_t]))
+})
+
 test_that("equating drift tests are calibrated under the null", {
   skip_on_cran()   # 80 replicate pairs of fits
   set.seed(42)

@@ -50,7 +50,8 @@ must both converge.
 set.seed(1); N <- 600
 d0 <- seq(-1.5, 1.5, length.out = 8)
 X <- matrix(rbinom(N * 8, 1, plogis(outer(rnorm(N), d0, "-"))), N, 8)
-X[, 5] <- X[, 4]; X[, 6] <- X[, 4]                 # a dependent triple
+X[, 5] <- ifelse(runif(N) < .85, X[, 4], 1 - X[, 4])
+X[, 6] <- ifelse(runif(N) < .75, X[, 4], 1 - X[, 4]) # a dependent triple
 colnames(X) <- paste0("I", 1:8)
 fit2 <- combine_items(rasch(X), list(c("I4", "I5", "I6"), c("I1", "I2", "I3")))
 spread_test(fit2)

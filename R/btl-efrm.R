@@ -1047,8 +1047,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
           df_b, "oa", "ob", "win", "judge", panels = pmap_b,
           object_sets = object_sets, ties = "drop",
           min_link = min_link, se_method = "conditional", workers = 1L,
-          maxit = maxit, tol = tol)), error = function(e) NULL)
-      if (is.null(fb) || !isTRUE(fb$converged)) return(NULL)
+          maxit = maxit, tol = tol)),
+        error = function(e) list(.refit_error = conditionMessage(e)))
+      if (!is.null(fb$.refit_error)) return(fb)
+      if (!isTRUE(fb$converged)) return(list(.nonconverged = TRUE))
       lphi_b <- log(fb$phi_table$phi)[match(panels_u, fb$phi_table$panel)]
       la_b <- log(fb$alpha_table$alpha)[match(sets_u, fb$alpha_table$set)]
       ka_b <- fb$kappa_table$kappa[match(sets_u, fb$kappa_table$set)]
@@ -1056,7 +1058,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       v_b <- fb$objects$v[match(objs_all, fb$objects$object)]
       # a unit the OBSERVED fit already reports NA (unidentified) is NA in
       # replicates too; only unexpected NAs mark a failed replicate
-      if (anyNA(c(lphi_b, la_b, ka_b)[exp_ok])) return(NULL)
+      if (anyNA(c(lphi_b, la_b, ka_b)[exp_ok]))
+        return(list(.nonconverged = TRUE))
       c(lphi_b, la_b, ka_b, bh_b, v_b)
     }
     ans <- .rasch_boot_apply(
@@ -1064,13 +1067,24 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       progress = function(current, total)
         report("judge bootstrap", current, total),
       cancel = cancel, label = "BTL-EFRM judge-bootstrap")
-    good_draw <- !vapply(ans, is.null, logical(1))
+    refit_error <- vapply(ans, function(z)
+      is.list(z) && !is.null(z$.refit_error), logical(1))
+    nonconverged <- vapply(ans, function(z)
+      is.list(z) && isTRUE(z$.nonconverged), logical(1))
+    good_draw <- !(refit_error | nonconverged)
     boot_fail <- sum(!good_draw)
     draws <- ans[good_draw]
-    if (length(draws) < max(20L, ceiling(boot_reps / 2)))
-      stop("judge bootstrap failed on ", boot_fail, " of ", boot_reps,
-           " replicates; too few judges per panel for stable resampling -- ",
-           "use se_method = 'bootstrap' or 'conditional'")
+    if (length(draws) < max(20L, ceiling(boot_reps / 2))) {
+      detail <- if (any(refit_error)) {
+        msg <- unique(vapply(ans[refit_error], `[[`, "", ".refit_error"))
+        paste0("; refit error: ", msg[1L],
+               ". Check that every worker loads this version of rasch")
+      } else paste0("; the resampled fits did not converge, which usually ",
+                    "indicates weak panel or set-link support")
+      stop("judge bootstrap produced only ", length(draws), " usable fits of ",
+           boot_reps, detail, "; use workers = 1 to diagnose the same ",
+           "resamples, or use se_method = 'bootstrap' or 'conditional'")
+    }
     D <- do.call(rbind, draws)
     colnames(D) <- c(paste0("log phi[", panels_u, "]"),
                      paste0("log alpha[", sets_u, "]"),
@@ -1110,6 +1124,16 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       notes <- c(notes, sprintf(
         "judge bootstrap: %d of %d replicates failed and were skipped",
         boot_fail, boot_reps))
+    if (any(nonconverged))
+      notes <- c(notes, sprintf(
+        "judge bootstrap: %d resampled fit(s) did not converge",
+        sum(nonconverged)))
+    if (any(refit_error)) {
+      msg <- unique(vapply(ans[refit_error], `[[`, "", ".refit_error"))
+      notes <- c(notes, sprintf(
+        "judge bootstrap: %d refit error(s); first error: %s",
+        sum(refit_error), msg[1L]))
+    }
   }
   if (se_method == "bootstrap") {
     p_hat <- pmin(pmax(fit0$p_all, 1e-8), 1 - 1e-8)
@@ -1238,7 +1262,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       "panel-unit inference is withheld because panel(s) ",
       paste(panel_support$panel[!panel_ok], collapse = ", "),
       " have fewer than six judges or 5.5 effective judges"))
-  if (se_method == "judge_bootstrap" &&
+  if (se_method == "judge_bootstrap" && length(free) &&
       (any(!panel_ok) || any(!set_ok[set_support$set %in% free])))
     notes <- c(notes, paste0(
       "set-unit and set-origin inference is withheld because a contributing ",

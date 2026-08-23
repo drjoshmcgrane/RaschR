@@ -108,7 +108,10 @@ threshold. `threshold_number` is also available as an integer predictor.
 responses. `explanatory_test()` compares it with the active explanatory model.
 Pairwise conditional estimation produces a composite likelihood, so the
 reported inferential result is the first-order Kent-adjusted chi-square rather
-than an ordinary likelihood-ratio test.
+than an ordinary likelihood-ratio test. The same table reports calibration
+\(R^2\), the proportion of variation in the free threshold calibration
+reproduced by the explanatory thresholds. Comparative judgement uses the
+corresponding free object calibration.
 
 ```{r comparison}
 explanatory_test(fit)
@@ -191,9 +194,8 @@ departure and repeats the complete fit.
 
 ## Validation
 
-The package implementation was checked against `eRm`: the LLTM and LPCM
-calibrations agreed with correlations above 0.999 and maximum absolute
-differences below 0.08 logits. In simulation, coefficient bias was at most
+Regression checks compare the LLTM and LPCM calibrations with `eRm`. In the
+simulation study, coefficient bias was at most
 0.005 logits, empirical standard deviations divided by mean reported standard
 errors ranged from 0.99 to 1.03, and 95% coverage ranged from 0.938 to 0.955
 across LLTM, LPCM, dichotomous comparative judgement, ordered comparative
@@ -201,8 +203,13 @@ judgement and judge-clustered comparative judgement conditions. Kent-adjusted
 null rejection ranged from 4.2% to 6.0% (1,000 replicates per condition).
 Holm familywise error for fixed-departure diagnostics was 4.3% to 4.7%, with
 98.3% to 100% power for a planted 0.8-logit departure (300 replicates per
-condition). No fit was refused or failed to converge. Scripts and full result
-tables are under `tools/simval/` in the source repository.
+condition). A further 1,000-replicate study covered mixed maximum scores and
+four-category LPCMs at 300 to 2,000 persons. SE ratios were 0.993 to 1.026,
+coverage was 0.942 to 0.954, Kent-adjusted null rejection was 4.3% to 5.8%,
+and mean calibration \(R^2\) was 0.872 to 0.994. The unscaled probability
+rejected 98.6% to 100% and is therefore returned only as `p_naive`. No fit in
+these four conditions was refused or failed to converge. Scripts and full
+result tables are under `tools/simval/` in the source repository.
 
 ## References
 

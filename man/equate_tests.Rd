@@ -36,7 +36,8 @@ A list with the comparison \code{table} (locations, standard
   the location \code{correlation}, the root mean square difference after
   shifting (\code{rmsd}), the number of common items \code{n_common}, the
   number with usable standard errors \code{n}, and whether drift inference
-  was available (\code{inferential}).
+  was available (\code{inferential}). The \code{notes} component records
+  exclusions and the reason inference was withheld, where applicable.
 }
 \description{
 Places two calibrations on a common origin using their shared items, then

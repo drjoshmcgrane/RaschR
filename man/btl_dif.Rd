@@ -56,7 +56,9 @@ A list of class \code{"rasch_btl_dif"}: \code{summary} (one row per
   object, term and cell); \code{sizes} (per object, term and cell pair:
   difference in logits, judge support for both cells, SE, t, degrees of
   freedom, adjusted p, significance and practical flags); \code{effects},
-  \code{factors}, and \code{notes}.
+  \code{factors}, \code{alpha}, \code{p_adjust}, \code{flag_logits}, and
+  \code{notes}. \code{summary_factors} retains the factor membership of
+  each displayed term.
 }
 \description{
 Tests whether object locations differ across groups of judges. Several

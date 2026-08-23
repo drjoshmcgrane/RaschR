@@ -543,22 +543,44 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
 #' Tests explanatory item, threshold or object restrictions against the
 #' corresponding free calibration of the same responses. The inferential
 #' result uses the first-order Kent calibration for the fitted likelihood and
-#' sandwich covariance.
+#' sandwich covariance. The calibration coefficient of determination is
+#' \deqn{R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
+#' \hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
+#' \bar\eta^{free})^2},}
+#' where \eqn{\bar d} removes the arbitrary scale origin. It describes the
+#' proportion of variation in the well-determined free threshold calibration
+#' (Rasch models) or free object calibration (comparative judgement)
+#' reproduced by the explanatory model. It is at most one and may be negative.
 #'
 #' @param fit A fitted explanatory Rasch or comparative judgement model.
 #' @return A one-row data frame containing the raw and Kent-calibrated
-#'   statistics, degrees of freedom, probabilities and parameter counts.
+#'   statistics, degrees of freedom and parameter counts. The primary
+#'   \code{p} and the retained \code{p_kent} are the Kent-calibrated
+#'   probability. \code{p_naive} is the unscaled composite-likelihood
+#'   probability and is provided for methodological inspection, not
+#'   inference. \code{r_squared} is the calibration coefficient of
+#'   determination and \code{r2_basis} names the calibrated parameters used.
 #' @export
 explanatory_test <- function(fit) {
   if (inherits(fit, "rasch_btl_explanatory")) {
     z <- .btl_explanatory_nested_test(fit$reference_fit, fit)
+    free <- fit$reference_fit$objects
+    active <- fit$objects
+    f <- free$location[match(active$object, free$object)]
+    a <- active$location
+    ok <- is.finite(f) & is.finite(a)
+    d <- f[ok] - a[ok]
+    den <- sum((f[ok] - mean(f[ok]))^2)
+    r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
+      1 - sum((d - mean(d))^2) / den else NA_real_
     out <- data.frame(
       model = if (nrow(fit$explanatory$relaxations))
         "Partially relaxed explanatory CJ model" else "Explanatory CJ",
       parameters = ncol(fit$location_design),
       free_parameters = ncol(fit$reference_fit$location_design),
-      chisq = z$chisq, df = z$df, p = z$p,
-      chisq_kent = z$chisq_kent, p_kent = z$p_kent,
+      r_squared = r2, r2_basis = "object calibration",
+      chisq = z$chisq, df = z$df, p_naive = z$p,
+      chisq_kent = z$chisq_kent, p = z$p_kent, p_kent = z$p_kent,
       stringsAsFactors = FALSE)
     attr(out, "lambda") <- z$lambda
     return(.tag_tables(out))
@@ -566,13 +588,24 @@ explanatory_test <- function(fit) {
   if (!inherits(fit, "rasch_explanatory"))
     stop("explanatory_test() needs an explanatory Rasch fit")
   z <- .pcml_nested_test(fit$reference_fit$est, fit$est)
+  free <- fit$reference_fit$est$thr$tau
+  active <- fit$est$thr$tau
+  ok <- is.finite(free) & is.finite(active)
+  free_weak <- fit$reference_fit$est$thr$weak %||% rep(FALSE, length(free))
+  active_weak <- fit$est$thr$weak %||% rep(FALSE, length(active))
+  ok <- ok & !free_weak & !active_weak
+  d <- free[ok] - active[ok]
+  den <- sum((free[ok] - mean(free[ok]))^2)
+  r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
+    1 - sum((d - mean(d))^2) / den else NA_real_
   out <- data.frame(
     model = if (nrow(fit$explanatory$relaxations))
       "Partially relaxed explanatory model" else fit$explanatory_model,
     parameters = fit$est$n_parameters,
     free_parameters = fit$reference_fit$est$n_parameters,
-    chisq = z$chisq, df = z$df, p = z$p,
-    chisq_kent = z$chisq_kent, p_kent = z$p_kent,
+    r_squared = r2, r2_basis = "threshold calibration",
+    chisq = z$chisq, df = z$df, p_naive = z$p,
+    chisq_kent = z$chisq_kent, p = z$p_kent, p_kent = z$p_kent,
     stringsAsFactors = FALSE)
   attr(out, "lambda") <- z$lambda
   .tag_tables(out)

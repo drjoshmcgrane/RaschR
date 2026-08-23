@@ -456,7 +456,9 @@ APP_HELP <- c(
   wright = paste(
     "Places person locations and calibration thresholds on the same logit scale.",
     "Extended Frames and Multiple Ratings use response-cell thresholds.",
-    "Good targeting places thresholds across the range occupied by the persons."
+    "Good targeting places thresholds across the range occupied by the persons.",
+    "The optional WrightMap renderer can separate person distributions and",
+    "item sets or facets into panels; both default to a single panel."
   ),
   pim_p = paste(
     "Compares the distributions of person locations and calibration thresholds on",

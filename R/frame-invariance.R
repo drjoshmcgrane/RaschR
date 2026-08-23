@@ -392,9 +392,12 @@ print.rasch_frame_invariance <- function(x, ...) {
             x$boot_reps_used) else "conditional on the fitted frame units",
     "\n\n")
   print(.fmt_df(x$summary), row.names = FALSE)
-  if (!is.null(x$excluded) && nrow(x$excluded))
-    cat(sprintf("\n%d item comparison(s) excluded because the observed category structure differed between frames.\n",
-                nrow(x$excluded)))
+  if (!is.null(x$excluded) && nrow(x$excluded)) {
+    why <- table(x$excluded$reason)
+    cat(sprintf("\n%d item comparison(s) excluded:\n", nrow(x$excluded)))
+    for (i in seq_along(why))
+      cat(sprintf("  %d %s\n", unname(why[i]), names(why)[i]))
+  }
   cat("\nrmsd/rmse above 1 indicates item behaviour the frame units do not account for\n")
   fl <- x$locations[x$locations$flagged %in% TRUE, , drop = FALSE]
   if (nrow(fl)) {

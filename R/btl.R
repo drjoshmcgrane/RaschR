@@ -1625,7 +1625,9 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   object, term and cell); \code{sizes} (per object, term and cell pair:
 #'   difference in logits, judge support for both cells, SE, t, degrees of
 #'   freedom, adjusted p, significance and practical flags); \code{effects},
-#'   \code{factors}, and \code{notes}.
+#'   \code{factors}, \code{alpha}, \code{p_adjust}, \code{flag_logits}, and
+#'   \code{notes}. \code{summary_factors} retains the factor membership of
+#'   each displayed term.
 #' @references Andrich, D., & Hagquist, C. (2012). Real and artificial
 #'   differential item functioning. \emph{Journal of Educational and
 #'   Behavioral Statistics}, 37(3), 387-416.
@@ -1703,6 +1705,17 @@ btl_dif <- function(fit, factors, objects = NULL,
   safe <- paste0("f", seq_along(fnames))            # syntactic stand-ins
   op <- if (effects == "factorial") " * " else " + "
   tvars <- function(t) strsplit(t, ":", fixed = TRUE)[[1]]
+  # Map whole stand-in tokens back to the nominated factor names for messages
+  # and final tables. A user factor named "band" remains distinct from the
+  # internal opponent-strength band.
+  relab <- function(x) vapply(x, function(t) {
+    toks <- strsplit(t, ":", fixed = TRUE)[[1]]
+    i <- match(toks, safe)
+    toks[!is.na(i)] <- vapply(fnames[i[!is.na(i)]], .dif_term_label, "")
+    if ("band" %in% fnames)
+      toks[is.na(i) & toks == "band"] <- "(opponent band)"
+    paste(toks, collapse = ":")
+  }, character(1), USE.NAMES = FALSE)
 
   m <- if (is.null(fit$m)) 1L else fit$m
   cats <- if (!is.null(fit$categories)) fit$categories else c("0", "1")
@@ -1732,7 +1745,7 @@ btl_dif <- function(fit, factors, objects = NULL,
   E <- drop(P %*% sc); V <- pmax(drop(P %*% sc^2) - E^2, 1e-12)
 
   # per object: the residual ANOVA z ~ (f1 [+/*] fk) * band, one row per term
-  notes <- character(0); term_rows <- list()
+  notes <- character(0); term_rows <- list(); caution_count <- 0L
   for (o in its) {
     sel_a <- cm$object_a == o & ok
     sel_b <- cm$object_b == o & ok
@@ -1863,13 +1876,11 @@ btl_dif <- function(fit, factors, objects = NULL,
       ft$p[withheld] <- NA_real_
       notes <- c(notes, sprintf(
         "%s: DIF inference withheld for term(s) below eight judges or eight effective judges in a factor cell: %s",
-        o, paste(ft$term[withheld], collapse = ", ")))
+        o, paste(relab(ft$term[withheld]), collapse = ", ")))
     }
     caution <- ft$inference_available & is.finite(ft$min_effective_judges) &
       ft$min_effective_judges < 9.5
-    if (any(caution)) notes <- c(notes, sprintf(
-      "%s: term(s) %s have 8.0--9.4 effective judges in their smallest cell; interpret inference cautiously",
-      o, paste(ft$term[caution], collapse = ", ")))
+    caution_count <- caution_count + sum(caution)
     for (k in seq_len(nrow(ft)))
       term_rows[[length(term_rows) + 1L]] <- data.frame(
         object = o, term = ft$term[k], df = ft$df[k], sum_sq = ft$sum_sq[k],
@@ -1879,6 +1890,10 @@ btl_dif <- function(fit, factors, objects = NULL,
         inference_available = ft$inference_available[k],
         resid_ss = ft$resid_ss[k])
   }
+  if (caution_count > 0L)
+    notes <- c(notes, sprintf(
+      "%d object-term test(s) have 8.0--9.4 effective judges in their smallest cell; see min_effective_judges and interpret these results cautiously",
+      caution_count))
   if (!length(term_rows)) stop("no object yielded an estimable DIF ANOVA")
   terms <- do.call(rbind, term_rows); rownames(terms) <- NULL
   terms$eta2_partial <- terms$sum_sq / (terms$sum_sq + terms$resid_ss)
@@ -1904,21 +1919,6 @@ btl_dif <- function(fit, factors, objects = NULL,
         terms$superseded[lo] <- TRUE
     }
   }
-  # map a term's syntactic stand-ins (f1..fk) back to the nominated factor
-  # names by exact whole-token match, so a factor named like a stand-in ("f1")
-  # or like the opponent band cannot be re-substituted or collide. Applied only
-  # for display, after all term classification is done on the stand-ins.
-  relab <- function(x) vapply(x, function(t) {
-    toks <- strsplit(t, ":", fixed = TRUE)[[1]]
-    i <- match(toks, safe)
-    toks[!is.na(i)] <- vapply(fnames[i[!is.na(i)]], .dif_term_label, "")
-    # a user factor literally named "band" would otherwise be
-    # indistinguishable from the opponent-strength band in the display
-    if ("band" %in% fnames)
-      toks[is.na(i) & toks == "band"] <- "(opponent band)"
-    paste(toks, collapse = ":")
-  }, character(1), USE.NAMES = FALSE)
-
   # compact reading: one row per object and group term (a term not crossing the
   # opponent band), its own effect uniform DIF and its band crossing
   # non-uniform DIF. Classified on the stand-in tokens, so a factor named

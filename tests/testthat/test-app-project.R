@@ -1,3 +1,13 @@
+.app_test_path <- function() {
+  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  if (!file.exists(app)) app <- system.file("shiny", "app.R", package = "rasch")
+  app
+}
+
+test_that("the Shiny application resolves in source and installed layouts", {
+  expect_true(file.exists(.app_test_path()))
+})
+
 test_that("saved app analyses make a validated round trip", {
   set.seed(81)
   theta <- rnorm(120)
@@ -57,7 +67,7 @@ test_that("opening a project retains results tied to its active fit", {
   skip_if_not_installed("DT")
   skip_if_not_installed("bsicons")
 
-  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  app <- .app_test_path()
   e <- new.env(parent = globalenv())
   suppressWarnings(sys.source(app, envir = e))
   set.seed(82)
@@ -91,7 +101,7 @@ test_that("a failed replacement leaves the current app analysis intact", {
   skip_if_not_installed("DT")
   skip_if_not_installed("bsicons")
 
-  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  app <- .app_test_path()
   e <- new.env(parent = globalenv())
   suppressWarnings(sys.source(app, envir = e))
   set.seed(83)
@@ -106,5 +116,44 @@ test_that("a failed replacement leaves the current app analysis intact", {
                  "dat <- existing")
     expect_identical(fit_val(), current)
     expect_length(analysis_steps(), 1L)
+  })
+})
+
+test_that("the app exposes reproducible WrightMap panel controls", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+  skip_if_not_installed("WrightMap")
+  skip_if_not("item.groups" %in% names(formals(WrightMap::wrightMap)),
+              "WrightMap item panels require version 1.5")
+
+  app <- .app_test_path()
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+
+  d <- simulate_efrm(n_per_group = 55, items_per_set = 4, n_sets = 2,
+                     n_groups = 2, n_categories = 2, seed = 73)
+  truth <- attr(d, "truth")
+  current <- rasch_efrm(d, item_sets = truth$item_sets, groups = "group",
+                        id = "id", boot_reps = 0)
+
+  shiny::testServer(e$server, {
+    fit_val(current)
+    session$flushReact()
+    session$setInputs(wright_renderer = "wrightmap",
+                      wright_type = "thresholds",
+                      wright_person_panels = "groups",
+                      wright_item_panels = "sets_groups",
+                      wright_person_style = "histogram",
+                      tg_bins = 35,
+                      tg_axis_mode = "standard")
+    session$flushReact()
+    expect_match(output$wright_code, "wright_map\\(fit")
+    expect_match(output$wright_code, 'person_panels = "groups"', fixed = TRUE)
+    expect_match(output$wright_code,
+                 'item_panels = c("sets", "groups")', fixed = TRUE)
+    expect_type(output$wright, "list")
   })
 })

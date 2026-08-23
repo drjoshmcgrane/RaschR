@@ -306,6 +306,19 @@ threshold_index <- function(m) {
          "information (all at the minimum or maximum)", call. = FALSE)
   Hinv <- tryCatch(solve(Hb), error = function(e)
     solve(Hb - diag(1e-8, nrow(Hb))))
+  gb_final <- drop(crossprod(B, glh$g))
+  # The projected score is an extensive quantity and therefore grows with
+  # sample size. At large N it can remain just above a fixed absolute cutoff
+  # after the parameter estimates and log likelihood have stopped changing.
+  # Accept either a small score or a small full Newton move on the parameter
+  # scale; the latter remains comparable across sample sizes. The information
+  # rank check above prevents a small move in an unidentified direction from
+  # being mistaken for convergence. Cap that allowance so an extremely loose
+  # user tolerance cannot certify a visibly unfinished fit.
+  newton_move <- drop(Hinv %*% gb_final)
+  move_tol <- min(20 * tol, 1e-6)
+  converged <- max(abs(gb_final)) < 1e-4 ||
+    max(abs(newton_move)) < move_tol
   J  <- .pcml_sandwich(X, thr, m, drop(offset + B %*% beta), pairs)
   Jb <- crossprod(B, J %*% B)
   covb <- Hinv %*% Jb %*% Hinv
@@ -313,7 +326,7 @@ threshold_index <- function(m) {
   list(tau = drop(offset + B %*% beta), beta = beta, cov_beta = covb,
        cov_tau = covt, se_tau = sqrt(pmax(diag(covt), 0)), H_beta = Hb,
        loglik = glh$ll, iterations = it,
-       converged = max(abs(drop(crossprod(B, glh$g)))) < 1e-4)
+       converged = converged)
 }
 
 #' Estimate Rasch thresholds by pairwise conditional maximum likelihood

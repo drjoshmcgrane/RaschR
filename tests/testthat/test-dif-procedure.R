@@ -59,6 +59,43 @@ test_that("ordinary DIF confines HC3 to uniform factor terms", {
                classical$p[classical$term == "group:ci"])
 })
 
+test_that("HC3 Type II covariance matches an independent matrix calculation", {
+  set.seed(181)
+  n <- c(45L, 90L, 180L)
+  group <- factor(rep(c("A", "B", "C"), n))
+  ci <- factor(rep(1:4, length.out = sum(n)))
+  sd_group <- c(A = 0.6, B = 1.4, C = 2.2)
+  z <- 0.3 * as.numeric(ci) + rnorm(sum(n), sd = sd_group[group])
+  d <- data.frame(z, group, ci)
+
+  got <- .dif_type2(d, c("group", "ci", "group:ci"),
+                    variance = "hc3", robust_terms = "group")
+  m <- lm(z ~ ci + group, data = d)
+  X <- model.matrix(m)
+  jj <- which(attr(X, "assign") == match("group",
+    attr(terms(m), "term.labels")))
+  bread <- solve(crossprod(X))
+  adjusted_residual <- residuals(m) / (1 - hatvalues(m))
+  meat <- crossprod(X * adjusted_residual)
+  covariance <- bread %*% meat %*% bread
+  beta <- coef(m)[jj]
+  expected_f <- drop(t(beta) %*% solve(covariance[jj, jj], beta)) /
+    length(jj)
+  # .dif_type2() uses the full factorial model's residual denominator for
+  # every Type II term, including the HC3 Wald tests.
+  full <- lm(z ~ ci * group, data = d)
+  expected_p <- pf(expected_f, length(jj), df.residual(full),
+                   lower.tail = FALSE)
+  row <- got[got$term == "group", ]
+
+  expect_equal(row$F_value, expected_f, tolerance = 1e-12)
+  expect_equal(row$p, expected_p, tolerance = 1e-12)
+  classical <- .dif_type2(d, c("group", "ci", "group:ci"),
+                          variance = "classical")
+  expect_gt(abs(row$F_value - classical$F_value[classical$term == "group"]),
+            0.01)
+})
+
 test_that("dif_size recovers a planted uniform DIF in logits", {
   s <- sim_dif(shifts = list(a = rep(0, 8), b = c(0, 0, 0.8, rep(0, 5))))
   fit <- rasch(data.frame(s$X, grp = s$g), factors = "grp")

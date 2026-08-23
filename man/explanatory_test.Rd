@@ -11,11 +11,23 @@ explanatory_test(fit)
 }
 \value{
 A one-row data frame containing the raw and Kent-calibrated
-  statistics, degrees of freedom, probabilities and parameter counts.
+  statistics, degrees of freedom and parameter counts. The primary
+  \code{p} and the retained \code{p_kent} are the Kent-calibrated
+  probability. \code{p_naive} is the unscaled composite-likelihood
+  probability and is provided for methodological inspection, not
+  inference. \code{r_squared} is the calibration coefficient of
+  determination and \code{r2_basis} names the calibrated parameters used.
 }
 \description{
 Tests explanatory item, threshold or object restrictions against the
 corresponding free calibration of the same responses. The inferential
 result uses the first-order Kent calibration for the fitted likelihood and
-sandwich covariance.
+sandwich covariance. The calibration coefficient of determination is
+\deqn{R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
+\hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
+\bar\eta^{free})^2},}
+where \eqn{\bar d} removes the arbitrary scale origin. It describes the
+proportion of variation in the well-determined free threshold calibration
+(Rasch models) or free object calibration (comparative judgement)
+reproduced by the explanatory model. It is at most one and may be negative.
 }

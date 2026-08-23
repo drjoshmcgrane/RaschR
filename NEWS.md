@@ -2,6 +2,10 @@
 
 ## Models and inference
 
+* `wright_map()` sends fitted person and item estimates to `WrightMap`. It
+  supports several person distributions and the item-panel layout introduced
+  in WrightMap 1.5, including the person-group and item-set structure of EFRM
+  fits.
 * `rasch_explanatory()` fits the linear logistic test model and linear partial
   credit model from continuous, categorical or ordinal item- or
   threshold-level predictors. Formulae may include selected interactions.
@@ -18,12 +22,24 @@
   retaining the nominated ordered-response threshold structure.
 * A worked case study uses the verbal aggression data to develop and check an
   explanatory partial credit model.
+* `explanatory_test()` now places the Kent-calibrated probability in both
+  `p` and `p_kent`. The unscaled composite-likelihood probability is named
+  `p_naive` so it cannot be mistaken for the inferential result. The table
+  also reports calibration R-squared against the free threshold or object
+  calibration.
+* Pairwise conditional calibrations now use the remaining Newton move as a
+  second convergence check. This prevents numerical false refusals at large
+  sample sizes without changing the estimates.
+* Holm adjustment for item-fit statistics now excludes items whose tests are
+  unavailable. Their probabilities remain `NA`.
 
 * Sparse-unit safeguards now use the sampling units that inform each test.
   MFRM interaction tests use the least-supported facet level; EFRM unit tests
   require adequate persons on every group or set link; BTL-EFRM judge
   bootstraps require adequate effective judges in every panel or link; and
   frame-invariance tests exclude weak frame calibrations.
+* BTL-EFRM judge bootstraps now distinguish refit errors from non-convergence
+  and report the underlying worker error when parallel refits fail.
 
 * `rasch_mfrm()` supports several facets and an optional item-by-facet
   interaction. Omnibus and cell follow-up tests use the fitted joint

@@ -106,8 +106,10 @@
     out$df1[i] <- G - 1L; out$df2[i] <- n - G
     out$p[i] <- pf(out$F_anova[i], G - 1, n - G, lower.tail = FALSE)
   }
-  out$p_adj <- p.adjust(out$p, method = "holm")
-  out$p_bonf <- p.adjust(out$p, method = "bonferroni")
+  usable <- is.finite(out$p)
+  out$p_adj <- out$p_bonf <- rep(NA_real_, nrow(out))
+  out$p_adj[usable] <- p.adjust(out$p[usable], method = "holm")
+  out$p_bonf[usable] <- p.adjust(out$p[usable], method = "bonferroni")
   out
 }
 
@@ -259,9 +261,12 @@
   n_used <- sum(!is.na(ci))
   if (!is.na(adjust_N)) chi <- chi * (adjust_N / n_used)
   p <- pchisq(chi, df_i, lower.tail = FALSE)
-  p_adj <- p.adjust(p, method = "holm")
+  usable <- is.finite(p)
+  p_adj <- p_bonf <- rep(NA_real_, length(p))
+  p_adj[usable] <- p.adjust(p[usable], method = "holm")
+  p_bonf[usable] <- p.adjust(p[usable], method = "bonferroni")
   data.frame(item = colnames(X), chisq = chi, df = df_i, p = p,
-             p_adj = p_adj, p_bonf = p.adjust(p, method = "bonferroni"))
+             p_adj = p_adj, p_bonf = p_bonf)
 }
 
 # Correlation that degrades to NA (rather than erroring) when fewer than 3

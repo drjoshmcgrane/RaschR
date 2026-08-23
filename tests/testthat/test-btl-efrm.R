@@ -253,6 +253,8 @@ test_that("judge-bootstrap unit tests respect panel-specific judge support", {
   expect_true(all(is.na(fit$phi_table$p)))
   expect_true(all(is.na(fit$unit_omnibus$p)))
   expect_true(all(is.finite(fit$phi_table$phi)))
+  expect_false(any(grepl("set-unit and set-origin inference is withheld",
+                         fit$notes, fixed = TRUE)))
 })
 
 test_that("bootstrap SEs are calibrated on the chain-linked design", {

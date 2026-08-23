@@ -491,6 +491,15 @@ test_that("frame_invariance tests the invariance the model assumes", {
   expect_true(is.na(inv$summary$n_discrimination))
   expect_lt(inv$summary$ratio, 1.5)
   expect_output(print(inv), "No item's location differs")
+  inv_print <- inv
+  inv_print$excluded <- data.frame(
+    set = "S1", frame_1 = "A", frame_2 = "B", item = c("I01", "I02"),
+    reason = c("different observed category structure",
+               "weakly determined in a separate frame calibration"))
+  printed <- capture.output(print(inv_print))
+  expect_true(any(grepl("different observed category structure", printed,
+                        fixed = TRUE)))
+  expect_true(any(grepl("weakly determined", printed, fixed = TRUE)))
 
   # planted DIF on two items is found, and the rmsd/rmse ratio rises
   set.seed(5); N <- 400; K <- 8

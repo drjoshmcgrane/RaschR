@@ -76,7 +76,7 @@ residual fit rather than as stand-alone decisions.
 ```{r summaries}
 fit_summary_table(fit)
 targeting_table(fit)
-fit$threshold_diagnostics
+fit$thresholds_diag
 head(test_information(fit))
 ```
 
@@ -140,6 +140,15 @@ score_table(fit)
 fit$psi
 ```
 
+A Wright map can also be drawn with the optional `WrightMap` package.
+Variables retained in the person table can define separate person panels. For
+an EFRM fit, the fitted person groups and item sets can be shown together.
+
+```{r wrightmap-example, eval = FALSE}
+wright_map(fit, person_panels = "group")
+wright_map(efrm_fit, person_panels = "groups", item_panels = "sets")
+```
+
 ## References
 
 Andrich, D. (1978). Relationships between the Thurstone and Rasch
@@ -161,6 +170,9 @@ edition, 1980, Chicago: University of Chicago Press.)
 
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 *Journal of Mathematical Psychology*, 30(3), 306--316.
+
+Torres Irribarra, D., and Freund, R. (2025). *WrightMap: IRT item-person map
+with ConQuest integration*. R package version 1.5.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427--450.

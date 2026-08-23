@@ -93,10 +93,21 @@ departure diagnostics. Each principal condition used 1,000 replicates; the
 diagnostic conditions used 300. The result rows carry script hash
 `e72c33409a15c6ecc04bc5fb91f413ca` and R-tree hash `dd5f1154d99f`.
 
+The edge-case extension is in `studies/explanatory-edge-cases.R`, with results
+in `results/explanatory-edge-cases.csv`. Four LLTM/LPCM conditions cover 300
+to 2,000 persons, mixed maximum scores, and four-category items. Across 1,000
+replicates per condition, coefficient bias was at most 0.0049 logits,
+empirical SD/mean SE was 0.993--1.026, coverage was 0.942--0.954, and
+Kent-adjusted null rejection was 4.3--5.8%. The unscaled probability rejected
+98.6--100% and is retained only as `p_naive`. No fit was refused or failed to
+converge. Mean calibration R-squared was 0.872--0.994 under the correctly
+specified generating models. The rows carry script hash
+`42edd1a6a6fda75a19006c01953c2dae` and R-tree hash `954bcba447fe`.
+
 The compiled EFRM linking kernel was checked against the retained R
 implementation with the same seed and 30 hybrid bootstrap replicates. Across
 set units, their standard errors, origins, edge likelihoods and thresholds,
-the largest absolute difference was 1.31e-11; every convergence flag agreed.
+the largest absolute difference was 1.30e-11; every convergence flag agreed.
 The study is `studies/efrm-cpp-parity.R` and its six result rows are in
 `results/efrm-cpp-parity.csv`. They carry script hash
 `1a6468c78f37e505d3c01870f8a1c693` and R-tree hash `2ff015352a0d`.
@@ -273,8 +284,9 @@ granularity deliberately).
   for the core BTL fit. CR1 Type I was 5.4% with ten balanced judges and 4.2%
   with one of twenty judges carrying 20% of the work; jackknife rates were
   5.6% and 4.0%. The concentrated design below the public effective-judge
-  guard remained mildly liberal under both methods. CR1 therefore remains the
-  default (500 replicates per condition).
+  guard gave 6.4% for CR1 and 5.4% for the jackknife, both within Monte Carlo
+  uncertainty of 5%. CR1 therefore remains the default (500 replicates per
+  condition).
 - `results/btl-equating-clustered.csv` — common-object drift under two
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the

@@ -62,6 +62,10 @@ NONE_CH <- c(None = "(none)")
   paste(.efrm_worker_values,
         ifelse(.efrm_worker_values == 1L, "worker", "workers")))
 
+.wrightmap_available <- requireNamespace("WrightMap", quietly = TRUE)
+.wrightmap_item_panels <- .wrightmap_available &&
+  "item.groups" %in% names(formals(WrightMap::wrightMap))
+
 # Match the package's collision-safe crossed-factor cells. This matters when
 # a level itself contains the display separator (for example a colon).
 app_factor_cells <- function(x, sep = ":") {
@@ -1077,7 +1081,10 @@ panel_explanatory <- nav_panel("Explanatory", value = "p_explanatory",
       tableCard("expl_test_tbl", "Model comparison",
         info = paste("Compares the active explanatory restrictions with the",
                      "free calibration of the same responses. Inference uses",
-                     "the Kent adjustment for pairwise composite likelihood.")),
+                     "the Kent adjustment for pairwise composite likelihood.",
+                     "Calibration R-squared is the proportion of well-determined",
+                     "free threshold or object variation reproduced by the",
+                     "explanatory model.")),
       tableCard("expl_coef_tbl", "Predictor effects",
         info = paste("Estimated effects of the nominated item, threshold or object",
                      "characteristics in logits. Holm adjustment covers the",
@@ -1199,7 +1206,51 @@ panel_targeting <- nav_panel("Targeting", value = "p_targeting", icon = bs_icon(
     conditionalPanel("output.is_btl != true",
       layout_columns(col_widths = 12,
         plotCard("pim_p", "Person-item threshold distribution"),
-        plotCard("wright", "Wright map", height = "640px")),
+        plotCard("wright", "Wright map", height = "640px",
+          controls = tagList(
+            div(class = "rasch-inline-select",
+              selectInput("wright_renderer",
+                info_label("Renderer",
+                  paste("Native uses the package plot. WrightMap uses the",
+                        "optional WrightMap package and enables panel layouts.")),
+                choices = c("Native" = "native", "WrightMap" = "wrightmap"),
+                selected = "native", width = "auto")),
+            conditionalPanel("input.wright_renderer === 'wrightmap'",
+              div(class = "rasch-inline-select",
+                selectInput("wright_type",
+                  info_label("Item estimates",
+                    paste("Thresholds show every category transition; locations",
+                          "show one mean threshold location per item.")),
+                  choices = c("Thresholds" = "thresholds",
+                              "Locations" = "locations"),
+                  selected = "thresholds", width = "auto")),
+              div(class = "rasch-inline-select",
+                selectInput("wright_person_panels",
+                  info_label("Person panels",
+                    paste("Optionally separates the person distribution by a",
+                          "retained person factor. The default is one panel.")),
+                  choices = c("One panel" = ""), selected = "", width = "auto")),
+              div(class = "rasch-inline-select",
+                selectInput("wright_item_panels",
+                  info_label("Item panels",
+                    paste("Optionally separates items using an uploaded map,",
+                          "or structural response columns by their fitted set,",
+                          "group, frame, or facet.")),
+                  choices = c("One panel" = ""), selected = "", width = "auto")),
+              conditionalPanel("input.wright_item_panels === 'uploaded'",
+                div(class = "rasch-inline-select",
+                  fileInput("wright_item_map",
+                    info_label("Item panel map (CSV)",
+                      paste("Two columns, item and panel. Every displayed item",
+                            "must occur once.")),
+                    accept = ".csv", width = "220px"))),
+              div(class = "rasch-inline-select",
+                selectInput("wright_person_style",
+                  info_label("Person display",
+                    "Shows each person panel as a histogram or density curve."),
+                  choices = c("Histogram" = "histogram", "Density" = "density"),
+                  selected = "histogram", width = "auto")))
+          ))),
       div(class = "rasch-plot-toolbar mb-3",
         div(class = "rasch-class-intervals",
           selectInput("tg_bins",
@@ -1365,14 +1416,14 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
         accordion_panel("DIF analysis of variance", value = "bdif_anova",
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("bdif_anova_tbl",
-              info = "ANOVA of each object's standardised residuals. A judge-group effect indicates uniform DIF; a group-by-opponent-band interaction indicates non-uniform DIF. Probabilities use the selected multiplicity adjustment, Holm by default. Click a row to show the characteristic curves by judge group.",
+              info = "ANOVA of each object's standardised residuals. A judge-group effect indicates uniform DIF; a group-by-opponent-band interaction indicates non-uniform DIF. Probabilities are Holm-adjusted. Click a row to show the characteristic curves by judge group.",
               footer = uiOutput("bdif_notes")),
             plotCard("bdif_occ", "Characteristic curves by group",
               info = "The object characteristic curve with the observed mean response per opponent overlaid separately for each judge group: the graphical display of DIF for the object of the selected table row.",
               hover = TRUE))),
         accordion_panel("DIF magnitude in logits", value = "bdif_size_panel",
           tableCard("bdif_sizes_tbl",
-            note = "Pairwise differences between resolved group locations, in logits, using the selected multiplicity adjustment. Differences of at least 0.5 logits are flagged as practically significant.")))
+            note = "Pairwise differences between resolved group locations, in logits, with Holm-adjusted probabilities. Differences of at least 0.5 logits are flagged as practically significant.")))
     ))
   )
 
@@ -3537,6 +3588,37 @@ server <- function(input, output, session) {
       unique(fit()$virtual_map$item) else character(0)
     updateSelectizeInput(session, "frame_item", choices = fi,
                          selected = if (length(fi)) fi[1] else character(0))
+    f <- fit()
+    pf <- names(f$factors) %||% character(0)
+    person_choices <- c("One panel" = "")
+    if (inherits(f, "rasch_efrm"))
+      person_choices <- c(person_choices,
+                          "Fitted person groups" = "groups")
+    if (length(pf))
+      person_choices <- c(person_choices,
+        stats::setNames(pf, paste("Person factor:", pf)))
+    person_choices <- person_choices[!duplicated(unname(person_choices))]
+    old_person <- input$wright_person_panels %||% ""
+    updateSelectInput(session, "wright_person_panels",
+      choices = person_choices,
+      selected = if (old_person %in% unname(person_choices)) old_person else "")
+
+    item_choices <- c("One panel" = "")
+    if (.wrightmap_item_panels && inherits(f, "rasch_efrm")) {
+      item_choices <- c(item_choices, "Item sets" = "sets",
+                        "Person groups" = "groups",
+                        "Frames (set x group)" = "sets_groups")
+    } else if (.wrightmap_item_panels && inherits(f, "rasch_mfrm") &&
+               length(f$facet_spec)) {
+      item_choices <- c(item_choices,
+        stats::setNames(f$facet_spec, paste("Facet:", f$facet_spec)))
+    }
+    if (.wrightmap_item_panels)
+      item_choices <- c(item_choices, "Uploaded item map" = "uploaded")
+    old_item <- input$wright_item_panels %||% ""
+    updateSelectInput(session, "wright_item_panels",
+      choices = item_choices,
+      selected = if (old_item %in% unname(item_choices)) old_item else "")
     updateSelectizeInput(session, "dim_pos", choices = its, selected = character(0))
     updateSelectizeInput(session, "dim_neg", choices = its, selected = character(0))
     # residual principal components available for the t-test default split:
@@ -4452,6 +4534,10 @@ server <- function(input, output, session) {
                   nrow(expl_coef()), icon = "ruler"),
       metric_tile("metric_expl_relax", "Fixed departures",
                   nrow(f$explanatory$relaxations), icon = "separation"),
+      metric_tile("metric_expl_r2", "Calibration R²",
+                  if (is.finite(tst$r_squared[1L]))
+                    sprintf("%.2f", tst$r_squared[1L]) else "—",
+                  icon = "graph-up"),
       metric_tile("metric_expl_test", "Against free calibration", p_lab(p),
                   icon = "chisq",
                   status = if (is.finite(p) && p < .05) "warning" else "good"))
@@ -4461,7 +4547,12 @@ server <- function(input, output, session) {
     "list(formula = %s$explanatory$formula_text, test = explanatory_test(%s))",
     expl_object_name(), expl_object_name()))
   register_table("expl_test_tbl", function() explanatory_test(expl_fit()),
-    function() num_dt(explanatory_test(expl_fit()), p_bold = c("p_kent")),
+    function() {
+      z <- explanatory_test(expl_fit())
+      z <- z[, c("model", "parameters", "free_parameters",
+                 "r_squared", "chisq_kent", "df", "p"), drop = FALSE]
+      num_dt(z, p_bold = "p")
+    },
     code = function() sprintf("explanatory_test(%s)", expl_object_name()))
   register_table("expl_coef_tbl", function() expl_coef(),
     function() num_dt(expl_coef(),
@@ -4912,9 +5003,71 @@ server <- function(input, output, session) {
     plot_pimap(fit(), bins = tg_bins(), xlim = tg_rng(),
                information = isTRUE(input$tg_information)),
     code = tg_code("plot_pimap", information = TRUE))
-  register_plot("wright", function()
-    plot_wright(fit(), bins = tg_bins(), xlim = tg_rng()), h = 7.5,
-    code = tg_code("plot_wright"))
+  wright_package_on <- reactive(
+    identical(input$wright_renderer, "wrightmap"))
+  wright_person_arg <- reactive({
+    z <- input$wright_person_panels %||% ""
+    if (nzchar(z)) z else NULL
+  })
+  wright_item_arg <- reactive({
+    z <- input$wright_item_panels %||% ""
+    if (!nzchar(z)) return(NULL)
+    if (identical(z, "uploaded")) {
+      validate(need(!is.null(input$wright_item_map),
+                    "Upload an item panel map with item and panel columns."))
+      d <- tryCatch(read.csv(input$wright_item_map$datapath,
+                             check.names = FALSE, stringsAsFactors = FALSE),
+                    error = function(e) NULL)
+      validate(need(!is.null(d) && all(c("item", "panel") %in% names(d)),
+                    "The item panel map needs columns named item and panel."))
+      validate(need(!anyNA(d$item) && !anyNA(d$panel) &&
+                      all(nzchar(trimws(as.character(d$item)))) &&
+                      all(nzchar(trimws(as.character(d$panel)))),
+                    "The item panel map cannot contain blank values."))
+      return(stats::setNames(as.character(d$panel), as.character(d$item)))
+    }
+    if (identical(z, "sets_groups")) c("sets", "groups") else z
+  })
+  draw_wright <- function() {
+    if (!wright_package_on())
+      return(plot_wright(fit(), bins = tg_bins(), xlim = tg_rng()))
+    validate(need(.wrightmap_available,
+      paste("WrightMap is not installed. Install it with",
+            "install.packages(\"WrightMap\"), restart the app, and try again.")))
+    r <- tg_rng()
+    side <- if (identical(input$wright_person_style, "density"))
+      WrightMap::personDens else WrightMap::personHist
+    wright_map(fit(), type = input$wright_type %||% "thresholds",
+               person_panels = wright_person_arg(),
+               item_panels = wright_item_arg(), person.side = side,
+               min.l = r[1], max.l = r[2], breaks = tg_bins(),
+               main.title = NULL)
+  }
+  wright_code <- function() {
+    if (!wright_package_on()) return(tg_code("plot_wright")())
+    r <- tg_rng()
+    args <- c("fit",
+      sprintf('type = "%s"', input$wright_type %||% "thresholds"),
+      if (!is.null(wright_person_arg()))
+        paste0("person_panels = ", qstr(wright_person_arg())),
+      if (!is.null(wright_item_arg())) {
+        if (identical(input$wright_item_panels, "uploaded"))
+          "item_panels = setNames(item_panel_map$panel, item_panel_map$item)"
+        else if (length(wright_item_arg()) == 1L)
+          paste0("item_panels = ", qstr(wright_item_arg()))
+        else 'item_panels = c("sets", "groups")'
+      },
+      if (identical(input$wright_person_style, "density"))
+        "person.side = WrightMap::personDens",
+      sprintf("min.l = %g", r[1]), sprintf("max.l = %g", r[2]),
+      sprintf("breaks = %d", tg_bins()), "main.title = NULL")
+    call <- paste0("wright_map(", paste(args, collapse = ", "), ")")
+    if (identical(input$wright_item_panels, "uploaded"))
+      paste0("item_panel_map <- read.csv(",
+             qstr(input$wright_item_map$name %||% "item_panels.csv"),
+             ")\n", call) else call
+  }
+  register_plot("wright", draw_wright, h = 7.5, code = wright_code)
 
   # ---------------------------------------------- test & item map plots --
   # thrmap and imap render on the Items page; tcc/tif/guttman on Test
