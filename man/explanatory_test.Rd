@@ -36,7 +36,8 @@ parameters it reads above zero even for an uninformative design.
 \code{r_squared_adj} divides the unexplained proportion by its share of
 the degrees of freedom, \eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where
 \eqn{n} counts the calibrated parameters compared and \eqn{\mathit{df}}
-subtracts the explanatory dimension and any excluded parameters. The
+is \eqn{n} minus the rank of the retained explanatory design with its
+origin, so exclusions that remove a level's only support reduce it. The
 correction is exact for independent homoskedastic estimates fitted by
 least squares, which these calibrations are not, so read it as a
 descriptive optimism adjustment. Read either beside the test rather than

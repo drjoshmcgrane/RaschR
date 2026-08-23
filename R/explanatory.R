@@ -556,7 +556,8 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
 #' \code{r_squared_adj} divides the unexplained proportion by its share of
 #' the degrees of freedom, \eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where
 #' \eqn{n} counts the calibrated parameters compared and \eqn{\mathit{df}}
-#' subtracts the explanatory dimension and any excluded parameters. The
+#' is \eqn{n} minus the rank of the retained explanatory design with its
+#' origin, so exclusions that remove a level's only support reduce it. The
 #' correction is exact for independent homoskedastic estimates fitted by
 #' least squares, which these calibrations are not, so read it as a
 #' descriptive optimism adjustment. Read either beside the test rather than
@@ -584,8 +585,9 @@ explanatory_test <- function(fit) {
     den <- sum((f[ok] - mean(f[ok]))^2)
     r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
       1 - sum((d - mean(d))^2) / den else NA_real_
-    df_sub <- z$df - (length(f) - sum(ok))
-    r2_adj <- if (is.finite(r2) && is.finite(df_sub) && df_sub > 0)
+    df_sub <- sum(ok) -
+      qr(cbind(1, fit$location_design[ok, , drop = FALSE]))$rank
+    r2_adj <- if (is.finite(r2) && df_sub > 0)
       1 - (1 - r2) * (sum(ok) - 1) / df_sub else NA_real_
     out <- data.frame(
       model = if (nrow(fit$explanatory$relaxations))
@@ -613,8 +615,8 @@ explanatory_test <- function(fit) {
   den <- sum((free[ok] - mean(free[ok]))^2)
   r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
     1 - sum((d - mean(d))^2) / den else NA_real_
-  df_sub <- z$df - (length(free) - sum(ok))
-  r2_adj <- if (is.finite(r2) && is.finite(df_sub) && df_sub > 0)
+  df_sub <- sum(ok) - qr(cbind(1, fit$est$B[ok, , drop = FALSE]))$rank
+  r2_adj <- if (is.finite(r2) && df_sub > 0)
     1 - (1 - r2) * (sum(ok) - 1) / df_sub else NA_real_
   out <- data.frame(
     model = if (nrow(fit$explanatory$relaxations))

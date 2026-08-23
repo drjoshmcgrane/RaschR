@@ -52,13 +52,19 @@ NONE_CH <- c(None = "(none)")
 # base R version that introduced it (R >= 4.4)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
-# The app is sourced into different environments by different launchers:
-# run_app() parents it on the package namespace, shiny::runApp() and
-# deployment source it over the global environment, where only exported
-# functions resolve. The two project helpers are internal, so they are
-# resolved explicitly and the app behaves the same everywhere.
-.read_app_project <- rasch:::.read_app_project
-.save_app_project <- rasch:::.save_app_project
+# Launchers differ in what the app's environment can see: a development
+# load resolves the package internals through the search path, while
+# shiny::runApp() on an installed copy resolves exports only. The two
+# project helpers are internal, so each is taken from wherever it can be
+# found -- the inherited scope first, the loaded namespace otherwise -- and
+# the app behaves the same everywhere, including a source tree where the
+# package is not installed.
+.rasch_internal <- function(name) {
+  if (exists(name, inherits = TRUE)) get(name, inherits = TRUE)
+  else utils::getFromNamespace(name, "rasch")
+}
+.read_app_project <- .rasch_internal(".read_app_project")
+.save_app_project <- .rasch_internal(".save_app_project")
 
 
 .efrm_detected_cores <- if (requireNamespace("rasch", quietly = TRUE))

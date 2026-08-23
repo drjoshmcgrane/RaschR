@@ -56,8 +56,10 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   expected_r2 <- 1 - sum((departure - mean(departure))^2) /
     sum((free_tau - mean(free_tau))^2)
   expect_equal(z$r_squared, expected_r2)
+  full_rank <- qr(cbind(1, f$est$B))$rank
   expect_equal(z$r_squared_adj,
-               1 - (1 - z$r_squared) * (length(free_tau) - 1) / z$df)
+               1 - (1 - z$r_squared) * (length(free_tau) - 1) /
+                 (length(free_tau) - full_rank))
   expect_lte(z$r_squared_adj, z$r_squared)
   expect_identical(z$r2_basis, "threshold calibration")
   expect_lte(z$r_squared, 1)
@@ -71,10 +73,27 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
     sum((weak_departure - mean(weak_departure))^2) /
     sum((free_tau[keep] - mean(free_tau[keep]))^2)
   expect_equal(weak_z$r_squared, weak_expected)
-  weak_n <- sum(!weak_fit$reference_fit$est$thr$weak)
-  weak_df <- weak_z$df - (length(free_tau) - weak_n)
+  weak_ok <- !weak_fit$reference_fit$est$thr$weak
+  weak_n <- sum(weak_ok)
+  weak_df <- weak_n - qr(cbind(1, weak_fit$est$B[weak_ok, , drop = FALSE]))$rank
   expect_equal(weak_z$r_squared_adj,
                1 - (1 - weak_z$r_squared) * (weak_n - 1) / weak_df)
+
+  # an exclusion that removes a level's only support reduces the retained
+  # design's rank, so the residual dimension comes from that rank rather
+  # than from the full comparison's parameter count
+  rare <- q
+  rare$format <- factor(c("C", rep(c("A", "B"), length.out = 7)))
+  rf <- rasch_explanatory(X, predictors = rare, formula = ~ operation + format)
+  wr <- rf
+  wr$reference_fit$est$thr$weak[1] <- TRUE     # the only "C" item
+  wz <- explanatory_test(wr)
+  ok_r <- !wr$reference_fit$est$thr$weak
+  rank_r <- qr(cbind(1, wr$est$B[ok_r, , drop = FALSE]))$rank
+  expect_lt(rank_r, qr(cbind(1, wr$est$B))$rank)   # rank genuinely fell
+  expect_equal(wz$r_squared_adj,
+               1 - (1 - wz$r_squared) * (sum(ok_r) - 1) /
+                 (sum(ok_r) - rank_r))
 })
 
 test_that("LPCM accepts threshold effects and selected interactions", {
