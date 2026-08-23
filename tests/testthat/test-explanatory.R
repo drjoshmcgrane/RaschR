@@ -56,6 +56,9 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   expected_r2 <- 1 - sum((departure - mean(departure))^2) /
     sum((free_tau - mean(free_tau))^2)
   expect_equal(z$r_squared, expected_r2)
+  expect_equal(z$r_squared_adj,
+               1 - (1 - z$r_squared) * (length(free_tau) - 1) / z$df)
+  expect_lte(z$r_squared_adj, z$r_squared)
   expect_identical(z$r2_basis, "threshold calibration")
   expect_lte(z$r_squared, 1)
   weak_fit <- f

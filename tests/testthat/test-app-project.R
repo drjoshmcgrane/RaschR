@@ -68,7 +68,7 @@ test_that("opening a project retains results tied to its active fit", {
   skip_if_not_installed("bsicons")
 
   app <- .app_test_path()
-  e <- new.env(parent = globalenv())
+  e <- new.env(parent = asNamespace("rasch"))
   suppressWarnings(sys.source(app, envir = e))
   set.seed(82)
   X <- matrix(rbinom(500, 1, .5), 100, 5,
@@ -102,7 +102,7 @@ test_that("a failed replacement leaves the current app analysis intact", {
   skip_if_not_installed("bsicons")
 
   app <- .app_test_path()
-  e <- new.env(parent = globalenv())
+  e <- new.env(parent = asNamespace("rasch"))
   suppressWarnings(sys.source(app, envir = e))
   set.seed(83)
   X <- matrix(rbinom(500, 1, .5), 100, 5,
@@ -130,7 +130,7 @@ test_that("the app exposes reproducible WrightMap panel controls", {
               "WrightMap item panels require version 1.5")
 
   app <- .app_test_path()
-  e <- new.env(parent = globalenv())
+  e <- new.env(parent = asNamespace("rasch"))
   suppressWarnings(sys.source(app, envir = e))
 
   d <- simulate_efrm(n_per_group = 55, items_per_set = 4, n_sets = 2,

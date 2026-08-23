@@ -25,7 +25,8 @@
 * `explanatory_test()` now places the Kent-calibrated probability in both
   `p` and `p_kent`. The unscaled composite-likelihood probability is named
   `p_naive` so it cannot be mistaken for the inferential result. The table
-  also reports calibration R-squared against the free threshold or object
+  also reports calibration R-squared, with an adjusted counterpart whose
+  null expectation is near zero, against the free threshold or object
   calibration.
 * Pairwise conditional calibrations now use the remaining Newton move as a
   second convergence check. This prevents numerical false refusals at large

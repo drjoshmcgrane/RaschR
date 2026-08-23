@@ -551,6 +551,13 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
 #' proportion of variation in the well-determined free threshold calibration
 #' (Rasch models) or free object calibration (comparative judgement)
 #' reproduced by the explanatory model. It is at most one and may be negative.
+#' It is not adjusted for the number of predictors, so with few calibrated
+#' parameters its null expectation sits above zero. \code{r_squared_adj}
+#' divides the unexplained proportion by its share of the degrees of freedom,
+#' \eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where \eqn{n} counts the
+#' calibrated parameters compared and \eqn{\mathit{df}} is the difference in
+#' parameter counts from the nested test; its null expectation is near zero.
+#' Read either beside the test rather than in place of it.
 #'
 #' @param fit A fitted explanatory Rasch or comparative judgement model.
 #' @return A one-row data frame containing the raw and Kent-calibrated
@@ -559,7 +566,8 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
 #'   probability. \code{p_naive} is the unscaled composite-likelihood
 #'   probability and is provided for methodological inspection, not
 #'   inference. \code{r_squared} is the calibration coefficient of
-#'   determination and \code{r2_basis} names the calibrated parameters used.
+#'   determination, \code{r_squared_adj} its degrees-of-freedom-adjusted
+#'   counterpart, and \code{r2_basis} names the calibrated parameters used.
 #' @export
 explanatory_test <- function(fit) {
   if (inherits(fit, "rasch_btl_explanatory")) {
@@ -573,12 +581,15 @@ explanatory_test <- function(fit) {
     den <- sum((f[ok] - mean(f[ok]))^2)
     r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
       1 - sum((d - mean(d))^2) / den else NA_real_
+    r2_adj <- if (is.finite(r2) && is.finite(z$df) && z$df > 0)
+      1 - (1 - r2) * (sum(ok) - 1) / z$df else NA_real_
     out <- data.frame(
       model = if (nrow(fit$explanatory$relaxations))
         "Partially relaxed explanatory CJ model" else "Explanatory CJ",
       parameters = ncol(fit$location_design),
       free_parameters = ncol(fit$reference_fit$location_design),
-      r_squared = r2, r2_basis = "object calibration",
+      r_squared = r2, r_squared_adj = r2_adj,
+      r2_basis = "object calibration",
       chisq = z$chisq, df = z$df, p_naive = z$p,
       chisq_kent = z$chisq_kent, p = z$p_kent, p_kent = z$p_kent,
       stringsAsFactors = FALSE)
@@ -598,12 +609,15 @@ explanatory_test <- function(fit) {
   den <- sum((free[ok] - mean(free[ok]))^2)
   r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
     1 - sum((d - mean(d))^2) / den else NA_real_
+  r2_adj <- if (is.finite(r2) && is.finite(z$df) && z$df > 0)
+    1 - (1 - r2) * (sum(ok) - 1) / z$df else NA_real_
   out <- data.frame(
     model = if (nrow(fit$explanatory$relaxations))
       "Partially relaxed explanatory model" else fit$explanatory_model,
     parameters = fit$est$n_parameters,
     free_parameters = fit$reference_fit$est$n_parameters,
-    r_squared = r2, r2_basis = "threshold calibration",
+    r_squared = r2, r_squared_adj = r2_adj,
+    r2_basis = "threshold calibration",
     chisq = z$chisq, df = z$df, p_naive = z$p,
     chisq_kent = z$chisq_kent, p = z$p_kent, p_kent = z$p_kent,
     stringsAsFactors = FALSE)

@@ -16,7 +16,8 @@ A one-row data frame containing the raw and Kent-calibrated
   probability. \code{p_naive} is the unscaled composite-likelihood
   probability and is provided for methodological inspection, not
   inference. \code{r_squared} is the calibration coefficient of
-  determination and \code{r2_basis} names the calibrated parameters used.
+  determination, \code{r_squared_adj} its degrees-of-freedom-adjusted
+  counterpart, and \code{r2_basis} names the calibrated parameters used.
 }
 \description{
 Tests explanatory item, threshold or object restrictions against the
@@ -30,4 +31,11 @@ where \eqn{\bar d} removes the arbitrary scale origin. It describes the
 proportion of variation in the well-determined free threshold calibration
 (Rasch models) or free object calibration (comparative judgement)
 reproduced by the explanatory model. It is at most one and may be negative.
+It is not adjusted for the number of predictors, so with few calibrated
+parameters its null expectation sits above zero. \code{r_squared_adj}
+divides the unexplained proportion by its share of the degrees of freedom,
+\eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where \eqn{n} counts the
+calibrated parameters compared and \eqn{\mathit{df}} is the difference in
+parameter counts from the nested test; its null expectation is near zero.
+Read either beside the test rather than in place of it.
 }
