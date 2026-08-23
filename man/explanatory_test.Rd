@@ -32,10 +32,13 @@ proportion of variation in the well-determined free threshold calibration
 (Rasch models) or free object calibration (comparative judgement)
 reproduced by the explanatory model. It is at most one and may be negative.
 It is not adjusted for the number of predictors, so with few calibrated
-parameters its null expectation sits above zero. \code{r_squared_adj}
-divides the unexplained proportion by its share of the degrees of freedom,
-\eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where \eqn{n} counts the
-calibrated parameters compared and \eqn{\mathit{df}} is the difference in
-parameter counts from the nested test; its null expectation is near zero.
-Read either beside the test rather than in place of it.
+parameters it reads above zero even for an uninformative design.
+\code{r_squared_adj} divides the unexplained proportion by its share of
+the degrees of freedom, \eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where
+\eqn{n} counts the calibrated parameters compared and \eqn{\mathit{df}}
+subtracts the explanatory dimension and any excluded parameters. The
+correction is exact for independent homoskedastic estimates fitted by
+least squares, which these calibrations are not, so read it as a
+descriptive optimism adjustment. Read either beside the test rather than
+in place of it.
 }

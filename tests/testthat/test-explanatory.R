@@ -71,6 +71,10 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
     sum((weak_departure - mean(weak_departure))^2) /
     sum((free_tau[keep] - mean(free_tau[keep]))^2)
   expect_equal(weak_z$r_squared, weak_expected)
+  weak_n <- sum(!weak_fit$reference_fit$est$thr$weak)
+  weak_df <- weak_z$df - (length(free_tau) - weak_n)
+  expect_equal(weak_z$r_squared_adj,
+               1 - (1 - weak_z$r_squared) * (weak_n - 1) / weak_df)
 })
 
 test_that("LPCM accepts threshold effects and selected interactions", {

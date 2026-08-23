@@ -52,6 +52,15 @@ NONE_CH <- c(None = "(none)")
 # base R version that introduced it (R >= 4.4)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+# The app is sourced into different environments by different launchers:
+# run_app() parents it on the package namespace, shiny::runApp() and
+# deployment source it over the global environment, where only exported
+# functions resolve. The two project helpers are internal, so they are
+# resolved explicitly and the app behaves the same everywhere.
+.read_app_project <- rasch:::.read_app_project
+.save_app_project <- rasch:::.save_app_project
+
+
 .efrm_detected_cores <- if (requireNamespace("rasch", quietly = TRUE))
   getFromNamespace(".efrm_available_workers", "rasch")() else if (
     exists(".efrm_available_workers", mode = "function"))
@@ -5396,6 +5405,7 @@ server <- function(input, output, session) {
       if (!length(fac))
         stop("nominate at least one person factor")
       its <- if (length(input$pc_items)) input$pc_items else NULL
+      idn <- input$pc_id %||% ""
       withProgress(message = "Resolving items…",
                    detail = "one refit per item", value = 0.15,
         dif_contrasts(f, factors = fac, items = its))

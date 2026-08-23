@@ -552,12 +552,15 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
 #' (Rasch models) or free object calibration (comparative judgement)
 #' reproduced by the explanatory model. It is at most one and may be negative.
 #' It is not adjusted for the number of predictors, so with few calibrated
-#' parameters its null expectation sits above zero. \code{r_squared_adj}
-#' divides the unexplained proportion by its share of the degrees of freedom,
-#' \eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where \eqn{n} counts the
-#' calibrated parameters compared and \eqn{\mathit{df}} is the difference in
-#' parameter counts from the nested test; its null expectation is near zero.
-#' Read either beside the test rather than in place of it.
+#' parameters it reads above zero even for an uninformative design.
+#' \code{r_squared_adj} divides the unexplained proportion by its share of
+#' the degrees of freedom, \eqn{1-(1-R^2_{cal})(n-1)/\mathit{df}}, where
+#' \eqn{n} counts the calibrated parameters compared and \eqn{\mathit{df}}
+#' subtracts the explanatory dimension and any excluded parameters. The
+#' correction is exact for independent homoskedastic estimates fitted by
+#' least squares, which these calibrations are not, so read it as a
+#' descriptive optimism adjustment. Read either beside the test rather than
+#' in place of it.
 #'
 #' @param fit A fitted explanatory Rasch or comparative judgement model.
 #' @return A one-row data frame containing the raw and Kent-calibrated
@@ -581,8 +584,9 @@ explanatory_test <- function(fit) {
     den <- sum((f[ok] - mean(f[ok]))^2)
     r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
       1 - sum((d - mean(d))^2) / den else NA_real_
-    r2_adj <- if (is.finite(r2) && is.finite(z$df) && z$df > 0)
-      1 - (1 - r2) * (sum(ok) - 1) / z$df else NA_real_
+    df_sub <- z$df - (length(f) - sum(ok))
+    r2_adj <- if (is.finite(r2) && is.finite(df_sub) && df_sub > 0)
+      1 - (1 - r2) * (sum(ok) - 1) / df_sub else NA_real_
     out <- data.frame(
       model = if (nrow(fit$explanatory$relaxations))
         "Partially relaxed explanatory CJ model" else "Explanatory CJ",
@@ -609,8 +613,9 @@ explanatory_test <- function(fit) {
   den <- sum((free[ok] - mean(free[ok]))^2)
   r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
     1 - sum((d - mean(d))^2) / den else NA_real_
-  r2_adj <- if (is.finite(r2) && is.finite(z$df) && z$df > 0)
-    1 - (1 - r2) * (sum(ok) - 1) / z$df else NA_real_
+  df_sub <- z$df - (length(free) - sum(ok))
+  r2_adj <- if (is.finite(r2) && is.finite(df_sub) && df_sub > 0)
+    1 - (1 - r2) * (sum(ok) - 1) / df_sub else NA_real_
   out <- data.frame(
     model = if (nrow(fit$explanatory$relaxations))
       "Partially relaxed explanatory model" else fit$explanatory_model,

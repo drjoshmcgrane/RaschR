@@ -12,4 +12,3 @@ efrm_fit_weights_cpp <- function(L, logw, mix_idx, count, maxit = 100L, tol = 1e
 efrm_negloglik_cpp <- function(z, grid, obs, score, taus, discs, La, logw, mix_idx, count) {
     .Call(`_rasch_efrm_negloglik_cpp`, z, grid, obs, score, taus, discs, La, logw, mix_idx, count)
 }
-
