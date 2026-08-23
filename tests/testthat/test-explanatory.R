@@ -82,9 +82,10 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   # an exclusion that removes a level's only support reduces the retained
   # design's rank, so the residual dimension comes from that rank rather
   # than from the full comparison's parameter count
-  rare <- q
-  rare$format <- factor(c("C", rep(c("A", "B"), length.out = 7)))
-  rf <- rasch_explanatory(X, predictors = rare, formula = ~ operation + format)
+  rare <- d$predictors
+  rare$format <- factor(c("C", rep(c("A", "B"),
+                                   length.out = nrow(rare) - 1L)))
+  rf <- rasch_explanatory(d$X, rare, ~ operation + format, level = "item")
   wr <- rf
   wr$reference_fit$est$thr$weak[1] <- TRUE     # the only "C" item
   wz <- explanatory_test(wr)
