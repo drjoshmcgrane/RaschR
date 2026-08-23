@@ -623,6 +623,14 @@ test_that("EFRM bootstrap counts are valid before estimation", {
                "non-negative whole number")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 20),
                "zero or at least 30")
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, workers = 0),
+               "positive whole number")
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, workers = 1.5),
+               "positive whole number")
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, seed = Inf),
+               "non-negative whole number")
+  expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, seed = 1.5),
+               "non-negative whole number")
 })
 
 test_that("EFRM requires one response row per person", {
@@ -647,6 +655,21 @@ test_that("BTL-EFRM bootstrap counts are valid before estimation", {
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 20),
                "at least 30")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 30, workers = 0),
+               "positive whole number")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 30, workers = 1.5),
+               "positive whole number")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 30, seed = Inf),
+               "non-negative whole number")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 30, progress = 1),
+               "progress must be NULL or a function")
+  expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
+                        "panel", sets, boot_reps = 30, cancel = FALSE),
+               "cancel must be NULL or a function")
 })
 
 test_that("available-case ctt alpha is withheld when the covariance is invalid", {

@@ -163,6 +163,10 @@ it does not propagate stage-one uncertainty into the set link. With either
 bootstrap, omnibus tests cover the unit families and individual contrasts are
 Holm-adjusted follow-ups. Judge-bootstrap tests require at least six judges
 and 5.5 effective judges in every panel, and eight of each on a set link.
+Judge resamples are distributed over four workers by default, or fewer where
+the system imposes a lower limit. Set `seed` to reproduce the resamples. The
+parametric bootstrap remains serial because its refits are inexpensive. In the
+application, frame estimation runs in the background and may be cancelled.
 
 With 12 judges and 20 repetitions per pair, null rejection for the three unit
 families was 3.3--5.3 per cent under the judge bootstrap and 3.0--6.7 per cent

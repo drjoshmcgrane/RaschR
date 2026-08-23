@@ -18,7 +18,11 @@ rasch_efrm(
   tol = 1e-07,
   min_link_persons = 30,
   se_method = c("hybrid", "bootstrap"),
-  boot_reps = NULL
+  boot_reps = NULL,
+  progress = NULL,
+  cancel = NULL,
+  workers = 4L,
+  seed = NULL
 )
 }
 \arguments{
@@ -50,12 +54,29 @@ bilinear pairwise stage.}
 set pair to contribute to the unit linking.}
 
 \item{se_method}{\code{"hybrid"} (sandwich + linking bootstrap + delta
-propagation; fast, default) or \code{"bootstrap"} (full person
+propagation; default) or \code{"bootstrap"} (full person
 bootstrap of all stages).}
 
 \item{boot_reps}{Bootstrap replicates; defaults to 300 for the linking
 bootstrap and 200 for the full bootstrap. Use zero to omit unit
 uncertainty; otherwise at least 30 are required.}
+
+\item{progress}{Optional function called as \code{progress(stage, current,
+total)} during long uncertainty calculations. It is intended for
+interfaces and batch logging and does not alter estimation.}
+
+\item{cancel}{Optional zero-argument function checked between bootstrap
+batches. Returning \code{TRUE} stops with a \code{rasch_cancelled}
+condition. A serial fit uses one replicate per batch.}
+
+\item{workers}{Number of parallel bootstrap workers. The default is four,
+reduced when fewer physical cores are available or the R process has a
+lower system limit. Random samples are generated before distribution, so
+a fixed seed gives the same result for any worker count. Every worker
+holds its own copy of the bootstrap state.}
+
+\item{seed}{Optional bootstrap seed. The caller's random-number state is
+restored when estimation finishes.}
 }
 \value{
 An object of classes \code{"rasch_efrm"} and \code{"rasch"}.

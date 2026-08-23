@@ -374,3 +374,65 @@ test_that("btl_efrm refuses (quasi-)complete cross-set separation", {
              se_method = "bootstrap", boot_reps = 40, min_link = 20)),
     "separated")
 })
+
+test_that("BTL-EFRM judge bootstrap reports progress and restores the RNG", {
+  d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                         n_judges_per_panel = 8, reps_within = 25,
+                         reps_cross = 25, seed = 701)
+  os <- attr(d, "truth")$object_sets
+  seen <- list()
+  set.seed(702)
+  before <- .Random.seed
+  f <- btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel", os,
+                boot_reps = 30, workers = 1, seed = 703,
+                progress = function(stage, current, total)
+                  seen[[length(seen) + 1L]] <<- c(stage, current, total))
+  expect_identical(.Random.seed, before)
+  expect_identical(f$workers, 1L)
+  expect_identical(f$seed, 703L)
+  stages <- vapply(seen, `[`, "", 1L)
+  expect_true(all(c("two-stage fit", "judge bootstrap", "finalising") %in%
+                    stages))
+  js <- seen[stages == "judge bootstrap"]
+  expect_identical(as.integer(tail(js, 1L)[[1L]][2:3]), c(30L, 30L))
+
+  completed <- 0L
+  expect_condition(
+    btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel", os,
+      boot_reps = 30, workers = 1, seed = 704,
+      progress = function(stage, current, total)
+        if (stage == "judge bootstrap") completed <<- as.integer(current),
+      cancel = function() completed >= 2L),
+    class = "rasch_cancelled")
+  expect_lte(completed, 2L)
+})
+
+test_that("parallel BTL-EFRM judge bootstraps are seed-identical", {
+  skip_on_cran()
+  skip_if_not(file.exists(file.path(system.file(package = "rasch"),
+                                    "DESCRIPTION")),
+              "parallel integration test needs an installed package")
+  old_workers <- options(rasch.max_workers = 2L)
+  on.exit(options(old_workers), add = TRUE)
+  probe <- try(parallel::makePSOCKcluster(2L), silent = TRUE)
+  skip_if(inherits(probe, "try-error"), "local socket clusters unavailable")
+  parallel::stopCluster(probe)
+
+  d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                         n_judges_per_panel = 8, reps_within = 25,
+                         reps_cross = 25, seed = 705)
+  os <- attr(d, "truth")$object_sets
+  serial <- btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel",
+                     os, boot_reps = 30, workers = 1, seed = 706)
+  para <- btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel",
+                   os, boot_reps = 30, workers = 2, seed = 706)
+  expect_identical(para$phi_table, serial$phi_table)
+  expect_identical(para$alpha_table, serial$alpha_table)
+  expect_identical(para$kappa_table, serial$kappa_table)
+  expect_identical(para$objects, serial$objects)
+  expect_identical(para$unit_omnibus, serial$unit_omnibus)
+})
+
+test_that("BTL-EFRM defaults to four available workers", {
+  expect_identical(formals(btl_efrm)$workers, 4L)
+})

@@ -67,7 +67,8 @@
     maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7,
     min_link_persons = spec$min_link_persons %||% 30,
     se_method = se_method %||% spec$se_method %||% fit$se_method,
-    boot_reps = reps))
+    boot_reps = reps, workers = spec$workers %||% 1L,
+    seed = spec$seed %||% NULL))
 }
 
 .rasch_refit <- function(fit, source, model = NULL, key_extra = NULL,

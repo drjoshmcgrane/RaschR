@@ -52,6 +52,16 @@ NONE_CH <- c(None = "(none)")
 # base R version that introduced it (R >= 4.4)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+.efrm_detected_cores <- if (requireNamespace("rasch", quietly = TRUE))
+  getFromNamespace(".efrm_available_workers", "rasch")() else if (
+    exists(".efrm_available_workers", mode = "function"))
+  .efrm_available_workers() else 1L
+.efrm_worker_values <- seq_len(max(1L, min(4L, .efrm_detected_cores)))
+.efrm_worker_choices <- stats::setNames(
+  .efrm_worker_values,
+  paste(.efrm_worker_values,
+        ifelse(.efrm_worker_values == 1L, "worker", "workers")))
+
 # Match the package's collision-safe crossed-factor cells. This matters when
 # a level itself contains the display separator (for example a colon).
 app_factor_cells <- function(x, sep = ":") {
@@ -743,10 +753,18 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
               selectInput("ef_se", info_label("Standard errors",
                           paste("Hybrid combines the stage-wise covariance estimates.",
                                 "The full person bootstrap repeats the complete fit and is slower.")),
-                          c("Hybrid (fast)" = "hybrid",
+                          c("Hybrid" = "hybrid",
                             "Full person bootstrap (slow)" = "bootstrap")),
               numericInput("ef_reps", "Bootstrap replicates", value = 300,
-                           min = 50, step = 50)),
+                           min = 50, step = 50),
+              numericInput("ef_seed", info_label("Bootstrap seed",
+                           "Reproduces the same resamples and results for any selected worker count."),
+                           value = 1, min = 0, step = 1),
+              selectInput("ef_workers", info_label("Parallel workers",
+                          paste("Runs independent bootstrap replicates concurrently.",
+                                "Defaults to four, or fewer when the system limit is lower.")),
+                          choices = .efrm_worker_choices,
+                          selected = max(.efrm_worker_values))),
             tags$details(class = "rasch-advanced",
               tags$summary("Advanced"),
               numericInput("run_adjN",
@@ -777,6 +795,7 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
         ),
         input_task_button("run", "Estimate", icon = bs_icon("play-fill"),
                           type = "primary", class = "w-100 btn-lg mt-2"),
+        uiOutput("efrm_job_controls"),
         conditionalPanel("output.has_override",
           uiOutput("override_status"),
           layout_columns(col_widths = c(6, 6), gap = "0.35rem",
@@ -1482,8 +1501,18 @@ panel_frames <- nav_panel("Extended Frames", value = "p_frames", icon = bs_icon(
           fileInput("btlef_sets_file", info_label("Object sets (CSV: object, set)",
                     "If omitted, sets are inferred from the part of each object name before its trailing digits."),
                     accept = ".csv", placeholder = "optional"),
-          numericInput("btlef_boot", "Bootstrap replicates", value = 200,
+          numericInput("btlef_boot", info_label("Bootstrap replicates",
+                       paste("More replicates give more stable standard errors",
+                             "and probabilities but take longer.")), value = 200,
                        min = 50, max = 999),
+          numericInput("btlef_seed", info_label("Bootstrap seed",
+                       "Reproduces the same judge resamples for every selected worker count."),
+                       value = 1, min = 0, step = 1),
+          selectInput("btlef_workers", info_label("Parallel workers",
+                      paste("Runs judge-bootstrap refits concurrently.",
+                            "Defaults to four, or fewer when the system limit is lower.")),
+                      choices = .efrm_worker_choices,
+                      selected = max(.efrm_worker_values)),
           radioButtons("btlef_se", info_label("Standard errors",
                        paste("The bootstrap carries uncertainty through the frame",
                              "linking stages. Conditional standard errors are faster",
@@ -1492,7 +1521,8 @@ panel_frames <- nav_panel("Extended Frames", value = "p_frames", icon = bs_icon(
                          "Parametric bootstrap" = "bootstrap",
                          "Conditional (fast, understates)" = "conditional")),
           input_task_button("btlef_run", "Estimate frame units",
-                            type = "primary", class = "w-100")),
+                            type = "primary", class = "w-100"),
+          uiOutput("btlef_job_controls")),
         conditionalPanel("output.has_btlef != true",
           card(card_body(p(class = "text-muted small mb-0",
             "Choose the judge-panel column in the sidebar and press Estimate frame units to see results.")))),
@@ -2766,12 +2796,6 @@ server <- function(input, output, session) {
     original <- if (is_bt) "original_bt <- bt" else "original_fit <- fit"
     paste(c(base, "", original, "", step_code), collapse = "\n")
   })
-  # A fresh estimation starts a new analysis history.
-  observeEvent(input$run, {
-    clear_analysis_steps()
-    clear_btl_analysis_steps()
-  },
-               priority = 10)
   output$has_override <- reactive(length(analysis_steps()) > 0L ||
                                     length(btl_analysis_steps()) > 0L)
   outputOptions(output, "has_override", suspendWhenHidden = FALSE)
@@ -2830,7 +2854,147 @@ server <- function(input, output, session) {
             if (tolower(tools::file_ext(input$file$name)) %in%
                 c("tsv", "txt")) ', sep = "\\t"' else "")
   })
+
+  # Store a completed fit from either the ordinary in-process route or the
+  # cancellable EFRM worker. Keeping this in one function prevents the two
+  # execution routes from diverging in navigation, notes, reproducible code,
+  # convergence handling, and downstream active-state propagation.
+  complete_fit <- function(fit, code_call, code_notes, src_line,
+                           simulation_stamp = NULL) {
+    if (inherits(fit, "error")) {
+      showNotification(paste("Analysis failed:", conditionMessage(fit)),
+                       type = "error", duration = 10)
+      return(invisible(NULL))
+    }
+    if (!is.null(code_call))
+      rcode_str(paste(c("library(rasch)", "", src_line,
+                        if (length(code_notes)) c("", code_notes), "",
+                        code_call), collapse = "\n"))
+    if (length(fit$notes))
+      showNotification(paste(fit$notes, collapse = "\n"), type = "message",
+                       duration = 8)
+    conv <- if (!is.null(fit$est)) fit$est$converged else fit$converged
+    if (!isTRUE(conv)) {
+      msg <- if (inherits(fit, "rasch_efrm") &&
+                 isTRUE(fit$est$stage1_converged))
+        paste("The conditional calibration converged, but the item-set link",
+              "did not. Check the common-person design, targeting and score",
+              "range within each linked set.")
+      else paste("Estimation did not converge; consider raising the maximum",
+                 "iterations or loosening the convergence criterion.")
+      showNotification(msg, type = "warning", duration = 10)
+    }
+    # Replace the preceding analysis only after the new fit has succeeded.
+    # A failed or cancelled background fit therefore leaves its fitted object
+    # and complete structural history available.
+    clear_analysis_steps()
+    clear_btl_analysis_steps()
+    fitted_sim_gen(simulation_stamp)
+    if (inherits(fit, "rasch_btl")) {
+      btl_fit(fit); fit_val(NULL)
+      try(nav_select("nav", "p_summary", session = session), silent = TRUE)
+      return(invisible(NULL))
+    }
+    btl_fit(NULL)
+    try(nav_select("nav", "p_summary", session = session), silent = TRUE)
+    fit_val(NULL)
+    fit_val(fit)
+    invisible(fit)
+  }
+
+  # EFRM uncertainty runs in a separate R process. The main Shiny process can
+  # therefore continue to receive input, update a real progress bar, and stop
+  # the worker immediately when the analyst presses Cancel.
+  efrm_job <- reactiveVal(NULL)
+  output$efrm_job_controls <- renderUI({
+    if (is.null(efrm_job())) return(NULL)
+    actionButton("cancel_efrm", "Cancel EFRM estimation",
+                 icon = bs_icon("x-circle"),
+                 class = "btn-outline-danger w-100 mt-2")
+  })
+  outputOptions(output, "efrm_job_controls", suspendWhenHidden = FALSE)
+
+  close_efrm_job <- function(st, remove_files = TRUE) {
+    if (!is.null(st$progress)) try(st$progress$close(), silent = TRUE)
+    if (isTRUE(remove_files))
+      unlink(c(st$progress_file, st$log_file), force = TRUE)
+    invisible(NULL)
+  }
+
+  stop_efrm_process <- function(process) {
+    stopped <- tryCatch({
+      process$kill_tree()
+      TRUE
+    }, error = function(e) FALSE)
+    if (!stopped && process$is_alive()) try(process$kill(), silent = TRUE)
+    invisible(NULL)
+  }
+
+  observeEvent(input$cancel_efrm, {
+    st <- efrm_job()
+    if (is.null(st)) return(invisible(NULL))
+    if (st$process$is_alive()) stop_efrm_process(st$process)
+    close_efrm_job(st)
+    efrm_job(NULL)
+    showNotification("EFRM estimation cancelled.", type = "message",
+                     duration = 5)
+  })
+
+  session$onSessionEnded(function() {
+    st <- isolate(efrm_job())
+    if (!is.null(st) && st$process$is_alive())
+      stop_efrm_process(st$process)
+    if (!is.null(st)) close_efrm_job(st)
+  })
+
+  observe({
+    st <- efrm_job()
+    if (is.null(st)) return()
+    invalidateLater(250, session)
+    if (file.exists(st$progress_file)) {
+      z <- tryCatch(strsplit(readLines(st$progress_file, warn = FALSE)[1],
+                             "\t", fixed = TRUE)[[1]],
+                    error = function(e) character(0))
+      if (length(z) == 3L) {
+        current <- suppressWarnings(as.numeric(z[2])); total <-
+          suppressWarnings(as.numeric(z[3])); stage <- z[1]
+        fraction <- if (is.finite(current) && is.finite(total) && total > 0)
+          pmin(pmax(current / total, 0), 1) else 0
+        value <- switch(stage,
+          "conditional calibration" = 0.02 + 0.08 * fraction,
+          "linking bootstrap" = if (identical(st$se_method, "bootstrap"))
+            0.10 + 0.40 * fraction else 0.10 + 0.84 * fraction,
+          "full person bootstrap" = 0.50 + 0.44 * fraction,
+          "finalising" = 0.99, 0.02)
+        detail <- if (stage %in% c("linking bootstrap",
+                                   "full person bootstrap") && total > 0)
+          sprintf("%s: %d of %d", stage, round(current), round(total)) else stage
+        st$progress$set(value = value, detail = detail)
+      }
+    }
+    if (st$process$is_alive()) return()
+
+    result <- tryCatch(st$process$get_result(), error = function(e) e)
+    close_efrm_job(st)
+    efrm_job(NULL)
+    if (inherits(result, "error")) {
+      complete_fit(result, st$code_call, character(0), st$src_line,
+                   st$simulation_stamp)
+      return()
+    }
+    if (length(result$warnings))
+      showNotification(paste(result$warnings, collapse = "\n"),
+                       type = "warning", duration = 10)
+    complete_fit(result$value, st$code_call, character(0), st$src_line,
+                 st$simulation_stamp)
+  })
+
   observeEvent(input$run, {
+    if (!is.null(efrm_job())) {
+      showNotification("An EFRM estimation is already running. Cancel it before starting another analysis.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
     df <- raw_data()
     # automatic class intervals pass NULL; rasch() resolves the rule and
     # reports the value used in fit$n_groups
@@ -2849,6 +3013,79 @@ server <- function(input, output, session) {
                   paste0("tol = ", format(eo$tol)))
     code_call <- NULL
     code_notes <- character(0)
+
+    if (identical(input$model_type, "efrm")) {
+      sm <- ef_setmap()
+      reps <- if (!is.null(input$ef_reps) && !is.na(input$ef_reps))
+        max(50L, as.integer(input$ef_reps)) else NULL
+      workers <- if (!is.null(input$ef_workers) &&
+                     !is.na(as.integer(input$ef_workers)))
+        max(1L, as.integer(input$ef_workers)) else 1L
+      seed_raw <- suppressWarnings(as.numeric(input$ef_seed))
+      seed <- if (length(seed_raw) == 1L && is.finite(seed_raw) &&
+                  seed_raw >= 0 && seed_raw <= .Machine$integer.max)
+        as.integer(round(seed_raw)) else 1L
+      group_arg <- if (is.null(input$ef_group) || input$ef_group == NONE)
+        rep("(all)", nrow(df)) else input$ef_group
+      id_arg <- if (!is.null(input$ef_id) && input$ef_id != NONE)
+        input$ef_id else NULL
+      code_call <- paste0("fit <- rasch_efrm(dat,\n  ", paste(c(
+        paste0("item_sets = ", paste(deparse(sm), collapse = "\n    ")),
+        if (is.null(input$ef_group) || input$ef_group == NONE)
+          'groups = rep("(all)", nrow(dat))'
+        else paste0("groups = ", qstr(input$ef_group)),
+        if (!is.null(id_arg)) paste0("id = ", qstr(input$ef_id)),
+        paste0("items = ", qvec(names(sm))), code_args_common, code_est,
+        paste0("se_method = ", qstr(input$ef_se %||% "hybrid")),
+        if (!is.null(reps)) paste0("boot_reps = ", reps),
+        paste0("workers = ", workers), paste0("seed = ", seed)),
+        collapse = ",\n  "), ")")
+      fit_args <- list(
+        data = df, item_sets = sm, groups = group_arg, id = id_arg,
+        items = names(sm), n_groups = ng, adjust_N = adjN,
+        maxit = eo$maxit, tol = eo$tol,
+        se_method = input$ef_se %||% "hybrid", boot_reps = reps,
+        workers = workers, seed = seed)
+      progress_file <- tempfile("rasch-efrm-", fileext = ".progress")
+      log_file <- tempfile("rasch-efrm-", fileext = ".log")
+      progress_bar <- shiny::Progress$new(session, min = 0, max = 1)
+      progress_bar$set(message = "Estimating Extended Frames",
+                       detail = "conditional calibration", value = 0.02)
+      worker <- tryCatch(callr::r_bg(
+        function(args, progress_path) {
+          progress_fun <- function(stage, current, total) {
+            writeLines(paste(stage, current, total, sep = "\t"),
+                       progress_path)
+          }
+          args$progress <- progress_fun
+          warnings <- character(0)
+          value <- withCallingHandlers(
+            do.call(rasch::rasch_efrm, args),
+            warning = function(w) {
+              warnings <<- c(warnings, conditionMessage(w))
+              invokeRestart("muffleWarning")
+            })
+          list(value = value, warnings = unique(warnings))
+        },
+        args = list(args = fit_args, progress_path = progress_file),
+        libpath = .libPaths(), stdout = log_file, stderr = log_file,
+        supervise = TRUE), error = function(e) e)
+      if (inherits(worker, "error")) {
+        progress_bar$close()
+        unlink(c(progress_file, log_file), force = TRUE)
+        complete_fit(worker, code_call, character(0), src_line,
+                     if (!is.null(sim_data())) sim_gen() else NULL)
+        return(invisible(NULL))
+      }
+      efrm_job(list(
+        process = worker, progress = progress_bar,
+        progress_file = progress_file, log_file = log_file,
+        code_call = code_call, src_line = src_line,
+        se_method = input$ef_se %||% "hybrid",
+        simulation_stamp = if (!is.null(sim_data())) sim_gen() else NULL))
+      return(invisible(NULL))
+    }
+
     withProgress(message = "Estimating (pairwise conditional ML)…", value = 0.3, {
       fit <- tryCatch({
         if (identical(input$model_type, "btl")) {
@@ -2932,37 +3169,6 @@ server <- function(input, output, session) {
             else
               list(winner = input$bt_win, ties = input$bt_ties %||% "drop"))
           do.call(if (bt_exp) btl_explanatory else btl, bt_args)
-        } else if (identical(input$model_type, "efrm")) {
-          sm <- ef_setmap()
-          code_call <- paste0("fit <- rasch_efrm(dat,\n  ", paste(c(
-            paste0("item_sets = ",
-                   paste(deparse(sm), collapse = "\n    ")),
-            if (is.null(input$ef_group) || input$ef_group == NONE)
-              'groups = rep("(all)", nrow(dat))'
-            else paste0("groups = ", qstr(input$ef_group)),
-            if (!is.null(input$ef_id) && input$ef_id != NONE)
-              paste0("id = ", qstr(input$ef_id)),
-            paste0("items = ", qvec(names(sm))),
-            code_args_common,
-            code_est,
-            paste0("se_method = ", qstr(input$ef_se %||% "hybrid")),
-            if (!is.null(input$ef_reps) && !is.na(input$ef_reps))
-              paste0("boot_reps = ", max(50, input$ef_reps))),
-            collapse = ",\n  "), ")")
-          rasch_efrm(df,
-                     item_sets = sm,
-                     groups = if (is.null(input$ef_group) ||
-                                  input$ef_group == NONE)
-                       rep("(all)", nrow(df)) else input$ef_group,
-                     id = if (!is.null(input$ef_id) && input$ef_id != NONE)
-                       input$ef_id else NULL,
-                     items = names(sm),
-                     n_groups = ng, adjust_N = adjN,
-                     maxit = eo$maxit, tol = eo$tol,
-                     se_method = input$ef_se %||% "hybrid",
-                     boot_reps = if (!is.null(input$ef_reps) &&
-                                     !is.na(input$ef_reps))
-                       max(50, input$ef_reps) else NULL)
         } else if (identical(input$model_type, "mfrm")) {
           # the interaction is passed only in interactive facet mode, and
           # only when the interacting facet is one of the chosen facets
@@ -3112,52 +3318,8 @@ server <- function(input, output, session) {
         }
       }, error = function(e) e)
     })
-    if (inherits(fit, "error")) {
-      showNotification(paste("Analysis failed:", conditionMessage(fit)),
-                       type = "error", duration = 10)
-      btl_fit(NULL)
-      fit_val(NULL)
-      return(invisible(NULL))
-    }
-    if (!is.null(code_call))
-      rcode_str(paste(c("library(rasch)", "", src_line,
-                        if (length(code_notes)) c("", code_notes), "",
-                        code_call), collapse = "\n"))
-    # routine handling notes are informational; only real problems warn
-    if (length(fit$notes))
-      showNotification(paste(fit$notes, collapse = "\n"), type = "message",
-                       duration = 8)
-    conv <- if (!is.null(fit$est)) fit$est$converged else fit$converged
-    if (!isTRUE(conv)) {
-      msg <- if (inherits(fit, "rasch_efrm") &&
-                 isTRUE(fit$est$stage1_converged))
-        paste("The conditional calibration converged, but the item-set link",
-              "did not. Check the common-person design, targeting and score",
-              "range within each linked set.")
-      else paste("Estimation did not converge; consider raising the maximum",
-                 "iterations or loosening the convergence criterion.")
-      showNotification(msg, type = "warning", duration = 10)
-    }
-    clear_analysis_steps()
-    # stamp which simulation (if any) this fit was estimated on, so the
-    # recovery card can refuse to compare a stale fit against new truth
-    fitted_sim_gen(if (!is.null(sim_data())) sim_gen() else NULL)
-    # paired-comparison results render on the Summary / Items / Persons
-    # pages (each page's Rasch variant hides while a BTL fit is current,
-    # and vice versa); the Rasch outputs suspend meanwhile
-    if (inherits(fit, "rasch_btl")) {
-      btl_fit(fit)
-      fit_val(NULL)
-      try(nav_select("nav", "p_summary", session = session), silent = TRUE)
-      return(invisible(NULL))
-    }
-    btl_fit(NULL)
-    try(nav_select("nav", "p_summary", session = session), silent = TRUE)
-    # reactiveVal skips notification when the new value is identical to the
-    # old; clearing first guarantees the on-fit reset observer fires even
-    # when a re-run reproduces the same fit
-    fit_val(NULL)
-    fit_val(fit)
+    complete_fit(fit, code_call, code_notes, src_line,
+                 if (!is.null(sim_data())) sim_gen() else NULL)
   })
   fit <- reactive({
     s <- active_step()
@@ -6214,7 +6376,110 @@ server <- function(input, output, session) {
     list(sets = split(objs, pref), source = "object-name prefixes (trailing digits stripped)")
   }
   btlef_res <- reactiveVal(NULL)
+  btlef_job <- reactiveVal(NULL)
+  output$btlef_job_controls <- renderUI({
+    if (is.null(btlef_job())) return(NULL)
+    actionButton("cancel_btlef", "Cancel frame estimation",
+                 icon = bs_icon("x-circle"),
+                 class = "btn-outline-danger w-100 mt-2")
+  })
+  outputOptions(output, "btlef_job_controls", suspendWhenHidden = FALSE)
+
+  store_btlef_result <- function(r, st) {
+    r$run_panel_col <- st$panel_col
+    r$run_judge_col <- st$judge_col
+    r$run_set_source <- st$set_source
+    r$run_se_method <- st$se_method
+    r$run_boot_reps <- st$boot_reps
+    r$run_workers <- st$workers
+    r$run_seed <- st$seed
+    r$run_maxit <- st$maxit
+    r$run_tol <- st$tol
+    r$run_object_a <- st$object_a
+    r$run_object_b <- st$object_b
+    r$run_winner <- st$winner
+    btlef_res(r)
+    clear_btl_analysis_steps()
+    push_btl_analysis_step(
+      "btl_frames",
+      sprintf("Extended frames: %d set%s × %d panel%s",
+              length(r$sets), if (length(r$sets) == 1L) "" else "s",
+              length(r$panels), if (length(r$panels) == 1L) "" else "s"),
+      r,
+      details = list(panel = st$panel_col, set_source = st$set_source,
+                     se_method = st$se_method, boot_reps = st$boot_reps,
+                     workers = st$workers, seed = st$seed,
+                     maxit = st$maxit, tol = st$tol),
+      code = paste0(btlef_code_setup(), "\nbt <- frm"))
+    bdif_res(NULL)
+    invisible(r)
+  }
+
+  observeEvent(input$cancel_btlef, {
+    st <- btlef_job()
+    if (is.null(st)) return(invisible(NULL))
+    if (st$process$is_alive()) stop_efrm_process(st$process)
+    close_efrm_job(st)
+    btlef_job(NULL)
+    showNotification("Frame estimation cancelled.", type = "message",
+                     duration = 5)
+  })
+
+  session$onSessionEnded(function() {
+    st <- isolate(btlef_job())
+    if (!is.null(st) && st$process$is_alive())
+      stop_efrm_process(st$process)
+    if (!is.null(st)) close_efrm_job(st)
+  })
+
+  observe({
+    st <- btlef_job()
+    if (is.null(st)) return()
+    invalidateLater(250, session)
+    if (file.exists(st$progress_file)) {
+      z <- tryCatch(strsplit(readLines(st$progress_file, warn = FALSE)[1],
+                             "\t", fixed = TRUE)[[1]],
+                    error = function(e) character(0))
+      if (length(z) == 3L) {
+        current <- suppressWarnings(as.numeric(z[2]))
+        total <- suppressWarnings(as.numeric(z[3]))
+        stage <- z[1]
+        fraction <- if (is.finite(current) && is.finite(total) && total > 0)
+          pmin(pmax(current / total, 0), 1) else 0
+        value <- switch(stage,
+          "two-stage fit" = 0.05 + 0.10 * fraction,
+          "judge bootstrap" = 0.15 + 0.80 * fraction,
+          "parametric bootstrap" = 0.15 + 0.80 * fraction,
+          "finalising" = 0.99, 0.02)
+        detail <- if (stage %in% c("judge bootstrap",
+                                   "parametric bootstrap") && total > 0)
+          sprintf("%s: %d of %d", stage, round(current), round(total)) else stage
+        st$progress$set(value = value, detail = detail)
+      }
+    }
+    if (st$process$is_alive()) return()
+
+    result <- tryCatch(st$process$get_result(), error = function(e) e)
+    close_efrm_job(st)
+    btlef_job(NULL)
+    if (inherits(result, "error")) {
+      showNotification(paste("Frame estimation failed:",
+                             conditionMessage(result)),
+                       type = "error", duration = 10)
+      return()
+    }
+    if (length(result$warnings))
+      showNotification(paste(result$warnings, collapse = "\n"),
+                       type = "warning", duration = 10)
+    store_btlef_result(result$value, st)
+  })
+
   observeEvent(input$btlef_run, {
+    if (!is.null(btlef_job())) {
+      showNotification("A frame estimation is already running. Cancel it before starting another.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
     req(btl_fit())
     if (inherits(btl_fit(), "rasch_btl_explanatory")) {
       showNotification(paste(
@@ -6301,48 +6566,62 @@ server <- function(input, output, session) {
     boot_reps <- input$btlef_boot
     if (is.null(boot_reps) || is.na(boot_reps)) boot_reps <- 200
     boot_reps <- max(50, min(999, round(boot_reps)))
+    seed_raw <- suppressWarnings(as.numeric(input$btlef_seed))
+    seed <- if (length(seed_raw) == 1L && is.finite(seed_raw) &&
+                seed_raw >= 0 && seed_raw <= .Machine$integer.max)
+      as.integer(round(seed_raw)) else 1L
+    workers <- if (identical(se_method, "judge_bootstrap") &&
+                   !is.null(input$btlef_workers) &&
+                   !is.na(as.integer(input$btlef_workers)))
+      max(1L, as.integer(input$btlef_workers)) else 1L
     eo <- est_opts()
 
-    r <- withProgress(message = "Estimating frame units (bootstrap may take a while)…",
-                      value = 0.3,
-                      tryCatch(btl_efrm(df, object_a = input$bt_a, object_b = input$bt_b,
-                                        winner = input$bt_win, judge = jc,
-                                        panels = panel_map, object_sets = sm$sets,
-                                        se_method = se_method, boot_reps = boot_reps,
-                                        maxit = eo$maxit, tol = eo$tol),
-                               error = function(e) e))
-    # freeze the run's configuration alongside its results (the frozen-run
-    # pattern of bdif_res), so the reproducible snippets describe THIS table
-    # even if the sidebar changes before the next run
-    if (inherits(r, "error")) {
-      showNotification(paste("Frame estimation failed:", conditionMessage(r)),
+    fit_args <- list(
+      data = df, object_a = input$bt_a, object_b = input$bt_b,
+      winner = input$bt_win, judge = jc, panels = panel_map,
+      object_sets = sm$sets, se_method = se_method, boot_reps = boot_reps,
+      workers = workers, seed = seed, maxit = eo$maxit, tol = eo$tol)
+    progress_file <- tempfile("rasch-btlef-", fileext = ".progress")
+    log_file <- tempfile("rasch-btlef-", fileext = ".log")
+    progress_bar <- shiny::Progress$new(session, min = 0, max = 1)
+    progress_bar$set(message = "Estimating paired-comparison frames",
+                     detail = "two-stage fit", value = 0.02)
+    process <- tryCatch(callr::r_bg(
+      function(args, progress_path) {
+        progress_fun <- function(stage, current, total) {
+          writeLines(paste(stage, current, total, sep = "\t"), progress_path)
+        }
+        args$progress <- progress_fun
+        warnings <- character(0)
+        value <- withCallingHandlers(
+          do.call(rasch::btl_efrm, args),
+          warning = function(w) {
+            warnings <<- c(warnings, conditionMessage(w))
+            invokeRestart("muffleWarning")
+          })
+        list(value = value, warnings = unique(warnings))
+      },
+      args = list(args = fit_args, progress_path = progress_file),
+      libpath = .libPaths(), stdout = log_file, stderr = log_file,
+      supervise = TRUE), error = function(e) e)
+    if (inherits(process, "error")) {
+      progress_bar$close()
+      unlink(c(progress_file, log_file), force = TRUE)
+      showNotification(paste("Frame estimation failed:",
+                             conditionMessage(process)),
                        type = "error", duration = 10)
-      btlef_res(NULL)
-    } else {
-      r$run_panel_col <- pcol
-      r$run_judge_col <- jc
-      r$run_set_source <- sm$source
-      r$run_se_method <- se_method
-      r$run_boot_reps <- boot_reps
-      r$run_maxit <- eo$maxit
-      r$run_tol <- eo$tol
-      r$run_object_a <- input$bt_a
-      r$run_object_b <- input$bt_b
-      r$run_winner <- input$bt_win
-      btlef_res(r)
-      clear_btl_analysis_steps()
-      push_btl_analysis_step(
-        "btl_frames",
-        sprintf("Extended frames: %d set%s × %d panel%s",
-                length(r$sets), if (length(r$sets) == 1L) "" else "s",
-                length(r$panels), if (length(r$panels) == 1L) "" else "s"),
-        r,
-        details = list(panel = pcol, set_source = sm$source,
-                       se_method = se_method, boot_reps = boot_reps,
-                       maxit = eo$maxit, tol = eo$tol),
-        code = paste0(btlef_code_setup(), "\nbt <- frm"))
-      bdif_res(NULL)
+      return(invisible(NULL))
     }
+    btlef_job(list(
+      process = process, progress = progress_bar,
+      progress_file = progress_file, log_file = log_file,
+      panel_col = pcol, judge_col = jc, set_source = sm$source,
+      se_method = se_method, boot_reps = boot_reps,
+      workers = workers, seed = seed,
+      maxit = eo$maxit, tol = eo$tol,
+      object_a = input$bt_a, object_b = input$bt_b,
+      winner = input$bt_win))
+    invisible(NULL)
   })
   output$has_btlef <- reactive(!is.null(btlef_res()))
   outputOptions(output, "has_btlef", suspendWhenHidden = FALSE)
@@ -6359,8 +6638,11 @@ server <- function(input, output, session) {
     r <- btlef_res()
     pcol <- (if (!is.null(r)) r$run_panel_col else input$btlef_panel) %||% "panel"
     jc <- (if (!is.null(r)) r$run_judge_col else input$bt_judge) %||% "judge"
-    se_m <- (if (!is.null(r)) r$run_se_method else input$btlef_se) %||% "bootstrap"
+    se_m <- (if (!is.null(r)) r$run_se_method else input$btlef_se) %||%
+      "judge_bootstrap"
     reps <- (if (!is.null(r)) r$run_boot_reps else input$btlef_boot) %||% 60
+    workers <- (if (!is.null(r)) r$run_workers else input$btlef_workers) %||% 1
+    seed <- (if (!is.null(r)) r$run_seed else input$btlef_seed) %||% 1
     maxit <- (if (!is.null(r)) r$run_maxit else est_opts()$maxit) %||% 60
     tol <- (if (!is.null(r)) r$run_tol else est_opts()$tol) %||% 1e-8
     oa <- (if (!is.null(r)) r$run_object_a else input$bt_a) %||% "object_a"
@@ -6377,9 +6659,10 @@ server <- function(input, output, session) {
       sprintf(paste0('frm <- btl_efrm(dat, object_a = %s, object_b = %s, ',
                      'winner = %s,\n                 judge = %s, panels = panels, ',
                      'object_sets = object_sets,\n                 se_method = %s, ',
-                     "boot_reps = %s, maxit = %s, tol = %s)"),
+                     "boot_reps = %s, workers = %s, seed = %s, ",
+                     "maxit = %s, tol = %s)"),
               qstr(oa), qstr(ob), qstr(wn), qstr(jc), qstr(se_m), reps,
-              maxit, format(tol)))
+              workers, seed, maxit, format(tol)))
   }
   btlef_code_call <- function(field) paste0(btlef_code_setup(), "\n", field)
   register_table("btlef_phi_tbl", function() {

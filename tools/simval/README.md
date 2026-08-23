@@ -93,6 +93,34 @@ departure diagnostics. Each principal condition used 1,000 replicates; the
 diagnostic conditions used 300. The result rows carry script hash
 `e72c33409a15c6ecc04bc5fb91f413ca` and R-tree hash `dd5f1154d99f`.
 
+The compiled EFRM linking kernel was checked against the retained R
+implementation with the same seed and 30 hybrid bootstrap replicates. Across
+set units, their standard errors, origins, edge likelihoods and thresholds,
+the largest absolute difference was 1.31e-11; every convergence flag agreed.
+The study is `studies/efrm-cpp-parity.R` and its six result rows are in
+`results/efrm-cpp-parity.csv`. They carry script hash
+`1a6468c78f37e505d3c01870f8a1c693` and R-tree hash `2ff015352a0d`.
+
+Parallel EFRM bootstrap execution was then checked from a fresh isolated
+installation. Serial, two-worker and default four-worker hybrid fits used the
+same 300 pre-generated resamples; the full-bootstrap comparison used 30. Every
+checked estimate and convergence flag was identical. On the executing machine,
+two and four workers reduced the hybrid elapsed time from 86.0 seconds to 52.4
+and 33.6 seconds; two workers reduced the full-bootstrap time from 8.6 to 6.4
+seconds. These timings are contextual, not general performance guarantees.
+The study is `studies/efrm-parallel-parity.R`, with results in
+`results/efrm-parallel-parity.csv`; the rows carry script hash
+`64574bd4400ad20f64b2746b0b1453ed` and R-tree hash `f25f578582a2`.
+
+The BTL-EFRM judge bootstrap was checked separately from a fresh isolated
+installation. Serial and default four-worker fits used the same 200 judge
+resamples and agreed exactly after excluding the recorded worker count. On the
+executing machine, elapsed time fell from 17.34 to 5.47 seconds (3.17 times
+faster). The timing is machine-specific. The study is
+`studies/btl-efrm-parallel-parity.R`, with results in
+`results/btl-efrm-parallel-parity.csv`; the row carries script hash
+`db8d37e3a52d75b7a342fa6e43d7f8f8` and R-tree hash `eba5f653300c`.
+
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the
 package git SHA (`+dirty` when the R code differs from HEAD), and the run

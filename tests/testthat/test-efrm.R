@@ -589,3 +589,104 @@ test_that("adjust chooses the screening threshold without hiding either p", {
   expect_output(print(strict), "Holm-adjusted")
   expect_error(frame_invariance(f, adjust = "bonferroni"))
 })
+
+test_that("compiled EFRM linking agrees with the R reference", {
+  d <- simulate_efrm(n_per_group = 180, items_per_set = 6, n_sets = 2,
+                     n_groups = 2, seed = 913)
+  tr <- attr(d, "truth")
+  old <- options(rasch.efrm_cpp = FALSE)
+  on.exit(options(old), add = TRUE)
+  fr <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                   boot_reps = 0)
+  options(rasch.efrm_cpp = TRUE)
+  fc <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                   boot_reps = 0)
+
+  expect_equal(fc$alpha_table$alpha, fr$alpha_table$alpha, tolerance = 1e-9)
+  expect_equal(fc$set_table$mu, fr$set_table$mu, tolerance = 1e-9)
+  expect_equal(fc$linking$alpha_edges$loglik,
+               fr$linking$alpha_edges$loglik, tolerance = 1e-8)
+  expect_identical(fc$linking$alpha_edges$converged,
+                   fr$linking$alpha_edges$converged)
+  expect_equal(fc$thresholds_arbitrary$delta,
+               fr$thresholds_arbitrary$delta, tolerance = 1e-8)
+})
+
+test_that("EFRM reports bootstrap progress and supports cancellation", {
+  d <- simulate_efrm(n_per_group = 150, items_per_set = 6, n_sets = 2,
+                     n_groups = 2, seed = 914)
+  tr <- attr(d, "truth")
+  seen <- list()
+  f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                  boot_reps = 30,
+                  seed = 914,
+                  progress = function(stage, current, total)
+                    seen[[length(seen) + 1L]] <<- c(stage, current, total))
+  expect_s3_class(f, "rasch_efrm")
+  stages <- vapply(seen, `[`, "", 1L)
+  expect_true(all(c("conditional calibration", "linking bootstrap",
+                    "finalising") %in% stages))
+  link <- seen[stages == "linking bootstrap"]
+  expect_identical(as.integer(tail(link, 1L)[[1L]][2:3]), c(30L, 30L))
+
+  completed <- 0L
+  expect_condition(
+    rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+      boot_reps = 30,
+      seed = 915,
+      progress = function(stage, current, total)
+        if (stage == "linking bootstrap") completed <<- as.integer(current),
+      cancel = function() completed >= 2L),
+    class = "rasch_cancelled")
+  expect_lte(completed, 3L)
+})
+
+test_that("parallel EFRM bootstraps are seed-identical to serial fits", {
+  skip_on_cran()
+  old_workers <- options(rasch.max_workers = 2L,
+                         rasch.efrm.max_workers = NULL)
+  on.exit(options(old_workers), add = TRUE)
+  # PSOCK workers must load the same installed namespace. pkgload source-tree
+  # sessions deliberately skip this integration test; R CMD check and binary
+  # package tests exercise it against the installed package.
+  skip_if_not(file.exists(file.path(system.file(package = "rasch"),
+                                    "DESCRIPTION")),
+              "parallel integration test needs an installed package")
+  probe <- try(parallel::makePSOCKcluster(2L), silent = TRUE)
+  skip_if(inherits(probe, "try-error"), "local socket clusters unavailable")
+  parallel::stopCluster(probe)
+
+  d <- simulate_efrm(n_per_group = 120, items_per_set = 6, n_sets = 2,
+                     n_groups = 2, seed = 915)
+  tr <- attr(d, "truth")
+  serial <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                       boot_reps = 30, workers = 1, seed = 916)
+  parallel <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+                         boot_reps = 30, workers = 2, seed = 916)
+
+  expect_identical(parallel$alpha_table, serial$alpha_table)
+  expect_identical(parallel$set_table, serial$set_table)
+  expect_identical(parallel$thresholds_arbitrary,
+                   serial$thresholds_arbitrary)
+  expect_identical(parallel$linking$alpha_edges$converged,
+                   serial$linking$alpha_edges$converged)
+})
+
+test_that("EFRM defaults to four workers subject to system limits", {
+  expect_identical(formals(rasch_efrm)$workers, 4L)
+  old_workers <- options(rasch.max_workers = 1L,
+                         rasch.efrm.max_workers = NULL)
+  on.exit(options(old_workers), add = TRUE)
+  expect_identical(rasch:::.efrm_available_workers(), 1L)
+})
+
+test_that("an EFRM bootstrap seed does not take over the caller's RNG", {
+  d <- simulate_efrm(n_per_group = 100, items_per_set = 6, n_sets = 2,
+                     n_groups = 2, seed = 917)
+  tr <- attr(d, "truth")
+  set.seed(918)
+  before <- .Random.seed
+  rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+             boot_reps = 30, seed = 919)
+  expect_identical(.Random.seed, before)
+})

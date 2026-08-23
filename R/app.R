@@ -7,8 +7,9 @@
 #' Analyses can be saved and reopened, or exported as HTML, Word or PDF
 #' reports.
 #'
-#' The app's display packages ('shiny', 'bslib', 'DT', 'bsicons') are
-#' suggested rather than required by the package. If any are missing,
+#' The app's interface packages ('shiny', 'bslib', 'DT', 'bsicons', and
+#' 'callr' for cancellable EFRM estimation) are suggested rather than
+#' required by the package. If any are missing,
 #' \code{run_app} lists them all and, in an interactive session, offers to
 #' install them before launching.
 #'
@@ -18,7 +19,7 @@
 #' if (interactive()) run_app()
 #' @export
 run_app <- function(...) {
-  .app_require(c("shiny", "bslib", "DT", "bsicons"))
+  .app_require(c("shiny", "bslib", "DT", "bsicons", "callr"))
   dir <- system.file("shiny", package = "rasch")
   if (dir == "") stop("app not found: reinstall rasch")
   old_limit <- getOption("shiny.maxRequestSize")

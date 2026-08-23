@@ -42,7 +42,9 @@
 #' @import stats
 #' @import graphics
 #' @import grDevices
+#' @importFrom Rcpp evalCpp
 #' @importFrom utils write.csv combn
+#' @useDynLib rasch, .registration = TRUE
 #'
 #' @references
 #' Rasch, G. (1960). Probabilistic Models for Some Intelligence and

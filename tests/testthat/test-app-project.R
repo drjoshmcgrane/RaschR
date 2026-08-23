@@ -83,3 +83,28 @@ test_that("opening a project retains results tied to its active fit", {
     expect_s3_class(fit(), "rasch")
   })
 })
+
+test_that("a failed replacement leaves the current app analysis intact", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+  set.seed(83)
+  X <- matrix(rbinom(500, 1, .5), 100, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  current <- rasch(X)
+
+  shiny::testServer(e$server, {
+    fit_val(current)
+    push_analysis_step("test", "Existing change", current)
+    complete_fit(simpleError("replacement failed"), NULL, character(0),
+                 "dat <- existing")
+    expect_identical(fit_val(), current)
+    expect_length(analysis_steps(), 1L)
+  })
+})

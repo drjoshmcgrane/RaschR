@@ -310,6 +310,53 @@
   list(w = w_i, g = g_i)
 }
 
+# Reference kernels retained for numerical parity tests and platforms on which
+# the compiled path is deliberately disabled with options(rasch.efrm_cpp=FALSE).
+.efrm_npml_likelihood_r <- function(u, obs, score, taus, discs) {
+  L <- outer(score, u)
+  patterns <- apply(obs, 1L, paste0, collapse = "")
+  for (pattern in unique(patterns)) {
+    rows <- which(patterns == pattern)
+    jj <- which(obs[rows[1L], ])
+    den <- numeric(length(u))
+    for (j in jj) {
+      tt <- taus[[j]]; x <- 0:length(tt)
+      lp <- discs[j] * (outer(u, x) -
+        matrix(c(0, cumsum(tt)), nrow = length(u),
+               ncol = length(x), byrow = TRUE))
+      mx <- apply(lp, 1L, max)
+      den <- den + mx + log(rowSums(exp(lp - mx)))
+    }
+    L[rows, ] <- L[rows, , drop = FALSE] -
+      matrix(den, nrow = length(rows), ncol = length(u), byrow = TRUE)
+  }
+  L
+}
+
+.efrm_npml_fit_weights_r <- function(L, logw, mix_idx, count,
+                                     maxit = 100L, tol = 1e-7) {
+  conv <- FALSE; step <- Inf
+  for (it in seq_len(maxit)) {
+    A <- L + logw[mix_idx, , drop = FALSE]
+    mx <- apply(A, 1L, max)
+    post <- exp(A - mx); post <- post / rowSums(post)
+    w <- matrix(NA_real_, nrow(logw), ncol(logw))
+    for (h in seq_len(nrow(logw))) {
+      sel <- mix_idx == h
+      wh <- pmax(colSums(post[sel, , drop = FALSE] * count[sel]) /
+                   sum(count[sel]), 1e-10)
+      w[h, ] <- wh / sum(wh)
+    }
+    next_logw <- log(w)
+    step <- max(abs(w - exp(logw)))
+    if (step < tol) {
+      logw <- next_logw; conv <- TRUE; break
+    }
+    logw <- next_logw
+  }
+  list(logw = logw, converged = conv, step = step)
+}
+
 # Semiparametric likelihood link for two item sets. The common persons'
 # distribution is represented by jointly estimated masses on a fixed grid in
 # the first set's natural unit; the second set is evaluated at r*u + c. This
@@ -357,27 +404,11 @@
   mix_idx <- match(mix_group, mix_levels)
 
   # Log likelihood up to response-pattern constants, which cancel from the
-  # posterior masses and do not depend on r or c.
-  likelihood <- function(u, obs, score, taus, discs) {
-    L <- outer(score, u)
-    patterns <- apply(obs, 1L, paste0, collapse = "")
-    for (pattern in unique(patterns)) {
-      rows <- which(patterns == pattern)
-      jj <- which(obs[rows[1L], ])
-      den <- numeric(length(u))
-      for (j in jj) {
-        tt <- taus[[j]]; x <- 0:length(tt)
-        lp <- discs[j] * (outer(u, x) -
-          matrix(c(0, cumsum(tt)), nrow = length(u),
-                 ncol = length(x), byrow = TRUE))
-        mx <- apply(lp, 1L, max)
-        den <- den + mx + log(rowSums(exp(lp - mx)))
-      }
-      L[rows, ] <- L[rows, , drop = FALSE] -
-        matrix(den, nrow = length(rows), ncol = length(u), byrow = TRUE)
-    }
-    L
-  }
+  # posterior masses and do not depend on r or c. The compiled kernel is the
+  # production path; the R implementation above remains an executable
+  # numerical reference.
+  use_cpp <- !identical(getOption("rasch.efrm_cpp", TRUE), FALSE)
+  likelihood <- if (use_cpp) efrm_likelihood_cpp else .efrm_npml_likelihood_r
 
   grid <- seq(-8, 8, length.out = as.integer(grid_n))
   La <- likelihood(grid, oa, score_a, tau_v[ca], da)
@@ -391,29 +422,11 @@
   # than maximise the likelihood of the linked responses.
   add_weights <- function(L, logw)
     L + logw[mix_idx, , drop = FALSE]
-  fit_weights <- function(L, logw, maxit = 100L) {
-    conv <- FALSE; step <- Inf
-    for (it in seq_len(maxit)) {
-      A <- add_weights(L, logw); mx <- apply(A, 1L, max)
-      post <- exp(A - mx); post <- post / rowSums(post)
-      w <- matrix(NA_real_, nrow(logw), ncol(logw))
-      for (h in seq_len(nrow(logw))) {
-        sel <- mix_idx == h
-        wh <- pmax(colSums(post[sel, , drop = FALSE] * count[sel]) /
-                     sum(count[sel]), 1e-10)
-        w[h, ] <- wh / sum(wh)
-      }
-      next_logw <- log(w)
-      # Log changes are unstable for support points whose masses approach
-      # zero. Convergence concerns the mixing distribution itself.
-      step <- max(abs(w - exp(logw)))
-      if (step < 1e-7) {
-        logw <- next_logw; conv <- TRUE; break
-      }
-      logw <- next_logw
-    }
-    list(logw = logw, converged = conv, step = step)
-  }
+  fit_weights <- function(L, logw, maxit = 100L)
+    if (use_cpp)
+      efrm_fit_weights_cpp(L, logw, mix_idx, count, maxit, 1e-7)
+    else
+      .efrm_npml_fit_weights_r(L, logw, mix_idx, count, maxit, 1e-7)
   logw <- matrix(-log(length(grid)), length(mix_levels), length(grid),
                  dimnames = list(mix_levels, NULL))
   converged <- FALSE
@@ -425,7 +438,10 @@
                      tau_v[cb], db)
     ew <- fit_weights(La + Lb, logw)
     logw <- ew$logw
-    objective <- function(z) {
+    objective <- if (use_cpp) function(z)
+      efrm_negloglik_cpp(z, grid, ob, score_b, tau_v[cb], db,
+                         La, logw, mix_idx, count)
+    else function(z) {
       Lbz <- likelihood(exp(z[1L]) * grid + z[2L], ob, score_b,
                         tau_v[cb], db)
       A <- add_weights(La + Lbz, logw); mx <- apply(A, 1L, max)
@@ -471,8 +487,100 @@
 # persons, refits the nuisance masses and link for each set pair, and
 # re-solves the linking least squares. This captures the nonlinearity of the
 # semiparametric link and its reconciliation over the linking graph.
+.rasch_cancelled <- function(label = "Estimation") {
+  cond <- structure(
+    list(message = paste(label, "cancelled"), call = NULL),
+    class = c("rasch_cancelled", "error", "condition"))
+  stop(cond)
+}
+.efrm_cancelled <- function() .rasch_cancelled("EFRM estimation")
+
+# Apply deterministic bootstrap jobs either serially or on a persistent
+# socket cluster. Random draws are made by the caller before this function is
+# entered, so changing the worker count cannot change the simulated samples.
+# Small batches retain useful progress and cancellation checkpoints without
+# repeatedly starting worker processes.
+.rasch_available_workers <- function() {
+  cores <- suppressWarnings(parallel::detectCores(logical = FALSE))
+  if (length(cores) != 1L || !is.finite(cores) || cores < 1L)
+    cores <- suppressWarnings(parallel::detectCores(logical = TRUE))
+  if (length(cores) != 1L || !is.finite(cores) || cores < 1L) cores <- 4L
+
+  limits <- as.integer(cores)
+  env_limits <- Sys.getenv(c("SLURM_CPUS_PER_TASK", "PBS_NP", "NSLOTS",
+                             "OMP_THREAD_LIMIT"), unset = NA_character_)
+  env_limits <- suppressWarnings(as.integer(env_limits))
+  limits <- c(limits, env_limits[is.finite(env_limits) & env_limits > 0L])
+
+  option_limits <- c(getOption("rasch.max_workers", NA_integer_),
+                     getOption("rasch.efrm.max_workers", NA_integer_))
+  option_limits <- suppressWarnings(as.integer(option_limits))
+  limits <- c(limits,
+              option_limits[is.finite(option_limits) & option_limits >= 1L])
+
+  check_limit <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", unset = ""))
+  if (nzchar(check_limit) && !check_limit %in% c("false", "no", "0"))
+    limits <- c(limits, 2L)
+
+  max(1L, min(limits))
+}
+.efrm_available_workers <- function() .rasch_available_workers()
+
+.rasch_boot_apply <- function(n, fun, workers = 1L, progress = NULL,
+                              cancel = NULL, label = "Bootstrap estimation") {
+  out <- vector("list", n)
+  # Two jobs per worker reduces coordination overhead for cheap refits while
+  # keeping the batches small enough that an unusually slow resample does not
+  # leave the other workers idle for long. It also retains frequent progress
+  # and cancellation checks.
+  batch_size <- 2L * workers
+  batches <- split(seq_len(n), ceiling(seq_len(n) / batch_size))
+  if (workers == 1L) {
+    for (ids in batches) {
+      if (is.function(cancel) && isTRUE(cancel())) .rasch_cancelled(label)
+      out[ids] <- lapply(ids, fun)
+      if (is.function(progress)) progress(max(ids), n)
+    }
+    return(out)
+  }
+
+  cl <- tryCatch(parallel::makePSOCKcluster(workers),
+                 error = function(e) e)
+  if (inherits(cl, "error"))
+    stop("could not start ", label, " workers: ", conditionMessage(cl),
+         "; use workers = 1")
+  on.exit(try(parallel::stopCluster(cl), silent = TRUE), add = TRUE)
+  package_dir <- system.file(package = "rasch")
+  paths <- unique(c(dirname(package_dir), .libPaths()))
+  setup_worker <- function(paths) {
+    .libPaths(paths)
+    loadNamespace("rasch")
+    invisible(NULL)
+  }
+  environment(setup_worker) <- baseenv()
+  parallel::clusterCall(cl, setup_worker, paths)
+  holder <- list2env(list(.rasch_boot_fun = fun), parent = emptyenv())
+  parallel::clusterExport(cl, ".rasch_boot_fun", envir = holder)
+  worker_call <- function(i)
+    get(".rasch_boot_fun", envir = .GlobalEnv, inherits = FALSE)(i)
+  environment(worker_call) <- baseenv()
+
+  for (ids in batches) {
+    if (is.function(cancel) && isTRUE(cancel())) .rasch_cancelled(label)
+    out[ids] <- parallel::parLapply(cl, ids, worker_call)
+    if (is.function(progress)) progress(max(ids), n)
+  }
+  out
+}
+
+.efrm_boot_apply <- function(n, fun, workers = 1L, progress = NULL,
+                             cancel = NULL)
+  .rasch_boot_apply(n, fun, workers, progress, cancel,
+                    label = "EFRM bootstrap")
+
 .efrm_link_sets <- function(u_mat, w_mat, g_mat, sets_u, min_link_persons,
-                            boot_reps = 300, regen = NULL, pair_link = NULL) {
+                            boot_reps = 300, regen = NULL, pair_link = NULL,
+                            progress = NULL, cancel = NULL, workers = 1L) {
   S <- ncol(u_mat)
   A <- rbind(diag(S - 1L), rep(-1, S - 1L))
 
@@ -545,7 +653,7 @@
                  "polytomous ones) for semiparametric set linking")
       return(NULL)
     }
-    comp <- .efrm_components(S, edges)
+    comp <- utils::getFromNamespace(".efrm_components", "rasch")(S, edges)
     if (length(unique(comp)) > 1L) {
       if (hard)
         stop("item sets are not linked by common persons; relative units (alpha) ",
@@ -596,18 +704,38 @@
       as.integer(nd)
     }
     draws <- if (n_draws > 0L) vector("list", n_draws)
-    reps <- matrix(NA_real_, boot_reps, 2L * S)
-    phi_reps <- NULL
+    draw_id <- integer(boot_reps)
+    boot_idx <- vector("list", boot_reps)
+    if (is.function(progress)) progress(0L, boot_reps)
+    # Generate randomness in the same order for every worker count. Neither
+    # link_once() nor the numerical optimiser draws random numbers.
     for (r in seq_len(boot_reps)) {
-      mats <- if (n_draws == 0L) NULL else {
+      if (is.function(cancel) && isTRUE(cancel())) .efrm_cancelled()
+      if (n_draws > 0L) {
         di <- ((r - 1L) %% n_draws) + 1L
         if (is.null(draws[[di]])) draws[[di]] <- regen()
-        draws[[di]]
+        draw_id[r] <- di
       }
-      b <- if (is.null(mats)) link_once(sample.int(N, N, replace = TRUE))
-           else link_once(sample.int(N, N, replace = TRUE),
+      boot_idx[[r]] <- sample.int(N, N, replace = TRUE)
+    }
+    reps <- matrix(NA_real_, boot_reps, 2L * S)
+    phi_reps <- NULL
+    one_boot <- function(r) {
+      mats <- if (n_draws == 0L) NULL else draws[[draw_id[r]]]
+      b <- if (is.null(mats)) link_once(boot_idx[[r]])
+           else link_once(boot_idx[[r]],
                           um = mats$u, wm = mats$w, gm = mats$g,
-                          pair_fun = mats$pair_link %||% pair_link)
+                          pair_fun = if (is.null(mats$pair_link))
+                            pair_link else mats$pair_link)
+      list(link = b,
+           log_phi = if (is.null(mats)) NULL else mats$log_phi,
+           dtilde = if (is.null(mats)) NULL else mats$dtilde)
+    }
+    ans <- .efrm_boot_apply(boot_reps, one_boot, workers,
+                            progress = progress, cancel = cancel)
+    for (r in seq_len(boot_reps)) {
+      mats <- ans[[r]]
+      b <- mats$link
       if (!is.null(b)) reps[r, ] <- c(b$la, b$mu)
       if (!is.null(mats$log_phi)) {
         if (is.null(phi_reps))
@@ -791,11 +919,24 @@
 #' @param min_link_persons Minimum number of common persons required for a
 #'   set pair to contribute to the unit linking.
 #' @param se_method \code{"hybrid"} (sandwich + linking bootstrap + delta
-#'   propagation; fast, default) or \code{"bootstrap"} (full person
+#'   propagation; default) or \code{"bootstrap"} (full person
 #'   bootstrap of all stages).
 #' @param boot_reps Bootstrap replicates; defaults to 300 for the linking
 #'   bootstrap and 200 for the full bootstrap. Use zero to omit unit
 #'   uncertainty; otherwise at least 30 are required.
+#' @param progress Optional function called as \code{progress(stage, current,
+#'   total)} during long uncertainty calculations. It is intended for
+#'   interfaces and batch logging and does not alter estimation.
+#' @param cancel Optional zero-argument function checked between bootstrap
+#'   batches. Returning \code{TRUE} stops with a \code{rasch_cancelled}
+#'   condition. A serial fit uses one replicate per batch.
+#' @param workers Number of parallel bootstrap workers. The default is four,
+#'   reduced when fewer physical cores are available or the R process has a
+#'   lower system limit. Random samples are generated before distribution, so
+#'   a fixed seed gives the same result for any worker count. Every worker
+#'   holds its own copy of the bootstrap state.
+#' @param seed Optional bootstrap seed. The caller's random-number state is
+#'   restored when estimation finishes.
 #' @return An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
 #'   Model-specific components include \code{frames}, \code{phi_table},
 #'   \code{alpha_table}, \code{set_table}, common-unit item and threshold
@@ -861,7 +1002,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                        na_codes = -1, maxit = 50, tol = 1e-7,
                        min_link_persons = 30,
                        se_method = c("hybrid", "bootstrap"),
-                       boot_reps = NULL) {
+                       boot_reps = NULL, progress = NULL, cancel = NULL,
+                       workers = 4L, seed = NULL) {
   .check_column_names(data)
   n_groups_requested <- n_groups
   se_method <- match.arg(se_method)
@@ -872,6 +1014,34 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   boot_reps <- as.integer(boot_reps)
   if (boot_reps > 0L && boot_reps < 30L)
     stop("EFRM uncertainty needs either zero or at least 30 bootstrap replicates")
+  if (!is.null(progress) && !is.function(progress))
+    stop("progress must be NULL or a function")
+  if (!is.null(cancel) && !is.function(cancel))
+    stop("cancel must be NULL or a function")
+  if (length(workers) != 1L || !is.finite(workers) || workers < 1L ||
+      workers != floor(workers))
+    stop("workers must be one positive whole number")
+  workers <- as.integer(workers)
+  workers <- min(workers, .efrm_available_workers(), max(1L, boot_reps))
+  if (workers > 1L &&
+      !file.exists(system.file("DESCRIPTION", package = "rasch")))
+    stop("parallel EFRM workers require an installed package; install rasch ",
+         "before using workers above one")
+  if (!is.null(seed)) {
+    if (length(seed) != 1L || !is.finite(seed) || seed < 0 ||
+        seed != floor(seed) || seed > .Machine$integer.max)
+      stop("seed must be NULL or one non-negative whole number within the integer range")
+    seed <- as.integer(seed)
+    old_seed <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(old_seed), add = TRUE)
+    set.seed(seed)
+  }
+  report <- function(stage, current, total) {
+    if (is.function(cancel) && isTRUE(cancel())) .efrm_cancelled()
+    if (is.function(progress)) progress(stage, current, total)
+    invisible(NULL)
+  }
+  report("conditional calibration", 0L, 1L)
   # Simulation-only grid override used to verify that reported links are not
   # artefacts of the 61-point default. It is deliberately not a public model
   # option: changing the grid is a validation exercise, not an analyst choice.
@@ -1122,10 +1292,12 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       # thresholds in dtilde units for these virtual columns
       tl <- lapply(cols, function(v) dt[drow[which(thr_v$item == v)]])
       Xs <- Xm[, cols, drop = FALSE]
-      pe <- .person_estimates(Xs, tl, disc = phiv[gl])
+      pe <- utils::getFromNamespace(".person_estimates", "rasch")(
+        Xs, tl, disc = phiv[gl])
       sel <- which(pe$n_items > 0 & !pe$extreme)
       u[sel, si] <- pe$theta[sel]
-      lm <- .person_link_moments(Xs, tl, disc = phiv[gl])
+      lm <- utils::getFromNamespace(".person_link_moments", "rasch")(
+        Xs, tl, disc = phiv[gl])
       w[sel, si] <- lm$w[sel]; g[sel, si] <- lm$g[sel]
     }
     list(u = u, w = w, g = g)
@@ -1135,10 +1307,12 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       dt[drow[which(thr_v$item == v)]])
     disc_v_link <- unname(phiv[vmap$group])
     function(a, b, idx, init_ls, init_off)
-      .efrm_npml_pair(Xm, vmap, tau_v_link, disc_v_link, sets_u,
-                      a, b, idx, init_ls, init_off, min_link_persons,
-                      grid_n = link_grid_n)
+      utils::getFromNamespace(".efrm_npml_pair", "rasch")(
+        Xm, vmap, tau_v_link, disc_v_link, sets_u,
+        a, b, idx, init_ls, init_off, min_link_persons,
+        grid_n = link_grid_n)
   }
+  report("conditional calibration", 1L, 1L)
   if (S > 1L) {
     pm <- person_mats(Xv, dtil, phi)
     pair_link <- make_pair_link(Xv, dtil, phi)
@@ -1174,7 +1348,10 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     } else NULL
     link <- .efrm_link_sets(pm$u, pm$w, pm$g, sets_u, min_link_persons,
                             boot_reps = boot_reps, regen = regen,
-                            pair_link = pair_link)
+                            pair_link = pair_link,
+                            progress = function(current, total)
+                              report("linking bootstrap", current, total),
+                            cancel = cancel, workers = workers)
     alpha <- link$alpha; mu <- link$mu
     if (any(link$edges$converged %in% FALSE)) {
       warning("one or more semiparametric set links stopped before the scale ",
@@ -1197,16 +1374,19 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     Npers <- nrow(Xv)
     boot_replicate <- function(idx) {
       Xb <- Xv[idx, , drop = FALSE]
-      pb <- .efrm_filter_pairs(.pair_counts(Xb, m_v), vmap)
+      pb <- utils::getFromNamespace(".efrm_filter_pairs", "rasch")(
+        utils::getFromNamespace(".pair_counts", "rasch")(Xb, m_v), vmap)
       if (!length(pb)) return(NULL)
-      sb <- .efrm_solve(Xb, thr_v, m_v, vmap, pb, drow, A_D,
-                        maxit = maxit, tol = tol)
+      sb <- utils::getFromNamespace(".efrm_solve", "rasch")(
+        Xb, thr_v, m_v, vmap, pb, drow, A_D,
+        maxit = maxit, tol = tol)
       if (!isTRUE(sb$converged)) return(NULL)
       if (S > 1L) {
         pm_b <- person_mats(Xb, sb$dtilde, sb$phi)
-        lb <- .efrm_link_sets(pm_b$u, pm_b$w, pm_b$g, sets_u,
-                              min_link_persons, boot_reps = 0,
-                              pair_link = make_pair_link(Xb, sb$dtilde, sb$phi))
+        lb <- utils::getFromNamespace(".efrm_link_sets", "rasch")(
+          pm_b$u, pm_b$w, pm_b$g, sets_u,
+          min_link_persons, boot_reps = 0,
+          pair_link = make_pair_link(Xb, sb$dtilde, sb$phi))
         if (any(lb$edges$converged %in% FALSE)) return(NULL)
         ab <- lb$alpha; mb <- lb$mu
       } else { ab <- setNames(1, sets_u); mb <- setNames(0, sets_u) }
@@ -1214,9 +1394,17 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       c(log(sb$phi), log(ab), mb, db)
     }
     collect <- matrix(NA_real_, boot_reps, G + 2L * S + Md)
+    report("full person bootstrap", 0L, boot_reps)
+    boot_idx <- lapply(seq_len(boot_reps), function(r)
+      sample.int(Npers, Npers, replace = TRUE))
+    ans <- .efrm_boot_apply(boot_reps, function(r)
+      tryCatch(boot_replicate(boot_idx[[r]]), error = function(e) NULL),
+      workers = workers,
+      progress = function(current, total)
+        report("full person bootstrap", current, total),
+      cancel = cancel)
     for (r in seq_len(boot_reps)) {
-      res <- tryCatch(boot_replicate(sample.int(Npers, Npers, replace = TRUE)),
-                      error = function(e) NULL)
+      res <- ans[[r]]
       if (!is.null(res)) collect[r, ] <- res
     }
     collect <- collect[stats::complete.cases(collect), , drop = FALSE]
@@ -1565,8 +1753,11 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       "finite-grid semiparametric maximum likelihood" else "not applicable",
     alpha_grid = if (S > 1L)
       c(lower = -8, upper = 8, points = link_grid_n) else NULL)
+  report("finalising", 1L, 1L)
   fit$se_method <- if (!is.null(boot)) "bootstrap" else "hybrid"
   fit$boot_reps_used <- if (!is.null(boot)) nrow(boot) else NA_integer_
+  fit$workers <- workers
+  fit$seed <- seed
   fit$virtual_map <- vmap
   fit$set_of <- set_of
   fit$refit_spec <- list(
@@ -1574,7 +1765,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     factors = setdiff(names(fit$factors), fit$frame_group),
     n_groups = n_groups_requested, adjust_N = adjust_N, na_codes = na_codes,
     maxit = maxit, tol = tol, min_link_persons = min_link_persons,
-    se_method = se_method, boot_reps = boot_reps)
+    se_method = se_method, boot_reps = boot_reps, workers = workers,
+    seed = seed)
   fit <- .tag_tables(fit)
   class(fit) <- c("rasch_efrm", "rasch")
   fit

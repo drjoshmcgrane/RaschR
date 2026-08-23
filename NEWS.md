@@ -36,6 +36,15 @@
   inference remains available. The convergence flag covers both estimation
   stages, and non-converged links are excluded from bootstrap covariance
   calculations. EFRM data require one response row per person.
+* The repeated semiparametric linking calculations in the EFRM bootstrap now
+  use a compiled numerical kernel. Bootstrap replicates can also be distributed
+  over a reproducible, cross-platform worker cluster. The Shiny application
+  runs EFRM fits in a background process, defaults to four workers where the
+  system permits, records the bootstrap seed, reports progress and permits the
+  fit to be cancelled without retaining a partial result.
+* BTL-EFRM judge bootstraps likewise default to four workers where available.
+  A fixed seed gives the same result for any worker count. The application runs
+  these fits in the background and supports progress reporting and cancellation.
 * `frame_invariance()` compares item locations and discrimination across
   separately calibrated frames. The conditional method tests locations and
   reports discrimination descriptively. The person-within-frame bootstrap

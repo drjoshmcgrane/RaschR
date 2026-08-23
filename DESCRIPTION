@@ -28,9 +28,10 @@ URL: https://drjoshmcgrane.github.io/rasch/, https://github.com/drjoshmcgrane/ra
 BugReports: https://github.com/drjoshmcgrane/rasch/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
-Imports: stats, graphics, grDevices, utils
+Imports: stats, graphics, grDevices, utils, parallel, Rcpp
+LinkingTo: Rcpp
 Suggests: testthat (>= 3.0.0), shiny, bslib, DT, bsicons, htmltools, xml2,
-    knitr, rmarkdown, eRm, sirt, psychotools, mirt, ShinyItemAnalysis
+    knitr, rmarkdown, eRm, sirt, psychotools, mirt, ShinyItemAnalysis, callr
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3

@@ -81,12 +81,32 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src, 'input$spread_padj %||% "holm"', fixed = TRUE)
   expect_match(src, 'spread_test(fit, alpha = %s, p_adjust = %s)',
                fixed = TRUE)
+  expect_match(src, 'callr::r_bg', fixed = TRUE)
+  expect_match(src, 'Cancel EFRM estimation', fixed = TRUE)
+  expect_match(src, 'input$ef_workers', fixed = TRUE)
+  expect_match(src, 'selected = max(.efrm_worker_values)', fixed = TRUE)
+  expect_match(src, 'input$ef_seed', fixed = TRUE)
+  expect_match(src, 'process$kill_tree()', fixed = TRUE)
+  expect_match(src, 'paste0("workers = ", workers)', fixed = TRUE)
+  expect_match(src, 'paste0("seed = ", seed)', fixed = TRUE)
+  expect_match(src, '0.10 + 0.84 * fraction', fixed = TRUE)
+  expect_match(src, '"full person bootstrap" = 0.50 + 0.44 * fraction',
+               fixed = TRUE)
+  expect_false(grepl('"Hybrid (fast)"', src, fixed = TRUE))
 
   # Inference defaults and structural remedies are deliberately conservative.
   expect_match(src, '"Judge bootstrap (recommended)" = "judge_bootstrap"',
                fixed = TRUE)
   expect_match(src, '"Parametric bootstrap" = "bootstrap"', fixed = TRUE)
   expect_match(src, 'input$btlef_se %||% "judge_bootstrap"', fixed = TRUE)
+  expect_match(src, 'input$btlef_workers', fixed = TRUE)
+  expect_match(src, 'input$btlef_seed', fixed = TRUE)
+  expect_match(src, 'identical(se_method, "judge_bootstrap")', fixed = TRUE)
+  expect_match(src, 'Cancel frame estimation', fixed = TRUE)
+  expect_match(src, 'btlef_job <- reactiveVal(NULL)', fixed = TRUE)
+  expect_match(src, 'process$kill_tree()', fixed = TRUE)
+  expect_match(src, '"boot_reps = %s, workers = %s, seed = %s, "',
+               fixed = TRUE)
   expect_false(grepl('input$pc_id', src, fixed = TRUE))
   expect_match(src, 'unique(f$virtual_map$item)', fixed = TRUE)
   expect_match(src, "A location split cannot model", fixed = TRUE)

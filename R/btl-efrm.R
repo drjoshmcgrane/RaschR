@@ -571,6 +571,16 @@
 #'   probabilities and omnibus tests are therefore withheld.
 #' @param boot_reps Number of replicates for \code{se_method = "bootstrap"}
 #'   or \code{"judge_bootstrap"}; at least 30 are required.
+#' @param workers Number of judge-bootstrap workers. The default is four,
+#'   reduced when the system limit is lower. The parametric bootstrap remains
+#'   serial because its refits are inexpensive.
+#' @param seed Optional bootstrap seed. The caller's random-number state is
+#'   restored when estimation finishes.
+#' @param progress Optional function called as \code{progress(stage, current,
+#'   total)} during estimation.
+#' @param cancel Optional zero-argument function checked between bootstrap
+#'   batches. Returning \code{TRUE} stops with a \code{rasch_cancelled}
+#'   condition.
 #' @param maxit,tol Newton iteration cap and convergence tolerance.
 #' @return An object of class \code{"rasch_btl_efrm"}. It contains the object
 #'   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
@@ -619,7 +629,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                      ties = c("drop", "error"), min_link = 20,
                      se_method = c("judge_bootstrap", "bootstrap",
                                    "conditional"),
-                     boot_reps = 200, maxit = 60, tol = 1e-8) {
+                     boot_reps = 200, workers = 4L, seed = NULL,
+                     progress = NULL, cancel = NULL,
+                     maxit = 60, tol = 1e-8) {
   .check_column_names(data)
   ties <- match.arg(ties)
   se_method <- match.arg(se_method)
@@ -629,6 +641,35 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   boot_reps <- as.integer(boot_reps)
   if (se_method %in% c("bootstrap", "judge_bootstrap") && boot_reps < 30L)
     stop("BTL-EFRM bootstrap inference needs at least 30 replicates")
+  if (length(workers) != 1L || !is.finite(workers) || workers < 1L ||
+      workers != floor(workers))
+    stop("workers must be one positive whole number")
+  workers <- as.integer(workers)
+  workers <- if (se_method == "judge_bootstrap")
+    min(workers, .rasch_available_workers(), boot_reps) else 1L
+  if (workers > 1L &&
+      !file.exists(system.file("DESCRIPTION", package = "rasch")))
+    stop("parallel BTL-EFRM workers require an installed package; install ",
+         "rasch before using workers above one")
+  if (!is.null(progress) && !is.function(progress))
+    stop("progress must be NULL or a function")
+  if (!is.null(cancel) && !is.function(cancel))
+    stop("cancel must be NULL or a function")
+  if (!is.null(seed)) {
+    if (length(seed) != 1L || !is.finite(seed) || seed < 0 ||
+        seed != floor(seed) || seed > .Machine$integer.max)
+      stop("seed must be NULL or one non-negative whole number within the integer range")
+    seed <- as.integer(seed)
+    old_seed <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(old_seed), add = TRUE)
+    set.seed(seed)
+  }
+  report <- function(stage, current, total) {
+    if (is.function(cancel) && isTRUE(cancel()))
+      .rasch_cancelled("BTL-EFRM estimation")
+    if (is.function(progress)) progress(stage, current, total)
+    invisible(NULL)
+  }
   if (!is.null(response))
     stop("btl_efrm fits dichotomous winner data only in this first ",
          "implementation; a polytomous `response` is not supported. Reduce the ",
@@ -904,7 +945,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
          converged = isTRUE(s1_conv && s2_conv))
   }
 
+  report("two-stage fit", 0L, 1L)
   fit0 <- fit_once(y)
+  report("two-stage fit", 1L, 1L)
   if (S > 1L && isTRUE(fit0$s2_separated))
     stop("the cross-set comparisons are (quasi-)completely separated: one ",
          "set beats the other in essentially every cross-set comparison, so ",
@@ -981,10 +1024,17 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     if (nj_min < 5L)
       notes <- c(notes, sprintf(
         "judge bootstrap: smallest panel has only %d judges; resampling so few is unstable and the SEs are rough", nj_min))
-    draws <- list()
+    report("judge bootstrap", 0L, boot_reps)
+    takes <- vector("list", boot_reps)
     for (bb in seq_len(boot_reps)) {
-      take <- unlist(lapply(judges_by_panel, function(js)
+      if (is.function(cancel) && isTRUE(cancel()))
+        .rasch_cancelled("BTL-EFRM estimation")
+      takes[[bb]] <- unlist(lapply(judges_by_panel, function(js)
         sample(js, length(js), replace = TRUE)), use.names = FALSE)
+    }
+    exp_ok <- is.finite(c(log(phi), log(alpha), kappa))
+    one_judge_boot <- function(bb) {
+      take <- takes[[bb]]
       idx <- unlist(jd_rows[take], use.names = FALSE)
       jd_new <- rep(paste0(take, "#", seq_along(take)),
                     lengths(jd_rows[take]))
@@ -993,11 +1043,12 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                          judge = jd_new, stringsAsFactors = FALSE)
       pmap_b <- setNames(pan[idx][!duplicated(jd_new)], unique(jd_new))
       fb <- tryCatch(suppressWarnings(
-        btl_efrm(df_b, "oa", "ob", "win", "judge", panels = pmap_b,
-                 object_sets = object_sets, ties = "drop",
-                 min_link = min_link, se_method = "conditional",
-                 maxit = maxit, tol = tol)), error = function(e) NULL)
-      if (is.null(fb) || !isTRUE(fb$converged)) { boot_fail <- boot_fail + 1L; next }
+        utils::getFromNamespace("btl_efrm", "rasch")(
+          df_b, "oa", "ob", "win", "judge", panels = pmap_b,
+          object_sets = object_sets, ties = "drop",
+          min_link = min_link, se_method = "conditional", workers = 1L,
+          maxit = maxit, tol = tol)), error = function(e) NULL)
+      if (is.null(fb) || !isTRUE(fb$converged)) return(NULL)
       lphi_b <- log(fb$phi_table$phi)[match(panels_u, fb$phi_table$panel)]
       la_b <- log(fb$alpha_table$alpha)[match(sets_u, fb$alpha_table$set)]
       ka_b <- fb$kappa_table$kappa[match(sets_u, fb$kappa_table$set)]
@@ -1005,10 +1056,17 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       v_b <- fb$objects$v[match(objs_all, fb$objects$object)]
       # a unit the OBSERVED fit already reports NA (unidentified) is NA in
       # replicates too; only unexpected NAs mark a failed replicate
-      exp_ok <- is.finite(c(log(phi), log(alpha), kappa))
-      if (anyNA(c(lphi_b, la_b, ka_b)[exp_ok])) { boot_fail <- boot_fail + 1L; next }
-      draws[[length(draws) + 1L]] <- c(lphi_b, la_b, ka_b, bh_b, v_b)
+      if (anyNA(c(lphi_b, la_b, ka_b)[exp_ok])) return(NULL)
+      c(lphi_b, la_b, ka_b, bh_b, v_b)
     }
+    ans <- .rasch_boot_apply(
+      boot_reps, one_judge_boot, workers,
+      progress = function(current, total)
+        report("judge bootstrap", current, total),
+      cancel = cancel, label = "BTL-EFRM judge-bootstrap")
+    good_draw <- !vapply(ans, is.null, logical(1))
+    boot_fail <- sum(!good_draw)
+    draws <- ans[good_draw]
     if (length(draws) < max(20L, ceiling(boot_reps / 2)))
       stop("judge bootstrap failed on ", boot_fail, " of ", boot_reps,
            " replicates; too few judges per panel for stable resampling -- ",
@@ -1056,13 +1114,16 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (se_method == "bootstrap") {
     p_hat <- pmin(pmax(fit0$p_all, 1e-8), 1 - 1e-8)
     draws <- list()
+    report("parametric bootstrap", 0L, boot_reps)
     for (bb in seq_len(boot_reps)) {
+      report("parametric bootstrap", bb - 1L, boot_reps)
       yb <- rbinom(length(p_hat), 1L, p_hat)
       fb <- tryCatch(fit_once(yb), error = function(e) NULL)
       if (is.null(fb) || !isTRUE(fb$converged)) { boot_fail <- boot_fail + 1L; next }
       draws[[length(draws) + 1L]] <- c(log(fb$phi), log(fb$alpha), fb$kappa,
                                        fb$bhat, fb$v)
     }
+    report("parametric bootstrap", boot_reps, boot_reps)
     if (length(draws) < max(20L, ceiling(boot_reps / 2)))
       stop("parametric bootstrap failed on ", boot_fail, " of ", boot_reps,
            " replicates; the design is too sparse for stable resampling -- ",
@@ -1362,6 +1423,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       "too one-sided); they were excluded from the phi reconciliation and ",
       "refit with the panel units held at the reconciled phi"))
 
+  report("finalising", 1L, 1L)
   out <- list(objects = objects, phi_table = phi_table,
               alpha_table = alpha_table, kappa_table = kappa_table,
               unit_omnibus = unit_omnibus,
@@ -1390,8 +1452,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
               categories = c("0", "1"), dependence = NULL,
               dependence_data = NULL,
               se_method = se_method,
+              workers = workers, seed = seed,
               boot_reps = if (se_method %in% c("bootstrap", "judge_bootstrap"))
                 boot_reps else NA_integer_,
+              boot_reps_used = if (se_method %in%
+                c("bootstrap", "judge_bootstrap")) length(draws) else NA_integer_,
               se_note = if (se_method == "judge_bootstrap")
                 paste("standard errors from a judge-resampling bootstrap",
                       "(judges redrawn with replacement within panels, the",

@@ -17,6 +17,10 @@ btl_efrm(
   min_link = 20,
   se_method = c("judge_bootstrap", "bootstrap", "conditional"),
   boot_reps = 200,
+  workers = 4L,
+  seed = NULL,
+  progress = NULL,
+  cancel = NULL,
   maxit = 60,
   tol = 1e-08
 )
@@ -62,6 +66,20 @@ probabilities and omnibus tests are therefore withheld.}
 
 \item{boot_reps}{Number of replicates for \code{se_method = "bootstrap"}
 or \code{"judge_bootstrap"}; at least 30 are required.}
+
+\item{workers}{Number of judge-bootstrap workers. The default is four,
+reduced when the system limit is lower. The parametric bootstrap remains
+serial because its refits are inexpensive.}
+
+\item{seed}{Optional bootstrap seed. The caller's random-number state is
+restored when estimation finishes.}
+
+\item{progress}{Optional function called as \code{progress(stage, current,
+total)} during estimation.}
+
+\item{cancel}{Optional zero-argument function checked between bootstrap
+batches. Returning \code{TRUE} stops with a \code{rasch_cancelled}
+condition.}
 
 \item{maxit, tol}{Newton iteration cap and convergence tolerance.}
 }
