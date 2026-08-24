@@ -65,7 +65,7 @@ common scale.
 
 The item-response models follow Rasch (1960) and Andrich and Marais (2019).
 The explanatory item models follow Fischer (1973) and Fischer and Ponocny
-(1994). Continuous, categorical or ordinal characteristics may be used; the
+(1994), within the explanatory framework of De Boeck and Wilson (2004). Continuous, categorical or ordinal characteristics may be used; the
 comparative-judgement formulation applies the same fixed design to
 Bradley--Terry--Luce object locations.
 The frame models follow Humphry (2005) and Humphry and Andrich (2008). The
@@ -140,7 +140,7 @@ documents the data requirements and returned values for each analysis. The
 workflow, many-facet and extended-frame models, comparative judgement,
 explanatory modelling, repeated-measures DIF and validation. A separate case
 study develops an explanatory partial credit model for the verbal aggression
-data.
+data of Smits, De Boeck, and Vansteelandt (2004).
 
 `wright_map()` prepares fitted person and item estimates for the optional
 `WrightMap` package. Person estimates can be separated using variables
