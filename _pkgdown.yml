@@ -54,9 +54,11 @@ articles:
   - many-facet
   - extended-frame-reference
   - explanatory-models
-  - case-study-verbal-aggression
   - paired-comparisons
   - plant-and-detect
+- title: Case studies
+  contents:
+  - case-study-verbal-aggression
 
 reference:
 - title: Estimation
