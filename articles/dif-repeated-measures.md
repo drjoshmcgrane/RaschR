@@ -24,25 +24,27 @@ non-uniform DIF. With several factors, `dif_anova` fits their terms
 jointly and uses Type II sums of squares.
 
 The following dataset has two observations per person. Item I03 has a
-group shift and item I06 has an occasion shift.
+group shift, item I06 has an occasion shift, and item I05 shifts for
+group B at the second occasion only, a group-by-occasion interaction.
 
 ``` r
 
 set.seed(21)
-N <- 240
+N <- 320
 difficulty <- seq(-1.5, 1.5, length.out = 8)
 theta <- rnorm(N)
 group <- rep(c("A", "B"), each = N / 2)
 
-make_wave <- function(occasion_shift) {
+make_wave <- function(occasion_shift, interaction_shift) {
   shift <- matrix(0, N, 8)
-  shift[group == "B", 3] <- 0.8
+  shift[group == "B", 3] <- 1.2
   shift[, 6] <- occasion_shift
+  shift[group == "B", 5] <- interaction_shift
   matrix(rbinom(N * 8, 1,
                 plogis(outer(theta, difficulty, "-") - shift)), N, 8)
 }
 
-X <- rbind(make_wave(0), make_wave(0.9))
+X <- rbind(make_wave(0, 0), make_wave(1.0, 2.0))
 colnames(X) <- sprintf("I%02d", 1:8)
 dat <- data.frame(
   pid = rep(sprintf("P%03d", seq_len(N)), 2),
@@ -69,42 +71,58 @@ large-sample approximations.
 
 fit <- rasch(dat, id = "pid", factors = c("group", "occasion"),
              items = sprintf("I%02d", 1:8))
-da <- dif_anova(fit, within = "occasion", sizes = TRUE)
+da <- dif_anova(fit, within = "occasion", effects = "factorial", sizes = TRUE)
 da$summary
-#>  item     term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>   I01    group     0.717     0.398         1.000        0.003            
-#>   I01 occasion     0.002     0.962         1.000        0.000            
-#>   I02    group     0.087     0.768         1.000        0.000            
-#>   I02 occasion     0.748     0.388         1.000        0.003            
-#>   I03    group    14.764   < 0.001         0.005        0.064           *
-#>   I03 occasion     0.521     0.471         1.000        0.002            
-#>   I04    group     0.055     0.815         1.000        0.000            
-#>   I04 occasion     0.354     0.552         1.000        0.002            
-#>   I05    group     3.776     0.053         1.000        0.017            
-#>   I05 occasion     6.853     0.009         0.283        0.029            
-#>   I06    group     0.354     0.552         1.000        0.002            
-#>   I06 occasion    19.381   < 0.001       < 0.001        0.077           *
-#>   I07    group     0.022     0.881         1.000        0.000            
-#>   I07 occasion     1.525     0.218         1.000        0.007            
-#>   I08    group     0.721     0.397         1.000        0.003            
-#>   I08 occasion     3.944     0.048         1.000        0.017            
+#>  item           term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
+#>   I01          group     0.786     0.376         1.000        0.003            
+#>   I01       occasion     0.875     0.350         1.000        0.003            
+#>   I01 group:occasion     3.153     0.077         1.000        0.010            
+#>   I02          group     0.287     0.593         1.000        0.001            
+#>   I02       occasion     4.885     0.028         1.000        0.016            
+#>   I02 group:occasion     0.809     0.369         1.000        0.003            
+#>   I03          group    15.018   < 0.001         0.006        0.048           *
+#>   I03       occasion     1.340     0.248         1.000        0.004            
+#>   I03 group:occasion     2.787     0.096         1.000        0.009            
+#>   I04          group     1.292     0.257         1.000        0.004            
+#>   I04       occasion     1.327     0.250         1.000        0.004            
+#>   I04 group:occasion     1.821     0.178         1.000        0.006            
+#>   I05          group    15.045   < 0.001         0.006        0.051           *
+#>   I05       occasion    10.604     0.001         0.055        0.033            
+#>   I05 group:occasion    27.711   < 0.001       < 0.001        0.083           *
+#>   I06          group     6.249     0.013         0.544        0.020            
+#>   I06       occasion    19.306   < 0.001       < 0.001        0.059           *
+#>   I06 group:occasion     2.340     0.127         1.000        0.008            
+#>   I07          group     4.837     0.029         1.000        0.015            
+#>   I07       occasion     4.613     0.033         1.000        0.015            
+#>   I07 group:occasion     2.761     0.098         1.000        0.009            
+#>   I08          group     1.259     0.263         1.000        0.004            
+#>   I08       occasion     0.491     0.484         1.000        0.002            
+#>   I08 group:occasion     1.593     0.208         1.000        0.005            
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         1.798        0.148            1.000           0.023               
-#>         0.894        0.445            1.000           0.011               
-#>         1.153        0.328            1.000           0.015               
-#>         0.657        0.579            1.000           0.008               
-#>         0.569        0.636            1.000           0.007               
-#>         0.207        0.892            1.000           0.003               
-#>         0.618        0.604            1.000           0.008               
-#>         1.441        0.231            1.000           0.018               
-#>         0.196        0.899            1.000           0.003               
-#>         0.228        0.877            1.000           0.003               
-#>         0.133        0.940            1.000           0.002               
-#>         2.016        0.112            1.000           0.026               
-#>         1.374        0.251            1.000           0.018               
-#>         0.769        0.512            1.000           0.010               
-#>         1.375        0.251            1.000           0.018               
-#>         0.819        0.485            1.000           0.011               
+#>         0.212        0.932            1.000           0.003               
+#>         1.165        0.326            1.000           0.015               
+#>         1.051        0.381            1.000           0.014               
+#>         3.400        0.010            0.416           0.042               
+#>         0.814        0.517            1.000           0.010               
+#>         1.631        0.166            1.000           0.021               
+#>         2.355        0.054            1.000           0.030               
+#>         2.148        0.075            1.000           0.027               
+#>         0.421        0.793            1.000           0.005               
+#>         0.513        0.726            1.000           0.007               
+#>         1.739        0.141            1.000           0.022               
+#>         1.083        0.365            1.000           0.014               
+#>         2.483        0.044            1.000           0.031               
+#>         0.812        0.518            1.000           0.010               
+#>         2.916        0.022            0.886           0.037               
+#>         1.294        0.272            1.000           0.017               
+#>         1.333        0.257            1.000           0.017               
+#>         1.000        0.408            1.000           0.013               
+#>         0.558        0.693            1.000           0.007               
+#>         0.645        0.631            1.000           0.008               
+#>         1.597        0.175            1.000           0.020               
+#>         1.514        0.198            1.000           0.019               
+#>         0.386        0.818            1.000           0.005               
+#>         0.886        0.472            1.000           0.011               
 #>  superseded
 #>            
 #>            
@@ -112,6 +130,14 @@ da$summary
 #>            
 #>            
 #>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>            
+#>           *
+#>           *
 #>            
 #>            
 #>            
@@ -126,11 +152,13 @@ da$summary
 
 The multiplicity adjustment covers the complete family of
 item-by-DIF-term tests. Uniform DIF is a factor effect that is stable
-over the trait; a factor-by-class-interval effect is non-uniform DIF. If
-person-factor interactions are substantively required, use
-`effects = "factorial"` and interpret a significant higher-order term
-before its component main effects. Read adjusted probabilities with
-effect sizes before changing an item.
+over the trait; a factor-by-class-interval effect is non-uniform DIF.
+`effects = "factorial"` adds the person-factor interactions. A
+significant higher-order term supersedes its component group terms
+within the same item: item I05’s group effect is significant on its own,
+but the `superseded` flag records that the interaction absorbs it, and
+the follow-ups report the interaction rather than its components. Read
+adjusted probabilities with effect sizes before changing an item.
 
 ## Quantify the departure
 
@@ -144,10 +172,10 @@ uses person-level differencing for within-person questions.
 dif_size(fit, "I03", by = "group")
 #> DIF size for I03 by group (resolved locations, logits)
 #>  level location se weak   n
-#>      A   -0.549       0 240
-#>      B    0.295       0 240
+#>      A   -0.518       0 320
+#>      B    0.227       0 320
 #>  level_a level_b difference se z p p_adj lower upper significant practical  ets
-#>        A       B     -0.844                                        >= 0.50 <NA>
+#>        A       B     -0.745                                        >= 0.50 <NA>
 #>  signed_area
 #>             
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
@@ -155,26 +183,28 @@ dif_size(fit, "I03", by = "group")
 dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion")
 dc$table
 #>  item                         contrast within estimate se statistic      df
-#>   I03                     group: B - A           0.841        4.090 237.998
-#>   I03                occasion: T2 - T1      *   -0.166       -0.716 233.639
-#>   I03 group(B - A) x occasion(T2 - T1)      *   -0.071       -0.230 233.639
-#>   I06                     group: B - A           0.046        0.484 237.564
-#>   I06                occasion: T2 - T1      *    1.043        4.653 226.506
-#>   I06 group(B - A) x occasion(T2 - T1)      *   -0.246       -1.119 226.506
+#>   I03                     group: B - A           0.737        4.044 316.916
+#>   I03                occasion: T2 - T1      *   -0.258       -0.876 313.935
+#>   I03 group(B - A) x occasion(T2 - T1)      *   -0.258       -1.397 313.935
+#>   I06                     group: B - A          -0.434       -2.138 308.822
+#>   I06                occasion: T2 - T1      *    0.906        4.438 298.364
+#>   I06 group(B - A) x occasion(T2 - T1)      *    0.134        1.220 298.364
 #>        p   p_adj lower upper significant practical
 #>  < 0.001 < 0.001                       *         *
-#>    0.475   1.000                                  
-#>    0.818   1.000                                  
-#>    0.629   1.000                                  
+#>    0.382   0.490                                  
+#>    0.163   0.490                                  
+#>    0.033   0.133                                  
 #>  < 0.001 < 0.001                       *         *
-#>    0.264   1.000
+#>    0.223   0.490
 da$posthoc
-#>  item     term item.1 contrast within estimate se statistic      df       p
-#>   I03    group    I03    B - A           0.841        4.090 237.998 < 0.001
-#>   I06 occasion    I06  T2 - T1      *    1.043        4.653 226.506 < 0.001
-#>    p_adj lower upper significant practical
-#>  < 0.001                       *         *
-#>  < 0.001                       *         *
+#>  item           term item.1        contrast within estimate se statistic
+#>   I03          group    I03           B - A           0.737        4.044
+#>   I05 group:occasion    I05 B - A x T2 - T1      *    2.140        5.137
+#>   I06       occasion    I06         T2 - T1      *    0.906        4.438
+#>       df       p   p_adj lower upper significant practical
+#>  316.916 < 0.001 < 0.001                       *         *
+#>  317.916 < 0.001 < 0.001                       *         *
+#>  298.364 < 0.001 < 0.001                       *         *
 ```
 
 [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
@@ -184,7 +214,11 @@ other fitted factors. An interaction is reported as a
 difference-in-differences, or its higher-order counterpart. These
 comparisons use the joint covariance of the resolved item locations and
 Holm adjustment over the stated family. The result is on the logit scale
-and respects the factor structure used in the DIF analysis.
+and respects the factor structure used in the DIF analysis. Here item
+I03 is reported as a pairwise group difference, item I06 as a
+person-level occasion contrast, and item I05 as the
+difference-in-differences of its interaction; the superseded I05 group
+term receives no follow-up of its own.
 
 For repeated-person contrasts, significance comes from person-level
 residual contrast scores with the same design-cell weights as the
