@@ -1,0 +1,14 @@
+---
+title: "Case study: wording effects in the Rosenberg Self-Esteem Scale"
+---
+
+Positively and negatively worded self-esteem items are treated as two item sets with their own units. The set-unit difference turns out to be carried largely, though not entirely, by one well-known ambivalent item, and the script develops the sensitivity analysis that shows it, cross-checked against a free-slope model on the same respondents. The data are downloaded from the Open Source Psychometrics Project at run time.
+
+The complete script ships with the package and runs from a plain R session:
+
+```r
+file.edit(system.file("casestudies", "wording_units_selfesteem.R", package = "rasch"))
+```
+
+```{r script, echo = TRUE, eval = FALSE, code = readLines(file.path("..", "..", "inst", "casestudies", "wording_units_selfesteem.R"))}
+```

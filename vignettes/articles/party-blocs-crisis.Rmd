@@ -1,0 +1,14 @@
+---
+title: "Case study: panel and bloc frames in political paired comparisons"
+---
+
+Paired comparisons between political parties, judged by panels during a government crisis, fitted with the comparative-judgement frame model: panels and party blocs carry their own units, and the script compares bootstrap with judge-clustered standard errors on the panel-unit ratio.
+
+The complete script ships with the package and runs from a plain R session:
+
+```r
+file.edit(system.file("casestudies", "party_blocs_crisis.R", package = "rasch"))
+```
+
+```{r script, echo = TRUE, eval = FALSE, code = readLines(file.path("..", "..", "inst", "casestudies", "party_blocs_crisis.R"))}
+```

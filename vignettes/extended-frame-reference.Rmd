@@ -1,9 +1,9 @@
 ---
-title: "The extended frame of reference model"
+title: "The Extended Frame of Reference model"
 author: "Josh McGrane"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{The extended frame of reference model}
+  %\VignetteIndexEntry{The Extended Frame of Reference model}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

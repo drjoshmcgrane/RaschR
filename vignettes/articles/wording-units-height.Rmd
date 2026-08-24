@@ -1,0 +1,14 @@
+---
+title: "Case study: a wording effect that leaves the person ordering alone"
+---
+
+The Height Inventory asks about self-perceived height with thirteen items worded in each direction by design. Its wording-unit difference survives every single-item removal, and yet the equal-unit and wording-unit person measures agree to four decimals against a criterion collected outside the inventory -- a unit difference can be decisive for the items and inconsequential for the persons, and only a criterion says which.
+
+The complete script ships with the package and runs from a plain R session:
+
+```r
+file.edit(system.file("casestudies", "wording_units_height.R", package = "rasch"))
+```
+
+```{r script, echo = TRUE, eval = FALSE, code = readLines(file.path("..", "..", "inst", "casestudies", "wording_units_height.R"))}
+```
