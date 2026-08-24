@@ -1,8 +1,8 @@
 ---
-title: "Case study: verbal aggression"
+title: "Case study: an explanatory model of verbal aggression"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Case study: verbal aggression}
+  %\VignetteIndexEntry{Case study: an explanatory model of verbal aggression}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
