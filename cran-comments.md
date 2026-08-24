@@ -22,7 +22,7 @@ estimators now apply explicit checks for connectedness, separation, rank,
 sparse categories, and weak identification, and withhold probabilities
 rather than report unstable ones.
 
-The package title, description, help pages, eight vignettes, and graphical
+The package title, description, help pages, seven vignettes, and graphical
 interface have also been revised for this release.
 
 ## Test environments
@@ -36,13 +36,14 @@ interface have also been revised for this release.
 0 errors | 0 warnings | 0 notes locally; win-builder adds the
 incoming-feasibility NOTE only.
 
-This is a resubmission. The previous submission was archived by the
-pretest for overall check time on Windows (32 minutes). The test suite
-now runs a core subset on CRAN that exercises every estimator and
-inference path once; the complete suite runs whenever NOT_CRAN is true,
-locally and in continuous integration on three operating systems. The
-heaviest vignette was also reduced. The full check now completes well
-inside the pretest budget.
+This is a resubmission, following the pretest feedback on overall check
+time (32 minutes, then 12). The test suite now runs a small core on
+CRAN that exercises every estimator once; the complete suite runs
+whenever NOT_CRAN is true, locally and in continuous integration on
+three operating systems. The verbal aggression case study moved from
+the vignettes to the documentation site alongside the other case
+studies, and the extended-frame vignette simulates a smaller sample.
+The full check completes in three minutes locally.
 
 The two words flagged by the incoming spell check, 'Ponocny' and 'Tutz',
 are author surnames from references in the Description.
@@ -56,7 +57,7 @@ unauthenticated non-browser requests for the /issues and /pulls paths
 alike, and pull requests cannot be disabled on a public repository, so
 the status reflects that behaviour rather than a broken link.
 
-The package was built from source with its eight vignettes before checking.
+The package was built from source with its seven vignettes before checking.
 Simulation-intensive and bootstrap-calibration tests use `skip_on_cran()`;
 they run locally and in continuous integration.
 
