@@ -236,6 +236,11 @@
   directly.
 - The shipped EFRM and BTL-EFRM case studies now use the current linking
   and uncertainty methods.
+- [`plot_scree()`](https://drjoshmcgrane.github.io/rasch/reference/plot_scree.md)
+  and
+  [`plot_btl_scree()`](https://drjoshmcgrane.github.io/rasch/reference/plot_btl_scree.md)
+  label their component axes at whole components only, instead of
+  overprinting the default axis.
 
 ## rasch 1.11.7
 

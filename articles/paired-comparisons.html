@@ -187,10 +187,11 @@ primary scale is fitted.</p>
 <span><span class="co">#&gt; Paired-comparison residual dimensionality: 3 bimension(s)</span></span>
 <span><span class="co">#&gt; Leading bimension strength 2.409 (70% of residual; reference 95%: 2.843) -&gt; within the conditional reference</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_btl_transitivity.html">plot_btl_transitivity</a></span><span class="op">(</span><span class="va">tr</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/plot_btl_scree.html">plot_btl_scree</a></span><span class="op">(</span><span class="va">dimensions</span><span class="op">)</span></span></code></pre></div>
-<p><img src="paired-comparisons_files/figure-html/plots-1.png" class="r-plt" alt="Paired-comparison transitivity and residual dimensionality diagnostics." width="672"></p>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_btl_transitivity.html">plot_btl_transitivity</a></span><span class="op">(</span><span class="va">tr</span><span class="op">)</span></span></code></pre></div>
+<p><img src="paired-comparisons_files/figure-html/plot-transitivity-1.png" class="r-plt" alt="Per-judge consistency of the paired comparisons." width="672"></p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_btl_scree.html">plot_btl_scree</a></span><span class="op">(</span><span class="va">dimensions</span><span class="op">)</span></span></code></pre></div>
+<p><img src="paired-comparisons_files/figure-html/plot-scree-1.png" class="r-plt" alt="Residual bimension strengths against the simulated noise reference." width="672"></p>
 <p>The simulation reference for dimensionality uses twenty replicates
 here to keep the vignette quick. A final analysis should use enough
 replicates to stabilise the reference distribution.</p>
@@ -206,7 +207,7 @@ the precision of judge means to vary with their comparison workloads.
 Omnibus and pairwise inference require at least eight judges and eight
 effective judges in each factor level; estimates remain descriptive
 below that boundary. The tables report both counts.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">judge_group</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">panel_data</span><span class="op">$</span><span class="va">discipline</span>, <span class="va">panel_data</span><span class="op">$</span><span class="va">judge</span><span class="op">)</span></span>
 <span><span class="va">bd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_dif.html">btl_dif</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">judge_group</span><span class="op">)</span></span>
 <span><span class="va">bd</span><span class="op">$</span><span class="va">summary</span></span>
@@ -218,7 +219,7 @@ below that boundary. The tables report both counts.</p>
 <p><code>btl_equate</code> aligns two calibrations that share at least
 three objects. For two fitted calibrations, drift inference is withheld
 until independent judges and comparisons are stated explicitly.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_equate.html">btl_equate</a></span><span class="op">(</span><span class="va">current_panel</span>, <span class="va">reference_panel</span>, independent <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">equated</span>                 <span class="co"># reference panel on the current panel's origin</span></span></code></pre></div>
@@ -249,7 +250,7 @@ within-set locations and panel units fixed. It estimates the set
 transformations directly from the comparison outcomes and does not use
 the finite-grid person-distribution link in
 <code><a href="../reference/rasch_efrm.html">rasch_efrm()</a></code>.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">de</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl_efrm.html">simulate_btl_efrm</a></span><span class="op">(</span></span>
 <span>  n_objects_per_set <span class="op">=</span> <span class="fl">5</span>, n_sets <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  n_judges_per_panel <span class="op">=</span> <span class="fl">6</span>, n_panels <span class="op">=</span> <span class="fl">2</span>,</span>

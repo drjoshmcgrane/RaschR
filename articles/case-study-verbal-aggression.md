@@ -1,4 +1,4 @@
-# Case study: verbal aggression
+# Case study: an explanatory model of verbal aggression
 
 The verbal aggression data contain the responses of 316 students to 24
 items (De Boeck and Wilson, 2004; Smits, De Boeck, and Vansteelandt,

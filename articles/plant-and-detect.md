@@ -308,7 +308,7 @@ provenance in the result tables:
 | Frame-invariance bootstrap power | two affected items, 500 persons/frame | 96.3% for a one-logit location shift; 9.6% for a 1.5-fold discrimination change (120 replicates) |
 | Comparative judgement contrasts | 10-50 judges, balanced | 5.0% size, 94.5% coverage (1,200 replicates) |
 | Effective-judge thresholds | one judge with 15-50% of comparisons | ~9% at 4 effective, ~7% at 6-7, nominal when balanced |
-| Equating familywise error | 3, 5, and 10 anchors | 4.9-5.5% (2,000-4,000 replicates) |
+| Equating familywise error | 3, 5, and 10 anchors | 4.8-5.0% under the Holm adjustment (2,000 replicates per anchor count) |
 | Person-measure coverage | 10-item test, central range | 0.945-0.983; conservative in the tails |
 | Tailored bootstrap | 300 persons, 8 items, 399 resamples | clean-item familywise error 0-2.5%; at least one of two hard items detected in 17.5% and 26.3% of datasets with guessing 0.15 and 0.30 (80 full-procedure replicates per effect) |
 | CL-AIC model selection | PCM vs RSM; free vs PC thresholds (items and CJ) | null false selection 4.5-5.2% multi-parameter, ~17% one-parameter (the theoretical AIC rates); at the strongest tested departures, selection was 50% for PCM vs RSM and 99.5-100% for the threshold-structure comparisons |
@@ -319,6 +319,7 @@ provenance in the result tables:
 | BTL-EFRM staged link | 6 objects/set, 12 judges | log set-unit bias decreased from -0.108 at 10 repetitions per pair to -0.041 at 20, -0.016 at 50 and -0.007 at 100; bootstrap coverage was 0.933-0.950 at 20 repetitions |
 | Explanatory Rasch models | LLTM, LPCM, dichotomous and ordered CJ, with independent or judge-clustered comparisons | coefficient bias at most 0.005 logits, empirical SD/mean SE 0.99-1.03, coverage 0.938-0.955, and Kent-adjusted null rejection 4.2-6.0% (1,000 replicates per condition); fixed-departure Holm familywise error 4.3-4.7% and power 98.3-100% for a 0.8-logit departure (300 replicates per condition) |
 | Explanatory edge cases | 300-2,000 persons; dichotomous, four-category and mixed-maximum-score items | empirical SD/mean SE 0.993-1.026, coverage 0.942-0.954, Kent-adjusted null rejection 4.3-5.8%, and no refusals or non-convergence (1,000 replicates per condition); the unscaled probability rejected 98.6-100% and is retained only as `p_naive` |
+| Explanatory calibration R-squared | uninformative and true designs, 12 and 24 items | the raw coefficient averaged 0.170 and 0.085 for uninformative designs where the adjusted coefficient centred at -0.015 and -0.002; a true design gave 0.948 raw and 0.936 adjusted (300 replicates per condition) |
 
 ## References
 

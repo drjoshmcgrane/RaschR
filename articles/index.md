@@ -19,7 +19,7 @@
 
 ### Case studies
 
-- [Case study: verbal
+- [Case study: an explanatory model of verbal
   aggression](https://drjoshmcgrane.github.io/rasch/articles/case-study-verbal-aggression.md):
 - [Case study: wording effects in the Rosenberg Self-Esteem
   Scale](https://drjoshmcgrane.github.io/rasch/articles/wording-units-selfesteem.md):

@@ -117,13 +117,19 @@ dimensions
 
 ``` r
 
-par(mfrow = c(1, 2))
 plot_btl_transitivity(tr)
+```
+
+![Per-judge consistency of the paired
+comparisons.](paired-comparisons_files/figure-html/plot-transitivity-1.png)
+
+``` r
+
 plot_btl_scree(dimensions)
 ```
 
-![Paired-comparison transitivity and residual dimensionality
-diagnostics.](paired-comparisons_files/figure-html/plots-1.png)
+![Residual bimension strengths against the simulated noise
+reference.](paired-comparisons_files/figure-html/plot-scree-1.png)
 
 The simulation reference for dimensionality uses twenty replicates here
 to keep the vignette quick. A final analysis should use enough
