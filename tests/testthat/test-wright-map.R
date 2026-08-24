@@ -9,6 +9,7 @@ test_that("WrightMap data are prepared for dichotomous and polytomous fits", {
   expect_equal(dim(dd$persons), c(n, 1L))
   expect_equal(dim(dd$items), c(6L, 1L))
   expect_equal(rownames(dd$items), colnames(X))
+  expect_identical(colnames(dd$items), "")
   expect_equal(unname(drop(dd$items)), fd$thresholds$tau)
 
   sim_p <- function(th, tau) {
@@ -24,12 +25,21 @@ test_that("WrightMap data are prepared for dichotomous and polytomous fits", {
   fp <- rasch(Xp)
   dp <- rasch:::.wright_map_data(fp, "thresholds")
   expect_equal(dim(dp$items), c(5L, 3L))
+  expect_identical(colnames(dp$items), paste0("t", 1:3))
   for (i in seq_len(5)) {
     expect_equal(unname(dp$items[i, ]),
                  fp$thresholds$tau[fp$thresholds$item == i])
   }
   expect_equal(unname(drop(rasch:::.wright_map_data(fp, "locations")$items)),
                fp$items$location)
+
+  Xm <- cbind(X[, 1:2, drop = FALSE], Xp[, 1:3, drop = FALSE])
+  colnames(Xm) <- c("D1", "D2", "P1", "P2", "P3")
+  fm <- rasch(Xm)
+  dm <- rasch:::.wright_map_data(fm, "thresholds")
+  expect_identical(colnames(dm$items), paste0("t", 1:3))
+  expect_true(all(is.finite(dm$items[c("D1", "D2"), "t1"])))
+  expect_true(all(is.na(dm$items[c("D1", "D2"), c("t2", "t3")])))
 })
 
 test_that("person and item panels preserve their labels and ordering", {
@@ -101,8 +111,30 @@ test_that("wright_map calls the installed WrightMap interface", {
 
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off())
-  out <- wright_map(fit, main.title = NULL)
+  dim_names <- NULL
+  threshold_text <- NULL
+  capture_person_side <- function(thetas, yRange = NULL, dim.names = NULL, ...) {
+    dim_names <<- dim.names
+    WrightMap::personHist(thetas, yRange = yRange,
+                          dim.names = dim.names, ...)
+  }
+  capture_item_side <- function(thr, yRange = NULL, thr.lab.text = NULL, ...) {
+    threshold_text <<- thr.lab.text
+    WrightMap::itemModern(thr, yRange = yRange,
+                          thr.lab.text = thr.lab.text, ...)
+  }
+  out <- wright_map(fit, main.title = NULL,
+                    person.side = capture_person_side,
+                    item.side = capture_item_side)
   expect_equal(out, rasch:::.wright_map_data(fit)$items)
+  expect_identical(dim_names, "")
+  expect_identical(threshold_text, matrix("", nrow(fit$items), 1L))
+
+  expect_no_error(wright_map(
+    fit, person_panels = rep(c("Sample A", "Sample B"), each = 80),
+    person.side = capture_person_side, main.title = NULL
+  ))
+  expect_identical(dim_names, c("Sample A", "Sample B"))
 
   if ("item.groups" %in% names(formals(WrightMap::wrightMap))) {
     expect_no_error(wright_map(

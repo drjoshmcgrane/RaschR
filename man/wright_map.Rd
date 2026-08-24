@@ -52,11 +52,16 @@ variables retained in the fit or supplied as a matrix. Item panels use the
 }
 \details{
 For partial credit and rating scale models, \code{type = "thresholds"}
-displays each item's estimated category thresholds. \code{type =
-"locations"} displays one location per item. In MFRM and EFRM fits, the
-rows are the calibrated item-by-facet or item-by-frame response columns.
+displays each item's estimated category thresholds, labelled \code{t1},
+\code{t2}, and so on. A wholly dichotomous scale omits the redundant
+\code{t1} labels; in a mixed scale, dichotomous items retain \code{t1} to
+align them with the polytomous items. \code{type = "locations"} displays
+one location per item. In MFRM and EFRM fits, the rows are the calibrated
+item-by-facet or item-by-frame response columns.
 For EFRM fits, \code{person_panels = "groups"} and \code{item_panels =
 "sets"} use the fitted frame design; both may be specified together.
+A single person panel has no heading by default. When several person panels
+are requested, their panel labels are printed above the distributions.
 }
 \examples{
 set.seed(1)

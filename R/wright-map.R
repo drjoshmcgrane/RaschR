@@ -6,11 +6,16 @@
 #' \code{item.groups} facility in WrightMap 1.5.
 #'
 #' For partial credit and rating scale models, \code{type = "thresholds"}
-#' displays each item's estimated category thresholds. \code{type =
-#' "locations"} displays one location per item. In MFRM and EFRM fits, the
-#' rows are the calibrated item-by-facet or item-by-frame response columns.
+#' displays each item's estimated category thresholds, labelled \code{t1},
+#' \code{t2}, and so on. A wholly dichotomous scale omits the redundant
+#' \code{t1} labels; in a mixed scale, dichotomous items retain \code{t1} to
+#' align them with the polytomous items. \code{type = "locations"} displays
+#' one location per item. In MFRM and EFRM fits, the rows are the calibrated
+#' item-by-facet or item-by-frame response columns.
 #' For EFRM fits, \code{person_panels = "groups"} and \code{item_panels =
 #' "sets"} use the fitted frame design; both may be specified together.
+#' A single person panel has no heading by default. When several person panels
+#' are requested, their panel labels are printed above the distributions.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}, including explanatory,
 #'   MFRM and EFRM fits. Comparative-judgement models do not estimate person
@@ -73,8 +78,20 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   }
 
   args <- c(list(thetas = dat$persons, thresholds = dat$items), dots)
-  if (ncol(dat$persons) > 1L && !("dim.names" %in% names(dots)))
-    args$dim.names <- colnames(dat$persons)
+  if (!("dim.names" %in% names(dots))) {
+    if (ncol(dat$persons) == 1L) {
+      args$dim.names <- ""
+    } else {
+      panel_names <- colnames(dat$persons)
+      if (is.null(panel_names) || length(panel_names) != ncol(dat$persons) ||
+          anyNA(panel_names) || any(!nzchar(panel_names)))
+        panel_names <- paste("Panel", seq_len(ncol(dat$persons)))
+      args$dim.names <- panel_names
+    }
+  }
+  if (type == "thresholds" && ncol(dat$items) == 1L &&
+      !("thr.lab.text" %in% names(dots)))
+    args$thr.lab.text <- matrix("", nrow(dat$items), 1L)
   if (!is.null(dat$item_panels)) args$item.groups <- dat$item_panels
   invisible(do.call(WrightMap::wrightMap, args))
 }
@@ -159,8 +176,9 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   if (is.null(thr) || !all(needed %in% names(thr)))
     stop("The fitted object does not contain item thresholds.", call. = FALSE)
   kmax <- max(as.integer(thr$k), na.rm = TRUE)
+  threshold_labels <- if (kmax == 1L) "" else paste0("t", seq_len(kmax))
   ans <- matrix(NA_real_, nrow = length(item_names), ncol = kmax,
-                dimnames = list(item_names, paste0("Threshold ", seq_len(kmax))))
+                dimnames = list(item_names, threshold_labels))
   ii <- as.integer(thr$item)
   kk <- as.integer(thr$k)
   keep <- is.finite(ii) & is.finite(kk) & ii >= 1L &
