@@ -75,7 +75,8 @@ item-by-frame response columns. For EFRM fits,
 `person_panels = "groups"` and `item_panels = "sets"` use the fitted
 frame design; both may be specified together. A single person panel has
 no heading by default. When several person panels are requested, their
-panel labels are printed above the distributions.
+panel labels are printed above the distributions. The plot has no
+overall title unless one is supplied through `main.title`.
 
 ## References
 

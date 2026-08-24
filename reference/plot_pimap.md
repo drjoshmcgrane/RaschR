@@ -24,7 +24,8 @@ plot_pimap(fit, bins = 35, xlim = NULL, information = FALSE)
 - xlim:
 
   Optional logit range for the shared scale; persons and thresholds
-  outside it are omitted.
+  outside it are omitted. By default the range is extended to labelled
+  tick marks beyond the most extreme plotted estimate.
 
 - information:
 

@@ -285,10 +285,12 @@ most precise.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span>, information <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/targeting-map-1.png" class="r-plt" alt="Person and item distributions with the test information curve on the common logit scale." width="672"></p>
 <p>The optional <code>WrightMap</code> package supplies a second form of
-Wright map (Torres Irribarra and Freund 2025). The default retains one
-person panel and displays the estimated category thresholds. Separate
-person or item panels should be requested only when they answer a
-substantive question.</p>
+Wright map (Torres Irribarra and Freund 2025). The default has no
+overall title and uses one untitled person panel. Polytomous thresholds
+are labelled <code>t1</code>, <code>t2</code>, and so on. Threshold
+labels are omitted for a wholly dichotomous scale; a dichotomous item in
+a mixed scale retains <code>t1</code>. Separate panels should be
+requested only when they answer a substantive question.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"WrightMap"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="../reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>

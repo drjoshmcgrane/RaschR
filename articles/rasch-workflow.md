@@ -250,9 +250,11 @@ common logit
 scale.](rasch-workflow_files/figure-html/targeting-map-1.png)
 
 The optional `WrightMap` package supplies a second form of Wright map
-(Torres Irribarra and Freund 2025). The default retains one person panel
-and displays the estimated category thresholds. Separate person or item
-panels should be requested only when they answer a substantive question.
+(Torres Irribarra and Freund 2025). The default has no overall title and
+uses one untitled person panel. Polytomous thresholds are labelled `t1`,
+`t2`, and so on. Threshold labels are omitted for a wholly dichotomous
+scale; a dichotomous item in a mixed scale retains `t1`. Separate panels
+should be requested only when they answer a substantive question.
 
 ``` r
 
