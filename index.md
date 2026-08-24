@@ -137,23 +137,6 @@ documents the data requirements and returned values for each analysis.
 The [vignettes](https://drjoshmcgrane.github.io/rasch/articles/) cover
 the Rasch workflow, many-facet and extended-frame models, comparative
 judgement, explanatory modelling, repeated-measures DIF and validation.
-A separate case study develops an explanatory partial credit model for
-the verbal aggression data of Smits, De Boeck, and Vansteelandt (2004).
-
-[`wright_map()`](https://drjoshmcgrane.github.io/rasch/reference/wright_map.md)
-prepares fitted person and item estimates for the optional `WrightMap`
-package. Person estimates can be separated using variables retained in
-the fit. A named vector assigns ordinary Rasch items to panels; EFRM
-maps can use their fitted person groups and item sets directly:
-
-``` r
-
-item_panels <- setNames(rep(c("Domain A", "Domain B"), each = 5),
-                        fit$items$item)
-wright_map(fit, person_panels = "group", item_panels = item_panels)
-
-wright_map(efrm_fit, person_panels = "groups", item_panels = "sets")
-```
 
 ## References
 
@@ -200,15 +183,8 @@ Rasch, G. (1960). *Probabilistic Models for Some Intelligence and
 Attainment Tests*. Danish Institute for Educational Research. Expanded
 edition, University of Chicago Press, 1980.
 
-Smits, D. J. M., De Boeck, P., and Vansteelandt, K. (2004). The
-inhibition of verbally aggressive behaviour. *European Journal of
-Personality*, 18, 537–555.
-
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 *Journal of Mathematical Psychology*, 30(3), 306–316.
-
-Torres Irribarra, D., and Freund, R. (2025). *WrightMap: IRT item-person
-map with ConQuest integration*. R package version 1.5.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427–450.
