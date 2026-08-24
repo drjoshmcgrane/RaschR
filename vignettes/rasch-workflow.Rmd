@@ -201,17 +201,24 @@ same logit scale. The information curve shows where the test is most precise.
 plot_pimap(fit, information = TRUE)
 ```
 
-The optional `WrightMap` package supplies a second form of Wright map
-(Torres Irribarra and Freund 2025). The default has no overall title and uses
-one untitled person panel.
+The Wright map shows the same alignment in the conventional vertical
+arrangement: the person distribution beside the item thresholds on one logit
+scale.
+
+```{r wright, fig.height = 5.2, fig.alt = "Wright map of the person distribution and item thresholds on the common logit scale."}
+plot_wright(fit)
+```
+
+The optional `WrightMap` package draws the same map with greater flexibility,
+including several person and item panels (Torres Irribarra and Freund 2025).
 Polytomous thresholds are labelled `t1`, `t2`, and so on. Threshold labels are
 omitted for a wholly dichotomous scale; a dichotomous item in a mixed scale
-retains `t1`. Separate panels should be requested only when they answer a
-substantive question.
+retains `t1`. Panels should answer a substantive question; here the person
+distributions are separated by the fitted group factor.
 
-```{r wrightmap, fig.width = 8, fig.height = 5.2, fig.alt = "Wright map of person locations and item thresholds."}
+```{r wrightmap, fig.width = 8, fig.height = 5.2, fig.alt = "Wright map with one person panel per group."}
 if (requireNamespace("WrightMap", quietly = TRUE)) {
-  wright_map(fit)
+  wright_map(fit, person_panels = "group")
 }
 ```
 
