@@ -45,7 +45,7 @@ frame-dependent unit.
 
 ```{r simulate}
 d <- simulate_efrm(
-  n_per_group = 250,
+  n_per_group = 180,
   items_per_set = 8,
   set_unit_ratio = 1.30,
   group_unit_ratio = 1.10,

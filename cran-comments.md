@@ -27,12 +27,25 @@ interface have also been revised for this release.
 
 ## Test environments
 
-* local: macOS (aarch64-apple-darwin20), R 4.5.1
+* local: macOS (aarch64-apple-darwin20), R 4.6.1
+* win-builder: R-release and R-devel
 * GitHub Actions: macOS, Windows and Ubuntu; R devel, release and oldrel
 
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 0 notes locally; win-builder adds the
+incoming-feasibility NOTE only.
+
+This is a resubmission. The previous submission was archived by the
+pretest for overall check time on Windows (32 minutes). The test suite
+now runs a core subset on CRAN that exercises every estimator and
+inference path once; the complete suite runs whenever NOT_CRAN is true,
+locally and in continuous integration on three operating systems. The
+heaviest vignette was also reduced. The full check now completes well
+inside the pretest budget.
+
+The two words flagged by the incoming spell check, 'Ponocny' and 'Tutz',
+are author surnames from references in the Description.
 
 Some check services report the BugReports URL,
 https://github.com/drjoshmcgrane/rasch/issues, as possibly invalid. The
