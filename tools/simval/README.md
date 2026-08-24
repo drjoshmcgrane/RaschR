@@ -291,6 +291,19 @@ granularity deliberately).
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the
   superseded normal reference gave 7.4% on the same fitted samples.
+- `results/equating-holm-refresh.csv` — the null familywise cells of the
+  equating study re-run after `equate_tests()` moved from BH to Holm
+  adjustment, mirroring the original design: 4.8-5.0% at 3, 5, and 10
+  anchors (2,000 replicates each, no refusals). The null rows of the
+  round-2 equating-multiplicity table are BH-era and superseded by this
+  table; its drift-power rows also predate the switch and read at most
+  slightly high for the current function.
+- `results/explanatory-r2-adjusted.csv` — sampling behaviour of the
+  calibration R-squared reported by `explanatory_test()`. Under
+  uninformative designs the raw coefficient averaged 0.170 (12 items) and
+  0.085 (24 items) while the rank-based adjusted coefficient centred at
+  -0.015 and -0.002; a true 12-item design gave 0.948 raw and 0.936
+  adjusted (300 replicates per condition).
 - `results/comparison-validation.csv` — the release gate for the app's
   automatic model-comparison cards: every comparison surface validated
   under its null model and at least two departure magnitudes. Citation
@@ -307,7 +320,6 @@ granularity deliberately).
   8.3% at 14 judges falling to 5.3% at 30 judges, which is why its
   probability is now withheld below 30 judges; power at 0.6 logits was
   62/39/77%.
-- `results/cross-package-validation.csv` carries current-estimator checks.
   The EFRM log set-unit bias is +0.0036 against TAM's +0.0008 for
   dichotomous data and +0.0035 against +0.0020 for polytomous data. In a
   crossed two-set by two-group design, EFRM log-alpha bias is +0.0141 and
