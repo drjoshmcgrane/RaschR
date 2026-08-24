@@ -99,7 +99,8 @@ threshold parameters. Its Kent-adjusted comparison with the free
 calibration is not significant (\\\chi^2\_{23} = 26.30\\, \\p = .287\\).
 The explanatory structure therefore gives a materially smaller
 calibration without a detected loss of fit in these data. It reproduces
-97.6% of the variation in the free threshold calibration.
+97.6% of the variation in the free threshold calibration, and 94.9%
+after adjusting for the twenty-four coefficients doing the reproducing.
 
 The threshold estimates from the explanatory and free calibrations are
 shown below. Points close to the diagonal indicate where the predictor

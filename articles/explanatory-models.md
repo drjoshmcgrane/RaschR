@@ -9,7 +9,7 @@ discrimination and conditional Rasch structure.
 For category \\k\\ of item \\i\\,
 
 \\ \log\frac{P(X\_{ni}=k)}{P(X\_{ni}=k-1)} =\theta_n-\delta\_{ik},
-\qquad \delta\_{ik}=\mathbf z\_{ik}^{\mathsf T}\boldsymbol\gamma . \\
+\qquad \delta\_{ik}=\mathbf z\_{ik}^{\mathsf T}\gamma . \\
 
 The vector \\\mathbf z\_{ik}\\ contains the nominated item or threshold
 characteristics. An interaction permits the effect of one characteristic
@@ -188,7 +188,7 @@ constrains object rather than item locations. Predictor metadata contain
 one row per object and an `object` column. The formulation is
 
 \\ \log\frac{P(a\succ b)}{P(b\succ a)} =\beta_a-\beta_b, \qquad
-\beta_i=\mathbf z_i^{\mathsf T}\boldsymbol\gamma . \\
+\beta_i=\mathbf z_i^{\mathsf T}\gamma . \\
 
 ``` r
 
