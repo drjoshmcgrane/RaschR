@@ -284,18 +284,25 @@ most precise.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span>, information <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/targeting-map-1.png" class="r-plt" alt="Person and item distributions with the test information curve on the common logit scale." width="672"></p>
-<p>The optional <code>WrightMap</code> package supplies a second form of
-Wright map (Torres Irribarra and Freund 2025). The default has no
-overall title and uses one untitled person panel. Polytomous thresholds
-are labelled <code>t1</code>, <code>t2</code>, and so on. Threshold
-labels are omitted for a wholly dichotomous scale; a dichotomous item in
-a mixed scale retains <code>t1</code>. Separate panels should be
-requested only when they answer a substantive question.</p>
+<p>The Wright map shows the same alignment in the conventional vertical
+arrangement: the person distribution beside the item thresholds on one
+logit scale.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_wright.html">plot_wright</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p><img src="rasch-workflow_files/figure-html/wright-1.png" class="r-plt" alt="Wright map of the person distribution and item thresholds on the common logit scale." width="672"></p>
+<p>The optional <code>WrightMap</code> package draws the same map with
+greater flexibility, including several person and item panels (Torres
+Irribarra and Freund 2025). Polytomous thresholds are labelled
+<code>t1</code>, <code>t2</code>, and so on. Threshold labels are
+omitted for a wholly dichotomous scale; a dichotomous item in a mixed
+scale retains <code>t1</code>. Panels should answer a substantive
+question; here the person distributions are separated by the fitted
+group factor.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"WrightMap"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span>, person_panels <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p><img src="rasch-workflow_files/figure-html/wrightmap-1.png" class="r-plt" alt="Wright map of person locations and item thresholds." width="768"></p>
+<p><img src="rasch-workflow_files/figure-html/wrightmap-1.png" class="r-plt" alt="Wright map with one person panel per group." width="768"></p>
 <p>If <code>WrightMap</code> is not installed, install it with
 <code>install.packages("WrightMap")</code> before running this
 chunk.</p>
@@ -308,7 +315,7 @@ after conditioning on the latent trait. Yen’s <span class="math inline">\(Q3\)
 standardised residuals. Because raw <span class="math inline">\(Q3\)</span> values have a negative baseline in a
 finite test, <code>q3_star</code> subtracts the average off-diagonal
 value.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">q3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">q3</span><span class="op">$</span><span class="va">average</span></span>
 <span><span class="co">#&gt; [1] -0.08639</span></span>
@@ -319,7 +326,7 @@ value.</p>
 <span><span class="co">#&gt; 3    I01    I04 -0.0009814 0.08541</span></span>
 <span><span class="co">#&gt; 4    I06    I07 -0.0173825 0.06901</span></span>
 <span><span class="co">#&gt; 5    I02    I03 -0.0244845 0.06190</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_resid_cor.html">plot_resid_cor</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/local-dependence-plot-1.png" class="r-plt" alt="Heatmap of adjusted residual correlations between items." width="672"></p>
 <p>There is no universal critical value for adjusted <span class="math inline">\(Q3\)</span> (Christensen, Makransky and Horton
@@ -341,9 +348,9 @@ t_n=\frac{\hat\theta_{nA}-\hat\theta_{nB}}
 comparisons should be significant. The exact binomial interval, the
 residual loadings, and the score points in each subset are part of the
 result.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dimensionality</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dimensionality</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_pca.html">plot_pca</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/trait-dependence-plot-1.png" class="r-plt" alt="Loadings of items on the first residual component." width="672"></p>
 <p>Here, 4.5% of the person comparisons are significant (exact 95%
@@ -367,7 +374,7 @@ interval tests non-uniform DIF. <code><a href="../reference/dif_anova.html">dif_
 nominated factors together, recognises within-person factors in repeated
 designs, and applies Holm familywise correction over the item-by-term
 tests.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span>, sizes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">flagged_dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">dif</span><span class="op">$</span><span class="va">summary</span>, <span class="va">uniform_DIF</span> <span class="op">|</span> <span class="va">nonuniform_DIF</span><span class="op">)</span></span>
 <span><span class="va">flagged_dif</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -378,7 +385,7 @@ tests.</p>
 <span><span class="co">#&gt;   I08 group    20.043       &lt; 0.001        0.067        1.578            1.000</span></span>
 <span><span class="co">#&gt;  eta2_nonuniform</span></span>
 <span><span class="co">#&gt;            0.026</span></span></code></pre></div>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I08"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/dif-plot-1.png" class="r-plt" alt="Observed and expected item characteristic curves for item I08 by person group." width="672"></p>
 <p>For a significant factor with more than two levels, the follow-up
@@ -387,7 +394,7 @@ rely on a generic Tukey procedure. With <code>sizes = TRUE</code>,
 <code><a href="../reference/dif_anova.html">dif_anova()</a></code> returns the Holm-adjusted marginal pairwise
 comparisons for significant main effects and difference-in-differences
 for significant interactions.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dif</span><span class="op">$</span><span class="va">posthoc</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="st">"item"</span>, <span class="st">"contrast"</span>, <span class="st">"estimate"</span>, <span class="st">"se"</span>, <span class="st">"p_adj"</span>,</span>
 <span>  <span class="st">"lower"</span>, <span class="st">"upper"</span>, <span class="st">"practical"</span></span>

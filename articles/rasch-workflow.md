@@ -249,22 +249,35 @@ plot_pimap(fit, information = TRUE)
 common logit
 scale.](rasch-workflow_files/figure-html/targeting-map-1.png)
 
-The optional `WrightMap` package supplies a second form of Wright map
-(Torres Irribarra and Freund 2025). The default has no overall title and
-uses one untitled person panel. Polytomous thresholds are labelled `t1`,
-`t2`, and so on. Threshold labels are omitted for a wholly dichotomous
-scale; a dichotomous item in a mixed scale retains `t1`. Separate panels
-should be requested only when they answer a substantive question.
+The Wright map shows the same alignment in the conventional vertical
+arrangement: the person distribution beside the item thresholds on one
+logit scale.
+
+``` r
+
+plot_wright(fit)
+```
+
+![Wright map of the person distribution and item thresholds on the
+common logit scale.](rasch-workflow_files/figure-html/wright-1.png)
+
+The optional `WrightMap` package draws the same map with greater
+flexibility, including several person and item panels (Torres Irribarra
+and Freund 2025). Polytomous thresholds are labelled `t1`, `t2`, and so
+on. Threshold labels are omitted for a wholly dichotomous scale; a
+dichotomous item in a mixed scale retains `t1`. Panels should answer a
+substantive question; here the person distributions are separated by the
+fitted group factor.
 
 ``` r
 
 if (requireNamespace("WrightMap", quietly = TRUE)) {
-  wright_map(fit)
+  wright_map(fit, person_panels = "group")
 }
 ```
 
-![Wright map of person locations and item
-thresholds.](rasch-workflow_files/figure-html/wrightmap-1.png)
+![Wright map with one person panel per
+group.](rasch-workflow_files/figure-html/wrightmap-1.png)
 
 If `WrightMap` is not installed, install it with
 `install.packages("WrightMap")` before running this chunk.
