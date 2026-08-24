@@ -92,6 +92,13 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   ok_r <- !wr$reference_fit$est$thr$weak
   rank_r <- qr(cbind(1, wr$est$B[ok_r, , drop = FALSE]))$rank
   expect_lt(rank_r, qr(cbind(1, wr$est$B))$rank)   # rank genuinely fell
+
+  # with every calibration excluded there is nothing to adjust: the
+  # coefficient is unavailable silently rather than after a warning
+  all_weak <- rf
+  all_weak$reference_fit$est$thr$weak[] <- TRUE
+  expect_no_warning(all_z <- explanatory_test(all_weak))
+  expect_true(is.na(all_z$r_squared_adj))
   expect_equal(wz$r_squared_adj,
                1 - (1 - wz$r_squared) * (sum(ok_r) - 1) /
                  (sum(ok_r) - rank_r))

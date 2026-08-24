@@ -585,8 +585,8 @@ explanatory_test <- function(fit) {
     den <- sum((f[ok] - mean(f[ok]))^2)
     r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
       1 - sum((d - mean(d))^2) / den else NA_real_
-    df_sub <- sum(ok) -
-      qr(cbind(1, fit$location_design[ok, , drop = FALSE]))$rank
+    df_sub <- if (sum(ok) > 1L) sum(ok) -
+      qr(cbind(1, fit$location_design[ok, , drop = FALSE]))$rank else 0L
     r2_adj <- if (is.finite(r2) && df_sub > 0)
       1 - (1 - r2) * (sum(ok) - 1) / df_sub else NA_real_
     out <- data.frame(
@@ -615,7 +615,8 @@ explanatory_test <- function(fit) {
   den <- sum((free[ok] - mean(free[ok]))^2)
   r2 <- if (sum(ok) > 1L && is.finite(den) && den > 0)
     1 - sum((d - mean(d))^2) / den else NA_real_
-  df_sub <- sum(ok) - qr(cbind(1, fit$est$B[ok, , drop = FALSE]))$rank
+  df_sub <- if (sum(ok) > 1L)
+    sum(ok) - qr(cbind(1, fit$est$B[ok, , drop = FALSE]))$rank else 0L
   r2_adj <- if (is.finite(r2) && df_sub > 0)
     1 - (1 - r2) * (sum(ok) - 1) / df_sub else NA_real_
   out <- data.frame(
