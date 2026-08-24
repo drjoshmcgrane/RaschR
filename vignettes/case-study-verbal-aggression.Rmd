@@ -98,7 +98,8 @@ Kent-adjusted comparison with the free calibration is not significant
 The explanatory structure therefore gives a materially smaller calibration
 without a detected loss of fit in these data. It reproduces
 `r round(100 * model_test$r_squared, 1)`% of the variation in the free
-threshold calibration.
+threshold calibration, and `r round(100 * model_test$r_squared_adj, 1)`%
+after adjusting for the twenty-four coefficients doing the reproducing.
 
 The threshold estimates from the explanatory and free calibrations are shown
 below. Points close to the diagonal indicate where the predictor structure
