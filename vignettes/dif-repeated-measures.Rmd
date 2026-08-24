@@ -37,24 +37,26 @@ With several factors, `dif_anova` fits their terms jointly and uses Type II
 sums of squares.
 
 The following dataset has two observations per person. Item I03 has a group
-shift and item I06 has an occasion shift.
+shift, item I06 has an occasion shift, and item I05 shifts for group B at the
+second occasion only, a group-by-occasion interaction.
 
 ```{r data}
 set.seed(21)
-N <- 240
+N <- 320
 difficulty <- seq(-1.5, 1.5, length.out = 8)
 theta <- rnorm(N)
 group <- rep(c("A", "B"), each = N / 2)
 
-make_wave <- function(occasion_shift) {
+make_wave <- function(occasion_shift, interaction_shift) {
   shift <- matrix(0, N, 8)
-  shift[group == "B", 3] <- 0.8
+  shift[group == "B", 3] <- 1.2
   shift[, 6] <- occasion_shift
+  shift[group == "B", 5] <- interaction_shift
   matrix(rbinom(N * 8, 1,
                 plogis(outer(theta, difficulty, "-") - shift)), N, 8)
 }
 
-X <- rbind(make_wave(0), make_wave(0.9))
+X <- rbind(make_wave(0, 0), make_wave(1.0, 2.0))
 colnames(X) <- sprintf("I%02d", 1:8)
 dat <- data.frame(
   pid = rep(sprintf("P%03d", seq_len(N)), 2),
@@ -79,16 +81,19 @@ large-sample approximations.
 ```{r analysis}
 fit <- rasch(dat, id = "pid", factors = c("group", "occasion"),
              items = sprintf("I%02d", 1:8))
-da <- dif_anova(fit, within = "occasion", sizes = TRUE)
+da <- dif_anova(fit, within = "occasion", effects = "factorial", sizes = TRUE)
 da$summary
 ```
 
 The multiplicity adjustment covers the complete family of item-by-DIF-term
 tests. Uniform DIF is a factor effect that is stable over the trait; a
-factor-by-class-interval effect is non-uniform DIF. If person-factor
-interactions are substantively required, use `effects = "factorial"` and
-interpret a significant higher-order term before its component main effects.
-Read adjusted probabilities with effect sizes before changing an item.
+factor-by-class-interval effect is non-uniform DIF. `effects = "factorial"`
+adds the person-factor interactions. A significant higher-order term
+supersedes its component group terms within the same item: item I05's group
+effect is significant on its own, but the `superseded` flag records that the
+interaction absorbs it, and the follow-ups report the interaction rather than
+its components. Read adjusted probabilities with effect sizes before changing
+an item.
 
 ## Quantify the departure
 
@@ -110,7 +115,10 @@ over the other fitted factors. An interaction is reported as a
 difference-in-differences, or its higher-order counterpart. These comparisons
 use the joint covariance of the resolved item locations and Holm adjustment
 over the stated family. The result is on the logit scale and respects the
-factor structure used in the DIF analysis.
+factor structure used in the DIF analysis. Here item I03 is reported as a
+pairwise group difference, item I06 as a person-level occasion contrast, and
+item I05 as the difference-in-differences of its interaction; the superseded
+I05 group term receives no follow-up of its own.
 
 For repeated-person contrasts, significance comes from person-level residual
 contrast scores with the same design-cell weights as the resolved estimate.
