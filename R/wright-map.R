@@ -15,7 +15,8 @@
 #' For EFRM fits, \code{person_panels = "groups"} and \code{item_panels =
 #' "sets"} use the fitted frame design; both may be specified together.
 #' A single person panel has no heading by default. When several person panels
-#' are requested, their panel labels are printed above the distributions.
+#' are requested, their panel labels are printed above the distributions. The
+#' plot has no overall title unless one is supplied through \code{main.title}.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}, including explanatory,
 #'   MFRM and EFRM fits. Comparative-judgement models do not estimate person
@@ -78,6 +79,7 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   }
 
   args <- c(list(thetas = dat$persons, thresholds = dat$items), dots)
+  if (!("main.title" %in% names(dots))) args$main.title <- ""
   if (!("dim.names" %in% names(dots))) {
     if (ncol(dat$persons) == 1L) {
       args$dim.names <- ""

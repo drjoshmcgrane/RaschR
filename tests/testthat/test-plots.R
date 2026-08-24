@@ -34,6 +34,18 @@ test_that("targeting plots render for dichotomous and polytomous fits", {
   expect_no_error(plot_icc(fp, c(1, 2), observed = FALSE))
 })
 
+test_that("the default person-item scale labels beyond every estimate", {
+  s <- rasch:::.pimap_scale(c(-4.2, 3.3))
+  expect_lte(s$range[1], -4.2)
+  expect_gte(s$range[2], 3.3)
+  expect_equal(range(s$ticks), s$range)
+  expect_gt(max(s$ticks), 3.3)
+
+  fixed <- rasch:::.pimap_scale(c(-4.2, 3.3), c(-3.5, 2.5))
+  expect_equal(fixed$range, c(-3.5, 2.5))
+  expect_true(all(fixed$ticks >= -3.5 & fixed$ticks <= 2.5))
+})
+
 test_that("the kidmap and batch savers work, and Q3 pairs are complete", {
   set.seed(11)
   d <- seq(-2, 2, length.out = 10)

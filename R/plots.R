@@ -395,7 +395,8 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param bins Number of histogram bins.
 #' @param xlim Optional logit range for the shared scale; persons and
-#'   thresholds outside it are omitted.
+#'   thresholds outside it are omitted. By default the range is extended to
+#'   labelled tick marks beyond the most extreme plotted estimate.
 #' @param information Whether to overlay the test information function on a
 #'   separate right-hand axis. Fits with more than one administrable design
 #'   receive one curve per design.
@@ -411,7 +412,8 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   th <- fit$person$theta[!is.na(fit$person$theta)]
   tau <- fit$thresholds$tau
-  rng <- if (is.null(xlim)) range(c(th, tau)) + c(-0.4, 0.4) else sort(xlim)
+  scale <- .pimap_scale(c(th, tau), xlim)
+  rng <- scale$range
   th <- th[th >= rng[1] & th <= rng[2]]
   tau <- tau[tau >= rng[1] & tau <= rng[2]]
   brk <- seq(rng[1], rng[2], length.out = bins + 1)
@@ -421,8 +423,10 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   ymax <- max(pp) * 1.15; ymin <- -max(pi) * 1.6
   op <- .rr_canvas(rng, c(ymin, ymax), "Location (logits)", "Proportion",
                    "", grid_y = FALSE,
-                   yaxis = FALSE, right = if (isTRUE(information)) 4.2 else 1.5)
+                   yaxis = FALSE, right = if (isTRUE(information)) 4.2 else 1.5,
+                   xaxis = FALSE)
   on.exit(par(op))
+  axis(1, at = scale$ticks, col = .rr$grid, col.ticks = .rr$soft)
   at <- pretty(c(0, max(c(pp, pi))))
   axis(2, at = c(-rev(at[-1]), at), labels = c(rev(at[-1]), at),
        col = .rr$grid, col.ticks = .rr$soft, cex.axis = 0.85)
@@ -459,6 +463,18 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
     }
   }
   invisible(NULL)
+}
+
+.pimap_scale <- function(values, xlim = NULL) {
+  if (is.null(xlim)) {
+    padded <- range(values[is.finite(values)]) + c(-0.4, 0.4)
+    ticks <- pretty(padded, n = 6)
+    return(list(range = range(ticks), ticks = ticks))
+  }
+  rng <- sort(xlim)
+  ticks <- pretty(rng, n = 6)
+  ticks <- ticks[ticks >= rng[1] & ticks <= rng[2]]
+  list(range = rng, ticks = ticks)
 }
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,8 @@ plot_pimap(fit, bins = 35, xlim = NULL, information = FALSE)
 \item{bins}{Number of histogram bins.}
 
 \item{xlim}{Optional logit range for the shared scale; persons and
-thresholds outside it are omitted.}
+thresholds outside it are omitted. By default the range is extended to
+labelled tick marks beyond the most extreme plotted estimate.}
 
 \item{information}{Whether to overlay the test information function on a
 separate right-hand axis. Fits with more than one administrable design

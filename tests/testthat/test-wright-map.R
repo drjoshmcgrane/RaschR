@@ -135,6 +135,7 @@ test_that("wright_map calls the installed WrightMap interface", {
     person.side = capture_person_side, main.title = NULL
   ))
   expect_identical(dim_names, c("Sample A", "Sample B"))
+  expect_no_error(wright_map(fit, main.title = "Custom title"))
 
   if ("item.groups" %in% names(formals(WrightMap::wrightMap))) {
     expect_no_error(wright_map(
@@ -161,4 +162,25 @@ test_that("wright_map rejects inappropriate objects and malformed panels", {
   expect_error(rasch:::.wright_map_data(
     fit, item_panels = setNames(1:5, paste0("bad", 1:5))),
     "each item name")
+})
+
+test_that("wright_map suppresses WrightMap's overall title by default", {
+  skip_if_not_installed("WrightMap")
+  set.seed(76)
+  X <- matrix(rbinom(100 * 5, 1, 0.5), 100, 5)
+  colnames(X) <- paste0("I", seq_len(ncol(X)))
+  fit <- rasch(X)
+  received <- NULL
+  testthat::with_mocked_bindings(
+    {
+      wright_map(fit)
+    },
+    wrightMap = function(thetas, thresholds = NULL, ...) {
+      received <<- list(...)
+      thresholds
+    },
+    .package = "WrightMap"
+  )
+  expect_true("main.title" %in% names(received))
+  expect_identical(received$main.title, "")
 })

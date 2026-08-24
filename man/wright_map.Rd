@@ -61,7 +61,8 @@ item-by-facet or item-by-frame response columns.
 For EFRM fits, \code{person_panels = "groups"} and \code{item_panels =
 "sets"} use the fitted frame design; both may be specified together.
 A single person panel has no heading by default. When several person panels
-are requested, their panel labels are printed above the distributions.
+are requested, their panel labels are printed above the distributions. The
+plot has no overall title unless one is supplied through \code{main.title}.
 }
 \examples{
 set.seed(1)
