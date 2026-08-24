@@ -4,9 +4,67 @@
 
 ### Models and inference
 
+- [`wright_map()`](https://drjoshmcgrane.github.io/rasch/reference/wright_map.md)
+  sends fitted person and item estimates to `WrightMap`. It supports
+  several person distributions and the item-panel layout introduced in
+  WrightMap 1.5, including the person-group and item-set structure of
+  EFRM fits.
+
+- [`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
+  fits the linear logistic test model and linear partial credit model
+  from continuous, categorical or ordinal item- or threshold-level
+  predictors. Formulae may include selected interactions.
+  [`explanatory_test()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md)
+  compares the restrictions with a free calibration using the Kent
+  adjustment;
+  [`explanatory_diagnostics()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_diagnostics.md)
+  and
+  [`relax_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/relax_explanatory.md)
+  support fixed item and threshold departures. Refitted departures
+  propagate to item and person estimates and are retained through item
+  deletion, DIF splitting, superitem construction and
+  response-dependence resolution. Keyed option responses remain
+  available after item deletion, splitting and fixed-departure refits.
+
+- [`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md)
+  applies a fixed explanatory design to object locations in dichotomous
+  or ordered comparative judgements. It supports the same model
+  comparison, Holm-adjusted diagnostics and fixed departures while
+  retaining the nominated ordered-response threshold structure.
+
+- A worked case study uses the verbal aggression data to develop and
+  check an explanatory partial credit model.
+
+- [`explanatory_test()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md)
+  now places the Kent-calibrated probability in both `p` and `p_kent`.
+  The unscaled composite-likelihood probability is named `p_naive` so it
+  cannot be mistaken for the inferential result. The table also reports
+  calibration R-squared, with an adjusted counterpart whose null
+  expectation is near zero, against the free threshold or object
+  calibration.
+
+- Pairwise conditional calibrations now use the remaining Newton move as
+  a second convergence check. This prevents numerical false refusals at
+  large sample sizes without changing the estimates.
+
+- Holm adjustment for item-fit statistics now excludes items whose tests
+  are unavailable. Their probabilities remain `NA`.
+
+- Sparse-unit safeguards now use the sampling units that inform each
+  test. MFRM interaction tests use the least-supported facet level; EFRM
+  unit tests require adequate persons on every group or set link;
+  BTL-EFRM judge bootstraps require adequate effective judges in every
+  panel or link; and frame-invariance tests exclude weak frame
+  calibrations.
+
+- BTL-EFRM judge bootstraps now distinguish refit errors from
+  non-convergence and report the underlying worker error when parallel
+  refits fail.
+
 - [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
   supports several facets and an optional item-by-facet interaction.
   Omnibus and cell follow-up tests use the fitted joint covariance.
+
 - [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
   supports crossed person-group factors and reports their GLS factorial
   decomposition. Set-unit linking uses a finite-grid semiparametric
@@ -17,16 +75,32 @@
   estimation stages, and non-converged links are excluded from bootstrap
   covariance calculations. EFRM data require one response row per
   person.
+
+- The repeated semiparametric linking calculations in the EFRM bootstrap
+  now use a compiled numerical kernel. Bootstrap replicates can also be
+  distributed over a reproducible, cross-platform worker cluster. The
+  Shiny application runs EFRM fits in a background process, defaults to
+  four workers where the system permits, records the bootstrap seed,
+  reports progress and permits the fit to be cancelled without retaining
+  a partial result.
+
+- BTL-EFRM judge bootstraps likewise default to four workers where
+  available. A fixed seed gives the same result for any worker count.
+  The application runs these fits in the background and supports
+  progress reporting and cancellation.
+
 - [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
   compares item locations and discrimination across separately
   calibrated frames. The conditional method tests locations and reports
   discrimination descriptively. The person-within-frame bootstrap
   provides inference for both, with one combined Holm family.
+
 - MFRM and EFRM summaries report item estimates separately from the
   item-by-facet or item-by-frame response cells used in estimation.
   Coefficient alpha is not reported for the expanded response-cell
   matrix. EFRM DIF tests pool residual evidence by item and exclude the
   person factors that define the frames.
+
 - [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md),
   [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
   and
@@ -35,6 +109,7 @@
   judge-factor DIF, linked object sets and judge panels.
   Paired-comparison diagnostics now include equating, transitivity,
   residual dimensions, design information and adaptive pair selection.
+
 - Carry-over probabilities are withheld below 30 judges.
   [`btl_equate()`](https://drjoshmcgrane.github.io/rasch/reference/btl_equate.md)
   uses Welch–Satterthwaite degrees of freedom when fitted calibrations
@@ -46,6 +121,18 @@
 
 ### Differential item functioning
 
+- Confirmatory multiplicity defaults are now consistently Holm
+  familywise adjustments across item fit, DIF, equating and the
+  application. BH remains available where false-discovery-rate screening
+  is explicitly requested. BTL DIF uses HC3 covariance for unequal judge
+  workloads and withholds omnibus probabilities below eight judges or
+  eight effective judges in a factor cell.
+
+- Item-fit documentation now distinguishes the principal item-trait test
+  from the supplementary class-interval ANOVA and notes the limits of
+  both in short administrations. HC3 was evaluated for item fit and was
+  not adopted.
+
 - [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
   fits several person factors jointly using Type II sums of squares.
   Repeated measurements use the person as the sampling unit and separate
@@ -53,7 +140,10 @@
   covers the complete family of uniform and non-uniform DIF tests rather
   than treating each term as a separate family;
   [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
-  follows the same rule.
+  follows the same rule. Uniform between-person terms now use HC3
+  covariance. Class-interval interactions retain the residual-ANOVA
+  reference used for non-uniform DIF.
+
 - [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
   and
   [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
@@ -61,21 +151,36 @@
   and difference-in-differences for interactions. MFRM follow-ups pool
   the fitted facet cells of an underlying item; resolved EFRM follow-ups
   are withheld because an ordinary split would discard the frame units.
+  The residual-mean Tukey table has been removed from
+  [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md);
+  [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
+  is the supported follow-up for multilevel terms.
+
+- Repeated-measures DIF follow-ups use the full design-cell weights in
+  their person-level tests. Reported resolved estimates and
+  probabilities therefore address the same marginal contrast when
+  nuisance factors are imbalanced.
+
 - [`dif_size()`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md)
   reports resolved pairwise logit differences. Dichotomous items receive
   the itemwise ETS A/B/C classification. Polytomous items report the PCM
   signed expected-score area descriptively, without importing an
   incompatible score-metric classification.
+
 - [`resolve_dif()`](https://drjoshmcgrane.github.io/rasch/reference/resolve_dif.md)
   splits confirmed DIF items iteratively while retaining a minimum
   anchor set. Automatic splitting is restricted to uniform DIF;
   non-uniform DIF remains visible for item review. MFRM residuals can be
   pooled to their source items, and EFRM factors that do not define
   frames can be tested.
+
 - [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
   retains anchors and fitted dependence terms in its resolution refit.
-  BTL-EFRM fits require a frame-specific analysis rather than the
-  equal-unit resolution model.
+  Resolved pairwise inference is withheld unless each factor cell has at
+  least eight effective judges; pairwise degrees of freedom use the two
+  cells’ effective counts, and the pairwise table reports the raw and
+  effective support for both cells. BTL-EFRM fits require a
+  frame-specific analysis rather than the equal-unit resolution model.
 
 ### Diagnostics and model changes
 
@@ -89,8 +194,11 @@
   locations.
 - [`spread_test()`](https://drjoshmcgrane.github.io/rasch/reference/spread_test.md)
   applies the binomial least-upper-bound only to superitems formed
-  entirely from dichotomous components. The component structure is
-  retained through subsequent item splits and removals.
+  entirely from dichotomous components. It now distinguishes a point
+  estimate below the bound from adjusted one-sided evidence of
+  dependence. Its significance level and multiplicity adjustment are
+  available in the application. The component structure is retained
+  through subsequent item splits and removals.
 - The tailored-analysis bootstrap resamples complete persons, including
   all rows of a repeated-measures record.
 - [`drop_items()`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md),

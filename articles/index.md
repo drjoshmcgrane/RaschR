@@ -10,6 +10,10 @@
   measurement](https://drjoshmcgrane.github.io/rasch/articles/many-facet.md):
 - [The extended frame of reference
   model](https://drjoshmcgrane.github.io/rasch/articles/extended-frame-reference.md):
+- [Explanatory Rasch
+  models](https://drjoshmcgrane.github.io/rasch/articles/explanatory-models.md):
+- [Case study: verbal
+  aggression](https://drjoshmcgrane.github.io/rasch/articles/case-study-verbal-aggression.md):
 - [Rasch analysis of paired
   comparisons](https://drjoshmcgrane.github.io/rasch/articles/paired-comparisons.md):
 - [Simulation-based checks of Rasch

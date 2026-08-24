@@ -1,0 +1,248 @@
+# Explanatory Rasch models
+
+The linear logistic test model (LLTM; Fischer, 1973) explains
+dichotomous item locations using observed item characteristics. The
+linear partial credit model (LPCM; Fischer and Ponocny, 1994) extends
+the same formulation to polytomous thresholds. Both retain the common
+discrimination and conditional Rasch structure.
+
+For category \\k\\ of item \\i\\,
+
+\\ \log\frac{P(X\_{ni}=k)}{P(X\_{ni}=k-1)} =\theta_n-\delta\_{ik},
+\qquad \delta\_{ik}=\mathbf z\_{ik}^{\mathsf T}\boldsymbol\gamma . \\
+
+The vector \\\mathbf z\_{ik}\\ contains the nominated item or threshold
+characteristics. An interaction permits the effect of one characteristic
+to differ according to another. The scale origin is fixed at mean item
+location zero, as in
+[`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md);
+the formula intercept is therefore absorbed by the origin constraint.
+
+## Item predictors
+
+Item-level metadata contain one row per item. This example explains
+eight dichotomous item locations by the operation required and the
+response format.
+
+``` r
+
+set.seed(1)
+item_design <- data.frame(
+  item = paste0("I", 1:8),
+  operation = rep(c("recall", "inference"), each = 4),
+  format = rep(c("selected", "constructed"), 4)
+)
+
+difficulty <- 0.8 * (item_design$operation == "inference") +
+  0.4 * (item_design$format == "constructed")
+theta <- rnorm(500)
+X <- sapply(difficulty, function(delta)
+  rbinom(length(theta), 1, plogis(theta - delta)))
+colnames(X) <- item_design$item
+
+fit <- rasch_explanatory(
+  X,
+  predictors = item_design,
+  formula = ~ operation + format,
+  level = "item"
+)
+fit$est$coefficients
+#>             term estimate    se       z       p   p_adj
+#>  operationrecall   -0.825 0.072 -11.414 < 0.001 < 0.001
+#>   formatselected   -0.350 0.073  -4.797 < 0.001 < 0.001
+```
+
+Predictors may be continuous, categorical or ordinal. Numeric vectors
+are continuous and unordered factors are categorical. An ordered factor
+is scored with successive contrasts: each coefficient is the change
+between two adjacent levels in the declared order. Character vectors are
+converted to unordered factors; the first factor level is the reference
+category. For example:
+
+``` r
+
+item_design$demand <- as.numeric(item_design$demand)
+item_design$format <- factor(item_design$format)
+item_design$complexity <- ordered(
+  item_design$complexity,
+  levels = c("low", "moderate", "high")
+)
+```
+
+This coding uses the order without assuming equal spacing and does not
+fit polynomial contrasts. Use an unordered factor for comparisons with a
+single reference category, or a numeric predictor when the spacing has a
+substantive scale. Selected interactions can be added, for example
+`~ demand + format + complexity + format:complexity`.
+
+## Threshold predictors
+
+For an LPCM, item metadata may still be supplied once per item. The
+reserved factor `threshold` identifies the within-item threshold and can
+be used in the formula:
+
+``` r
+
+lpcm <- rasch_explanatory(
+  responses,
+  predictors = item_design,
+  formula = ~ operation + format + threshold + format:threshold,
+  level = "item"
+)
+```
+
+Use `level = "threshold"` when a predictor varies within an item. The
+metadata must then contain `item`, `threshold`, and one row for every
+observed item threshold. `threshold_number` is also available as an
+integer predictor.
+
+## Comparing the restriction with a free calibration
+
+[`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
+retains a free partial credit calibration of the same responses.
+[`explanatory_test()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md)
+compares it with the active explanatory model. Pairwise conditional
+estimation produces a composite likelihood, so the reported inferential
+result is the first-order Kent-adjusted chi-square rather than an
+ordinary likelihood-ratio test. The same table reports calibration
+\\R^2\\, the proportion of variation in the free threshold calibration
+reproduced by the explanatory thresholds. Comparative judgement uses the
+corresponding free object calibration.
+
+``` r
+
+explanatory_test(fit)
+#>  model parameters free_parameters r_squared r_squared_adj              r2_basis
+#>   LLTM          2               7     0.967         0.954 threshold calibration
+#>   chisq df p_naive chisq_kent     p p_kent
+#>  19.917  5   0.001      5.191 0.393  0.393
+```
+
+A non-significant result does not establish that the explanatory
+structure is true. It indicates that the free calibration has not
+detected a departure at the available precision. Coefficients should be
+interpreted together with their standard errors, item fit, targeting,
+and the study design.
+
+## Fixed departures
+
+[`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
+begins with the exact explanatory restriction. Its error formulation
+uses nominated fixed departures rather than a random item effect, so it
+does not introduce an item population distribution. An explanatory model
+can be too restrictive for a small number of items.
+[`explanatory_diagnostics()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_diagnostics.md)
+adds each available departure separately and adjusts the complete family
+of probabilities by Holm’s method.
+
+``` r
+
+departures <- explanatory_diagnostics(fit)
+head(departures)
+#>  item     component parameters_added departure deviance_reduction df     p
+#>    I6 Item location                1     0.205              9.201  1 0.128
+#>    I8 Item location                1    -0.195              8.582  1 0.138
+#>    I1 Item location                1     0.141              4.645  1 0.257
+#>    I3 Item location                1    -0.135              4.272  1 0.283
+#>    I5 Item location                1    -0.097              2.247  1 0.455
+#>    I7 Item location                1     0.093              2.056  1 0.465
+#>  p_adj
+#>  1.000
+#>  1.000
+#>  1.000
+#>  1.000
+#>  1.000
+#>  1.000
+```
+
+An item-location departure moves all thresholds of an item together. A
+threshold-structure departure changes their relative locations and is
+available only for polytomous items. A departure should be accepted on
+substantive grounds, not selected solely because it has the smallest
+probability.
+
+``` r
+
+fit <- relax_explanatory(fit, item = "I4", component = "location")
+```
+
+The refit remains a fixed-effects Rasch model: no item distribution or
+random effect is introduced. Item locations, person measures, residuals,
+fit statistics and subsequent analyses are all recomputed. Item
+deletion, DIF splitting and superitem construction retain the
+explanatory structure and add the required fixed departures for changed
+items. Response-dependence resolution does the same for its resolved
+item copies. With keyed multiple-choice data, unchanged and split items
+retain their raw responses for distractor analysis.
+
+The same workflow is available under **Explanatory** in the Shiny
+application. Predictor type is selected explicitly in the application;
+ordinal predictors also require their level order. The project file
+records the predictor metadata, formula and accepted departures, and the
+displayed R code reproduces the analysis.
+
+## Comparative judgement
+
+[`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md)
+constrains object rather than item locations. Predictor metadata contain
+one row per object and an `object` column. The formulation is
+
+\\ \log\frac{P(a\succ b)}{P(b\succ a)} =\beta_a-\beta_b, \qquad
+\beta_i=\mathbf z_i^{\mathsf T}\boldsymbol\gamma . \\
+
+``` r
+
+cj <- btl_explanatory(
+  comparisons,
+  predictors = object_design,
+  formula = ~ domain + format + domain:format,
+  object_a = "object_a",
+  object_b = "object_b",
+  winner = "winner",
+  judge = "judge"
+)
+explanatory_test(cj)
+explanatory_diagnostics(cj)
+```
+
+An ordered `response` may be supplied instead of `winner`. Its symmetric
+response thresholds are estimated jointly with the explanatory object
+effects. Judge-clustered covariance and its existing availability rules
+continue to apply.
+[`relax_btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/relax_btl_explanatory.md)
+adds a nominated fixed object-location departure and repeats the
+complete fit.
+
+## Validation
+
+Regression checks compare the LLTM and LPCM calibrations with `eRm`. In
+the simulation study, coefficient bias was at most 0.005 logits,
+empirical standard deviations divided by mean reported standard errors
+ranged from 0.99 to 1.03, and 95% coverage ranged from 0.938 to 0.955
+across LLTM, LPCM, dichotomous comparative judgement, ordered
+comparative judgement and judge-clustered comparative judgement
+conditions. Kent-adjusted null rejection ranged from 4.2% to 6.0% (1,000
+replicates per condition). Holm familywise error for fixed-departure
+diagnostics was 4.3% to 4.7%, with 98.3% to 100% power for a planted
+0.8-logit departure (300 replicates per condition). A further
+1,000-replicate study covered mixed maximum scores and four-category
+LPCMs at 300 to 2,000 persons. SE ratios were 0.993 to 1.026, coverage
+was 0.942 to 0.954, Kent-adjusted null rejection was 4.3% to 5.8%, and
+mean calibration \\R^2\\ was 0.872 to 0.994. The unscaled probability
+rejected 98.6% to 100% and is therefore returned only as `p_naive`. No
+fit in these four conditions was refused or failed to converge. Scripts
+and full result tables are under `tools/simval/` in the source
+repository.
+
+## References
+
+Fischer, G. H. (1973). The linear logistic test model as an instrument
+in educational research. *Acta Psychologica*, 37(6), 359–374.
+
+Fischer, G. H., and Ponocny, I. (1994). An extension of the partial
+credit model with an application to the measurement of change.
+*Psychometrika*, 59(2), 177–192.
+
+Mair, P., and Hatzinger, R. (2007). Extended Rasch modeling: The eRm
+package for the application of IRT models in R. *Journal of Statistical
+Software*, 20(9), 1–20. <doi:10.18637/jss.v020.i09>.

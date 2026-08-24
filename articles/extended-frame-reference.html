@@ -124,7 +124,8 @@ frame-dependent unit.</p>
 <span>  item_sets <span class="op">=</span> <span class="va">truth</span><span class="op">$</span><span class="va">item_sets</span>,</span>
 <span>  groups <span class="op">=</span> <span class="st">"group"</span>,</span>
 <span>  id <span class="op">=</span> <span class="st">"id"</span>,</span>
-<span>  boot_reps <span class="op">=</span> <span class="fl">30</span></span>
+<span>  boot_reps <span class="op">=</span> <span class="fl">30</span>,</span>
+<span>  workers <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 500 persons</span></span>
@@ -247,6 +248,15 @@ from each draw. The resulting covariance is retained for the
 common-scale thresholds and complete frame units. Set
 <code>se_method = "bootstrap"</code> to refit the complete model to each
 person resample.</p>
+<p>The linking calculations use a compiled numerical kernel. Bootstrap
+replicates run on four workers by default, or fewer where the system
+limit is lower. A fixed <code>seed</code> gives the same samples and
+results for every worker count without altering the caller’s
+random-number stream. In the Shiny application the fit runs in a
+separate process. The analyst can select up to four workers, follow
+completed batches, or cancel the process without replacing the current
+analysis. R scripts can supply <code>progress</code> and
+<code>cancel</code> callbacks for the same controls.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span><span class="op">$</span><span class="va">unit_omnibus</span></span>
 <span><span class="co">#&gt;               term df   wald       p</span></span>
@@ -262,7 +272,10 @@ person resample.</p>
 Individual unit contrasts are Holm-adjusted follow-ups. The raw
 composite-likelihood difference is descriptive and compares the
 group-unit stage only. Set units are identified in the linking stage and
-are assessed by their Wald test.</p>
+are assessed by their Wald test. Probabilities require at least 50
+persons or effective persons in every group and at least 50 common
+persons on every set-link edge. Sparse designs retain the unit estimates
+without an inferential probability.</p>
 <p>Simulation under normal, bimodal and deliberately different group
 distributions gave set-unit bias within 0.004 log-units,
 empirical-to-reported SE ratios from 0.97 to 1.05, and null rejection
@@ -276,7 +289,9 @@ were recovered without bias.</p>
 </h2>
 <p>The fitted EFRM gives an item one location across its frames, scaled
 by the frame unit. <code><a href="../reference/frame_invariance.html">frame_invariance()</a></code> examines that
-restriction by calibrating each frame separately.</p>
+restriction by calibrating each frame separately. Each compared frame
+needs at least 50 persons with two or more responses. Items with weak
+separate-frame standard errors are excluded from the comparison.</p>
 <p>For frame <span class="math inline">\(f\)</span>, the common-scale
 item location is <span class="math inline">\(\hat\delta_{if}^{*}=\hat\delta_{if}/\hat\rho_f\)</span>.
 The separate calibrations have independent origins, so differences are

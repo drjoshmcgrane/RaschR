@@ -134,29 +134,35 @@ and size of residual misfit, the item-trait interaction, category
 thresholds, and the substantive content of an item. Targeting determines
 how much information the scale supplies over the observed person
 distribution.</p>
+<p>The item-trait chi-square is the principal inferential test over
+class intervals. The residual ANOVA is a supplementary diagnostic. Both
+references are approximate in short administrations, where each response
+materially affects the person grouping; read them with the
+characteristic curve and residual fit rather than as stand-alone
+decisions.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/fit_summary_table.html">fit_summary_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                                 statistic                   value</span></span>
-<span><span class="co">#&gt; 1                                   Model                     PCM</span></span>
-<span><span class="co">#&gt; 2                              Estimation pairwise conditional ML</span></span>
-<span><span class="co">#&gt; 3                               Converged                     yes</span></span>
-<span><span class="co">#&gt; 4                              Iterations                       3</span></span>
-<span><span class="co">#&gt; 5             Total item-trait chi-square                  78.132</span></span>
-<span><span class="co">#&gt; 6                      Degrees of freedom                      60</span></span>
-<span><span class="co">#&gt; 7                  Item-trait probability                   0.058</span></span>
-<span><span class="co">#&gt; 8                         Class intervals                       7</span></span>
-<span><span class="co">#&gt; 9                  Item fit residual mean                   -0.21</span></span>
-<span><span class="co">#&gt; 10                   Item fit residual SD                    0.63</span></span>
-<span><span class="co">#&gt; 11             Item fit residual skewness                    1.66</span></span>
-<span><span class="co">#&gt; 12             Item fit residual kurtosis                    2.19</span></span>
-<span><span class="co">#&gt; 13               Person fit residual mean                   -0.31</span></span>
-<span><span class="co">#&gt; 14                 Person fit residual SD                    0.75</span></span>
-<span><span class="co">#&gt; 15           Person fit residual skewness                    0.58</span></span>
-<span><span class="co">#&gt; 16           Person fit residual kurtosis                   -0.05</span></span>
-<span><span class="co">#&gt; 17       Fit-location correlation (items)                  -0.082</span></span>
-<span><span class="co">#&gt; 18     Fit-location correlation (persons)                  -0.018</span></span>
-<span><span class="co">#&gt; 19 Items with adjusted chi-square p &lt; .05                 0 of 10</span></span>
-<span><span class="co">#&gt; 20                  Disordered thresholds                    none</span></span>
+<span><span class="co">#&gt;                                      statistic                   value</span></span>
+<span><span class="co">#&gt; 1                                        Model                     PCM</span></span>
+<span><span class="co">#&gt; 2                                   Estimation pairwise conditional ML</span></span>
+<span><span class="co">#&gt; 3                                    Converged                     yes</span></span>
+<span><span class="co">#&gt; 4                                   Iterations                       3</span></span>
+<span><span class="co">#&gt; 5                  Total item-trait chi-square                  78.132</span></span>
+<span><span class="co">#&gt; 6                           Degrees of freedom                      60</span></span>
+<span><span class="co">#&gt; 7                       Item-trait probability                   0.058</span></span>
+<span><span class="co">#&gt; 8                              Class intervals                       7</span></span>
+<span><span class="co">#&gt; 9                       Item fit residual mean                   -0.21</span></span>
+<span><span class="co">#&gt; 10                        Item fit residual SD                    0.63</span></span>
+<span><span class="co">#&gt; 11                  Item fit residual skewness                    1.66</span></span>
+<span><span class="co">#&gt; 12                  Item fit residual kurtosis                    2.19</span></span>
+<span><span class="co">#&gt; 13                    Person fit residual mean                   -0.31</span></span>
+<span><span class="co">#&gt; 14                      Person fit residual SD                    0.75</span></span>
+<span><span class="co">#&gt; 15                Person fit residual skewness                    0.58</span></span>
+<span><span class="co">#&gt; 16                Person fit residual kurtosis                   -0.05</span></span>
+<span><span class="co">#&gt; 17            Fit-location correlation (items)                  -0.082</span></span>
+<span><span class="co">#&gt; 18          Fit-location correlation (persons)                  -0.018</span></span>
+<span><span class="co">#&gt; 19 Items with Holm-adjusted chi-square p &lt; .05                 0 of 10</span></span>
+<span><span class="co">#&gt; 20                       Disordered thresholds                    none</span></span>
 <span><span class="fu"><a href="../reference/targeting_table.html">targeting_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                             statistic  value</span></span>
 <span><span class="co">#&gt; 1                Person location mean  0.040</span></span>
@@ -181,8 +187,205 @@ distribution.</p>
 <span><span class="co">#&gt; 20        Item separation reliability  0.993</span></span>
 <span><span class="co">#&gt; 21                  Coefficient alpha  0.588</span></span>
 <span><span class="co">#&gt; 22                 n complete (alpha)    400</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">threshold_diagnostics</span></span>
-<span><span class="co">#&gt; NULL</span></span>
+<span><span class="va">fit</span><span class="op">$</span><span class="va">thresholds_diag</span></span>
+<span><span class="co">#&gt; $I01</span></span>
+<span><span class="co">#&gt; $I01$item</span></span>
+<span><span class="co">#&gt; [1] "I01"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I01$thresholds</span></span>
+<span><span class="co">#&gt; [1] -2.111</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I01$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I01$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I01$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I01$category_counts</span></span>
+<span><span class="co">#&gt; [1]  53 347</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I02</span></span>
+<span><span class="co">#&gt; $I02$item</span></span>
+<span><span class="co">#&gt; [1] "I02"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I02$thresholds</span></span>
+<span><span class="co">#&gt; [1] -2.25</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I02$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I02$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I02$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I02$category_counts</span></span>
+<span><span class="co">#&gt; [1]  50 350</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I03</span></span>
+<span><span class="co">#&gt; $I03$item</span></span>
+<span><span class="co">#&gt; [1] "I03"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I03$thresholds</span></span>
+<span><span class="co">#&gt; [1] -1.749</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I03$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I03$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I03$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I03$category_counts</span></span>
+<span><span class="co">#&gt; [1]  74 326</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I04</span></span>
+<span><span class="co">#&gt; $I04$item</span></span>
+<span><span class="co">#&gt; [1] "I04"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I04$thresholds</span></span>
+<span><span class="co">#&gt; [1] -0.6374</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I04$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I04$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I04$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I04$category_counts</span></span>
+<span><span class="co">#&gt; [1] 143 257</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I05</span></span>
+<span><span class="co">#&gt; $I05$item</span></span>
+<span><span class="co">#&gt; [1] "I05"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I05$thresholds</span></span>
+<span><span class="co">#&gt; [1] -0.2381</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I05$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I05$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I05$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I05$category_counts</span></span>
+<span><span class="co">#&gt; [1] 178 222</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I06</span></span>
+<span><span class="co">#&gt; $I06$item</span></span>
+<span><span class="co">#&gt; [1] "I06"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I06$thresholds</span></span>
+<span><span class="co">#&gt; [1] 0.1925</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I06$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I06$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I06$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I06$category_counts</span></span>
+<span><span class="co">#&gt; [1] 211 189</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I07</span></span>
+<span><span class="co">#&gt; $I07$item</span></span>
+<span><span class="co">#&gt; [1] "I07"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I07$thresholds</span></span>
+<span><span class="co">#&gt; [1] 0.8435</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I07$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I07$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I07$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I07$category_counts</span></span>
+<span><span class="co">#&gt; [1] 266 134</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I08</span></span>
+<span><span class="co">#&gt; $I08$item</span></span>
+<span><span class="co">#&gt; [1] "I08"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I08$thresholds</span></span>
+<span><span class="co">#&gt; [1] 1.41</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I08$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I08$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I08$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I08$category_counts</span></span>
+<span><span class="co">#&gt; [1] 304  96</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I09</span></span>
+<span><span class="co">#&gt; $I09$item</span></span>
+<span><span class="co">#&gt; [1] "I09"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I09$thresholds</span></span>
+<span><span class="co">#&gt; [1] 1.967</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I09$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I09$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I09$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I09$category_counts</span></span>
+<span><span class="co">#&gt; [1] 334  66</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I10</span></span>
+<span><span class="co">#&gt; $I10$item</span></span>
+<span><span class="co">#&gt; [1] "I10"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I10$thresholds</span></span>
+<span><span class="co">#&gt; [1] 2.572</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I10$ordered</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I10$reversed_at</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I10$never_modal_categories</span></span>
+<span><span class="co">#&gt; integer(0)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $I10$category_counts</span></span>
+<span><span class="co">#&gt; [1] 361  39</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/test_information.html">test_information</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   theta    info   sem</span></span>
 <span><span class="co">#&gt; 1  -6.0 0.06796 3.836</span></span>
@@ -361,6 +564,13 @@ to delete or combine items.</p>
 threshold because adjusted Q3 has no universal critical value. The
 dimensionality result carries a caution when either opposed subtest
 contains fewer than 15 score points.</p>
+<p>When theory supports treating dependent dichotomous items as one
+superitem, <code><a href="../reference/combine_items.html">combine_items()</a></code> refits the calibration and
+<code><a href="../reference/spread_test.html">spread_test()</a></code> compares its threshold spread with the
+binomial bound. <code>below_bound</code> is the point-estimate
+comparison; <code>dependent</code> records adjusted one-sided
+statistical evidence. The bound does not apply to a superitem containing
+a polytomous component.</p>
 </div>
 <div class="section level2">
 <h2 id="link-calibrations-through-common-items">Link calibrations through common items<a class="anchor" aria-label="anchor" href="#link-calibrations-through-common-items"></a>
@@ -423,6 +633,13 @@ supplies the complete-response conversion from raw score to logits.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $n</span></span>
 <span><span class="co">#&gt; [1] 400</span></span></code></pre></div>
+<p>A Wright map can also be drawn with the optional
+<code>WrightMap</code> package. Variables retained in the person table
+can define separate person panels. For an EFRM fit, the fitted person
+groups and item sets can be shown together.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span>, person_panels <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">efrm_fit</span>, person_panels <span class="op">=</span> <span class="st">"groups"</span>, item_panels <span class="op">=</span> <span class="st">"sets"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
@@ -443,6 +660,9 @@ Research. (Expanded edition, 1980, Chicago: University of Chicago
 Press.)</p>
 <p>Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 <em>Journal of Mathematical Psychology</em>, 30(3), 306–316.</p>
+<p>Torres Irribarra, D., and Freund, R. (2025). <em>WrightMap: IRT
+item-person map with ConQuest integration</em>. R package version
+1.5.</p>
 <p>Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. <em>Psychometrika</em>, 54(3), 427–450.</p>
 </div>

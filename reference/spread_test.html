@@ -11,8 +11,12 @@ thresholds in the principal-components parameterisation, estimated here
 by pcml_pc) cannot fall below the value implied by the
 binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
-A spread estimate below the bound therefore indicates response
-dependence among the members (Andrich and Marais 2019, Table 24.1).
+Sampling uncertainty matters when the fitted spread lies near the bound.
+The function therefore reports whether the point estimate is below the
+bound separately from a one-sided test of \(H_0: \lambda \geq \lambda_0\)
+against \(H_1: \lambda &amp;lt; \lambda_0\). Evidence of dependence requires the
+adjusted one-sided probability to be below alpha; a point estimate
+below the bound alone is not treated as a verdict.
 Applied to the superitems recorded by combine_items. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict
@@ -23,8 +27,12 @@ thresholds in the principal-components parameterisation, estimated here
 by pcml_pc) cannot fall below the value implied by the
 binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
-A spread estimate below the bound therefore indicates response
-dependence among the members (Andrich and Marais 2019, Table 24.1).
+Sampling uncertainty matters when the fitted spread lies near the bound.
+The function therefore reports whether the point estimate is below the
+bound separately from a one-sided test of \(H_0: \lambda \geq \lambda_0\)
+against \(H_1: \lambda &amp;lt; \lambda_0\). Evidence of dependence requires the
+adjusted one-sided probability to be below alpha; a point estimate
+below the bound alone is not treated as a verdict.
 Applied to the superitems recorded by combine_items. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict
@@ -76,8 +84,12 @@ thresholds in the principal-components parameterisation, estimated here
 by <code><a href="pcml_pc.html">pcml_pc</a></code>) cannot fall below the value implied by the
 binomial distribution when the item is a subtest of equally difficult,
 independent dichotomous items; different difficulties only raise it.
-A spread estimate below the bound therefore indicates response
-dependence among the members (Andrich and Marais 2019, Table 24.1).
+Sampling uncertainty matters when the fitted spread lies near the bound.
+The function therefore reports whether the point estimate is below the
+bound separately from a one-sided test of \(H_0: \lambda \geq \lambda_0\)
+against \(H_1: \lambda &lt; \lambda_0\). Evidence of dependence requires the
+adjusted one-sided probability to be below <code>alpha</code>; a point estimate
+below the bound alone is not treated as a verdict.
 Applied to the superitems recorded by <code><a href="combine_items.html">combine_items</a></code>. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict
@@ -87,7 +99,7 @@ must both converge.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">spread_test</span><span class="op">(</span><span class="va">fit</span>, maxit <span class="op">=</span> <span class="fl">60</span>, tol <span class="op">=</span> <span class="fl">1e-08</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">spread_test</span><span class="op">(</span><span class="va">fit</span>, maxit <span class="op">=</span> <span class="fl">60</span>, tol <span class="op">=</span> <span class="fl">1e-08</span>, alpha <span class="op">=</span> <span class="fl">0.05</span>, p_adjust <span class="op">=</span> <span class="st">"holm"</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -101,6 +113,15 @@ must both converge.</p>
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
 <dd><p>Passed to the <code><a href="pcml_pc.html">pcml_pc</a></code> refit.</p></dd>
 
+
+<dt id="arg-alpha">alpha<a class="anchor" aria-label="anchor" href="#arg-alpha"></a></dt>
+<dd><p>Significance level for the one-sided dependence screen.</p></dd>
+
+
+<dt id="arg-p-adjust">p_adjust<a class="anchor" aria-label="anchor" href="#arg-p-adjust"></a></dt>
+<dd><p>Multiplicity adjustment across the eligible superitems;
+one of <code><a href="https://rdrr.io/r/stats/p.adjust.html" class="external-link">stats::p.adjust.methods</a></code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -108,9 +129,11 @@ must both converge.</p>
   <code>m</code>, whether the binomial bound is <code>eligible</code>, the
   <code>spread</code> estimate and its <code>se</code>, the bound <code>lub</code>
   (available for dichotomous-component subtests with maximum scores 2 to
-  8), <code>z</code> =
-  (spread - lub)/se, and <code>dependent</code> = spread below the bound.
-  Items not formed by <code><a href="combine_items.html">combine_items()</a></code> are omitted.</p>
+  8), <code>z</code> = (spread - lub)/se, the one-sided <code>p</code> and adjusted
+  <code>p_adj</code>, <code>below_bound</code> for the point-estimate comparison, and
+  <code>dependent</code> for adjusted evidence at <code>alpha</code>.
+  Items not formed by <code><a href="combine_items.html">combine_items()</a></code> are omitted.
+  The result retains <code>alpha</code> and <code>p_adjust</code> as attributes.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -126,14 +149,18 @@ Measuring in the Educational, Social and Health Sciences. Springer.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>; <span class="va">N</span> <span class="op">&lt;-</span> <span class="fl">600</span></span></span>
 <span class="r-in"><span><span class="va">d0</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span>, length.out <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">X</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">N</span> <span class="op">*</span> <span class="fl">8</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">N</span><span class="op">)</span>, <span class="va">d0</span>, <span class="st">"-"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="va">N</span>, <span class="fl">8</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">X</span><span class="op">[</span>, <span class="fl">5</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">X</span><span class="op">[</span>, <span class="fl">4</span><span class="op">]</span>; <span class="va">X</span><span class="op">[</span>, <span class="fl">6</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">X</span><span class="op">[</span>, <span class="fl">4</span><span class="op">]</span>                 <span class="co"># a dependent triple</span></span></span>
+<span class="r-in"><span><span class="va">X</span><span class="op">[</span>, <span class="fl">5</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">N</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fl">.85</span>, <span class="va">X</span><span class="op">[</span>, <span class="fl">4</span><span class="op">]</span>, <span class="fl">1</span> <span class="op">-</span> <span class="va">X</span><span class="op">[</span>, <span class="fl">4</span><span class="op">]</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">X</span><span class="op">[</span>, <span class="fl">6</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">N</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fl">.75</span>, <span class="va">X</span><span class="op">[</span>, <span class="fl">4</span><span class="op">]</span>, <span class="fl">1</span> <span class="op">-</span> <span class="va">X</span><span class="op">[</span>, <span class="fl">4</span><span class="op">]</span><span class="op">)</span> <span class="co"># a dependent triple</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit2</span> <span class="op">&lt;-</span> <span class="fu"><a href="combine_items.html">combine_items</a></span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I4"</span>, <span class="st">"I5"</span>, <span class="st">"I6"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">spread_test</span><span class="op">(</span><span class="va">fit2</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Spread-parameter screen (Andrich 1985): spread below the binomial bound indicates dependence</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>      item m eligible spread    se bound     z dependent</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  I4+I5+I6 1                                            </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  I1+I2+I3 3        *  0.653 0.114 0.550 0.899          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Spread-parameter screen (Andrich 1985): one-sided evidence below the binomial bound (holm adjustment; alpha 0.050)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      item m eligible spread    se bound       z       p   p_adj below_bound</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  I4+I5+I6 3        * -0.118 0.051 0.550 -13.110 &lt; 0.001 &lt; 0.001           *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  I1+I2+I3 3        *  0.501 0.081 0.550  -0.610   0.271   0.271           *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  dependent</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          *</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

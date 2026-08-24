@@ -21,6 +21,10 @@ btl_efrm(
   min_link = 20,
   se_method = c("judge_bootstrap", "bootstrap", "conditional"),
   boot_reps = 200,
+  workers = 4L,
+  seed = NULL,
+  progress = NULL,
+  cancel = NULL,
   maxit = 60,
   tol = 1e-08
 )
@@ -89,6 +93,27 @@ btl_efrm(
   Number of replicates for `se_method = "bootstrap"` or
   `"judge_bootstrap"`; at least 30 are required.
 
+- workers:
+
+  Number of judge-bootstrap workers. The default is four, reduced when
+  the system limit is lower. The parametric bootstrap remains serial
+  because its refits are inexpensive.
+
+- seed:
+
+  Optional bootstrap seed. The caller's random-number state is restored
+  when estimation finishes.
+
+- progress:
+
+  Optional function called as `progress(stage, current, total)` during
+  estimation.
+
+- cancel:
+
+  Optional zero-argument function checked between bootstrap batches.
+  Returning `TRUE` stops with a `rasch_cancelled` condition.
+
 - maxit, tol:
 
   Newton iteration cap and convergence tolerance.
@@ -96,8 +121,9 @@ btl_efrm(
 ## Value
 
 An object of class `"rasch_btl_efrm"`. It contains the object estimates,
-group- and set-unit tables, origin shifts, omnibus unit tests, frame
-definitions, convergence information, and analysis notes.
+group- and set-unit tables, origin shifts, omnibus unit tests,
+unit-specific judge support, frame definitions, convergence information,
+and analysis notes.
 
 ## Details
 
@@ -130,7 +156,11 @@ With one set, the model contains panel units only. With one set and one
 panel, it reduces to
 [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md). Omnibus
 Wald tests provide inference for the unit families; individual contrasts
-are Holm-adjusted follow-ups.
+are Holm-adjusted follow-ups. Judge-bootstrap probabilities require at
+least six judges and 5.5 effective judges in every contributing panel,
+and eight of each on a set link. The support is returned in
+`unit_support`; estimates remain descriptive when a probability is
+withheld.
 
 ## References
 

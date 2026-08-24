@@ -90,10 +90,11 @@ settings, and any `notes`.
 
 Each logit contrast is calculated from resolved item locations. Weights
 are scaled so their positive and negative parts each sum to one. With
-repeated persons, inference uses person-level residual contrast scores:
-within-person contrasts are tested against zero, between-person
-contrasts use person means, and mixed interactions compare within-person
-contrast scores between groups. The resolved logit estimate is retained,
+repeated persons, inference uses person-level residual contrast scores
+with the same cell weights as the resolved estimate. Nuisance-factor
+cells are averaged equally rather than in proportion to their sample
+sizes. Independent between-person cells are then combined with a
+Welch–Satterthwaite reference. The resolved logit estimate is retained,
 but its calibration-based standard error is withheld because it does not
 include repeated-person dependence.
 
@@ -102,13 +103,14 @@ For independent rows, a contrast with weights \\\mathbf{c}\\ is
 \operatorname{SE}(\Delta_i)= \sqrt{\mathbf{c}^{\mathsf
 T}\mathbf{V}\_i\mathbf{c}}.\$\$ In a repeated-measures design, a
 within-person contrast is formed from the standardised residuals,
-\$\$s_p=\sum_l c_l z\_{pl},\$\$ and tested over persons. Between-person
-contrasts use Welch tests of person means; mixed interactions use Welch
-tests of the within-person contrast scores. The sign of each residual
-test is aligned with the resolved logit contrast. Contrasts require a
-converged calibration. For an MFRM fit, underlying items are pooled over
-their facet cells by default. EFRM fits are excluded because the
-required split refit would discard the frame units.
+\$\$s_p=\sum_l c_l z\_{pl},\$\$ and tested over persons. The complete
+cell-weight vector is retained for main effects and interactions, so the
+residual test and resolved estimate address the same marginal contrast.
+The sign of each residual test is aligned with the resolved logit
+contrast. Contrasts require a converged calibration. For an MFRM fit,
+underlying items are pooled over their facet cells by default. EFRM fits
+are excluded because the required split refit would discard the frame
+units.
 
 ## References
 

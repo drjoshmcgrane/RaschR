@@ -1,8 +1,9 @@
 # rasch: Models and Diagnostics for Rasch Measurement Theory
 
 Fits and evaluates models within Rasch Measurement Theory. The package
-includes models for item responses, ratings, linked frames of reference,
-and comparative judgement of paired stimuli, together with functions for
+includes models for item responses, explanatory item and threshold
+structures, multiple ratings, linked frames of reference, and
+comparative judgement of paired stimuli, together with functions for
 fit, targeting, reliability, dimensionality, local dependence,
 differential item functioning, equating, and simulation. The suite
 follows Rasch (1960) and Andrich and Marais (2019); the frame of
@@ -26,15 +27,19 @@ groups, occasions, raters, and other parts of the measurement design.
 
 Use [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
 for the dichotomous, partial credit, and rating scale models;
+[`rasch_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
+for the linear logistic test and linear partial credit models;
 [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
 for additive item, rater, and other facet effects; and
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
 when the unit varies across linked frames.
-[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fits the
+[`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fits
 comparative judgement models for dichotomous and polytomous paired
-comparisons, and
+comparisons;
+[`btl_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md)
+constrains object locations by observed characteristics; and
 [`btl_efrm`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-fits their linked-frame extension.
+fits the linked-frame extension.
 
 ## Graphical interface
 
@@ -64,6 +69,13 @@ approaches to item scaling. Applied Psychological Measurement, 2(3),
 
 Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.
+
+Fischer, G. H. (1973). The linear logistic test model as an instrument
+in educational research. Acta Psychologica, 37(6), 359–374.
+
+Fischer, G. H. and Ponocny, I. (1994). An extension of the partial
+credit model with an application to the measurement of change.
+Psychometrika, 59(2), 177–192.
 
 Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 Measurement. PhD thesis, Murdoch University.

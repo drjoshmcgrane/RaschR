@@ -175,16 +175,16 @@ group. Here I06 differs by one logit in the second group.</p>
 <span><span class="va">da</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit3</span><span class="op">)</span></span>
 <span><span class="va">da</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"F_uniform"</span>, <span class="st">"p_uniform_adj"</span>, <span class="st">"uniform_DIF"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;  item  term F_uniform p_uniform_adj uniform_DIF</span></span>
-<span><span class="co">#&gt;   I01 group     0.164         0.949            </span></span>
-<span><span class="co">#&gt;   I02 group     3.235         0.291            </span></span>
-<span><span class="co">#&gt;   I03 group     0.172         0.949            </span></span>
-<span><span class="co">#&gt;   I04 group     0.412         0.949            </span></span>
-<span><span class="co">#&gt;   I05 group     3.695         0.291            </span></span>
-<span><span class="co">#&gt;   I06 group    18.647       &lt; 0.001           *</span></span>
-<span><span class="co">#&gt;   I07 group     0.611         0.949            </span></span>
-<span><span class="co">#&gt;   I08 group     0.009         0.949            </span></span>
-<span><span class="co">#&gt;   I09 group     0.139         0.949            </span></span>
-<span><span class="co">#&gt;   I10 group     0.085         0.949</span></span></code></pre></div>
+<span><span class="co">#&gt;   I01 group     0.187         1.000            </span></span>
+<span><span class="co">#&gt;   I02 group     3.197         1.000            </span></span>
+<span><span class="co">#&gt;   I03 group     0.175         1.000            </span></span>
+<span><span class="co">#&gt;   I04 group     0.410         1.000            </span></span>
+<span><span class="co">#&gt;   I05 group     3.717         0.980            </span></span>
+<span><span class="co">#&gt;   I06 group    17.499       &lt; 0.001           *</span></span>
+<span><span class="co">#&gt;   I07 group     0.573         1.000            </span></span>
+<span><span class="co">#&gt;   I08 group     0.009         1.000            </span></span>
+<span><span class="co">#&gt;   I09 group     0.137         1.000            </span></span>
+<span><span class="co">#&gt;   I10 group     0.082         1.000</span></span></code></pre></div>
 <p><code>dif_anova</code> tests invariance. <code>dif_size</code>
 resolves the item by group and reports the difference between the
 resolved locations in logits.</p>
@@ -360,17 +360,131 @@ provenance in the result tables:</p>
 <td>7.5% pooled-variance (pre-fix) to 4.8% covariance-based</td>
 </tr>
 <tr class="even">
+<td>Class-interval item fit</td>
+<td>8–30 dichotomous items, 600 persons</td>
+<td>HC3 was rejected (21.9–48.3% item-wise Type I); conventional ANOVA
+remained approximate, whereas item-trait Holm familywise error was
+4.0–7.0% from ten items onward and 12.0–17.0% with eight items (200
+replicates each)</td>
+</tr>
+<tr class="odd">
+<td>Repeated-measures DIF follow-up</td>
+<td>10:90 nuisance-cell imbalance</td>
+<td>5.25% size for a main effect and 5.4% for a mixed interaction (2,000
+replicates each); the superseded person-frequency shortcut targeted a
+different contrast</td>
+</tr>
+<tr class="even">
+<td>Ordinary DIF covariance</td>
+<td>balanced, 1:4 ability imbalance, unequal observations/person, and a
+three-level 1:2:3 factor</td>
+<td>hybrid HC3-uniform/residual-ANOVA-non-uniform familywise error 4.0%,
+6.4%, 4.6%, and 6.2%; full HC3 reached 22.0% and 20.2% in the two
+imbalanced designs and was rejected (500 replicates each)</td>
+</tr>
+<tr class="odd">
+<td>Balanced homoskedastic DIF</td>
+<td>two- and three-level factors, 10–150 observations per
+group-by-interval cell</td>
+<td>hybrid familywise error 4.3–5.2%; under local alternatives the
+classical power advantage declined from 3.10 points at ten per cell to
+0.84, 0.42, and 0.16 at 30, 75, and 150 for two levels, and from 1.72 at
+ten to 0.54 at 50 for three levels (5,000 paired replicates each)</td>
+</tr>
+<tr class="even">
+<td>Conditional DIF bootstrap</td>
+<td>dichotomous data, four-category PCM and RSM data, three-level
+groups, and correlated person factors</td>
+<td>preserving raw scores and refitting under the Rasch null gave
+acceptable global-null calibration but was usually more conservative and
+less powerful than the hybrid analysis; under a partial alternative it
+reduced, but did not remove, artificial flags on invariant items, so it
+was not adopted as a replacement (100–300 datasets; 99–199 bootstrap
+refits each)</td>
+</tr>
+<tr class="odd">
+<td>DIF score purification</td>
+<td>four-category PCM and RSM data, plus two correlated person
+factors</td>
+<td>preselecting a five-item anchor scale was liberal and leave-one-out
+matching was rejected; the public split-and-refit procedure retained
+uniform-DIF power and left 4.0–5.6% familywise error among invariant
+items, while a strongest-item recalibration was promising for
+non-uniform DIF but is not yet an automatic remedy (500 replicates per
+refined condition)</td>
+</tr>
+<tr class="even">
+<td>BTL-DIF pairwise inference</td>
+<td>6 objects, 8 or 10 judges per factor level</td>
+<td>5.5% and 4.83% size when balanced; 5.0% with 10 raw/9.31 effective
+judges per level (2,000-replicate top-up); omnibus and pairwise
+inference are withheld below eight judges or eight effective judges per
+level</td>
+</tr>
+<tr class="odd">
+<td>BTL-DIF omnibus under unequal precision</td>
+<td>8 versus 16 judges, fourfold variance ratio</td>
+<td>classical Type I 11.7% or 1.8% depending on the allocation; HC3 Type
+I 5.6% and 4.0% (10,000 replicates each)</td>
+</tr>
+<tr class="even">
+<td>BTL core cluster covariance</td>
+<td>10 balanced judges; 20 judges with one carrying 20%</td>
+<td>CR1 Type I 5.4% and 4.2%, coverage 94.6% and 95.8%; delete-one-judge
+Type I 5.6% and 4.0%, coverage 94.4% and 96.0% (500 replicates each); no
+default change</td>
+</tr>
+<tr class="odd">
+<td>Superitem spread test</td>
+<td>900 persons, 8 items</td>
+<td>5.2% size at the binomial boundary (1,000 replicates); 100% power
+under the planted dependence condition (400 replicates)</td>
+</tr>
+<tr class="even">
 <td>EFRM set-unit linking</td>
 <td>500-600 persons, 8 items/set</td>
 <td>hybrid Type I 4.0-5.0%, SE ratios 0.97-1.05 and coverage 0.927-0.960
 under normal, bimodal and contrasting group distributions;
-full-bootstrap Type I 2.5% and coverage 0.975</td>
+full-bootstrap Type I 2.5% and coverage 0.975; unit probabilities
+require 50 persons on every contributing group or link</td>
 </tr>
 <tr class="odd">
+<td>EFRM compiled-kernel parity</td>
+<td>demonstration data, 30 seed-paired hybrid bootstrap replicates</td>
+<td>largest absolute difference from the retained R implementation
+1.30e-11 across set units, standard errors, origins, thresholds and edge
+likelihoods; all convergence flags agreed</td>
+</tr>
+<tr class="even">
+<td>EFRM parallel-bootstrap parity</td>
+<td>demonstration data, 300 hybrid replicates; simulated data, 30
+full-bootstrap replicates</td>
+<td>serial, two-worker and four-worker fits used the same pre-generated
+samples and agreed exactly on every checked estimate and convergence
+flag</td>
+</tr>
+<tr class="odd">
+<td>BTL-EFRM parallel-bootstrap parity</td>
+<td>3 sets, 2 panels, 20 judges, 200 judge-bootstrap replicates</td>
+<td>serial and default four-worker fits used the same pre-generated
+judge resamples and agreed exactly on the complete reported result,
+apart from the recorded worker count; elapsed time fell from 17.34 to
+5.47 seconds on the executing machine</td>
+</tr>
+<tr class="even">
 <td>BTL-EFRM unit tests</td>
 <td>12 judges, 6 objects/set</td>
 <td>judge-bootstrap Type I 3.3-5.3% for panel units, set units and
-origins; independent-outcome bootstrap 3.0-6.7% (300 replicates)</td>
+origins; independent-outcome bootstrap 3.0-6.7% (300 replicates);
+judge-bootstrap probabilities require six judges and 5.5 effective
+judges per panel and eight per set link</td>
+</tr>
+<tr class="odd">
+<td>MFRM interaction omnibus</td>
+<td>50 or 200 persons, 6 raters, 25 df</td>
+<td>4.3% and 5.2% Type I error (600 fixed-truth replicates each);
+probabilities use the least-supported facet level and require
+<code>max(30, q + 2)</code> effective persons</td>
 </tr>
 <tr class="even">
 <td>MFRM multifactor DIF</td>
@@ -421,7 +535,9 @@ full-procedure replicates per effect)</td>
 <td>CL-AIC model selection</td>
 <td>PCM vs RSM; free vs PC thresholds (items and CJ)</td>
 <td>null false selection 4.5-5.2% multi-parameter, ~17% one-parameter
-(the theoretical AIC rates); detection 95-100% at strong departures</td>
+(the theoretical AIC rates); at the strongest tested departures,
+selection was 50% for PCM vs RSM and 99.5-100% for the
+threshold-structure comparisons</td>
 </tr>
 <tr class="odd">
 <td>Paired-comparison effect tests</td>
@@ -440,7 +556,7 @@ polytomous</td>
 <td>Cross-package diagnostics</td>
 <td>eRm, TAM, psych, difR, PerFit, sirt</td>
 <td>alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98;
-DIF detection 84-88% all methods; dimensionality conservative (exact
+DIF detection 80-88% across methods; dimensionality conservative (exact
 null, 67% power) vs DETECT (100%)</td>
 </tr>
 <tr class="even">
@@ -457,6 +573,27 @@ refused; at 80 persons 11% refused and 2% did not converge; 41- and
 <td>log set-unit bias decreased from -0.108 at 10 repetitions per pair
 to -0.041 at 20, -0.016 at 50 and -0.007 at 100; bootstrap coverage was
 0.933-0.950 at 20 repetitions</td>
+</tr>
+<tr class="even">
+<td>Explanatory Rasch models</td>
+<td>LLTM, LPCM, dichotomous and ordered CJ, with independent or
+judge-clustered comparisons</td>
+<td>coefficient bias at most 0.005 logits, empirical SD/mean SE
+0.99-1.03, coverage 0.938-0.955, and Kent-adjusted null rejection
+4.2-6.0% (1,000 replicates per condition); fixed-departure Holm
+familywise error 4.3-4.7% and power 98.3-100% for a 0.8-logit departure
+(300 replicates per condition)</td>
+</tr>
+<tr class="odd">
+<td>Explanatory edge cases</td>
+<td>300-2,000 persons; dichotomous, four-category and
+mixed-maximum-score items</td>
+<td>empirical SD/mean SE 0.993-1.026, coverage 0.942-0.954,
+Kent-adjusted null rejection 4.3-5.8%, and no refusals or
+non-convergence (1,000 replicates per condition); the unscaled
+probability rejected 98.6-100% and is retained only as
+<code>p_naive</code>
+</td>
 </tr>
 </tbody>
 </table>

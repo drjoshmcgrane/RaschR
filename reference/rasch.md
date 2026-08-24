@@ -157,6 +157,18 @@ multiplies every threshold of a polytomous item. It is a descriptive
 index, not a freely estimated parameter of the Rasch model, and no
 sampling standard error or hypothesis test is attached to it.
 
+## Item-fit probabilities
+
+The item-trait chi-square supplies the principal inferential test of
+invariance over class intervals. The class-interval ANOVA is a
+conventional residual diagnostic whose F reference is approximate. Its
+probability can be anti-conservative in short tests because each
+response contributes appreciably to the person grouping used to test
+that item. The same issue can affect the item-trait probability when
+fewer than about ten responses locate each person. In short
+administrations, read the statistics with the characteristic curve and
+residual fit rather than as stand-alone decisions.
+
 ## References
 
 Rasch, G. (1960). Probabilistic Models for Some Intelligence and
@@ -207,14 +219,14 @@ fit$items
 #>    I7   1    1.468 0.113 1.092     0.186 423.500         0.189    1.105
 #>    I8   1    1.910 0.128 1.174     0.229 423.500         0.233    0.997
 #>  outfit_ms infit_z outfit_z  chisq df     p p_adj p_bonf F_anova p_anova
-#>      0.988   0.332   -0.007  5.367  6 0.498 0.569  1.000   0.550   0.770
-#>      0.920   0.514   -0.694  8.361  6 0.213 0.569  1.000   1.387   0.218
+#>      0.988   0.332   -0.007  5.367  6 0.498 1.000  1.000   0.550   0.770
+#>      0.920   0.514   -0.694  8.361  6 0.213 1.000  1.000   1.387   0.218
 #>      0.876   0.107   -1.473 13.544  6 0.035 0.281  0.281   2.771   0.012
-#>      0.975   1.424   -0.373  7.579  6 0.271 0.569  1.000   1.493   0.179
-#>      1.094   3.694    1.432  2.837  6 0.829 0.829  1.000   0.499   0.809
-#>      0.963   1.566   -0.429  5.526  6 0.478 0.569  1.000   0.941   0.465
-#>      1.018   1.767    0.196  5.761  6 0.451 0.569  1.000   0.708   0.643
-#>      1.012  -0.018    0.130  6.873  6 0.333 0.569  1.000   0.956   0.455
+#>      0.975   1.424   -0.373  7.579  6 0.271 1.000  1.000   1.493   0.179
+#>      1.094   3.694    1.432  2.837  6 0.829 1.000  1.000   0.499   0.809
+#>      0.963   1.566   -0.429  5.526  6 0.478 1.000  1.000   0.941   0.465
+#>      1.018   1.767    0.196  5.761  6 0.451 1.000  1.000   0.708   0.643
+#>      1.012  -0.018    0.130  6.873  6 0.333 1.000  1.000   0.956   0.455
 fit$psi$PSI
 #> [1] 0.4907417
 ```

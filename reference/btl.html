@@ -72,7 +72,8 @@ reported with an object separation index and design diagnostics.</p>
 <span>  ties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"drop"</span>, <span class="st">"half"</span>, <span class="st">"error"</span><span class="op">)</span>,</span>
 <span>  thresholds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"free"</span>, <span class="st">"pc"</span><span class="op">)</span>,</span>
 <span>  maxit <span class="op">=</span> <span class="fl">60</span>,</span>
-<span>  tol <span class="op">=</span> <span class="fl">1e-08</span></span>
+<span>  tol <span class="op">=</span> <span class="fl">1e-08</span>,</span>
+<span>  .object_design <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -148,6 +149,11 @@ threshold; <code>"pc"</code> retains only the symmetric spread component.</p></d
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
 <dd><p>Newton-Raphson iteration cap and convergence tolerance.</p></dd>
+
+
+<dt id="arg--object-design">.object_design<a class="anchor" aria-label="anchor" href="#arg--object-design"></a></dt>
+<dd><p>Internal object-location design used by
+<code><a href="btl_explanatory.html">btl_explanatory</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

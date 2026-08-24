@@ -13,7 +13,7 @@ btl_dif(
   factors,
   objects = NULL,
   effects = c("main", "factorial"),
-  p_adjust = "BH",
+  p_adjust = "holm",
   alpha = 0.05,
   flag_logits = 0.5,
   min_n = 20,
@@ -73,11 +73,14 @@ A list of class `"rasch_btl_dif"`: `summary` (one row per object and
 group term with the uniform F, adjusted p and partial eta-squared – the
 term itself – the non-uniform ones – the term crossed with the opponent
 band – plus `uniform_DIF`, `nonuniform_DIF` and `superseded` flags);
-`terms` (the full per-object analysis-of-variance table); `levels`
-(resolved location and SE per object, term and cell); `sizes` (per
-object, term and cell pair: difference in logits, SE, t, degrees of
-freedom, adjusted p, significance and practical flags); `effects`,
-`factors`, and `notes`.
+`terms` (the full per-object analysis-of-variance table, including its
+raw and effective judge support); `levels` (resolved location, SE,
+comparison count, judge count and effective judge count per object, term
+and cell); `sizes` (per object, term and cell pair: difference in
+logits, judge support for both cells, SE, t, degrees of freedom,
+adjusted p, significance and practical flags); `effects`, `factors`,
+`alpha`, `p_adjust`, `flag_logits`, and `notes`. `summary_factors`
+retains the factor membership of each displayed term.
 
 ## Details
 
@@ -93,10 +96,17 @@ units.
 
 A significant uniform term is followed by a joint refit in which the
 object has one location per factor cell. Differences between these
-locations are reported in logits with clustered Wald tests. Higher-order
-terms supersede their component terms. Models fitted with `order` retain
-the exposure and carry-over effects in both the residual analysis and
-refit.
+locations are reported in logits. A cell needs at least eight effective
+judges for pairwise inference; otherwise its location and differences
+remain descriptive. Pairwise tests use degrees of freedom based on the
+effective judges in the two cells. Higher-order terms supersede their
+component terms. Models fitted with `order` retain the exposure and
+carry-over effects in both the residual analysis and refit.
+Between-judge tests use HC3 covariance so unequal comparison workloads
+do not impose equal precision on judge means. Omnibus probabilities
+require at least eight judges and eight effective judges in every factor
+cell. Holm adjustment is the default; `"BH"` remains available for
+false-discovery-rate screening.
 
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce
@@ -116,31 +126,38 @@ effect of subject-specific covariates in paired comparison studies with
 an application to university rankings. *Journal of the Royal Statistical
 Society C*, 47(4), 511-525.
 
+MacKinnon, J. G., & White, H. (1985). Some heteroskedasticity-consistent
+covariance matrix estimators with improved finite sample properties.
+*Journal of Econometrics*, 29(3), 305–325.
+
 ## Examples
 
 ``` r
 set.seed(1)
 beta <- c(A = -1, B = -0.3, C = 0.4, D = 0.9)
 pr <- t(combn(names(beta), 2))
-d <- data.frame(a = rep(pr[, 1], each = 60), b = rep(pr[, 2], each = 60),
-                judge = sample(sprintf("J%02d", 1:12), 360, TRUE))
-shift <- ifelse(d$judge %in% sprintf("J%02d", 1:6) & d$a == "C", 0.9,
-         ifelse(d$judge %in% sprintf("J%02d", 1:6) & d$b == "C", -0.9, 0))
+d <- data.frame(a = rep(pr[, 1], each = 100), b = rep(pr[, 2], each = 100),
+                judge = sample(sprintf("J%02d", 1:20), 600, TRUE))
+shift <- ifelse(d$judge %in% sprintf("J%02d", 1:10) & d$a == "C", 0.9,
+         ifelse(d$judge %in% sprintf("J%02d", 1:10) & d$b == "C", -0.9, 0))
 p <- plogis(beta[d$a] - beta[d$b] + shift)
 d$win <- ifelse(runif(nrow(d)) < p, d$a, d$b)
 f <- btl(d, "a", "b", winner = "win", judge = "judge")
-grp <- setNames(rep(c("g1", "g2"), each = 6), sprintf("J%02d", 1:12))
+grp <- setNames(rep(c("g1", "g2"), each = 10), sprintf("J%02d", 1:20))
 btl_dif(f, grp, objects = "C")
 #> DIF for paired comparisons: 1 factor(s) [group], main effects
 #> Residual ANOVA per object and term (uniform = term; non-uniform = term x opponent band)
 #>  object  term F_uniform p_uniform_adj uniform_DIF F_nonuniform p_nonuniform_adj
-#>       C group    10.576         0.017           *        0.685            0.514
+#>       C group    15.645         0.002           *        0.142            0.858
 #>  nonuniform_DIF
 #>                
 #> 
-#> Resolved locations (logits; BH over 1 comparison(s); practical 0.50)
-#>  object  term level_a level_b difference    se     t df   p_adj significant
-#>       C group      g1      g2      1.404 0.283 4.965 11 < 0.001           *
+#> Resolved locations (logits; holm over 1 comparison(s); practical 0.50)
+#>  object  term level_a level_b difference n_judges_a n_judges_b
+#>       C group      g1      g2      1.121         10         10
+#>  effective_judges_a effective_judges_b    se     t     df   p_adj significant
+#>               9.326              9.340 0.249 4.508 16.665 < 0.001           *
 #>  practical
 #>          *
+#> Notes: 2 object-term test(s) have 8.0--9.4 effective judges in their smallest cell; see min_effective_judges and interpret these results cautiously; C [group]: level(s) g1, g2 have 8.0--9.4 effective judges; interpret pairwise inference cautiously 
 ```

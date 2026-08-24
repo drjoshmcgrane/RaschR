@@ -25,7 +25,11 @@ rasch_efrm(
   tol = 1e-07,
   min_link_persons = 30,
   se_method = c("hybrid", "bootstrap"),
-  boot_reps = NULL
+  boot_reps = NULL,
+  progress = NULL,
+  cancel = NULL,
+  workers = 4L,
+  seed = NULL
 )
 ```
 
@@ -75,8 +79,8 @@ rasch_efrm(
 
 - se_method:
 
-  `"hybrid"` (sandwich + linking bootstrap + delta propagation; fast,
-  default) or `"bootstrap"` (full person bootstrap of all stages).
+  `"hybrid"` (sandwich + linking bootstrap + delta propagation; default)
+  or `"bootstrap"` (full person bootstrap of all stages).
 
 - boot_reps:
 
@@ -84,12 +88,38 @@ rasch_efrm(
   200 for the full bootstrap. Use zero to omit unit uncertainty;
   otherwise at least 30 are required.
 
+- progress:
+
+  Optional function called as `progress(stage, current, total)` during
+  long uncertainty calculations. It is intended for interfaces and batch
+  logging and does not alter estimation.
+
+- cancel:
+
+  Optional zero-argument function checked between bootstrap batches.
+  Returning `TRUE` stops with a `rasch_cancelled` condition. A serial
+  fit uses one replicate per batch.
+
+- workers:
+
+  Number of parallel bootstrap workers. The default is four, reduced
+  when fewer physical cores are available or the R process has a lower
+  system limit. Random samples are generated before distribution, so a
+  fixed seed gives the same result for any worker count. Every worker
+  holds its own copy of the bootstrap state.
+
+- seed:
+
+  Optional bootstrap seed. The caller's random-number state is restored
+  when estimation finishes.
+
 ## Value
 
 An object of classes `"rasch_efrm"` and `"rasch"`. Model-specific
 components include `frames`, `phi_table`, `alpha_table`, `set_table`,
 common-unit item and threshold tables, group-specific `score_curves`,
-`efrm_vs_rasch`, and `linking`. See the extended frame of reference
+`efrm_vs_rasch`, and `linking`, and the person support used for unit
+inference in `unit_support`. See the extended frame of reference
 vignette for their interpretation.
 
 ## Details
@@ -129,6 +159,9 @@ log-likelihood comparison between group-dependent and equal group units.
 This difference is descriptive and contains no information about set
 units, which are identified at the linking stage. The accompanying Wald
 omnibus tests provide inference for the group- and set-unit families.
+Unit estimates are retained for sparse designs, but probabilities
+require at least 50 persons or effective persons in every group and at
+least 50 common persons on every set-link edge.
 
 The model assumes that an item retains its location and discrimination
 across the frames in which it appears, apart from the frame unit.

@@ -18,7 +18,7 @@ resolve_dif(
   fit,
   factors = NULL,
   alpha = 0.05,
-  p_adjust = "BH",
+  p_adjust = "holm",
   min_anchors = NULL,
   max_splits = NULL
 )

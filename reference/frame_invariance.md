@@ -53,8 +53,8 @@ An object of class `"rasch_frame_invariance"`. The `locations` and
 contains set-level RMSD and RMSE summaries. Under the conditional
 method, discrimination `p`, `p_adj`, and `flagged` are `NA`. `excluded`
 lists items whose observed category structures differed between
-calibrations. The remaining components record the multiplicity and
-uncertainty settings.
+calibrations or whose separate-frame estimate was weakly determined. The
+remaining components record the multiplicity and uncertainty settings.
 
 ## Details
 
@@ -95,7 +95,10 @@ difference of the common items. Concentrated DIF can therefore produce
 non-zero centred contrasts for items that were not themselves shifted.
 The table identifies the pattern of relative departures; item content or
 external anchors are needed to determine which items provide the
-defensible reference.
+defensible reference. A compared set-by-frame cell must contain at least
+50 persons with two or more responses. Items with weakly determined
+standard errors in either separate calibration are listed in `excluded`
+rather than tested.
 
 A flagged item may be resolved with
 [`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)

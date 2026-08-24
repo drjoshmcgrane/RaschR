@@ -129,6 +129,25 @@ The simulation reference for dimensionality uses twenty replicates here
 to keep the vignette quick. A final analysis should use enough
 replicates to stabilise the reference distribution.
 
+## Examine DIF across judge groups
+
+`btl_dif` tests whether object locations differ across nominated judge
+factors. The omnibus analysis uses judges as the independent units. A
+significant term is resolved into factor-specific object locations and
+pairwise logit differences. HC3 covariance allows the precision of judge
+means to vary with their comparison workloads. Omnibus and pairwise
+inference require at least eight judges and eight effective judges in
+each factor level; estimates remain descriptive below that boundary. The
+tables report both counts.
+
+``` r
+
+judge_group <- setNames(panel_data$discipline, panel_data$judge)
+bd <- btl_dif(fit, judge_group)
+bd$summary
+bd$sizes
+```
+
 ## Equate panels through common objects
 
 `btl_equate` aligns two calibrations that share at least three objects.
@@ -202,6 +221,13 @@ above reports estimates and conditional standard errors but withholds
 probabilities because it does not propagate stage-one uncertainty into
 the set link. With either bootstrap, omnibus tests cover the unit
 families and individual contrasts are Holm-adjusted follow-ups.
+Judge-bootstrap tests require at least six judges and 5.5 effective
+judges in every panel, and eight of each on a set link. Judge resamples
+are distributed over four workers by default, or fewer where the system
+imposes a lower limit. Set `seed` to reproduce the resamples. The
+parametric bootstrap remains serial because its refits are inexpensive.
+In the application, frame estimation runs in the background and may be
+cancelled.
 
 With 12 judges and 20 repetitions per pair, null rejection for the three
 unit families was 3.3–5.3 per cent under the judge bootstrap and 3.0–6.7

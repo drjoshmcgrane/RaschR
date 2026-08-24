@@ -61,30 +61,37 @@ thresholds, and the substantive content of an item. Targeting determines
 how much information the scale supplies over the observed person
 distribution.
 
+The item-trait chi-square is the principal inferential test over class
+intervals. The residual ANOVA is a supplementary diagnostic. Both
+references are approximate in short administrations, where each response
+materially affects the person grouping; read them with the
+characteristic curve and residual fit rather than as stand-alone
+decisions.
+
 ``` r
 
 fit_summary_table(fit)
-#>                                 statistic                   value
-#> 1                                   Model                     PCM
-#> 2                              Estimation pairwise conditional ML
-#> 3                               Converged                     yes
-#> 4                              Iterations                       3
-#> 5             Total item-trait chi-square                  78.132
-#> 6                      Degrees of freedom                      60
-#> 7                  Item-trait probability                   0.058
-#> 8                         Class intervals                       7
-#> 9                  Item fit residual mean                   -0.21
-#> 10                   Item fit residual SD                    0.63
-#> 11             Item fit residual skewness                    1.66
-#> 12             Item fit residual kurtosis                    2.19
-#> 13               Person fit residual mean                   -0.31
-#> 14                 Person fit residual SD                    0.75
-#> 15           Person fit residual skewness                    0.58
-#> 16           Person fit residual kurtosis                   -0.05
-#> 17       Fit-location correlation (items)                  -0.082
-#> 18     Fit-location correlation (persons)                  -0.018
-#> 19 Items with adjusted chi-square p < .05                 0 of 10
-#> 20                  Disordered thresholds                    none
+#>                                      statistic                   value
+#> 1                                        Model                     PCM
+#> 2                                   Estimation pairwise conditional ML
+#> 3                                    Converged                     yes
+#> 4                                   Iterations                       3
+#> 5                  Total item-trait chi-square                  78.132
+#> 6                           Degrees of freedom                      60
+#> 7                       Item-trait probability                   0.058
+#> 8                              Class intervals                       7
+#> 9                       Item fit residual mean                   -0.21
+#> 10                        Item fit residual SD                    0.63
+#> 11                  Item fit residual skewness                    1.66
+#> 12                  Item fit residual kurtosis                    2.19
+#> 13                    Person fit residual mean                   -0.31
+#> 14                      Person fit residual SD                    0.75
+#> 15                Person fit residual skewness                    0.58
+#> 16                Person fit residual kurtosis                   -0.05
+#> 17            Fit-location correlation (items)                  -0.082
+#> 18          Fit-location correlation (persons)                  -0.018
+#> 19 Items with Holm-adjusted chi-square p < .05                 0 of 10
+#> 20                       Disordered thresholds                    none
 targeting_table(fit)
 #>                             statistic  value
 #> 1                Person location mean  0.040
@@ -109,8 +116,205 @@ targeting_table(fit)
 #> 20        Item separation reliability  0.993
 #> 21                  Coefficient alpha  0.588
 #> 22                 n complete (alpha)    400
-fit$threshold_diagnostics
-#> NULL
+fit$thresholds_diag
+#> $I01
+#> $I01$item
+#> [1] "I01"
+#> 
+#> $I01$thresholds
+#> [1] -2.111
+#> 
+#> $I01$ordered
+#> [1] TRUE
+#> 
+#> $I01$reversed_at
+#> integer(0)
+#> 
+#> $I01$never_modal_categories
+#> integer(0)
+#> 
+#> $I01$category_counts
+#> [1]  53 347
+#> 
+#> 
+#> $I02
+#> $I02$item
+#> [1] "I02"
+#> 
+#> $I02$thresholds
+#> [1] -2.25
+#> 
+#> $I02$ordered
+#> [1] TRUE
+#> 
+#> $I02$reversed_at
+#> integer(0)
+#> 
+#> $I02$never_modal_categories
+#> integer(0)
+#> 
+#> $I02$category_counts
+#> [1]  50 350
+#> 
+#> 
+#> $I03
+#> $I03$item
+#> [1] "I03"
+#> 
+#> $I03$thresholds
+#> [1] -1.749
+#> 
+#> $I03$ordered
+#> [1] TRUE
+#> 
+#> $I03$reversed_at
+#> integer(0)
+#> 
+#> $I03$never_modal_categories
+#> integer(0)
+#> 
+#> $I03$category_counts
+#> [1]  74 326
+#> 
+#> 
+#> $I04
+#> $I04$item
+#> [1] "I04"
+#> 
+#> $I04$thresholds
+#> [1] -0.6374
+#> 
+#> $I04$ordered
+#> [1] TRUE
+#> 
+#> $I04$reversed_at
+#> integer(0)
+#> 
+#> $I04$never_modal_categories
+#> integer(0)
+#> 
+#> $I04$category_counts
+#> [1] 143 257
+#> 
+#> 
+#> $I05
+#> $I05$item
+#> [1] "I05"
+#> 
+#> $I05$thresholds
+#> [1] -0.2381
+#> 
+#> $I05$ordered
+#> [1] TRUE
+#> 
+#> $I05$reversed_at
+#> integer(0)
+#> 
+#> $I05$never_modal_categories
+#> integer(0)
+#> 
+#> $I05$category_counts
+#> [1] 178 222
+#> 
+#> 
+#> $I06
+#> $I06$item
+#> [1] "I06"
+#> 
+#> $I06$thresholds
+#> [1] 0.1925
+#> 
+#> $I06$ordered
+#> [1] TRUE
+#> 
+#> $I06$reversed_at
+#> integer(0)
+#> 
+#> $I06$never_modal_categories
+#> integer(0)
+#> 
+#> $I06$category_counts
+#> [1] 211 189
+#> 
+#> 
+#> $I07
+#> $I07$item
+#> [1] "I07"
+#> 
+#> $I07$thresholds
+#> [1] 0.8435
+#> 
+#> $I07$ordered
+#> [1] TRUE
+#> 
+#> $I07$reversed_at
+#> integer(0)
+#> 
+#> $I07$never_modal_categories
+#> integer(0)
+#> 
+#> $I07$category_counts
+#> [1] 266 134
+#> 
+#> 
+#> $I08
+#> $I08$item
+#> [1] "I08"
+#> 
+#> $I08$thresholds
+#> [1] 1.41
+#> 
+#> $I08$ordered
+#> [1] TRUE
+#> 
+#> $I08$reversed_at
+#> integer(0)
+#> 
+#> $I08$never_modal_categories
+#> integer(0)
+#> 
+#> $I08$category_counts
+#> [1] 304  96
+#> 
+#> 
+#> $I09
+#> $I09$item
+#> [1] "I09"
+#> 
+#> $I09$thresholds
+#> [1] 1.967
+#> 
+#> $I09$ordered
+#> [1] TRUE
+#> 
+#> $I09$reversed_at
+#> integer(0)
+#> 
+#> $I09$never_modal_categories
+#> integer(0)
+#> 
+#> $I09$category_counts
+#> [1] 334  66
+#> 
+#> 
+#> $I10
+#> $I10$item
+#> [1] "I10"
+#> 
+#> $I10$thresholds
+#> [1] 2.572
+#> 
+#> $I10$ordered
+#> [1] TRUE
+#> 
+#> $I10$reversed_at
+#> integer(0)
+#> 
+#> $I10$never_modal_categories
+#> integer(0)
+#> 
+#> $I10$category_counts
+#> [1] 361  39
 head(test_information(fit))
 #>   theta    info   sem
 #> 1  -6.0 0.06796 3.836
@@ -299,6 +503,16 @@ because adjusted Q3 has no universal critical value. The dimensionality
 result carries a caution when either opposed subtest contains fewer than
 15 score points.
 
+When theory supports treating dependent dichotomous items as one
+superitem,
+[`combine_items()`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md)
+refits the calibration and
+[`spread_test()`](https://drjoshmcgrane.github.io/rasch/reference/spread_test.md)
+compares its threshold spread with the binomial bound. `below_bound` is
+the point-estimate comparison; `dependent` records adjusted one-sided
+statistical evidence. The bound does not apply to a superitem containing
+a polytomous component.
+
 ## Link calibrations through common items
 
 Two separately fitted tests can be aligned through their common items.
@@ -366,6 +580,17 @@ fit$psi
 #> [1] 400
 ```
 
+A Wright map can also be drawn with the optional `WrightMap` package.
+Variables retained in the person table can define separate person
+panels. For an EFRM fit, the fitted person groups and item sets can be
+shown together.
+
+``` r
+
+wright_map(fit, person_panels = "group")
+wright_map(efrm_fit, person_panels = "groups", item_panels = "sets")
+```
+
 ## References
 
 Andrich, D. (1978). Relationships between the Thurstone and Rasch
@@ -389,6 +614,9 @@ Press.)
 
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 *Journal of Mathematical Psychology*, 30(3), 306–316.
+
+Torres Irribarra, D., and Freund, R. (2025). *WrightMap: IRT item-person
+map with ConQuest integration*. R package version 1.5.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427–450.

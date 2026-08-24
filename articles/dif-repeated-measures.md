@@ -56,12 +56,14 @@ dat <- data.frame(
 
 The repeated person identifier is carried into the fit. `dif_anova`
 detects occasion as within-person; it can also be declared explicitly.
-Persons, not stacked rows, are the units of analysis. Between-person
-tests use Type II sums of squares. Within-person tests use person-level
-contrasts, with a Greenhouse–Geisser correction when a factor has more
-than two levels. This mixed-design analysis extends the single-factor
-residual analysis of variance described by Andrich and Marais (2019).
-Its F references are large-sample approximations.
+Persons, not stacked rows, are the units of analysis. Uniform
+between-person terms use Type II tests with HC3 covariance.
+Class-interval interactions retain the residual-ANOVA reference.
+Within-person tests use person-level contrasts, with a
+Greenhouse–Geisser correction when a factor has more than two levels.
+This mixed-design analysis extends the single-factor residual analysis
+of variance described by Andrich and Marais (2019). Its F references are
+large-sample approximations.
 
 ``` r
 
@@ -70,39 +72,39 @@ fit <- rasch(dat, id = "pid", factors = c("group", "occasion"),
 da <- dif_anova(fit, within = "occasion", sizes = TRUE)
 da$summary
 #>  item     term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>   I01    group     0.753     0.387         0.840        0.003            
-#>   I01 occasion     0.002     0.962         0.962        0.000            
-#>   I02    group     0.099     0.754         0.959        0.000            
-#>   I02 occasion     0.748     0.388         0.840        0.003            
-#>   I03    group    15.829   < 0.001         0.001        0.064           *
-#>   I03 occasion     0.521     0.471         0.840        0.002            
-#>   I04    group     0.059     0.808         0.959        0.000            
-#>   I04 occasion     0.354     0.552         0.840        0.002            
-#>   I05    group     3.974     0.047         0.309        0.017            
-#>   I05 occasion     6.853     0.009         0.101        0.029            
-#>   I06    group     0.360     0.549         0.840        0.002            
+#>   I01    group     0.717     0.398         1.000        0.003            
+#>   I01 occasion     0.002     0.962         1.000        0.000            
+#>   I02    group     0.087     0.768         1.000        0.000            
+#>   I02 occasion     0.748     0.388         1.000        0.003            
+#>   I03    group    14.764   < 0.001         0.005        0.064           *
+#>   I03 occasion     0.521     0.471         1.000        0.002            
+#>   I04    group     0.055     0.815         1.000        0.000            
+#>   I04 occasion     0.354     0.552         1.000        0.002            
+#>   I05    group     3.776     0.053         1.000        0.017            
+#>   I05 occasion     6.853     0.009         0.283        0.029            
+#>   I06    group     0.354     0.552         1.000        0.002            
 #>   I06 occasion    19.381   < 0.001       < 0.001        0.077           *
-#>   I07    group     0.024     0.876         0.959        0.000            
-#>   I07 occasion     1.525     0.218         0.731        0.007            
-#>   I08    group     0.666     0.415         0.840        0.003            
-#>   I08 occasion     3.944     0.048         0.309        0.017            
+#>   I07    group     0.022     0.881         1.000        0.000            
+#>   I07 occasion     1.525     0.218         1.000        0.007            
+#>   I08    group     0.721     0.397         1.000        0.003            
+#>   I08 occasion     3.944     0.048         1.000        0.017            
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         1.798        0.148            0.678           0.023               
-#>         0.894        0.445            0.840           0.011               
-#>         1.153        0.328            0.840           0.015               
-#>         0.657        0.579            0.840           0.008               
-#>         0.569        0.636            0.848           0.007               
-#>         0.207        0.892            0.959           0.003               
-#>         0.618        0.604            0.840           0.008               
-#>         1.441        0.231            0.731           0.018               
-#>         0.196        0.899            0.959           0.003               
-#>         0.228        0.877            0.959           0.003               
-#>         0.133        0.940            0.962           0.002               
-#>         2.016        0.112            0.600           0.026               
-#>         1.374        0.251            0.731           0.018               
-#>         0.769        0.512            0.840           0.010               
-#>         1.375        0.251            0.731           0.018               
-#>         0.819        0.485            0.840           0.011               
+#>         1.798        0.148            1.000           0.023               
+#>         0.894        0.445            1.000           0.011               
+#>         1.153        0.328            1.000           0.015               
+#>         0.657        0.579            1.000           0.008               
+#>         0.569        0.636            1.000           0.007               
+#>         0.207        0.892            1.000           0.003               
+#>         0.618        0.604            1.000           0.008               
+#>         1.441        0.231            1.000           0.018               
+#>         0.196        0.899            1.000           0.003               
+#>         0.228        0.877            1.000           0.003               
+#>         0.133        0.940            1.000           0.002               
+#>         2.016        0.112            1.000           0.026               
+#>         1.374        0.251            1.000           0.018               
+#>         0.769        0.512            1.000           0.010               
+#>         1.375        0.251            1.000           0.018               
+#>         0.819        0.485            1.000           0.011               
 #>  superseded
 #>            
 #>            
@@ -122,13 +124,13 @@ da$summary
 #> 
 ```
 
-The multiplicity adjustment is applied across items separately within
-each term. Uniform DIF is a factor effect that is stable over the trait;
-a factor-by-class-interval effect is non-uniform DIF. If person-factor
-interactions are substantively required, use `effects = "factorial"` and
-interpret a significant higher-order term before its component main
-effects. Read adjusted probabilities with effect sizes before changing
-an item.
+The multiplicity adjustment covers the complete family of
+item-by-DIF-term tests. Uniform DIF is a factor effect that is stable
+over the trait; a factor-by-class-interval effect is non-uniform DIF. If
+person-factor interactions are substantively required, use
+`effects = "factorial"` and interpret a significant higher-order term
+before its component main effects. Read adjusted probabilities with
+effect sizes before changing an item.
 
 ## Quantify the departure
 
@@ -154,14 +156,14 @@ dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion")
 dc$table
 #>  item                         contrast within estimate se statistic      df
 #>   I03                     group: B - A           0.841        4.090 237.998
-#>   I03                occasion: T2 - T1      *   -0.166       -0.717 239.000
+#>   I03                occasion: T2 - T1      *   -0.166       -0.716 233.639
 #>   I03 group(B - A) x occasion(T2 - T1)      *   -0.071       -0.230 233.639
 #>   I06                     group: B - A           0.046        0.484 237.564
-#>   I06                occasion: T2 - T1      *    1.043        4.650 239.000
+#>   I06                occasion: T2 - T1      *    1.043        4.653 226.506
 #>   I06 group(B - A) x occasion(T2 - T1)      *   -0.246       -1.119 226.506
 #>        p   p_adj lower upper significant practical
 #>  < 0.001 < 0.001                       *         *
-#>    0.474   1.000                                  
+#>    0.475   1.000                                  
 #>    0.818   1.000                                  
 #>    0.629   1.000                                  
 #>  < 0.001 < 0.001                       *         *
@@ -169,7 +171,7 @@ dc$table
 da$posthoc
 #>  item     term item.1 contrast within estimate se statistic      df       p
 #>   I03    group    I03    B - A           0.841        4.090 237.998 < 0.001
-#>   I06 occasion    I06  T2 - T1      *    1.043        4.650 239.000 < 0.001
+#>   I06 occasion    I06  T2 - T1      *    1.043        4.653 226.506 < 0.001
 #>    p_adj lower upper significant practical
 #>  < 0.001                       *         *
 #>  < 0.001                       *         *
@@ -181,16 +183,19 @@ than two levels is reported as pairwise marginal differences over the
 other fitted factors. An interaction is reported as a
 difference-in-differences, or its higher-order counterpart. These
 comparisons use the joint covariance of the resolved item locations and
-Holm adjustment over the stated family. They are preferable to an
-ordinary Tukey comparison of residual means because the result is on the
-logit scale and respects the factor structure used in the DIF analysis.
+Holm adjustment over the stated family. The result is on the logit scale
+and respects the factor structure used in the DIF analysis.
 
 For repeated-person contrasts, significance comes from person-level
-residual contrast scores. The resolved logit difference remains the
-magnitude, but its row-independent calibration covariance is not a
-repeated-measures standard error; the package therefore withholds the
-logit SE and interval in this case. The fitted person identifier is used
-unless `id` is supplied explicitly.
+residual contrast scores with the same design-cell weights as the
+resolved estimate. Other fitted factors are averaged equally over their
+complete cells, including when their sample sizes differ, and the
+independent between-person cells use a Welch–Satterthwaite reference.
+The resolved logit difference remains the magnitude, but its
+row-independent calibration covariance is not a repeated-measures
+standard error; the package therefore withholds the logit SE and
+interval in this case. The fitted person identifier is used unless `id`
+is supplied explicitly.
 
 For a many-facet fit, follow-ups may name the underlying item; its
 virtual facet cells are pooled with common weights so facet severity

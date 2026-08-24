@@ -102,7 +102,8 @@ resamples within frame.</p></dd>
   item comparisons; <code>summary</code> contains set-level RMSD and RMSE
   summaries. Under the conditional method, discrimination <code>p</code>,
   <code>p_adj</code>, and <code>flagged</code> are <code>NA</code>. <code>excluded</code> lists
-  items whose observed category structures differed between calibrations.
+  items whose observed category structures differed between calibrations
+  or whose separate-frame estimate was weakly determined.
   The remaining components record the multiplicity and uncertainty settings.</p>
     </div>
     <div class="section level2">
@@ -141,7 +142,10 @@ Location differences are relative to the mean difference of the common
 items. Concentrated DIF can therefore produce non-zero centred contrasts
 for items that were not themselves shifted. The table identifies the
 pattern of relative departures; item content or external anchors are needed
-to determine which items provide the defensible reference.</p>
+to determine which items provide the defensible reference.
+A compared set-by-frame cell must contain at least 50 persons with two or
+more responses. Items with weakly determined standard errors in either
+separate calibration are listed in <code>excluded</code> rather than tested.</p>
 <p>A flagged item may be resolved with <code><a href="resolve_frames.html">resolve_frames</a></code> when it
 remains useful within frames, or removed with <code><a href="drop_items.html">drop_items</a></code>
 when it fits poorly more generally. Either change requires a refit. The

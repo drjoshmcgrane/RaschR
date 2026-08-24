@@ -48,11 +48,12 @@ equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
 ## Value
 
 A list with the comparison `table` (locations, standard errors,
-difference, t, raw and BH-adjusted p, drift flag), the estimated
+difference, t, raw and Holm-adjusted p, drift flag), the estimated
 `shift`, the location `correlation`, the root mean square difference
 after shifting (`rmsd`), the number of common items `n_common`, the
 number with usable standard errors `n`, and whether drift inference was
-available (`inferential`).
+available (`inferential`). The `notes` component records exclusions and
+the reason inference was withheld, where applicable.
 
 ## Details
 
@@ -86,12 +87,12 @@ eq$table
 #> 7   I7  1.1874751 0.1180524  1.1279739 0.1189861  0.05950128     0.05023776
 #> 8   I8  1.4290269 0.1263670  1.5814546 0.1284329 -0.15242768    -0.16169120
 #>            t          p     p_adj drift
-#> 1 -0.5817100 0.56076205 0.8432425 FALSE
-#> 2 -0.2951436 0.76788421 0.8432425 FALSE
+#> 1 -0.5817100 0.56076205 1.0000000 FALSE
+#> 2 -0.2951436 0.76788421 1.0000000 FALSE
 #> 3  1.8293214 0.06735147 0.5388118 FALSE
-#> 4 -0.1977476 0.84324253 0.8432425 FALSE
-#> 5  0.8312417 0.40583712 0.8116742 FALSE
-#> 6 -1.1696652 0.24213573 0.8116742 FALSE
-#> 7  0.2969011 0.76654200 0.8432425 FALSE
-#> 8 -0.8735713 0.38235177 0.8116742 FALSE
+#> 4 -0.1977476 0.84324253 1.0000000 FALSE
+#> 5  0.8312417 0.40583712 1.0000000 FALSE
+#> 6 -1.1696652 0.24213573 1.0000000 FALSE
+#> 7  0.2969011 0.76654200 1.0000000 FALSE
+#> 8 -0.8735713 0.38235177 1.0000000 FALSE
 ```

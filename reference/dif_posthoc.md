@@ -95,13 +95,10 @@ two-factor interaction, levels \\a,b\\ and \\c,d\\ give
 Higher-order interactions use the corresponding tensor-product contrast.
 Standard errors use the full covariance of the resolved locations.
 
-This is the preferred follow-up to a significant DIF term with more than
-two levels. It reports effects in Rasch logits, adjusts the chosen
-family of comparisons, and uses person-level scores for
-repeated-measures designs. Tukey's HSD in
-[`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
-instead compares residual means and is limited to between-person
-analysis-of-variance terms.
+This is the follow-up to a significant DIF term with more than two
+levels. It reports effects in Rasch logits, adjusts the chosen family of
+comparisons, and uses person-level scores with the same equal-cell
+marginal weights in repeated-measures designs.
 
 ## References
 

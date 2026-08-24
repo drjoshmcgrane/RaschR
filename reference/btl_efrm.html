@@ -73,6 +73,10 @@ structure.</p>
 <span>  min_link <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>  se_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"judge_bootstrap"</span>, <span class="st">"bootstrap"</span>, <span class="st">"conditional"</span><span class="op">)</span>,</span>
 <span>  boot_reps <span class="op">=</span> <span class="fl">200</span>,</span>
+<span>  workers <span class="op">=</span> <span class="fl">4L</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  progress <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  cancel <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  maxit <span class="op">=</span> <span class="fl">60</span>,</span>
 <span>  tol <span class="op">=</span> <span class="fl">1e-08</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -145,6 +149,28 @@ probabilities and omnibus tests are therefore withheld.</p></dd>
 or <code>"judge_bootstrap"</code>; at least 30 are required.</p></dd>
 
 
+<dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
+<dd><p>Number of judge-bootstrap workers. The default is four,
+reduced when the system limit is lower. The parametric bootstrap remains
+serial because its refits are inexpensive.</p></dd>
+
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>Optional bootstrap seed. The caller's random-number state is
+restored when estimation finishes.</p></dd>
+
+
+<dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
+<dd><p>Optional function called as <code>progress(stage, current,
+total)</code> during estimation.</p></dd>
+
+
+<dt id="arg-cancel">cancel<a class="anchor" aria-label="anchor" href="#arg-cancel"></a></dt>
+<dd><p>Optional zero-argument function checked between bootstrap
+batches. Returning <code>TRUE</code> stops with a <code>rasch_cancelled</code>
+condition.</p></dd>
+
+
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
 <dd><p>Newton iteration cap and convergence tolerance.</p></dd>
 
@@ -153,7 +179,8 @@ or <code>"judge_bootstrap"</code>; at least 30 are required.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>"rasch_btl_efrm"</code>. It contains the object
   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
-  frame definitions, convergence information, and analysis notes.</p>
+  unit-specific judge support, frame definitions, convergence information,
+  and analysis notes.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -185,7 +212,11 @@ withheld because it does not propagate stage-one uncertainty. Bootstrap
 failures and boundary estimates are reported in <code>notes</code>.</p>
 <p>With one set, the model contains panel units only. With one set and one
 panel, it reduces to <code><a href="btl.html">btl</a></code>. Omnibus Wald tests provide inference
-for the unit families; individual contrasts are Holm-adjusted follow-ups.</p>
+for the unit families; individual contrasts are Holm-adjusted follow-ups.
+Judge-bootstrap probabilities require at least six judges and 5.5 effective
+judges in every contributing panel, and eight of each on a set link. The
+support is returned in <code>unit_support</code>; estimates remain descriptive
+when a probability is withheld.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

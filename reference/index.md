@@ -10,6 +10,19 @@ Fit Rasch models and estimate item and person parameters.
   : Fit a many-facet Rasch model
 - [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
   : Fit the extended frame of reference model
+- [`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
+  : Fit an explanatory Rasch model
+- [`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md)
+  : Fit an explanatory comparative judgement model
+- [`explanatory_test()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md)
+  : Compare an explanatory model with its free calibration
+- [`explanatory_diagnostics()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_diagnostics.md)
+  : Diagnose fixed departures from an explanatory model
+- [`relax_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/relax_explanatory.md)
+  : Relax a nominated explanatory restriction
+- [`relax_btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/relax_btl_explanatory.md)
+  : Add a fixed object departure to an explanatory comparative judgement
+  model
 - [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md) :
   Estimate Rasch thresholds by pairwise conditional maximum likelihood
 - [`pcml_pc()`](https://drjoshmcgrane.github.io/rasch/reference/pcml_pc.md)
@@ -158,6 +171,8 @@ Fit and examine models for dichotomous or ordered paired comparisons.
 
 Plot fitted models and diagnostic results.
 
+- [`wright_map()`](https://drjoshmcgrane.github.io/rasch/reference/wright_map.md)
+  : Draw a Wright map with WrightMap
 - [`plot_catfreq()`](https://drjoshmcgrane.github.io/rasch/reference/plot_catfreq.md)
   : Plot category frequencies
 - [`plot_ccc()`](https://drjoshmcgrane.github.io/rasch/reference/plot_ccc.md)

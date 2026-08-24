@@ -13,7 +13,7 @@ dif_anova(
   fit,
   factors = NULL,
   n_groups = NULL,
-  p_adjust = "BH",
+  p_adjust = "holm",
   alpha = 0.05,
   effects = c("main", "factorial"),
   sizes = FALSE,
@@ -48,7 +48,9 @@ dif_anova(
 
 - p_adjust:
 
-  Multiplicity adjustment over all item-by-term tests; default `"BH"`.
+  Multiplicity adjustment over all item-by-term tests; default `"holm"`.
+  Use `"BH"` only for false-discovery-rate screening rather than
+  familywise control.
 
 - alpha:
 
@@ -101,11 +103,6 @@ A list with:
 
   The complete item-wise analysis-of-variance tables.
 
-- `tukey`:
-
-  Residual-mean Tukey comparisons retained for compatibility in
-  between-person designs. Use `posthoc` for logit-scale follow-ups.
-
 - `sizes`:
 
   When requested, pairwise logit differences for the significant,
@@ -117,6 +114,10 @@ A list with:
   and difference-in-differences magnitudes for interactions, calculated
   by
   [`dif_posthoc`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md).
+
+- `between_covariance`:
+
+  The covariance reference used for uniform between-person terms.
 
 The remaining components record the factors, class intervals,
 adjustment, significance level, and design settings.
@@ -140,7 +141,14 @@ means. A Greenhouse–Geisser correction is applied to within-person
 factors with more than two levels. Persons missing a required cell are
 excluded from the corresponding within-person test. In incomplete mixed
 designs, within-cell effects are removed before the between-person
-analysis.
+analysis. Uniform between-person factor terms use HC3 covariance so
+unequal group sizes, leverage, and differing precision of person means
+do not impose a common residual variance. Class-interval interactions
+retain the residual-ANOVA reference used to test non-uniform DIF. For
+between-person design matrix \\X\\, residuals \\e_i\\, and leverages
+\\h_i\\, \$\$\widehat{V}\_{\mathrm{HC3}}=(X^{\mathsf T}X)^{-1}X^{\mathsf
+T} \operatorname{diag}\left\\\frac{e_i^2}{(1-h_i)^2}\right\\X
+(X^{\mathsf T}X)^{-1}.\$\$
 
 A significant higher-order factor term supersedes its component terms in
 the summary. For EFRM fits, frame-defining factors are excluded because
@@ -154,13 +162,16 @@ from a converged calibration.
 
 ## References
 
-Benjamini, Y. and Hochberg, Y. (1995). Controlling the false discovery
-rate: a practical and powerful approach to multiple testing. Journal of
-the Royal Statistical Society: Series B, 57(1), 289–300.
+Holm, S. (1979). A simple sequentially rejective multiple test
+procedure. Scandinavian Journal of Statistics, 6(2), 65–70.
 
 Hagquist, C. and Andrich, D. (2017). Recent advances in analysis of
 differential item functioning in health research using the Rasch model.
 Health and Quality of Life Outcomes, 15, 181.
+
+MacKinnon, J. G. and White, H. (1985). Some
+heteroskedasticity-consistent covariance matrix estimators with improved
+finite sample properties. Journal of Econometrics, 29(3), 305–325.
 
 Maxwell, S. E. and Delaney, H. D. (2004). Designing Experiments and
 Analyzing Data: A Model Comparison Perspective (2nd ed.). Lawrence
@@ -189,31 +200,31 @@ colnames(X) <- paste0("I", 1:6)
 fit <- rasch(data.frame(X, g1 = g1, g2 = g2), factors = c("g1", "g2"))
 dif_anova(fit)$summary
 #>  item term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>    I1   g1     0.612     0.434         0.651        0.001            
-#>    I1   g2     1.341     0.247         0.494        0.002            
-#>    I2   g1    22.600   < 0.001       < 0.001        0.031           *
-#>    I2   g2     2.931     0.087         0.419        0.004            
-#>    I3   g1     2.623     0.106         0.423        0.004            
-#>    I3   g2     0.324     0.570         0.719        0.000            
-#>    I4   g1     2.279     0.132         0.451        0.003            
-#>    I4   g2     1.428     0.232         0.494        0.002            
-#>    I5   g1     0.833     0.362         0.620        0.001            
-#>    I5   g2     1.384     0.240         0.494        0.002            
-#>    I6   g1     0.680     0.410         0.651        0.001            
-#>    I6   g2     3.954     0.047         0.283        0.006            
+#>    I1   g1     0.600     0.439         1.000        0.001            
+#>    I1   g2     1.311     0.253         1.000        0.002            
+#>    I2   g1    21.688   < 0.001       < 0.001        0.031           *
+#>    I2   g2     2.935     0.087         1.000        0.004            
+#>    I3   g1     2.557     0.110         1.000        0.004            
+#>    I3   g2     0.316     0.574         1.000        0.000            
+#>    I4   g1     2.300     0.130         1.000        0.003            
+#>    I4   g2     1.417     0.234         1.000        0.002            
+#>    I5   g1     0.807     0.369         1.000        0.001            
+#>    I5   g2     1.378     0.241         1.000        0.002            
+#>    I6   g1     0.681     0.410         1.000        0.001            
+#>    I6   g2     3.853     0.050         1.000        0.006            
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         0.471        0.757            0.865           0.003               
-#>         0.117        0.977            0.977           0.001               
-#>         2.571        0.037            0.283           0.014               
-#>         0.224        0.925            0.965           0.001               
-#>         1.216        0.303            0.559           0.007               
-#>         0.582        0.676            0.811           0.003               
-#>         0.841        0.499            0.705           0.005               
-#>         1.582        0.177            0.494           0.009               
-#>         0.754        0.556            0.719           0.004               
-#>         0.386        0.819            0.893           0.002               
-#>         3.544        0.007            0.085           0.020               
-#>         1.406        0.230            0.494           0.008               
+#>         0.471        0.757            1.000           0.003               
+#>         0.117        0.977            1.000           0.001               
+#>         2.571        0.037            0.810           0.014               
+#>         0.224        0.925            1.000           0.001               
+#>         1.216        0.303            1.000           0.007               
+#>         0.582        0.676            1.000           0.003               
+#>         0.841        0.499            1.000           0.005               
+#>         1.582        0.177            1.000           0.009               
+#>         0.754        0.556            1.000           0.004               
+#>         0.386        0.819            1.000           0.002               
+#>         3.544        0.007            0.164           0.020               
+#>         1.406        0.230            1.000           0.008               
 #>  superseded
 #>            
 #>            
@@ -247,11 +258,11 @@ mixed_fit <- rasch(repeated, id = rep(seq_len(N), 2),
 mixed_dif <- dif_anova(mixed_fit, within = "occasion")
 subset(mixed_dif$summary, uniform_DIF | nonuniform_DIF)
 #>  item     term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF
-#>    I2    group    24.646   < 0.001       < 0.001        0.075           *
+#>    I2    group    23.725   < 0.001       < 0.001        0.075           *
 #>    I5 occasion    19.702   < 0.001       < 0.001        0.061           *
 #>  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF
-#>         1.368        0.245            0.653           0.018               
-#>         0.196        0.940            0.950           0.003               
+#>         1.368        0.245            1.000           0.018               
+#>         0.196        0.940            1.000           0.003               
 #>  superseded
 #>            
 #>            

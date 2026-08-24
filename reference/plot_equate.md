@@ -2,7 +2,7 @@
 
 Scatter of the two calibrations' common-item locations with the shifted
 identity line and per-item 95 per cent bands; drifting items
-(BH-adjusted) are highlighted and labelled.
+(Holm-adjusted) are highlighted and labelled.
 
 ## Usage
 

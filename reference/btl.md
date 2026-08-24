@@ -22,7 +22,8 @@ btl(
   ties = c("drop", "half", "error"),
   thresholds = c("free", "pc"),
   maxit = 60,
-  tol = 1e-08
+  tol = 1e-08,
+  .object_design = NULL
 )
 ```
 
@@ -94,6 +95,11 @@ btl(
 - maxit, tol:
 
   Newton-Raphson iteration cap and convergence tolerance.
+
+- .object_design:
+
+  Internal object-location design used by
+  [`btl_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md).
 
 ## Value
 

@@ -47,7 +47,8 @@ fit <- rasch_efrm(
   item_sets = truth$item_sets,
   groups = "group",
   id = "id",
-  boot_reps = 30
+  boot_reps = 30,
+  workers = 1
 )
 fit
 #> rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 500 persons
@@ -182,6 +183,15 @@ The resulting covariance is retained for the common-scale thresholds and
 complete frame units. Set `se_method = "bootstrap"` to refit the
 complete model to each person resample.
 
+The linking calculations use a compiled numerical kernel. Bootstrap
+replicates run on four workers by default, or fewer where the system
+limit is lower. A fixed `seed` gives the same samples and results for
+every worker count without altering the caller’s random-number stream.
+In the Shiny application the fit runs in a separate process. The analyst
+can select up to four workers, follow completed batches, or cancel the
+process without replacing the current analysis. R scripts can supply
+`progress` and `cancel` callbacks for the same controls.
+
 ``` r
 
 fit$efrm_vs_rasch$unit_omnibus
@@ -200,7 +210,10 @@ The omnibus Wald tests assess the set- and group-unit families.
 Individual unit contrasts are Holm-adjusted follow-ups. The raw
 composite-likelihood difference is descriptive and compares the
 group-unit stage only. Set units are identified in the linking stage and
-are assessed by their Wald test.
+are assessed by their Wald test. Probabilities require at least 50
+persons or effective persons in every group and at least 50 common
+persons on every set-link edge. Sparse designs retain the unit estimates
+without an inferential probability.
 
 Simulation under normal, bimodal and deliberately different group
 distributions gave set-unit bias within 0.004 log-units,
@@ -215,7 +228,10 @@ were recovered without bias.
 The fitted EFRM gives an item one location across its frames, scaled by
 the frame unit.
 [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
-examines that restriction by calibrating each frame separately.
+examines that restriction by calibrating each frame separately. Each
+compared frame needs at least 50 persons with two or more responses.
+Items with weak separate-frame standard errors are excluded from the
+comparison.
 
 For frame \\f\\, the common-scale item location is
 \\\hat\delta\_{if}^{\*}=\hat\delta\_{if}/\hat\rho_f\\. The separate

@@ -117,8 +117,10 @@ head(fit_interaction$interaction_effects)
 #>    I1    R2 -0.071 0.145 -0.490 0.626 1.000            
 #>    I2    R2 -0.086 0.154 -0.555 0.581 1.000
 fit_interaction$interaction_test
-#>  facet df  wald     f df2     p
-#>  rater 12 5.993 0.406  48 0.954
+#>  facet df  wald     f df2     p min_effective_persons minimum_required
+#>  rater 12 5.993 0.406  48 0.954                    60               30
+#>  inference_available
+#>                    *
 ```
 
 The interaction model retains equal discrimination, but comparisons
@@ -126,7 +128,10 @@ among raters become item-dependent. A material interaction therefore
 qualifies the claim of invariant rater severity rather than merely
 improving fit. The joint Wald test is the primary test of the
 interaction family; individual cells are exploratory and adjusted by
-Holm’s method.
+Holm’s method. The test uses the least-supported facet level and
+withholds probabilities when that level has fewer than `max(30, q + 2)`
+persons or effective persons, where `q` is the omnibus degrees of
+freedom.
 
 ## Diagnostics
 

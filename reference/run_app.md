@@ -24,10 +24,10 @@ Called for its side effect of launching the app.
 
 ## Details
 
-The app's display packages ('shiny', 'bslib', 'DT', 'bsicons') are
-suggested rather than required by the package. If any are missing,
-`run_app` lists them all and, in an interactive session, offers to
-install them before launching.
+The app's interface packages ('shiny', 'bslib', 'DT', 'bsicons', and
+'callr' for cancellable EFRM estimation) are suggested rather than
+required by the package. If any are missing, `run_app` lists them all
+and, in an interactive session, offers to install them before launching.
 
 ## Examples
 

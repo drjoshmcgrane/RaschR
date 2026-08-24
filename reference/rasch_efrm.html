@@ -86,7 +86,11 @@ $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
 <span>  tol <span class="op">=</span> <span class="fl">1e-07</span>,</span>
 <span>  min_link_persons <span class="op">=</span> <span class="fl">30</span>,</span>
 <span>  se_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"hybrid"</span>, <span class="st">"bootstrap"</span><span class="op">)</span>,</span>
-<span>  boot_reps <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  boot_reps <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  progress <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  cancel <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  workers <span class="op">=</span> <span class="fl">4L</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -137,7 +141,7 @@ set pair to contribute to the unit linking.</p></dd>
 
 <dt id="arg-se-method">se_method<a class="anchor" aria-label="anchor" href="#arg-se-method"></a></dt>
 <dd><p><code>"hybrid"</code> (sandwich + linking bootstrap + delta
-propagation; fast, default) or <code>"bootstrap"</code> (full person
+propagation; default) or <code>"bootstrap"</code> (full person
 bootstrap of all stages).</p></dd>
 
 
@@ -146,6 +150,31 @@ bootstrap of all stages).</p></dd>
 bootstrap and 200 for the full bootstrap. Use zero to omit unit
 uncertainty; otherwise at least 30 are required.</p></dd>
 
+
+<dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
+<dd><p>Optional function called as <code>progress(stage, current,
+total)</code> during long uncertainty calculations. It is intended for
+interfaces and batch logging and does not alter estimation.</p></dd>
+
+
+<dt id="arg-cancel">cancel<a class="anchor" aria-label="anchor" href="#arg-cancel"></a></dt>
+<dd><p>Optional zero-argument function checked between bootstrap
+batches. Returning <code>TRUE</code> stops with a <code>rasch_cancelled</code>
+condition. A serial fit uses one replicate per batch.</p></dd>
+
+
+<dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
+<dd><p>Number of parallel bootstrap workers. The default is four,
+reduced when fewer physical cores are available or the R process has a
+lower system limit. Random samples are generated before distribution, so
+a fixed seed gives the same result for any worker count. Every worker
+holds its own copy of the bootstrap state.</p></dd>
+
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>Optional bootstrap seed. The caller's random-number state is
+restored when estimation finishes.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -153,8 +182,9 @@ uncertainty; otherwise at least 30 are required.</p></dd>
   Model-specific components include <code>frames</code>, <code>phi_table</code>,
   <code>alpha_table</code>, <code>set_table</code>, common-unit item and threshold
   tables, group-specific <code>score_curves</code>, <code>efrm_vs_rasch</code>, and
-  <code>linking</code>. See the extended frame of reference vignette for their
-  interpretation.</p>
+  <code>linking</code>, and the person support used for unit inference in
+  <code>unit_support</code>. See the extended frame of reference vignette for
+  their interpretation.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -190,7 +220,10 @@ to each person resample.</p>
 log-likelihood comparison between group-dependent and equal group units.
 This difference is descriptive and contains no information about set units,
 which are identified at the linking stage. The accompanying Wald omnibus
-tests provide inference for the group- and set-unit families.</p>
+tests provide inference for the group- and set-unit families. Unit estimates
+are retained for sparse designs, but probabilities require at least 50
+persons or effective persons in every group and at least 50 common persons
+on every set-link edge.</p>
 <p>The model assumes that an item retains its location and discrimination
 across the frames in which it appears, apart from the frame unit.
 <code><a href="frame_invariance.html">frame_invariance</a></code> examines this assumption by separate frame

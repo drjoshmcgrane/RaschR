@@ -6,8 +6,9 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="rasch: Models and Diagnostics for Rasch Measurement Theory — rasch-package"><meta name="description" content="Fits and evaluates models within Rasch Measurement Theory. The package
-includes models for item responses, ratings, linked frames of reference,
-and comparative judgement of paired stimuli, together with functions
+includes models for item responses, explanatory item and threshold
+structures, multiple ratings, linked frames of reference, and comparative
+judgement of paired stimuli, together with functions
 for fit, targeting, reliability, dimensionality, local dependence,
 differential item functioning, equating, and simulation. The suite
 follows Rasch (1960) and Andrich and Marais (2019); the frame of
@@ -16,8 +17,9 @@ and named, and Humphry and Andrich (2008); the dichotomous comparative
 judgement model is the conditional form of the dichotomous Rasch model
 (Andrich 1978), and the polytomous model is its adjacent-categories
 extension (Tutz 1986)."><meta property="og:description" content="Fits and evaluates models within Rasch Measurement Theory. The package
-includes models for item responses, ratings, linked frames of reference,
-and comparative judgement of paired stimuli, together with functions
+includes models for item responses, explanatory item and threshold
+structures, multiple ratings, linked frames of reference, and comparative
+judgement of paired stimuli, together with functions
 for fit, targeting, reliability, dimensionality, local dependence,
 differential item functioning, equating, and simulation. The suite
 follows Rasch (1960) and Andrich and Marais (2019); the frame of
@@ -67,8 +69,9 @@ extension (Tutz 1986)."><meta property="og:image" content="https://drjoshmcgrane
 
     <div class="ref-description section level2">
     <p>Fits and evaluates models within Rasch Measurement Theory. The package
-includes models for item responses, ratings, linked frames of reference,
-and comparative judgement of paired stimuli, together with functions
+includes models for item responses, explanatory item and threshold
+structures, multiple ratings, linked frames of reference, and comparative
+judgement of paired stimuli, together with functions
 for fit, targeting, reliability, dimensionality, local dependence,
 differential item functioning, equating, and simulation. The suite
 follows Rasch (1960) and Andrich and Marais (2019); the frame of
@@ -94,11 +97,13 @@ population distribution for person locations. The diagnostic functions
 examine whether comparisons remain invariant across persons, items, groups,
 occasions, raters, and other parts of the measurement design.</p>
 <p>Use <code><a href="rasch.html">rasch</a></code> for the dichotomous, partial credit, and rating
-scale models; <code><a href="rasch_mfrm.html">rasch_mfrm</a></code> for additive item, rater, and other
+scale models; <code><a href="rasch_explanatory.html">rasch_explanatory</a></code> for the linear logistic test
+and linear partial credit models; <code><a href="rasch_mfrm.html">rasch_mfrm</a></code> for additive item, rater, and other
 facet effects; and <code><a href="rasch_efrm.html">rasch_efrm</a></code> when the unit varies across
-linked frames. <code><a href="btl.html">btl</a></code> fits the comparative judgement models
-for dichotomous and polytomous paired comparisons, and
-<code><a href="btl_efrm.html">btl_efrm</a></code> fits their linked-frame extension.</p>
+linked frames. <code><a href="btl.html">btl</a></code> fits comparative judgement models for
+dichotomous and polytomous paired comparisons;
+<code><a href="btl_explanatory.html">btl_explanatory</a></code> constrains object locations by observed
+characteristics; and <code><a href="btl_efrm.html">btl_efrm</a></code> fits the linked-frame extension.</p>
     </div>
     <div class="section level2">
     <h2 id="graphical-interface">Graphical interface<a class="anchor" aria-label="anchor" href="#graphical-interface"></a></h2>
@@ -125,6 +130,11 @@ approaches to item scaling. Applied Psychological Measurement, 2(3),
 451–462.</p>
 <p>Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences. Springer.</p>
+<p>Fischer, G. H. (1973). The linear logistic test model as an instrument in
+educational research. Acta Psychologica, 37(6), 359–374.</p>
+<p>Fischer, G. H. and Ponocny, I. (1994). An extension of the partial credit
+model with an application to the measurement of change. Psychometrika,
+59(2), 177–192.</p>
 <p>Humphry, S. M. (2005). Maintaining a Common Arbitrary Unit in Social
 Measurement. PhD thesis, Murdoch University.</p>
 <p>Humphry, S. M. and Andrich, D. (2008). Understanding the unit in the
