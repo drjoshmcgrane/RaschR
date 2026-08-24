@@ -58,12 +58,13 @@ a common scale.
 
 The item-response models follow Rasch (1960) and Andrich and Marais
 (2019). The explanatory item models follow Fischer (1973) and Fischer
-and Ponocny (1994). Continuous, categorical or ordinal characteristics
-may be used; the comparative-judgement formulation applies the same
-fixed design to Bradley–Terry–Luce object locations. The frame models
-follow Humphry (2005) and Humphry and Andrich (2008). The comparative
-judgement models follow Bradley and Terry (1952), Luce (1959), Andrich
-(1978a), and Tutz (1986).
+and Ponocny (1994), within the explanatory framework of De Boeck and
+Wilson (2004). Continuous, categorical or ordinal characteristics may be
+used; the comparative-judgement formulation applies the same fixed
+design to Bradley–Terry–Luce object locations. The frame models follow
+Humphry (2005) and Humphry and Andrich (2008). The comparative judgement
+models follow Bradley and Terry (1952), Luce (1959), Andrich (1978a),
+and Tutz (1986).
 
 ## Shiny application
 
@@ -137,7 +138,7 @@ The [vignettes](https://drjoshmcgrane.github.io/rasch/articles/) cover
 the Rasch workflow, many-facet and extended-frame models, comparative
 judgement, explanatory modelling, repeated-measures DIF and validation.
 A separate case study develops an explanatory partial credit model for
-the verbal aggression data.
+the verbal aggression data of Smits, De Boeck, and Vansteelandt (2004).
 
 [`wright_map()`](https://drjoshmcgrane.github.io/rasch/reference/wright_map.md)
 prepares fitted person and item estimates for the optional `WrightMap`
