@@ -1,4 +1,4 @@
-# The extended frame of reference model
+# The Extended Frame of Reference model
 
 ``` r
 

@@ -1,4 +1,4 @@
-# Rasch analysis of paired comparisons
+# Rasch analysis of comparative judgements
 
 ``` r
 
@@ -239,15 +239,11 @@ nominal coverage at the 20-repetition design.
 
 ## A worked analysis on real data
 
-The `party_blocs_crisis.R` case study fits the comparative judgement
-frame model to real paired comparisons between political parties, with
-judge panels and ideological blocs as frames:
-
-``` r
-
-file.edit(system.file("casestudies", "party_blocs_crisis.R",
-                      package = "rasch"))
-```
+The [party blocs case
+study](https://drjoshmcgrane.github.io/rasch/articles/articles/party-blocs-crisis.html)
+fits the comparative judgement frame model to real paired comparisons
+between political parties, with judge panels and ideological blocs as
+frames. Its script ships with the package under `casestudies`.
 
 ## References
 
