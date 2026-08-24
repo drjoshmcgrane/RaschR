@@ -2,6 +2,8 @@
 
 ## rasch 1.12.0
 
+CRAN release: 2026-08-24
+
 ### Models and inference
 
 - [`wright_map()`](https://drjoshmcgrane.github.io/rasch/reference/wright_map.md)

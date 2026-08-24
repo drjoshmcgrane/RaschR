@@ -56,8 +56,8 @@ Invisibly, the vector of files written.
 ``` r
 set.seed(1)
 d <- seq(-2, 2, length.out = 6)
-X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300), d, "-"))), 300, 6)
+X <- matrix(rbinom(150 * 6, 1, plogis(outer(rnorm(150), d, "-"))), 150, 6)
 colnames(X) <- paste0("I", 1:6)
 out <- file.path(tempdir(), "rasch-out")
-save_outputs(rasch(X), out, formats = "png", item_plots = FALSE)
+save_outputs(rasch(X), out, formats = "png", item_plots = FALSE, dpi = 96)
 ```

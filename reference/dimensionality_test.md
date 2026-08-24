@@ -89,7 +89,7 @@ analysis of residuals. Journal of Applied Measurement, 3(2), 205–231.
 ``` r
 set.seed(1)
 d <- seq(-2, 2, length.out = 8)
-X <- matrix(rbinom(500 * 8, 1, plogis(outer(rnorm(500), d, "-"))), 500, 8)
+X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 colnames(X) <- paste0("I", 1:8)
 dimensionality_test(rasch(X))$multidimensional
 #> [1] FALSE
