@@ -73,7 +73,7 @@ before individual item or person results.
 
 fit
 #> rasch PCM analysis: 12 items, 600 persons
-#> Pairwise conditional ML (Andrich & Luo): converged in 5 iterations
+#> Pairwise conditional ML (Zwinderman): converged in 5 iterations
 #> PSI 0.851 (no extremes 0.851), item SI 0.995, alpha 0.855, power of fit: good
 #> Total item-trait chi-square 101.760 on 108 df, p = 0.651
 ```
