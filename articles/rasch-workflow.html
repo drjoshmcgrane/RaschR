@@ -95,10 +95,10 @@ results, and export tables or plots without writing R analysis code.</p>
 <div class="section level2">
 <h2 id="fit-the-model-required-by-the-scoring-structure">Fit the model required by the scoring structure<a class="anchor" aria-label="anchor" href="#fit-the-model-required-by-the-scoring-structure"></a>
 </h2>
-<p><code>rasch</code> fits the partial credit model by default.
-Dichotomous data are its one-threshold special case. Set
-<code>model = "RSM"</code> only when the same category threshold
-structure is intended to hold across items.</p>
+<p><code>rasch</code> fits the partial credit model by default (Rasch
+1960; Andrich and Marais 2019). Dichotomous data are its one-threshold
+special case. Set <code>model = "RSM"</code> only when the same category
+threshold structure is intended to hold across items.</p>
 <p>For person <span class="math inline">\(n\)</span>, item <span class="math inline">\(i\)</span>, and score <span class="math inline">\(x=0,\ldots,m_i\)</span>, the partial credit model
 is</p>
 <p><span class="math display">\[
@@ -135,40 +135,18 @@ zero.</p>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch.html">rasch</a></span><span class="op">(</span><span class="va">d</span>, model <span class="op">=</span> <span class="st">"PCM"</span>, id <span class="op">=</span> <span class="st">"id"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="begin-with-the-summary-and-reliability">Begin with the summary and reliability<a class="anchor" aria-label="anchor" href="#begin-with-the-summary-and-reliability"></a>
+<h2 id="overall-summary-and-reliability">Overall summary and reliability<a class="anchor" aria-label="anchor" href="#overall-summary-and-reliability"></a>
 </h2>
 <p>The summary establishes whether estimation converged and gives the
-overall item–trait interaction, fit-residual distributions, reliability,
-and the package’s qualitative assessment of the power of fit tests. It
-should be read before individual item or person flags.</p>
+overall item–trait interaction, reliability, and the package’s
+qualitative assessment of the power of fit tests. It should be read
+before individual item or person results.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span></span>
 <span><span class="co">#&gt; rasch PCM analysis: 12 items, 600 persons</span></span>
 <span><span class="co">#&gt; Pairwise conditional ML (Andrich &amp; Luo): converged in 5 iterations</span></span>
 <span><span class="co">#&gt; PSI 0.851 (no extremes 0.851), item SI 0.995, alpha 0.855, power of fit: good</span></span>
-<span><span class="co">#&gt; Total item-trait chi-square 101.760 on 108 df, p = 0.651</span></span>
-<span><span class="fu"><a href="../reference/fit_summary_table.html">fit_summary_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                                      statistic                   value</span></span>
-<span><span class="co">#&gt; 1                                        Model                     PCM</span></span>
-<span><span class="co">#&gt; 2                                   Estimation pairwise conditional ML</span></span>
-<span><span class="co">#&gt; 3                                    Converged                     yes</span></span>
-<span><span class="co">#&gt; 4                                   Iterations                       5</span></span>
-<span><span class="co">#&gt; 5                  Total item-trait chi-square                 101.760</span></span>
-<span><span class="co">#&gt; 6                           Degrees of freedom                     108</span></span>
-<span><span class="co">#&gt; 7                       Item-trait probability                   0.651</span></span>
-<span><span class="co">#&gt; 8                              Class intervals                      10</span></span>
-<span><span class="co">#&gt; 9                       Item fit residual mean                    0.15</span></span>
-<span><span class="co">#&gt; 10                        Item fit residual SD                    0.87</span></span>
-<span><span class="co">#&gt; 11                  Item fit residual skewness                    0.62</span></span>
-<span><span class="co">#&gt; 12                  Item fit residual kurtosis                   -0.79</span></span>
-<span><span class="co">#&gt; 13                    Person fit residual mean                   -0.17</span></span>
-<span><span class="co">#&gt; 14                      Person fit residual SD                    0.90</span></span>
-<span><span class="co">#&gt; 15                Person fit residual skewness                   -0.19</span></span>
-<span><span class="co">#&gt; 16                Person fit residual kurtosis                    0.41</span></span>
-<span><span class="co">#&gt; 17            Fit-location correlation (items)                   0.039</span></span>
-<span><span class="co">#&gt; 18          Fit-location correlation (persons)                   0.035</span></span>
-<span><span class="co">#&gt; 19 Items with Holm-adjusted chi-square p &lt; .05                 0 of 12</span></span>
-<span><span class="co">#&gt; 20                       Disordered thresholds                     I04</span></span></code></pre></div>
+<span><span class="co">#&gt; Total item-trait chi-square 101.760 on 108 df, p = 0.651</span></span></code></pre></div>
 <p>The person separation index (PSI) compares the observed variance of
 person locations with their mean error variance:</p>
 <p><span class="math display">\[
@@ -182,228 +160,117 @@ person locations with their mean error variance:</p>
 useful when extremes inflate the observed spread. The separation ratio
 and number of strata express the same information on more interpretable
 scales.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">psi</span></span>
-<span><span class="co">#&gt; $PSI</span></span>
-<span><span class="co">#&gt; [1] 0.8511</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $separation</span></span>
-<span><span class="co">#&gt; [1] 2.391</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $strata</span></span>
-<span><span class="co">#&gt; [1] 3.522</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $var_theta</span></span>
-<span><span class="co">#&gt; [1] 1.136</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $mean_error_var</span></span>
-<span><span class="co">#&gt; [1] 0.1692</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $n</span></span>
-<span><span class="co">#&gt; [1] 600</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">psi_noext</span></span>
-<span><span class="co">#&gt; $PSI</span></span>
-<span><span class="co">#&gt; [1] 0.8511</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $separation</span></span>
-<span><span class="co">#&gt; [1] 2.391</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $strata</span></span>
-<span><span class="co">#&gt; [1] 3.522</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $var_theta</span></span>
-<span><span class="co">#&gt; [1] 1.136</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $mean_error_var</span></span>
-<span><span class="co">#&gt; [1] 0.1692</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $n</span></span>
-<span><span class="co">#&gt; [1] 600</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">power_of_fit</span></span>
-<span><span class="co">#&gt; [1] "good"</span></span></code></pre></div>
 <p>The power label is a screening judgement based on PSI, not a formal
 power calculation. Low reliability weakens the ordering of persons and
 the formation of distinct class intervals, so item–trait and DIF tests
 may fail to detect real departures. Power also depends on sample size,
 test length, targeting, category use, and trait spread. Conversely, a
-large sample can make a small departure statistically significant. Fit
+large sample can make a small departure statistically significant. Here
+the PSI is 0.85, which the package classifies as good; weak separation
+is therefore not an immediate explanation for a quiet fit test. Fit
 residuals, effect sizes, plots, and substantive importance remain
 necessary.</p>
 </div>
 <div class="section level2">
-<h2 id="examine-item-estimates-and-fit">Examine item estimates and fit<a class="anchor" aria-label="anchor" href="#examine-item-estimates-and-fit"></a>
+<h2 id="item-estimates-fit-and-thresholds">Item estimates, fit, and thresholds<a class="anchor" aria-label="anchor" href="#item-estimates-fit-and-thresholds"></a>
 </h2>
 <p>Item locations and their standard errors should be read alongside fit
-residuals, mean-square statistics, and the Holm-adjusted item–trait
-probabilities. A positive residual indicates more variation than
-expected; a negative residual indicates responses that are more
-predictable than expected. The conventional <span class="math inline">\(\pm2.5\)</span> residual band is a screening rule
-rather than a separate hypothesis test.</p>
+residuals and the Holm-adjusted item–trait probabilities. The table
+shows the six items with the largest absolute residuals; the complete
+results are in <code>fit$items</code>. A positive residual indicates
+more variation than expected and a negative residual indicates responses
+that are more predictable than expected. The conventional <span class="math inline">\(\pm2.5\)</span> band is a screening rule rather
+than a separate hypothesis test.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">item_order</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">items</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">items</span><span class="op">[</span><span class="va">item_order</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"item"</span>, <span class="st">"location"</span>, <span class="st">"se"</span>, <span class="st">"fit_resid"</span>, <span class="st">"p_adj"</span></span>
+<span><span class="op">)</span><span class="op">]</span>, <span class="fl">6</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  item location    se fit_resid p_adj</span></span>
+<span><span class="co">#&gt;   I02   -1.246 0.079     1.548 1.000</span></span>
+<span><span class="co">#&gt;   I07    0.077 0.057     1.501 1.000</span></span>
+<span><span class="co">#&gt;   I06   -0.143 0.059     1.394 1.000</span></span>
+<span><span class="co">#&gt;   I01   -1.604 0.106    -1.103 1.000</span></span>
+<span><span class="co">#&gt;   I05   -0.509 0.059    -0.685 1.000</span></span>
+<span><span class="co">#&gt;   I04   -0.719 0.072    -0.335 1.000</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">items</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>  <span class="st">"item"</span>, <span class="st">"location"</span>, <span class="st">"se"</span>, <span class="st">"fit_resid"</span>,</span>
-<span>  <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span>, <span class="st">"p_adj"</span></span>
-<span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;  item location    se fit_resid infit_ms outfit_ms p_adj</span></span>
-<span><span class="co">#&gt;   I01   -1.604 0.106    -1.103    0.949     0.899 1.000</span></span>
-<span><span class="co">#&gt;   I02   -1.246 0.079     1.548    1.048     1.119 1.000</span></span>
-<span><span class="co">#&gt;   I03   -0.887 0.063    -0.158    1.022     0.990 1.000</span></span>
-<span><span class="co">#&gt;   I04   -0.719 0.072    -0.335    0.980     0.947 1.000</span></span>
-<span><span class="co">#&gt;   I05   -0.509 0.059    -0.685    0.973     0.960 1.000</span></span>
-<span><span class="co">#&gt;   I06   -0.143 0.059     1.394    1.092     1.087 1.000</span></span>
-<span><span class="co">#&gt;   I07    0.077 0.057     1.501    1.088     1.108 1.000</span></span>
-<span><span class="co">#&gt;   I08    0.567 0.056    -0.221    0.995     0.995 1.000</span></span>
-<span><span class="co">#&gt;   I09    0.692 0.061    -0.243    1.012     0.988 1.000</span></span>
-<span><span class="co">#&gt;   I10    1.023 0.077     0.068    0.993     0.997 1.000</span></span>
-<span><span class="co">#&gt;   I11    1.244 0.083     0.037    1.018     0.991 1.000</span></span>
-<span><span class="co">#&gt;   I12    1.505 0.094     0.048    1.021     0.985 1.000</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_item_map.html">plot_item_map</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/item-fit-plot-1.png" class="r-plt" alt="Item locations plotted against item fit residuals." width="672"></p>
 <p>For a polytomous item, successive thresholds should normally increase
-on the latent scale. Threshold disordering means that an intervening
-category is not the most probable response over any part of the scale.
-It can reflect sparse categories, indistinct category meanings, or a
-scoring order that is not working as intended.</p>
+on the latent scale. The threshold map shows their order directly. Item
+I04 has an intervening category without its own region on the scale; the
+category curves show the same problem in probability form.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_threshold_map.html">plot_threshold_map</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p><img src="rasch-workflow_files/figure-html/thresholds-1.png" class="r-plt" alt="Estimated category thresholds for all items on the common logit scale." width="672"></p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">thresholds</span></span>
-<span><span class="co">#&gt;  id item k    tau    se anchored weak</span></span>
-<span><span class="co">#&gt;   1    1 1 -3.184 0.332              </span></span>
-<span><span class="co">#&gt;   2    1 2 -1.247 0.137              </span></span>
-<span><span class="co">#&gt;   3    1 3 -0.380 0.100              </span></span>
-<span><span class="co">#&gt;   4    2 1 -2.422 0.238              </span></span>
-<span><span class="co">#&gt;   5    2 2 -1.071 0.138              </span></span>
-<span><span class="co">#&gt;   6    2 3 -0.244 0.104              </span></span>
-<span><span class="co">#&gt;   7    3 1 -1.626 0.189              </span></span>
-<span><span class="co">#&gt;   8    3 2 -1.122 0.128              </span></span>
-<span><span class="co">#&gt;   9    3 3  0.088 0.105              </span></span>
-<span><span class="co">#&gt;  10    4 1 -0.990 0.245              </span></span>
-<span><span class="co">#&gt;  11    4 2 -2.762 0.170              </span></span>
-<span><span class="co">#&gt;  12    4 3  1.594 0.111              </span></span>
-<span><span class="co">#&gt;  13    5 1 -1.666 0.163              </span></span>
-<span><span class="co">#&gt;  14    5 2 -0.665 0.113              </span></span>
-<span><span class="co">#&gt;  15    5 3  0.805 0.113              </span></span>
-<span><span class="co">#&gt;  16    6 1 -1.549 0.142              </span></span>
-<span><span class="co">#&gt;  17    6 2 -0.131 0.109              </span></span>
-<span><span class="co">#&gt;  18    6 3  1.251 0.132              </span></span>
-<span><span class="co">#&gt;  19    7 1 -0.837 0.129              </span></span>
-<span><span class="co">#&gt;  20    7 2 -0.284 0.114              </span></span>
-<span><span class="co">#&gt;  21    7 3  1.351 0.133              </span></span>
-<span><span class="co">#&gt;  22    8 1 -0.309 0.112              </span></span>
-<span><span class="co">#&gt;  23    8 2  0.424 0.120              </span></span>
-<span><span class="co">#&gt;  24    8 3  1.585 0.152              </span></span>
-<span><span class="co">#&gt;  25    9 1 -0.335 0.108              </span></span>
-<span><span class="co">#&gt;  26    9 2  0.522 0.119              </span></span>
-<span><span class="co">#&gt;  27    9 3  1.890 0.172              </span></span>
-<span><span class="co">#&gt;  28   10 1 -0.312 0.102              </span></span>
-<span><span class="co">#&gt;  29   10 2  1.200 0.124              </span></span>
-<span><span class="co">#&gt;  30   10 3  2.182 0.228              </span></span>
-<span><span class="co">#&gt;  31   11 1 -0.056 0.102              </span></span>
-<span><span class="co">#&gt;  32   11 2  1.223 0.132              </span></span>
-<span><span class="co">#&gt;  33   11 3  2.564 0.257              </span></span>
-<span><span class="co">#&gt;  34   12 1  0.098 0.102              </span></span>
-<span><span class="co">#&gt;  35   12 2  1.525 0.137              </span></span>
-<span><span class="co">#&gt;  36   12 3  2.893 0.295</span></span>
-<span><span class="va">ordered</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">thresholds_diag</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span><span class="op">$</span><span class="va">ordered</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">disordered_items</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">ordered</span><span class="op">)</span><span class="op">[</span><span class="op">!</span><span class="va">ordered</span><span class="op">]</span></span>
-<span><span class="va">disordered_items</span></span>
-<span><span class="co">#&gt; [1] "I04"</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">thresholds_diag</span><span class="op">[</span><span class="va">disordered_items</span><span class="op">]</span></span>
-<span><span class="co">#&gt; $I04</span></span>
-<span><span class="co">#&gt; $I04$item</span></span>
-<span><span class="co">#&gt; [1] "I04"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $I04$thresholds</span></span>
-<span><span class="co">#&gt; [1] -0.9898 -2.7619  1.5941</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $I04$ordered</span></span>
-<span><span class="co">#&gt; [1] FALSE</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $I04$reversed_at</span></span>
-<span><span class="co">#&gt; [1] 2</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $I04$never_modal_categories</span></span>
-<span><span class="co">#&gt; [1] 1</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $I04$category_counts</span></span>
-<span><span class="co">#&gt; [1]  41  39 402 118</span></span></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_ccc.html">plot_ccc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I04"</span>, observed <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/category-curves-1.png" class="r-plt" alt="Category characteristic curves and observed category proportions for item I04." width="672"></p>
-<p>Do not collapse categories from the ordering flag alone. Check
-category frequencies, the category curves, the wording of the response
-options, and the consequences for measurement. If categories are
-combined on substantive grounds, refit the model and repeat the full
-diagnostic sequence.</p>
+<p>Disordering alone does not justify collapsing categories. The
+response-option meanings, observed use, and category curves should
+support any rescoring. The model must then be refitted and checked
+again.</p>
 </div>
 <div class="section level2">
-<h2 id="examine-person-estimates-and-fit">Examine person estimates and fit<a class="anchor" aria-label="anchor" href="#examine-person-estimates-and-fit"></a>
+<h2 id="person-estimates-and-fit">Person estimates and fit<a class="anchor" aria-label="anchor" href="#person-estimates-and-fit"></a>
 </h2>
 <p>Person fit addresses the consistency of each response pattern with
 the fitted scale. The following table puts the largest absolute
 residuals first. Positive residuals indicate unexpectedly erratic
 patterns; negative residuals indicate patterns that are unusually
 predictable.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">person_order</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">person</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>                      na.last <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">person_order</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">person</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>,</span>
+<span>                      decreasing <span class="op">=</span> <span class="cn">TRUE</span>, na.last <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">person</span><span class="op">[</span><span class="va">person_order</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>  <span class="st">"id"</span>, <span class="st">"group"</span>, <span class="st">"raw"</span>, <span class="st">"theta"</span>, <span class="st">"se"</span>, <span class="st">"extreme"</span>,</span>
-<span>  <span class="st">"fit_resid"</span>, <span class="st">"infit_ms"</span>, <span class="st">"outfit_ms"</span></span>
-<span><span class="op">)</span><span class="op">]</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     id group raw  theta    se extreme fit_resid infit_ms outfit_ms</span></span>
-<span><span class="co">#&gt;  P0486    g3  18 -0.042 0.381            -3.454    0.202     0.212</span></span>
-<span><span class="co">#&gt;  P0238    g1  23  0.691 0.395            -3.241    0.190     0.226</span></span>
-<span><span class="co">#&gt;  P0001    g1  18 -0.042 0.381            -3.163    0.233     0.242</span></span>
-<span><span class="co">#&gt;  P0031    g1  11 -1.062 0.397             2.999    3.209     3.955</span></span>
-<span><span class="co">#&gt;  P0493    g1  21  0.391 0.387            -2.912    0.249     0.269</span></span>
-<span><span class="co">#&gt;  P0327    g3  22  0.540 0.390            -2.742    0.235     0.288</span></span>
-<span><span class="co">#&gt;  P0484    g1  16 -0.327 0.381            -2.610    0.307     0.311</span></span>
-<span><span class="co">#&gt;  P0417    g3  15 -0.470 0.382            -2.430    0.320     0.338</span></span>
-<span><span class="co">#&gt;  P0416    g2  19  0.101 0.382            -2.289    0.346     0.357</span></span>
-<span><span class="co">#&gt;  P0230    g2  23  0.691 0.395            -2.288    0.343     0.349</span></span></code></pre></div>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<span>  <span class="st">"id"</span>, <span class="st">"group"</span>, <span class="st">"raw"</span>, <span class="st">"theta"</span>, <span class="st">"se"</span>, <span class="st">"fit_resid"</span></span>
+<span><span class="op">)</span><span class="op">]</span>, <span class="fl">6</span><span class="op">)</span></span>
+<span><span class="co">#&gt;     id group raw  theta    se fit_resid</span></span>
+<span><span class="co">#&gt;  P0486    g3  18 -0.042 0.381    -3.454</span></span>
+<span><span class="co">#&gt;  P0238    g1  23  0.691 0.395    -3.241</span></span>
+<span><span class="co">#&gt;  P0001    g1  18 -0.042 0.381    -3.163</span></span>
+<span><span class="co">#&gt;  P0031    g1  11 -1.062 0.397     2.999</span></span>
+<span><span class="co">#&gt;  P0493    g1  21  0.391 0.387    -2.912</span></span>
+<span><span class="co">#&gt;  P0327    g3  22  0.540 0.390    -2.742</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_person_fit.html">plot_person_fit</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/person-fit-plot-1.png" class="r-plt" alt="Person locations plotted against person fit residuals." width="672"></p>
 <p>An unexpected response pattern may reflect coding or data-entry
 errors, careless responding, a secondary trait, or a genuine but unusual
-person. It is not, by itself, a reason to remove the person. Fit
-residuals are unavailable for extreme response patterns because those
-patterns do not provide an interior location at which fit can be
-assessed.</p>
+person. It is not, by itself, a reason to remove the person. In this
+example, 7 persons fall outside the displayed band. Fit residuals are
+unavailable for extreme response patterns because those patterns do not
+provide an interior location at which fit can be assessed.</p>
 </div>
 <div class="section level2">
-<h2 id="examine-targeting-and-information">Examine targeting and information<a class="anchor" aria-label="anchor" href="#examine-targeting-and-information"></a>
+<h2 id="targeting-and-information">Targeting and information<a class="anchor" aria-label="anchor" href="#targeting-and-information"></a>
 </h2>
 <p>Targeting concerns the match between the person distribution and the
 item threshold distribution. The table reports their locations and
 spread, the proportions of persons beyond the threshold range, and the
 principal reliability indices.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/targeting_table.html">targeting_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                             statistic  value</span></span>
-<span><span class="co">#&gt; 1                Person location mean -0.012</span></span>
-<span><span class="co">#&gt; 2                  Person location SD  1.066</span></span>
-<span><span class="co">#&gt; 3            Person location skewness  -0.03</span></span>
-<span><span class="co">#&gt; 4            Person location kurtosis   0.26</span></span>
-<span><span class="co">#&gt; 5  Person location mean (no extremes) -0.012</span></span>
-<span><span class="co">#&gt; 6    Person location SD (no extremes)  1.066</span></span>
-<span><span class="co">#&gt; 7    Item location mean (constrained) -0.000</span></span>
-<span><span class="co">#&gt; 8                    Item location SD  1.017</span></span>
-<span><span class="co">#&gt; 9              Item location skewness  -0.03</span></span>
-<span><span class="co">#&gt; 10             Item location kurtosis  -1.24</span></span>
-<span><span class="co">#&gt; 11                  Threshold minimum -3.184</span></span>
-<span><span class="co">#&gt; 12                  Threshold maximum  2.893</span></span>
-<span><span class="co">#&gt; 13  Persons below threshold range (%)    0.3</span></span>
-<span><span class="co">#&gt; 14  Persons above threshold range (%)    0.5</span></span>
-<span><span class="co">#&gt; 15                                PSI  0.851</span></span>
-<span><span class="co">#&gt; 16                         Separation   2.39</span></span>
-<span><span class="co">#&gt; 17                      Person strata    3.5</span></span>
-<span><span class="co">#&gt; 18               PSI without extremes  0.851</span></span>
-<span><span class="co">#&gt; 19                 n without extremes    600</span></span>
-<span><span class="co">#&gt; 20        Item separation reliability  0.995</span></span>
-<span><span class="co">#&gt; 21                  Coefficient alpha  0.855</span></span>
-<span><span class="co">#&gt; 22                 n complete (alpha)    600</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">targeting</span></span>
+<span><span class="co">#&gt; $person_mean</span></span>
+<span><span class="co">#&gt; [1] -0.01154</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $person_sd</span></span>
+<span><span class="co">#&gt; [1] 1.066</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $person_mean_noext</span></span>
+<span><span class="co">#&gt; [1] -0.01154</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $item_mean</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $threshold_range</span></span>
+<span><span class="co">#&gt; [1] -3.184  2.893</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $prop_below</span></span>
+<span><span class="co">#&gt; [1] 0.003333</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $prop_above</span></span>
+<span><span class="co">#&gt; [1] 0.005</span></span></code></pre></div>
 <p>For a Rasch model, test information is the sum of the conditional
 response variances:</p>
 <p><span class="math display">\[
@@ -414,23 +281,15 @@ I(\theta)=\sum_i \operatorname{Var}(X_i\mid\theta),
 <p>The person–item map below places person locations and item thresholds
 on the same logit scale. The information curve shows where the test is
 most precise.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span>, information <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/targeting-map-1.png" class="r-plt" alt="Person and item distributions with the test information curve on the common logit scale." width="672"></p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/test_information.html">test_information</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   theta   info   sem</span></span>
-<span><span class="co">#&gt; 1  -6.0 0.1479 2.600</span></span>
-<span><span class="co">#&gt; 2  -5.9 0.1630 2.477</span></span>
-<span><span class="co">#&gt; 3  -5.8 0.1795 2.360</span></span>
-<span><span class="co">#&gt; 4  -5.7 0.1977 2.249</span></span>
-<span><span class="co">#&gt; 5  -5.6 0.2176 2.144</span></span>
-<span><span class="co">#&gt; 6  -5.5 0.2395 2.044</span></span></code></pre></div>
 <p>The optional <code>WrightMap</code> package supplies a second form of
-Wright map. The default retains one person panel and displays the
-estimated category thresholds. Separate person or item panels should be
-requested only when they answer a substantive question.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+Wright map (Torres Irribarra and Freund 2025). The default retains one
+person panel and displays the estimated category thresholds. Separate
+person or item panels should be requested only when they answer a
+substantive question.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"WrightMap"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="../reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
@@ -440,30 +299,25 @@ requested only when they answer a substantive question.</p>
 chunk.</p>
 </div>
 <div class="section level2">
-<h2 id="examine-local-and-trait-dependence">Examine local and trait dependence<a class="anchor" aria-label="anchor" href="#examine-local-and-trait-dependence"></a>
+<h2 id="local-and-trait-dependence">Local and trait dependence<a class="anchor" aria-label="anchor" href="#local-and-trait-dependence"></a>
 </h2>
 <p>Local response dependence occurs when two responses remain associated
 after conditioning on the latent trait. Yen’s <span class="math inline">\(Q3\)</span> is the correlation between two items’
 standardised residuals. Because raw <span class="math inline">\(Q3\)</span> values have a negative baseline in a
 finite test, <code>q3_star</code> subtracts the average off-diagonal
 value.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">q3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">q3</span><span class="op">$</span><span class="va">average</span></span>
 <span><span class="co">#&gt; [1] -0.08639</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">q3</span><span class="op">$</span><span class="va">pairs</span>, <span class="fl">10</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    item_a item_b         q3 q3_star flagged</span></span>
-<span><span class="co">#&gt; 1     I10    I11  0.1266703 0.21306      NA</span></span>
-<span><span class="co">#&gt; 2     I02    I05  0.0045201 0.09091      NA</span></span>
-<span><span class="co">#&gt; 3     I01    I04 -0.0009814 0.08541      NA</span></span>
-<span><span class="co">#&gt; 4     I06    I07 -0.0173825 0.06901      NA</span></span>
-<span><span class="co">#&gt; 5     I02    I03 -0.0244845 0.06190      NA</span></span>
-<span><span class="co">#&gt; 6     I05    I09 -0.0252834 0.06110      NA</span></span>
-<span><span class="co">#&gt; 7     I01    I09 -0.0261819 0.06021      NA</span></span>
-<span><span class="co">#&gt; 8     I02    I12 -0.0286664 0.05772      NA</span></span>
-<span><span class="co">#&gt; 9     I04    I12 -0.0336436 0.05274      NA</span></span>
-<span><span class="co">#&gt; 10    I04    I10 -0.0364637 0.04992      NA</span></span></code></pre></div>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">q3</span><span class="op">$</span><span class="va">pairs</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item_a"</span>, <span class="st">"item_b"</span>, <span class="st">"q3"</span>, <span class="st">"q3_star"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   item_a item_b         q3 q3_star</span></span>
+<span><span class="co">#&gt; 1    I10    I11  0.1266703 0.21306</span></span>
+<span><span class="co">#&gt; 2    I02    I05  0.0045201 0.09091</span></span>
+<span><span class="co">#&gt; 3    I01    I04 -0.0009814 0.08541</span></span>
+<span><span class="co">#&gt; 4    I06    I07 -0.0173825 0.06901</span></span>
+<span><span class="co">#&gt; 5    I02    I03 -0.0244845 0.06190</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_resid_cor.html">plot_resid_cor</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/local-dependence-plot-1.png" class="r-plt" alt="Heatmap of adjusted residual correlations between items." width="672"></p>
 <p>There is no universal critical value for adjusted <span class="math inline">\(Q3\)</span> (Christensen, Makransky and Horton
@@ -485,64 +339,19 @@ t_n=\frac{\hat\theta_{nA}-\hat\theta_{nB}}
 comparisons should be significant. The exact binomial interval, the
 residual loadings, and the score points in each subset are part of the
 result.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; $prop_significant</span></span>
-<span><span class="co">#&gt; [1] 0.04498</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $ci</span></span>
-<span><span class="co">#&gt; [1] 0.02959 0.06522</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $n</span></span>
-<span><span class="co">#&gt; [1] 578</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $n_excluded_extreme</span></span>
-<span><span class="co">#&gt; [1] 22</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $multidimensional</span></span>
-<span><span class="co">#&gt; [1] FALSE</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $split</span></span>
-<span><span class="co">#&gt; [1] "residual component 1"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $score_points</span></span>
-<span><span class="co">#&gt; positive negative </span></span>
-<span><span class="co">#&gt;       24       12 </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $caution</span></span>
-<span><span class="co">#&gt; [1] "subtests carry only 24 and 12 score points (fewer than the ~15 recommended for stable subtest estimates); read the verdict cautiously"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $items_positive</span></span>
-<span><span class="co">#&gt; [1] "I01" "I02" "I03" "I05" "I06" "I07" "I09" "I12"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $items_negative</span></span>
-<span><span class="co">#&gt; [1] "I04" "I08" "I10" "I11"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $first_eigenvalue</span></span>
-<span><span class="co">#&gt; [1] 1.351</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $paired_t</span></span>
-<span><span class="co">#&gt; $paired_t$mean_difference</span></span>
-<span><span class="co">#&gt; [1] -0.03322</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $paired_t$t</span></span>
-<span><span class="co">#&gt; [1] -0.9055</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $paired_t$df</span></span>
-<span><span class="co">#&gt; [1] 577</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $paired_t$p</span></span>
-<span><span class="co">#&gt; [1] 0.3656</span></span></code></pre></div>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dimensionality</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_pca.html">plot_pca</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/trait-dependence-plot-1.png" class="r-plt" alt="Loadings of items on the first residual component." width="672"></p>
-<p>A quiet result from short subtests is inconclusive rather than
-evidence that a secondary trait is absent. The returned caution records
-when either subset has fewer score points than recommended for stable
-person estimates.</p>
+<p>Here, 4.5% of the person comparisons are significant (exact 95%
+interval 3.0% to 6.5%). The test does not flag trait dependence, but one
+opposed subset contains only 12 score points. A quiet result from a
+short subtest is inconclusive rather than evidence that a secondary
+trait is absent.</p>
 </div>
 <div class="section level2">
-<h2 id="examine-differential-item-functioning">Examine differential item functioning<a class="anchor" aria-label="anchor" href="#examine-differential-item-functioning"></a>
+<h2 id="differential-item-functioning">Differential item functioning<a class="anchor" aria-label="anchor" href="#differential-item-functioning"></a>
 </h2>
 <p>Person factors must be nominated when the model is fitted. With a
 person factor <span class="math inline">\(G\)</span> and trait class
@@ -556,16 +365,18 @@ interval tests non-uniform DIF. <code><a href="../reference/dif_anova.html">dif_
 nominated factors together, recognises within-person factors in repeated
 designs, and applies Holm familywise correction over the item-by-term
 tests.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span>, sizes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">dif</span><span class="op">$</span><span class="va">summary</span>, <span class="va">uniform_DIF</span> <span class="op">|</span> <span class="va">nonuniform_DIF</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  item  term F_uniform p_uniform p_uniform_adj eta2_uniform uniform_DIF</span></span>
-<span><span class="co">#&gt;   I08 group    20.043   &lt; 0.001       &lt; 0.001        0.067           *</span></span>
-<span><span class="co">#&gt;  F_nonuniform p_nonuniform p_nonuniform_adj eta2_nonuniform nonuniform_DIF</span></span>
-<span><span class="co">#&gt;         1.578        0.109            1.000           0.026               </span></span>
-<span><span class="co">#&gt;  superseded</span></span>
-<span><span class="co">#&gt; </span></span></code></pre></div>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<span><span class="va">flagged_dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">dif</span><span class="op">$</span><span class="va">summary</span>, <span class="va">uniform_DIF</span> <span class="op">|</span> <span class="va">nonuniform_DIF</span><span class="op">)</span></span>
+<span><span class="va">flagged_dif</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"F_uniform"</span>, <span class="st">"p_uniform_adj"</span>, <span class="st">"eta2_uniform"</span>,</span>
+<span>  <span class="st">"F_nonuniform"</span>, <span class="st">"p_nonuniform_adj"</span>, <span class="st">"eta2_nonuniform"</span></span>
+<span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;  item  term F_uniform p_uniform_adj eta2_uniform F_nonuniform p_nonuniform_adj</span></span>
+<span><span class="co">#&gt;   I08 group    20.043       &lt; 0.001        0.067        1.578            1.000</span></span>
+<span><span class="co">#&gt;  eta2_nonuniform</span></span>
+<span><span class="co">#&gt;            0.026</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I08"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/dif-plot-1.png" class="r-plt" alt="Observed and expected item characteristic curves for item I08 by person group." width="672"></p>
 <p>For a significant factor with more than two levels, the follow-up
@@ -574,16 +385,15 @@ rely on a generic Tukey procedure. With <code>sizes = TRUE</code>,
 <code><a href="../reference/dif_anova.html">dif_anova()</a></code> returns the Holm-adjusted marginal pairwise
 comparisons for significant main effects and difference-in-differences
 for significant interactions.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dif</span><span class="op">$</span><span class="va">posthoc</span></span>
-<span><span class="co">#&gt;  item  term item.1 contrast within estimate    se statistic df       p   p_adj</span></span>
-<span><span class="co">#&gt;   I08 group    I08  g2 - g1          -0.039 0.139    -0.284      0.777   0.777</span></span>
-<span><span class="co">#&gt;   I08 group    I08  g3 - g1           0.705 0.148     4.768    &lt; 0.001 &lt; 0.001</span></span>
-<span><span class="co">#&gt;   I08 group    I08  g3 - g2           0.745 0.147     5.081    &lt; 0.001 &lt; 0.001</span></span>
-<span><span class="co">#&gt;   lower upper significant practical</span></span>
-<span><span class="co">#&gt;  -0.312 0.233                      </span></span>
-<span><span class="co">#&gt;   0.415 0.995           *         *</span></span>
-<span><span class="co">#&gt;   0.457 1.032           *         *</span></span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dif</span><span class="op">$</span><span class="va">posthoc</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"item"</span>, <span class="st">"contrast"</span>, <span class="st">"estimate"</span>, <span class="st">"se"</span>, <span class="st">"p_adj"</span>,</span>
+<span>  <span class="st">"lower"</span>, <span class="st">"upper"</span>, <span class="st">"practical"</span></span>
+<span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;  item contrast estimate    se   p_adj  lower upper practical</span></span>
+<span><span class="co">#&gt;   I08  g2 - g1   -0.039 0.139   0.777 -0.312 0.233          </span></span>
+<span><span class="co">#&gt;   I08  g3 - g1    0.705 0.148 &lt; 0.001  0.415 0.995         *</span></span>
+<span><span class="co">#&gt;   I08  g3 - g2    0.745 0.147 &lt; 0.001  0.457 1.032         *</span></span></code></pre></div>
 <p>Statistical significance and practical magnitude answer different
 questions. Any split must be supported by the response process and
 should be applied with <code><a href="../reference/resolve_dif.html">resolve_dif()</a></code>, which refits the
@@ -592,80 +402,8 @@ then goes through the same summary, fit, targeting, dependence, and DIF
 sequence.</p>
 </div>
 <div class="section level2">
-<h2 id="link-calibrations-through-common-items">Link calibrations through common items<a class="anchor" aria-label="anchor" href="#link-calibrations-through-common-items"></a>
-</h2>
-<p>Two separately fitted tests can be aligned through their common
-items. Drift tests are meaningful only when the calibrations use
-independent sampling units; state this rather than allowing the software
-to assume it.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/equate_tests.html">equate_tests</a></span><span class="op">(</span><span class="va">current_fit</span>, <span class="va">reference_fit</span>, independent <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="va">eq</span><span class="op">$</span><span class="va">table</span></span></code></pre></div>
-<p>A saved item bank needs more than marginal standard errors for drift
-inference. Its joint item-location covariance carries the dependence
-created by the fitted origin and is attached as
-<code>attr(bank, "cov_location")</code>, in bank row order or named by
-item. Without that matrix, the package still estimates the origin shift
-and reports the link descriptively. A bank intended to be fixed may
-instead use zero standard errors. For polytomous items, include the
-maximum score in a <code>max</code> column so that scoring-scale
-compatibility can be checked.</p>
-</div>
-<div class="section level2">
-<h2 id="report-the-final-calibration">Report the final calibration<a class="anchor" aria-label="anchor" href="#report-the-final-calibration"></a>
-</h2>
-<p>A report should state the model, scoring and missing-data rules,
-sample and item exclusions, reliability, item and person fit, threshold
-functioning, targeting, dependence, dimensionality, DIF, and the
-uncertainty of person estimates. The score table supplies the
-complete-response conversion from raw score to logits.</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/score_table.html">score_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  score  theta    se extrapolated freq cum_pct</span></span>
-<span><span class="co">#&gt;      0 -4.844 1.501                 0   0.000</span></span>
-<span><span class="co">#&gt;      1 -3.637 0.874                 2   0.333</span></span>
-<span><span class="co">#&gt;      2 -3.058 0.683                 1   0.500</span></span>
-<span><span class="co">#&gt;      3 -2.674 0.585                 5   1.333</span></span>
-<span><span class="co">#&gt;      4 -2.381 0.526                 5   2.167</span></span>
-<span><span class="co">#&gt;      5 -2.137 0.487                 3   2.667</span></span>
-<span><span class="co">#&gt;      6 -1.925 0.459                 6   3.667</span></span>
-<span><span class="co">#&gt;      7 -1.731 0.439                 9   5.167</span></span>
-<span><span class="co">#&gt;      8 -1.552 0.424                17   8.000</span></span>
-<span><span class="co">#&gt;      9 -1.382 0.413                15  10.500</span></span>
-<span><span class="co">#&gt;     10 -1.219 0.404                18  13.500</span></span>
-<span><span class="co">#&gt;     11 -1.062 0.397                35  19.333</span></span>
-<span><span class="co">#&gt;     12 -0.910 0.392                20  22.667</span></span>
-<span><span class="co">#&gt;     13 -0.761 0.387                22  26.333</span></span>
-<span><span class="co">#&gt;     14 -0.614 0.384                22  30.000</span></span>
-<span><span class="co">#&gt;     15 -0.470 0.382                29  34.833</span></span>
-<span><span class="co">#&gt;     16 -0.327 0.381                41  41.667</span></span>
-<span><span class="co">#&gt;     17 -0.185 0.380                28  46.333</span></span>
-<span><span class="co">#&gt;     18 -0.042 0.381                33  51.833</span></span>
-<span><span class="co">#&gt;     19  0.101 0.382                26  56.167</span></span>
-<span><span class="co">#&gt;     20  0.245 0.384                29  61.000</span></span>
-<span><span class="co">#&gt;     21  0.391 0.387                32  66.333</span></span>
-<span><span class="co">#&gt;     22  0.540 0.390                40  73.000</span></span>
-<span><span class="co">#&gt;     23  0.691 0.395                29  77.833</span></span>
-<span><span class="co">#&gt;     24  0.848 0.402                29  82.667</span></span>
-<span><span class="co">#&gt;     25  1.009 0.409                15  85.167</span></span>
-<span><span class="co">#&gt;     26  1.177 0.418                21  88.667</span></span>
-<span><span class="co">#&gt;     27  1.353 0.429                20  92.000</span></span>
-<span><span class="co">#&gt;     28  1.539 0.443                11  93.833</span></span>
-<span><span class="co">#&gt;     29  1.738 0.461                16  96.500</span></span>
-<span><span class="co">#&gt;     30  1.955 0.483                 5  97.333</span></span>
-<span><span class="co">#&gt;     31  2.194 0.512                 5  98.167</span></span>
-<span><span class="co">#&gt;     32  2.467 0.552                 7  99.333</span></span>
-<span><span class="co">#&gt;     33  2.790 0.609                 1  99.500</span></span>
-<span><span class="co">#&gt;     34  3.198 0.702                 3 100.000</span></span>
-<span><span class="co">#&gt;     35  3.780 0.882                 0 100.000</span></span>
-<span><span class="co">#&gt;     36  4.951 1.485                 0 100.000</span></span></code></pre></div>
-</div>
-<div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<p>Andrich, D. (1978). Relationships between the Thurstone and Rasch
-approaches to item scaling. <em>Applied Psychological Measurement</em>,
-2(3), 451–462.</p>
 <p>Andrich, D., and Marais, I. (2019). <em>A Course in Rasch Measurement
 Theory: Measuring in the Educational, Social and Health Sciences</em>.
 Springer.</p>
@@ -675,10 +413,6 @@ model using residual correlations. <em>Applied Psychological
 Measurement</em>, 41(3), 178–194.</p>
 <p>Holm, S. (1979). A simple sequentially rejective multiple test
 procedure. <em>Scandinavian Journal of Statistics</em>, 6(2), 65–70.</p>
-<p>Humphry, S. M. (2005). <em>Maintaining a Common Arbitrary Unit in
-Social Measurement</em>. PhD thesis, Murdoch University.</p>
-<p>Humphry, S. M., and Andrich, D. (2008). Understanding the unit in the
-Rasch model. <em>Journal of Applied Measurement</em>, 9(3), 249–264.</p>
 <p>Rasch, G. (1960). <em>Probabilistic Models for Some Intelligence and
 Attainment Tests</em>. Copenhagen: Danish Institute for Educational
 Research. (Expanded edition, 1980, Chicago: University of Chicago
@@ -687,8 +421,6 @@ Press.)</p>
 multidimensionality using item fit statistics and principal component
 analysis of residuals. <em>Journal of Applied Measurement</em>, 3(2),
 205–231.</p>
-<p>Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
-<em>Journal of Mathematical Psychology</em>, 30(3), 306–316.</p>
 <p>Torres Irribarra, D., and Freund, R. (2025). <em>WrightMap: IRT
 item-person map with ConQuest integration</em>. R package version
 1.5.</p>
