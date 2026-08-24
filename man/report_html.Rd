@@ -25,7 +25,7 @@ and test-level plots. Images and styles are embedded in the file.
 \examples{
 set.seed(1)
 d <- seq(-2, 2, length.out = 6)
-X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300), d, "-"))), 300, 6)
+X <- matrix(rbinom(150 * 6, 1, plogis(outer(rnorm(150), d, "-"))), 150, 6)
 colnames(X) <- paste0("I", 1:6)
 out <- file.path(tempdir(), "report.html")
 report_html(rasch(X), out)

@@ -321,6 +321,7 @@ test_that("a set with no stable panel-ratio information is screened, not fatal",
 })
 
 test_that("estimates and convergence are invariant to duplicating the data", {
+  skip_on_cran()
   # an absolute gradient threshold is scale-dependent: on k-fold duplicated
   # data a converged fit was flagged unconverged, which (with the stability
   # screen) silently rerouted a set's estimation and CHANGED the estimates;
@@ -378,6 +379,7 @@ test_that("btl_efrm refuses (quasi-)complete cross-set separation", {
 })
 
 test_that("BTL-EFRM judge bootstrap reports progress and restores the RNG", {
+  skip_on_cran()
   d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
                          n_judges_per_panel = 8, reps_within = 25,
                          reps_cross = 25, seed = 701)

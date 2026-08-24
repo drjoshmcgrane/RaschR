@@ -65,6 +65,7 @@ test_that("a saved table carries plain decimals rather than exponents", {
 })
 
 test_that("a deliberate refusal is signalled apart from a fault", {
+  skip_on_cran()
   # the application showed considered refusals in the same red as a crash,
   # because a caller had no way to tell them apart
   d <- simulate_efrm(n_per_group = 200, items_per_set = 5, n_sets = 2,
@@ -125,6 +126,7 @@ test_that("dif_size reports an ETS category beside the magnitude", {
 })
 
 test_that("a polytomous DIF comparison reports signed area descriptively", {
+  skip_on_cran()
   ta <- c(-1, 0, 1) + 0.4
   tb <- c(-1, 0, 1) - 0.2
   numeric_area <- stats::integrate(function(th)

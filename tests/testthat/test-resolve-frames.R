@@ -21,6 +21,7 @@ efrm_with_dif <- function(N = 400, K = 10, shift = 1.2, seed = 3) {
 }
 
 test_that("resolving keeps the item measuring inside each frame", {
+  skip_on_cran()
   z <- efrm_with_dif()
   f <- z$fit
   r <- resolve_frames(f, "I04", boot_reps = 0)

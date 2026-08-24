@@ -3,6 +3,7 @@
 # semantics where an unmatched winner is missing, never a tie.
 
 test_that("CTT statistics support complete- and available-case summaries", {
+  skip_on_cran()
   set.seed(1)
   simP <- function(t, tau) {
     x <- 0:length(tau); p <- exp(x * t - c(0, cumsum(tau))); p / sum(p)

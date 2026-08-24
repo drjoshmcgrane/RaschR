@@ -807,7 +807,7 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
 #'   element.
 #' @examples
 #' # 8 datasets with a planted DIF item; how often is it flagged?
-#' batch <- sim_replicate(simulate_rasch, 8, n_persons = 400, n_items = 10,
+#' batch <- sim_replicate(simulate_rasch, 4, n_persons = 300, n_items = 8,
 #'                        dif = list(items = "I05", uniform = 0.8), n_groups = 2,
 #'                        seed = 1)
 #' # sim_apply() is resilient: a replicate the estimator refuses (e.g. a

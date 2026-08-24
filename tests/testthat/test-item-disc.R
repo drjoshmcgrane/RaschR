@@ -60,6 +60,7 @@ test_that("an item with no variation has no discrimination", {
 })
 
 test_that("frame_invariance results print without scientific notation", {
+  skip_on_cran()
   # every other analysis entry point tags its tables; this one did not, so a
   # user reading inv$locations saw the exponents print.rasch_table removes
   d <- simulate_efrm(n_per_group = 300, items_per_set = 6, n_sets = 2,
@@ -79,6 +80,7 @@ test_that("frame_invariance results print without scientific notation", {
 })
 
 test_that("a frame model's virtual item name resolves to its source item", {
+  skip_on_cran()
   # the application selects an item from fit$items, which for a frame model
   # names it by the frame that took it; drop_items() works on the source item
   d <- simulate_efrm(n_per_group = 300, items_per_set = 6, n_sets = 2,

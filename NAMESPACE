@@ -146,6 +146,8 @@ import(grDevices)
 import(graphics)
 import(stats)
 importFrom(Rcpp,evalCpp)
-importFrom(utils,combn)
-importFrom(utils,write.csv)
+importFrom(utils,
+  combn,
+  write.csv
+)
 useDynLib(rasch, .registration = TRUE)

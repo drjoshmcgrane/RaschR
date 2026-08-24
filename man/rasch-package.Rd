@@ -96,5 +96,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Josh McGrane \email{drjoshmcgrane@gmail.com}
 
+Authors:
+\itemize{
+  \item Josh McGrane \email{drjoshmcgrane@gmail.com}
+}
+
 }
 \keyword{internal}

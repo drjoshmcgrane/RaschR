@@ -39,6 +39,7 @@ test_that("the auto family follows the factor structure and finds planted DIF", 
 })
 
 test_that("stacked designs use person-level scores and detect drift over time", {
+  skip_on_cran()
   set.seed(9); n <- 400
   d <- seq(-1.5, 1.5, length.out = 8)
   th <- rnorm(n)
