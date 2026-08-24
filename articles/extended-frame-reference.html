@@ -111,7 +111,7 @@ frame-dependent unit.</p>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_efrm.html">simulate_efrm</a></span><span class="op">(</span></span>
-<span>  n_per_group <span class="op">=</span> <span class="fl">250</span>,</span>
+<span>  n_per_group <span class="op">=</span> <span class="fl">180</span>,</span>
 <span>  items_per_set <span class="op">=</span> <span class="fl">8</span>,</span>
 <span>  set_unit_ratio <span class="op">=</span> <span class="fl">1.30</span>,</span>
 <span>  group_unit_ratio <span class="op">=</span> <span class="fl">1.10</span>,</span>
@@ -128,59 +128,59 @@ frame-dependent unit.</p>
 <span>  workers <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 500 persons</span></span>
-<span><span class="co">#&gt; Within-frame pairwise conditional ML: converged in 9 iterations</span></span>
-<span><span class="co">#&gt; PSI 0.776, power of fit: reasonable</span></span>
+<span><span class="co">#&gt; rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 360 persons</span></span>
+<span><span class="co">#&gt; Within-frame pairwise conditional ML: converged in 6 iterations</span></span>
+<span><span class="co">#&gt; PSI 0.787, power of fit: reasonable</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Person group units (phi):</span></span>
 <span><span class="co">#&gt;  group   phi se_log_phi</span></span>
-<span><span class="co">#&gt;     g1 0.945      0.033</span></span>
-<span><span class="co">#&gt;     g2 1.058      0.033</span></span>
+<span><span class="co">#&gt;     g1 0.986      0.041</span></span>
+<span><span class="co">#&gt;     g2 1.014      0.041</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Item set units (alpha) and locations:</span></span>
 <span><span class="co">#&gt;   set alpha se_log_alpha     mu n_items</span></span>
-<span><span class="co">#&gt;  set1 0.854        0.032 -0.016       8</span></span>
-<span><span class="co">#&gt;  set2 1.171        0.032  0.016       8</span></span>
+<span><span class="co">#&gt;  set1 0.867        0.046  0.010       8</span></span>
+<span><span class="co">#&gt;  set2 1.153        0.046 -0.010       8</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Equal-unit comparison: 2(ll_EFRM - ll_equal) = 8.937 with 1 extra unit parameter(s)</span></span>
+<span><span class="co">#&gt; Equal-unit comparison: 2(ll_EFRM - ll_equal) = 0.406 with 1 extra unit parameter(s)</span></span>
 <span><span class="co">#&gt; (composite likelihood: descriptive; informative for group units (phi))</span></span>
 <span><span class="co">#&gt; Omnibus Wald tests of equal units:</span></span>
-<span><span class="co">#&gt;               term df   wald       p</span></span>
-<span><span class="co">#&gt;  group units (phi)  1  2.832   0.092</span></span>
-<span><span class="co">#&gt;  set units (alpha)  1 23.507 &lt; 0.001</span></span>
+<span><span class="co">#&gt;               term df  wald     p</span></span>
+<span><span class="co">#&gt;  group units (phi)  1 0.116 0.733</span></span>
+<span><span class="co">#&gt;  set units (alpha)  1 9.715 0.002</span></span>
 <span><span class="co">#&gt; Holm-adjusted exploratory unit contrasts (H0: unit = 1):</span></span>
-<span><span class="co">#&gt;        parameter estimate    se      z       p   p_adj significant</span></span>
-<span><span class="co">#&gt;      log phi[g1]   -0.056 0.033 -1.683   0.092   0.185            </span></span>
-<span><span class="co">#&gt;      log phi[g2]    0.056 0.033  1.683   0.092   0.185            </span></span>
-<span><span class="co">#&gt;  log alpha[set1]   -0.158 0.032 -4.848 &lt; 0.001 &lt; 0.001           *</span></span>
-<span><span class="co">#&gt;  log alpha[set2]    0.158 0.032  4.848 &lt; 0.001 &lt; 0.001           *</span></span>
+<span><span class="co">#&gt;        parameter estimate    se      z     p p_adj significant</span></span>
+<span><span class="co">#&gt;      log phi[g1]   -0.014 0.041 -0.341 0.733 1.000            </span></span>
+<span><span class="co">#&gt;      log phi[g2]    0.014 0.041  0.341 0.733 1.000            </span></span>
+<span><span class="co">#&gt;  log alpha[set1]   -0.143 0.046 -3.117 0.002 0.007           *</span></span>
+<span><span class="co">#&gt;  log alpha[set2]    0.143 0.046  3.117 0.002 0.007           *</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves); a universal raw-score conversion is not defined across the expanded frame response cells; use score_curves and design-specific information</span></span></code></pre></div>
 <p>The principal model-specific tables are:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">phi_table</span>       <span class="co"># person-group units</span></span>
 <span><span class="co">#&gt;  group   phi se_log_phi</span></span>
-<span><span class="co">#&gt;     g1 0.945      0.033</span></span>
-<span><span class="co">#&gt;     g2 1.058      0.033</span></span>
+<span><span class="co">#&gt;     g1 0.986      0.041</span></span>
+<span><span class="co">#&gt;     g2 1.014      0.041</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">alpha_table</span>     <span class="co"># item-set units</span></span>
 <span><span class="co">#&gt;   set alpha se_log_alpha</span></span>
-<span><span class="co">#&gt;  set1 0.854        0.032</span></span>
-<span><span class="co">#&gt;  set2 1.171        0.032</span></span>
+<span><span class="co">#&gt;  set1 0.867        0.046</span></span>
+<span><span class="co">#&gt;  set2 1.153        0.046</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">set_table</span>       <span class="co"># linked set locations</span></span>
 <span><span class="co">#&gt;   set     mu alpha n_items</span></span>
-<span><span class="co">#&gt;  set1 -0.016 0.854       8</span></span>
-<span><span class="co">#&gt;  set2  0.016 1.171       8</span></span>
+<span><span class="co">#&gt;  set1  0.010 0.867       8</span></span>
+<span><span class="co">#&gt;  set2 -0.010 1.153       8</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">frames</span>          <span class="co"># complete frame units</span></span>
 <span><span class="co">#&gt;   set group n_persons n_items alpha   phi   rho se_log_rho origin infit_ms</span></span>
-<span><span class="co">#&gt;  set1    g1       250       8 0.854 0.945 0.808      0.048 -0.016    1.024</span></span>
-<span><span class="co">#&gt;  set2    g1       250       8 1.171 0.945 1.107      0.046  0.016    1.036</span></span>
-<span><span class="co">#&gt;  set1    g2       250       8 0.854 1.058 0.904      0.046 -0.016    1.036</span></span>
-<span><span class="co">#&gt;  set2    g2       250       8 1.171 1.058 1.238      0.048  0.016    0.997</span></span>
+<span><span class="co">#&gt;  set1    g1       180       8 0.867 0.986 0.855      0.056  0.010    1.010</span></span>
+<span><span class="co">#&gt;  set2    g1       180       8 1.153 0.986 1.137      0.067 -0.010    1.054</span></span>
+<span><span class="co">#&gt;  set1    g2       180       8 0.867 1.014 0.879      0.067  0.010    1.048</span></span>
+<span><span class="co">#&gt;  set2    g2       180       8 1.153 1.014 1.169      0.056 -0.010    1.003</span></span>
 <span><span class="co">#&gt;  outfit_ms fit_resid n_responses</span></span>
-<span><span class="co">#&gt;      1.003     0.539        1936</span></span>
-<span><span class="co">#&gt;      0.982    -0.523        1936</span></span>
-<span><span class="co">#&gt;      1.009     0.600        1928</span></span>
-<span><span class="co">#&gt;      0.987    -0.348        1928</span></span>
+<span><span class="co">#&gt;      0.971    -0.278        1432</span></span>
+<span><span class="co">#&gt;      0.971    -0.427        1432</span></span>
+<span><span class="co">#&gt;      1.022     0.679        1416</span></span>
+<span><span class="co">#&gt;      0.884    -1.338        1416</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">linking</span>         <span class="co"># set-linking design</span></span>
 <span><span class="co">#&gt; $phi_edges</span></span>
 <span><span class="co">#&gt; $phi_edges[[1]]</span></span>
@@ -192,7 +192,7 @@ frame-dependent unit.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $alpha_edges</span></span>
 <span><span class="co">#&gt;  set_a set_b   n log_slope converged edge_mass    loglik</span></span>
-<span><span class="co">#&gt;   set1  set2 500     0.315         1     0.013 -5788.255</span></span>
+<span><span class="co">#&gt;   set1  set2 360     0.285         1     0.000 -4262.550</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $alpha_method</span></span>
 <span><span class="co">#&gt; [1] "finite-grid semiparametric maximum likelihood"</span></span>
@@ -259,15 +259,15 @@ analysis. R scripts can supply <code>progress</code> and
 <code>cancel</code> callbacks for the same controls.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span><span class="op">$</span><span class="va">unit_omnibus</span></span>
-<span><span class="co">#&gt;               term df   wald       p</span></span>
-<span><span class="co">#&gt;  group units (phi)  1  2.832   0.092</span></span>
-<span><span class="co">#&gt;  set units (alpha)  1 23.507 &lt; 0.001</span></span>
+<span><span class="co">#&gt;               term df  wald     p</span></span>
+<span><span class="co">#&gt;  group units (phi)  1 0.116 0.733</span></span>
+<span><span class="co">#&gt;  set units (alpha)  1 9.715 0.002</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span><span class="op">$</span><span class="va">unit_tests</span></span>
-<span><span class="co">#&gt;        parameter estimate    se      z       p   p_adj significant</span></span>
-<span><span class="co">#&gt;      log phi[g1]   -0.056 0.033 -1.683   0.092   0.185            </span></span>
-<span><span class="co">#&gt;      log phi[g2]    0.056 0.033  1.683   0.092   0.185            </span></span>
-<span><span class="co">#&gt;  log alpha[set1]   -0.158 0.032 -4.848 &lt; 0.001 &lt; 0.001           *</span></span>
-<span><span class="co">#&gt;  log alpha[set2]    0.158 0.032  4.848 &lt; 0.001 &lt; 0.001           *</span></span></code></pre></div>
+<span><span class="co">#&gt;        parameter estimate    se      z     p p_adj significant</span></span>
+<span><span class="co">#&gt;      log phi[g1]   -0.014 0.041 -0.341 0.733 1.000            </span></span>
+<span><span class="co">#&gt;      log phi[g2]    0.014 0.041  0.341 0.733 1.000            </span></span>
+<span><span class="co">#&gt;  log alpha[set1]   -0.143 0.046 -3.117 0.002 0.007           *</span></span>
+<span><span class="co">#&gt;  log alpha[set2]    0.143 0.046  3.117 0.002 0.007           *</span></span></code></pre></div>
 <p>The omnibus Wald tests assess the set- and group-unit families.
 Individual unit contrasts are Holm-adjusted follow-ups. The raw
 composite-likelihood difference is descriptive and compares the

@@ -31,7 +31,7 @@ frame-dependent unit.
 ``` r
 
 d <- simulate_efrm(
-  n_per_group = 250,
+  n_per_group = 180,
   items_per_set = 8,
   set_unit_ratio = 1.30,
   group_unit_ratio = 1.10,
@@ -51,32 +51,32 @@ fit <- rasch_efrm(
   workers = 1
 )
 fit
-#> rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 500 persons
-#> Within-frame pairwise conditional ML: converged in 9 iterations
-#> PSI 0.776, power of fit: reasonable
+#> rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 360 persons
+#> Within-frame pairwise conditional ML: converged in 6 iterations
+#> PSI 0.787, power of fit: reasonable
 #> 
 #> Person group units (phi):
 #>  group   phi se_log_phi
-#>     g1 0.945      0.033
-#>     g2 1.058      0.033
+#>     g1 0.986      0.041
+#>     g2 1.014      0.041
 #> 
 #> Item set units (alpha) and locations:
 #>   set alpha se_log_alpha     mu n_items
-#>  set1 0.854        0.032 -0.016       8
-#>  set2 1.171        0.032  0.016       8
+#>  set1 0.867        0.046  0.010       8
+#>  set2 1.153        0.046 -0.010       8
 #> 
-#> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 8.937 with 1 extra unit parameter(s)
+#> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 0.406 with 1 extra unit parameter(s)
 #> (composite likelihood: descriptive; informative for group units (phi))
 #> Omnibus Wald tests of equal units:
-#>               term df   wald       p
-#>  group units (phi)  1  2.832   0.092
-#>  set units (alpha)  1 23.507 < 0.001
+#>               term df  wald     p
+#>  group units (phi)  1 0.116 0.733
+#>  set units (alpha)  1 9.715 0.002
 #> Holm-adjusted exploratory unit contrasts (H0: unit = 1):
-#>        parameter estimate    se      z       p   p_adj significant
-#>      log phi[g1]   -0.056 0.033 -1.683   0.092   0.185            
-#>      log phi[g2]    0.056 0.033  1.683   0.092   0.185            
-#>  log alpha[set1]   -0.158 0.032 -4.848 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.158 0.032  4.848 < 0.001 < 0.001           *
+#>        parameter estimate    se      z     p p_adj significant
+#>      log phi[g1]   -0.014 0.041 -0.341 0.733 1.000            
+#>      log phi[g2]    0.014 0.041  0.341 0.733 1.000            
+#>  log alpha[set1]   -0.143 0.046 -3.117 0.002 0.007           *
+#>  log alpha[set2]    0.143 0.046  3.117 0.002 0.007           *
 #> 
 #> Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves); a universal raw-score conversion is not defined across the expanded frame response cells; use score_curves and design-specific information
 ```
@@ -87,27 +87,27 @@ The principal model-specific tables are:
 
 fit$phi_table       # person-group units
 #>  group   phi se_log_phi
-#>     g1 0.945      0.033
-#>     g2 1.058      0.033
+#>     g1 0.986      0.041
+#>     g2 1.014      0.041
 fit$alpha_table     # item-set units
 #>   set alpha se_log_alpha
-#>  set1 0.854        0.032
-#>  set2 1.171        0.032
+#>  set1 0.867        0.046
+#>  set2 1.153        0.046
 fit$set_table       # linked set locations
 #>   set     mu alpha n_items
-#>  set1 -0.016 0.854       8
-#>  set2  0.016 1.171       8
+#>  set1  0.010 0.867       8
+#>  set2 -0.010 1.153       8
 fit$frames          # complete frame units
 #>   set group n_persons n_items alpha   phi   rho se_log_rho origin infit_ms
-#>  set1    g1       250       8 0.854 0.945 0.808      0.048 -0.016    1.024
-#>  set2    g1       250       8 1.171 0.945 1.107      0.046  0.016    1.036
-#>  set1    g2       250       8 0.854 1.058 0.904      0.046 -0.016    1.036
-#>  set2    g2       250       8 1.171 1.058 1.238      0.048  0.016    0.997
+#>  set1    g1       180       8 0.867 0.986 0.855      0.056  0.010    1.010
+#>  set2    g1       180       8 1.153 0.986 1.137      0.067 -0.010    1.054
+#>  set1    g2       180       8 0.867 1.014 0.879      0.067  0.010    1.048
+#>  set2    g2       180       8 1.153 1.014 1.169      0.056 -0.010    1.003
 #>  outfit_ms fit_resid n_responses
-#>      1.003     0.539        1936
-#>      0.982    -0.523        1936
-#>      1.009     0.600        1928
-#>      0.987    -0.348        1928
+#>      0.971    -0.278        1432
+#>      0.971    -0.427        1432
+#>      1.022     0.679        1416
+#>      0.884    -1.338        1416
 fit$linking         # set-linking design
 #> $phi_edges
 #> $phi_edges[[1]]
@@ -119,7 +119,7 @@ fit$linking         # set-linking design
 #> 
 #> $alpha_edges
 #>  set_a set_b   n log_slope converged edge_mass    loglik
-#>   set1  set2 500     0.315         1     0.013 -5788.255
+#>   set1  set2 360     0.285         1     0.000 -4262.550
 #> 
 #> $alpha_method
 #> [1] "finite-grid semiparametric maximum likelihood"
@@ -195,15 +195,15 @@ process without replacing the current analysis. R scripts can supply
 ``` r
 
 fit$efrm_vs_rasch$unit_omnibus
-#>               term df   wald       p
-#>  group units (phi)  1  2.832   0.092
-#>  set units (alpha)  1 23.507 < 0.001
+#>               term df  wald     p
+#>  group units (phi)  1 0.116 0.733
+#>  set units (alpha)  1 9.715 0.002
 fit$efrm_vs_rasch$unit_tests
-#>        parameter estimate    se      z       p   p_adj significant
-#>      log phi[g1]   -0.056 0.033 -1.683   0.092   0.185            
-#>      log phi[g2]    0.056 0.033  1.683   0.092   0.185            
-#>  log alpha[set1]   -0.158 0.032 -4.848 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.158 0.032  4.848 < 0.001 < 0.001           *
+#>        parameter estimate    se      z     p p_adj significant
+#>      log phi[g1]   -0.014 0.041 -0.341 0.733 1.000            
+#>      log phi[g2]    0.014 0.041  0.341 0.733 1.000            
+#>  log alpha[set1]   -0.143 0.046 -3.117 0.002 0.007           *
+#>  log alpha[set2]    0.143 0.046  3.117 0.002 0.007           *
 ```
 
 The omnibus Wald tests assess the set- and group-unit families.
