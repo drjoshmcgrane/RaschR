@@ -592,7 +592,7 @@ plot_btl_scree <- function(x, ...) {
   ref_m <- x$reference$mean; ref_p <- x$reference$p95
   ymax <- max(c(b$strength, ref_p)) * 1.15
   op <- .rr_canvas(c(0.5, k + 0.5), c(0, ymax), "Bimension", "Strength",
-                   grid_x = FALSE)
+                   grid_x = FALSE, xaxis = FALSE)
   on.exit(par(op))
   rect(seq_len(k) - 0.32, 0, seq_len(k) + 0.32, b$strength,
        col = ifelse(c(isTRUE(x$leading_structured), rep(FALSE, k - 1)),
@@ -600,7 +600,7 @@ plot_btl_scree <- function(x, ...) {
   # noise reference: mean line with a shaded band up to the 95th percentile
   rect(0.5, ref_m, k + 0.5, ref_p, col = "#dc262622", border = NA)
   abline(h = ref_m, col = .rr$red, lty = 5, lwd = 1.6)
-  axis(1, at = seq_len(k), col = NA, col.ticks = NA)
+  axis(1, at = seq_len(k), col = .rr$grid, col.ticks = .rr$soft)
   .rr_legend("topright", c("Observed", "Noise reference (mean, 95%)"),
              fill = c(.rr$blue, "#dc262633"), border = NA)
 }

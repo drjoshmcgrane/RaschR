@@ -21,7 +21,8 @@
 # only when `main` carries information (item, person, summary figures);
 # plot-type names are left to the surrounding context.
 .rr_canvas <- function(xlim, ylim, xlab, ylab, main = "", grid_y = TRUE,
-                       grid_x = FALSE, yaxis = TRUE, right = 1.5) {
+                       grid_x = FALSE, yaxis = TRUE, right = 1.5,
+                       xaxis = TRUE) {
   has_main <- !is.null(main) && nzchar(main)
   op <- par(mar = c(4.2, 4.4, if (has_main) 3.2 else 1.6, right),
             mgp = c(2.5, 0.7, 0), tcl = -0.25,
@@ -32,7 +33,7 @@
   if (has_main) title(main = main, adj = 0, line = 1.4)
   if (grid_y) abline(h = pretty(ylim), col = .rr$grid, lwd = 0.8)
   if (grid_x) abline(v = pretty(xlim), col = .rr$grid, lwd = 0.8)
-  axis(1, col = .rr$grid, col.ticks = .rr$soft)
+  if (xaxis) axis(1, col = .rr$grid, col.ticks = .rr$soft)
   if (yaxis) axis(2, col = .rr$grid, col.ticks = .rr$soft)
   invisible(op)
 }

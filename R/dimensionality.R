@@ -256,13 +256,13 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
   pa <- if (parallel) .scree_reference(fit, k, reps) else NULL
   ylim <- c(0, max(c(obs, pa, 1)) * 1.12)
   op <- .rr_canvas(c(0.5, k + 0.5), ylim, "Component", "Eigenvalue",
-                   grid_x = FALSE)
+                   grid_x = FALSE, xaxis = FALSE)
   on.exit(par(op))
   abline(h = 1, lty = 3, col = .rr$soft)
   if (!is.null(pa)) lines(seq_len(k), pa, lwd = 2, lty = 5, col = .rr$red)
   lines(seq_len(k), obs, lwd = 2.6, col = .rr$blue)
   points(seq_len(k), obs, pch = 21, bg = .rr$blue, col = "white", cex = 1.5)
-  axis(1, at = seq_len(k), col = NA, col.ticks = NA)
+  axis(1, at = seq_len(k), col = .rr$grid, col.ticks = .rr$soft)
   .rr_legend("topright",
              if (is.null(pa)) "Observed" else c("Observed", "Parallel analysis"),
              lwd = c(2.6, if (!is.null(pa)) 2), lty = c(1, if (!is.null(pa)) 5),

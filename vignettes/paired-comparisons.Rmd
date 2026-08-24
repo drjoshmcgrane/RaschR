@@ -74,9 +74,11 @@ dimensions <- btl_dimensionality(fit, reps = 20)
 dimensions
 ```
 
-```{r plots, fig.alt = "Paired-comparison transitivity and residual dimensionality diagnostics."}
-par(mfrow = c(1, 2))
+```{r plot-transitivity, fig.alt = "Per-judge consistency of the paired comparisons."}
 plot_btl_transitivity(tr)
+```
+
+```{r plot-scree, fig.alt = "Residual bimension strengths against the simulated noise reference."}
 plot_btl_scree(dimensions)
 ```
 
