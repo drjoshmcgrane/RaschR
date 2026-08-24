@@ -118,11 +118,16 @@ settings.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>For partial credit and rating scale models, <code>type = "thresholds"</code>
-displays each item's estimated category thresholds. <code>type =
-"locations"</code> displays one location per item. In MFRM and EFRM fits, the
-rows are the calibrated item-by-facet or item-by-frame response columns.
+displays each item's estimated category thresholds, labelled <code>t1</code>,
+<code>t2</code>, and so on. A wholly dichotomous scale omits the redundant
+<code>t1</code> labels; in a mixed scale, dichotomous items retain <code>t1</code> to
+align them with the polytomous items. <code>type = "locations"</code> displays
+one location per item. In MFRM and EFRM fits, the rows are the calibrated
+item-by-facet or item-by-frame response columns.
 For EFRM fits, <code>person_panels = "groups"</code> and <code>item_panels =
-"sets"</code> use the fitted frame design; both may be specified together.</p>
+"sets"</code> use the fitted frame design; both may be specified together.
+A single person panel has no heading by default. When several person panels
+are requested, their panel labels are printed above the distributions.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

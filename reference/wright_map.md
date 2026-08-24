@@ -66,11 +66,16 @@ when its `return.thresholds` argument is true; otherwise `NULL`.
 ## Details
 
 For partial credit and rating scale models, `type = "thresholds"`
-displays each item's estimated category thresholds. `type = "locations"`
-displays one location per item. In MFRM and EFRM fits, the rows are the
-calibrated item-by-facet or item-by-frame response columns. For EFRM
-fits, `person_panels = "groups"` and `item_panels = "sets"` use the
-fitted frame design; both may be specified together.
+displays each item's estimated category thresholds, labelled `t1`, `t2`,
+and so on. A wholly dichotomous scale omits the redundant `t1` labels;
+in a mixed scale, dichotomous items retain `t1` to align them with the
+polytomous items. `type = "locations"` displays one location per item.
+In MFRM and EFRM fits, the rows are the calibrated item-by-facet or
+item-by-frame response columns. For EFRM fits,
+`person_panels = "groups"` and `item_panels = "sets"` use the fitted
+frame design; both may be specified together. A single person panel has
+no heading by default. When several person panels are requested, their
+panel labels are printed above the distributions.
 
 ## References
 
