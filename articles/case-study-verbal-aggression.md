@@ -185,8 +185,8 @@ head(departures, 10)
 #>    S2DoCurse Threshold structure                1     0.224             33.596
 #>  S1WantCurse Threshold structure                1     0.218             30.708
 #>  S4WantCurse Threshold structure                1     0.196             26.631
-#>  S4WantScold       Item location                1     0.246             19.167
 #>    S4DoScold       Item location                1    -0.246             19.167
+#>  S4WantScold       Item location                1     0.246             19.167
 #>  S3WantCurse Threshold structure                1     0.160             16.779
 #>  df     p p_adj
 #>   1 0.030 1.000
