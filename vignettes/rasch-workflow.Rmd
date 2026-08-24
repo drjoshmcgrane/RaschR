@@ -18,12 +18,11 @@ options(digits = 4)
 library(rasch)
 ```
 
-This vignette gives a basic Rasch analysis using pairwise conditional
-estimation. The model is fitted first; fit, targeting, invariance, local
-dependence, and dimensionality are then examined before interpreting the
-measures (Rasch 1960; Andrich and Marais 2019; for the frame of reference
-models Humphry 2005 and Humphry and Andrich 2008; for comparative
-judgement Andrich 1978, with the polytomous extension after Tutz 1986).
+This vignette follows a Rasch analysis from the overall summary to item and
+person fit, targeting, dependence, and differential item functioning (DIF).
+The order matters. A fit statistic is difficult to interpret without knowing
+whether the scale separates the sample or supplies information over the
+relevant part of the latent trait.
 
 The same analyses are available in the Shiny application. Run
 `rasch::run_app()` to import data, fit a model, inspect the results, and export
@@ -49,62 +48,273 @@ The rating scale model constrains $\delta_{ik}=\beta_i+\tau_k$. Pairwise
 conditioning removes $\theta_n$ from the item likelihood. Person locations
 are subsequently estimated by Warm's weighted likelihood method (Warm 1989).
 
-The example uses simulated data so that the complete workflow is reproducible.
-With observed data, inspect the coding and frequency of every category before
-fitting the model. Negative scores are read as missing; valid categories begin
-at zero.
+The example is polytomous and contains three person groups. One item has
+disordered generating thresholds, one has uniform DIF, and one item pair has
+local response dependence. These departures make the diagnostic sequence
+visible without changing the commands used for observed data. Before fitting
+observed data, check the coding and frequency of every category. Negative
+scores are read as missing; valid categories begin at zero.
 
 ```{r fit}
-d <- simulate_rasch(n_persons = 400, n_items = 10, seed = 17)
-fit <- rasch(d, id = "id")
-fit
+d <- simulate_rasch(
+  n_persons = 600,
+  n_items = 12,
+  model = "PCM",
+  n_categories = 4,
+  difficulty = c(-1.5, 1.5),
+  disordered = "I04",
+  dependence = list(pairs = list(c("I10", "I11")), strength = 1.3),
+  dif = list(items = "I08", uniform = 0.8),
+  n_groups = 3,
+  seed = 17
+)
+
+fit <- rasch(d, model = "PCM", id = "id", factors = "group")
 ```
 
-## Read fit and targeting together
+## Begin with the summary and reliability
 
-Item fit is not a single pass-or-fail decision. Examine the direction and size
-of residual misfit, the item-trait interaction, category thresholds, and the
-substantive content of an item. Targeting determines how much information the
-scale supplies over the observed person distribution.
+The summary establishes whether estimation converged and gives the overall
+item--trait interaction, fit-residual distributions, reliability, and the
+package's qualitative assessment of the power of fit tests. It should be read
+before individual item or person flags.
 
-The item-trait chi-square is the principal inferential test over class
-intervals. The residual ANOVA is a supplementary diagnostic. Both references
-are approximate in short administrations, where each response materially
-affects the person grouping; read them with the characteristic curve and
-residual fit rather than as stand-alone decisions.
-
-```{r summaries}
+```{r overall-summary}
+fit
 fit_summary_table(fit)
+```
+
+The person separation index (PSI) compares the observed variance of person
+locations with their mean error variance:
+
+$$
+\mathrm{PSI}=
+\frac{\operatorname{Var}(\hat\theta)-
+\operatorname{mean}\{\operatorname{SE}(\hat\theta)^2\}}
+{\operatorname{Var}(\hat\theta)}.
+$$
+
+The implementation truncates negative values at zero. `fit$psi_noext` removes
+persons with extreme scores and is useful when extremes inflate the observed
+spread. The separation ratio and number of strata express the same information
+on more interpretable scales.
+
+```{r reliability}
+fit$psi
+fit$psi_noext
+fit$power_of_fit
+```
+
+The power label is a screening judgement based on PSI, not a formal power
+calculation. Low reliability weakens the ordering of persons and the formation
+of distinct class intervals, so item--trait and DIF tests may fail to detect
+real departures. Power also depends on sample size, test length, targeting,
+category use, and trait spread. Conversely, a large sample can make a small
+departure statistically significant. Fit residuals, effect sizes, plots, and
+substantive importance remain necessary.
+
+## Examine item estimates and fit
+
+Item locations and their standard errors should be read alongside fit
+residuals, mean-square statistics, and the Holm-adjusted item--trait
+probabilities. A positive residual indicates more variation than expected; a
+negative residual indicates responses that are more predictable than expected.
+The conventional $\pm2.5$ residual band is a screening rule rather than a
+separate hypothesis test.
+
+```{r item-estimates}
+fit$items[, c(
+  "item", "location", "se", "fit_resid",
+  "infit_ms", "outfit_ms", "p_adj"
+)]
+```
+
+```{r item-fit-plot, fig.alt = "Item locations plotted against item fit residuals."}
+plot_item_map(fit)
+```
+
+For a polytomous item, successive thresholds should normally increase on the
+latent scale. Threshold disordering means that an intervening category is not
+the most probable response over any part of the scale. It can reflect sparse
+categories, indistinct category meanings, or a scoring order that is not
+working as intended.
+
+```{r thresholds}
+fit$thresholds
+ordered <- vapply(fit$thresholds_diag, function(x) x$ordered, logical(1))
+disordered_items <- names(ordered)[!ordered]
+disordered_items
+fit$thresholds_diag[disordered_items]
+```
+
+```{r category-curves, fig.alt = "Category characteristic curves and observed category proportions for item I04."}
+plot_ccc(fit, "I04", observed = TRUE)
+```
+
+Do not collapse categories from the ordering flag alone. Check category
+frequencies, the category curves, the wording of the response options, and the
+consequences for measurement. If categories are combined on substantive
+grounds, refit the model and repeat the full diagnostic sequence.
+
+## Examine person estimates and fit
+
+Person fit addresses the consistency of each response pattern with the fitted
+scale. The following table puts the largest absolute residuals first. Positive
+residuals indicate unexpectedly erratic patterns; negative residuals indicate
+patterns that are unusually predictable.
+
+```{r person-estimates}
+person_order <- order(abs(fit$person$fit_resid), decreasing = TRUE,
+                      na.last = TRUE)
+head(fit$person[person_order, c(
+  "id", "group", "raw", "theta", "se", "extreme",
+  "fit_resid", "infit_ms", "outfit_ms"
+)], 10)
+```
+
+```{r person-fit-plot, fig.alt = "Person locations plotted against person fit residuals."}
+plot_person_fit(fit)
+```
+
+An unexpected response pattern may reflect coding or data-entry errors,
+careless responding, a secondary trait, or a genuine but unusual person. It is
+not, by itself, a reason to remove the person. Fit residuals are unavailable
+for extreme response patterns because those patterns do not provide an
+interior location at which fit can be assessed.
+
+## Examine targeting and information
+
+Targeting concerns the match between the person distribution and the item
+threshold distribution. The table reports their locations and spread, the
+proportions of persons beyond the threshold range, and the principal
+reliability indices.
+
+```{r targeting-summary}
 targeting_table(fit)
-fit$thresholds_diag
+```
+
+For a Rasch model, test information is the sum of the conditional response
+variances:
+
+$$
+I(\theta)=\sum_i \operatorname{Var}(X_i\mid\theta),
+\qquad
+\operatorname{SE}(\hat\theta)\approx I(\theta)^{-1/2}.
+$$
+
+The person--item map below places person locations and item thresholds on the
+same logit scale. The information curve shows where the test is most precise.
+
+```{r targeting-map, fig.height = 5.2, fig.alt = "Person and item distributions with the test information curve on the common logit scale."}
+plot_pimap(fit, information = TRUE)
+```
+
+```{r information-table}
 head(test_information(fit))
 ```
 
-```{r targeting, fig.alt = "Person and item distributions on the common logit scale."}
-plot_pimap(fit)
+The optional `WrightMap` package supplies a second form of Wright map. The
+default retains one person panel and displays the estimated category
+thresholds. Separate person or item panels should be requested only when they
+answer a substantive question.
+
+```{r wrightmap, fig.width = 8, fig.height = 5.2, fig.alt = "Wright map of person locations and item thresholds."}
+if (requireNamespace("WrightMap", quietly = TRUE)) {
+  wright_map(fit)
+}
 ```
 
-## Check invariance, independence, and dimensionality
+If `WrightMap` is not installed, install it with
+`install.packages("WrightMap")` before running this chunk.
 
-Person factors should be nominated in the fit and tested jointly with
-`dif_anova`. Residual correlations and the dimensionality test address local
-independence and the adequacy of one measurement dimension. They are evidence
-to investigate, not automatic instructions to delete or combine items.
+## Examine local and trait dependence
 
-```{r structure}
-head(residual_correlations(fit))
+Local response dependence occurs when two responses remain associated after
+conditioning on the latent trait. Yen's $Q3$ is the correlation between two
+items' standardised residuals. Because raw $Q3$ values have a negative
+baseline in a finite test, `q3_star` subtracts the average off-diagonal value.
+
+```{r local-dependence}
+q3 <- residual_correlations(fit)
+q3$average
+head(q3$pairs, 10)
+```
+
+```{r local-dependence-plot, fig.alt = "Heatmap of adjusted residual correlations between items."}
+plot_resid_cor(fit)
+```
+
+There is no universal critical value for adjusted $Q3$ (Christensen,
+Makransky and Horton 2017). Its size, the response process, and the content of
+the item pair matter. When theory supports treating dependent items as one
+superitem, `combine_items()` refits the complete calibration and
+`spread_test()` compares its threshold spread with the binomial bound. The
+bound does not apply to a superitem containing a polytomous component.
+
+Trait dependence is examined through the residual components and by comparing
+person estimates from opposed item subsets (Smith 2002). For subsets $A$ and
+$B$, the person-level statistic is
+
+$$
+t_n=\frac{\hat\theta_{nA}-\hat\theta_{nB}}
+{\sqrt{\operatorname{SE}(\hat\theta_{nA})^2+
+       \operatorname{SE}(\hat\theta_{nB})^2}}.
+$$
+
+Under unidimensionality, about the nominated alpha level of these comparisons
+should be significant. The exact binomial interval, the residual loadings,
+and the score points in each subset are part of the result.
+
+```{r trait-dependence}
 dimensionality_test(fit)
 ```
 
-Binary residual-correlation flags require an analyst-supplied threshold because
-adjusted Q3 has no universal critical value. The dimensionality result carries
-a caution when either opposed subtest contains fewer than 15 score points.
+```{r trait-dependence-plot, fig.alt = "Loadings of items on the first residual component."}
+plot_pca(fit)
+```
 
-When theory supports treating dependent dichotomous items as one superitem,
-`combine_items()` refits the calibration and `spread_test()` compares its
-threshold spread with the binomial bound. `below_bound` is the point-estimate
-comparison; `dependent` records adjusted one-sided statistical evidence. The
-bound does not apply to a superitem containing a polytomous component.
+A quiet result from short subtests is inconclusive rather than evidence that a
+secondary trait is absent. The returned caution records when either subset has
+fewer score points than recommended for stable person estimates.
+
+## Examine differential item functioning
+
+Person factors must be nominated when the model is fitted. With a person
+factor $G$ and trait class interval $C$, the residual model is
+
+$$
+z=\mu+G+C+G\mathbin{:}C+\varepsilon.
+$$
+
+The factor term tests uniform DIF; the interaction with class interval tests
+non-uniform DIF. `dif_anova()` fits all nominated factors together, recognises
+within-person factors in repeated designs, and applies Holm familywise
+correction over the item-by-term tests.
+
+```{r dif}
+dif <- dif_anova(fit, sizes = TRUE)
+subset(dif$summary, uniform_DIF | nonuniform_DIF)
+```
+
+```{r dif-plot, fig.alt = "Observed and expected item characteristic curves for item I08 by person group."}
+plot_icc(fit, "I08", group = "group")
+```
+
+For a significant factor with more than two levels, the follow-up should
+estimate the relevant differences in Rasch logits rather than rely on a
+generic Tukey procedure. With `sizes = TRUE`, `dif_anova()` returns the
+Holm-adjusted marginal pairwise comparisons for significant main effects and
+difference-in-differences for significant interactions.
+
+```{r dif-follow-up}
+dif$posthoc
+```
+
+Statistical significance and practical magnitude answer different questions.
+Any split must be supported by the response process and should be applied with
+`resolve_dif()`, which refits the calibration and updates the item and person
+estimates. The revised fit then goes through the same summary, fit, targeting,
+dependence, and DIF sequence.
 
 ## Link calibrations through common items
 
@@ -128,25 +338,14 @@ checked.
 
 ## Report the final calibration
 
-After any substantively defensible change, refit and repeat the diagnostic
-sequence. A report should state the model, scoring and missing-data rules,
-sample and item exclusions, targeting, item and person fit, threshold
-functioning, dependence, dimensionality, DIF, reliability, and the uncertainty
-of person estimates. The score table supplies the complete-response conversion
-from raw score to logits.
+A report should state the model, scoring and missing-data rules, sample and
+item exclusions, reliability, item and person fit, threshold functioning,
+targeting, dependence, dimensionality, DIF, and the uncertainty of person
+estimates. The score table supplies the complete-response conversion from raw
+score to logits.
 
 ```{r reporting}
 score_table(fit)
-fit$psi
-```
-
-A Wright map can also be drawn with the optional `WrightMap` package.
-Variables retained in the person table can define separate person panels. For
-an EFRM fit, the fitted person groups and item sets can be shown together.
-
-```{r wrightmap-example, eval = FALSE}
-wright_map(fit, person_panels = "group")
-wright_map(efrm_fit, person_panels = "groups", item_panels = "sets")
 ```
 
 ## References
@@ -158,6 +357,13 @@ approaches to item scaling. *Applied Psychological Measurement*, 2(3),
 Andrich, D., and Marais, I. (2019). *A Course in Rasch Measurement Theory:
 Measuring in the Educational, Social and Health Sciences*. Springer.
 
+Christensen, K. B., Makransky, G., and Horton, M. (2017). Critical values for
+Yen's Q3: Identification of local dependence in the Rasch model using residual
+correlations. *Applied Psychological Measurement*, 41(3), 178--194.
+
+Holm, S. (1979). A simple sequentially rejective multiple test procedure.
+*Scandinavian Journal of Statistics*, 6(2), 65--70.
+
 Humphry, S. M. (2005). *Maintaining a Common Arbitrary Unit in Social
 Measurement*. PhD thesis, Murdoch University.
 
@@ -168,6 +374,10 @@ Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
 Tests*. Copenhagen: Danish Institute for Educational Research. (Expanded
 edition, 1980, Chicago: University of Chicago Press.)
 
+Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
+multidimensionality using item fit statistics and principal component analysis
+of residuals. *Journal of Applied Measurement*, 3(2), 205--231.
+
 Tutz, G. (1986). Bradley-Terry-Luce models with an ordered response.
 *Journal of Mathematical Psychology*, 30(3), 306--316.
 
@@ -176,3 +386,7 @@ with ConQuest integration*. R package version 1.5.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427--450.
+
+Yen, W. M. (1984). Effects of local item dependence on the fit and equating
+performance of the three-parameter logistic model. *Applied Psychological
+Measurement*, 8(2), 125--145.
