@@ -32,8 +32,9 @@
   comparison, Holm-adjusted diagnostics and fixed departures while
   retaining the nominated ordered-response threshold structure.
 
-- A worked case study uses the verbal aggression data to develop and
-  check an explanatory partial credit model.
+- A worked case study on the documentation site uses the verbal
+  aggression data to develop and check an explanatory partial credit
+  model.
 
 - [`explanatory_test()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md)
   now places the Kent-calibrated probability in both `p` and `p_kent`.
