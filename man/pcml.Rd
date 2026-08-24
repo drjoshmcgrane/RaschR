@@ -38,7 +38,7 @@ A list containing the threshold table \code{thr}, covariance matrix
 }
 \description{
 Estimates PCM or RSM thresholds by Newton--Raphson maximisation of the
-pairwise conditional likelihood (Andrich and Luo 2003; Zwinderman 1995).
+pairwise conditional likelihood (Zwinderman 1995).
 }
 \details{
 For the PCM, the adjacent-category log odds are
@@ -59,10 +59,6 @@ anchors <- data.frame(item = c("I1", "I6"), k = 1,
 pcml(X, anchors = anchors)$thr
 }
 \references{
-Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
-Rasch model for ordered response categories using principal components.
-Journal of Applied Measurement, 4(3), 205--221.
-
 Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
 Applied Psychological Measurement, 19(4), 369--375.
 }

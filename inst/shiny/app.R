@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # A modern bslib interface to the full rasch analysis: data upload with ID,
 # person-factor, and item column nomination; pairwise conditional ML
-# estimation (Andrich & Luo 2003); the complete test-of-fit suite;
+# estimation (Zwinderman 1995); the complete test-of-fit suite;
 # every diagnostic plot with per-plot PNG and PDF downloads; and one-click
 # export of all tables and plots as a ZIP archive.
 # Launch with rasch::run_app(), or shiny::runApp() from this folder.
@@ -824,8 +824,10 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                          class = "btn-outline-warning w-100"))),
         div(class = "text-center mt-2",
             info_icon(paste("Item parameters use pairwise conditional maximum",
-                            "likelihood (Andrich & Luo 2003); person locations",
-                            "use Warm weighted likelihood."),
+                            "likelihood (Zwinderman 1995); the",
+                            "principal-components option follows Andrich &",
+                            "Luo (2003). Person locations use Warm weighted",
+                            "likelihood."),
                       "About estimation"))
       ),
       uiOutput("data_main")

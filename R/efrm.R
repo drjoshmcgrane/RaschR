@@ -7,8 +7,8 @@
 #   P(X_ni = x) prop exp( rho_sg * ( x*theta_n - sum_{h<=x} delta_ih ) )
 #
 # Within a frame all curves are parallel, so the partial credit model holds
-# in the frame's natural unit and the pairwise conditional logic of
-# Andrich & Luo (2003) applies unchanged within frames.
+# in the frame's natural unit and the pairwise conditional logic
+# (Zwinderman 1995) applies unchanged within frames.
 #
 # Humphry (2005) states the model for dichotomous responses; the polytomous
 # form above is this package's extension of it. It is characterised by the

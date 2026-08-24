@@ -596,7 +596,9 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
 print.rasch <- function(x, ...) {
   cat(sprintf("rasch %s analysis: %d items, %d persons\n",
               x$model, ncol(x$X), nrow(x$X)))
-  cat(sprintf("Pairwise conditional ML (Andrich & Luo): %s in %d iterations\n",
+  cat(sprintf("Pairwise conditional ML (%s): %s in %d iterations\n",
+              if (is.null(x$est$components)) "Zwinderman"
+              else "Andrich & Luo principal components",
               if (x$est$converged) "converged" else "NOT converged",
               x$est$iterations))
   cat(sprintf("PSI %.3f (no extremes %.3f), item SI %.3f, alpha %.3f%s, power of fit: %s\n",

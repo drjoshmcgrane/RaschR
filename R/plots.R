@@ -31,11 +31,23 @@
   plot(NA, xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab,
        main = "", axes = FALSE)
   if (has_main) title(main = main, adj = 0, line = 1.4)
+  xt <- .rr_ticks(xlim)
   if (grid_y) abline(h = pretty(ylim), col = .rr$grid, lwd = 0.8)
-  if (grid_x) abline(v = pretty(xlim), col = .rr$grid, lwd = 0.8)
-  if (xaxis) axis(1, col = .rr$grid, col.ticks = .rr$soft)
+  if (grid_x) abline(v = xt, col = .rr$grid, lwd = 0.8)
+  if (xaxis) axis(1, at = xt, col = .rr$grid, col.ticks = .rr$soft)
   if (yaxis) axis(2, col = .rr$grid, col.ticks = .rr$soft)
   invisible(op)
+}
+
+# Whole-unit tick marks whenever the span allows them, so a logit axis is
+# labelled at every logit and its extremes are not left between labels. One
+# extra integer on each side reaches into the axis expansion; axis() clips
+# marks outside the plot region.
+.rr_ticks <- function(lim) {
+  w <- max(lim) - min(lim)
+  if (w > 2.5 && w <= 14)
+    seq(ceiling(min(lim) - 1e-9) - 1, floor(max(lim) + 1e-9) + 1)
+  else pretty(lim, n = 7)
 }
 
 .rr_legend <- function(pos, ..., cex = 0.85)
@@ -468,11 +480,14 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
 .pimap_scale <- function(values, xlim = NULL) {
   if (is.null(xlim)) {
     padded <- range(values[is.finite(values)]) + c(-0.4, 0.4)
-    ticks <- pretty(padded, n = 6)
+    w <- diff(padded)
+    ticks <- if (w > 2.5 && w <= 14)
+      seq(floor(padded[1] + 1e-9), ceiling(padded[2] - 1e-9))
+    else pretty(padded, n = 6)
     return(list(range = range(ticks), ticks = ticks))
   }
   rng <- sort(xlim)
-  ticks <- pretty(rng, n = 6)
+  ticks <- .rr_ticks(rng)
   ticks <- ticks[ticks >= rng[1] & ticks <= rng[2]]
   list(range = rng, ticks = ticks)
 }
