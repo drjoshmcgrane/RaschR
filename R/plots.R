@@ -469,8 +469,8 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   abline(h = 0, col = .rr$ink, lwd = 1)
   rect(brk[-length(brk)], 0, brk[-1], pp, col = .rr$blue, border = "white", lwd = 0.6)
   rect(brk[-length(brk)], -pi, brk[-1], 0, col = .rr$amber, border = "white", lwd = 0.6)
-  segments(mean(th), 0, mean(th), ymax * 0.95, col = .rr$ink, lty = 2)
-  segments(mean(tau), ymin * 0.95, mean(tau), 0, col = .rr$ink, lty = 2)
+  segments(mean(th), 0, mean(th), ymax * 0.95, col = .rr$blue, lty = 2)
+  segments(mean(tau), ymin * 0.95, mean(tau), 0, col = .rr$amber, lty = 2)
   .rr_legend("topleft", c("Persons", if (structural)
     "Calibration thresholds" else "Item thresholds"),
              fill = c(.rr$blue, .rr$amber), border = NA, cex = 0.76)
@@ -571,7 +571,7 @@ plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
   segments(split, mean(tv), 0.99, mean(tv), col = .rr$amber, lty = 2)
   rect(split - pp * (split - 0.02), brk[-length(brk)], split, brk[-1],
        col = .rr$blue, border = "white", lwd = 0.6)
-  segments(0.02, mean(th), split, mean(th), col = .rr$ink, lty = 2)
+  segments(0.02, mean(th), split, mean(th), col = .rr$blue, lty = 2)
   cexl <- cex_labels
   colw <- max(strwidth(lab, cex = cexl)) * 1.2
   x0 <- split + 0.015
