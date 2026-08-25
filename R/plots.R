@@ -440,14 +440,25 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   hp <- hist(th, breaks = brk, plot = FALSE)
   hi <- hist(tau, breaks = brk, plot = FALSE)
   pp <- hp$counts / sum(hp$counts); pi <- hi$counts / sum(hi$counts)
-  ymax <- max(pp) * 1.15; ymin <- -max(pi) * 1.15
+  # both sides end on a labelled tick: the smallest pretty proportion above
+  # the tallest bar on each side, mapped exactly so the axis cannot top out
+  # between labels
+  at <- pretty(c(0, max(c(pp, pi))))
+  step <- diff(at)[1]
+  top <- at[at > max(pp)][1]
+  if (is.na(top)) top <- max(at) + step
+  bot <- at[at > max(pi)][1]
+  if (is.na(bot)) bot <- max(at) + step
+  at <- unique(sort(c(at, top, bot)))
+  ymax <- top; ymin <- -bot
+  op2 <- par(yaxs = "i")
+  on.exit(par(op2), add = TRUE)
   op <- .rr_canvas(rng, c(ymin, ymax), "Location (logits)", "Proportion",
                    "", grid_y = FALSE,
                    yaxis = FALSE, right = if (isTRUE(information)) 4.2 else 1.5,
                    xaxis = FALSE)
-  on.exit(par(op))
+  on.exit(par(op), add = TRUE)
   axis(1, at = scale$ticks, col = .rr$grid, col.ticks = .rr$soft)
-  at <- pretty(c(0, max(c(pp, pi))))
   axis(2, at = c(-rev(at[-1]), at), labels = c(rev(at[-1]), at),
        col = .rr$grid, col.ticks = .rr$soft, cex.axis = 0.85)
   # continuous spines meeting at the corner, instead of axis lines that
