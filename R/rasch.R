@@ -216,9 +216,21 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   .factors_label <- if (is.name(.factors_sym)) as.character(.factors_sym) else "factor"
   model <- match.arg(model)
   # adjust_N rescales the item-trait chi-square by (reference N / classified
-  # N); a non-positive reference would zero or negate every statistic
-  if (!is.na(adjust_N) && (!is.numeric(adjust_N) || adjust_N <= 0))
-    stop("`adjust_N` must be a positive reference sample size")
+  # N); a non-positive or infinite reference would zero, negate, or blow up
+  # every statistic
+  if (length(adjust_N) != 1L ||
+      (!is.na(adjust_N) && (!is.numeric(adjust_N) || !is.finite(adjust_N) ||
+                            adjust_N <= 0)))
+    stop("`adjust_N` must be one positive finite reference sample size")
+  if (!is.null(n_groups) &&
+      (length(n_groups) != 1L || !is.numeric(n_groups) ||
+       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2))
+    stop("`n_groups` must be one whole number of at least 2 class intervals")
+  if (length(maxit) != 1L || !is.numeric(maxit) || !is.finite(maxit) ||
+      maxit != floor(maxit) || maxit < 1)
+    stop("`maxit` must be one whole positive iteration cap")
+  if (length(tol) != 1L || !is.numeric(tol) || !is.finite(tol) || tol <= 0)
+    stop("`tol` must be one positive finite tolerance")
   if (!is.null(pc_components)) {
     if (model != "PCM")
       stop("pc_components applies to the PCM only")
@@ -393,7 +405,19 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     # and resolving against the surviving columns would silently anchor a
     # different item
     a_names <- if (is.character(anchors$item) || is.factor(anchors$item))
-      as.character(anchors$item) else items_before_prep[as.integer(anchors$item)]
+      as.character(anchors$item)
+    else {
+      ai <- anchors$item
+      if (!is.numeric(ai) || any(!is.finite(ai)) || any(ai != floor(ai)) ||
+          any(ai < 1) || any(ai > length(items_before_prep)))
+        stop("numeric anchor item indices must be whole numbers between 1 and ",
+             length(items_before_prep))
+      items_before_prep[as.integer(ai)]
+    }
+    if (anyDuplicated(paste(a_names, anchors$k)))
+      stop("duplicate anchor for the same item threshold: ",
+           paste(unique(a_names[duplicated(paste(a_names, anchors$k))]),
+                 collapse = ", "))
     anchors$item <- a_names
     gone <- setdiff(a_names, colnames(X))
     if (length(gone))

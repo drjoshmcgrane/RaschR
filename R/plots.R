@@ -61,7 +61,23 @@
 .rr_legend <- function(pos, ..., cex = 0.85)
   legend(pos, ..., bty = "n", text.col = .rr$ink, cex = cex)
 
-.item_idx <- function(fit, item) if (is.character(item)) match(item, fit$items$item) else item
+.item_idx <- function(fit, item) {
+  if (!length(item)) stop("item must name or index at least one item")
+  if (is.character(item) || is.factor(item)) {
+    i <- match(as.character(item), fit$items$item)
+    if (anyNA(i))
+      stop("no such item: ",
+           paste(as.character(item)[is.na(i)], collapse = ", "), call. = FALSE)
+    i
+  } else {
+    if (!is.numeric(item) || any(!is.finite(item)) ||
+        any(item != floor(item)) || any(item < 1) ||
+        any(item > nrow(fit$items)))
+      stop("item index must be whole numbers between 1 and ",
+           nrow(fit$items), call. = FALSE)
+    as.integer(item)
+  }
+}
 
 # Discrimination (frame unit) of column i; 1 unless the fit carries units.
 .disc_of <- function(fit, i) if (is.null(fit$disc)) 1 else fit$disc[i]

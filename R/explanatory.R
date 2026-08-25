@@ -396,7 +396,15 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
 relax_btl_explanatory <- function(fit, object) {
   if (!inherits(fit, "rasch_btl_explanatory"))
     stop("relax_btl_explanatory() needs an explanatory comparative judgement fit")
-  objects <- as.character(fit$objects$object)
+  obj_tab <- fit$objects
+  if ("extreme" %in% names(obj_tab)) {
+    at <- match(object, obj_tab$object)
+    if (!is.na(at) && isTRUE(obj_tab$extreme[at]))
+      .refuse(object, " was set aside at a response boundary; its location ",
+              "is an extrapolation for display and cannot be relaxed")
+    obj_tab <- obj_tab[!(obj_tab$extreme %in% TRUE), ]
+  }
+  objects <- as.character(obj_tab$object)
   j <- match(object, objects)
   if (is.na(j)) stop("object not found in the explanatory fit: ", object)
   D <- diag(length(objects))[, j, drop = FALSE]
@@ -672,7 +680,11 @@ explanatory_test <- function(fit) {
 #'
 #' @param fit A fitted explanatory Rasch or comparative judgement model.
 #' @param p_adjust Multiplicity adjustment over the candidate departures.
-#' @return A data frame ordered by adjusted probability.
+#' @return A data frame ordered by adjusted probability. For item fits, a
+#'   \code{weak} column marks items whose thresholds the calibration flags
+#'   as weakly identified; their probabilities are withheld, since the
+#'   departure test rests on the same sparse categories, and a note on the
+#'   table records the withholding.
 #' @export
 explanatory_diagnostics <- function(fit, p_adjust = "holm") {
   if (inherits(fit, "rasch_btl_explanatory")) {
@@ -731,19 +743,32 @@ explanatory_diagnostics <- function(fit, p_adjust = "holm") {
     b <- utils::tail(est$beta, ncol(D))
     departure <- if (component == "location") unname(b[1L]) else
       max(abs(drop(D %*% b)))
+    # a departure test rests on the same sparse categories that made the
+    # item's thresholds weak; the probability is withheld there, as the
+    # threshold standard errors already are, and the departure stays
+    # descriptive
+    ii <- match(item, colnames(fit$X))
+    weak_item <- isTRUE(any(fit$thresholds$weak[fit$thresholds$item == ii]))
     rows[[length(rows) + 1L]] <- data.frame(
       item = item, component = if (component == "location")
         "Item location" else "Threshold structure",
       parameters_added = add, departure = departure,
       deviance_reduction = tst$chisq, df = tst$df,
-      p = tst$p_kent, stringsAsFactors = FALSE)
+      p = if (weak_item) NA_real_ else tst$p_kent,
+      weak = weak_item, stringsAsFactors = FALSE)
   }
   if (!length(rows)) return(.tag_tables(data.frame(
     item = character(0), component = character(0), parameters_added = integer(0),
     departure = numeric(0), deviance_reduction = numeric(0), df = integer(0),
-    p = numeric(0), p_adj = numeric(0))))
+    p = numeric(0), weak = logical(0), p_adj = numeric(0))))
   out <- do.call(rbind, rows)
-  out$p_adj <- stats::p.adjust(out$p, method = p_adjust)
+  usable <- is.finite(out$p)
+  out$p_adj <- NA_real_
+  out$p_adj[usable] <- stats::p.adjust(out$p[usable], method = p_adjust)
+  if (any(out$weak))
+    attr(out, "note") <- paste("departure probabilities are withheld for",
+      "item(s) with weak thresholds:",
+      paste(unique(out$item[out$weak]), collapse = ", "))
   out <- out[order(out$p_adj, -out$deviance_reduction), , drop = FALSE]
   rownames(out) <- NULL
   attr(out, "p_adjust") <- p_adjust

@@ -356,3 +356,76 @@ test_that("dependence magnitude withholds inference on weak resolved thresholds"
   expect_true(is.na(dm$se) && is.na(dm$p))
   expect_match(dm$note, "weakly identified")
 })
+
+test_that("wide-format MFRM scores factor columns by label, not level code", {
+  set.seed(31)
+  base <- data.frame(person = rep(sprintf("P%02d", 1:60), 3),
+    item = rep(c("A", "B", "C"), each = 60),
+    score = sample(0:2, 180, TRUE),
+    rater = sample(c("r1", "r2"), 180, TRUE))
+  wide <- reshape(base, idvar = c("person", "rater"), timevar = "item",
+                  direction = "wide")
+  names(wide) <- sub("score\\.", "", names(wide))
+  w2 <- wide
+  for (cn in c("A", "B", "C")) w2[[cn]] <- factor(w2[[cn]], levels = c(0, 2, 1))
+  f1 <- rasch_mfrm(wide, person = "person", facets = "rater",
+                   items = c("A", "B", "C"))
+  f2 <- rasch_mfrm(w2, person = "person", facets = "rater",
+                   items = c("A", "B", "C"))
+  expect_equal(f1$items$location, f2$items$location)
+})
+
+test_that("item and anchor indices are validated, not truncated", {
+  set.seed(32)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  f <- suppressWarnings(rasch(X))
+  expect_error(chisq_detail(f, "NOPE"), "no such item")
+  expect_error(chisq_detail(f, 1.9), "whole numbers")
+  expect_error(dependence_magnitude(f, 2.9, 1.9), "whole numbers")
+  expect_error(rasch(X, anchors = data.frame(item = 1.9, k = 1, tau = 0)),
+               "whole numbers")
+  expect_error(rasch(X, n_groups = 1.9), "whole number")
+  expect_error(rasch(X, adjust_N = Inf), "finite")
+  expect_error(rasch(X, tol = 0), "positive")
+})
+
+test_that("duplicate named mappings are refused", {
+  set.seed(34)
+  d <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 4)
+  expect_error(btl(d, "object_a", "object_b", winner = "winner",
+                   judge = "judge", anchors = c(O2 = -1, O2 = 3)),
+               "duplicate anchor")
+})
+
+test_that("weak-item explanatory diagnostics withhold their probabilities", {
+  set.seed(35)
+  Xw <- vapply(1:8, function(i) {
+    if (i == 3) sample(c(0L, 1L, 2L), 500, TRUE, prob = c(0.985, 0.01, 0.005))
+    else sample(0:2, 500, TRUE)
+  }, integer(500))
+  colnames(Xw) <- paste0("I", 1:8)
+  qq <- data.frame(item = colnames(Xw), z = rep(c(0, 1), 4))
+  few <- suppressWarnings(rasch_explanatory(Xw, predictors = qq, formula = ~ z))
+  skip_if_not(any(few$thresholds$weak[few$thresholds$item == 3]))
+  dg <- explanatory_diagnostics(few)
+  expect_true(all(is.na(dg$p[dg$item == "I3"])))
+  expect_true(any(is.finite(dg$p_adj[dg$item != "I3"])))
+})
+
+test_that("judge diagnostics report count-weighted comparisons", {
+  set.seed(36)
+  objs <- paste0("O", 1:6)
+  beta <- setNames(seq(-1.2, 1.2, length.out = 6), objs)
+  pr <- t(combn(objs, 2))
+  d <- do.call(rbind, lapply(sprintf("J%d", 1:4), function(j)
+    data.frame(judge = j, a = pr[, 1], b = pr[, 2])))
+  d$winner <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
+  d$count <- 5L
+  f <- btl(d, "a", "b", winner = "winner", judge = "judge", count = "count")
+  tr <- btl_transitivity(f)
+  expect_true(all(tr$judges$n_comparisons == 75))
+  js <- judge_surprise(f, as.character(tr$judges$judge[1]))
+  expect_identical(js$n_comparisons, 75)
+})

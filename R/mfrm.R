@@ -169,7 +169,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       ..person = rep(as.character(data[[person]]), length(items)),
       ..item = rep(items, each = nrow(data)),
       ..score = unlist(lapply(items, function(cn)
-        suppressWarnings(as.numeric(data[[cn]])))),
+        suppressWarnings(as.numeric(as.character(data[[cn]]))))),
       stringsAsFactors = FALSE)
     for (f in facets) long[[f]] <- rep(as.character(data[[f]]), length(items))
     # person factors survive the melt: named columns are replicated like

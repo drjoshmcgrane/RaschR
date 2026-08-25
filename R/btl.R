@@ -237,6 +237,11 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     if (length(bad_anch))
       stop("`anchors` name(s) do not match any object in the data: ",
            paste(bad_anch, collapse = ", "))
+    if (anyDuplicated(names(anchors)))
+      stop("duplicate anchor(s) for: ",
+           paste(unique(names(anchors)[duplicated(names(anchors))]),
+                 collapse = ", "),
+           "; each object may be anchored once")
   }
   # a constant, object_a-oriented covariate for the first-position advantage;
   # appended to the dependence design (alone, or beside exposure/carry-over)
@@ -498,7 +503,7 @@ print.rasch_btl <- function(x, ...) {
 plot_btl <- function(fit, band = 2.5) {
   d <- fit$objects[order(fit$objects$location), ]
   k <- nrow(d)
-  xerr <- c(d$location - 1.96 * d$se, d$location + 1.96 * d$se)
+  xerr <- c(d$location - 1.96 * d$se, d$location + 1.96 * d$se, d$location)
   xlim <- if (any(is.finite(xerr))) range(xerr, na.rm = TRUE)
           else range(d$location)
   op <- .rr_canvas(xlim + c(-0.15, 0.15) * diff(xlim), c(0.5, k + 0.5),
@@ -1180,7 +1185,11 @@ plot_btl <- function(fit, band = 2.5) {
     ctau <- c(0, cumsum(tau))
     exp_score <- function(theta, r, as_a) {
       d <- if (as_a) theta - bl[[b0[r]]] else bl[[a0[r]]] - theta
-      if (!is.null(Z0)) d <- d + drop(Z0[r, , drop = FALSE] %*% dep)
+      # dependence effects can be dropped after the boundary rows were set
+      # aside (no informative comparisons, or separation); the extrapolation
+      # uses the retained effects only, aligned by name
+      if (!is.null(Z0) && !is.null(Z) && length(dep) && ncol(Z))
+        d <- d + drop(Z0[r, colnames(Z), drop = FALSE] %*% dep)
       eta <- d * sc0 - ctau; eta <- eta - max(eta)
       p <- exp(eta) / sum(exp(eta))
       if (as_a) sum(p * sc0) else m - sum(p * sc0)
@@ -1199,12 +1208,17 @@ plot_btl <- function(fit, band = 2.5) {
       lim <- range(bl) + c(-12, 12)
       loc <- tryCatch(stats::uniroot(g, interval = lim, tol = 1e-8)$root,
                       error = function(err) NA_real_)
-      if (!is.finite(loc)) next
+      if (!is.finite(loc)) {
+        notes <- c(notes, sprintf(
+          "no stable extrapolated location for %s; the object is omitted from the object table",
+          e))
+        next
+      }
       row <- objects[1, ]
       row[1, seq_along(row)] <- NA
       row$object <- e
       row$location <- loc
-      row$comparisons <- length(ra) + length(rb)
+      row$comparisons <- sum(w0[ra]) + sum(w0[rb])
       row$score <- Tn
       row$extreme <- TRUE
       objects <- rbind(objects, row)
@@ -1753,6 +1767,10 @@ btl_dif <- function(fit, factors, objects = NULL,
     else {
       if (is.null(names(g)))
         stop("each factor needs one value per comparison or names by judge")
+      if (anyDuplicated(names(g)))
+        stop("duplicate judge(s) in a named factor: ",
+             paste(unique(names(g)[duplicated(names(g))]), collapse = ", "),
+             "; each judge may carry one value")
       unname(as.character(g)[match(cm$judge, names(g))])
     }
   })

@@ -694,6 +694,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
            paste(names(npan)[npan > 1L], collapse = ", "),
            "; a panel is a judge attribute and must be constant per judge")
   } else if (!is.null(names(panels)) && all(nzchar(names(panels)))) {
+    if (anyDuplicated(names(panels)))
+      stop("duplicate judge(s) in the panels map: ",
+           paste(unique(names(panels)[duplicated(names(panels))]),
+                 collapse = ", "),
+           "; each judge may be assigned to one panel")
     pan <- unname(as.character(panels)[match(jd, names(panels))])
   } else {
     stop("`panels` must name a column of `data` or be a named vector ",

@@ -11,6 +11,22 @@
   infit or outfit in place of the fit residual, under the same +/-2.5
   band, and annotate the flagged count with its percentage. The person
   table reports `infit_z` alongside `outfit_z`.
+* Nine defect families from an adversarial review are corrected.
+  Wide-format many-facet data now scores factor columns by their labels,
+  where reordered factor levels previously shifted item locations. Item,
+  threshold, and anchor indices are validated: a fractional or unknown
+  index errors instead of silently truncating to a different item, and
+  the numeric fitting controls reject fractional interval counts and
+  non-finite references. Duplicate named mappings -- comparison anchors,
+  item-set maps, judge-panel maps, and named judge factors -- are refused
+  instead of silently taking one of the conflicting values. A boundary
+  comparison object keeps its extrapolated location when a dependence
+  effect was dropped after its removal, reports count-weighted
+  comparisons, stays inside the plotted range, and is refused by
+  \code{relax_btl_explanatory()} with its calibrated companions
+  unaffected. Explanatory departure probabilities are withheld for items
+  whose thresholds the calibration marks as weak, and the judge
+  diagnostics report count-weighted comparison totals.
 * The observed points of a paired-comparison ICC no longer abort the
   display when every comparator falls below the informativeness
   threshold; the model curve and the omission note draw on their own.

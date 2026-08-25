@@ -1143,6 +1143,11 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     if (anyNA(set_of)) set_of[is.na(set_of)] <- "(rest)"
   } else {
     if (is.null(names(item_sets))) stop("item_sets must be a named list or named vector")
+    if (anyDuplicated(names(item_sets)))
+      stop("duplicate item(s) in the item_sets map: ",
+           paste(unique(names(item_sets)[duplicated(names(item_sets))]),
+                 collapse = ", "),
+           "; each item may be assigned to one set")
     set_of <- as.character(item_sets)[match(colnames(X), names(item_sets))]
     if (anyNA(set_of))
       stop("item(s) missing from the item_sets map: ",

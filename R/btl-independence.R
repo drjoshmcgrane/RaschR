@@ -143,7 +143,8 @@ btl_transitivity <- function(fit, min_triples = 5L) {
       nt <- n_tri[keep]
       jr <- n_c / nt
       judges <- data.frame(
-        judge = ju[keep], n_comparisons = vapply(rows[keep], length, 0L),
+        judge = ju[keep],
+        n_comparisons = vapply(rows[keep], function(rr) sum(cmp$weight[rr]), 0),
         n_triples = nt, n_circular = n_c, circular_rate = jr,
         consistency = 1 - jr / 0.25)
       judges <- judges[order(judges$consistency), ]
@@ -741,7 +742,8 @@ judge_surprise <- function(fit, judge, min_n = 2L, flag_z = 1.96) {
                           "weak object over-rated"))
   o <- o[order(-abs(o$z)), ]; rownames(o) <- NULL
   structure(list(judge = judge, objects = o, all_locations = beta,
-                 n_comparisons = length(sel), flag_z = flag_z, min_n = min_n),
+                 n_comparisons = sum(cmp$weight[sel]), flag_z = flag_z,
+                 min_n = min_n),
             class = "rasch_btl_judge")
 }
 
@@ -823,7 +825,8 @@ judge_pair_surprise <- function(fit, judge, min_n = 1L, flag_z = 1.96) {
   p <- do.call(rbind, rows)
   p <- p[order(p$z), ]; rownames(p) <- NULL
   structure(list(judge = judge, pairs = p, all_locations = beta,
-                 n_comparisons = length(sel), flag_z = flag_z, min_n = min_n),
+                 n_comparisons = sum(cmp$weight[sel]), flag_z = flag_z,
+                 min_n = min_n),
             class = "rasch_btl_judge_pairs")
 }
 
