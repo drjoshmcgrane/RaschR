@@ -410,7 +410,8 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #'
 #' The targeting display: the person location distribution above the axis and
 #' the calibration threshold distribution mirrored below it, on a shared
-#' logit scale. MFRM and EFRM thresholds belong to response cells.
+#' logit scale. Dashed lines mark the person and threshold means in their
+#' distributions' colours. MFRM and EFRM thresholds belong to response cells.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param bins Number of histogram bins.
@@ -525,7 +526,8 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
 #'
 #' The conventional vertical person-item map (Wright and Stone 1979): the
 #' person distribution to the left of a shared logit axis and the calibration
-#' thresholds stacked to its right. MFRM and EFRM labels identify
+#' thresholds stacked to its right. Dashed lines mark the person and threshold
+#' means in their distributions' colours. MFRM and EFRM labels identify
 #' item-by-facet or item-by-frame response cells rather than additional items.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.

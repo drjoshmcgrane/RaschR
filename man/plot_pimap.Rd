@@ -25,7 +25,8 @@ Called for its plotting side effect; invisibly \code{NULL}.
 \description{
 The targeting display: the person location distribution above the axis and
 the calibration threshold distribution mirrored below it, on a shared
-logit scale. MFRM and EFRM thresholds belong to response cells.
+logit scale. Dashed lines mark the person and threshold means in their
+distributions' colours. MFRM and EFRM thresholds belong to response cells.
 }
 \examples{
 set.seed(1)
