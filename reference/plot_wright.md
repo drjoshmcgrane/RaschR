@@ -2,9 +2,10 @@
 
 The conventional vertical person-item map (Wright and Stone 1979): the
 person distribution to the left of a shared logit axis and the
-calibration thresholds stacked to its right. MFRM and EFRM labels
-identify item-by-facet or item-by-frame response cells rather than
-additional items.
+calibration thresholds stacked to its right. Dashed lines mark the
+person and threshold means in their distributions' colours. MFRM and
+EFRM labels identify item-by-facet or item-by-frame response cells
+rather than additional items.
 
 ## Usage
 
