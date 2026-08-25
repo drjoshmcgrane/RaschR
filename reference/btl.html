@@ -163,7 +163,13 @@ threshold; <code>"pc"</code> retains only the symmetric spread component.</p></d
   <code>osi</code>, <code>loglik</code>, composite-likelihood information <code>cl</code>,
   convergence details, and <code>notes</code>. Ordered-response fits also contain
   <code>thresholds</code>, <code>m</code>, and <code>categories</code>. Fits using
-  <code>order</code> contain <code>dependence</code> and <code>dependence_data</code>.</p>
+  <code>order</code> contain <code>dependence</code> and <code>dependence_data</code>.
+  An undefeated or winless object is set aside from estimation, as an
+  extreme person is in a Rasch calibration, and reported in
+  <code>objects</code> with <code>extreme = TRUE</code> at an extrapolated location:
+  the profile solution with its score moved half a point inside the
+  boundary against the calibrated scale. Its standard error and fit are
+  withheld and the row takes no part in inference or equating.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -242,11 +248,11 @@ model to incorporate within-pair order effects. Biometrics, 33(4),
 <span class="r-out co"><span class="r-pr">#&gt;</span> Bradley-Terry-Luce analysis: 4 objects, 180 comparisons</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Conditional ML: converged in 6 iterations; sandwich SEs</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Object separation index 0.963; pairwise chi-square 1.07 on 3 df, p = 0.783</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  object location    se comparisons wins fit_resid</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       A   -1.238 0.214          90   16    -0.111</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       B   -0.354 0.186          90   36     0.526</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       C    0.448 0.180          90   56    -0.056</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       D    1.144 0.209          90   72     0.037</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  object location    se comparisons wins fit_resid extreme</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       A   -1.238 0.214          90   16    -0.111        </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       B   -0.354 0.186          90   36     0.526        </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       C    0.448 0.180          90   56    -0.056        </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       D    1.144 0.209          90   72     0.037        </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

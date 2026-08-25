@@ -107,7 +107,13 @@ A `"rasch_btl"` object. Principal components are `objects`, `pairs`,
 `judges`, the total pair-fit test, `osi`, `loglik`, composite-likelihood
 information `cl`, convergence details, and `notes`. Ordered-response
 fits also contain `thresholds`, `m`, and `categories`. Fits using
-`order` contain `dependence` and `dependence_data`.
+`order` contain `dependence` and `dependence_data`. An undefeated or
+winless object is set aside from estimation, as an extreme person is in
+a Rasch calibration, and reported in `objects` with `extreme = TRUE` at
+an extrapolated location: the profile solution with its score moved half
+a point inside the boundary against the calibrated scale. Its standard
+error and fit are withheld and the row takes no part in inference or
+equating.
 
 ## Details
 
@@ -201,9 +207,9 @@ btl(d, object_a = "a", object_b = "b", winner = "win")
 #> Bradley-Terry-Luce analysis: 4 objects, 180 comparisons
 #> Conditional ML: converged in 6 iterations; sandwich SEs
 #> Object separation index 0.963; pairwise chi-square 1.07 on 3 df, p = 0.783
-#>  object location    se comparisons wins fit_resid
-#>       A   -1.238 0.214          90   16    -0.111
-#>       B   -0.354 0.186          90   36     0.526
-#>       C    0.448 0.180          90   56    -0.056
-#>       D    1.144 0.209          90   72     0.037
+#>  object location    se comparisons wins fit_resid extreme
+#>       A   -1.238 0.214          90   16    -0.111        
+#>       B   -0.354 0.186          90   36     0.526        
+#>       C    0.448 0.180          90   56    -0.056        
+#>       D    1.144 0.209          90   72     0.037        
 ```

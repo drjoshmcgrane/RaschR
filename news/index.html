@@ -50,6 +50,7 @@
 <li>The Wright map and the person-item map mark the person and threshold means with dashed lines in their distributions’ colours.</li>
 <li>
 <code><a href="../reference/plot_person_fit.html">plot_person_fit()</a></code> and <code><a href="../reference/plot_item_map.html">plot_item_map()</a></code> can display the standardised infit or outfit in place of the fit residual, under the same +/-2.5 band, and annotate the flagged count with its percentage. The person table reports <code>infit_z</code> alongside <code>outfit_z</code>.</li>
+<li>An undefeated or winless comparison object is now reported in the object table at an extrapolated location, its score moved half a point inside the boundary against the calibrated scale, with <code>extreme = TRUE</code> and its standard error withheld – the reporting practice already used for extreme person measures. The row takes no part in estimation, inference, or equating. Validated against <code><a href="https://rdrr.io/pkg/sirt/man/btm.html" class="external-link">sirt::btm</a></code>: identical likelihood to machine precision on clean replicates, with the boundary policies agreeing in direction.</li>
 <li>The heaviest examples are smaller, and CRAN runs fewer scenario test blocks, keeping the check well inside the incoming pretest budget.</li>
 </ul></div>
     <div class="section level2">

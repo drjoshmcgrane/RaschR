@@ -35,14 +35,14 @@ fit
 #> Bradley-Terry-Luce analysis: 7 objects, 420 comparisons, 12 judges
 #> Conditional ML: converged in 6 iterations; sandwich SEs clustered by judge
 #> Object separation index 0.970; pairwise chi-square 20.37 on 15 df, p = 0.158
-#>  object location    se comparisons wins fit_resid
-#>      O1   -1.820 0.180         120   16     0.224
-#>      O2   -0.930 0.216         120   35    -0.967
-#>      O3   -0.203 0.215         120   54     1.179
-#>      O4   -0.276 0.208         120   52    -0.407
-#>      O5    0.565 0.124         120   75     0.148
-#>      O6    1.198 0.243         120   91     0.875
-#>      O7    1.465 0.220         120   97    -0.976
+#>  object location    se comparisons wins fit_resid extreme
+#>      O1   -1.820 0.180         120   16     0.224        
+#>      O2   -0.930 0.216         120   35    -0.967        
+#>      O3   -0.203 0.215         120   54     1.179        
+#>      O4   -0.276 0.208         120   52    -0.407        
+#>      O5    0.565 0.124         120   75     0.148        
+#>      O6    1.198 0.243         120   91     0.875        
+#>      O7    1.465 0.220         120   97    -0.976        
 #> Judges beyond |fit residual| 2.5: 0
 fit$objects
 #>  object location    se comparisons wins infit_ms outfit_ms fit_resid  df_fit
@@ -53,6 +53,14 @@ fit$objects
 #>      O5    0.565 0.124         120   75    0.971     1.021     0.148 118.286
 #>      O6    1.198 0.243         120   91    1.091     1.200     0.875 118.286
 #>      O7    1.465 0.220         120   97    0.955     0.787    -0.976 118.286
+#>  extreme
+#>         
+#>         
+#>         
+#>         
+#>         
+#>         
+#> 
 ```
 
 Judge residuals describe agreement with the common object scale; they
