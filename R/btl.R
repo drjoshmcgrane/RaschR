@@ -146,6 +146,12 @@
 #'   convergence details, and \code{notes}. Ordered-response fits also contain
 #'   \code{thresholds}, \code{m}, and \code{categories}. Fits using
 #'   \code{order} contain \code{dependence} and \code{dependence_data}.
+#'   An undefeated or winless object is set aside from estimation, as an
+#'   extreme person is in a Rasch calibration, and reported in
+#'   \code{objects} with \code{extreme = TRUE} at an extrapolated location:
+#'   the profile solution with its score moved half a point inside the
+#'   boundary against the calibrated scale. Its standard error and fit are
+#'   withheld and the row takes no part in inference or equating.
 #' @references
 #' Bradley, R. A. and Terry, M. E. (1952). Rank analysis of incomplete block
 #' designs: I. The method of paired comparisons. Biometrika, 39, 324--345.
@@ -458,7 +464,7 @@ print.rasch_btl <- function(x, ...) {
   }
   print(.fmt_df(x$objects[, intersect(c("object", "location", "se",
                                         "comparisons", "wins", "score",
-                                        "fit_resid"),
+                                        "fit_resid", "extreme"),
                                       names(x$objects))]), row.names = FALSE)
   if (!is.null(x$judges)) {
     mis <- x$judges[!is.na(x$judges$fit_resid) & abs(x$judges$fit_resid) > 2.5, ]
@@ -557,7 +563,11 @@ plot_btl <- function(fit, band = 2.5) {
   check_cats(x, note_interior = TRUE)
 
   # objects whose every response sits at the boundary have no finite
-  # estimate, as extreme persons are set aside in a Rasch calibration
+  # estimate, as extreme persons are set aside in a Rasch calibration.
+  # Their comparisons are kept so a reporting location can be
+  # extrapolated against the calibrated scale after estimation.
+  a0 <- a; b0 <- b; x0 <- x; w0 <- w; Z0 <- Z
+  removed_ext <- character(0)
   removed_any <- FALSE
   repeat {
     objs <- sort(unique(c(a, b)))
@@ -579,8 +589,9 @@ plot_btl <- function(fit, band = 2.5) {
            "; an anchored object cannot be removed - drop it from `anchors`",
            " or supply comparisons that place it")
     notes <- c(notes, sprintf(
-      "object(s) at a response boundary removed (no finite estimate): %s",
+      "object(s) at a response boundary set aside from estimation: %s; reported at an extrapolated location (score half a point inside the boundary), standard error withheld",
       paste(ext, collapse = ", ")))
+    removed_ext <- c(removed_ext, ext)
     sel <- !(a %in% ext) & !(b %in% ext)
     a <- a[sel]; b <- b[sel]; x <- x[sel]; w <- w[sel]
     if (!is.null(jd)) jd <- jd[sel]
@@ -1012,6 +1023,9 @@ plot_btl <- function(fit, band = 2.5) {
   # anchored objects have a zero row in Bmat, so their location variance is
   # structurally zero (se == 0): the location is a fixed constant, not an estimate
   cov_beta <- Bmat %*% covth[1:nb, 1:nb, drop = FALSE] %*% t(Bmat)
+  # rows carry the calibrated objects' names so downstream consumers align
+  # by name; the reporting table may hold extra extrapolated boundary rows
+  dimnames(cov_beta) <- list(objs, objs)
   se <- sqrt(pmax(diag(cov_beta), 0))
   if (!cluster_inference) {
     se[] <- NA_real_
@@ -1152,6 +1166,52 @@ plot_btl <- function(fit, band = 2.5) {
                         fit_resid = vapply(ofit, `[[`, 0, "fit_resid"),
                         df_fit = vapply(ofit, `[[`, 0, "df"))
   rownames(objects) <- NULL
+
+  # a set-aside boundary object is reported at an extrapolated location:
+  # the profile solution with its score moved half a point inside the
+  # boundary, against the calibrated objects, thresholds, and dependence
+  # effects held fixed. As with an extreme person measure, the location is
+  # reported for completeness; the standard error and fit are withheld and
+  # the row takes no part in estimation or inference.
+  objects$extreme <- FALSE
+  if (length(removed_ext)) {
+    bl <- setNames(objects$location, objects$object)
+    sc0 <- 0:m
+    ctau <- c(0, cumsum(tau))
+    exp_score <- function(theta, r, as_a) {
+      d <- if (as_a) theta - bl[[b0[r]]] else bl[[a0[r]]] - theta
+      if (!is.null(Z0)) d <- d + drop(Z0[r, , drop = FALSE] %*% dep)
+      eta <- d * sc0 - ctau; eta <- eta - max(eta)
+      p <- exp(eta) / sum(exp(eta))
+      if (as_a) sum(p * sc0) else m - sum(p * sc0)
+    }
+    for (e in removed_ext) {
+      ra <- which(a0 == e & b0 %in% names(bl))
+      rb <- which(b0 == e & a0 %in% names(bl))
+      if (!length(ra) && !length(rb)) next  # linked only to other extremes
+      Tn <- sum(w0[ra] * x0[ra]) + sum(w0[rb] * (m - x0[rb]))
+      Nn <- (sum(w0[ra]) + sum(w0[rb])) * m
+      Tstar <- if (Tn <= 0) 0.5 else Nn - 0.5
+      g <- function(theta)
+        sum(vapply(ra, function(r) w0[r] * exp_score(theta, r, TRUE), 0)) +
+        sum(vapply(rb, function(r) w0[r] * exp_score(theta, r, FALSE), 0)) -
+        Tstar
+      lim <- range(bl) + c(-12, 12)
+      loc <- tryCatch(stats::uniroot(g, interval = lim, tol = 1e-8)$root,
+                      error = function(err) NA_real_)
+      if (!is.finite(loc)) next
+      row <- objects[1, ]
+      row[1, seq_along(row)] <- NA
+      row$object <- e
+      row$location <- loc
+      row$comparisons <- length(ra) + length(rb)
+      row$score <- Tn
+      row$extreme <- TRUE
+      objects <- rbind(objects, row)
+    }
+    objects <- objects[order(objects$object), ]
+    rownames(objects) <- NULL
+  }
 
   object_coefficients <- NULL
   if (!is.null(object_design)) {
@@ -1352,6 +1412,10 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
   }
   ob <- fit$objects
   if (!object %in% ob$object) stop("no such object: ", object)
+  if (isTRUE(ob$extreme[ob$object == object]))
+    .refuse(object, " was set aside at a response boundary; it has no ",
+            "fitted curve. Its reported location is an extrapolation ",
+            "for display only")
   m <- if (is.null(fit$m)) 1L else fit$m
   tau <- if (!is.null(fit$thresholds)) fit$thresholds$tau else numeric(1)
   b_o <- ob$location[ob$object == object]
@@ -2002,13 +2066,14 @@ btl_dif <- function(fit, factors, objects = NULL,
     }
     if (length(rf$notes))
       notes <- c(notes, sprintf("%s [%s]: %s", ob, ttd, rf$notes))
-    idx <- match(paste0(ob, " (", use_lev, ")"), rf$objects$object)
-    if (anyNA(idx)) {
+    copies <- paste0(ob, " (", use_lev, ")")
+    idx <- match(copies, rf$objects$object)
+    if (anyNA(idx) || any(rf$objects$extreme[idx] %in% TRUE)) {
       notes <- c(notes, sprintf("%s [%s]: resolved copies missing", ob, ttd))
       next
     }
     loc <- rf$objects$location[idx]
-    vv <- rf$cov_beta[idx, idx, drop = FALSE]
+    vv <- rf$cov_beta[copies, copies, drop = FALSE]
     # A resolved cell is a judge-level group estimate. The base fit's global
     # cluster guard is not enough when a many-level factor leaves only a few
     # judges in each cell: simulations with four to six judges per level gave

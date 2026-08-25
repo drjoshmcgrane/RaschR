@@ -83,7 +83,9 @@
 #' @export
 btl_transitivity <- function(fit, min_triples = 5L) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
-  objs <- fit$objects$object; K <- length(objs); m <- fit$m
+  tab <- fit$objects
+  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object; K <- length(objs); m <- fit$m
   cmp <- fit$comparisons
   ia <- match(cmp$object_a, objs); ib <- match(cmp$object_b, objs)
   notes <- paste(
@@ -324,9 +326,11 @@ btl_dimensionality <- function(fit, reps = 200L) {
   reps <- as.integer(reps)
   if (inherits(fit, "rasch_btl_efrm"))
     return(.btl_dimensionality_efrm(fit, reps))
-  objs <- fit$objects$object; K <- length(objs); m <- fit$m
+  tab <- fit$objects
+  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object; K <- length(objs); m <- fit$m
   if (K < 3L) stop("need at least three objects")
-  beta <- setNames(fit$objects$location, objs)
+  beta <- setNames(tab$location, objs)
   cmp <- fit$comparisons
   ia <- match(cmp$object_a, objs); ib <- match(cmp$object_b, objs)
   w <- cmp$weight

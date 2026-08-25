@@ -101,7 +101,13 @@ test_that("ties, extremes, counts, and disconnection are handled", {
   d3$win[d3$a == "E" | d3$b == "E"] <- "E"
   ft3 <- btl(d3, "a", "b", "win")
   expect_true(any(grepl("response boundary", ft3$notes)))
-  expect_false("E" %in% ft3$objects$object)
+  # the undefeated object is set aside from estimation but reported at an
+  # extrapolated location with the extreme flag and no standard error
+  e_row <- ft3$objects[ft3$objects$object == "E", ]
+  expect_true(isTRUE(e_row$extreme))
+  expect_true(is.na(e_row$se))
+  expect_gt(e_row$location,
+            max(ft3$objects$location[!ft3$objects$extreme]))
   # disconnected comparison graphs are refused with the components listed
   dd <- data.frame(a = c("A", "A", "C", "C"), b = c("B", "B", "D", "D"),
                    win = c("A", "B", "C", "D"))
@@ -1056,7 +1062,8 @@ test_that("anchored estimation reproduces the free scale and equates panels", {
                "boundary")
   # the same boundary object, left free, is still removed with a note
   fb <- btl(db, "a", "b", winner = "win", anchors = c(C = 0.1))
-  expect_false("A" %in% fb$objects$object)
+  expect_true(isTRUE(fb$objects$extreme[fb$objects$object == "A"]))
+  expect_true(is.na(fb$objects$se[fb$objects$object == "A"]))
   expect_true(any(grepl("boundary", fb$notes)))
 })
 
@@ -1189,4 +1196,25 @@ test_that("BTL DIF does not redefine an externally anchored object", {
   expect_true(z$summary$uniform_DIF)
   expect_null(z$sizes)
   expect_true(any(grepl("externally anchored", z$notes)))
+})
+
+test_that("a boundary object is reported at an extrapolated location", {
+  set.seed(701)
+  d <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 2)
+  f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  ext <- f$objects[f$objects$extreme, ]
+  cal <- f$objects[!f$objects$extreme, ]
+  expect_identical(ext$object, "O1")
+  # winless: below every calibrated location, finite, no SE, no fit
+  expect_true(is.finite(ext$location))
+  expect_lt(ext$location, min(cal$location))
+  expect_true(is.na(ext$se))
+  expect_true(is.na(ext$fit_resid))
+  expect_match(paste(f$notes, collapse = " "), "extrapolated location")
+  # the extrapolated row takes no part in equating
+  set.seed(9000)
+  d2 <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 2)
+  f2 <- btl(d2, "object_a", "object_b", winner = "winner", judge = "judge")
+  eq <- btl_equate(f, f2, independent = TRUE)
+  expect_false("O1" %in% eq$table$object)
 })

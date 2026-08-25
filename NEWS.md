@@ -11,6 +11,14 @@
   infit or outfit in place of the fit residual, under the same +/-2.5
   band, and annotate the flagged count with its percentage. The person
   table reports `infit_z` alongside `outfit_z`.
+* An undefeated or winless comparison object is now reported in the
+  object table at an extrapolated location, its score moved half a point
+  inside the boundary against the calibrated scale, with `extreme = TRUE`
+  and its standard error withheld -- the reporting practice already used
+  for extreme person measures. The row takes no part in estimation,
+  inference, or equating. Validated against `sirt::btm`: identical
+  likelihood to machine precision on clean replicates, with the boundary
+  policies agreeing in direction.
 * The heaviest examples are smaller, and CRAN runs fewer scenario test
   blocks, keeping the check well inside the incoming pretest budget.
 

@@ -578,6 +578,10 @@ explanatory_test <- function(fit) {
     z <- .btl_explanatory_nested_test(fit$reference_fit, fit)
     free <- fit$reference_fit$objects
     active <- fit$objects
+    # an extrapolated boundary row is not a calibrated location; the design
+    # rows span the calibrated objects only
+    if ("extreme" %in% names(active)) active <- active[!(active$extreme %in% TRUE), ]
+    if ("extreme" %in% names(free)) free <- free[!(free$extreme %in% TRUE), ]
     f <- free$location[match(active$object, free$object)]
     a <- active$location
     ok <- is.finite(f) & is.finite(a)
@@ -674,7 +678,9 @@ explanatory_diagnostics <- function(fit, p_adjust = "holm") {
   if (inherits(fit, "rasch_btl_explanatory")) {
     if (!p_adjust %in% stats::p.adjust.methods)
       stop("p_adjust must name a method in stats::p.adjust.methods")
-    objects <- as.character(fit$objects$object)
+    obj_tab <- fit$objects
+    if ("extreme" %in% names(obj_tab)) obj_tab <- obj_tab[!(obj_tab$extreme %in% TRUE), ]
+    objects <- as.character(obj_tab$object)
     B <- fit$explanatory$active_B
     rows <- list()
     for (j in seq_along(objects)) {

@@ -78,6 +78,12 @@ A \code{"rasch_btl"} object. Principal components are
   convergence details, and \code{notes}. Ordered-response fits also contain
   \code{thresholds}, \code{m}, and \code{categories}. Fits using
   \code{order} contain \code{dependence} and \code{dependence_data}.
+  An undefeated or winless object is set aside from estimation, as an
+  extreme person is in a Rasch calibration, and reported in
+  \code{objects} with \code{extreme = TRUE} at an extrapolated location:
+  the profile solution with its score moved half a point inside the
+  boundary against the calibrated scale. Its standard error and fit are
+  withheld and the row takes no part in inference or equating.
 }
 \description{
 Fits the Bradley--Terry--Luce model to dichotomous comparisons or its

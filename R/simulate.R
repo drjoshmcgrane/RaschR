@@ -923,7 +923,11 @@ sim_recovery <- function(fit, sim) {
     add("item difficulty", tr$difficulty[cm], ei[cm], cm, centre = TRUE)
     add("person ability", tr$theta, fit$person$theta, centre = TRUE)
   } else if (lay == "btl") {
-    eo <- setNames(fit$objects$location, fit$objects$object)
+    ot <- fit$objects
+    # recovery is judged on calibrated locations; an extrapolated boundary
+    # row is a reporting value, not an estimate of the planted location
+    if ("extreme" %in% names(ot)) ot <- ot[!(ot$extreme %in% TRUE), ]
+    eo <- setNames(ot$location, ot$object)
     cm <- intersect(names(tr$location), names(eo))
     add("object location", tr$location[cm], eo[cm], cm, centre = TRUE)
   } else if (lay == "mfrm") {

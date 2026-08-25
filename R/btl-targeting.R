@@ -74,10 +74,14 @@ btl_information <- function(fit) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; design information is unavailable")
-  objs <- fit$objects$object
+  tab <- fit$objects
+  # design information concerns the calibrated scale; an extrapolated
+  # boundary row contributes no calibrated information
+  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object
   K <- length(objs)
-  beta <- setNames(fit$objects$location, objs)
-  se <- setNames(fit$objects$se, objs)
+  beta <- setNames(tab$location, objs)
+  se <- setNames(tab$se, objs)
   m <- fit$m
   tau <- if (m > 1L) fit$thresholds$tau else NULL
   cmp <- fit$comparisons
@@ -107,7 +111,7 @@ btl_information <- function(fit) {
     object = objs,
     location = unname(beta),
     se = unname(se),
-    n_comparisons = fit$objects$comparisons,
+    n_comparisons = tab$comparisons,
     information = obj_info,
     se_naive = 1 / sqrt(obj_info),
     stringsAsFactors = FALSE)
@@ -309,11 +313,15 @@ btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
          "and object set in which each new comparison will be made; use the ",
          "observed-design information table, or undo the frame adjustment ",
          "before requesting equal-unit recommendations")
-  objs <- fit$objects$object
+  tab <- fit$objects
+  # an extrapolated boundary row has no calibrated location or covariance;
+  # recommendations are made over the calibrated objects
+  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object
   K <- length(objs)
   if (K < 2L) stop("need at least two objects to recommend a pair")
-  beta <- setNames(fit$objects$location, objs)
-  se <- setNames(fit$objects$se, objs)
+  beta <- setNames(tab$location, objs)
+  se <- setNames(tab$se, objs)
   m <- fit$m
   tau <- if (m > 1L) fit$thresholds$tau else NULL
 

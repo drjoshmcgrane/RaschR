@@ -25,11 +25,16 @@
 # btl fit or a "bank" -- a data frame of previously banked object locations,
 # the paired-comparison counterpart of an item bank.
 .btl_equate_ref <- function(reference) {
-  if (inherits(reference, "rasch_btl"))
-    return(data.frame(object = as.character(reference$objects$object),
-                      location = reference$objects$location,
-                      se = reference$objects$se,
+  if (inherits(reference, "rasch_btl")) {
+    tab <- reference$objects
+    # an extrapolated boundary location is a reporting value, not a
+    # calibrated estimate; it takes no part in equating
+    if ("extreme" %in% names(tab)) tab <- tab[!tab$extreme, ]
+    return(data.frame(object = as.character(tab$object),
+                      location = tab$location,
+                      se = tab$se,
                       stringsAsFactors = FALSE))
+  }
   if (is.data.frame(reference) || (is.list(reference) && !is.null(names(reference)))) {
     reference <- as.data.frame(reference, stringsAsFactors = FALSE)
     if (!all(c("object", "location") %in% names(reference)))
@@ -195,9 +200,11 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
            "the fitted number of score steps; otherwise scale compatibility ",
            "cannot be established")
   }
-  cur <- data.frame(object = as.character(fit1$objects$object),
-                    location = fit1$objects$location,
-                    se = fit1$objects$se, stringsAsFactors = FALSE)
+  cur_tab <- fit1$objects
+  if ("extreme" %in% names(cur_tab)) cur_tab <- cur_tab[!cur_tab$extreme, ]
+  cur <- data.frame(object = as.character(cur_tab$object),
+                    location = cur_tab$location,
+                    se = cur_tab$se, stringsAsFactors = FALSE)
   ref <- .btl_equate_ref(fit2)
   common <- intersect(cur$object, ref$object)
   if (length(common) < 3)
@@ -241,6 +248,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   # inference is withheld unless the bank is fixed (all SEs zero).
   covsub <- function(fit, objs_c) {
     if (inherits(fit, "rasch_btl") && !is.null(fit$cov_beta)) {
+      if (!is.null(rownames(fit$cov_beta)))
+        return(fit$cov_beta[objs_c, objs_c, drop = FALSE])
       i <- match(objs_c, as.character(fit$objects$object))
       fit$cov_beta[i, i, drop = FALSE]
     } else {

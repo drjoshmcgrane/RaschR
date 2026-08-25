@@ -294,10 +294,13 @@ granularity deliberately).
 - `results/btl-btm-agreement.csv` — `btl()` against `sirt::btm` on shared
   dichotomous comparisons with eps = 0 and fixed home advantage: identical
   likelihood, mean max-difference 1.1e-15 and worst 3.1e-15 over 23 clean
-  replicates. Replicates with a fully extreme object are set aside: btl
-  removes the unidentified object by design, whereas btm keeps it and
-  diverges toward the boundary at eps = 0 (shrinking it under its default
-  eps = 0.3) — a policy difference, not an estimation difference.
+  replicates. Replicates with a fully extreme object are characterised
+  separately: btl sets the unidentified object aside and reports an
+  extrapolated boundary location (score half a point inside the boundary,
+  SE withheld), whereas btm keeps it, diverging at eps = 0 and shrinking
+  it under its default eps = 0.3. The two policies agreed in direction in
+  every case, differing by 1.6 logits on average in the flat region of
+  the likelihood — a policy difference, not an estimation difference.
 - `results/equating-holm-refresh.csv` — the null familywise cells of the
   equating study re-run after `equate_tests()` moved from BH to Holm
   adjustment, mirroring the original design: 4.8-5.0% at 3, 5, and 10
