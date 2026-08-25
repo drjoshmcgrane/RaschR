@@ -440,7 +440,7 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   hp <- hist(th, breaks = brk, plot = FALSE)
   hi <- hist(tau, breaks = brk, plot = FALSE)
   pp <- hp$counts / sum(hp$counts); pi <- hi$counts / sum(hi$counts)
-  ymax <- max(pp) * 1.15; ymin <- -max(pi) * 1.6
+  ymax <- max(pp) * 1.15; ymin <- -max(pi) * 1.15
   op <- .rr_canvas(rng, c(ymin, ymax), "Location (logits)", "Proportion",
                    "", grid_y = FALSE,
                    yaxis = FALSE, right = if (isTRUE(information)) 4.2 else 1.5,
