@@ -342,7 +342,14 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
         stop("item column(s) not found in the data: ",
              paste(miss, collapse = ", "))
       items
-    } else nm[items]
+    } else {
+      if (!is.numeric(items) || any(!is.finite(items)) ||
+          any(items != floor(items)) || any(items < 1) ||
+          any(items > length(nm)))
+        stop("numeric `items` indices must be whole numbers between 1 and ",
+             length(nm))
+      nm[as.integer(items)]
+    }
     # an explicit items= must not silently pull in an id/factor column (a
     # positional items = 1:k over an id-first layout would score the id as
     # an item and drop a real one), nor name the same column twice
@@ -360,6 +367,25 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     X <- as.matrix(data[, item_cols, drop = FALSE])
   } else {
     X <- as.matrix(data)
+    # matrix input: items= selects columns exactly as it does for a data
+    # frame; ignoring it silently would score every column while the caller
+    # believes a subset was fitted
+    if (!is.null(items)) {
+      if (is.character(items)) {
+        miss <- setdiff(items, colnames(X))
+        if (length(miss))
+          stop("item column(s) not found in the data: ",
+               paste(miss, collapse = ", "))
+        X <- X[, items, drop = FALSE]
+      } else {
+        if (!is.numeric(items) || any(!is.finite(items)) ||
+            any(items != floor(items)) || any(items < 1) ||
+            any(items > ncol(X)))
+          stop("numeric `items` indices must be whole numbers between 1 and ",
+               ncol(X))
+        X <- X[, as.integer(items), drop = FALSE]
+      }
+    }
     if (!is.null(id)) {
       if (length(id) != nrow(X))
         stop("`id` has ", length(id), " entries but the data has ",

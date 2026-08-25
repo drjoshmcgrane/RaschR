@@ -308,6 +308,25 @@
   out[!dup, , drop = FALSE]
 }
 
+# Shared validation of the DIF-family arguments; every public DIF entry
+# point applies the same rules.
+.check_dif_args <- function(alpha, p_adjust, flag_logits = NULL,
+                            min_n = NULL, n_groups = NULL) {
+  .check_prob(alpha, "alpha")
+  if (!is.character(p_adjust) || length(p_adjust) != 1L ||
+      !p_adjust %in% stats::p.adjust.methods)
+    stop("`p_adjust` must name a method in stats::p.adjust.methods",
+         call. = FALSE)
+  if (!is.null(flag_logits) &&
+      (length(flag_logits) != 1L || !is.numeric(flag_logits) ||
+       !is.finite(flag_logits) || flag_logits <= 0))
+    stop("`flag_logits` must be one positive finite practical threshold",
+         call. = FALSE)
+  if (!is.null(min_n)) .check_whole(min_n, "min_n", 1)
+  if (!is.null(n_groups)) .check_whole(n_groups, "n_groups", 2)
+  invisible(NULL)
+}
+
 #' Differential item functioning by residual analysis of variance
 #'
 #' Tests uniform and non-uniform DIF by analysing each item's standardised
@@ -451,6 +470,7 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
                                 effects = c("main", "factorial"),
                                 sizes = FALSE, id = NULL, within = NULL,
                                 pool_facets = TRUE) {
+  .check_dif_args(alpha, p_adjust, n_groups = n_groups)
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; DIF inference is unavailable")
   effects <- match.arg(effects)
@@ -958,6 +978,7 @@ print.rasch_dif <- function(x, ...) {
 #' @export
 dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
                      flag_logits = 0.5, min_n = 20) {
+  .check_dif_args(alpha, p_adjust, flag_logits, min_n)
   if (!inherits(fit, "rasch")) stop("dif_size needs a rasch fit")
   if (inherits(fit, "rasch_efrm"))
     .refuse("resolved DIF magnitudes are not available for EFRM fits; the ",
@@ -1593,6 +1614,7 @@ print.rasch_dif_size <- function(x, ...) {
 dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
                           id = NULL, contrasts = "auto", p_adjust = "holm",
                           alpha = 0.05, flag_logits = 0.5, min_n = 20) {
+  .check_dif_args(alpha, p_adjust, flag_logits, min_n)
   if (!inherits(fit, "rasch")) stop("dif_contrasts needs a rasch fit")
   if (inherits(fit, "rasch_efrm"))
     .refuse("resolved DIF contrasts are not available for EFRM fits; the ",
@@ -1676,7 +1698,10 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
   rows <- list()
 
   for (item in its) {
-    i <- .item_idx(fit, item)
+    # a pooled MFRM item names an underlying item, not a response-cell
+    # column; its residual evidence is pooled by .dif_resolve, and the
+    # single-column index exists only for ordinary fits
+    i <- if (item %in% fit$items$item) .item_idx(fit, item) else NA_integer_
     rs <- .dif_resolve(fit, item, grp, min_n)
     if (!is.null(rs)) notes <- c(notes, rs$notes)
     for (nm in names(fam$family)) {
@@ -1713,7 +1738,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
         # by their sample sizes, while the reported resolved estimate averages
         # those cells equally. The test and estimate must address the same
         # marginal contrast.
-        wc <- .dif_paired_cell_contrast(
+        wc <- if (is.na(i)) NULL else .dif_paired_cell_contrast(
           Z[, i], factors, grp, id, within, cellmap, w_full)
         if (!is.null(wc)) { stat <- -wc$stat; df <- wc$df; p <- wc$p }
       }
@@ -1813,6 +1838,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
 dif_posthoc <- function(fit, item, term, factors = NULL, within = NULL,
                         id = NULL, p_adjust = "holm", alpha = 0.05,
                         flag_logits = 0.5, min_n = 20) {
+  .check_dif_args(alpha, p_adjust, flag_logits, min_n)
   if (!inherits(fit, "rasch")) stop("dif_posthoc needs a rasch fit")
   if (inherits(fit, "rasch_efrm"))
     .refuse("post-hoc resolved DIF comparisons are not available for EFRM ",

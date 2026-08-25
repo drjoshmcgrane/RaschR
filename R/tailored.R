@@ -130,7 +130,9 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
                                                tailored$items$item)])
     anchor_items <- colnames(fit$X)[ord[seq_len(n_anchor)]]
   }
-  anchor_items <- intersect(anchor_items, fit$items$item)
+  unknown <- setdiff(anchor_items, fit$items$item)
+  if (length(unknown))
+    stop("anchor item(s) not in the fit: ", paste(unknown, collapse = ", "))
   if (length(anchor_items) < 2)
     stop("need at least two anchor items for the common origin; ",
          "nominate easy items via anchor_items")

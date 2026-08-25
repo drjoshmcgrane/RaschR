@@ -158,6 +158,15 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
                        items = NULL, n_groups = NULL,
                        adjust_N = NA, na_codes = -1, interaction = NULL,
                        factors = NULL, maxit = 60, tol = 1e-8) {
+  .check_controls(maxit, tol)
+  if (length(adjust_N) != 1L ||
+      (!is.na(adjust_N) && (!is.numeric(adjust_N) || !is.finite(adjust_N) ||
+                            adjust_N <= 0)))
+    stop("`adjust_N` must be one positive finite reference sample size")
+  if (!is.null(n_groups) &&
+      (length(n_groups) != 1L || !is.numeric(n_groups) ||
+       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2))
+    stop("`n_groups` must be one whole number of at least 2 class intervals")
   .check_column_names(data)
   # wide entry: item score columns are melted to the long form internally
   if (!is.null(items)) {
@@ -168,8 +177,15 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     long <- data.frame(
       ..person = rep(as.character(data[[person]]), length(items)),
       ..item = rep(items, each = nrow(data)),
-      ..score = unlist(lapply(items, function(cn)
-        suppressWarnings(as.numeric(as.character(data[[cn]]))))),
+      ..score = unlist(lapply(items, function(cn) {
+        v0 <- as.character(data[[cn]])
+        v <- suppressWarnings(as.numeric(v0))
+        bad <- !is.na(v0) & is.na(v)
+        if (any(bad))
+          stop("non-numeric score(s) in item column ", cn, " (e.g. '",
+               v0[bad][1], "'); scores must be integer counts", call. = FALSE)
+        v
+      })),
       stringsAsFactors = FALSE)
     for (f in facets) long[[f]] <- rep(as.character(data[[f]]), length(items))
     # person factors survive the melt: named columns are replicated like

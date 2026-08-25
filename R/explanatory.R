@@ -57,9 +57,11 @@
       stop("threshold-level predictors need a `threshold` column")
     kn <- if ("threshold" %in% names(predictors))
       predictors$threshold else predictors$threshold_number
-    kn <- suppressWarnings(as.integer(as.character(kn)))
-    if (anyNA(kn) || any(kn < 1L))
+    kn_num <- suppressWarnings(as.numeric(as.character(kn)))
+    if (anyNA(kn_num) || any(!is.finite(kn_num)) ||
+        any(kn_num != floor(kn_num)) || any(kn_num < 1))
       stop("threshold numbers must be positive integers")
+    kn <- as.integer(kn_num)
     key <- paste(predictors$item, kn, sep = "\r")
     if (anyDuplicated(key))
       stop("threshold-level predictors need one row per item and threshold")
@@ -212,6 +214,10 @@
   missing <- setdiff(objects, predictors$object)
   if (length(missing))
     stop("object predictors are missing: ", paste(missing, collapse = ", "))
+  extra <- setdiff(predictors$object, objects)
+  if (length(extra))
+    stop("predictor row(s) for object(s) not present in the comparisons: ",
+         paste(extra, collapse = ", "))
   meta <- predictors[match(objects, predictors$object), , drop = FALSE]
   for (nm in setdiff(names(meta), "object"))
     if (is.character(meta[[nm]]) || is.logical(meta[[nm]]))

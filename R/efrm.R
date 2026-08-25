@@ -1005,6 +1005,16 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                        boot_reps = NULL, progress = NULL, cancel = NULL,
                        workers = 4L, seed = NULL) {
   .check_column_names(data)
+  .check_controls(maxit, tol)
+  min_link_persons <- .check_whole(min_link_persons, "min_link_persons", 1)
+  if (length(adjust_N) != 1L ||
+      (!is.na(adjust_N) && (!is.numeric(adjust_N) || !is.finite(adjust_N) ||
+                            adjust_N <= 0)))
+    stop("`adjust_N` must be one positive finite reference sample size")
+  if (!is.null(n_groups) &&
+      (length(n_groups) != 1L || !is.numeric(n_groups) ||
+       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2))
+    stop("`n_groups` must be one whole number of at least 2 class intervals")
   n_groups_requested <- n_groups
   se_method <- match.arg(se_method)
   if (is.null(boot_reps)) boot_reps <- if (se_method == "hybrid") 300L else 200L
@@ -1073,16 +1083,29 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
         grp_name <- paste(groups, collapse = ":")
       }
     }
-    if (is.character(id) && length(id) == 1L && id %in% nm) id_vec <- data[[id]]
-    else if (!is.null(id) && length(id) == nrow(data)) id_vec <- id
+    if (is.character(id) && length(id) == 1L) {
+      if (!id %in% nm) stop("id column '", id, "' not found in the data")
+      id_vec <- data[[id]]
+    } else if (!is.null(id)) {
+      if (length(id) != nrow(data))
+        stop("`id` has ", length(id), " entries but the data has ",
+             nrow(data), " rows")
+      id_vec <- id
+    }
     if (is.character(factors)) {
       missf <- setdiff(factors, nm)
       if (length(missf))
         stop("factor column(s) not found in the data: ",
              paste(missf, collapse = ", "))
       fac_df <- data[, factors, drop = FALSE]
-    } else if (is.data.frame(factors) && nrow(factors) == nrow(data))
+    } else if (is.data.frame(factors)) {
+      if (nrow(factors) != nrow(data))
+        stop("`factors` has ", nrow(factors), " rows but the data has ",
+             nrow(data))
       fac_df <- factors
+    } else if (!is.null(factors))
+      stop("`factors` must be a character vector of column names or a ",
+           "data frame with one row per person")
     # Frame-defining columns are already stored below as part of the frame
     # structure. Repeating them as ordinary factors creates duplicate names
     # and can make a later DIF or refit select the wrong column.
@@ -1092,10 +1115,40 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                    if (is.character(factors)) factors
                    else if (is.data.frame(factors)) intersect(names(factors), nm),
                    if (is.character(groups)) groups else NULL)
-    item_cols <- if (!is.null(items)) intersect(items, nm) else setdiff(nm, drop_cols)
+    item_cols <- if (is.null(items)) setdiff(nm, drop_cols)
+    else if (is.character(items)) {
+      miss <- setdiff(items, nm)
+      if (length(miss))
+        stop("item column(s) not found in the data: ",
+             paste(miss, collapse = ", "))
+      items
+    } else {
+      if (!is.numeric(items) || any(!is.finite(items)) ||
+          any(items != floor(items)) || any(items < 1) ||
+          any(items > length(nm)))
+        stop("numeric `items` indices must be whole numbers between 1 and ",
+             length(nm))
+      nm[as.integer(items)]
+    }
     X <- as.matrix(data[, item_cols, drop = FALSE])
   } else {
     X <- as.matrix(data)
+    if (!is.null(items)) {
+      if (is.character(items)) {
+        miss <- setdiff(items, colnames(X))
+        if (length(miss))
+          stop("item column(s) not found in the data: ",
+               paste(miss, collapse = ", "))
+        X <- X[, items, drop = FALSE]
+      } else {
+        if (!is.numeric(items) || any(!is.finite(items)) ||
+            any(items != floor(items)) || any(items < 1) ||
+            any(items > ncol(X)))
+          stop("numeric `items` indices must be whole numbers between 1 and ",
+               ncol(X))
+        X <- X[, as.integer(items), drop = FALSE]
+      }
+    }
   }
   if (is.null(grp)) {
     if (length(groups) != nrow(X))

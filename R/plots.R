@@ -446,6 +446,7 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' plot_pimap(rasch(X))
 #' @export
 plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
+  bins <- .check_whole(bins, "bins", 2)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   th <- fit$person$theta[!is.na(fit$person$theta)]
   tau <- fit$thresholds$tau
@@ -563,6 +564,7 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
 #' plot_wright(rasch(X))
 #' @export
 plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
+  bins <- .check_whole(bins, "bins", 2)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   th <- fit$person$theta[!is.na(fit$person$theta)]
   thr <- fit$thresholds

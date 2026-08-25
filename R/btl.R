@@ -198,6 +198,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
                 thresholds = c("free", "pc"), maxit = 60, tol = 1e-8,
                 .object_design = NULL) {
   .check_column_names(data)
+  .check_controls(maxit, tol)
   ties <- match.arg(ties)
   thresholds <- match.arg(thresholds)
   data <- as.data.frame(data)
@@ -224,12 +225,19 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     v
   }
   w <- if (is.null(count)) rep(1, nrow(data)) else .num_col(data[[count]], count)
+  if (!is.null(count) &&
+      (any(!is.finite(w[!is.na(w)])) || any(w[!is.na(w)] <= 0) ||
+       any(w[!is.na(w)] != floor(w[!is.na(w)]))))
+    stop("`", count, "` must hold whole positive replication counts")
   ord <- if (is.null(order)) NULL else .num_col(data[[order]], order)
   notes <- character(0)
   if (!is.null(anchors)) {
     if (!is.numeric(anchors) || is.null(names(anchors)) ||
         any(!nzchar(names(anchors))))
       stop("`anchors` must be a named numeric vector (names = object names)")
+    if (any(!is.finite(anchors)))
+      stop("anchor value(s) must be finite: ",
+           paste(names(anchors)[!is.finite(anchors)], collapse = ", "))
     # every anchor name must match an object: a misspelled name silently
     # dropped would leave the intended object free (se != 0) while the user
     # believes it is fixed -- refuse and name the offenders
@@ -1444,6 +1452,11 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     gv <- if (length(group) == nrow(cm)) as.character(group) else {
       if (is.null(names(group)))
         stop("`group` must have one entry per comparison or be named by judge")
+      if (anyDuplicated(names(group)))
+        stop("duplicate judge(s) in the group map: ",
+             paste(unique(names(group)[duplicated(names(group))]),
+                   collapse = ", "),
+             "; each judge may carry one value")
       unname(as.character(group)[match(cm$judge, names(group))])
     }
   }
@@ -1738,6 +1751,8 @@ btl_dif <- function(fit, factors, objects = NULL,
                     effects = c("main", "factorial"),
                     p_adjust = "holm", alpha = 0.05, flag_logits = 0.5,
                     min_n = 20, maxit = 60, tol = 1e-8) {
+  .check_dif_args(alpha, p_adjust, flag_logits, min_n)
+  .check_controls(maxit, tol)
   if (!inherits(fit, "rasch_btl"))
     stop("btl_dif needs a paired-comparison fit from btl()")
   if (inherits(fit, "rasch_btl_efrm"))

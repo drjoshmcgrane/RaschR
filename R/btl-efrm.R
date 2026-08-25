@@ -632,6 +632,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                      boot_reps = 200, workers = 4L, seed = NULL,
                      progress = NULL, cancel = NULL,
                      maxit = 60, tol = 1e-8) {
+  .check_controls(maxit, tol)
+  min_link <- .check_whole(min_link, "min_link", 1)
   .check_column_names(data)
   ties <- match.arg(ties)
   se_method <- match.arg(se_method)
@@ -749,6 +751,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (length(multi))
     stop("object(s) assigned to more than one set: ",
          paste(unique(multi), collapse = ", "))
+  unknown <- setdiff(unlist(lapply(object_sets, as.character)), objs_all)
+  if (length(unknown))
+    stop("`object_sets` name object(s) not present in the comparisons: ",
+         paste(unique(unknown), collapse = ", "))
   if (anyNA(set_of))
     stop("object(s) in the data not found in `object_sets` (every compared ",
          "object must belong to exactly one set): ",

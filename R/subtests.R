@@ -259,6 +259,7 @@ split_items <- function(fit, items, by) {
 #' @export
 resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
                         min_anchors = NULL, max_splits = NULL) {
+  .check_dif_args(alpha, p_adjust)
   if (!inherits(fit, "rasch") || inherits(fit, c("rasch_mfrm", "rasch_efrm")))
     stop("resolve_dif needs an ordinary rasch fit with person factors")
   fac0 <- .dif_factors(fit, factors)

@@ -429,3 +429,120 @@ test_that("judge diagnostics report count-weighted comparisons", {
   js <- judge_surprise(f, as.character(tr$judges$judge[1]))
   expect_identical(js$n_comparisons, 75)
 })
+
+test_that("pooled MFRM items flow through DIF follow-ups", {
+  set.seed(23)
+  dm <- simulate_mfrm(n_persons = 200, n_items = 4, n_raters = 3)
+  mf <- rasch_mfrm(dm, person = "person", item = "item", score = "score",
+                   facets = "rater",
+                   factors = data.frame(g = rep(c("x", "y"), length.out = 200)))
+  dc <- dif_contrasts(mf, items = "I2")
+  expect_identical(unique(dc$table$item), "I2")
+  dc_all <- dif_contrasts(mf)
+  expect_setequal(unique(dc_all$table$item), paste0("I", 1:4))
+})
+
+test_that("matrix items selection validates and subsets", {
+  set.seed(41)
+  X <- matrix(rbinom(300 * 5, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 5), "-"))), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  expect_error(rasch(X, items = c(1.9, 2.9, 3.9)), "whole numbers")
+  expect_identical(suppressWarnings(rasch(X, items = c(2, 3, 4)))$items$item,
+                   c("I2", "I3", "I4"))
+  expect_error(pcml(X, anchors = data.frame(item = 1.9, k = 1, tau = 0)),
+               "whole numbers")
+  expect_error(pcml(X, maxit = 5.5), "iteration cap")
+  expect_error(pcml_pc(X, tol = 0), "tolerance")
+})
+
+test_that("every estimator validates its controls and coercions", {
+  set.seed(42)
+  d6 <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  expect_error(btl(d6, "object_a", "object_b", winner = "winner", maxit = Inf),
+               "iteration cap")
+  expect_error(btl(d6, "object_a", "object_b", winner = "winner",
+                   anchors = c(O2 = NaN)), "finite")
+  dm <- simulate_mfrm(n_persons = 120, n_items = 4, n_raters = 2)
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater", tol = -1),
+               "tolerance")
+  w <- data.frame(person = sprintf("P%02d", 1:40),
+    A = factor(sample(c("0", "1", "poor"), 40, TRUE)),
+    B = sample(0:1, 40, TRUE), rater = sample(c("r1", "r2"), 40, TRUE))
+  expect_error(rasch_mfrm(w, person = "person", facets = "rater",
+                          items = c("A", "B")), "non-numeric")
+  f6 <- btl(d6, "object_a", "object_b", winner = "winner", judge = "judge")
+  gmap <- setNames(rep(c("x", "y"), 9), rep(sprintf("J%d", 1:9), each = 2))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_btl_icc(f6, "O2", group = gmap, min_n = 1),
+               "duplicate judge")
+})
+
+test_that("MFRM controls and anchor values are validated", {
+  set.seed(42)
+  dm <- simulate_mfrm(n_persons = 120, n_items = 4, n_raters = 2)
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater", n_groups = 1.9),
+               "whole number")
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater", adjust_N = Inf),
+               "finite")
+  X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  expect_error(pcml(X, anchors = data.frame(item = 2, k = 1, tau = Inf)),
+               "finite")
+})
+
+test_that("EFRM data selection refuses silent misfits", {
+  set.seed(51)
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 51)
+  ts <- attr(de, "truth")$item_sets
+  expect_error(rasch_efrm(de, item_sets = ts, groups = "group",
+                          id = "not_a_column", boot_reps = 0), "not found")
+  expect_error(rasch_efrm(de, item_sets = ts, groups = "group",
+                          id = 1:10, boot_reps = 0), "entries")
+  expect_error(rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                          factors = data.frame(g = 1:5), boot_reps = 0),
+               "rows")
+  expect_error(rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                          items = c("S1I01", "NOPE"), boot_reps = 0),
+               "not found")
+  expect_error(rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                          min_link_persons = 2.5, boot_reps = 0),
+               "whole number")
+})
+
+test_that("selection boundaries refuse silent alterations", {
+  set.seed(52)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  db$cnt <- 2L; db$cnt[1] <- 1.5
+  expect_error(btl(db, "object_a", "object_b", winner = "winner",
+                   count = "cnt"), "replication counts")
+  resp <- matrix(sample(c("A", "B", "C"), 300 * 3, TRUE), 300, 3)
+  colnames(resp) <- paste0("Q", 1:3)
+  expect_error(rasch(resp, key = data.frame(item = "Q1", option = "A",
+                                            score = 1.9)),
+               "non-negative integers")
+  expect_error(rasch(resp, key = data.frame(item = c("Q1", "Q1", "Q2", "Q3"),
+                                            key = c("A", "B", "A", "C"))),
+               "duplicate key")
+  Xp <- matrix(sample(0:2, 300 * 4, TRUE), 300, 4)
+  colnames(Xp) <- paste0("P", 1:4)
+  prd <- expand.grid(item = colnames(Xp), threshold = c(1, 1.9))
+  prd$w <- rep(c(0, 1), each = 4)
+  expect_error(rasch_explanatory(Xp, predictors = prd, formula = ~ w,
+                                 level = "threshold"), "positive integers")
+  Xd <- matrix(rbinom(200 * 4, 1, 0.5), 200, 4)
+  colnames(Xd) <- c("A", "B", "A", "C")
+  expect_error(pcml(Xd), "unique")
+  expect_error(pcml_pc(Xp, n_components = 1.9), "whole number")
+  fd <- suppressWarnings(rasch(cbind(Xd[, c(1, 2, 4)],
+    D = rbinom(200, 1, 0.5), E = rbinom(200, 1, 0.5))))
+  expect_error(dif_size(fd, "D", by = rep(c("x", "y"), 100), alpha = 2),
+               "probability")
+  expect_error(tailored_analysis(fd, anchor_items = c("A", "ZZZ")),
+               "not in the fit")
+})

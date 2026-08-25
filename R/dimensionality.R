@@ -250,6 +250,8 @@ residual_pca <- function(fit, n_components = 10) {
 #' plot_scree(rasch(X), reps = 10)
 #' @export
 plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
+  n_components <- .check_whole(n_components, "n_components", 1)
+  reps <- .check_whole(reps, "reps", 1)
   pc <- residual_pca(fit, n_components)
   k <- nrow(pc$eigen_table)
   obs <- pc$eigen_table$eigenvalue

@@ -24,9 +24,10 @@
   if (is.data.frame(key) && all(c("item", "option", "score") %in% names(key))) {
     key$item <- as.character(key$item)
     key$option <- trimws(toupper(as.character(key$option)))
-    key$score <- as.integer(key$score)
-    if (anyNA(key$score) || any(key$score < 0))
+    sc <- suppressWarnings(as.numeric(as.character(key$score)))
+    if (anyNA(sc) || any(!is.finite(sc)) || any(sc != floor(sc)) || any(sc < 0))
       stop("option scores must be non-negative integers")
+    key$score <- as.integer(sc)
     map <- lapply(split(key, key$item), function(d) {
       if (anyDuplicated(d$option))
         stop("duplicate option row(s) for item ", d$item[1])
@@ -43,6 +44,10 @@
     key <- setNames(as.character(key$key), as.character(key$item))
   }
   if (is.null(names(key))) stop("the key must be named by item")
+  if (anyDuplicated(names(key)))
+    stop("duplicate key entr(ies) for item(s): ",
+         paste(unique(names(key)[duplicated(names(key))]), collapse = ", "),
+         "; give one key per item (use '/' for double keying)")
   # a missing key value cannot score its item: without this it would
   # zero-score every response and the item would be dropped as constant
   # under a misleading message
@@ -127,7 +132,10 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
   raw <- fit$mc$raw; map <- fit$mc$map
   if (is.null(items)) items <- colnames(raw)
-  items <- intersect(items, colnames(raw))
+  unknown <- setdiff(items, colnames(raw))
+  if (length(unknown))
+    stop("item(s) without raw multiple-choice responses: ",
+         paste(unknown, collapse = ", "))
   out <- list()
   for (it in items) {
     r <- raw[, it]

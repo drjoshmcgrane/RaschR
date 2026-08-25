@@ -17,6 +17,38 @@
 # m_i = 1. Australian English; no em dashes by house style.
 # ===========================================================================
 
+
+# One whole finite number within a range; NULL allowed only when said so.
+.check_whole <- function(x, name, min = 1, max = Inf, null_ok = FALSE) {
+  if (is.null(x)) {
+    if (null_ok) return(invisible(NULL))
+    stop("`", name, "` must be supplied", call. = FALSE)
+  }
+  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) ||
+      x != floor(x) || x < min || x > max)
+    stop("`", name, "` must be one whole number between ", min, " and ",
+         if (is.finite(max)) max else "the design limit", call. = FALSE)
+  invisible(as.integer(x))
+}
+
+# One probability strictly inside (0, 1).
+.check_prob <- function(x, name) {
+  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0 || x >= 1)
+    stop("`", name, "` must be one probability strictly between 0 and 1",
+         call. = FALSE)
+  invisible(x)
+}
+
+# Shared validation for the Newton controls every estimator accepts.
+.check_controls <- function(maxit, tol) {
+  if (length(maxit) != 1L || !is.numeric(maxit) || !is.finite(maxit) ||
+      maxit != floor(maxit) || maxit < 1)
+    stop("`maxit` must be one whole positive iteration cap", call. = FALSE)
+  if (length(tol) != 1L || !is.numeric(tol) || !is.finite(tol) || tol <= 0)
+    stop("`tol` must be one positive finite tolerance", call. = FALSE)
+  invisible(NULL)
+}
+
 #' Enumerate item-category thresholds
 #'
 #' Builds the index mapping each item-category threshold to a global id, given
@@ -382,6 +414,10 @@ threshold_index <- function(m) {
 pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
                  maxit = 60, tol = 1e-8) {
   model <- match.arg(model)
+  .check_controls(maxit, tol)
+  if (!is.null(colnames(X)) && anyDuplicated(colnames(X)))
+    stop("item column names must be unique: ",
+         paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
   X <- as.matrix(X); .check_integer_scores(X, "the score matrix")
   storage.mode(X) <- "integer"
   m <- apply(X, 2, max, na.rm = TRUE); L <- ncol(X)
@@ -395,8 +431,19 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     if (!all(c("item", "k", "tau") %in% names(anchors)))
       stop("anchors needs columns item, k, tau")
     a_item <- if (is.character(anchors$item) || is.factor(anchors$item))
-      match(as.character(anchors$item), colnames(X)) else as.integer(anchors$item)
+      match(as.character(anchors$item), colnames(X))
+    else {
+      ai <- anchors$item
+      if (!is.numeric(ai) || any(!is.finite(ai)) || any(ai != floor(ai)) ||
+          any(ai < 1) || any(ai > ncol(X)))
+        stop("numeric anchor item indices must be whole numbers between 1 and ",
+             ncol(X))
+      as.integer(ai)
+    }
     if (anyNA(a_item)) stop("anchor item(s) not found among the item columns")
+    if (!is.numeric(anchors$tau) || any(!is.finite(anchors$tau)))
+      stop("anchor tau value(s) must be finite: ",
+           paste(colnames(X)[a_item[!is.finite(anchors$tau)]], collapse = ", "))
 
     # k = NA anchors the item's mean location (average anchoring) with its
     # thresholds free; a numeric k fixes that single threshold. For a
@@ -629,7 +676,8 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 #' pcml_pc(X)$components
 #' @export
 pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
-  if (n_components < 1) stop("n_components must be at least 1")
+  .check_controls(maxit, tol)
+  n_components <- .check_whole(n_components, "n_components", 1, 4)
   X <- as.matrix(X); .check_integer_scores(X, "the score matrix")
   storage.mode(X) <- "integer"
   m <- apply(X, 2, max, na.rm = TRUE); L <- ncol(X)
