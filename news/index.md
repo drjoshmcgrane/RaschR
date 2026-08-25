@@ -16,6 +16,23 @@
   residual, under the same +/-2.5 band, and annotate the flagged count
   with its percentage. The person table reports `infit_z` alongside
   `outfit_z`.
+- Input and selection boundaries are hardened package-wide, closing two
+  further review rounds. Every estimator and the DIF family validate
+  their arguments through shared checks: iteration caps, tolerances,
+  class-interval counts, reference sample sizes, significance levels,
+  adjustment methods, practical thresholds, linking minima, component
+  and replication counts, and plot bins all reject fractional,
+  non-finite, or out-of-range values instead of silently truncating.
+  Selection can no longer alter the analysis silently: EFRM refuses
+  misspelled or missized id, factor, and item inputs exactly as ordinary
+  Rasch does, matrix input honours the items argument in both,
+  multiple-choice keys refuse fractional option scores and duplicate
+  item entries, replication counts must be whole and finite, explanatory
+  threshold labels and predictor rows are validated, duplicate column
+  names are refused in direct estimation, and unknown names in anchor,
+  distractor, and object-set requests are errors rather than silent
+  drops. Pooled MFRM items flow through the DIF follow-ups under the
+  stricter item resolver.
 - Nine defect families from an adversarial review are corrected.
   Wide-format many-facet data now scores factor columns by their labels,
   where reordered factor levels previously shifted item locations. Item,
