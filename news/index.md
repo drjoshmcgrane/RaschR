@@ -16,6 +16,9 @@
   residual, under the same +/-2.5 band, and annotate the flagged count
   with its percentage. The person table reports `infit_z` alongside
   `outfit_z`.
+- The observed points of a paired-comparison ICC no longer abort the
+  display when every comparator falls below the informativeness
+  threshold; the model curve and the omission note draw on their own.
 - A package-wide sweep for reporting-table misalignments found and
   corrected three defects. A numeric anchor index now resolves against
   the data as supplied, where previously a dropped constant item shifted
