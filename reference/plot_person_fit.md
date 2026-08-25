@@ -1,13 +1,16 @@
 # Plot person fit
 
-Person locations against person fit residuals with the +/- 2.5 band;
+Person locations against a person fit statistic with the +/- 2.5 band;
 persons beyond the band respond erratically (positive) or too
-deterministically (negative).
+deterministically (negative). The default statistic is the
+log-of-mean-square fit residual; `"infit"` and `"outfit"` display the
+Wilson–Hilferty standardised mean squares, to which the same band
+convention applies.
 
 ## Usage
 
 ``` r
-plot_person_fit(fit, band = 2.5)
+plot_person_fit(fit, statistic = c("residual", "infit", "outfit"), band = 2.5)
 ```
 
 ## Arguments
@@ -17,9 +20,13 @@ plot_person_fit(fit, band = 2.5)
   A fitted object from
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
 
+- statistic:
+
+  `"residual"` (the default fit residual), `"infit"`, or `"outfit"`.
+
 - band:
 
-  Fit residual acceptance band.
+  Acceptance band for the standardised statistic.
 
 ## Value
 

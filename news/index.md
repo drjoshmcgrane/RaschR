@@ -1,5 +1,24 @@
 # Changelog
 
+## rasch 1.12.1
+
+- Every location axis is labelled at whole logits when the span allows,
+  through one shared tick rule; the previous defaults could leave an
+  axis extreme between labels. The person-item map begins and ends its
+  proportion axis on labelled ticks, closes the axis corner, and drops
+  its unused bottom margin.
+- The Wright map and the person-item map mark the person and threshold
+  means with dashed lines in their distributions’ colours.
+- [`plot_person_fit()`](https://drjoshmcgrane.github.io/rasch/reference/plot_person_fit.md)
+  and
+  [`plot_item_map()`](https://drjoshmcgrane.github.io/rasch/reference/plot_item_map.md)
+  can display the standardised infit or outfit in place of the fit
+  residual, under the same +/-2.5 band, and annotate the flagged count
+  with its percentage. The person table reports `infit_z` alongside
+  `outfit_z`.
+- The heaviest examples are smaller, and CRAN runs fewer scenario test
+  blocks, keeping the check well inside the incoming pretest budget.
+
 ## rasch 1.12.0
 
 CRAN release: 2026-08-24
