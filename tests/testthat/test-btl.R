@@ -1218,3 +1218,14 @@ test_that("a boundary object is reported at an extrapolated location", {
   eq <- btl_equate(f, f2, independent = TRUE)
   expect_false("O1" %in% eq$table$object)
 })
+
+test_that("the observed-ICC display survives a fully omitted comparator set", {
+  set.seed(21)
+  d <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 2)
+  f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  # every opponent falls below the default min_n: the model curve and the
+  # omission note still draw, with no visible points
+  expect_no_error(plot_btl_icc(f, "O2"))
+})

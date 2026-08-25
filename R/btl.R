@@ -1461,10 +1461,12 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     # unbalanced designs) are omitted rather than plotted as noise
     shown <- obs[obs$n >= min_n, , drop = FALSE]
     n_omit <- nrow(obs) - nrow(shown)
-    points(shown$loc, shown$mean, pch = 21, bg = .rr$blue,
-           col = "white", cex = 1.5, lwd = 1.2)
-    text(shown$loc, shown$mean, shown$opponent, pos = 3, offset = 0.45,
-         cex = 0.72, col = .rr$soft)
+    if (nrow(shown)) {
+      points(shown$loc, shown$mean, pch = 21, bg = .rr$blue,
+             col = "white", cex = 1.5, lwd = 1.2)
+      text(shown$loc, shown$mean, shown$opponent, pos = 3, offset = 0.45,
+           cex = 0.72, col = .rr$soft)
+    }
     .rr_legend("topright",
                c("Model", "Observed",
                  if (n_omit)
