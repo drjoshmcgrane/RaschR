@@ -291,6 +291,13 @@ granularity deliberately).
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the
   superseded normal reference gave 7.4% on the same fitted samples.
+- `results/btl-btm-agreement.csv` — `btl()` against `sirt::btm` on shared
+  dichotomous comparisons with eps = 0 and fixed home advantage: identical
+  likelihood, mean max-difference 1.1e-15 and worst 3.1e-15 over 23 clean
+  replicates. Replicates with a fully extreme object are set aside: btl
+  removes the unidentified object by design, whereas btm keeps it and
+  diverges toward the boundary at eps = 0 (shrinking it under its default
+  eps = 0.3) — a policy difference, not an estimation difference.
 - `results/equating-holm-refresh.csv` — the null familywise cells of the
   equating study re-run after `equate_tests()` moved from BH to Holm
   adjustment, mirroring the original design: 4.8-5.0% at 3, 5, and 10
