@@ -4,20 +4,26 @@
 \alias{plot_person_fit}
 \title{Plot person fit}
 \usage{
-plot_person_fit(fit, band = 2.5)
+plot_person_fit(fit, statistic = c("residual", "infit", "outfit"), band = 2.5)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
-\item{band}{Fit residual acceptance band.}
+\item{statistic}{\code{"residual"} (the default fit residual),
+\code{"infit"}, or \code{"outfit"}.}
+
+\item{band}{Acceptance band for the standardised statistic.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Person locations against person fit residuals with the +/- 2.5 band; persons
-beyond the band respond erratically (positive) or too deterministically
-(negative).
+Person locations against a person fit statistic with the +/- 2.5 band;
+persons beyond the band respond erratically (positive) or too
+deterministically (negative). The default statistic is the
+log-of-mean-square fit residual; \code{"infit"} and \code{"outfit"} display
+the Wilson--Hilferty standardised mean squares, to which the same band
+convention applies.
 }
 \examples{
 set.seed(1)

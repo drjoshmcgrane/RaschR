@@ -500,7 +500,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   # --- assembled person table ----------------------------------------------
   parts <- list(data.frame(id = id_vec), fac_df, person,
                 data.frame(infit_ms = pfit$infit_ms, outfit_ms = pfit$outfit_ms,
-                           outfit_z = pfit$outfit_z,
+                           infit_z = pfit$infit_z, outfit_z = pfit$outfit_z,
                            fit_resid = rf$persons$fit_resid,
                            natural_resid = rf$persons$natural,
                            df_fit = rf$persons$df, class_interval = ci))

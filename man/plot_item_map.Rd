@@ -4,20 +4,26 @@
 \alias{plot_item_map}
 \title{Plot the item map (location against fit residual)}
 \usage{
-plot_item_map(fit, band = 2.5)
+plot_item_map(fit, statistic = c("residual", "infit", "outfit"), band = 2.5)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
-\item{band}{Fit residual acceptance band.}
+\item{statistic}{\code{"residual"} (the default fit residual),
+\code{"infit"}, or \code{"outfit"}.}
+
+\item{band}{Acceptance band for the standardised statistic.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Fitted columns plotted by location and fit residual, with the conventional
-acceptance band at +/- 2.5. MFRM and EFRM points are response cells;
-ordinary Rasch points are items.
+Fitted columns plotted by location and a fit statistic, with the
+conventional acceptance band at +/- 2.5. The default statistic is the
+log-of-mean-square fit residual; \code{"infit"} and \code{"outfit"} display
+the Wilson--Hilferty standardised mean squares, to which the same band
+convention applies. MFRM and EFRM points are response cells; ordinary
+Rasch points are items.
 }
 \examples{
 set.seed(1)

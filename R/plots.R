@@ -745,12 +745,17 @@ plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
 # ---------------------------------------------------------------------------
 #' Plot the item map (location against fit residual)
 #'
-#' Fitted columns plotted by location and fit residual, with the conventional
-#' acceptance band at +/- 2.5. MFRM and EFRM points are response cells;
-#' ordinary Rasch points are items.
+#' Fitted columns plotted by location and a fit statistic, with the
+#' conventional acceptance band at +/- 2.5. The default statistic is the
+#' log-of-mean-square fit residual; \code{"infit"} and \code{"outfit"} display
+#' the Wilson--Hilferty standardised mean squares, to which the same band
+#' convention applies. MFRM and EFRM points are response cells; ordinary
+#' Rasch points are items.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
-#' @param band Fit residual acceptance band.
+#' @param statistic \code{"residual"} (the default fit residual),
+#'   \code{"infit"}, or \code{"outfit"}.
+#' @param band Acceptance band for the standardised statistic.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -759,34 +764,53 @@ plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
 #' colnames(X) <- paste0("I", 1:6)
 #' plot_item_map(rasch(X))
 #' @export
-plot_item_map <- function(fit, band = 2.5) {
+plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
+                          band = 2.5) {
+  statistic <- match.arg(statistic)
   d <- fit$items
+  y <- switch(statistic, residual = d$fit_resid,
+              infit = d$infit_z, outfit = d$outfit_z)
+  ylab <- switch(statistic, residual = "Fit residual",
+                 infit = "Infit (standardised)",
+                 outfit = "Outfit (standardised)")
+  if (is.null(y) || all(is.na(y)))
+    .refuse("the fitted object does not carry the ", statistic, " statistic")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
-  ylim <- range(c(d$fit_resid, -band, band), na.rm = TRUE) * 1.2
+  ylim <- range(c(y, -band, band), na.rm = TRUE) * 1.2
   op <- .rr_canvas(range(d$location) + c(-0.5, 0.5), ylim,
                    if (structural) "Response-cell location (logits)" else
-                     "Item location (logits)", "Fit residual",
+                     "Item location (logits)", ylab,
                    grid_x = TRUE)
   on.exit(par(op))
   rect(par("usr")[1], -band, par("usr")[2], band,
        col = paste0(.rr$teal, "11"), border = NA)
   abline(h = c(-band, band), lty = 2, col = .rr$soft)
-  out <- !is.na(d$fit_resid) & abs(d$fit_resid) > band
-  points(d$location, d$fit_resid, pch = 21, cex = 1.7,
+  ok <- !is.na(y)
+  out <- ok & abs(y) > band
+  points(d$location, y, pch = 21, cex = 1.7,
          bg = ifelse(out, .rr$red, .rr$blue), col = "white", lwd = 1.2)
-  text(d$location, d$fit_resid, d$item, pos = 3, offset = 0.5, cex = 0.7,
+  text(d$location, y, d$item, pos = 3, offset = 0.5, cex = 0.7,
        col = ifelse(out, .rr$red, .rr$soft))
+  mtext(sprintf("%d of %d %s beyond +/-%.1f (%.1f%%)", sum(out), sum(ok),
+                if (structural) "response cells" else "items", band,
+                100 * sum(out) / sum(ok)),
+        side = 3, line = 0.2, adj = 0, cex = 0.8, col = .rr$ink)
   invisible(NULL)
 }
 
 #' Plot person fit
 #'
-#' Person locations against person fit residuals with the +/- 2.5 band; persons
-#' beyond the band respond erratically (positive) or too deterministically
-#' (negative).
+#' Person locations against a person fit statistic with the +/- 2.5 band;
+#' persons beyond the band respond erratically (positive) or too
+#' deterministically (negative). The default statistic is the
+#' log-of-mean-square fit residual; \code{"infit"} and \code{"outfit"} display
+#' the Wilson--Hilferty standardised mean squares, to which the same band
+#' convention applies.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
-#' @param band Fit residual acceptance band.
+#' @param statistic \code{"residual"} (the default fit residual),
+#'   \code{"infit"}, or \code{"outfit"}.
+#' @param band Acceptance band for the standardised statistic.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -795,21 +819,31 @@ plot_item_map <- function(fit, band = 2.5) {
 #' colnames(X) <- paste0("I", 1:6)
 #' plot_person_fit(rasch(X))
 #' @export
-plot_person_fit <- function(fit, band = 2.5) {
+plot_person_fit <- function(fit, statistic = c("residual", "infit", "outfit"),
+                            band = 2.5) {
+  statistic <- match.arg(statistic)
   p <- fit$person
-  ok <- !is.na(p$theta) & !is.na(p$fit_resid)
-  ylim <- range(c(p$fit_resid[ok], -band - 0.5, band + 0.5))
+  y <- switch(statistic, residual = p$fit_resid,
+              infit = p$infit_z, outfit = p$outfit_z)
+  ylab <- switch(statistic, residual = "Fit residual",
+                 infit = "Infit (standardised)",
+                 outfit = "Outfit (standardised)")
+  if (is.null(y) || all(is.na(y)))
+    .refuse("the fitted object does not carry the ", statistic, " statistic")
+  ok <- !is.na(p$theta) & !is.na(y)
+  ylim <- range(c(y[ok], -band - 0.5, band + 0.5))
   op <- .rr_canvas(range(p$theta[ok]) + c(-0.3, 0.3), ylim,
-                   "Person location (logits)", "Fit residual",
+                   "Person location (logits)", ylab,
                    grid_x = TRUE)
   on.exit(par(op))
   rect(par("usr")[1], -band, par("usr")[2], band,
        col = paste0(.rr$teal, "11"), border = NA)
   abline(h = c(-band, band), lty = 2, col = .rr$soft)
-  out <- abs(p$fit_resid[ok]) > band
-  points(p$theta[ok], p$fit_resid[ok], pch = 21, cex = 0.9,
+  out <- abs(y[ok]) > band
+  points(p$theta[ok], y[ok], pch = 21, cex = 0.9,
          bg = ifelse(out, .rr$red, paste0(.rr$blue, "99")), col = "white", lwd = 0.5)
-  mtext(sprintf("%d of %d persons beyond +/-%.1f", sum(out), sum(ok), band),
+  mtext(sprintf("%d of %d persons beyond +/-%.1f (%.1f%%)", sum(out), sum(ok),
+                band, 100 * sum(out) / sum(ok)),
         side = 3, line = 0.2, adj = 0, cex = 0.8, col = .rr$ink)
   invisible(NULL)
 }

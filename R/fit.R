@@ -151,7 +151,7 @@
   if (is.null(item_extreme)) item_extreme <- rep(FALSE, ncol(X))
   E2 <- .z2_expectation(mo, Z, disc)
   out <- data.frame(infit_ms = rep(NA_real_, N), outfit_ms = NA_real_,
-                    outfit_z = NA_real_)
+                    infit_z = NA_real_, outfit_z = NA_real_)
   for (n in seq_len(N)) {
     ok <- which(!is.na(Z[n, ]) & !item_extreme)
     if (length(ok) < 3) next
@@ -162,7 +162,9 @@
     out$outfit_ms[n] <- outfit
     out$infit_ms[n] <- sum(z2 * V) / sum(e2 * V)
     qo <- sqrt(max(sum(C4 / V^2) / k^2 - 1 / k, 1e-8))
+    qi <- sqrt(max(sum(C4 - V^2) / sum(V)^2, 1e-8))
     out$outfit_z[n] <- .wh(outfit, qo)
+    out$infit_z[n] <- .wh(out$infit_ms[n], qi)
   }
   out
 }

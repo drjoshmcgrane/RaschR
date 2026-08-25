@@ -169,10 +169,13 @@ plot_person_fit(fit)
 An unexpected response pattern may reflect coding or data-entry errors,
 careless responding, a secondary trait, or a genuine but unusual person. It is
 not, by itself, a reason to remove the person. In this example,
-`r sum(abs(fit$person$fit_resid) > 2.5, na.rm = TRUE)` persons fall outside
-the displayed band. Fit residuals are unavailable for extreme response
-patterns because those patterns do not provide an interior location at which
-fit can be assessed.
+`r sum(abs(fit$person$fit_resid) > 2.5, na.rm = TRUE)` persons
+(`r sprintf("%.1f", 100 * mean(abs(fit$person$fit_resid) > 2.5, na.rm = TRUE))`%)
+fall outside the displayed band; the plot reports the same count and
+percentage. The `statistic` argument displays the standardised infit or
+outfit in place of the fit residual, under the same band. Fit residuals are
+unavailable for extreme response patterns because those patterns do not
+provide an interior location at which fit can be assessed.
 
 ## Targeting and information
 
