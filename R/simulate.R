@@ -1015,8 +1015,8 @@ plot_recovery <- function(x, ...) {
          ylab = "recovered", main = d$parameter[1], axes = FALSE,
          pch = 21, bg = .rr$blue, col = "white", cex = 1.1)
     abline(0, 1, col = .rr$red, lty = 2, lwd = 1.5)
-    axis(1, col = .rr$grid, col.ticks = .rr$soft)
-    axis(2, col = .rr$grid, col.ticks = .rr$soft)
+    .rr_axis(1)
+    .rr_axis(2)
     mtext(sprintf("r = %.3f   RMSE = %.2f", s$correlation, s$rmse), 3,
           line = 0.2, cex = 0.8, col = .rr$soft)
   }

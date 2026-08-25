@@ -651,7 +651,7 @@ plot_facets <- function(fit, facet = NULL, band = 2.5) {
   title(main = facet, adj = 0, line = 1.4)
   abline(h = seq_len(n), col = .rr$grid, lwd = 0.8)
   abline(v = 0, lty = 2, col = .rr$soft)
-  axis(1, col = .rr$grid, col.ticks = .rr$soft)
+  .rr_axis(1)
   axis(2, at = seq_len(n), labels = fe$level, cex.axis = 0.8,
        col = .rr$grid, col.ticks = NA)
   misfit <- !is.na(fe$fit_resid) & abs(fe$fit_resid) > band

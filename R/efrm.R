@@ -1834,7 +1834,7 @@ plot_frames <- function(fit, band = 2.5) {
        xlab = "log unit (log rho)", ylab = "", axes = FALSE, main = "")
   abline(h = seq_len(n), col = .rr$grid, lwd = 0.8)
   abline(v = 0, lty = 2, col = .rr$soft)
-  axis(1, col = .rr$grid, col.ticks = .rr$soft)
+  .rr_axis(1)
   axis(2, at = seq_len(n), labels = labs, cex.axis = 0.75,
        col = .rr$grid, col.ticks = NA)
   misfit <- !is.na(fr$fit_resid) & abs(fr$fit_resid) > band

@@ -31,11 +31,11 @@
   plot(NA, xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab,
        main = "", axes = FALSE)
   if (has_main) title(main = main, adj = 0, line = 1.4)
-  xt <- .rr_ticks(xlim)
-  if (grid_y) abline(h = pretty(ylim), col = .rr$grid, lwd = 0.8)
+  xt <- .rr_ticks(xlim); yt <- .rr_ticks(ylim)
+  if (grid_y) abline(h = yt, col = .rr$grid, lwd = 0.8)
   if (grid_x) abline(v = xt, col = .rr$grid, lwd = 0.8)
   if (xaxis) axis(1, at = xt, col = .rr$grid, col.ticks = .rr$soft)
-  if (yaxis) axis(2, col = .rr$grid, col.ticks = .rr$soft)
+  if (yaxis) axis(2, at = yt, col = .rr$grid, col.ticks = .rr$soft)
   invisible(op)
 }
 
@@ -48,6 +48,14 @@
   if (w > 2.5 && w <= 14)
     seq(ceiling(min(lim) - 1e-9) - 1, floor(max(lim) + 1e-9) + 1)
   else pretty(lim, n = 7)
+}
+
+# House axis for plots drawn outside .rr_canvas: ticks from the realised
+# plot window, so every location axis follows the same whole-unit rule.
+.rr_axis <- function(side, ...) {
+  usr <- par("usr")
+  lim <- if (side %in% c(1, 3)) usr[1:2] else usr[3:4]
+  axis(side, at = .rr_ticks(lim), col = .rr$grid, col.ticks = .rr$soft, ...)
 }
 
 .rr_legend <- function(pos, ..., cex = 0.85)
@@ -442,6 +450,11 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   at <- pretty(c(0, max(c(pp, pi))))
   axis(2, at = c(-rev(at[-1]), at), labels = c(rev(at[-1]), at),
        col = .rr$grid, col.ticks = .rr$soft, cex.axis = 0.85)
+  # continuous spines meeting at the corner, instead of axis lines that
+  # stop at their outermost tick marks
+  usr <- par("usr")
+  axis(1, at = usr[1:2], labels = FALSE, lwd.ticks = 0, col = .rr$grid)
+  axis(2, at = usr[3:4], labels = FALSE, lwd.ticks = 0, col = .rr$grid)
   abline(h = 0, col = .rr$ink, lwd = 1)
   rect(brk[-length(brk)], 0, brk[-1], pp, col = .rr$blue, border = "white", lwd = 0.6)
   rect(brk[-length(brk)], -pi, brk[-1], 0, col = .rr$amber, border = "white", lwd = 0.6)
@@ -541,8 +554,8 @@ plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
   on.exit(par(op))
   plot(NA, xlim = c(0, 1), ylim = rng, xlab = "", ylab = "Location (logits)",
        axes = FALSE, main = "")
-  abline(h = pretty(rng), col = .rr$grid, lwd = 0.8)
-  axis(2, col = .rr$grid, col.ticks = .rr$soft)
+  abline(h = .rr_ticks(rng), col = .rr$grid, lwd = 0.8)
+  .rr_axis(2)
   segments(split, rng[1], split, rng[2], col = .rr$ink, lwd = 1)
   segments(split, mean(tv), 0.99, mean(tv), col = .rr$amber, lty = 2)
   rect(split - pp * (split - 0.02), brk[-length(brk)], split, brk[-1],
@@ -602,7 +615,7 @@ plot_threshold_map <- function(fit, order_by_location = TRUE) {
        ylab = "", axes = FALSE, main = "")
   abline(h = seq_len(L), col = .rr$grid, lwd = 0.8)
   abline(v = 0, lty = 2, col = .rr$soft)
-  axis(1, col = .rr$grid, col.ticks = .rr$soft)
+  .rr_axis(1)
   axis(2, at = seq_len(L), labels = fit$items$item[ord], cex.axis = 0.75,
        col = .rr$grid, col.ticks = NA)
   for (row in seq_len(L)) {
@@ -934,8 +947,8 @@ plot_pca_biplot <- function(fit) {
        ylab = sprintf("PC2 loading  (%.1f%%)", pct[2]))
   abline(h = pretty(c(-L, L)), v = pretty(c(-L, L)), col = .rr$grid, lwd = 0.8)
   abline(h = 0, v = 0, lty = 2, col = .rr$soft)
-  axis(1, col = .rr$grid, col.ticks = .rr$soft)
-  axis(2, col = .rr$grid, col.ticks = .rr$soft)
+  .rr_axis(1)
+  .rr_axis(2)
   points(x, y, pch = 21, cex = 1.6, bg = ifelse(x > 0, .rr$blue, .rr$amber),
          col = "white", lwd = 1.2)
   text(x, y, items, pos = 3, offset = 0.4, cex = 0.7, col = .rr$soft)
@@ -1097,8 +1110,8 @@ plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
   on.exit(par(op))
   plot(NA, xlim = c(0, 1), ylim = rng, xlab = "", ylab = "Location (logits)",
        axes = FALSE, main = "")
-  abline(h = pretty(rng), col = .rr$grid, lwd = 0.8)
-  axis(2, col = .rr$grid, col.ticks = .rr$soft)
+  abline(h = .rr_ticks(rng), col = .rr$grid, lwd = 0.8)
+  .rr_axis(2)
   if (band > 0)
     rect(0, th - band, 1, th + band, col = adjustcolor(.rr$blue, 0.10),
          border = NA)
