@@ -11,6 +11,15 @@
   infit or outfit in place of the fit residual, under the same +/-2.5
   band, and annotate the flagged count with its percentage. The person
   table reports `infit_z` alongside `outfit_z`.
+* A package-wide sweep for reporting-table misalignments found and
+  corrected three defects. A numeric anchor index now resolves against
+  the data as supplied, where previously a dropped constant item shifted
+  the anchor to the wrong item. The class-interval detail refuses an
+  item whose only responders are extreme, instead of failing obscurely
+  and aborting exports. `dependence_magnitude()` withholds its standard
+  error and probability when the resolved thresholds are weakly
+  identified, reporting the magnitude descriptively, as the thresholds
+  themselves already were.
 * An undefeated or winless comparison object is now reported in the
   object table at an extrapolated location, its score moved half a point
   inside the boundary against the calibrated scale, with `extreme = TRUE`

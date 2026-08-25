@@ -312,3 +312,47 @@ test_that("MFRM virtual cells accept colon-bearing labels without collision", {
   expect_false(anyDuplicated(f$virtual_map$vkey) > 0L)
   expect_equal(nrow(f$virtual_map), 6L)
 })
+
+test_that("a numeric anchor index survives a dropped constant item", {
+  set.seed(7)
+  X <- matrix(rbinom(300 * 4, 1, plogis(outer(rnorm(300),
+    c(-1, 0, 0.5, 1), "-"))), 300, 4)
+  colnames(X) <- paste0("I", 1:4)
+  anch <- data.frame(item = 3, k = 1, tau = -2.5)
+  f_ok <- suppressWarnings(rasch(X, anchors = anch))
+  X[, 2] <- 1L
+  f_drop <- suppressWarnings(rasch(X, anchors = anch))
+  expect_identical(f_ok$refit_spec$anchors$item, "I3")
+  expect_identical(f_drop$refit_spec$anchors$item, "I3")
+})
+
+test_that("class-interval detail refuses an item with no classified persons", {
+  set.seed(7)
+  N <- 200; L <- 6
+  X <- matrix(rbinom(N * L, 1, plogis(outer(rnorm(N),
+    seq(-1.5, 1.5, length.out = L), "-"))), N, L)
+  colnames(X) <- paste0("I", 1:L)
+  extra <- rbind(matrix(1L, 10, L + 1), matrix(0L, 10, L + 1))
+  X7 <- cbind(X, I7 = NA_integer_)
+  X7 <- rbind(X7, `colnames<-`(extra, colnames(X7)))
+  anch <- data.frame(item = c("I1", "I7"), k = c(1L, 1L), tau = c(-1.5, 0))
+  f <- suppressWarnings(rasch(X7, anchors = anch))
+  expect_error(chisq_detail(f, "I7"), "no persons in any class interval")
+  td <- file.path(tempdir(), "gap-export")
+  expect_no_error(suppressWarnings(save_outputs(f, td, formats = "png",
+                                               item_plots = FALSE)))
+})
+
+test_that("dependence magnitude withholds inference on weak resolved thresholds", {
+  set.seed(3)
+  N <- 700
+  X <- matrix(rbinom(N * 8, 1, plogis(outer(rnorm(N),
+    seq(-1.5, 1.5, length.out = 8), "-"))), N, 8)
+  X[, 5] <- ifelse(runif(N) < 0.985, X[, 4], 1 - X[, 4])
+  colnames(X) <- paste0("I", 1:8)
+  dm <- dependence_magnitude(suppressWarnings(rasch(X)),
+                             dependent = "I5", independent = "I4")
+  expect_true(is.finite(dm$d))
+  expect_true(is.na(dm$se) && is.na(dm$p))
+  expect_match(dm$note, "weakly identified")
+})

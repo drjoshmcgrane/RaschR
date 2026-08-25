@@ -378,6 +378,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     mc <- list(key = sc$key, map = sc$map, raw = sc$raw)
   }
 
+  items_before_prep <- colnames(X)
   prep <- .prepare_X(X, na_codes = na_codes); X <- prep$X
   if (!is.null(mc)) {
     prep$notes <- c(prep$notes,
@@ -387,8 +388,13 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   }
 
   if (!is.null(anchors)) {
+    # a numeric anchor index means the caller's column, so it must resolve
+    # against the data as supplied: preparation can drop a constant item,
+    # and resolving against the surviving columns would silently anchor a
+    # different item
     a_names <- if (is.character(anchors$item) || is.factor(anchors$item))
-      as.character(anchors$item) else colnames(X)[anchors$item]
+      as.character(anchors$item) else items_before_prep[as.integer(anchors$item)]
+    anchors$item <- a_names
     gone <- setdiff(a_names, colnames(X))
     if (length(gone))
       stop("anchored item(s) not present after data preparation: ",

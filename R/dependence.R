@@ -139,8 +139,24 @@ dependence_magnitude <- function(fit, dependent, independent) {
   d <- mean(tab$d_k)
   se <- sqrt(max(drop(crossprod(w, cv %*% w)), 0))
   z <- d / se
-  out <- list(d = d, se = se, z = z, p = 2 * pnorm(-abs(z)),
+  # a magnitude built on weakly identified resolved thresholds keeps its
+  # descriptive value, but the covariance behind its standard error is not
+  # trustworthy; inference is withheld, as it is for the thresholds
+  # themselves
+  res_thr <- thr[item_of %in% res_names, ]
+  weak_res <- isTRUE(any(res_thr$weak))
+  note <- NULL
+  if (weak_res) {
+    se <- z <- NA_real_
+    note <- paste("resolved thresholds are weakly identified (sparse",
+                  "resolved categories); the magnitude is descriptive and",
+                  "inference is withheld")
+    tab$se_k <- NA_real_
+  }
+  out <- list(d = d, se = se, z = z,
+              p = if (weak_res) NA_real_ else 2 * pnorm(-abs(z)),
               thresholds = tab, dependent = nm_j, independent = nm_i,
+              note = note,
               refit = refit)
   out <- .tag_tables(out)
   class(out) <- "rasch_dependence"
@@ -151,8 +167,12 @@ dependence_magnitude <- function(fit, dependent, independent) {
 print.rasch_dependence <- function(x, ...) {
   cat(sprintf("Response dependence of %s on %s (Andrich & Kreiner resolution)\n",
               x$dependent, x$independent))
-  cat(sprintf("  d = %.3f logits (se %.3f), z = %.2f, p = %s\n",
-              x$d, x$se, x$z, .fmt_p(x$p)))
+  if (is.na(x$se))
+    cat(sprintf("  d = %.3f logits (descriptive; inference withheld)\n", x$d))
+  else
+    cat(sprintf("  d = %.3f logits (se %.3f), z = %.2f, p = %s\n",
+                x$d, x$se, x$z, .fmt_p(x$p)))
+  if (!is.null(x$note)) cat("  Note:", x$note, "\n")
   if (nrow(x$thresholds) > 1) {
     cat("  per threshold:\n")
     print(.fmt_df(x$thresholds), row.names = FALSE)

@@ -271,7 +271,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
   if (!is.null(ctt)) wtab(ctt$table, "traditional_statistics")
   cd_all <- do.call(rbind, lapply(fit$items$item, function(it) {
-    cd <- chisq_detail(fit, it)
+    cd <- tryCatch(chisq_detail(fit, it), error = function(e) NULL)
+    if (is.null(cd)) return(NULL)
     cbind(item = cd$item, cd$intervals)
   }))
   wtab(cd_all, if (structural) "response_cell_chisq_class_interval_detail"

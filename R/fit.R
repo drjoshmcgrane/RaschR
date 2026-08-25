@@ -323,6 +323,10 @@ chisq_detail <- function(fit, item) {
   i <- .item_idx(fit, item)
   # per-item interval allocation when the fit carries one (missing data)
   ci <- if (!is.null(fit$ci_item)) fit$ci_item[[i]] else fit$person$class_interval
+  if (all(is.na(ci)))
+    .refuse("item ", fit$items$item[i], " has no persons in any class ",
+            "interval (only extreme or missing responders); the ",
+            "class-interval detail is unavailable")
   th <- fit$person$theta
   x <- fit$X[, i]; E <- fit$moments$E[, i]; V <- fit$moments$V[, i]
   mi <- length(fit$tau_list[[i]])
