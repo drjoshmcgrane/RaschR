@@ -267,13 +267,15 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
 
   if (!is.null(response)) {
     xr <- data[[response]]
-    # a row with no weight is not data: deriving the response scale before
-    # dropping it would let a zero-count row define the number of
-    # categories, so an otherwise identical model changes its m
+    # a row with no weight is not data. An ordered factor STATES its scale
+    # in its levels, so those stand whatever the weights are (an empty
+    # declared extreme is an identifiability question, handled downstream);
+    # a numeric response has no declared range, so its top category must
+    # come from the rows the analysis keeps, or one zero-count row would
+    # change m in an otherwise identical model.
     usable <- !is.na(a) & !is.na(b) & a != b & !is.na(w) & w > 0
     if (!is.null(jd)) usable <- usable & !is.na(jd)
     if (!is.null(ord)) usable <- usable & !is.na(ord)
-    xr <- if (is.factor(xr)) droplevels(xr[usable]) else xr[usable]
     if (is.factor(xr)) {
       # a plain factor's alphabetical level order would silently define the
       # response scale (and can reverse it); the order must be explicit
@@ -285,17 +287,14 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
              "can reverse -- the response scale")
       cats <- levels(xr); x <- as.integer(xr) - 1L
     } else {
-      .check_integer_scores(xr, "the polytomous response")
+      .check_integer_scores(xr[usable], "the polytomous response")
       xn <- suppressWarnings(as.numeric(as.character(xr)))
       x <- as.integer(xn)
-      if (any(x < 0, na.rm = TRUE))
+      if (any(x[usable] < 0, na.rm = TRUE))
         stop("polytomous responses must be non-negative integers 0..m")
-      cats <- as.character(0:max(x, na.rm = TRUE))
+      cats <- as.character(0:max(x[usable], na.rm = TRUE))
+      x[!usable] <- NA_integer_          # a dropped score is not a category
     }
-    # x was derived over the usable rows only: expand it back to the full
-    # height so the drop accounting below reports every row once
-    xfull <- rep(NA_integer_, length(usable)); xfull[usable] <- x
-    x <- xfull
     keep <- usable & !is.na(x)
     if (any(!keep)) {
       notes <- c(notes, sprintf(
@@ -332,23 +331,31 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       stop("`margin` is a character column; supply an ORDERED factor ",
            "(levels smallest to largest margin) or a numeric magnitude, ",
            "so the margin order is explicit rather than alphabetical")
-    lv <- if (is.factor(mg)) levels(droplevels(mg)) else
-      as.character(sort(unique(mg[!is.na(mg)])))
-    q <- length(lv)
-    if (q < 1L) stop("`margin` has no usable levels")
-    mgi <- match(as.character(mg), lv)
     wn <- trimws(as.character(data[[winner]]))
     is_a <- !is.na(wn) & wn == a
     is_b <- !is.na(wn) & wn == b
     tie <- !is.na(wn) & !is_a & !is_b & tolower(wn) %in% c("tie", "draw")
     miss_wn <- !is.na(wn) & !is_a & !is_b & !tie
+    # the scale is read from the rows the analysis keeps: a row with no
+    # weight, no winner, or a winner naming neither object is not data, and
+    # letting one contribute a margin level would add a category nothing was
+    # judged in -- or fail the fit outright
+    usable <- !is.na(a) & !is.na(b) & a != b & !is.na(w) & w > 0 &
+      !is.na(wn) & !miss_wn
+    if (!is.null(jd)) usable <- usable & !is.na(jd)
+    if (!is.null(ord)) usable <- usable & !is.na(ord)
+    lv <- if (is.factor(mg)) levels(droplevels(mg[usable])) else
+      as.character(sort(unique(mg[usable & !is.na(mg)])))
+    q <- length(lv)
+    if (q < 1L) stop("`margin` has no usable levels")
+    mgi <- match(as.character(mg), lv)
     if (any(miss_wn))
       notes <- c(notes, sprintf(
         "%d row(s) with winner matching neither object treated as missing",
         sum(miss_wn)))
-    ties_present <- any(tie)
-    keep <- !is.na(a) & !is.na(b) & !is.na(wn) & a != b & !is.na(w) & w > 0 &
-      (tie | !is.na(mgi)) & !miss_wn
+    # a tie only in a dropped row is not a tie in the data either
+    ties_present <- any(tie & usable)
+    keep <- usable & (tie | !is.na(mgi))
     if (!is.null(jd)) keep <- keep & !is.na(jd)
     if (!is.null(ord)) keep <- keep & !is.na(ord)
     if (any(!keep)) {

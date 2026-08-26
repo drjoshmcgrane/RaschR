@@ -1935,3 +1935,38 @@ test_that("a dropped row cannot define the analysis it is dropped from", {
                         object_sets = stats::setNames(os, c(" ", "s2")),
                         se_method = "conditional"), "named list")
 })
+
+test_that("margin categories come from the rows the analysis keeps", {
+  set.seed(382)
+  db <- simulate_btl(n_objects = 5, n_judges = 20, reps_per_pair = 4)
+  db$margin <- factor(sample(c("small", "clear"), nrow(db), TRUE),
+                      levels = c("small", "clear"), ordered = TRUE)
+  db$cnt <- 1L
+  base <- btl(db, "object_a", "object_b", winner = "winner",
+              margin = "margin", judge = "judge", count = "cnt")
+
+  # a zero-count row carrying a margin nothing was judged in
+  db2 <- db
+  db2$margin <- factor(as.character(db2$margin),
+                       levels = c("small", "clear", "huge"), ordered = TRUE)
+  ghost <- db2[1, , drop = FALSE]
+  ghost$margin <- factor("huge", levels = levels(db2$margin), ordered = TRUE)
+  ghost$cnt <- 0L
+  with_ghost <- btl(rbind(db2, ghost), "object_a", "object_b",
+                    winner = "winner", margin = "margin", judge = "judge",
+                    count = "cnt")
+  expect_equal(with_ghost$m, base$m)
+  expect_true(any(grepl("dropped", with_ghost$notes)))
+
+  # a tie only in a dropped row is not a tie in the data
+  gtie <- db[1, , drop = FALSE]; gtie$winner <- "tie"; gtie$cnt <- 0L
+  with_tie <- btl(rbind(db, gtie), "object_a", "object_b", winner = "winner",
+                  margin = "margin", judge = "judge", count = "cnt")
+  expect_equal(with_tie$m, base$m)
+
+  # a tie that was actually judged still adds its category
+  rtie <- db[1, , drop = FALSE]; rtie$winner <- "tie"; rtie$cnt <- 1L
+  with_real <- btl(rbind(db, rtie), "object_a", "object_b", winner = "winner",
+                   margin = "margin", judge = "judge", count = "cnt")
+  expect_gt(with_real$m, base$m)
+})
