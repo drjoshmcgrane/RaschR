@@ -50,9 +50,13 @@
   marks as weak, and the judge diagnostics report count-weighted
   comparison totals.
 - A row that is dropped can no longer define the analysis it is dropped
-  from: the paired-comparison response scale is derived after zero-count
+  from. The paired-comparison response scale is derived after zero-count
   and unusable rows are removed, where a single zero-count row could
-  take an otherwise identical model from three categories to six.
+  take an otherwise identical model from three categories to six; margin
+  levels and the presence of ties follow the kept rows for the same
+  reason. An ordered factor’s declared levels remain the stated scale
+  whatever the weights are, so an empty declared extreme is still
+  refused as the identifiability question it is.
 - External person factors supplied as a data frame are checked for
   constancy within person exactly as named columns are, instead of the
   first row’s value being kept. A frame group given by value no longer
