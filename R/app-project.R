@@ -17,7 +17,8 @@
         inherits(project$base_fit, "rasch_btl")))
     fail("the analysis file does not contain a fitted rasch model")
   if (!is.null(project$model_type)) {
-    if (!(project$model_type %in% c("rasch", "mfrm", "efrm", "btl")))
+    if (length(project$model_type) != 1L || is.na(project$model_type) ||
+        !(project$model_type %in% c("rasch", "mfrm", "efrm", "btl")))
       fail("the analysis file names an unsupported model type")
     expected_class <- switch(project$model_type,
       rasch = "rasch", mfrm = "rasch_mfrm", efrm = "rasch_efrm",

@@ -51,7 +51,21 @@
   and the presence of ties follow the kept rows for the same reason. An
   ordered factor's declared levels remain the stated scale whatever the
   weights are, so an empty declared extreme is still refused as the
-  identifiability question it is.
+  identifiability question it is. A tie carries no margin, so its margin
+  value no longer opens win and loss categories nothing was judged in,
+  which had left both extremes empty and stopped the fit; and a response
+  column that is entirely missing reports no usable comparisons rather
+  than failing on an impossible vector length.
+* A missing person identifier is unknown, not shared. The DIF family no
+  longer reads missing identifiers as repeats -- which declared a
+  repeated-measures design and changed every test -- and the tailored
+  bootstrap resamples each unidentified row as its own person rather than
+  clustering them into one.
+* A multiple-choice scoring table refuses a missing or blank option, and a
+  key refuses a blank value; both had scored their item zero throughout
+  and then dropped it as constant under a misleading message. A saved
+  analysis file that declares more than one model type is reported as
+  unsupported instead of failing inside a length-one condition.
 * External person factors supplied as a data frame are checked for
   constancy within person exactly as named columns are, instead of the
   first row's value being kept. A frame group given by value no longer

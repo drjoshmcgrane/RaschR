@@ -292,6 +292,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       x <- as.integer(xn)
       if (any(x[usable] < 0, na.rm = TRUE))
         stop("polytomous responses must be non-negative integers 0..m")
+      if (!any(usable & !is.na(x)))
+        stop("no usable comparisons: every response is missing")
       cats <- as.character(0:max(x[usable], na.rm = TRUE))
       x[!usable] <- NA_integer_          # a dropped score is not a category
     }
@@ -344,8 +346,12 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       !is.na(wn) & !miss_wn
     if (!is.null(jd)) usable <- usable & !is.na(jd)
     if (!is.null(ord)) usable <- usable & !is.na(ord)
-    lv <- if (is.factor(mg)) levels(droplevels(mg[usable])) else
-      as.character(sort(unique(mg[usable & !is.na(mg)])))
+    # a tie carries no margin -- it becomes the middle category -- so its
+    # margin value must not open win and loss categories nothing was
+    # judged in, which would leave both extremes empty and stop the fit
+    scale_rows <- usable & !tie
+    lv <- if (is.factor(mg)) levels(droplevels(mg[scale_rows])) else
+      as.character(sort(unique(mg[scale_rows & !is.na(mg)])))
     q <- length(lv)
     if (q < 1L) stop("`margin` has no usable levels")
     mgi <- match(as.character(mg), lv)

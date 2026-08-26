@@ -1970,3 +1970,62 @@ test_that("margin categories come from the rows the analysis keeps", {
                    margin = "margin", judge = "judge", count = "cnt")
   expect_gt(with_real$m, base$m)
 })
+
+test_that("ties, keys, identifiers and project files are read faithfully", {
+  # a tie carries no margin, so its margin value opens no win/loss category
+  set.seed(391)
+  db <- simulate_btl(n_objects = 5, n_judges = 20, reps_per_pair = 4)
+  db$margin <- factor(sample(c("small", "clear"), nrow(db), TRUE),
+                      levels = c("small", "clear", "huge"), ordered = TRUE)
+  db$cnt <- 1L
+  base <- btl(db, "object_a", "object_b", winner = "winner",
+              margin = "margin", judge = "judge", count = "cnt")
+  tied <- db
+  tied$winner[1] <- "tie"
+  tied$margin[1] <- factor("huge", levels = levels(db$margin), ordered = TRUE)
+  f2 <- btl(tied, "object_a", "object_b", winner = "winner",
+            margin = "margin", judge = "judge", count = "cnt")
+  expect_true(isTRUE(f2$converged))
+  expect_equal(f2$m, base$m + 1L)          # the tie category, and no more
+
+  # an option nobody can have chosen would score its item zero throughout
+  set.seed(393)
+  resp <- matrix(sample(c("A", "B", "C"), 400 * 3, TRUE), 400, 3)
+  colnames(resp) <- paste0("Q", 1:3)
+  expect_error(rasch(resp, key = data.frame(
+    item = c("Q1", "Q1", "Q2", "Q3"), option = c("A", "", "A", "C"),
+    score = c(1, 1, 1, 1))), "missing or blank option")
+  expect_error(rasch(resp, key = data.frame(
+    item = c("Q1", "Q2", "Q3"), option = c(NA, "A", "C"),
+    score = c(1, 1, 1))), "missing or blank option")
+  expect_error(rasch(resp, key = c(Q1 = "A", Q2 = "  ", Q3 = "C")),
+               "blank key value")
+  expect_no_error(rasch(resp, key = c(Q1 = "A", Q2 = "A", Q3 = "C")))
+
+  # an unknown identifier is not a shared one
+  set.seed(392)
+  X <- matrix(rbinom(400 * 6, 1, plogis(outer(rnorm(400),
+    seq(-1, 1, length.out = 6), "-"))), 400, 6)
+  colnames(X) <- paste0("I", 1:6)
+  ids <- sprintf("P%03d", 1:400); ids[c(5, 50, 120)] <- NA
+  d <- data.frame(id = ids, X, grp = rep(c("a", "b"), 200))
+  f <- rasch(d, id = "id", factors = "grp")
+  expect_length(dif_anova(f)$within, 0L)
+  # the bootstrap treats each unknown identifier as its own person
+  bs <- .tailored_boot_rows(c("A", "A", NA, NA, "B"))
+  expect_equal(length(unique(bs$id)), 4L)
+
+  db2 <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
+  db2$resp <- NA_integer_
+  expect_error(btl(db2, "object_a", "object_b", response = "resp"),
+               "no usable comparisons")
+
+  mk <- function(mt) list(format = "rasch-shiny-project", schema = 1L,
+                          data = as.data.frame(X), base_fit = f,
+                          model_type = mt)
+  expect_error(.validate_app_project(mk(c("rasch", "efrm"))),
+               "unsupported model type")
+  expect_error(.validate_app_project(mk(NA_character_)),
+               "unsupported model type")
+  expect_no_error(.validate_app_project(mk("rasch")))
+})

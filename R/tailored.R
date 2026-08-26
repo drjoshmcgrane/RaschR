@@ -15,7 +15,12 @@
 # ===========================================================================
 
 .tailored_boot_rows <- function(id) {
-  clusters <- split(seq_along(id), match(id, unique(id)))
+  # rows with no identifier are not one person: clustering them together
+  # would resample them as a single unit and understate the uncertainty
+  key <- match(id, unique(id))
+  unknown <- is.na(id)
+  if (any(unknown)) key[unknown] <- max(key, na.rm = TRUE) + seq_len(sum(unknown))
+  clusters <- split(seq_along(id), key)
   picked <- sample.int(length(clusters), length(clusters), replace = TRUE)
   parts <- clusters[picked]
   list(rows = unlist(parts, use.names = FALSE),

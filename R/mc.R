@@ -24,6 +24,12 @@
   if (is.data.frame(key) && all(c("item", "option", "score") %in% names(key))) {
     key$item <- as.character(key$item)
     key$option <- trimws(toupper(as.character(key$option)))
+    # an option nobody can have chosen scores its item zero for everyone,
+    # and the item is then dropped as constant under a misleading message
+    blank_opt <- is.na(key$option) | !nzchar(key$option)
+    if (any(blank_opt))
+      stop("missing or blank option in the scoring table for item(s): ",
+           paste(unique(as.character(key$item)[blank_opt]), collapse = ", "))
     sc <- suppressWarnings(as.numeric(as.character(key$score)))
     if (anyNA(sc) || any(!is.finite(sc)) || any(sc != floor(sc)) || any(sc < 0))
       stop("option scores must be non-negative integers")
@@ -54,6 +60,10 @@
   if (anyNA(key))
     stop("missing (NA) key value for item(s): ",
          paste(names(key)[is.na(key)], collapse = ", "))
+  blank_key <- !nzchar(trimws(as.character(key)))
+  if (any(blank_key))
+    stop("blank key value for item(s): ",
+         paste(names(key)[blank_key], collapse = ", "))
   lapply(setNames(trimws(toupper(as.character(key))), names(key)),
          function(k) {
            opts <- trimws(strsplit(k, "/", fixed = TRUE)[[1]])

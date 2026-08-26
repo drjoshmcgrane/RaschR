@@ -570,7 +570,9 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
   }
   if (is.null(id) && !is.null(fit$person$id)) id <- as.character(fit$person$id)
   if (!is.null(id)) id <- as.character(id)
-  repeated <- !is.null(id) && anyDuplicated(id) > 0L
+  # a missing identifier is unknown, not shared: counting NAs as repeats
+  # would declare a repeated-measures design and change every test
+  repeated <- !is.null(id) && anyDuplicated(id[!is.na(id)]) > 0L
   if (!is.null(within)) {
     unknown <- setdiff(within, names(factors))
     if (length(unknown))
@@ -1679,7 +1681,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
       id %in% names(fit$factors)) id <- fit$factors[[id]]
   if (!is.null(id) && length(id) != nrow(factors))
     stop("`id` must have one value per fitted response row")
-  if (is.null(within) && !is.null(id) && anyDuplicated(id)) {
+  if (is.null(within) && !is.null(id) && anyDuplicated(id[!is.na(id)])) {
     within <- names(factors)[vapply(names(factors), function(fn)
       any(tapply(as.character(factors[[fn]]), id, function(v)
         length(unique(v[!is.na(v)])) > 1L), na.rm = TRUE), TRUE)]
@@ -1691,7 +1693,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
          paste(unknown_w, collapse = ", "))
   if (length(within) && is.null(id))
     stop("`within` requires `id` to pair a person's rows")
-  paired <- !is.null(id) && anyDuplicated(id) > 0
+  paired <- !is.null(id) && anyDuplicated(id[!is.na(id)]) > 0
 
   if (identical(contrasts, "auto")) {
     fam <- .dif_contrast_family(factors, cellmap, within)
@@ -1934,7 +1936,7 @@ dif_posthoc <- function(fit, item, term, factors = NULL, within = NULL,
     stop("`id` has ", length(id), " entries but the fit has ", nrow(factors),
          " rows; the repeated-measures structure needs one identifier per row")
   if (is.null(id) && !is.null(fit$person$id)) id <- fit$person$id
-  if (is.null(within) && !is.null(id) && anyDuplicated(id)) {
+  if (is.null(within) && !is.null(id) && anyDuplicated(id[!is.na(id)])) {
     within <- names(factors)[vapply(names(factors), function(fn)
       any(tapply(as.character(factors[[fn]]), id, function(v)
         length(unique(v[!is.na(v)])) > 1L), na.rm = TRUE), TRUE)]
