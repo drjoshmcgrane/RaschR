@@ -49,6 +49,198 @@
   probabilities are withheld for items whose thresholds the calibration
   marks as weak, and the judge diagnostics report count-weighted
   comparison totals.
+- A row that is dropped can no longer define the analysis it is dropped
+  from: the paired-comparison response scale is derived after zero-count
+  and unusable rows are removed, where a single zero-count row could
+  take an otherwise identical model from three categories to six.
+- External person factors supplied as a data frame are checked for
+  constancy within person exactly as named columns are, instead of the
+  first row’s value being kept. A frame group given by value no longer
+  removes a person factor whose name matches one of the group labels,
+  and a named panel map must give one stated panel for every judge.
+- Set names are trimmed and validated in both frame families: a
+  whitespace-only set name, or a blank set in the item-to-set map, is
+  refused rather than fitted.
+- An empty frame definition is refused rather than dropped: an item set
+  or object set naming no identifier would have been fitted away,
+  answering a different question from the one asked. A paired-comparison
+  DIF call needs at least one judge factor.
+- Administration patterns are built with explicit person-by-set
+  dimensions. A single respondent – one person in a group, or a
+  one-person fit – simplified to a vector that was then read transposed,
+  so the design could name sets or facet cells the person never saw.
+- A person factor may not take a name the fitted person table generates
+  for itself: a factor called `class_interval` silently replaced the
+  intervals every fit statistic is computed over, and one called `theta`
+  stopped the fit. The generated names are reserved centrally. A frame
+  design refuses repeated group columns, and the generated name for
+  items no set lists is refused when a nominated set already uses it.
+- The standalone HTML report names the estimator the fit used, as the
+  fit summary table does, instead of always reporting pairwise
+  conditional estimation.
+- Names are carried as values rather than parsed out of labels: an
+  item-set name containing the label separator keeps its items in the
+  score curves; a predictor level no item or object carries is dropped
+  before the design is built, where it added an all-zero column and made
+  an identified model look rank-deficient; and a resolved comparison
+  copy whose generated name already belongs to another object is refused
+  with its magnitude withheld, rather than the two silently merging. A
+  report table longer than its display limit carries the omission note
+  as a caption, so it still renders as a table.
+- EFRM score curves are keyed by the administration as well as the
+  group: people in one group who sat different item sets have different
+  maximum scores and different expected totals, and previously shared
+  one curve. The table gains `design` and `n_persons` columns.
+- A response style redraws from the probabilities the response was drawn
+  under, so planted local dependence survives it, and a style of zero
+  strength or zero prevalence is no longer recorded as an active effect.
+  In a chain of dependence pairs the middle item’s expectation now
+  includes its own carry-over, where the residual it passed on otherwise
+  carried the first pair’s shift as a systematic mean into the second.
+- An object set aside at a response boundary keeps its predictor row, so
+  an explanatory comparison model no longer fails when one object always
+  wins or always loses; a predictor row for an object the comparisons
+  never mention is still an error.
+- [`plot_pcc()`](https://drjoshmcgrane.github.io/rasch/reference/plot_pcc.md)
+  and
+  [`plot_kidmap()`](https://drjoshmcgrane.github.io/rasch/reference/plot_kidmap.md)
+  refuse a person identifier that appears in more than one row, naming
+  the rows, rather than silently drawing the first. Repeated identifiers
+  are the ordinary case in stacked and racked longitudinal data.
+  [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
+  validates the repeated-measures identifier where it is described
+  rather than failing later on length.
+- [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+  computes the covariance of the centred location differences as C{V1 +
+  V2}C’, not C{V1 + V2}C. The centring matrix is not symmetric when the
+  compared items differ in maximum score, so the standard errors,
+  statistics, p values, rmse and ratio were wrong in that case: a
+  polytomous item’s standard error was inflated (22% in a five-category
+  example) and every dichotomous item’s deflated, flagging short items
+  and hiding long ones. Equal maximum scores were unaffected.
+- Derived fits keep the controls they were built from.
+  [`lr_test()`](https://drjoshmcgrane.github.io/rasch/reference/lr_test.md)‘s
+  rating-scale refit carries the reference sample size and the person
+  factors, so both parameterisations’ item-trait statistics are on one
+  scale and the refit can be used for follow-up analyses; the fourth
+  step of
+  [`tailored_analysis()`](https://drjoshmcgrane.github.io/rasch/reference/tailored_analysis.md)
+  carries the reference sample size its three siblings use; and a
+  subtest total is no longer read as missing when it happens to equal a
+  missing-data code, which had deleted complete responses and renumbered
+  the categories that remained.
+- [`chisq_detail()`](https://drjoshmcgrane.github.io/rasch/reference/chisq_detail.md)
+  reports the rescaled per-interval components beside the standardised
+  ones, so the detail and the item table reconcile under `adjust_N`, and
+  gives the adjustment factor and the unadjusted total.
+- Item and object drift are refused for explanatory calibrations, where
+  a location is a function of its predictors: a drifted item is smeared
+  over every item sharing its design cell and the standard errors belong
+  to the design coefficients. The dimensionality magnitude is refused
+  for the same reason, since its subtest refit frees every superitem. An
+  explanatory comparison design now centres on the objects actually
+  calibrated, so its locations sit on the model’s own origin.
+- An inestimable DIF analysis is refused rather than returned malformed,
+  [`plot_frames()`](https://drjoshmcgrane.github.io/rasch/reference/plot_frames.md)
+  draws without intervals when the units carry no standard error instead
+  of failing on an empty range, the frame-invariance summary counts item
+  comparisons and items separately, and the observed points of the item
+  displays follow the fit’s own per-item class intervals, so a graphical
+  fit check shows the intervals of the test it illustrates.
+- Simulation plants what it records, in three further cases: speededness
+  needs a not-reached tail, a dependence source may not be regenerated
+  as a later target, and a bias planted on a rater who answers at random
+  is refused. Frame group units follow their group labels rather than
+  the sorted level order, which attached the wrong unit to each group
+  from ten groups upward.
+  [`sim_apply()`](https://drjoshmcgrane.github.io/rasch/reference/sim_apply.md)
+  requires one atomic scalar per replicate.
+- Reports and exports check their arguments before they write: the
+  output path, title, plot dimensions and resolution are validated
+  first, so a bad size can no longer leave a populated folder that reads
+  as a complete export. A plot archive is written fresh rather than
+  appended to, and the report closes only the devices it opened. Report
+  tables state how many rows were omitted and print small probabilities
+  in the package’s own vocabulary rather than as an impossible zero.
+- [`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
+  treats presentation as data and the position covariate as a model
+  term: paired-comparison fits differing only in which object was
+  presented first, or in the judging sequence, are no longer reported as
+  the same data, while a plain fit and a position-effect fit of the same
+  comparisons still are.
+- Four procedures no longer relax an explanatory restriction in silence.
+  [`lr_test()`](https://drjoshmcgrane.github.io/rasch/reference/lr_test.md)
+  refuses an explanatory fit, whose rating re-parameterisation would
+  drop the design and leave the two models not nested;
+  [`tailored_analysis()`](https://drjoshmcgrane.github.io/rasch/reference/tailored_analysis.md)
+  refuses one, because the tailored recalibration would differ from the
+  original by the design as well as the tailoring; and
+  [`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
+  refuses an explanatory comparison fit, whose resolved copies would
+  either be forced equal by the design or estimated without it. The
+  parallel scree reference now analyses each simulated draw under the
+  model that was fitted, where an explanatory calibration was previously
+  compared against an unrestricted refit.
+- Simulation plants what it records. An item named as the second element
+  of several dependence pairs now carries every one of them, where a
+  later pair regenerated the item and erased the earlier dependence; a
+  dichotomous item cannot be disordered, so the request is refused with
+  a warning instead of recorded as planted; and a set or group unit
+  ratio must be 1 when there is only one set or group, since a ratio
+  between frames cannot be planted in a single frame.
+- A failed plot export no longer closes the caller’s graphics device: it
+  closes only a device it opened itself. Item names that sanitise to the
+  same file stem now keep separate files, where the later plot silently
+  overwrote the earlier and the export still looked complete.
+- [`plot_pcc()`](https://drjoshmcgrane.github.io/rasch/reference/plot_pcc.md)
+  draws the person characteristic curve from the fitted model’s own
+  expectations. For a polytomous, many-facet, or explanatory fit it
+  previously drew a dichotomous logistic curve, which ignores the
+  thresholds and the frame’s units; the curve is now the expected
+  proportion of the maximum score across the fitted item locations, and
+  a dichotomous fit with a common discrimination keeps its exact
+  logistic form.
+- Selection can no longer alter a multiplicity family in silence.
+  Duplicate items, objects, contrast names, and contrast cells are
+  refused, because a repeated hypothesis quietly changes the Holm
+  adjustment; a grouping given to the DIF family must name fitted
+  factors or supply one value per person, rather than being recycled
+  into a grouping the fit never contained; dimensionality subsets must
+  be free of duplicates and disjoint; and a person-factor frame must
+  carry unique, non-empty names whichever input branch assembles it.
+- Sustained adversarial review closed the remaining input and display
+  boundaries. Role selection is unambiguous in
+  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  and
+  [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
+  alike: a vector as long as the person count is read by value even when
+  its labels collide with column names, and a vector whose values match
+  a data column exactly is refused, with `items` named as the
+  resolution, where an item whose responses happened to agree with a
+  role vector was previously dropped from the fit without notice. A
+  repeated-measures identifier must carry one entry per fitted row: a
+  short vector was recycled, understating the sampling units and
+  changing every test in the DIF table. A person with a missing or blank
+  frame group is refused rather than expanded into rows missing from
+  every set. Reshaping refuses missing or blank person identifiers and
+  occasions and requires one existing column name for the person and
+  occasion; paired comparisons, frame-adjusted comparisons, and
+  many-facet data refuse blank objects, judges, panels, persons, items,
+  and facet levels, since a whitespace label is not a level but was
+  calibrated as one; and every stated flag must be TRUE or FALSE.
+  Display controls are checked before anything is drawn: an evaluation
+  grid needs at least two finite locations, class intervals and bins
+  must be whole numbers, limits must be two finite ascending values,
+  label sizes and colour caps must be positive and finite,
+  single-person, single-item, and single-facet displays take exactly one
+  name, and limits admitting no thresholds report an empty range instead
+  of drawing an empty panel. Batch plot exports and the HTML report name
+  the plots they could not draw, where a file was previously written
+  with the failures omitted; a batch in which nothing could be drawn is
+  now an error rather than a returned path to an archive that was never
+  created, and the archive is confirmed on disk before the path is
+  returned. Export device dimensions are validated before any device is
+  opened.
 - The observed points of a paired-comparison ICC no longer abort the
   display when every comparator falls below the informativeness
   threshold; the model curve and the omission note draw on their own.

@@ -5,13 +5,7 @@ Plot category probability curves
 ## Usage
 
 ``` r
-plot_ccc(
-  fit,
-  item,
-  grid = seq(-6, 6, 0.05),
-  observed = FALSE,
-  n_groups = fit$n_groups
-)
+plot_ccc(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE, n_groups = NULL)
 ```
 
 ## Arguments
@@ -36,7 +30,9 @@ plot_ccc(
 
 - n_groups:
 
-  Class intervals for the observed points.
+  Class intervals for the observed points; by default the fit's own
+  allocation for this item, so the points match the item-trait test they
+  illustrate.
 
 ## Value
 
