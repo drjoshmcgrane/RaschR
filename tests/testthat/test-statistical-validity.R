@@ -561,8 +561,11 @@ test_that("EFRM group linkage requires shared items, not shared set labels", {
     X[grp == unique(grp)[1], s[half]] <- NA
     X[grp == unique(grp)[2], s[-half]] <- NA
   }
+  # the groups are given by value and the data carries an identical
+  # `group` column, so the item columns are named explicitly: this test is
+  # about linkage, not about resolving that ambiguity
   expect_error(
-    rasch_efrm(X, item_sets = tr$item_sets, groups = grp),
+    rasch_efrm(X, item_sets = tr$item_sets, groups = grp, items = items),
     "not linked|unidentified")
 })
 
