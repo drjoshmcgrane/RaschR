@@ -17,7 +17,10 @@
         inherits(project$base_fit, "rasch_btl")))
     fail("the analysis file does not contain a fitted rasch model")
   if (!is.null(project$model_type)) {
-    if (length(project$model_type) != 1L || is.na(project$model_type) ||
+    # a factor would pass the membership test and then reach switch() as its
+    # integer code, selecting a branch by level order
+    if (!is.character(project$model_type) ||
+        length(project$model_type) != 1L || is.na(project$model_type) ||
         !(project$model_type %in% c("rasch", "mfrm", "efrm", "btl")))
       fail("the analysis file names an unsupported model type")
     expected_class <- switch(project$model_type,

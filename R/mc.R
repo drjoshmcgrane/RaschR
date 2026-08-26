@@ -23,6 +23,12 @@
 .resolve_key <- function(key) {
   if (is.data.frame(key) && all(c("item", "option", "score") %in% names(key))) {
     key$item <- as.character(key$item)
+    # a row with no item names no item: split() would file it under a
+    # phantom group and the real item would be left unscored
+    blank_item <- is.na(key$item) | !nzchar(trimws(key$item))
+    if (any(blank_item))
+      stop("missing or blank item name in the scoring table (row(s) ",
+           paste(which(blank_item), collapse = ", "), ")")
     key$option <- trimws(toupper(as.character(key$option)))
     # an option nobody can have chosen scores its item zero for everyone,
     # and the item is then dropped as constant under a misleading message

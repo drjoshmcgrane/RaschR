@@ -1055,7 +1055,9 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   repeated_person <- FALSE
   if (!is.null(fit$person$id)) {
     idv <- as.character(fit$person$id)
-    seen <- !is.na(grp)
+    # an unknown identifier is not a shared one: counting the missing ones
+    # as repeats withholds every standard error and test in the table
+    seen <- !is.na(grp) & !is.na(idv)
     repeated_person <- anyDuplicated(idv[seen]) > 0L
     if (repeated_person)
       notes <- c(notes, paste(

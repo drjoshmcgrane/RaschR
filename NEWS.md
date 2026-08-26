@@ -58,14 +58,18 @@
   than failing on an impossible vector length.
 * A missing person identifier is unknown, not shared. The DIF family no
   longer reads missing identifiers as repeats -- which declared a
-  repeated-measures design and changed every test -- and the tailored
-  bootstrap resamples each unidentified row as its own person rather than
-  clustering them into one.
-* A multiple-choice scoring table refuses a missing or blank option, and a
-  key refuses a blank value; both had scored their item zero throughout
+  repeated-measures design and changed every test, and in `dif_size()`
+  withheld every standard error and Wald test in the table -- and the
+  tailored bootstrap resamples each unidentified row as its own person
+  rather than clustering them into one. A genuinely repeated design still
+  withholds its Wald inference.
+* A multiple-choice scoring table refuses a missing or blank item name as
+  well as a missing or blank option, and a key refuses a blank value; both had scored their item zero throughout
   and then dropped it as constant under a misleading message. A saved
-  analysis file that declares more than one model type is reported as
-  unsupported instead of failing inside a length-one condition.
+  analysis file that declares a model type that is not one character value
+  -- several, missing, or a factor whose integer code would select a
+  branch by level order -- is reported as unsupported instead of failing
+  inside a length-one condition.
 * External person factors supplied as a data frame are checked for
   constancy within person exactly as named columns are, instead of the
   first row's value being kept. A frame group given by value no longer

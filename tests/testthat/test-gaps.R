@@ -2029,3 +2029,50 @@ test_that("ties, keys, identifiers and project files are read faithfully", {
                "unsupported model type")
   expect_no_error(.validate_app_project(mk("rasch")))
 })
+
+test_that("unknown identifiers and blank key items do not stand in for data", {
+  # a polytomous key row with no item names no item
+  set.seed(401)
+  resp <- matrix(sample(c("A", "B", "C"), 400 * 3, TRUE), 400, 3)
+  colnames(resp) <- paste0("Q", 1:3)
+  expect_error(rasch(resp, key = data.frame(
+    item = c("Q1", "", "Q3"), option = c("A", "A", "C"),
+    score = c(1, 1, 1))), "missing or blank item name")
+  expect_error(rasch(resp, key = data.frame(
+    item = c("Q1", NA, "Q3"), option = c("A", "A", "C"),
+    score = c(1, 1, 1))), "missing or blank item name")
+  expect_equal(nrow(rasch(resp, key = data.frame(
+    item = c("Q1", "Q2", "Q3"), option = c("A", "A", "C"),
+    score = c(1, 1, 1)))$items), 3L)
+
+  # several unknown identifiers are not one repeated person
+  set.seed(402)
+  N <- 400
+  X <- matrix(rbinom(N * 6, 1, plogis(outer(rnorm(N),
+    seq(-1, 1, length.out = 6), "-"))), N, 6)
+  colnames(X) <- paste0("I", 1:6)
+  ids <- sprintf("P%03d", 1:N); ids[c(5, 50, 120, 300)] <- NA
+  d <- data.frame(id = ids, X, grp = rep(c("a", "b"), N / 2))
+  ds <- dif_size(rasch(d, id = "id", factors = "grp"), "I2", by = "grp")
+  expect_false(any(grepl("repeat across response rows",
+                         ds$notes %||% character(0))))
+  expect_true(all(is.finite(ds$pairs$se)))
+  # a genuinely repeated design still withholds its Wald inference
+  dd <- data.frame(pid = rep(sprintf("P%03d", 1:200), 2),
+                   t = rep(1:2, each = 200))
+  set.seed(403)
+  for (j in 1:6) dd[[paste0("Q", j)]] <- rbinom(400, 1, 0.5)
+  st <- stack_data(dd, "pid", "t", paste0("Q", 1:6))
+  fs <- rasch(st, id = "id", factors = "time", items = paste0("Q", 1:6))
+  expect_true(any(grepl("repeat across response rows",
+                        dif_size(fs, "Q2", by = "time")$notes)))
+
+  # a declared model type is a character scalar, not a factor code
+  f0 <- rasch(X)
+  mk <- function(mt) list(format = "rasch-shiny-project", schema = 1L,
+                          data = as.data.frame(X), base_fit = f0,
+                          model_type = mt)
+  expect_error(.validate_app_project(mk(factor("rasch"))),
+               "unsupported model type")
+  expect_no_error(.validate_app_project(mk("rasch")))
+})
