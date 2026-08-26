@@ -88,6 +88,10 @@
   for (nm in setdiff(names(meta), reserved)) {
     if (is.character(meta[[nm]]) || is.logical(meta[[nm]]))
       meta[[nm]] <- factor(meta[[nm]])
+    # a level no item carries -- after a subset, a drop, or simply a level
+    # the predictor table declares and never uses -- contributes an
+    # all-zero column and makes an identified design look rank-deficient
+    else if (is.factor(meta[[nm]])) meta[[nm]] <- droplevels(meta[[nm]])
   }
   model_meta <- meta
   for (nm in setdiff(names(model_meta), reserved))
@@ -203,7 +207,8 @@
        lambda = lambda)
 }
 
-.btl_explanatory_design <- function(predictors, formula, objects) {
+.btl_explanatory_design <- function(predictors, formula, objects,
+                                    known = objects) {
   if (!is.data.frame(predictors) || !"object" %in% names(predictors))
     stop("`predictors` must be a data frame with an `object` column")
   if (!inherits(formula, "formula") || length(formula) != 2L)
@@ -214,14 +219,20 @@
   missing <- setdiff(objects, predictors$object)
   if (length(missing))
     stop("object predictors are missing: ", paste(missing, collapse = ", "))
-  extra <- setdiff(predictors$object, objects)
+  # a predictor row for an object the comparisons never mention is an error;
+  # a row for an object that WAS compared but was set aside at a response
+  # boundary is not, and is simply not part of the design
+  extra <- setdiff(predictors$object, known)
   if (length(extra))
     stop("predictor row(s) for object(s) not present in the comparisons: ",
          paste(extra, collapse = ", "))
   meta <- predictors[match(objects, predictors$object), , drop = FALSE]
-  for (nm in setdiff(names(meta), "object"))
+  for (nm in setdiff(names(meta), "object")) {
     if (is.character(meta[[nm]]) || is.logical(meta[[nm]]))
       meta[[nm]] <- factor(meta[[nm]])
+    # a level no calibrated object carries would add an all-zero column
+    else if (is.factor(meta[[nm]])) meta[[nm]] <- droplevels(meta[[nm]])
+  }
   model_meta <- meta
   for (nm in setdiff(names(model_meta), "object"))
     if (is.ordered(model_meta[[nm]]))
@@ -379,8 +390,15 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
                count = count, order = order, position = position,
                ties = ties, thresholds = thresholds, maxit = maxit, tol = tol)
   reference <- do.call(btl, c(list(data = data), args))
-  design <- .btl_explanatory_design(predictors, formula,
-                                    as.character(reference$objects$object))
+  # objects set aside at a response boundary are not fitted, so centring the
+  # design over them would leave the fitted locations off the sum-zero
+  # origin the model and the reference fit both use
+  all_objects <- as.character(reference$objects$object)
+  calibrated <- all_objects
+  if (!is.null(reference$objects$extreme))
+    calibrated <- calibrated[!reference$objects$extreme %in% TRUE]
+  design <- .btl_explanatory_design(predictors, formula, calibrated,
+                                    known = all_objects)
   fit <- do.call(btl, c(list(data = data), args,
                         list(.object_design = design)))
   fit$reference_fit <- reference
@@ -402,6 +420,8 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
 relax_btl_explanatory <- function(fit, object) {
   if (!inherits(fit, "rasch_btl_explanatory"))
     stop("relax_btl_explanatory() needs an explanatory comparative judgement fit")
+  if (length(object) != 1L || is.na(object) || !nzchar(as.character(object)))
+    stop("`object` must name exactly one object")
   obj_tab <- fit$objects
   if ("extreme" %in% names(obj_tab)) {
     at <- match(object, obj_tab$object)
@@ -693,6 +713,9 @@ explanatory_test <- function(fit) {
 #'   table records the withholding.
 #' @export
 explanatory_diagnostics <- function(fit, p_adjust = "holm") {
+  if (!is.character(p_adjust) || length(p_adjust) != 1L ||
+      is.na(p_adjust))
+    stop("`p_adjust` must name one method in stats::p.adjust.methods")
   if (inherits(fit, "rasch_btl_explanatory")) {
     if (!p_adjust %in% stats::p.adjust.methods)
       stop("p_adjust must name a method in stats::p.adjust.methods")
@@ -797,6 +820,8 @@ relax_explanatory <- function(fit, item,
                               component = c("location", "thresholds")) {
   if (!inherits(fit, "rasch_explanatory"))
     stop("relax_explanatory() needs an explanatory Rasch fit")
+  if (length(item) != 1L || is.na(item) || !nzchar(as.character(item)))
+    stop("`item` must name exactly one item")
   component <- match.arg(component)
   D <- .explanatory_candidate(fit, item, component)
   add <- .explanatory_addable(fit$est$B, D)
@@ -855,8 +880,16 @@ relax_explanatory <- function(fit, item,
 
 .explanatory_refit_modified <- function(fit, source, inherit = NULL,
                                         location_relaxed = character(0),
-                                        fully_relaxed = character(0)) {
+                                        fully_relaxed = character(0),
+                                        person_rows = NULL) {
   source <- as.matrix(source)
+  # a source holding a SUBSET of the fitted persons must carry the matching
+  # identifiers and person factors: passing the full-length vectors would
+  # fail on row alignment, and every caller catching that error would report
+  # a failure whose cause is invisible
+  if (is.null(person_rows)) person_rows <- seq_len(nrow(source))
+  if (length(person_rows) != nrow(source))
+    stop("`person_rows` must give one fitted row per row of `source`")
   new_items <- colnames(source)
   old_items <- colnames(fit$X)
   if (is.null(inherit))
@@ -895,7 +928,9 @@ relax_explanatory <- function(fit, item,
   spec <- fit$refit_spec
   out <- rasch_explanatory(source, predictors = pred,
     formula = fit$explanatory$formula, level = level,
-    id = fit$person$id, factors = fit$factors,
+    id = fit$person$id[person_rows],
+    factors = if (is.null(fit$factors)) NULL else
+      fit$factors[person_rows, , drop = FALSE],
     n_groups = spec$n_groups %||% fit$n_groups,
     adjust_N = spec$adjust_N %||% NA_real_, maxit = spec$maxit %||% 60,
     tol = spec$tol %||% 1e-8)

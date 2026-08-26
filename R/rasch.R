@@ -213,7 +213,8 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   n_groups_requested <- n_groups
   # name for a factors= vector passed by value (not by column name)
   .factors_sym <- substitute(factors)
-  .factors_label <- if (is.name(.factors_sym)) as.character(.factors_sym) else "factor"
+  .factors_label <- if (is.name(.factors_sym))
+    as.character(.factors_sym) else "factor"
   model <- match.arg(model)
   # adjust_N rescales the item-trait chi-square by (reference N / classified
   # N); a non-positive or infinite reference would zero, negate, or blow up
@@ -266,8 +267,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     # grouping vector passed by value. A short non-matching character input
     # remains a misspelled-column error rather than silently changing modes.
     factors_are_cols <- is.character(factors) &&
-      (length(factors) == 0L || all(factors %in% nm) ||
-         length(factors) != nrow(data))
+      length(factors) != nrow(data)
     factors_by_value <- !is.null(factors) && is.atomic(factors) &&
       !factors_are_cols
     if (factors_are_cols) {
@@ -275,11 +275,18 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
       if (length(miss))
         stop("factor column(s) not found in the data: ",
              paste(miss, collapse = ", "))
+      if (anyDuplicated(factors))
+        stop("factor column(s) named more than once: ",
+             paste(unique(factors[duplicated(factors)]), collapse = ", "))
       fac_df <- data[, factors, drop = FALSE]
     } else if (is.data.frame(factors)) {
       if (nrow(factors) != nrow(data))
         stop("`factors` data frame has ", nrow(factors), " rows but the data ",
              "has ", nrow(data), " rows")
+      if (anyDuplicated(names(factors)))
+        stop("duplicate factor column name(s): ",
+             paste(unique(names(factors)[duplicated(names(factors))]),
+                   collapse = ", "))
       fac_df <- factors
     } else if (factors_by_value) {
       # a factors= grouping vector passed by VALUE (not by column name):
@@ -305,15 +312,26 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
       nm[vapply(data, function(col)
         length(col) == length(id) && isTRUE(all.equal(
           as.character(col), as.character(id))), logical(1))] else NULL
-    drop_cols <- c(if (id_is_col) id else val_id_cols,
+    # a data column identical to a by-value role vector may be that same
+    # variable, or a genuine item whose responses happen to agree. Deciding
+    # silently risks the wrong analysis either way -- a real item would
+    # vanish from the fit -- so an ambiguous match is refused unless items=
+    # states which columns are items (the rule rasch_efrm() applies)
+    val_matched <- unique(c(val_id_cols, val_factor_cols))
+    if (is.null(items) && length(val_matched))
+      stop("data column(s) identical to a supplied role vector: ",
+           paste(val_matched, collapse = ", "),
+           ". If they are the same variable, drop them from the data or ",
+           "name the item columns with items=; a genuine item identical ",
+           "to a role must be listed in items=")
+    drop_cols <- c(if (id_is_col) id else NULL,
                    if (factors_are_cols) factors else NULL,
                    # an externally supplied factor data frame whose column
                    # names also appear in `data` almost certainly refers to
                    # those columns: without this they would silently become
                    # numeric ITEMS
                    if (is.data.frame(factors))
-                     intersect(names(factors), nm) else NULL,
-                   val_factor_cols)
+                     intersect(names(factors), nm) else NULL)
     # identifier-named columns must never be silently SCORED as items: the
     # stacked/racked reshapes emit id/row_id/time columns, and calling
     # rasch(stacked) without id = "id" would otherwise rescore a numeric
@@ -472,6 +490,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
             " iterations: estimates, standard errors, fit statistics, and ",
             "p-values are unreliable -- increase maxit or check the data ",
             "for unanswerable structure", call. = FALSE)
+  .check_factor_frame(fac_df)
   fit <- .assemble_fit(model, X, est, id_vec, fac_df, n_groups, adjust_N,
                        c(prep$notes, est$notes))
   fit$mc <- mc

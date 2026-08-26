@@ -5,21 +5,64 @@
 # Shiny app zips the resulting folder for its "download everything" button.
 # ===========================================================================
 
+# A file stem drops the characters a file system cannot carry, which can map
+# two different item names onto one file: the later plot would overwrite the
+# earlier and the export would still look complete. Disambiguate after
+# sanitising so every plot keeps its own file.
+# Device dimensions are opened before anything is drawn: an invalid size
+# fails every plot in a batch, which is a caller error worth stating once
+# rather than reporting as many drawing failures.
+.check_pos_num <- function(x, name) {
+  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
+    stop("`", name, "` must be one positive finite value", call. = FALSE)
+  invisible(x)
+}
+
+.check_out_path <- function(x, name) {
+  if (length(x) != 1L || !is.character(x) || is.na(x) || !nzchar(trimws(x)))
+    stop("`", name, "` must be one non-missing path", call. = FALSE)
+  invisible(x)
+}
+
+.check_device_size <- function(width, height, dpi) {
+  .check_pos_num(width, "width")
+  .check_pos_num(height, "height")
+  .check_pos_num(dpi, "dpi")
+  invisible(TRUE)
+}
+
+.rr_safe_stem <- function(x) {
+  s <- gsub("[^A-Za-z0-9_.-]", "_", as.character(x))
+  make.unique(s, sep = "_")
+}
+
 .rr_device <- function(path, fmt, width, height, dpi) {
   if (fmt == "png") png(path, width = width, height = height, units = "in", res = dpi)
   else pdf(path, width = width, height = height)
 }
 
 .rr_save_plot <- function(expr, stem, dir, formats, width, height, dpi) {
+  .check_device_size(width, height, dpi)
   files <- character(0)
   for (fmt in formats) {
     path <- file.path(dir, paste0(stem, ".", fmt))
+    # close only a device this call opened: if the device itself failed to
+    # open, dev.off() would close the caller's device instead
+    before <- grDevices::dev.cur()
     ok <- tryCatch({
       .rr_device(path, fmt, width, height, dpi)
       force(expr())
       dev.off()
       TRUE
-    }, error = function(e) { try(dev.off(), silent = TRUE); FALSE })
+    }, error = function(e) {
+      if (!identical(grDevices::dev.cur(), before))
+        try(dev.off(), silent = TRUE)
+      # an omitted display must not pass silently for an export the user
+      # will treat as complete
+      warning("plot '", stem, "' could not be drawn: ",
+              conditionMessage(e), call. = FALSE)
+      FALSE
+    })
     if (ok) files <- c(files, path)
   }
   files
@@ -27,28 +70,58 @@
 
 # One plot per element, to a multi-page PDF or a ZIP of PNGs by extension.
 .rr_plot_batch <- function(thunks, names, stem, file, width, height, dpi) {
+  .check_out_path(file, "file")
   ext <- tolower(tools::file_ext(file))
   if (!grepl("^(/|[A-Za-z]:)", file)) file <- file.path(getwd(), file)
+  .check_device_size(width, height, dpi)
+  failed <- character(0)
   if (ext == "pdf") {
     pdf(file, width = width, height = height, onefile = TRUE)
-    on.exit(dev.off(), add = TRUE)
-    for (f in thunks) tryCatch(f(), error = function(e) invisible())
+    drawn <- 0L
+    tryCatch({
+      for (j in seq_along(thunks))
+        tryCatch({ thunks[[j]](); drawn <- drawn + 1L },
+                 error = function(e) failed <<- c(failed, names[j]))
+    }, finally = dev.off())
+    # a file the caller would treat as the export must not be returned when
+    # nothing was drawn into it
+    if (!drawn) {
+      unlink(file)
+      stop("no plots could be drawn, so no file was created: ",
+           paste(failed, collapse = ", "), call. = FALSE)
+    }
   } else if (ext == "zip") {
     dir <- tempfile("rasch_plots_"); dir.create(dir)
     on.exit(unlink(dir, recursive = TRUE), add = TRUE)
     paths <- character(0)
+    safe <- .rr_safe_stem(names)
     for (j in seq_along(thunks)) {
-      p <- file.path(dir, paste0(stem, "_",
-                                 gsub("[^A-Za-z0-9_.-]", "_", names[j]), ".png"))
+      p <- file.path(dir, paste0(stem, "_", safe[j], ".png"))
+      before <- grDevices::dev.cur()
       ok <- tryCatch({
         png(p, width = width, height = height, units = "in", res = dpi)
         thunks[[j]](); dev.off(); TRUE
-      }, error = function(e) { try(dev.off(), silent = TRUE); FALSE })
+      }, error = function(e) {
+        if (!identical(grDevices::dev.cur(), before))
+          try(dev.off(), silent = TRUE)
+        failed <<- c(failed, names[j]); FALSE })
       if (ok) paths <- c(paths, p)
     }
+    if (!length(paths))
+      stop("no plots could be drawn, so no archive was created: ",
+           paste(failed, collapse = ", "), call. = FALSE)
+    # zip() ADDS to an existing archive: without this the returned path
+    # would carry plots from an earlier call and read as this call's set
+    unlink(file)
     wd <- getwd(); setwd(dir); on.exit(setwd(wd), add = TRUE)
-    utils::zip(file, files = basename(paths), flags = "-q9X")
+    status <- utils::zip(file, files = basename(paths), flags = "-q9X")
+    setwd(wd)
+    if (!isTRUE(as.integer(status) == 0L) || !file.exists(file))
+      stop("the plot archive could not be created at ", file, call. = FALSE)
   } else stop("`file` must end in .pdf or .zip")
+  if (length(failed))
+    warning("plot(s) could not be drawn and were omitted: ",
+            paste(failed, collapse = ", "), call. = FALSE)
   invisible(file)
 }
 
@@ -190,13 +263,16 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
     sp(function() plot_btl_transitivity(tr), "transitivity")
   if (inherits(fit, "rasch_btl_efrm"))
     sp(function() plot_btl_units(fit), "frame_units")
-  if (object_plots) for (ob in fit$objects$object) local({
-    object <- ob
-    files <<- c(files, .rr_save_plot(
-      function() plot_btl_icc(fit, object),
-      paste0(gsub("[^A-Za-z0-9_.-]", "_", object), "_icc"),
-      odir, formats, width, height, dpi))
-  })
+  if (object_plots) {
+    obs <- fit$objects$object
+    osafe <- .rr_safe_stem(obs)
+    for (j in seq_along(obs)) local({
+      object <- obs[j]; s_ <- osafe[j]
+      files <<- c(files, .rr_save_plot(
+        function() plot_btl_icc(fit, object),
+        paste0(s_, "_icc"), odir, formats, width, height, dpi))
+    })
+  }
   invisible(files)
 }
 
@@ -226,6 +302,12 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
+  # everything is checked before a directory is made or a table written: a
+  # bad plot size otherwise leaves a populated folder that reads as a
+  # complete export but carries no plots
+  .check_out_path(dir, "dir")
+  .check_device_size(width, height, dpi)
+  .check_flag(item_plots, "item_plots")
   if (inherits(fit, "rasch_btl"))
     return(.save_btl_outputs(fit, dir, formats, width, height, dpi,
                              object_plots = item_plots))
@@ -311,8 +393,10 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   if (inherits(fit, "rasch_mfrm")) {
     wtab(fit$item_effects, "item_effects")
     wtab(fit$item_thresholds, "item_structural_thresholds")
-    for (f in fit$facet_spec)
-      wtab(fit$facet_effects[[f]], paste0("facet_", gsub("[^A-Za-z0-9_.-]", "_", f)))
+    fsafe <- .rr_safe_stem(fit$facet_spec)
+    for (j in seq_along(fit$facet_spec))
+      wtab(fit$facet_effects[[fit$facet_spec[j]]],
+           paste0("facet_", fsafe[j]))
     if (!is.null(fit$interaction_effects)) {
       wtab(fit$interaction_test, "interaction_omnibus_test")
       wtab(fit$interaction_effects, "item_by_facet_interactions")
@@ -404,34 +488,41 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     "response_cell_residual_distribution" else "item_residual_distribution")
   sp(function() plot_resid_dist(fit, "persons"), "person_residual_distribution")
   if (inherits(fit, "rasch_mfrm")) {
-    for (f in fit$facet_spec) local({
-      f_ <- f
+    fsafe <- .rr_safe_stem(fit$facet_spec)
+    for (j in seq_along(fit$facet_spec)) local({
+      f_ <- fit$facet_spec[j]; s_ <- fsafe[j]
       sp(function() plot_facets(fit, f_),
-         paste0("facet_severities_", gsub("[^A-Za-z0-9_.-]", "_", f_)))
+         paste0("facet_severities_", s_))
     })
   }
   if (inherits(fit, "rasch_efrm")) {
     sp(function() plot_frames(fit), "frame_units")
-    if (item_plots) for (it in unique(fit$virtual_map$item)) local({
-      it_ <- it
-      files <<- c(files, .rr_save_plot(function() plot_icc_frames(fit, it_),
-        paste0(gsub("[^A-Za-z0-9_.-]", "_", it_), "_icc_frames"),
-        idir, formats, width, height, dpi))
-    })
+    if (item_plots) {
+      vit <- unique(fit$virtual_map$item)
+      vsafe <- .rr_safe_stem(vit)
+      for (j in seq_along(vit)) local({
+        it_ <- vit[j]; s_ <- vsafe[j]
+        files <<- c(files, .rr_save_plot(function() plot_icc_frames(fit, it_),
+          paste0(s_, "_icc_frames"), idir, formats, width, height, dpi))
+      })
+    }
   }
 
   # --- per-item plots ------------------------------------------------------------
   if (item_plots && !is.null(fit$mc)) {
-    for (it in colnames(fit$mc$raw)) local({
-      it_ <- it
+    mcit <- colnames(fit$mc$raw)
+    mcsafe <- .rr_safe_stem(mcit)
+    for (j in seq_along(mcit)) local({
+      it_ <- mcit[j]; s_ <- mcsafe[j]
       files <<- c(files, .rr_save_plot(function() plot_distractors(fit, it_),
-        paste0(gsub("[^A-Za-z0-9_.-]", "_", it_), "_options"),
-        idir, formats, width, height, dpi))
+        paste0(s_, "_options"), idir, formats, width, height, dpi))
     })
   }
   if (item_plots) {
-    for (it in fit$items$item) {
-      safe <- gsub("[^A-Za-z0-9_.-]", "_", it)
+    safe_items <- .rr_safe_stem(fit$items$item)
+    for (j in seq_along(fit$items$item)) {
+      it <- fit$items$item[j]
+      safe <- safe_items[j]
       files <- c(files,
         .rr_save_plot(function() plot_icc(fit, it),
                       paste0(safe, "_icc"), cdir, formats, width, height, dpi),
@@ -550,14 +641,28 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' @export
 report_html <- function(fit, file, title = "Rasch measurement analysis",
                         dpi = 150) {
+  # a vector title would be pasted into as many documents as it has entries,
+  # and a non-positive dpi can take the graphics device down with the
+  # session rather than raising a catchable error
+  .check_out_path(file, "file")
+  if (length(title) != 1L || !is.character(title) || is.na(title))
+    stop("`title` must be one non-missing title")
+  .check_pos_num(dpi, "dpi")
   tmp <- tempfile("rmtplots"); dir.create(tmp)
   on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
   shot <- function(f, name, w = 9, h = 5.4) {
     path <- file.path(tmp, paste0(name, ".png"))
+    before <- grDevices::dev.cur()
     ok <- tryCatch({
       png(path, width = w, height = h, units = "in", res = dpi)
       f(); dev.off(); TRUE
-    }, error = function(e) { try(dev.off(), silent = TRUE); FALSE })
+    }, error = function(e) {
+      # close only a device this call opened, never the caller's
+      if (!identical(grDevices::dev.cur(), before))
+        try(dev.off(), silent = TRUE)
+      warning("report plot '", name, "' could not be drawn: ",
+              conditionMessage(e), call. = FALSE)
+      FALSE })
     if (!ok) return("")
     sprintf("<img src='data:image/png;base64,%s' alt='%s'/>", .b64(path), name)
   }
@@ -587,7 +692,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   fit_unit <- if (structural) "Response-cell" else "Item"
   separation_unit <- if (structural) "response-cell" else "item"
   summ <- s(
-    sprintf("<p>Pairwise conditional estimation %s in %d iterations. ",
+    sprintf("<p>%s %s in %d iterations. ",
+            .html_escape(.estimation_label(fit)),
             if (isTRUE(fit$est$converged)) "converged" else "did <b>not</b> converge",
             fit$est$iterations),
     sprintf("Total %s-trait chi-square %.2f on %d df (p = %s). ",
@@ -797,6 +903,9 @@ report_document <- function(fit, file,
                             title = "Rasch measurement analysis") {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
+  .check_out_path(file, "file")
+  if (length(title) != 1L || !is.character(title) || is.na(title))
+    stop("`title` must be one non-missing title")
   format <- match.arg(format)
   ext <- tolower(tools::file_ext(file))
   if (format == "auto") {

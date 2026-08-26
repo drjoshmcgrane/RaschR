@@ -130,6 +130,9 @@
 #' @export
 distractor_analysis <- function(fit, items = NULL, min_n = 10) {
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
+  min_n <- .check_whole(min_n, "min_n", 1)
+  if (!is.null(items) && !length(items))
+    stop("`items` must name at least one item")
   raw <- fit$mc$raw; map <- fit$mc$map
   if (is.null(items)) items <- colnames(raw)
   unknown <- setdiff(items, colnames(raw))
@@ -194,6 +197,8 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
 #' plot_distractors(fit, "M3")
 #' @export
 plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
+  if (length(item) != 1L) stop("`item` must name exactly one item")
+  n_groups <- .check_whole(n_groups, "n_groups", 2)
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
   if (!item %in% colnames(fit$mc$raw)) stop("no such keyed item: ", item)
   r <- fit$mc$raw[, item]
@@ -277,6 +282,8 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
 #' pr$option_scores
 #' @export
 distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
+  if (length(z) != 1L || !is.numeric(z) || !is.finite(z) || z <= 0)
+    stop("`z` must be one positive finite separation threshold")
   da <- distractor_analysis(fit, items = items, min_n = min_n)
   raw <- fit$mc$raw
   ev <- list(); os <- list()

@@ -263,7 +263,7 @@ test_that("sim_apply counts non-scalar results as failed replicates", {
   out <- sim_apply(list(1, 2), function(x) c(x, x))
   expect_equal(attr(out, "n_failed"), 2L)
   expect_true(all(is.na(out)))
-  expect_match(attr(out, "failure_messages"), "one scalar")
+  expect_match(attr(out, "failure_messages"), "one atomic scalar")
 })
 
 test_that("fits saved before the t rename still print their dependence", {
@@ -504,14 +504,24 @@ test_that("rasch refuses items= that collide with id/factor columns", {
                "named more than once")
 })
 
-test_that("rasch captures a by-value factors vector and excludes its column", {
+test_that("rasch captures a by-value factors vector, refusing an ambiguity", {
   set.seed(7); n <- 200; L <- 6
   d <- seq(-2, 2, length.out = L)
   X <- matrix(rbinom(n * L, 1, plogis(outer(rnorm(n), d, "-"))), n, L)
   colnames(X) <- paste0("I", 1:L)
   grp <- rep(c(1L, 2L), each = n / 2)
+  # a by-value vector with no matching column is captured as it always was
+  f0 <- rasch(as.data.frame(X), model = "PCM", factors = grp)
+  expect_false(is.null(f0$factors))
+  expect_equal(ncol(f0$X), L)
+
+  # a data column with the same values is ambiguous -- it may be that same
+  # variable, or an item whose responses agree -- so it is refused, and
+  # items= states which columns are items
   df <- data.frame(X, group = grp, check.names = FALSE)
-  f <- rasch(df, model = "PCM", factors = grp)
+  expect_error(rasch(df, model = "PCM", factors = grp),
+               "identical to a supplied role vector")
+  f <- rasch(df, model = "PCM", factors = grp, items = paste0("I", 1:L))
   expect_false(is.null(f$factors))
   expect_false("group" %in% colnames(f$X))
   expect_equal(ncol(f$X), L)
@@ -519,13 +529,18 @@ test_that("rasch captures a by-value factors vector and excludes its column", {
   # Character group labels are values, not a long list of column names.
   grp_chr <- rep(c("A", "B"), each = n / 2)
   df$group_chr <- grp_chr
-  fc <- rasch(df, model = "PCM", factors = grp_chr)
+  expect_error(rasch(df, model = "PCM", factors = grp_chr),
+               "identical to a supplied role vector")
+  fc <- rasch(df, model = "PCM", factors = grp_chr,
+              items = paste0("I", 1:L))
   expect_equal(names(fc$factors), "grp_chr")
   expect_false("group_chr" %in% colnames(fc$X))
 
-  # A by-value ID copied from a data column must exclude that column too.
+  # A by-value ID copied from a data column is ambiguous in the same way.
   df$id <- seq_len(n)
-  fi <- rasch(df[, c("id", paste0("I", 1:L))], id = df$id)
+  dfi <- df[, c("id", paste0("I", 1:L))]
+  expect_error(rasch(dfi, id = df$id), "identical to a supplied role vector")
+  fi <- rasch(dfi, id = df$id, items = paste0("I", 1:L))
   expect_equal(fi$person$id, df$id)
   expect_equal(colnames(fi$X), paste0("I", 1:L))
 })

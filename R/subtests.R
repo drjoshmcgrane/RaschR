@@ -40,6 +40,11 @@
 #' @export
 combine_items <- function(fit, groups, model = "PCM") {
   if (!inherits(fit, "rasch")) stop("combine_items needs a rasch fit")
+  if (is.character(groups) && length(groups)) groups <- list(groups)
+  if (!is.list(groups) || !length(groups) ||
+      any(!vapply(groups, length, 0L)))
+    stop("`groups` must be item names, or a non-empty list of item groups, ",
+         "each naming at least one item")
   if (inherits(fit, "rasch_mfrm"))
     stop("combine items in the long-format data and refit rasch_mfrm instead")
   if (inherits(fit, "rasch_efrm"))
@@ -70,6 +75,17 @@ combine_items <- function(fit, groups, model = "PCM") {
                collapse = ", "),
          "; choose items answered by the same persons")
   Xn <- cbind(X[, keep, drop = FALSE], do.call(cbind, newcols))
+  # a subtest total spans the SUM of its members' maxima, so a code that
+  # could never collide with a single item's score can fall inside the
+  # superitem's range: applying it there would delete complete responses
+  # and renumber the categories that remain
+  smax <- suppressWarnings(max(vapply(newcols, function(v)
+    max(v, na.rm = TRUE), 0)))
+  all_codes <- (fit$refit_spec %||% list())$na_codes %||% -1
+  dropped_codes <- all_codes[is.finite(smax) & all_codes >= 0 &
+                             all_codes <= smax]
+  sub_codes <- setdiff(all_codes, dropped_codes)
+  if (!length(sub_codes)) sub_codes <- -1
   super_names <- vapply(groups, paste, "", collapse = "+")
   if (anyDuplicated(super_names) || any(super_names %in% keep))
     stop("the generated subtest names duplicate an existing item name")
@@ -80,9 +96,14 @@ combine_items <- function(fit, groups, model = "PCM") {
                  stats::setNames(vapply(groups, `[`, "", 1L), super_names))
     .explanatory_refit_modified(fit, Xn, inherit = inherit,
                                 fully_relaxed = super_names)
-  } else .rasch_refit(fit, Xn, model = model)
+  } else .rasch_refit(fit, Xn, model = model, na_codes = sub_codes)
   if (!isTRUE(refit$est$converged))
     stop("the subtest calibration did not converge; the combined analysis is unavailable")
+  if (length(dropped_codes))
+    refit$notes <- c(refit$notes, paste0(
+      "missing-data code(s) ", paste(dropped_codes, collapse = ", "),
+      " not applied to the subtest scores: they fall inside a subtest's ",
+      "score range, where they would delete complete responses"))
   old_map <- fit$subtest_map %||% list()
   old_binary <- fit$subtest_binary %||% logical(0)
   members <- lapply(groups, function(g) unlist(lapply(g, function(it)
@@ -134,6 +155,7 @@ combine_items <- function(fit, groups, model = "PCM") {
 #'   it; and \code{\link{dif_anova}}, which identifies the items to split.
 #' @export
 split_items <- function(fit, items, by) {
+  if (!length(items)) stop("`items` must name at least one item to split")
   if (!inherits(fit, "rasch")) stop("split_items needs a rasch fit")
   if (inherits(fit, "rasch_mfrm"))
     stop("split items in the long-format data and refit rasch_mfrm instead")

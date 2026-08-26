@@ -199,6 +199,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
                 .object_design = NULL) {
   .check_column_names(data)
   .check_controls(maxit, tol)
+  if (!isTRUE(position) && !isFALSE(position))
+    stop("`position` must be TRUE or FALSE")
   ties <- match.arg(ties)
   thresholds <- match.arg(thresholds)
   data <- as.data.frame(data)
@@ -213,7 +215,13 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     if (!col %in% names(data)) stop("column not found: ", col)
   a <- trimws(as.character(data[[object_a]]))
   b <- trimws(as.character(data[[object_b]]))
-  jd <- if (is.null(judge)) NULL else as.character(data[[judge]])
+  if (any(!is.na(a) & !nzchar(a)) || any(!is.na(b) & !nzchar(b)))
+    stop("blank object identifier(s) in ", object_a, "/", object_b,
+         "; a whitespace-only name is not an object")
+  jd <- if (is.null(judge)) NULL else trimws(as.character(data[[judge]]))
+  if (!is.null(jd) && any(!is.na(jd) & !nzchar(jd)))
+    stop("blank judge identifier(s) in ", judge,
+         "; a whitespace-only name is not a judge")
   # count/order must be read as their labelled values: as.numeric() on a
   # factor returns level codes (1..k in label order), silently replacing
   # the real counts/positions -- coerce through the character labels and
@@ -226,9 +234,10 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   }
   w <- if (is.null(count)) rep(1, nrow(data)) else .num_col(data[[count]], count)
   if (!is.null(count) &&
-      (any(!is.finite(w[!is.na(w)])) || any(w[!is.na(w)] <= 0) ||
+      (any(!is.finite(w[!is.na(w)])) || any(w[!is.na(w)] < 0) ||
        any(w[!is.na(w)] != floor(w[!is.na(w)]))))
-    stop("`", count, "` must hold whole positive replication counts")
+    stop("`", count, "` must hold whole non-negative replication counts; ",
+         "zero-count rows are dropped")
   ord <- if (is.null(order)) NULL else .num_col(data[[order]], order)
   notes <- character(0)
   if (!is.null(anchors)) {
@@ -258,6 +267,13 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
 
   if (!is.null(response)) {
     xr <- data[[response]]
+    # a row with no weight is not data: deriving the response scale before
+    # dropping it would let a zero-count row define the number of
+    # categories, so an otherwise identical model changes its m
+    usable <- !is.na(a) & !is.na(b) & a != b & !is.na(w) & w > 0
+    if (!is.null(jd)) usable <- usable & !is.na(jd)
+    if (!is.null(ord)) usable <- usable & !is.na(ord)
+    xr <- if (is.factor(xr)) droplevels(xr[usable]) else xr[usable]
     if (is.factor(xr)) {
       # a plain factor's alphabetical level order would silently define the
       # response scale (and can reverse it); the order must be explicit
@@ -276,9 +292,11 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
         stop("polytomous responses must be non-negative integers 0..m")
       cats <- as.character(0:max(x, na.rm = TRUE))
     }
-    keep <- !is.na(a) & !is.na(b) & !is.na(x) & a != b & !is.na(w) & w > 0
-    if (!is.null(jd)) keep <- keep & !is.na(jd)
-    if (!is.null(ord)) keep <- keep & !is.na(ord)
+    # x was derived over the usable rows only: expand it back to the full
+    # height so the drop accounting below reports every row once
+    xfull <- rep(NA_integer_, length(usable)); xfull[usable] <- x
+    x <- xfull
+    keep <- usable & !is.na(x)
     if (any(!keep)) {
       notes <- c(notes, sprintf(
         "%d row(s) dropped (missing, zero-count, or self-comparison)",
@@ -509,6 +527,7 @@ print.rasch_btl <- function(x, ...) {
 #' plot_btl(btl(d, "a", "b", "win"))
 #' @export
 plot_btl <- function(fit, band = 2.5) {
+  .check_band(band)
   d <- fit$objects[order(fit$objects$location), ]
   k <- nrow(d)
   xerr <- c(d$location - 1.96 * d$se, d$location + 1.96 * d$se, d$location)
@@ -1376,6 +1395,7 @@ plot_btl <- function(fit, band = 2.5) {
 #' plot_btl_categories(btl(d, "a", "b", response = "grade"))
 #' @export
 plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
+  .check_grid(grid)
   if (is.null(fit$m) || fit$m < 2L)
     stop("category curves need a polytomous fit (three or more categories)")
   tau <- fit$thresholds$tau
@@ -1425,6 +1445,10 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 #' @export
 plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
                          min_n = 10) {
+  if (missing(object) || length(object) != 1L || is.na(object))
+    stop("`object` must name exactly one object")
+  if (!is.null(grid)) .check_grid(grid)
+  min_n <- .check_whole(min_n, "min_n", 1)
   if (inherits(fit, "rasch_btl_efrm")) {
     if (!is.null(group))
       stop("judge-group DIF curves are not defined after a frame adjustment; ",
@@ -1433,6 +1457,7 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     return(.plot_btl_efrm_icc(fit, object, grid = grid, min_n = min_n))
   }
   ob <- fit$objects
+  if (length(object) != 1L) stop("`object` must name exactly one object")
   if (!object %in% ob$object) stop("no such object: ", object)
   if (isTRUE(ob$extreme[ob$object == object]))
     .refuse(object, " was set aside at a response boundary; it has no ",
@@ -1570,6 +1595,7 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
 plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
                                 bins = 6) {
   effect <- match.arg(effect)
+  bins <- .check_whole(bins, "bins", 2)
   dd <- fit$dependence_data
   if (is.null(dd))
     stop("no dependence data: fit btl() with an `order` (and `judge`) column")
@@ -1760,6 +1786,12 @@ btl_dif <- function(fit, factors, objects = NULL,
          "the ordinary residual and resolution models do not carry the ",
          "fitted panel and set units. Examine frame-specific fit, or fit the ",
          "equal-frame BTL model for an explicitly conditional DIF analysis")
+  if (inherits(fit, "rasch_btl_explanatory"))
+    stop("judge-group DIF is not defined for an explanatory comparison fit: ",
+         "the object locations are functions of their covariates, so the ",
+         "resolved copies would either be forced equal by the design -- ",
+         "defining their DIF as zero -- or estimated without it. Fit the ",
+         "unrestricted btl() model for a DIF analysis")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; DIF inference is unavailable")
   effects <- match.arg(effects)
@@ -1774,8 +1806,14 @@ btl_dif <- function(fit, factors, objects = NULL,
   # a single grouping is promoted to a one-factor list; several judge factors
   # are modelled jointly (main effects by default, interactions if asked)
   if (!is.list(factors)) factors <- list(group = factors)
+  if (!length(factors))
+    stop("`factors` must name at least one judge factor")
   if (is.null(names(factors)) || any(!nzchar(names(factors))))
     names(factors) <- paste0("factor", seq_along(factors))
+  if (anyDuplicated(names(factors)))
+    stop("duplicate factor name(s): ",
+         paste(unique(names(factors)[duplicated(names(factors))]),
+               collapse = ", "))
   fnames <- names(factors)
   gvs <- lapply(factors, function(g) {
     if (length(g) == nrow(cm)) as.character(g)
@@ -1820,7 +1858,17 @@ btl_dif <- function(fit, factors, objects = NULL,
   cats <- if (!is.null(fit$categories)) fit$categories else c("0", "1")
   thr <- if (!is.null(fit$thr_structure)) fit$thr_structure else "free"
   tau <- if (!is.null(fit$thresholds)) fit$thresholds$tau else numeric(1)
-  its <- if (is.null(objects)) fit$objects$object else objects
+  its <- if (is.null(objects)) fit$objects$object else {
+    unknown <- setdiff(objects, fit$objects$object)
+    if (length(unknown))
+      stop("object(s) not in the fit: ", paste(unknown, collapse = ", "))
+    if (anyDuplicated(objects))
+      stop("object(s) named more than once: ",
+           paste(unique(objects[duplicated(objects)]), collapse = ", "),
+           "; a repeated object would repeat its tests in the ",
+           "multiplicity family")
+    objects
+  }
   bl <- setNames(fit$objects$location, fit$objects$object)
   jd_all <- if (all(is.na(cm$judge))) NULL else cm$judge
 
@@ -2083,6 +2131,14 @@ btl_dif <- function(fit, factors, objects = NULL,
     }
     rsel <- ok & (!(cm$object_a == ob | cm$object_b == ob) | cell %in% use_lev)
     a2 <- cm$object_a[rsel]; b2 <- cm$object_b[rsel]; c2 <- cell[rsel]
+    made <- paste0(ob, " (", unique(c2[a2 == ob | b2 == ob]), ")")
+    clash <- intersect(made, as.character(fit$objects$object))
+    if (length(clash)) {
+      notes <- c(notes, sprintf(
+        "%s [%s]: the resolved name(s) %s already name object(s) in the fit; magnitude withheld rather than merging them",
+        ob, ttd, paste(clash, collapse = ", ")))
+      next
+    }
     a2 <- ifelse(a2 == ob, paste0(ob, " (", c2, ")"), a2)
     b2 <- ifelse(b2 == ob, paste0(ob, " (", c2, ")"), b2)
     # the refit keeps the fitted dependence structure: the history covariates

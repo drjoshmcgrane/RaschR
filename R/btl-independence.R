@@ -83,6 +83,7 @@
 #' @export
 btl_transitivity <- function(fit, min_triples = 5L) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  min_triples <- .check_whole(min_triples, "min_triples", 1)
   tab <- fit$objects
   if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
   objs <- tab$object; K <- length(objs); m <- fit$m
@@ -709,6 +710,12 @@ plot_btl_dim_map <- function(x, ...) {
 #' judge_surprise(btl(d, "a", "b", "win", judge = "judge"), "J1")
 #' @export
 judge_surprise <- function(fit, judge, min_n = 2L, flag_z = 1.96) {
+  if (length(judge) != 1L || is.na(judge))
+    stop("`judge` must be one judge identifier")
+  min_n <- .check_whole(min_n, "min_n", 1)
+  if (length(flag_z) != 1L || !is.numeric(flag_z) || !is.finite(flag_z) ||
+      flag_z <= 0)
+    stop("`flag_z` must be one positive finite flagging value")
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; judge residuals are unavailable")
@@ -790,6 +797,12 @@ print.rasch_btl_judge <- function(x, ...) {
 #' judge_pair_surprise(btl(d, "a", "b", "win", judge = "judge"), "J1")
 #' @export
 judge_pair_surprise <- function(fit, judge, min_n = 1L, flag_z = 1.96) {
+  if (length(judge) != 1L || is.na(judge))
+    stop("`judge` must be one judge identifier")
+  min_n <- .check_whole(min_n, "min_n", 1)
+  if (length(flag_z) != 1L || !is.numeric(flag_z) || !is.finite(flag_z) ||
+      flag_z <= 0)
+    stop("`flag_z` must be one positive finite flagging value")
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; judge residuals are unavailable")

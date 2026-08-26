@@ -320,6 +320,7 @@
 #' chisq_detail(rasch(X), "I3")$intervals
 #' @export
 chisq_detail <- function(fit, item) {
+  if (length(item) != 1L) stop("`item` must name exactly one item")
   i <- .item_idx(fit, item)
   # per-item interval allocation when the fit carries one (missing data)
   ci <- if (!is.null(fit$ci_item)) fit$ci_item[[i]] else fit$person$class_interval
@@ -365,9 +366,22 @@ chisq_detail <- function(fit, item) {
     }
   }
   it_row <- fit$item_trait[i, ]
+  # with adjust_N the reported chi-square is rescaled to a reference sample
+  # size, so the raw components cannot sum to it. The components stay
+  # standardised (chisq = residual^2) and the rescaled components are given
+  # beside them, so the detail and the item table reconcile.
+  adj_N <- (fit$refit_spec %||% list())$adjust_N %||% NA_real_
+  # the item-trait statistic scales by the GLOBAL classified count, not the
+  # item's own: using the item's would rescale by a different factor and the
+  # components would not sum to the statistic they are quoted beside
+  n_classified <- sum(!is.na(fit$person$class_interval))
+  adj <- if (!is.na(adj_N) && n_classified > 0) adj_N / n_classified else 1
+  iv$chisq_adjusted <- iv$chisq * adj
   list(item = fit$items$item[i], location = fit$items$location[i],
        intervals = iv, categories = cats, ave = mean(x, na.rm = TRUE),
-       chisq = it_row$chisq, df = it_row$df, p = it_row$p)
+       chisq = it_row$chisq, df = it_row$df, p = it_row$p,
+       adjust_factor = adj,
+       chisq_unadjusted = sum(iv$chisq[iv$used], na.rm = TRUE))
 }
 
 # Person separation index (separation reliability; Andrich 1982), with the
@@ -473,7 +487,10 @@ chisq_detail <- function(fit, item) {
       present <- vapply(gsets, function(s)
         rowSums(answered[, sets_of_col == s, drop = FALSE]) > 0L,
         logical(sum(grows)))
-      if (is.null(dim(present))) present <- matrix(present, ncol = 1L)
+      # vapply drops to a vector with one person: the matrix is persons x
+      # sets, and reshaping it as one column would transpose it, so a single
+      # respondent's pattern would name the wrong sets
+      present <- matrix(present, nrow = sum(grows), ncol = length(gsets))
       pat <- .factor_keys(as.data.frame(present, check.names = FALSE))
       for (p in unique(pat)) {
         first <- match(p, pat)
@@ -507,7 +524,8 @@ chisq_detail <- function(fit, item) {
     present <- vapply(cells, function(k)
       rowSums(observed[, cell == k, drop = FALSE]) > 0L,
       logical(nrow(fit$X)))
-    if (is.null(dim(present))) present <- matrix(present, ncol = 1L)
+    # persons x cells, whatever vapply simplified it to (see above)
+    present <- matrix(present, nrow = nrow(fit$X), ncol = length(cells))
     pattern <- .factor_keys(as.data.frame(present, check.names = FALSE))
     blocks <- list()
     for (p in unique(pattern)) {

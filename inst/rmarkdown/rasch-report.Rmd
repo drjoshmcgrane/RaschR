@@ -17,7 +17,19 @@ is_btl <- inherits(fit, "rasch_btl")
 show_table <- function(x, n = 250L, digits = 3L) {
   if (is.null(x) || !NROW(x)) return(invisible(NULL))
   x <- as.data.frame(x)
-  if (nrow(x) > n) x <- x[seq_len(n), , drop = FALSE]
+  # a silently shortened table reads as the whole analysis: say what was cut
+  omitted <- max(0L, nrow(x) - n)
+  if (omitted > 0L) x <- x[seq_len(n), , drop = FALSE]
+  # probabilities take the package's own vocabulary: rounding to three
+  # digits prints an impossible p = 0 for anything below 0.0005
+  fmt_p <- function(v, d = 3) {
+    lim <- 10^-d
+    ifelse(is.finite(v) & v < lim, paste0("< ", format(lim, scientific = FALSE)),
+           ifelse(is.finite(v), sprintf(paste0("%.", d, "f"), v), ""))
+  }
+  pcols <- grep("^p$|^p_|_p$|^p\\.", names(x), value = TRUE)
+  for (cn in pcols)
+    if (is.numeric(x[[cn]])) x[[cn]] <- fmt_p(x[[cn]])
   labels <- c(
     max_raw = "maximum", theta = "location", fit_resid = "fit residual",
     infit_ms = "infit", outfit_ms = "outfit", p_adj = "adjusted p",
@@ -29,7 +41,11 @@ show_table <- function(x, n = 250L, digits = 3L) {
   )
   hit <- intersect(names(labels), names(x))
   names(x)[match(hit, names(x))] <- unname(labels[hit])
-  knitr::kable(x, digits = digits, row.names = FALSE)
+  # the note travels as the table's caption: appending it to the kable
+  # object would strip its class and render the table as raw text
+  cap <- if (omitted > 0L)
+    sprintf("First %d rows shown; %d further row(s) omitted.", n, omitted)
+  knitr::kable(x, digits = digits, row.names = FALSE, caption = cap)
 }
 report_columns <- function(x, columns) {
   if (is.null(x)) return(NULL)

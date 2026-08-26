@@ -170,6 +170,11 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     stop("alpha must be one probability strictly between 0 and 1")
   if (length(p_adjust) != 1L || !p_adjust %in% stats::p.adjust.methods)
     stop("p_adjust must name a method in stats::p.adjust.methods")
+  if (inherits(fit1, "rasch_btl_explanatory") ||
+      inherits(fit2, "rasch_btl_explanatory"))
+    stop("object drift is not defined for an explanatory comparison fit: ",
+         "the object locations are functions of their predictors. Equate ",
+         "the unrestricted calibrations")
   if (!is.null(independent) && (length(independent) != 1L ||
       is.na(independent) || !is.logical(independent)))
     stop("independent must be NULL, TRUE, or FALSE")
@@ -384,12 +389,18 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
 plot_btl_equate <- function(fit1, fit2, ...) {
   eq <- btl_equate(fit1, fit2, ...)
   tab <- eq$table
-  rng <- range(c(tab$location_1, tab$location_2)) + c(-0.4, 0.4)
+  paired <- is.finite(tab$location_1) & is.finite(tab$location_2)
+  if (!any(paired))
+    .refuse("no common object has finite locations in both calibrations; ",
+            "there is nothing to display")
+  rng <- range(c(tab$location_1[paired], tab$location_2[paired])) +
+    c(-0.4, 0.4)
   op <- .rr_canvas(rng, rng, "Calibration 2 location (logits)",
                    "Calibration 1 location (logits)",
                    sprintf("%d common objects, shift %.3f, r = %.3f",
                            eq$n_common, eq$shift,
-                           stats::cor(tab$location_1, tab$location_2)),
+                           stats::cor(tab$location_1, tab$location_2,
+                                      use = "complete.obs")),
                    grid_x = TRUE)
   on.exit(par(op))
   abline(eq$shift, 1, col = .rr$ink, lwd = 2)
@@ -416,12 +427,17 @@ plot_btl_equate <- function(fit1, fit2, ...) {
 #' @export
 print.rasch_btl_equate <- function(x, ...) {
   tab <- x$table
+  paired <- is.finite(tab$location_1) & is.finite(tab$location_2)
   cat(sprintf(paste0("Common-object equating over %d object(s): shift %.3f ",
-                     "(SE %s), correlation %.3f, RMSD %.3f\n"),
+                     "(SE %s), correlation %s, RMSD %s\n"),
               x$n_common, x$shift,
               if (is.finite(x$shift_se)) sprintf("%.3f", x$shift_se) else "withheld",
-              stats::cor(tab$location_1, tab$location_2),
-              sqrt(mean(tab$shifted_difference^2))))
+              if (sum(paired) >= 2) sprintf("%.3f",
+                stats::cor(tab$location_1[paired], tab$location_2[paired]))
+              else "unavailable",
+              if (any(is.finite(tab$shifted_difference))) sprintf("%.3f",
+                sqrt(mean(tab$shifted_difference^2, na.rm = TRUE)))
+              else "unavailable"))
   core <- c("object", "location_1", "location_2", "shifted_difference", "t",
             "p_adj", "drifting")
   print(.fmt_df(tab[, intersect(core, names(tab))]), row.names = FALSE)

@@ -4,13 +4,7 @@
 \alias{plot_ccc}
 \title{Plot category probability curves}
 \usage{
-plot_ccc(
-  fit,
-  item,
-  grid = seq(-6, 6, 0.05),
-  observed = FALSE,
-  n_groups = fit$n_groups
-)
+plot_ccc(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE, n_groups = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
@@ -22,7 +16,9 @@ plot_ccc(
 \item{observed}{Whether to add category proportions by class interval
 (Andrich and Marais 2019, ch. 20).}
 
-\item{n_groups}{Class intervals for the observed points.}
+\item{n_groups}{Class intervals for the observed points; by default the
+fit's own allocation for this item, so the points match the item-trait
+test they illustrate.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.

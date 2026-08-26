@@ -495,9 +495,11 @@ APP_HELP <- c(
     "reference expected under adequate fit."
   ),
   kidmap = paste(
-    "Shows one person's observed responses against the item response curves.",
-    "Unexpected responses appear far from the modelled pattern at that person's",
-    "estimated location."
+    "Places the thresholds the person achieved on one side of their",
+    "estimated location and the thresholds not achieved on the other,",
+    "inside the person's confidence band. Achieved thresholds above the",
+    "band are unexpected successes; unachieved thresholds below it are",
+    "unexpected failures."
   ),
   guttman = paste(
     "Orders items by difficulty and compares the person's responses with a",

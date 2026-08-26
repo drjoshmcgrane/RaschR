@@ -158,6 +158,17 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
     stop("fit must be an ordinary person-by-item Rasch calibration")
   if (inherits(reference, "rasch_efrm") || inherits(reference, "rasch_mfrm"))
     stop("reference must be an ordinary Rasch calibration or item bank")
+  # under an explanatory design an item location is not an item parameter:
+  # items sharing a design cell are forced to one location and carry the
+  # design coefficients' uncertainty, so drift can be neither localised nor
+  # tested at its stated size
+  if (inherits(fit, "rasch_explanatory") ||
+      inherits(reference, "rasch_explanatory"))
+    stop("item drift is not defined for an explanatory calibration: the ",
+         "item locations are functions of their predictors, so a drifted ",
+         "item is smeared over every item sharing its design cell and the ",
+         "standard errors are the design coefficients'. Equate the ",
+         "unrestricted calibrations, or test the design coefficients")
   if (!isTRUE(fit$est$converged))
     stop("the current calibration did not converge; equating is unavailable")
   if (inherits(reference, "rasch") && !isTRUE(reference$est$converged))
@@ -298,11 +309,17 @@ plot_equate <- function(fit, reference, shift = c("mean", "none"),
                         independent = NULL) {
   eq <- equate_tests(fit, reference, shift, independent = independent)
   tab <- eq$table
-  rng <- range(c(tab$location_1, tab$location_2)) + c(-0.4, 0.4)
+  paired <- is.finite(tab$location_1) & is.finite(tab$location_2)
+  if (!any(paired))
+    .refuse("no common item has finite locations in both calibrations; ",
+            "there is nothing to display")
+  rng <- range(c(tab$location_1[paired], tab$location_2[paired])) +
+    c(-0.4, 0.4)
   op <- .rr_canvas(rng, rng, "Reference location (logits)",
                    "Current location (logits)",
                    sprintf("%d common items, shift %.3f, r = %.3f",
-                           eq$n, eq$shift, eq$correlation), grid_x = TRUE)
+                           eq$n_common, eq$shift, eq$correlation),
+                   grid_x = TRUE)
   on.exit(par(op))
   abline(eq$shift, 1, col = .rr$ink, lwd = 2)
   # excluded items (NA SEs) still appear as points, but the average band

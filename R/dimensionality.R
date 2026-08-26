@@ -192,6 +192,7 @@ residual_pca <- function(fit, n_components = 10) {
     P <- probs(i); m <- ncol(P) - 1L
     t(apply(P, 1, cumsum))[, seq_len(m), drop = FALSE]
   })
+  first_error <- NULL
   draws <- lapply(seq_len(reps), function(r) {
     Xr <- X
     for (i in seq_len(L)) {
@@ -200,12 +201,21 @@ residual_pca <- function(fit, n_components = 10) {
     }
     Xr[!obs] <- NA
     colnames(Xr) <- colnames(X)
+    # the reference distribution must be analysed under the model that was
+    # fitted: refitting an explanatory calibration with an unrestricted
+    # rasch() would compare observed eigenvalues against a freer model
     fr <- tryCatch(suppressWarnings(
-      rasch(Xr, model = fit$model, n_groups = fit$n_groups,
-            adjust_N = spec$adjust_N %||% NA_real_,
-            anchors = spec$anchors, pc_components = spec$pc_components,
-            maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
-      error = function(e) NULL)
+      if (inherits(fit, "rasch_explanatory"))
+        .explanatory_refit_modified(fit, Xr, person_rows = which(keep))
+      else
+        rasch(Xr, model = fit$model, n_groups = fit$n_groups,
+              adjust_N = spec$adjust_N %||% NA_real_,
+              anchors = spec$anchors, pc_components = spec$pc_components,
+              maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
+      error = function(e) {
+        if (is.null(first_error)) first_error <<- conditionMessage(e)
+        NULL
+      })
     if (is.null(fr) || !isTRUE(fr$est$converged) || ncol(fr$X) != L)
       return(rep(NA_real_, k))
     tryCatch(residual_pca(fr, n_components = k)$eigenvalues[seq_len(k)],
@@ -213,7 +223,9 @@ residual_pca <- function(fit, n_components = 10) {
   })
   sim <- do.call(rbind, draws)
   if (sum(stats::complete.cases(sim)) < ceiling(reps / 2))
-    stop("fewer than half the full-refit scree replicates were estimable")
+    stop("fewer than half the full-refit scree replicates were estimable",
+         if (!is.null(first_error))
+           paste0("; the first replicate failed with: ", first_error) else "")
   colMeans(sim, na.rm = TRUE)
 }
 
@@ -250,6 +262,7 @@ residual_pca <- function(fit, n_components = 10) {
 #' plot_scree(rasch(X), reps = 10)
 #' @export
 plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
+  .check_flag(parallel, "parallel")
   n_components <- .check_whole(n_components, "n_components", 1)
   reps <- .check_whole(reps, "reps", 1)
   pc <- residual_pca(fit, n_components)
@@ -334,6 +347,15 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
 dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
                                 items_negative = NULL, component = 1,
                                 min_score_points = 15L) {
+  for (side in list(items_positive, items_negative))
+    if (!is.null(side) && anyDuplicated(side))
+      stop("item(s) named more than once in a subset: ",
+           paste(unique(side[duplicated(side)]), collapse = ", "),
+           "; a repeated item would count its score points repeatedly")
+  both <- intersect(items_positive, items_negative)
+  if (length(both))
+    stop("item(s) in both subsets: ", paste(both, collapse = ", "),
+         "; the subsets must be disjoint")
   if (!inherits(fit, "rasch")) stop("dimensionality_test needs a rasch fit")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; the dimensionality test is unavailable")
@@ -488,6 +510,14 @@ dimensionality_magnitude <- function(fit, subtests) {
   S <- length(subtests)
   K <- lengths(subtests)[1L]
   g <- S * (K - 1) / (S * K - 1)
+  # the ratio compares the same calibration with and without the subscale
+  # structure. Under an explanatory design the subtest refit relaxes every
+  # superitem, so the ratio would measure the design restriction instead
+  if (inherits(fit, "rasch_explanatory"))
+    stop("the dimensionality magnitude is not defined for an explanatory ",
+         "calibration: every subtest is freed in the subtest refit, so the ",
+         "reliability ratio would measure the design restriction rather ",
+         "than the subscale structure. Use the unrestricted calibration")
   refit <- combine_items(fit, subtests)
   if (!isTRUE(refit$est$converged))
     stop("the subtest calibration did not converge; dimensionality magnitude is unavailable")

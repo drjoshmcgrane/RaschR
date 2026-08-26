@@ -232,6 +232,13 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     guess[] <- 0
   }
   dis_items <- as_idx(disordered)
+  # a dichotomous item has one threshold and cannot be disordered: planting
+  # it would record a generating feature the data do not carry
+  if (m == 1L && length(dis_items)) {
+    warning("disordered thresholds apply to polytomous items only; ",
+            "ignored for dichotomous data")
+    dis_items <- integer(0)
+  }
   # RSM: one common threshold pattern (per-item location only). PCM: the
   # pattern itself varies across items, as the model allows -- each item's
   # spacings are drawn afresh (gated so the RNG stream of the other models
@@ -304,9 +311,12 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     } else .sim_item(th, tau[[i]], disc[i], guess[i])
   }
   # the model expectation of item i for every person, under the same
-  # generating structure (trait, DIF shift, guessing) the responses used
-  exp_item <- function(i) {
-    th <- if (i %in% dim_items) theta2 else theta
+  # generating structure (trait, DIF shift, guessing) the responses used --
+  # including any dependence carry-over already applied to that item, or in
+  # a chain the residual of the middle item would carry the first pair's
+  # shift as a systematic mean and leak it into the second pair
+  exp_item <- function(i, shift = NULL) {
+    th <- (if (i %in% dim_items) theta2 else theta) + (shift %||% 0)
     E <- vapply(seq_len(N), function(p) {
       pp <- item_pars(i, p)
       sum((0:m) * .p_item(th[p], pp$tau, pp$disc))
@@ -321,6 +331,8 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   # first (adds d*(x1 - E1) to its exponent, inducing residual correlation);
   # the regeneration keeps i2's own DIF / second-dimension structure
   dep_pairs <- list()
+  dep_shift <- vector("list", I)
+  dep_sources <- integer(0)
   if (!is.null(dependence)) {
     d_str <- .sim_scalar(dependence$strength %||% 1,
                          "dependence$strength")
@@ -329,11 +341,25 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
       if (length(ij) != 2L || ij[1L] == ij[2L])
         stop("each dependence pair must name two different items")
       i1 <- ij[1]; i2 <- ij[2]
+      # regenerating i2 replaces the responses any earlier pair drew its
+      # carry-over from, so a source may not become a later target
+      if (i2 %in% dep_sources)
+        stop("item ", inm[i2], " is the source of an earlier dependence ",
+             "pair and the target of a later one: regenerating it would ",
+             "erase the earlier dependence -- order the pairs so that each ",
+             "item is a target before it is a source")
+      dep_sources <- c(dep_sources, i1)
       # the expectation must match X1's actual generating structure
       # (guessing, DIF, second dimension), or the "residual" x1 - E1 has a
       # systematic mean and leaks an unplanted shift into the second item
-      shift <- d_str * (X[, i1] - exp_item(i1)) / m   # per-person carry-over
-      X[, i2] <- gen_item(i2, shift = shift)
+      # the source's expectation is taken under the structure its responses
+      # were actually drawn from, its own carry-over included
+      shift <- d_str * (X[, i1] - exp_item(i1, dep_shift[[i1]])) / m
+      # an item named as the second of several pairs carries every one of
+      # them: regenerating from the new pair alone would erase the earlier
+      # dependence and plant only the last
+      dep_shift[[i2]] <- (dep_shift[[i2]] %||% 0) + shift
+      X[, i2] <- gen_item(i2, shift = dep_shift[[i2]])
       dep_pairs[[length(dep_pairs) + 1L]] <- inm[ij]
     }
   }
@@ -347,9 +373,14 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
                        c("extreme", "middle"))
     sprop <- .sim_scalar(response_style$prop %||% 0.15,
                          "response_style$prop", lower = 0, upper = 1)
-    style_idx <- sample(N, round(sprop * N))
     ss <- .sim_scalar(response_style$strength %||% 1.6,
                       "response_style$strength", lower = 0)
+    # a style of zero strength distorts nothing and no one: drawing the
+    # persons anyway would record an effect the data do not carry
+    if (ss == 0 || sprop == 0) {
+      response_style <- NULL
+    } else {
+    style_idx <- sample(N, round(sprop * N))
     mid <- m / 2
     dev2 <- ((0:m - mid) / mid)^2
     w <- if (stype == "extreme") exp(ss * dev2)
@@ -357,9 +388,14 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     for (p in style_idx) for (i in seq_len(I)) {
       if (is.na(X[p, i])) next
       th_p <- if (i %in% dim_items) theta2[p] else theta[p]
+      # the redraw must start from the probabilities the response was drawn
+      # under, dependence carry-over included, or a styled person's planted
+      # local dependence is erased
+      if (!is.null(dep_shift[[i]])) th_p <- th_p + dep_shift[[i]][p]
       pp <- item_pars(i, p)
       pr <- .p_item(th_p, pp$tau, pp$disc) * w
       X[p, i] <- sample.int(m + 1L, 1L, prob = pr) - 1L
+    }
     }
   }
 
@@ -376,6 +412,14 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   # speededness: a contiguous not-reached tail over the last items. `speeded`
   # persons drop out somewhere in the final zone, so the missing rate grows
   # linearly to `speeded` at the last item
+  # the not-reached tail spans the last 40% of the test: with fewer than
+  # three items there is no tail, so the request cannot be planted and must
+  # not be recorded as though it were
+  if (speeded > 0 && I < 3L) {
+    warning("speededness needs at least three items to place a ",
+            "not-reached tail; ignored")
+    speeded <- 0
+  }
   if (speeded > 0 && I >= 3L) {
     k <- max(1L, round(0.4 * I)); z0 <- I - k
     for (p in which(stats::runif(N) < speeded)) {
@@ -659,6 +703,14 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
         length(interaction$rater) != 1L || !(interaction$rater %in% rids))
       stop("interaction$item and interaction$rater must each name one generated level")
     interaction$bias <- .sim_scalar(interaction$bias, "interaction$bias")
+    # an erratic rater answers at random, discarding the whole rating model
+    # for that rater: a bias planted on one would not be in the data, while
+    # the recorded truth would still claim it
+    if (interaction$rater %in% erratic)
+      stop("interaction$rater '", interaction$rater, "' is one of the ",
+           "erratic raters, who answer at random: the planted bias would ",
+           "not appear in the data. Nominate another rater, or lower ",
+           "erratic_raters")
     int_bias[interaction$item, interaction$rater] <- interaction$bias
   }
 
@@ -729,6 +781,10 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
                           n_groups = 2, set_unit_ratio = 1.3,
                           group_unit_ratio = 1, n_categories = 2,
                           theta_sd = 1.3, seed = NULL) {
+  # recorded before validation assigns to the formals, which would make
+  # missing() report every argument as supplied
+  set_ratio_given <- !missing(set_unit_ratio)
+  group_ratio_given <- !missing(group_unit_ratio)
   if (!is.null(seed)) {
     .old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(.old_stream), add = TRUE)
@@ -745,6 +801,23 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
   group_unit_ratio <- .sim_scalar(group_unit_ratio, "group_unit_ratio",
                                   lower = 0, lower_open = TRUE)
   theta_sd <- .sim_scalar(theta_sd, "theta_sd", lower = 0)
+  # a ratio is a comparison between frames: with one frame there is nothing
+  # to span, and the span would silently return a unit while the recorded
+  # truth claimed the requested ratio
+  # only an EXPLICIT request is refused: the defaults describe the ordinary
+  # multi-frame design and resolve to the reference when there is one frame
+  if (S == 1L) {
+    if (set_ratio_given && set_unit_ratio != 1)
+      stop("`set_unit_ratio` must be 1 when `n_sets` is 1: a unit ratio is ",
+           "a comparison between sets, so none can be planted")
+    set_unit_ratio <- 1
+  }
+  if (G == 1L) {
+    if (group_ratio_given && group_unit_ratio != 1)
+      stop("`group_unit_ratio` must be 1 when `n_groups` is 1: a unit ratio ",
+           "is a comparison between groups, so none can be planted")
+    group_unit_ratio <- 1
+  }
   # set and group units span the ratio geometrically, normalised to mean 1
   gspan <- function(ratio, n) { u <- exp(seq(0, log(ratio), length.out = n)); u / exp(mean(log(u))) }
   alpha <- gspan(set_unit_ratio, S)
@@ -758,10 +831,16 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
   names(tau_list) <- inm
 
   grp <- factor(rep(sprintf("g%d", seq_len(G)), each = npg))
+  gidx <- rep(seq_len(G), each = npg)                  # group NUMBER per person
+  names(phi) <- sprintf("g%d", seq_len(G))             # unit by group label
   N <- length(grp); theta <- .sim_theta(N, 0, theta_sd)
   X <- matrix(NA_integer_, N, length(inm), dimnames = list(NULL, inm))
   for (col in seq_along(inm)) {
-    s <- set_of[inm[col]]; rho <- alpha[s] * phi[as.integer(grp)]  # per-person unit
+    # phi is indexed by group NUMBER: as.integer() on the factor would order
+    # the levels as strings (g1, g10, g2, ...) and attach each unit to the
+    # wrong group as soon as there are ten of them
+    s <- set_of[inm[col]]
+    rho <- alpha[s] * phi[gidx]                        # per-person unit
     if (m == 1L) {
       X[, col] <- as.integer(stats::runif(N) <
                     stats::plogis(rho * (theta - delta[inm[col]])))
@@ -854,15 +933,19 @@ sim_apply <- function(batch, FUN, ...) {
   res <- lapply(batch, function(d)
     tryCatch(list(ok = TRUE, v = FUN(d, ...)),
              error = function(e) list(ok = FALSE, v = NA, msg = conditionMessage(e))))
-  valid <- vapply(res, function(r)
-    isTRUE(r$ok) && !is.null(r$v) && length(r$v) == 1L, TRUE)
+  # a one-column data frame and a list holding a vector both have length 1:
+  # unlisting them later would expand one dataset into several results while
+  # the failure count stayed at zero
+  scalar <- function(v) !is.null(v) && is.atomic(v) && !is.list(v) &&
+    length(v) == 1L
+  valid <- vapply(res, function(r) isTRUE(r$ok) && scalar(r$v), TRUE)
   for (i in which(!valid & vapply(res, `[[`, logical(1), "ok"))) {
     res[[i]]$ok <- FALSE
-    res[[i]]$msg <- "FUN must return one scalar value"
+    res[[i]]$msg <- "FUN must return one atomic scalar value"
   }
   ok <- vapply(res, `[[`, logical(1), "ok")
   vals <- lapply(res, function(r) {
-    v <- r$v; if (is.null(v) || length(v) != 1L) NA else v[[1]]
+    v <- r$v; if (!scalar(v)) NA else v[[1]]
   })
   out <- tryCatch(unlist(vals, use.names = FALSE),
                   error = function(e) vals)
@@ -1088,14 +1171,26 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
   phi <- if (is.null(panel_units)) rep(1, G) else as.numeric(panel_units)
   if (length(phi) != G || any(!is.finite(phi) | phi <= 0))
     stop("panel_units must contain n_panels positive finite values")
-  phi <- phi / exp(mean(log(phi)))                    # geometric mean one
   alpha <- if (is.null(set_units)) rep(1, S) else as.numeric(set_units)
   if (length(alpha) != S || any(!is.finite(alpha) | alpha <= 0))
     stop("set_units must contain n_sets positive finite values")
-  alpha <- alpha / alpha[1]                            # alpha_1 = 1
   kappa <- if (is.null(set_origins)) rep(0, S) else as.numeric(set_origins)
   if (length(kappa) != S || any(!is.finite(kappa)))
     stop("set_origins must contain n_sets finite values")
+  # a unit and an origin are relative to the other frames: with one frame
+  # the normalisation below would silently return them to the reference
+  # while the recorded truth claimed the requested values
+  if (G == 1L && !isTRUE(all.equal(phi, 1)))
+    stop("`panel_units` must be 1 when `n_panels` is 1: a panel unit is ",
+         "relative to the other panels, so none can be planted")
+  if (S == 1L && !isTRUE(all.equal(alpha, 1)))
+    stop("`set_units` must be 1 when `n_sets` is 1: a set unit is relative ",
+         "to the other sets, so none can be planted")
+  if (S == 1L && !isTRUE(all.equal(kappa, 0)))
+    stop("`set_origins` must be 0 when `n_sets` is 1: an origin is relative ",
+         "to the other sets, so none can be planted")
+  phi <- phi / exp(mean(log(phi)))                    # geometric mean one
+  alpha <- alpha / alpha[1]                            # alpha_1 = 1
   kappa <- kappa - kappa[1]                            # kappa_1 = 0
 
   set_nm <- sprintf("set%d", seq_len(S))

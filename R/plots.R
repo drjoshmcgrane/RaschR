@@ -39,6 +39,87 @@
   invisible(op)
 }
 
+
+# A drawing grid is a vector of at least two finite locations.
+# Display limits are a pair of finite ascending values; a map whose limits
+# admit nothing is not a display, so an empty range is reported rather than
+# drawn as empty panels or left to emit internal warnings.
+.check_xlim <- function(xlim) {
+  if (!is.null(xlim) &&
+      (length(xlim) != 2L || !is.numeric(xlim) || any(!is.finite(xlim)) ||
+       xlim[1] >= xlim[2]))
+    stop("`xlim` must be two finite ascending limits", call. = FALSE)
+  invisible(xlim)
+}
+
+# A repeated person identifier -- a stacked or racked longitudinal design --
+# does not select one row. Taking the first would draw a different occasion
+# from the one the caller asked for, with nothing on the display to say so.
+.person_row <- function(fit, person) {
+  if (missing(person) || length(person) != 1L || is.na(person))
+    stop("`person` must name or index exactly one person", call. = FALSE)
+  if (is.numeric(person) && person %in% seq_len(nrow(fit$X)))
+    return(as.integer(person))
+  hits <- which(as.character(fit$person$id) == as.character(person))
+  if (!length(hits)) stop("person not found", call. = FALSE)
+  if (length(hits) > 1L)
+    stop("person identifier '", person, "' appears in ", length(hits),
+         " rows (", paste(utils::head(hits, 5), collapse = ", "),
+         if (length(hits) > 5) ", ..." else "",
+         "); give the row number instead", call. = FALSE)
+  hits
+}
+
+.check_cex <- function(x, name = "cex_labels") {
+  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
+    stop("`", name, "` must be one positive finite size", call. = FALSE)
+  invisible(x)
+}
+
+.check_map_range <- function(n_thresholds, n_persons = NA_integer_) {
+  if (n_thresholds == 0L)
+    stop("the display range contains no thresholds; widen `xlim`",
+         call. = FALSE)
+  if (!is.na(n_persons) && n_persons == 0L)
+    stop("the display range contains no person estimates; widen `xlim`",
+         call. = FALSE)
+  invisible(TRUE)
+}
+
+# The observed points must sit on the SAME class intervals as the item-trait
+# test they illustrate. With missing data the fit carries a per-item
+# allocation (each item's own responders, its own interval count), so the
+# display reads that allocation rather than recomputing a whole-sample one --
+# unless the caller asked for a specific number of intervals, or the points
+# are split by a person factor, which is a different allocation by design.
+.fit_class_intervals <- function(fit, i, x, th, ex, n_groups,
+                                 n_groups_given = FALSE, group = NULL) {
+  if (!n_groups_given && is.null(group) && !is.null(fit$ci_item) &&
+      length(fit$ci_item) >= i && !is.null(fit$ci_item[[i]]))
+    return(fit$ci_item[[i]])
+  .class_intervals(ifelse(is.na(x), NA_real_, th), ex, n_groups)
+}
+
+.check_grid <- function(grid) {
+  if (!is.numeric(grid) || length(grid) < 2L || any(!is.finite(grid)))
+    stop("`grid` must be a vector of at least two finite locations",
+         call. = FALSE)
+  invisible(grid)
+}
+
+# A misfit band is a positive finite half-width; a logical flag must be
+# stated as TRUE or FALSE, not NA.
+.check_band <- function(band) {
+  if (length(band) != 1L || !is.numeric(band) || !is.finite(band) || band <= 0)
+    stop("`band` must be one positive finite half-width", call. = FALSE)
+  invisible(band)
+}
+.check_flag <- function(x, name) {
+  if (!isTRUE(x) && !isFALSE(x))
+    stop("`", name, "` must be TRUE or FALSE", call. = FALSE)
+  invisible(x)
+}
+
 # Whole-unit tick marks whenever the span allows them, so a logit axis is
 # labelled at every logit and its extremes are not left between labels. One
 # extra integer on each side reaches into the axis expansion; axis() clips
@@ -194,6 +275,24 @@
 #' @export
 plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
                      grid = seq(-5, 5, 0.05), observed = TRUE) {
+  .check_flag(observed, "observed")
+  .check_grid(grid)
+  n_groups_given <- !is.null(n_groups)
+  if (!is.null(n_groups)) n_groups <- .check_whole(n_groups, "n_groups", 2)
+  if (!is.null(group)) {
+    if (is.character(group) && length(group) != nrow(fit$X)) {
+      unknown <- if (is.null(fit$factors)) group else
+        setdiff(group, names(fit$factors))
+      if (length(unknown))
+        stop("`group` names no fitted person factor: ",
+             paste(unknown, collapse = ", "),
+             if (!is.null(fit$factors)) paste0("; fitted factor(s): ",
+               paste(names(fit$factors), collapse = ", ")) else
+               "; the fit carries no person factors")
+    } else if (length(group) != nrow(fit$X))
+      stop("`group` must name fitted factor(s) or give one value per ",
+           "person (", nrow(fit$X), ")")
+  }
   if (inherits(fit, "rasch_mfrm") && is.character(item) &&
       length(item) == 1L && !item %in% fit$items$item &&
       item %in% fit$virtual_map$item)
@@ -261,7 +360,8 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
   # order and would move points when the data are merely reordered)
   ex <- if (!is.null(fit$person$extreme)) fit$person$extreme else
     rep(FALSE, length(th))
-  ci_full <- .class_intervals(ifelse(is.na(x), NA_real_, th), ex, n_groups)
+  ci_full <- .fit_class_intervals(fit, i, x, th, ex, n_groups, n_groups_given,
+                                  group)
   ok <- !is.na(ci_full)
   ci <- ci_full[ok]
   op <- .rr_canvas(range(grid), c(0, mmax), "Person location (logits)",
@@ -304,7 +404,9 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
 #' @param grid Logit grid over which to draw the curves.
 #' @param observed Whether to add category proportions by class interval
 #'   (Andrich and Marais 2019, ch. 20).
-#' @param n_groups Class intervals for the observed points.
+#' @param n_groups Class intervals for the observed points; by default the
+#'   fit's own allocation for this item, so the points match the item-trait
+#'   test they illustrate.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -317,7 +419,13 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
 #' plot_ccc(rasch(X), "P01", observed = TRUE)
 #' @export
 plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
-                     n_groups = fit$n_groups) {
+                     n_groups = NULL) {
+  if (length(item) != 1L) stop("`item` must name exactly one item")
+  .check_flag(observed, "observed")
+  .check_grid(grid)
+  n_groups_given <- !is.null(n_groups)
+  n_groups <- .check_whole(if (is.null(n_groups)) fit$n_groups else n_groups,
+                           "n_groups", 2)
   i <- .item_idx(fit, item); tau_i <- fit$tau_list[[i]]; mmax <- length(tau_i)
   P <- vapply(grid, function(th)
     item_moments(th, tau_i, disc = .disc_of(fit, i))$P, numeric(mmax + 1))
@@ -333,7 +441,7 @@ plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
   if (observed) {
     th <- fit$person$theta; x <- fit$X[, i]
     ex <- fit$person$extreme %||% rep(FALSE, length(th))
-    ci <- .class_intervals(ifelse(is.na(x), NA_real_, th), ex, n_groups)
+    ci <- .fit_class_intervals(fit, i, x, th, ex, n_groups, n_groups_given)
     ok <- !is.na(ci)
     obsTh <- tapply(th[ok], ci[ok], mean)
     for (cat in 0:mmax) {
@@ -370,7 +478,9 @@ plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
 #' @param grid Logit grid over which to draw the curves.
 #' @param observed Overlay the observed conditional threshold proportions
 #'   per class interval.
-#' @param n_groups Class intervals for the observed points.
+#' @param n_groups Class intervals for the observed points; by default the
+#'   fit's own allocation for this item, so the points match the item-trait
+#'   test they illustrate.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -383,7 +493,13 @@ plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
 #' plot_threshold_prob(rasch(X), "P01")
 #' @export
 plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
-                                observed = FALSE, n_groups = fit$n_groups) {
+                                observed = FALSE, n_groups = NULL) {
+  if (length(item) != 1L) stop("`item` must name exactly one item")
+  .check_grid(grid)
+  .check_flag(observed, "observed")
+  n_groups_given <- !is.null(n_groups)
+  n_groups <- .check_whole(if (is.null(n_groups)) fit$n_groups else n_groups,
+                           "n_groups", 2)
   i <- .item_idx(fit, item); tau_i <- fit$tau_list[[i]]
   op <- .rr_canvas(range(grid), c(0, 1), "Person location (logits)",
                    "Threshold probability",
@@ -401,7 +517,7 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
     # (Andrich & Marais 2019, ch. 22 rescoring check)
     th <- fit$person$theta; x <- fit$X[, i]
     ex <- fit$person$extreme %||% rep(FALSE, length(th))
-    ci <- .class_intervals(ifelse(is.na(x), NA_real_, th), ex, n_groups)
+    ci <- .fit_class_intervals(fit, i, x, th, ex, n_groups, n_groups_given)
     ok <- !is.na(ci)
     for (k in seq_along(tau_i)) {
       colr <- .rr$pal[(k - 1L) %% length(.rr$pal) + 1L]
@@ -447,6 +563,8 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' @export
 plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   bins <- .check_whole(bins, "bins", 2)
+  .check_flag(information, "information")
+  .check_xlim(xlim)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   th <- fit$person$theta[!is.na(fit$person$theta)]
   tau <- fit$thresholds$tau
@@ -454,6 +572,7 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   rng <- scale$range
   th <- th[th >= rng[1] & th <= rng[2]]
   tau <- tau[tau >= rng[1] & tau <= rng[2]]
+  .check_map_range(length(tau), length(th))
   brk <- seq(rng[1], rng[2], length.out = bins + 1)
   hp <- hist(th, breaks = brk, plot = FALSE)
   hi <- hist(tau, breaks = brk, plot = FALSE)
@@ -565,6 +684,8 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
 #' @export
 plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
   bins <- .check_whole(bins, "bins", 2)
+  .check_xlim(xlim)
+  .check_cex(cex_labels)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   th <- fit$person$theta[!is.na(fit$person$theta)]
   thr <- fit$thresholds
@@ -574,6 +695,7 @@ plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
   tv <- thr$tau[keep]
   lab <- if (all(fit$m == 1L)) fit$items$item[thr$item[keep]] else
     paste0(fit$items$item[thr$item[keep]], ".", thr$k[keep])
+  .check_map_range(length(tv), length(th))
   brk <- seq(rng[1], rng[2], length.out = bins + 1)
   hp <- hist(th, breaks = brk, plot = FALSE)
   pp <- hp$counts / max(1L, max(hp$counts))
@@ -634,6 +756,7 @@ plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
 #' plot_threshold_map(rasch(X))
 #' @export
 plot_threshold_map <- function(fit, order_by_location = TRUE) {
+  .check_flag(order_by_location, "order_by_location")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   L <- length(fit$tau_list)
   ord <- if (order_by_location) order(fit$items$location) else seq_len(L)
@@ -684,6 +807,7 @@ plot_threshold_map <- function(fit, order_by_location = TRUE) {
 #' plot_tcc(rasch(X))
 #' @export
 plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
+  .check_grid(grid)
   # the same administrable design blocks as test_information(), so the two
   # displays can never disagree about which items form a curve
   blocks <- .design_blocks(fit)
@@ -718,6 +842,7 @@ plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
 #' plot_tif(rasch(X))
 #' @export
 plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
+  .check_grid(grid)
   ti <- test_information(fit, grid)
   if ("design" %in% names(ti) && length(unique(ti$design)) > 1L) {
     des <- unique(ti$design)
@@ -784,6 +909,7 @@ plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
 #' @export
 plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
                           band = 2.5) {
+  .check_band(band)
   statistic <- match.arg(statistic)
   d <- fit$items
   y <- switch(statistic, residual = d$fit_resid,
@@ -839,6 +965,7 @@ plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
 #' @export
 plot_person_fit <- function(fit, statistic = c("residual", "infit", "outfit"),
                             band = 2.5) {
+  .check_band(band)
   statistic <- match.arg(statistic)
   p <- fit$person
   y <- switch(statistic, residual = p$fit_resid,
@@ -897,6 +1024,10 @@ plot_person_fit <- function(fit, statistic = c("residual", "infit", "outfit"),
 #' @export
 plot_resid_cor <- function(fit, stat = c("q3star", "q3"), cap = 0.5) {
   stat <- match.arg(stat)
+  # the cap divides the colour-key coordinates, so it must be strictly
+  # positive as well as finite
+  if (length(cap) != 1L || !is.numeric(cap) || !is.finite(cap) || cap <= 0)
+    stop("`cap` must be one positive finite correlation")
   rc <- residual_correlations(fit)
   R <- rc$matrix; L <- ncol(R); avg <- rc$average
   # Q3* colours the excess over the average off-diagonal correlation, so white
@@ -954,6 +1085,7 @@ plot_resid_cor <- function(fit, stat = c("q3star", "q3"), cap = 0.5) {
 #' plot_pca(rasch(X))
 #' @export
 plot_pca <- function(fit, component = 1) {
+  component <- .check_whole(component, "component", 1)
   pc <- residual_pca(fit); k <- as.integer(component)
   cn <- paste0("PC", k)
   if (!cn %in% names(pc$loadings_matrix))
@@ -1038,6 +1170,7 @@ plot_pca_biplot <- function(fit) {
 #' plot_catfreq(rasch(X), "P01")
 #' @export
 plot_catfreq <- function(fit, item) {
+  if (length(item) != 1L) stop("`item` must name exactly one item")
   i <- .item_idx(fit, item)
   cnt <- fit$thresholds_diag[[i]]$category_counts
   cats <- seq_along(cnt) - 1L
@@ -1056,20 +1189,26 @@ plot_catfreq <- function(fit, item) {
 # ---------------------------------------------------------------------------
 #' Plot a person characteristic curve
 #'
-#' The person characteristic curve: the probability of success as a
-#' function of item location at the person's estimated measure, with the
-#' person's observed responses overlaid, grouped into item-difficulty
-#' intervals (proportion of maximum score per interval). Erratic responding
-#' (for example lucky guessing on hard items by a low-proficiency person)
-#' shows as observed points far from the curve, complementing the person
-#' fit residual.
+#' The person characteristic curve: the modelled expectation at the
+#' person's estimated measure against item location, with the person's
+#' observed responses overlaid, grouped into item-difficulty intervals
+#' (proportion of maximum score per interval). A wholly dichotomous
+#' unit-discrimination fit draws the exact logistic curve. Polytomous,
+#' rating scale, many-facet, and frame fits have no single curve in the
+#' item location alone, so the model is displayed as its expected
+#' proportion of maximum for the actual items within each interval, under
+#' the fitted thresholds, response cells, and frame units. Erratic
+#' responding (for example lucky guessing on hard items by a
+#' low-proficiency person) shows as observed points far from the model,
+#' complementing the person fit residual.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param person Row number of the person, or an ID matching
 #'   \code{fit$person$id}.
 #' @param n_groups Number of item-difficulty intervals for the observed
 #'   points (capped by the number of observed items).
-#' @param grid Item-location grid over which to draw the curve.
+#' @param grid Item-location grid over which the dichotomous curve is
+#'   drawn; interval displays ignore it.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -1079,34 +1218,50 @@ plot_catfreq <- function(fit, item) {
 #' plot_pcc(rasch(X), person = 1)
 #' @export
 plot_pcc <- function(fit, person, n_groups = 5, grid = seq(-5, 5, 0.05)) {
-  n <- if (is.numeric(person) && length(person) == 1L &&
-           person %in% seq_len(nrow(fit$X))) as.integer(person)
-       else match(person, fit$person$id)
-  if (is.na(n)) stop("person not found")
+  n_groups <- .check_whole(n_groups, "n_groups", 2)
+  .check_grid(grid)
+  n <- .person_row(fit, person)
   th <- fit$person$theta[n]
   if (is.na(th)) stop("no estimate for this person")
   x <- fit$X[n, ]; ok <- !is.na(x)
   if (sum(ok) < 3) stop("fewer than 3 observed responses for this person")
   loc <- fit$items$location; mm <- fit$m
-  op <- .rr_canvas(range(grid), c(0, 1),
+  # the fitted per-cell expectations carry the thresholds, response cells,
+  # and frame units of every model family; plogis(theta - location) is the
+  # model only for a wholly dichotomous unit-discrimination fit
+  E_n <- fit$moments$E[n, ]
+  dich <- all(mm[ok] == 1L) &&
+    (is.null(fit$disc) || all(fit$disc[ok] == 1))
+  xr <- if (dich) range(grid) else range(loc[ok]) + c(-0.5, 0.5)
+  op <- .rr_canvas(xr, c(0, 1),
                    if (inherits(fit, c("rasch_mfrm", "rasch_efrm")))
                      "Response-cell location (logits)" else
                      "Item location (logits)",
-                   "Probability of success",
+                   if (dich) "Probability of success" else
+                     "Proportion of maximum score",
                    sprintf("%s  (location %.3f, fit residual %s)",
                            fit$person$id[n], th,
                            ifelse(is.na(fit$person$fit_resid[n]), "NA",
                                   sprintf("%.2f", fit$person$fit_resid[n]))))
   on.exit(par(op))
-  lines(grid, plogis(th - grid), lwd = 3, col = .rr$ink)
   abline(v = th, lty = 3, col = .rr$soft)
   g <- .class_intervals(loc[ok], rep(FALSE, sum(ok)),
                         min(n_groups, max(2, floor(sum(ok) / 2))))
   obsL <- tapply(loc[ok], g, mean)
   obsP <- tapply((x[ok] / mm[ok]), g, mean)
+  if (dich) {
+    lines(grid, plogis(th - grid), lwd = 3, col = .rr$ink)
+  } else {
+    modP <- tapply((E_n[ok] / mm[ok]), g, mean)
+    oo <- order(obsL)
+    lines(obsL[oo], modP[oo], lwd = 3, col = .rr$ink)
+    points(obsL, modP, pch = 22, bg = .rr$ink, col = "white", cex = 1.3,
+           lwd = 1)
+  }
   points(obsL, obsP, pch = 21, bg = .rr$blue, col = "white", cex = 1.6, lwd = 1.2)
   .rr_legend("topright", c("Model", "Observed"),
-             lwd = c(3, NA), pch = c(NA, 21), pt.bg = c(NA, .rr$blue),
+             lwd = c(3, NA), pch = c(if (dich) NA else 22, 21),
+             pt.bg = c(if (dich) NA else .rr$ink, .rr$blue),
              col = c(.rr$ink, "white"), pt.cex = 1.4)
   invisible(NULL)
 }
@@ -1145,10 +1300,11 @@ plot_pcc <- function(fit, person, n_groups = 5, grid = seq(-5, 5, 0.05)) {
 #' @export
 plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
                         cex_labels = 0.8) {
-  n <- if (is.numeric(person) && length(person) == 1L &&
-           person %in% seq_len(nrow(fit$X))) as.integer(person)
-       else match(person, fit$person$id)
-  if (is.na(n)) stop("person not found")
+  .check_prob(level, "level")
+  bins <- .check_whole(bins, "bins", 2)
+  .check_xlim(xlim)
+  .check_cex(cex_labels)
+  n <- .person_row(fit, person)
   th <- fit$person$theta[n]
   if (is.na(th)) stop("no estimate for this person")
   se <- fit$person$se[n]
@@ -1165,6 +1321,7 @@ plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
     range(c(th - band, th + band, tv)) + c(-0.5, 0.5) else sort(xlim)
   keep <- tv >= rng[1] & tv <= rng[2]
   tv <- tv[keep]; att <- att[keep]; lab <- lab[keep]
+  .check_map_range(length(tv))
   unexp <- (att & tv > th + band) | (!att & tv < th - band)
   brk <- seq(rng[1], rng[2], length.out = bins + 1)
   bin <- pmin(findInterval(tv, brk, rightmost.closed = TRUE), bins)
@@ -1245,6 +1402,7 @@ plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
 plot_resid_dist <- function(fit, what = c("items", "persons"),
                             statistic = c("fit_resid", "natural"), bins = 25) {
   what <- match.arg(what); statistic <- match.arg(statistic)
+  bins <- .check_whole(bins, "bins", 2)
   v <- if (what == "items") {
     if (statistic == "fit_resid") fit$items$fit_resid else fit$items$natural_resid
   } else {

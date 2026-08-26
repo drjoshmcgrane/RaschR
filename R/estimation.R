@@ -18,6 +18,35 @@
 # ===========================================================================
 
 
+# The columns the person table generates for itself. A factor sharing one of
+# these names would be bound into the same table and silently replace the
+# calculated column -- a factor called class_interval would stand in for the
+# fitted intervals every fit statistic is computed over.
+.person_reserved <- c("id", "n_items", "raw", "max_raw", "weighted_score",
+                      "theta", "se", "extreme", "infit_ms", "outfit_ms",
+                      "infit_z", "outfit_z", "fit_resid", "natural_resid",
+                      "df_fit", "class_interval")
+
+# A person-factor frame must carry unique, non-empty column names that no
+# generated column already claims; an ambiguous factor structure poisons
+# every downstream DIF family.
+.check_factor_frame <- function(fac_df) {
+  if (is.null(fac_df)) return(invisible(NULL))
+  nms <- names(fac_df)
+  if (is.null(nms) || any(is.na(nms)) || any(!nzchar(nms)))
+    stop("every person factor needs a non-empty name", call. = FALSE)
+  if (anyDuplicated(nms))
+    stop("duplicate factor column name(s): ",
+         paste(unique(nms[duplicated(nms)]), collapse = ", "), call. = FALSE)
+  clash <- intersect(nms, .person_reserved)
+  if (length(clash))
+    stop("person factor name(s) reserved for the fitted person table: ",
+         paste(clash, collapse = ", "),
+         "; rename them, or the calculated column would be replaced",
+         call. = FALSE)
+  invisible(NULL)
+}
+
 # One whole finite number within a range; NULL allowed only when said so.
 .check_whole <- function(x, name, min = 1, max = Inf, null_ok = FALSE) {
   if (is.null(x)) {
@@ -61,8 +90,13 @@
 #' threshold_index(c(1, 3, 2))
 #' @export
 threshold_index <- function(m) {
+  if (!is.numeric(m) || !length(m) || any(!is.finite(m)) ||
+      any(m != floor(m)) || any(m < 0))
+    stop("`m` must hold at least one whole non-negative maximum score")
   thr <- do.call(rbind, lapply(seq_along(m), function(i)
     if (m[i] >= 1) data.frame(item = i, k = seq_len(m[i])) else NULL))
+  if (is.null(thr))
+    return(data.frame(id = integer(0), item = integer(0), k = integer(0)))
   thr$id <- seq_len(nrow(thr)); thr[, c("id", "item", "k")]
 }
 
@@ -678,6 +712,9 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
   .check_controls(maxit, tol)
   n_components <- .check_whole(n_components, "n_components", 1, 4)
+  if (!is.null(colnames(X)) && anyDuplicated(colnames(X)))
+    stop("item column names must be unique: ",
+         paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
   X <- as.matrix(X); .check_integer_scores(X, "the score matrix")
   storage.mode(X) <- "integer"
   m <- apply(X, 2, max, na.rm = TRUE); L <- ncol(X)

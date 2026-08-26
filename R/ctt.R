@@ -218,6 +218,26 @@ print.rasch_ctt <- function(x, ...) {
 rack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
   .check_column_names(data)
+  if (!length(items)) stop("`items` must name at least one item column")
+  # dereferencing an empty or multiple column name gives a base subscript
+  # error rather than a statement of what was wrong
+  .check_reshape_column(data, person, "person")
+  .check_reshape_column(data, time, "time")
+  pv <- trimws(as.character(data[[person]]))
+  tv <- trimws(as.character(data[[time]]))
+  if (anyNA(pv) || any(!nzchar(pv[!is.na(pv)])))
+    stop(sum(is.na(pv) | !nzchar(pv)), " row(s) have a missing or blank ",
+         "person identifier; they cannot be aligned across occasions")
+  if (anyNA(tv) || any(!nzchar(tv[!is.na(tv)])))
+    stop(sum(is.na(tv) | !nzchar(tv)),
+         " row(s) have a missing or blank occasion value")
+  if (anyDuplicated(items))
+    stop("item column(s) named more than once: ",
+         paste(unique(items[duplicated(items)]), collapse = ", "))
+  overlap <- intersect(items, c(person, time))
+  if (length(overlap))
+    stop("the person or time column cannot also be an item: ",
+         paste(overlap, collapse = ", "))
   for (col in c(person, time)) if (!col %in% names(data))
     stop("column not found: ", col)
   bad <- setdiff(items, names(data))
@@ -247,6 +267,26 @@ rack_data <- function(data, person, time, items) {
 stack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
   .check_column_names(data)
+  if (!length(items)) stop("`items` must name at least one item column")
+  # dereferencing an empty or multiple column name gives a base subscript
+  # error rather than a statement of what was wrong
+  .check_reshape_column(data, person, "person")
+  .check_reshape_column(data, time, "time")
+  pv <- trimws(as.character(data[[person]]))
+  tv <- trimws(as.character(data[[time]]))
+  if (anyNA(pv) || any(!nzchar(pv[!is.na(pv)])))
+    stop(sum(is.na(pv) | !nzchar(pv)), " row(s) have a missing or blank ",
+         "person identifier; they cannot be aligned across occasions")
+  if (anyNA(tv) || any(!nzchar(tv[!is.na(tv)])))
+    stop(sum(is.na(tv) | !nzchar(tv)),
+         " row(s) have a missing or blank occasion value")
+  if (anyDuplicated(items))
+    stop("item column(s) named more than once: ",
+         paste(unique(items[duplicated(items)]), collapse = ", "))
+  overlap <- intersect(items, c(person, time))
+  if (length(overlap))
+    stop("the person or time column cannot also be an item: ",
+         paste(overlap, collapse = ", "))
   for (col in c(person, time)) if (!col %in% names(data))
     stop("column not found: ", col)
   bad <- setdiff(items, names(data))

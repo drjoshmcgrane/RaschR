@@ -1004,6 +1004,9 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                        se_method = c("hybrid", "bootstrap"),
                        boot_reps = NULL, progress = NULL, cancel = NULL,
                        workers = 4L, seed = NULL) {
+  .factors_sym <- substitute(factors)
+  .factors_label <- if (is.name(.factors_sym))
+    as.character(.factors_sym) else "factor"
   .check_column_names(data)
   .check_controls(maxit, tol)
   min_link_persons <- .check_whole(min_link_persons, "min_link_persons", 1)
@@ -1072,6 +1075,11 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       if (length(miss))
         stop("group column(s) not found in the data: ",
              paste(miss, collapse = ", "))
+      # a repeated grouping adds a redundant crossed factor and destroys the
+      # factorial decomposition of the frame units
+      if (anyDuplicated(groups))
+        stop("group column(s) named more than once: ",
+             paste(unique(groups[duplicated(groups)]), collapse = ", "))
       if (length(groups) == 1L) {
         grp <- data[[groups]]; grp_name <- groups
       } else {
@@ -1079,6 +1087,15 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
         # cells, and a factorial decomposition of the cell units is
         # reported in phi_factorial
         grp_components <- data[groups]
+        # each source grouping must be checked before the cells are crossed:
+        # a blank component survives inside a crossed label ("g1: " is not
+        # blank) and would be estimated as a frame of its own
+        blank_c <- vapply(grp_components, function(v)
+          any(!is.na(v) & !nzchar(trimws(as.character(v)))), TRUE)
+        if (any(blank_c))
+          stop("blank value(s) in frame group column(s): ",
+               paste(groups[blank_c], collapse = ", "),
+               "; a whitespace-only label is not a group")
         grp <- .factor_cells(grp_components, sep = ":")
         grp_name <- paste(groups, collapse = ":")
       }
@@ -1092,29 +1109,68 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
              nrow(data), " rows")
       id_vec <- id
     }
-    if (is.character(factors)) {
+    factors_are_cols <- is.character(factors) &&
+      length(factors) != nrow(data)
+    if (factors_are_cols) {
       missf <- setdiff(factors, nm)
       if (length(missf))
         stop("factor column(s) not found in the data: ",
              paste(missf, collapse = ", "))
+      if (anyDuplicated(factors))
+        stop("factor column(s) named more than once: ",
+             paste(unique(factors[duplicated(factors)]), collapse = ", "))
       fac_df <- data[, factors, drop = FALSE]
     } else if (is.data.frame(factors)) {
       if (nrow(factors) != nrow(data))
         stop("`factors` has ", nrow(factors), " rows but the data has ",
              nrow(data))
+      if (anyDuplicated(names(factors)))
+        stop("duplicate factor column name(s): ",
+             paste(unique(names(factors)[duplicated(names(factors))]),
+                   collapse = ", "))
       fac_df <- factors
+    } else if (!is.null(factors) && is.atomic(factors)) {
+      if (length(factors) != nrow(data))
+        stop("`factors` must be column name(s) in the data, a data frame ",
+             "with one row per person, or a vector with one entry per row")
+      fac_df <- stats::setNames(data.frame(factors, stringsAsFactors = FALSE),
+                                .factors_label)
     } else if (!is.null(factors))
-      stop("`factors` must be a character vector of column names or a ",
-           "data frame with one row per person")
+      stop("`factors` must be column name(s) in the data, a data frame ",
+           "with one row per person, or a vector with one entry per row")
     # Frame-defining columns are already stored below as part of the frame
     # structure. Repeating them as ordinary factors creates duplicate names
     # and can make a later DIF or refit select the wrong column.
-    if (!is.null(fac_df) && is.character(groups))
+    if (!is.null(fac_df) && is.character(groups) &&
+        length(groups) != nrow(data))
       fac_df <- fac_df[, !names(fac_df) %in% groups, drop = FALSE]
-    drop_cols <- c(if (is.character(id)) id else NULL,
-                   if (is.character(factors)) factors
+    # a data column whose values are identical to a by-value role vector is
+    # almost certainly that same variable: exclude it so it is not also
+    # scored as a numeric item (the rule rasch() applies)
+    val_of <- function(v) if (is.null(v)) NULL else
+      nm[vapply(data, function(col)
+        length(col) == length(v) && isTRUE(all.equal(
+          as.character(col), as.character(v))), logical(1))]
+    groups_are_cols <- is.character(groups) && length(groups) != nrow(data)
+    # a data column whose values are identical to a by-value role vector
+    # may be that same variable, or a genuine item that happens to agree.
+    # Deciding silently risks fitting the wrong analysis either way, so an
+    # ambiguous match is refused unless `items` states the item columns
+    id_by_value <- !is.null(id) && !(is.character(id) && length(id) == 1L)
+    val_matched <- c(if (id_by_value) val_of(id),
+                     if (!is.null(factors) && !factors_are_cols &&
+                         !is.data.frame(factors)) val_of(factors),
+                     if (!groups_are_cols) val_of(groups))
+    if (is.null(items) && length(val_matched))
+      stop("data column(s) identical to a supplied role vector: ",
+           paste(unique(val_matched), collapse = ", "),
+           ". If they are the same variable, drop them from the data or ",
+           "name the item columns with items=; a genuine item identical ",
+           "to a role must be listed in items=")
+    drop_cols <- c(if (is.character(id) && length(id) == 1L) id,
+                   if (factors_are_cols) factors
                    else if (is.data.frame(factors)) intersect(names(factors), nm),
-                   if (is.character(groups)) groups else NULL)
+                   if (groups_are_cols) groups)
     item_cols <- if (is.null(items)) setdiff(nm, drop_cols)
     else if (is.character(items)) {
       miss <- setdiff(items, nm)
@@ -1130,10 +1186,49 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
              length(nm))
       nm[as.integer(items)]
     }
+    if (anyDuplicated(item_cols))
+      stop("item column(s) named more than once: ",
+           paste(unique(item_cols[duplicated(item_cols)]), collapse = ", "))
+    clash <- intersect(item_cols, drop_cols)
+    if (length(clash))
+      stop("`items` includes id, group, or factor column(s): ",
+           paste(clash, collapse = ", "),
+           " -- name only item columns")
     X <- as.matrix(data[, item_cols, drop = FALSE])
   } else {
     X <- as.matrix(data)
+    if (is.character(id) && length(id) == 1L)
+      stop("id column '", id, "' cannot be looked up in matrix input; ",
+           "supply the id values as a vector")
+    if (!is.null(id)) {
+      if (length(id) != nrow(X))
+        stop("`id` has ", length(id), " entries but the data has ",
+             nrow(X), " rows")
+      id_vec <- id
+    }
+    if (is.data.frame(factors)) {
+      if (nrow(factors) != nrow(X))
+        stop("`factors` has ", nrow(factors), " rows but the data has ",
+             nrow(X))
+      if (anyDuplicated(names(factors)))
+        stop("duplicate factor column name(s): ",
+             paste(unique(names(factors)[duplicated(names(factors))]),
+                   collapse = ", "))
+      fac_df <- factors
+    } else if (!is.null(factors) && is.atomic(factors)) {
+      if (length(factors) != nrow(X))
+        stop("`factors` must be a data frame with one row per person or a ",
+             "vector with one entry per row (matrix input has no columns ",
+             "to look up)")
+      fac_df <- stats::setNames(data.frame(factors, stringsAsFactors = FALSE),
+                                .factors_label)
+    } else if (!is.null(factors))
+      stop("`factors` must be a data frame with one row per person or a ",
+           "vector with one entry per row")
     if (!is.null(items)) {
+      if (anyDuplicated(items))
+        stop("item column(s) named more than once: ",
+             paste(unique(items[duplicated(items)]), collapse = ", "))
       if (is.character(items)) {
         miss <- setdiff(items, colnames(X))
         if (length(miss))
@@ -1155,6 +1250,16 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       stop("'groups' must name a column of data or give one value per person")
     grp <- groups
   }
+  # a person with no frame group cannot be placed in any set: frame
+  # expansion would leave their row entirely missing and the fit would
+  # complete without recording the loss. A whitespace-only label is not a
+  # group either -- it would become a frame of its own
+  gchr <- trimws(as.character(grp))
+  bad_grp <- is.na(grp) | !nzchar(gchr)
+  if (any(bad_grp))
+    stop(sum(bad_grp), " person(s) have a missing or blank frame group; ",
+         "their responses would be dropped from every set -- assign a group ",
+         "or remove those rows")
   grp <- factor(grp)
   if (nlevels(grp) < 1L) stop("no person groups found")
   if (is.null(id_vec)) id_vec <- seq_len(nrow(X))
@@ -1164,6 +1269,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
          "would be treated as independent people by the set-link likelihood")
   # The crossed-cell column is internal metadata. Keep its readable name
   # unless it would collide with a component or an ordinary person factor.
+  .check_factor_frame(fac_df)
   taken_factor_names <- unique(c(names(grp_components), names(fac_df)))
   if (grp_name %in% taken_factor_names) {
     grp_name <- ".frame_group"
@@ -1177,9 +1283,23 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
 
   # --- item sets --------------------------------------------------------------
   if (is.list(item_sets)) {
-    if (is.null(names(item_sets)) || any(!nzchar(names(item_sets))))
+    if (is.null(names(item_sets)) || anyNA(names(item_sets)) ||
+        any(!nzchar(trimws(names(item_sets)))))
       stop("item_sets must be a NAMED list (each element a set of item ",
-           "names)")
+           "names); a blank name is not a set")
+    if (anyDuplicated(names(item_sets)))
+      stop("duplicate set name(s) in item_sets: ",
+           paste(unique(names(item_sets)[duplicated(names(item_sets))]),
+                 collapse = ", "))
+    # an empty set is a frame the design cannot carry: fitting without it
+    # answers a different question from the one that was asked
+    empty <- vapply(item_sets, function(s)
+      !length(s) || all(is.na(s)) || all(!nzchar(trimws(as.character(s)))),
+      TRUE)
+    if (any(empty))
+      stop("item set(s) with no items: ",
+           paste(names(item_sets)[empty], collapse = ", "),
+           "; every set needs at least one item name")
     ov <- unlist(item_sets)
     if (anyDuplicated(ov))
       stop("item(s) assigned to more than one set: ",
@@ -1193,9 +1313,25 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       hit <- intersect(item_sets[[s]], colnames(X))
       set_of[hit] <- s
     }
-    if (anyNA(set_of)) set_of[is.na(set_of)] <- "(rest)"
+    if (anyNA(set_of)) {
+      # the generated name for unlisted items must not be one the caller
+      # already used, or two different sets would become one
+      if ("(rest)" %in% names(item_sets))
+        stop("item_sets already contains a set named '(rest)', which is the ",
+             "generated name for items no set lists; rename it, or list ",
+             "every item explicitly")
+      set_of[is.na(set_of)] <- "(rest)"
+    }
   } else {
-    if (is.null(names(item_sets))) stop("item_sets must be a named list or named vector")
+    if (is.null(names(item_sets)) || anyNA(names(item_sets)) ||
+        any(!nzchar(trimws(names(item_sets)))))
+      stop("item_sets must be a named list or named vector; a blank item ",
+           "name is not an item")
+    sv <- trimws(as.character(item_sets))
+    if (anyNA(item_sets) || any(!nzchar(sv)))
+      stop("item_sets maps item(s) to a blank set name: ",
+           paste(names(item_sets)[is.na(item_sets) | !nzchar(sv)],
+                 collapse = ", "))
     if (anyDuplicated(names(item_sets)))
       stop("duplicate item(s) in the item_sets map: ",
            paste(unique(names(item_sets)[duplicated(names(item_sets))]),
@@ -1794,15 +1930,40 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                             unit_omnibus = unit_omnibus,
                             unit_tests = ut)
   grid <- seq(-6, 6, by = 0.1)
-  fit$score_curves <- do.call(rbind, lapply(glevs, function(g) {
+  # A score curve belongs to an administration, not only to a group: two
+  # people in one group who were given different item sets have different
+  # maximum scores and different expected totals, so one curve per group
+  # would misread whichever of them did not take the whole instrument. The
+  # curve is keyed by group and by the sets administered (the design);
+  # missing responses within an administered set are not a design.
+  obs <- !is.na(X)
+  gch <- as.character(grp)
+  # membership is carried as a logical row over the known sets, never as a
+  # pasted label parsed back apart: a set named "a+b" would otherwise split
+  # into sets that do not exist and lose its items from the curve
+  seen_mat <- vapply(seq_len(nrow(X)), function(p)
+    sets_u %in% set_of[obs[p, ]], logical(length(sets_u)))
+  # vapply drops to a vector with a single set: the matrix is sets x persons
+  if (is.null(dim(seen_mat)))
+    seen_mat <- matrix(seen_mat, nrow = length(sets_u))
+  sets_seen <- apply(seen_mat, 2L, function(v)
+    paste(sets_u[v], collapse = " + "))
+  key <- paste0(gch, "\r", apply(seen_mat, 2L, function(v)
+    paste0(as.integer(v), collapse = "")))
+  reps <- which(!duplicated(key) & colSums(seen_mat) > 0L)
+  fit$score_curves <- do.call(rbind, lapply(reps, function(p) {
+    g <- gch[p]
+    seen <- sets_u[seen_mat[, p]]
+    cols <- which(set_of %in% seen)
     r_i <- alpha[set_of] * phi[g]
-    ew <- vapply(grid, function(th) sum(vapply(seq_len(L), function(i)
+    ew <- vapply(grid, function(th) sum(vapply(cols, function(i)
       r_i[i] * item_moments(th, delta[thr_items$item == match(colnames(X)[i], items_o)],
                             disc = r_i[i])$E, 0)), 0)
-    info <- vapply(grid, function(th) sum(vapply(seq_len(L), function(i)
+    info <- vapply(grid, function(th) sum(vapply(cols, function(i)
       r_i[i]^2 * item_moments(th, delta[thr_items$item == match(colnames(X)[i], items_o)],
                               disc = r_i[i])$V, 0)), 0)
-    data.frame(group = g, theta = grid, expected_score = ew, sem = 1 / sqrt(info))
+    data.frame(group = g, design = sets_seen[p], n_persons = sum(key == key[p]),
+               theta = grid, expected_score = ew, sem = 1 / sqrt(info))
   }))
   fit$linking <- list(
     phi_edges = edges_g,
@@ -1876,11 +2037,17 @@ print.rasch_efrm <- function(x, ...) {
 #' }
 #' @export
 plot_frames <- function(fit, band = 2.5) {
+  .check_band(band)
   if (!inherits(fit, "rasch_efrm")) stop("plot_frames needs a rasch_efrm fit")
   fr <- fit$frames[order(fit$frames$set, fit$frames$rho), ]
   n <- nrow(fr)
   lr <- log(fr$rho)
-  lo <- lr - 1.96 * fr$se_log_rho; hi <- lr + 1.96 * fr$se_log_rho
+  # boot_reps = 0 is a documented choice: the units carry no standard error,
+  # so the intervals are omitted and said to be omitted, rather than the
+  # display failing on an all-missing range
+  have_se <- any(is.finite(fr$se_log_rho))
+  lo <- if (have_se) lr - 1.96 * fr$se_log_rho else lr
+  hi <- if (have_se) lr + 1.96 * fr$se_log_rho else lr
   labs <- paste0(fr$set, " \u00d7 ", fr$group)
   glev <- sort(unique(fr$group))
   colr <- .rr$pal[(match(fr$group, glev) - 1L) %% length(.rr$pal) + 1L]
@@ -1888,8 +2055,12 @@ plot_frames <- function(fit, band = 2.5) {
             las = 1, col.axis = .rr$ink, col.lab = .rr$ink, col.main = .rr$ink,
             font.main = 2, cex.main = 1.15)
   on.exit(par(op))
-  plot(NA, xlim = range(c(lo, hi, 0)) + c(-0.1, 0.1), ylim = c(0.5, n + 0.5),
+  plot(NA, xlim = range(c(lo, hi, 0), na.rm = TRUE) + c(-0.1, 0.1),
+       ylim = c(0.5, n + 0.5),
        xlab = "log unit (log rho)", ylab = "", axes = FALSE, main = "")
+  if (!have_se)
+    mtext("unit standard errors unavailable (boot_reps = 0)", side = 3,
+          line = 0.2, adj = 1, cex = 0.72, col = .rr$soft, font = 3)
   abline(h = seq_len(n), col = .rr$grid, lwd = 0.8)
   abline(v = 0, lty = 2, col = .rr$soft)
   .rr_axis(1)
@@ -1931,6 +2102,10 @@ plot_frames <- function(fit, band = 2.5) {
 plot_icc_frames <- function(fit, item, n_groups = fit$n_groups,
                             grid = seq(-5, 5, 0.05), group = NULL) {
   if (!inherits(fit, "rasch_efrm")) stop("plot_icc_frames needs a rasch_efrm fit")
+  if (length(item) != 1L) stop("`item` must name exactly one item")
+  n_groups <- .check_whole(n_groups, "n_groups", 2)
+  if (!is.numeric(grid) || length(grid) < 2L || any(!is.finite(grid)))
+    stop("`grid` must be a vector of at least two finite locations")
   vm <- fit$virtual_map
   rows <- which(vm$item == item)
   if (!length(rows)) stop("no such item: ", item)

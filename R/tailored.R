@@ -93,6 +93,11 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("tailored analysis applies to dichotomous (multiple-choice) items")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; tailored analysis is unavailable")
+  if (inherits(fit, "rasch_explanatory"))
+    stop("tailored_analysis() compares a free calibration with its tailored ",
+         "recalibration; an explanatory fit restricts the item locations to ",
+         "its design, and the tailored refit would drop that restriction, so ",
+         "the two calibrations would not differ only by the tailoring")
   spec <- fit$refit_spec
   if (is.null(spec)) spec <- list()
   if (!is.null(spec$anchors) && nrow(spec$anchors))
@@ -155,8 +160,12 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
                cov_tau = matrix(0, nrow(thr4), nrow(thr4)),
                loglik = NA_real_, iterations = 0L, converged = TRUE,
                m = fit$m, anchors = thr4, n_parameters = 0L)
+  # step 4 is compared with steps 1-3, so it carries the same reference
+  # sample size: hard-coding NA left its item-trait statistics on a
+  # different scale from its own siblings
   anchored <- .assemble_fit(fit$model, fit$X, est4, fit$person$id,
-                            fit$factors, fit$n_groups, NA,
+                            fit$factors, fit$n_groups,
+                            spec$adjust_N %||% NA_real_,
                             c(fit$notes,
                               "all item parameters anchored at their tailored values; persons re-estimated"))
 

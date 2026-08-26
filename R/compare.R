@@ -113,6 +113,10 @@
 #'              RSM = rasch(X, model = "RSM"))
 #' @export
 compare_fits <- function(..., reference = 1) {
+  if (is.character(reference)) {
+    if (length(reference) != 1L || is.na(reference) || !nzchar(reference))
+      stop("`reference` must be one fit name or one whole number")
+  } else reference <- .check_whole(reference, "reference", 1)
   fits <- list(...)
   if (length(fits) < 2) stop("supply at least two fits to compare")
   is_btl <- vapply(fits, inherits, TRUE, what = "rasch_btl")
@@ -135,6 +139,15 @@ compare_fits <- function(..., reference = 1) {
     # row-position-weighted checksum treats a harmless reorder as new data.
     # Weight and judge allocation are part of the composite data too: they
     # determine the likelihood contribution and independent clusters.
+    seq_names <- function(f) intersect(c("exposure", "carry_over", "order"),
+                                      names(f$comparisons))
+    use_presented <- any(vapply(fits, function(f)
+      !is.null(f$dependence) ||
+        length(intersect(c("exposure", "carry_over", "position"),
+                         names(f$comparisons))) > 0L, TRUE))
+    # only sequence columns every compared fit carries can distinguish them
+    seq_cols <- Reduce(intersect, lapply(fits, seq_names))
+    if (is.null(seq_cols)) seq_cols <- character(0)
     sig <- function(f) {
       cmp <- f$comparisons
       if (is.null(cmp)) return(NULL)
@@ -147,6 +160,16 @@ compare_fits <- function(..., reference = 1) {
                       weight = as.numeric(cmp$weight),
                       judge = as.character(cmp$judge),
                       stringsAsFactors = FALSE)
+      # Orientation is arbitrary in a plain BTL, so the canonical form above
+      # is the right fingerprint. It stops being arbitrary once any compared
+      # fit models position or sequence: there the presented order enters
+      # the likelihood, and two presentation designs would otherwise compare
+      # as the same data. The decision is made across ALL the fits, so a
+      # plain fit and a position-effect fit of the SAME comparisons still
+      # match; the derived position column is a fitted covariate, not a
+      # datum, so it never enters.
+      if (use_presented) { z$presented_a <- ca; z$presented_b <- cb }
+      for (cn in seq_cols) z[[cn]] <- as.character(cmp[[cn]])
       z <- z[do.call(order, c(z, list(na.last = TRUE))), , drop = FALSE]
       rownames(z) <- NULL
       list(objects = sort(f$objects$object), comparisons = z)
@@ -320,13 +343,24 @@ lr_test <- function(fit, maxit = 60, tol = 1e-8) {
     stop("with dichotomous items the two parameterisations coincide")
   if (!isTRUE(fit$est$converged))
     stop("the PCM fit did not converge; its likelihood cannot support a model comparison")
+  if (inherits(fit, "rasch_explanatory"))
+    stop("lr_test() compares an unrestricted PCM fit with its rating ",
+         "re-parameterisation; an explanatory fit already restricts the ",
+         "thresholds to its design, and the rating refit would drop that ",
+         "restriction, so the two models are not nested")
   spec <- fit$refit_spec
   if (!is.null(spec$anchors) && nrow(spec$anchors))
     stop("lr_test() requires an unrestricted PCM fit; fixed threshold anchors change the null constraints")
   if (!is.null(spec$pc_components))
     stop("lr_test() requires an unrestricted PCM fit; principal-component threshold constraints are already a restricted model")
-  rsm <- rasch(fit$X, model = "RSM", n_groups = fit$n_groups, maxit = maxit,
-               tol = tol)
+  # the refit is meant to sit beside the PCM fit, so it must be scaled and
+  # grouped the same way: dropping adjust_N puts the two sets of item-trait
+  # chi-squares on different scales, and dropping the person factors makes
+  # the returned fit useless for the follow-up analyses
+  rsm <- rasch(fit$X, model = "RSM", n_groups = fit$n_groups,
+               adjust_N = spec$adjust_N %||% NA_real_,
+               id = fit$person$id, factors = fit$factors,
+               maxit = maxit, tol = tol)
   if (!isTRUE(rsm$est$converged))
     stop("the rating-scale refit did not converge; the model comparison is unavailable")
   chisq <- 2 * (fit$est$loglik - rsm$est$loglik)

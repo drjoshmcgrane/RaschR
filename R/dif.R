@@ -13,12 +13,35 @@
 # ===========================================================================
 
 .dif_factors <- function(fit, factors) {
+  n <- nrow(fit$X)
   if (is.null(factors)) factors <- fit$factors
   if (is.null(factors)) stop("no person factors supplied or stored in the fit")
-  if (is.character(factors) && !is.null(fit$factors) &&
-      all(factors %in% names(fit$factors)))
+  if (is.character(factors) && length(factors) != n) {
+    # a short character vector names fitted factors; anything else risks
+    # recycling a fabricated grouping over the persons
+    unknown <- if (is.null(fit$factors)) factors else
+      setdiff(factors, names(fit$factors))
+    if (length(unknown))
+      stop("factor name(s) not stored in the fit: ",
+           paste(unknown, collapse = ", "),
+           "; name fitted factors or supply one value per person")
+    if (anyDuplicated(factors))
+      stop("factor(s) named more than once: ",
+           paste(unique(factors[duplicated(factors)]), collapse = ", "))
     factors <- fit$factors[, factors, drop = FALSE]
-  if (!is.data.frame(factors)) factors <- data.frame(group = factors)
+  }
+  if (!is.data.frame(factors)) {
+    if (length(factors) != n)
+      stop("`factors` must give one value per person (", n, "); recycling ",
+           "would analyse a fabricated grouping")
+    factors <- data.frame(group = factors)
+  } else if (nrow(factors) != n)
+    stop("`factors` has ", nrow(factors), " rows but the fit has ", n,
+         " persons")
+  if (anyDuplicated(names(factors)))
+    stop("duplicate factor name(s): ",
+         paste(unique(names(factors)[duplicated(names(factors))]),
+               collapse = ", "))
   factors
 }
 
@@ -471,6 +494,10 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
                                 sizes = FALSE, id = NULL, within = NULL,
                                 pool_facets = TRUE) {
   .check_dif_args(alpha, p_adjust, n_groups = n_groups)
+  if (!isTRUE(sizes) && !isFALSE(sizes))
+    stop("`sizes` must be TRUE or FALSE")
+  if (!isTRUE(pool_facets) && !isFALSE(pool_facets))
+    stop("`pool_facets` must be TRUE or FALSE")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; DIF inference is unavailable")
   effects <- match.arg(effects)
@@ -535,6 +562,11 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     if (is.null(fit$factors) || !id %in% names(fit$factors))
       stop("id column '", id, "' not found among the fit's factors")
     id <- fit$factors[[id]]
+  } else if (!is.null(id) && length(id) != nrow(factors)) {
+    # a recycled identifier understates the sampling units: it would change
+    # the person error stratum, and with it every test in the table
+    stop("`id` has ", length(id), " entries but the fit has ", nrow(factors),
+         " rows; the repeated-measures structure needs one identifier per row")
   }
   if (is.null(id) && !is.null(fit$person$id)) id <- as.character(fit$person$id)
   if (!is.null(id)) id <- as.character(id)
@@ -810,6 +842,13 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
       superseded = isTRUE(u$superseded))
   }
   summary_tab <- do.call(rbind, srows)
+  # every term aliased with the class interval leaves nothing to report: a
+  # NULL summary would be returned as a malformed object and fail later in
+  # the print method and the report
+  if (is.null(summary_tab) || !nrow(summary_tab))
+    .refuse("no DIF contrast is estimable: the nominated factor(s) are ",
+            "aliased with the trait class interval (each interval holds ",
+            "one group only), so no within-interval comparison remains")
   rownames(summary_tab) <- NULL
   # Keep the exact factor names aligned with the summary rows. Public labels
   # are deliberately readable strings; downstream refits and the app must
@@ -978,6 +1017,7 @@ print.rasch_dif <- function(x, ...) {
 #' @export
 dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
                      flag_logits = 0.5, min_n = 20) {
+  if (length(item) != 1L) stop("`item` must name exactly one item")
   .check_dif_args(alpha, p_adjust, flag_logits, min_n)
   if (!inherits(fit, "rasch")) stop("dif_size needs a rasch fit")
   if (inherits(fit, "rasch_efrm"))
@@ -1645,7 +1685,10 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
         length(unique(v[!is.na(v)])) > 1L), na.rm = TRUE), TRUE)]
   }
   if (is.null(within)) within <- character(0)
-  within <- intersect(within, names(factors))
+  unknown_w <- setdiff(within, names(factors))
+  if (length(unknown_w))
+    stop("within-subject factor(s) not among the nominated factors: ",
+         paste(unknown_w, collapse = ", "))
   if (length(within) && is.null(id))
     stop("`within` requires `id` to pair a person's rows")
   paired <- !is.null(id) && anyDuplicated(id) > 0
@@ -1655,6 +1698,13 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
   } else {
     if (!is.list(contrasts) || is.null(names(contrasts)))
       stop("`contrasts` must be \"auto\" or a named list of cell weights")
+    if (anyDuplicated(names(contrasts)))
+      stop("duplicate contrast name(s): ",
+           paste(unique(names(contrasts)[duplicated(names(contrasts))]),
+                 collapse = ", "),
+           "; later definitions would be discarded silently")
+    if (any(is.na(names(contrasts))) || any(!nzchar(names(contrasts))))
+      stop("every contrast needs a non-empty name")
     supplied_meta <- attr(contrasts, "dif_meta", exact = TRUE)
     fam <- list(family = list(), meta = list())
     for (nm in names(contrasts)) {
@@ -1662,6 +1712,12 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
       if (is.null(names(w)) || !all(names(w) %in% cellmap$cell))
         stop("weights of contrast '", nm, "' must be named by design cells: ",
              paste(cellmap$cell, collapse = ", "))
+      if (anyDuplicated(names(w)))
+        stop("contrast '", nm, "' names cell(s) more than once: ",
+             paste(unique(names(w)[duplicated(names(w))]), collapse = ", "),
+             "; a repeated cell would silently replace its earlier weight")
+      if (!is.numeric(w) || any(!is.finite(w)))
+        stop("weights of contrast '", nm, "' must be finite numbers")
       full <- stats::setNames(numeric(nrow(cellmap)), cellmap$cell)
       full[names(w)] <- w
       preserve_scale <- isTRUE(supplied_meta[[nm]]$preserve_scale)
@@ -1692,6 +1748,11 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
     if (anyNA(its))
       stop("item(s) not found in the fit: ",
            paste(items[is.na(its)], collapse = ", "))
+    if (anyDuplicated(its))
+      stop("item(s) named more than once: ",
+           paste(unique(its[duplicated(its)]), collapse = ", "),
+           "; a repeated item would repeat its hypothesis in the ",
+           "multiplicity family")
   }
   Z <- fit$residuals
   notes <- character(0)
@@ -1866,6 +1927,12 @@ dif_posthoc <- function(fit, item, term, factors = NULL, within = NULL,
     .term_vars(term) else term
   if (is.character(id) && length(id) == 1L && !is.null(fit$factors) &&
       id %in% names(fit$factors)) id <- fit$factors[[id]]
+  else if (!is.null(id) && length(id) != nrow(factors))
+    # a wrongly sized identifier reaches the within-subject inference and
+    # fails there on a base length mismatch, naming neither the argument
+    # nor the requirement
+    stop("`id` has ", length(id), " entries but the fit has ", nrow(factors),
+         " rows; the repeated-measures structure needs one identifier per row")
   if (is.null(id) && !is.null(fit$person$id)) id <- fit$person$id
   if (is.null(within) && !is.null(id) && anyDuplicated(id)) {
     within <- names(factors)[vapply(names(factors), function(fn)

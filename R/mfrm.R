@@ -199,6 +199,10 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       for (cn in factors)
         long[[cn]] <- rep(as.character(data[[cn]]), length(items))
     } else if (is.data.frame(factors)) {
+      if (anyDuplicated(names(factors)))
+        stop("duplicate factor column name(s): ",
+             paste(unique(names(factors)[duplicated(names(factors))]),
+                   collapse = ", "))
       persons_row <- as.character(data[[person]])
       pu <- unique(persons_row)
       if (nrow(factors) == nrow(data)) {
@@ -223,7 +227,9 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   if (is.null(item) || is.null(score))
     stop("give either `items` (wide) or `item` + `score` (long)")
   if (!is.null(interaction)) {
-    interaction <- as.character(interaction)[1]
+    if (length(interaction) != 1L || is.na(interaction))
+      stop("'interaction' must name exactly one facet")
+    interaction <- as.character(interaction)
     if (!interaction %in% facets)
       stop("'interaction' must name one of the facets")
   }
@@ -245,6 +251,17 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   if (all(is.na(sc))) stop("score column has no usable integer values")
   fac <- lapply(facets, function(f) as.character(data[[f]]))
   names(fac) <- facets
+  # a whitespace-only label is not an identifier. Unlike NA, which is
+  # dropped with a note below, it silently becomes a level of its own: a
+  # blank person joins the sample as another respondent, and a blank item
+  # or facet level is calibrated alongside the real ones
+  cand <- c(stats::setNames(list(pid), person),
+            stats::setNames(list(itm), item), fac)
+  blanks <- vapply(cand, function(v) any(!is.na(v) & !nzchar(trimws(v))), TRUE)
+  if (any(blanks))
+    stop("blank identifier(s) in column(s): ",
+         paste(names(blanks)[blanks], collapse = ", "),
+         "; a whitespace-only label is not a person, item, or facet level")
 
   # a missing person, item, or facet identifier cannot be attached to any
   # virtual item: paste() would otherwise coerce NA to the literal string
@@ -425,12 +442,28 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       names(fac_df) <- factors
     } else {
       fac_df <- as.data.frame(factors, stringsAsFactors = FALSE)
+      # a row-per-data-row frame is collapsed to one row per person: a
+      # column that varies within a person has no person-level value, and
+      # keeping the first row's would silently pick one occasion
+      .check_person_constant <- function(df, key) {
+        for (cn in names(df)) {
+          v <- as.character(df[[cn]])
+          nvar <- tapply(v, key, function(x) length(unique(x[!is.na(x)])))
+          if (any(nvar > 1L, na.rm = TRUE))
+            stop("factor '", cn, "' varies within person(s) ",
+                 paste(names(nvar)[which(nvar > 1L)], collapse = ", "),
+                 ": person factors must be constant per person (a facet ",
+                 "is not a person factor; see `interaction=`)")
+        }
+      }
       if (nrow(fac_df) == length(bad_id)) {
         # one row per ORIGINAL data row: rows dropped for missing
         # identifiers drop from the factors too, keeping them aligned
         fac_df <- fac_df[!bad_id, , drop = FALSE]
+        .check_person_constant(fac_df, pid)
         fac_df <- fac_df[match(persons_u, pid), , drop = FALSE]
       } else if (nrow(fac_df) == length(pid)) {
+        .check_person_constant(fac_df, pid)
         fac_df <- fac_df[match(persons_u, pid), , drop = FALSE]
       } else if (nrow(fac_df) != length(persons_u))
         stop("`factors` needs one row per data row or one per unique ",
@@ -438,6 +471,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       rownames(fac_df) <- NULL
     }
   }
+  .check_factor_frame(fac_df)
   fit <- .assemble_fit("MFRM", Xv, est, persons_u, fac_df, n_groups,
                        adjust_N, notes)
   # When an item is represented by several facet cells, the expanded
@@ -651,7 +685,10 @@ print.rasch_mfrm <- function(x, ...) {
 #' }
 #' @export
 plot_facets <- function(fit, facet = NULL, band = 2.5) {
+  .check_band(band)
   if (!inherits(fit, "rasch_mfrm")) stop("plot_facets needs a rasch_mfrm fit")
+  if (!is.null(facet) && (length(facet) != 1L || is.na(facet)))
+    stop("`facet` must name exactly one facet")
   if (is.null(facet)) facet <- fit$facet_spec[1]
   fe <- fit$facet_effects[[facet]]
   if (is.null(fe)) stop("no such facet: ", facet)

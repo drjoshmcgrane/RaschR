@@ -185,7 +185,11 @@ NULL
       V2 <- cal[[gg[b]]]$covariance
       V1 <- V1[m$item, m$item, drop = FALSE]
       V2 <- V2[m$item, m$item, drop = FALSE]
-      Vd <- C %*% (V1 + V2) %*% C
+      # Var(Cd) = C Sigma C', and C = I - 1w' is not symmetric unless every
+      # compared item has the same number of thresholds: without the
+      # transpose the polytomous items' standard errors are inflated and the
+      # dichotomous items' deflated
+      Vd <- C %*% (V1 + V2) %*% t(C)
       se <- sqrt(pmax(diag(Vd), 0))
       z <- d / se
       out[[length(out) + 1L]] <- data.frame(
@@ -236,6 +240,11 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
                              boot_reps = 200, seed = NULL) {
   if (!inherits(fit, "rasch_efrm"))
     stop("frame_invariance needs a fit from rasch_efrm()")
+  if (!is.null(seed) &&
+      (length(seed) != 1L || !is.numeric(seed) || !is.finite(seed) ||
+       seed < 0 || seed != floor(seed) || seed > .Machine$integer.max))
+    stop("seed must be NULL or one non-negative whole number within the ",
+         "integer range")
   if (!isTRUE(fit$est$converged))
     stop("the frame calibration did not converge; invariance tests are unavailable")
   if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
@@ -401,8 +410,9 @@ print.rasch_frame_invariance <- function(x, ...) {
   cat("\nrmsd/rmse above 1 indicates item behaviour the frame units do not account for\n")
   fl <- x$locations[x$locations$flagged %in% TRUE, , drop = FALSE]
   if (nrow(fl)) {
-    cat(sprintf("\nLocation differs across frames for %d item(s) at alpha = %.2f (%s):\n",
-                nrow(fl), x$alpha, rule))
+    cat(sprintf(paste0("\nLocation differs across frames in %d item ",
+                       "comparison(s) (%d item(s)) at alpha = %.2f (%s):\n"),
+                nrow(fl), length(unique(fl$item)), x$alpha, rule))
     print(.fmt_df(fl[, c("set", "frame_1", "frame_2", "item", "difference",
                          "se", "statistic", pcol)]), row.names = FALSE)
   } else {
@@ -421,8 +431,9 @@ print.rasch_frame_invariance <- function(x, ...) {
   }
   fd <- x$discrimination[x$discrimination$flagged %in% TRUE, , drop = FALSE]
   if (nrow(fd)) {
-    cat(sprintf("\nDiscrimination differs across frames for %d item(s):\n",
-                nrow(fd)))
+    cat(sprintf(paste0("\nDiscrimination differs across frames in %d item ",
+                       "comparison(s) (%d item(s)):\n"),
+                nrow(fd), length(unique(fd$item))))
     cols <- c("set", "frame_1", "frame_2", "item", "log_disc_ratio",
               "se_log_disc_ratio", "statistic", pcol, "disc_1", "disc_2",
               "disc_ratio", "disc_boundary")

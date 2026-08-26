@@ -66,6 +66,8 @@
 #' dependence_magnitude(rasch(X), dependent = "I5", independent = "I4")
 #' @export
 dependence_magnitude <- function(fit, dependent, independent) {
+  if (length(dependent) != 1L || length(independent) != 1L)
+    stop("`dependent` and `independent` must each name exactly one item")
   if (!inherits(fit, "rasch")) stop("dependence_magnitude needs a rasch fit")
   if (inherits(fit, "rasch_efrm"))
     .refuse("dependence magnitude is not defined across mutually exclusive ",

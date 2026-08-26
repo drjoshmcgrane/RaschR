@@ -3934,10 +3934,15 @@ server <- function(input, output, session) {
       output[[paste0(id, "_", fmt_)]] <- downloadHandler(
         filename = function() paste0("rasch_", id, ".", fmt_),
         content = function(file) {
-          # 300 dpi PNG (and vector PDF) for publication
+          # 300 dpi PNG (and vector PDF) for publication. The device is
+          # closed however the drawing ends: a plot that errors would
+          # otherwise leave the device open for the rest of the session.
+          before <- grDevices::dev.cur()
           if (fmt_ == "png") png(file, width = w, height = h, units = "in", res = 300)
           else pdf(file, width = w, height = h)
-          fun(); dev.off()
+          on.exit(if (!identical(grDevices::dev.cur(), before))
+            try(dev.off(), silent = TRUE), add = TRUE)
+          fun()
         })
     })
   }

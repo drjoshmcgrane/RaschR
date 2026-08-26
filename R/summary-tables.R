@@ -5,6 +5,18 @@
 # reported rather than read off a text panel.
 # ===========================================================================
 
+# The estimator is a property of the fit, not a constant: a structural or
+# explanatory model does not use the ordinary pairwise conditional routine,
+# and naming the wrong one in an exported table contradicts the panel the
+# download sits beside.
+.estimation_label <- function(fit) {
+  if (!is.null(fit$estimation) && nzchar(fit$estimation)) return(fit$estimation)
+  if (inherits(fit, "rasch_efrm")) "semiparametric set-link ML"
+  else if (inherits(fit, "rasch_mfrm")) "conditional ML over response cells"
+  else if (inherits(fit, "rasch_explanatory")) "conditional ML over the design"
+  else "pairwise conditional ML"
+}
+
 #' Test-of-fit summary as a table
 #'
 #' Returns the model, estimation method, trait chi-square, calibration and
@@ -53,7 +65,7 @@ fit_summary_table <- function(fit) {
       "Disordered thresholds"),
     value = c(
       if (inherits(fit, "rasch_explanatory")) fit$explanatory_model else fit$model,
-      "pairwise conditional ML",
+      .estimation_label(fit),
       ifelse(isTRUE(fit$est$converged), "yes", "NO"),
       as.character(fit$est$iterations),
       num(fit$total_chisq), as.character(fit$total_df),

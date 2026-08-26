@@ -72,9 +72,10 @@
 }
 
 .rasch_refit <- function(fit, source, model = NULL, key_extra = NULL,
-                         require_anchor = TRUE) {
+                         require_anchor = TRUE, na_codes = NULL) {
   spec <- fit$refit_spec
   if (is.null(spec)) spec <- list()
+  if (!is.null(na_codes)) spec$na_codes <- na_codes
   source <- as.data.frame(source, check.names = FALSE,
                           stringsAsFactors = FALSE)
   keep <- names(source)

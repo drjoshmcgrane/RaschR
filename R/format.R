@@ -52,6 +52,17 @@
   factor(code, levels = present, labels = labels)
 }
 
+# A column-selecting argument must resolve to exactly one existing column
+# before it is dereferenced: an empty or multiple name otherwise fails with
+# a base subscript error that names neither the argument nor the problem.
+.check_reshape_column <- function(data, x, name) {
+  if (length(x) != 1L || is.na(x) || !(is.character(x) || is.numeric(x)))
+    stop("`", name, "` must name exactly one column", call. = FALSE)
+  x <- as.character(x)
+  if (!x %in% names(data)) stop("column not found: ", x, call. = FALSE)
+  invisible(x)
+}
+
 .check_column_names <- function(x) {
   if (!is.data.frame(x)) return(invisible(NULL))
   nm <- names(x)

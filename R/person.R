@@ -21,6 +21,12 @@
 #' item_moments(0.5, c(-1, 0, 1))
 #' @export
 item_moments <- function(theta, tau_i, disc = 1) {
+  if (length(theta) != 1L || !is.numeric(theta) || !is.finite(theta))
+    stop("`theta` must be one finite location")
+  if (!is.numeric(tau_i) || !length(tau_i) || any(!is.finite(tau_i)))
+    stop("`tau_i` must be a non-empty vector of finite thresholds")
+  if (length(disc) != 1L || !is.numeric(disc) || !is.finite(disc) || disc <= 0)
+    stop("`disc` must be one positive finite discrimination")
   m <- length(tau_i); x <- 0:m
   lp <- disc * (x * theta - c(0, cumsum(tau_i)))
   num <- exp(lp - max(lp)); P <- num / sum(num)   # log-sum-exp: no overflow
@@ -58,6 +64,14 @@ item_moments <- function(theta, tau_i, disc = 1) {
 #' person_wle(list(c(-1, 0), c(-0.5, 0.5), c(0, 1)))
 #' @export
 person_wle <- function(tau_list, disc = 1) {
+  if (!is.list(tau_list) || !length(tau_list) ||
+      !all(vapply(tau_list, function(t)
+        is.numeric(t) && length(t) >= 1L && all(is.finite(t)), TRUE)))
+    stop("`tau_list` must be a list of non-empty finite threshold vectors")
+  if (length(disc) != 1L || !is.numeric(disc) || !is.finite(disc) ||
+      disc <= 0)
+    stop("`disc` must be one positive finite discrimination: the raw-score ",
+         "WLE requires a common discrimination")
   Smax <- sum(vapply(tau_list, length, 1L))
   theta <- se <- setNames(rep(NA_real_, Smax + 1L), as.character(0:Smax))
   for (R in 0:Smax) {

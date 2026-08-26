@@ -198,6 +198,7 @@ print.rasch_btl_info <- function(x, ...) {
 #' @export
 plot_btl_targeting <- function(fit, grid = NULL) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
+  if (!is.null(grid)) .check_grid(grid)
   info <- btl_information(fit)
   o <- info$objects
   m <- fit$m
@@ -305,6 +306,9 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' btl_next_pairs(btl(d, "a", "b", "win"), n = 5)
 #' @export
 btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
+  n <- .check_whole(n, "n", 1)
+  if (length(weight_se) != 1L || is.na(weight_se) || !is.logical(weight_se))
+    stop("`weight_se` must be TRUE or FALSE")
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; pair recommendations are unavailable")

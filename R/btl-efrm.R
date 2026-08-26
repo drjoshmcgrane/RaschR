@@ -683,11 +683,23 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   a <- trimws(as.character(data[[object_a]]))
   b <- trimws(as.character(data[[object_b]]))
   wn <- trimws(as.character(data[[winner]]))
-  jd <- as.character(data[[judge]])
+  jd <- trimws(as.character(data[[judge]]))
+  # a whitespace-only identifier is not a name: blank judges would pool as
+  # one unidentified rater in the clustered bootstrap, and a blank panel
+  # would be estimated as a frame unit of its own
+  if (any(!is.na(a) & !nzchar(a)) || any(!is.na(b) & !nzchar(b)))
+    stop("blank object identifier(s) in ", object_a, "/", object_b,
+         "; a whitespace-only name is not an object")
+  if (any(!is.na(jd) & !nzchar(jd)))
+    stop("blank judge identifier(s) in ", judge,
+         "; a whitespace-only name is not a judge")
 
   # panels: a judge-attribute column, or a named judge -> panel vector
   if (length(panels) == 1L && is.character(panels) && panels %in% names(data)) {
-    pan <- as.character(data[[panels]])
+    pan <- trimws(as.character(data[[panels]]))
+    if (any(!is.na(pan) & !nzchar(pan)))
+      stop("blank panel identifier(s) in ", panels,
+           "; a whitespace-only name is not a panel")
     # a panel is a judge attribute: one judge in two panels is a data error
     # (and the judge bootstrap would silently reclassify their rows)
     npan <- tapply(pan, jd, function(x) length(unique(x[!is.na(x)])))
@@ -701,7 +713,20 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
            paste(unique(names(panels)[duplicated(names(panels))]),
                  collapse = ", "),
            "; each judge may be assigned to one panel")
-    pan <- unname(as.character(panels)[match(jd, names(panels))])
+    pv <- trimws(as.character(panels))
+    bad_pv <- is.na(panels) | !nzchar(pv)
+    if (any(bad_pv))
+      stop("missing or blank panel identifier(s) in the panels map for ",
+           "judge(s): ", paste(names(panels)[bad_pv], collapse = ", "),
+           "; every judge needs one stated panel")
+    absent <- setdiff(unique(jd[!is.na(jd)]), names(panels))
+    if (length(absent))
+      stop(length(absent), " judge(s) missing from the panels map: ",
+           paste(utils::head(absent, 5), collapse = ", "),
+           if (length(absent) > 5) ", ..." else "",
+           "; their comparisons would be dropped from the analysis without ",
+           "a panel")
+    pan <- unname(pv[match(jd, names(panels))])
   } else {
     stop("`panels` must name a column of `data` or be a named vector ",
          "mapping judge to panel")
@@ -736,8 +761,19 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
 
   # --- object sets ----------------------------------------------------------
   if (!is.list(object_sets) || is.null(names(object_sets)) ||
-      any(!nzchar(names(object_sets))))
-    stop("`object_sets` must be a named list: set name -> object names")
+      anyNA(names(object_sets)) ||
+      any(!nzchar(trimws(names(object_sets)))))
+    stop("`object_sets` must be a named list: set name -> object names; a ",
+         "blank name is not a set")
+  # an empty set is a frame the design cannot carry: fitting without it
+  # answers a different question from the one that was asked
+  empty_sets <- vapply(object_sets, function(s)
+    !length(s) || all(is.na(s)) || all(!nzchar(trimws(as.character(s)))),
+    TRUE)
+  if (any(empty_sets))
+    stop("object set(s) with no objects: ",
+         paste(names(object_sets)[empty_sets], collapse = ", "),
+         "; every set needs at least one object name")
   objs_all <- sort(unique(c(a, b)))
   set_of <- setNames(rep(NA_character_, length(objs_all)), objs_all)
   multi <- character(0)

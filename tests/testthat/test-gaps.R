@@ -546,3 +546,1392 @@ test_that("selection boundaries refuse silent alterations", {
   expect_error(tailored_analysis(fd, anchor_items = c("A", "ZZZ")),
                "not in the fit")
 })
+
+test_that("EFRM matrix input honours id and factors and validates selection", {
+  set.seed(61)
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 61)
+  ts <- attr(de, "truth")$item_sets
+  Xm <- as.matrix(de[, grep("^S", names(de), value = TRUE)])
+  f <- rasch_efrm(Xm, item_sets = ts, groups = de$group, id = de$id,
+                  factors = data.frame(g2 = rep(c("u", "v"), 100)),
+                  boot_reps = 0)
+  expect_identical(as.character(f$person$id[1:5]), as.character(de$id[1:5]))
+  expect_true("g2" %in% names(f$person))
+  expect_error(rasch_efrm(Xm, item_sets = ts, groups = de$group, id = 1:7,
+                          boot_reps = 0), "entries")
+  expect_error(rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                          items = c("S1I01", "S1I01", "S1I02"),
+                          boot_reps = 0), "more than once")
+  ts_dup <- ts; names(ts_dup) <- c("s1", "s1")
+  expect_error(rasch_efrm(de, item_sets = ts_dup, groups = "group",
+                          id = "id", boot_reps = 0), "duplicate set name")
+})
+
+test_that("remaining selector and count boundaries hold", {
+  set.seed(62)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = rep(sprintf("P%03d", 1:150), 2), X,
+                   occ = rep(c("t1", "t2"), each = 150))
+  fd <- rasch(dd, id = "id", factors = "occ")
+  expect_error(dif_contrasts(fd, within = "occasion"), "not among")
+  Xd <- matrix(rbinom(200 * 4, 1, 0.5), 200, 4)
+  colnames(Xd) <- c("A", "B", "A", "C")
+  expect_error(pcml_pc(Xd), "unique")
+  expect_error(threshold_index(c(1, 1.9)), "whole non-negative")
+  set.seed(63)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  db$cnt <- 2L; db$cnt[1:3] <- 0L
+  f0 <- btl(db, "object_a", "object_b", winner = "winner", count = "cnt")
+  expect_true(any(grepl("zero-count", f0$notes)))
+  db$cnt[1] <- -1L
+  expect_error(btl(db, "object_a", "object_b", winner = "winner",
+                   count = "cnt"), "non-negative")
+})
+
+test_that("EFRM accepts a factor vector and refuses matrix duplicates", {
+  set.seed(61)
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 61)
+  ts <- attr(de, "truth")$item_sets
+  Xm <- as.matrix(de[, grep("^S", names(de), value = TRUE)])
+  expect_error(rasch_efrm(Xm, item_sets = ts, groups = de$group, id = de$id,
+                          items = c("S1I01", "S1I01", "S1I02"),
+                          boot_reps = 0), "more than once")
+  gv <- rep(c("u", "v"), 100)
+  f_df <- rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                     factors = gv, boot_reps = 0)
+  expect_true("gv" %in% names(f_df$person))
+  f_mx <- rasch_efrm(Xm, item_sets = ts, groups = de$group, id = de$id,
+                     factors = gv, boot_reps = 0)
+  expect_true("gv" %in% names(f_mx$person))
+})
+
+test_that("EFRM refuses ambiguous value-matched role columns", {
+  set.seed(71)
+  base <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                        n_groups = 2, seed = 71)
+  ts <- attr(base, "truth")$item_sets
+  item_cols <- unlist(ts)
+  d1 <- base; d1$cohort <- rep(c(1, 2), 100)
+  expect_error(rasch_efrm(d1, item_sets = ts, groups = "group", id = "id",
+                          factors = d1$cohort, boot_reps = 0),
+               "identical to a supplied role vector")
+  f1 <- rasch_efrm(d1, item_sets = ts, groups = "group", id = "id",
+                   factors = d1$cohort, items = item_cols, boot_reps = 0)
+  expect_false(any(grepl("cohort", f1$item_arbitrary$item)))
+  d2 <- base; d2$gnum <- as.integer(factor(d2$group))
+  expect_error(rasch_efrm(d2, item_sets = ts, groups = d2$gnum, id = "id",
+                          boot_reps = 0),
+               "identical to a supplied role vector")
+  f2 <- rasch_efrm(d2, item_sets = ts, groups = d2$gnum, id = "id",
+                   items = item_cols, boot_reps = 0)
+  expect_false(any(grepl("gnum", f2$item_arbitrary$item)))
+})
+
+test_that("a character groups vector by value works with explicit items", {
+  set.seed(71)
+  base <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                        n_groups = 2, seed = 71)
+  ts <- attr(base, "truth")$item_sets
+  d <- base
+  gchr <- as.character(as.integer(factor(d$group)))
+  d$group <- gchr
+  expect_error(rasch_efrm(d, item_sets = ts, groups = gchr, id = "id",
+                          boot_reps = 0), "identical to a supplied role")
+  f <- rasch_efrm(d, item_sets = ts, groups = gchr, id = "id",
+                  items = unlist(ts), boot_reps = 0)
+  expect_false(any(grepl("group", f$item_arbitrary$item)))
+  # labels colliding with column names stay a by-value grouping
+  d2 <- base
+  d2$lab <- ifelse(d2$group == levels(factor(d2$group))[1], "id", "group")
+  f2 <- rasch_efrm(d2, item_sets = ts, groups = d2$lab, id = "id",
+                   items = unlist(ts), boot_reps = 0)
+  gcol <- grep("group|frame", names(f2$person))[1]
+  expect_true(nlevels(factor(f2$person[[gcol]])) >= 1)
+})
+
+test_that("the person characteristic curve uses the model expectation", {
+  set.seed(81)
+  th0 <- rnorm(200, 0, 1.2)
+  X <- vapply(1:8, function(i) { tt <- c(-1, 0, 1) + (i - 4.5) * 0.45
+    vapply(th0, function(t) sample(0:3, 1, prob = item_moments(t, tt)$P), 0L)
+  }, integer(200))
+  colnames(X) <- paste0("P", 1:8)
+  f <- suppressWarnings(rasch(X))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_no_error(plot_pcc(f, 5))
+  Xd <- matrix(rbinom(200 * 6, 1, 0.5), 200, 6)
+  colnames(Xd) <- paste0("D", 1:6)
+  expect_no_error(plot_pcc(suppressWarnings(rasch(Xd)), 3))
+})
+
+test_that("utility boundaries from the eighth review round hold", {
+  set.seed(92)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fd <- suppressWarnings(rasch(X))
+  expect_error(combine_items(fd, groups = list()), "non-empty")
+  expect_error(compare_fits(fd, fd, reference = 1.9), "whole number")
+  expect_error(item_moments(c(0, 1), c(-1, 1)), "one finite location")
+  expect_error(item_moments(0, c(-1, 1), disc = 0), "positive finite")
+  dd <- data.frame(pid = rep(1:100, 2), t = rep(1:2, each = 100),
+                   Q1 = rbinom(200, 1, 0.5), Q2 = rbinom(200, 1, 0.5))
+  expect_error(stack_data(dd, "pid", "t", c("Q1", "Q1")), "more than once")
+  expect_error(stack_data(dd, "pid", "t", c("pid", "Q1")), "cannot also")
+  set.seed(93)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  f6 <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_error(judge_surprise(f6, c("J1", "J2")), "one judge")
+  expect_error(btl_next_pairs(f6, weight_se = NA), "TRUE or FALSE")
+  expect_error(threshold_index(numeric(0)), "at least one")
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_kidmap(fd, 1, level = 2), "probability")
+})
+
+test_that("the ninth review round's regressions and boundaries hold", {
+  set.seed(92)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fd <- suppressWarnings(rasch(X))
+  fb <- suppressWarnings(rasch(X[, 1:4]))
+  expect_no_error(compare_fits(full = fd, sub = fb, reference = "sub"))
+  expect_error(compare_fits(fd, fb, reference = 1.9), "whole number")
+  expect_error(person_wle(list(c(-1, 1), 0), disc = c(1, 2)),
+               "common discrimination")
+  expect_no_error(combine_items(fd, groups = c("I2", "I3")))
+  expect_identical(nrow(threshold_index(c(0, 0))), 0L)
+  dd <- data.frame(pid = rep(1:50, 2), t = rep(1:2, each = 50),
+                   Q1 = rbinom(100, 1, 0.5))
+  expect_error(rack_data(dd, "pid", "t", character(0)), "at least one")
+  expect_error(stack_data(dd, "pid", "t", character(0)), "at least one")
+  # the interval PCC follows the observed locations, not the grid
+  set.seed(82)
+  th0 <- rnorm(300, 0, 1.5)
+  Xp <- vapply(1:8, function(i) { tt <- c(-1, 0, 1) + (i - 4.5) * 1.8
+    vapply(th0, function(t) sample(0:3, 1, prob = item_moments(t, tt)$P), 0L)
+  }, integer(300))
+  colnames(Xp) <- paste0("W", 1:8)
+  fp <- suppressWarnings(rasch(Xp))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_no_error(plot_pcc(fp, 4))
+})
+
+test_that("compare_fits validates character references helpfully", {
+  set.seed(92)
+  X <- matrix(rbinom(200 * 5, 1, 0.5), 200, 5)
+  colnames(X) <- paste0("I", 1:5)
+  fd <- suppressWarnings(rasch(X))
+  fb <- suppressWarnings(rasch(X[, 1:4]))
+  expect_error(compare_fits(a = fd, b = fb, reference = character(0)),
+               "one fit name")
+  expect_error(compare_fits(a = fd, b = fb, reference = c("a", "b")),
+               "one fit name")
+})
+
+test_that("the tenth review round's boundaries hold", {
+  set.seed(101)
+  dm <- simulate_mfrm(n_persons = 150, n_items = 4, n_raters = 3)
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater",
+                          interaction = c("rater", "rater")),
+               "exactly one facet")
+  resp <- matrix(sample(c("A", "B", "C", "D"), 400 * 3, TRUE), 400, 3)
+  colnames(resp) <- paste0("Q", 1:3)
+  fmc <- suppressWarnings(rasch(resp, key = c(Q1 = "A", Q2 = "B", Q3 = "C")))
+  expect_error(distractor_rescore(fmc, z = -1), "positive finite")
+  expect_error(distractor_analysis(fmc, items = character(0)), "at least one")
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fd <- suppressWarnings(rasch(X))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_ccc(fd, c("I1", "I2")), "exactly one item")
+  expect_error(chisq_detail(fd, c("I1", "I2")), "exactly one item")
+  qq <- data.frame(item = colnames(X), z = rep(c(0, 1), 3))
+  fe <- rasch_explanatory(X, predictors = qq, formula = ~ z)
+  expect_error(relax_explanatory(fe, c("I1", "I2")), "exactly one item")
+  expect_error(explanatory_diagnostics(fe, p_adjust = c("holm", "BH")),
+               "one method")
+})
+
+test_that("equating displays use paired-finite rows and n_common", {
+  set.seed(111)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  f1 <- suppressWarnings(rasch(X))
+  f2 <- suppressWarnings(rasch(X[1:200, ]))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_no_error(plot_equate(f1, f2, independent = TRUE))
+  resp <- matrix(sample(c("A", "B", "C"), 300 * 3, TRUE), 300, 3)
+  colnames(resp) <- paste0("Q", 1:3)
+  fmc <- suppressWarnings(rasch(resp, key = c(Q1 = "A", Q2 = "B", Q3 = "C")))
+  expect_error(plot_distractors(fmc, c("Q1", "Q2")), "exactly one item")
+  # the paired-missing boundary: printing survives a table with no finite
+  # location pairs, reporting the correlation and RMSD as unavailable
+  set.seed(121)
+  db1 <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 3)
+  db2 <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 3)
+  fb1 <- btl(db1, "object_a", "object_b", winner = "winner", judge = "judge")
+  fb2 <- btl(db2, "object_a", "object_b", winner = "winner", judge = "judge")
+  eq <- btl_equate(fb1, fb2, independent = TRUE)
+  eq$table$location_2[] <- NA_real_
+  out <- capture.output(print(eq))
+  expect_match(out[1], "unavailable")
+})
+
+test_that("duplicate and ambiguous selectors cannot alter a test family", {
+  set.seed(131)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = sprintf("P%03d", 1:300), X,
+                   grp = rep(c("a", "b"), 150))
+  fd <- rasch(dd, id = "id", factors = "grp")
+  expect_error(dif_anova(fd, factors = c("grp", "grpp")), "not stored")
+  expect_error(dif_anova(fd, factors = data.frame(g = 1:5)), "300 persons")
+  expect_error(dif_contrasts(fd, items = c("I2", "I2")), "more than once")
+  expect_error(dif_contrasts(fd, contrasts = list(
+    first = c(a = 1, b = -1), first = c(a = -1, b = 1))),
+    "duplicate contrast")
+  expect_error(dimensionality_test(fd, items_positive = c("I1", "I1", "I2"),
+                                   items_negative = c("I3", "I4")),
+               "more than once")
+  expect_error(rasch(dd, id = "id", factors = c("grp", "grp")),
+               "more than once")
+  expect_error(dif_size(fd, c("I1", "I2"), by = "grp"), "exactly one item")
+  set.seed(132)
+  db <- simulate_btl(n_objects = 5, n_judges = 24, reps_per_pair = 3)
+  fb <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  jl <- sort(unique(fb$comparisons$judge))
+  gmap <- setNames(rep(c("x", "y"), length.out = length(jl)), jl)
+  expect_error(btl_dif(fb, factors = gmap, objects = c("O2", "GHOST")),
+               "not in the fit")
+  expect_error(btl_dif(fb, factors = gmap, objects = c("O2", "O2")),
+               "more than once")
+  expect_error(btl_dif(fb, factors = list(g = gmap, g = gmap)),
+               "duplicate factor")
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_item_map(fd, band = -2.5), "positive finite")
+  expect_error(plot_pimap(fd, information = NA), "TRUE or FALSE")
+  expect_error(plot_scree(fd, parallel = NA), "TRUE or FALSE")
+})
+
+test_that("the fourteenth round's residual boundaries hold", {
+  set.seed(141)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = sprintf("P%03d", 1:300), X,
+                   grp = rep(c("a", "b"), 150))
+  fd <- rasch(dd, id = "id", factors = "grp")
+  expect_error(dif_contrasts(fd, contrasts = list(
+    h = c(a = 1, a = -1, b = 1))), "more than once")
+  badf <- data.frame(g = rep(c("a", "b"), 150), g2 = rep(c("x", "y"), 150))
+  names(badf) <- c("g", "g")
+  expect_error(rasch(dd[, 1:7], id = "id", factors = badf),
+               "duplicate factor column")
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 142)
+  fe <- rasch_efrm(de, item_sets = attr(de, "truth")$item_sets,
+                   groups = "group", id = "id", boot_reps = 0)
+  it1 <- fe$virtual_map$item[1]
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_icc_frames(fe, it1, n_groups = 0), "whole number")
+  expect_error(plot_icc_frames(fe, it1, grid = NA), "finite locations")
+})
+
+test_that("factor structures are unambiguous in every input branch", {
+  set.seed(151)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = sprintf("P%03d", 1:300), X,
+                   grp = rep(c("a", "b"), 150))
+  fd <- rasch(dd, id = "id", factors = "grp")
+  expect_error(dif_contrasts(fd, contrasts = list(h = c(a = Inf, b = -1))),
+               "finite numbers")
+  badf <- data.frame(g = rep(c("a", "b"), 150), h = rep(c("x", "y"), 150))
+  names(badf) <- c("g", "g")
+  expect_error(rasch(X, factors = badf), "duplicate factor column")
+  emptyf <- data.frame(g = rep(c("a", "b"), 150))
+  names(emptyf) <- ""
+  expect_error(rasch(X, factors = emptyf), "non-empty name")
+  dm <- simulate_mfrm(n_persons = 100, n_items = 4, n_raters = 2)
+  badm <- data.frame(a = rep("u", 100), b = rep("v", 100))
+  names(badm) <- c("g", "g")
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater", factors = badm),
+               "duplicate factor column")
+})
+
+test_that("the sixteenth round's boundaries hold", {
+  set.seed(161)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  dbad <- db; dbad$object_a[3] <- "   "
+  expect_error(btl(dbad, "object_a", "object_b", winner = "winner"),
+               "blank object")
+  dbj <- db; dbj$judge[2] <- ""
+  expect_error(btl(dbj, "object_a", "object_b", winner = "winner",
+                   judge = "judge"), "blank judge")
+  expect_error(btl(db, "object_a", "object_b", winner = "winner",
+                   position = NA), "TRUE or FALSE")
+  set.seed(162)
+  dm <- simulate_mfrm(n_persons = 150, n_items = 4, n_raters = 4)
+  fm <- rasch_mfrm(dm, person = "person", item = "item", score = "score",
+                   facets = "rater",
+                   factors = data.frame(g = rep(c("x", "y"), 75)))
+  expect_error(dif_anova(fm, pool_facets = NA), "TRUE or FALSE")
+  expect_error(dif_anova(fm, sizes = c(TRUE, FALSE)), "TRUE or FALSE")
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = sprintf("P%03d", 1:300), X,
+                   grp = rep(c("a", "b"), 150))
+  fd <- rasch(dd, id = "id", factors = "grp")
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_icc(fd, "I2", group = "typo"), "no fitted person factor")
+  # a short character vector names factors; a short value vector is a
+  # length error
+  expect_error(plot_icc(fd, "I2", group = c("a", "b")),
+               "no fitted person factor")
+  expect_error(plot_icc(fd, "I2", group = c(1, 2)), "one value per")
+  expect_error(plot_icc(fd, "I2", observed = c(TRUE, FALSE)), "TRUE or FALSE")
+  dd2 <- data.frame(pid = c(NA, 1:99, NA, 2:100), t = rep(1:2, each = 100),
+                    Q1 = rbinom(200, 1, 0.5))
+  expect_error(stack_data(dd2, "pid", "t", "Q1"), "missing or blank person")
+  expect_warning(rasch:::.rr_save_plot(function() stop("boom"), "broken",
+                                       tempdir(), "png", 7, 5, 96),
+                 "could not be drawn")
+})
+
+test_that("the seventeenth round's boundaries hold", {
+  set.seed(171)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = sprintf("P%03d", 1:300), X,
+                   group = rep(c("a", "b"), 150),
+                   sex = rep(c("m", "f"), each = 150))
+  fd <- rasch(dd, id = "id", factors = c("group", "sex"))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_no_error(plot_icc(fd, "I2", group = c("group", "sex")))
+  expect_error(plot_icc(fd, "I2", grid = numeric(0)), "finite locations")
+  expect_error(plot_icc(fd, "I2", n_groups = NA), "whole number")
+  expect_error(plot_ccc(fd, "I2", observed = c(TRUE, FALSE)), "TRUE or FALSE")
+  expect_error(plot_pimap(fd, xlim = 2), "ascending limits")
+  expect_error(plot_threshold_map(fd, order_by_location = NA), "TRUE or FALSE")
+  dd2 <- data.frame(pid = c(" ", 1:99, "x", 2:100),
+                    t = rep(1:2, each = 100), Q1 = rbinom(200, 1, 0.5))
+  expect_error(rack_data(dd2, "pid", "t", "Q1"), "blank person")
+  expect_warning(save_item_plots(fd, what = "icc",
+                                 file = file.path(tempdir(), "b2.pdf"),
+                                 items = c("I1", "GHOST")),
+                 "omitted: GHOST")
+  dm <- simulate_mfrm(n_persons = 100, n_items = 4, n_raters = 2)
+  fm <- rasch_mfrm(dm, person = "person", item = "item", score = "score",
+                   facets = "rater")
+  expect_error(plot_facets(fm, facet = c("rater", "rater")),
+               "exactly one facet")
+})
+
+test_that("the eighteenth round's display controls hold", {
+  set.seed(181)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fd <- rasch(X)
+  Xp <- matrix(sample(0:2, 300 * 5, TRUE), 300, 5)
+  colnames(Xp) <- paste0("P", 1:5)
+  fp <- rasch(Xp)
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_ccc(fp, "P1", observed = TRUE, n_groups = NA),
+               "whole number")
+  expect_error(plot_threshold_prob(fp, "P1", observed = c(TRUE, FALSE)),
+               "TRUE or FALSE")
+  expect_error(plot_threshold_prob(fp, "P1", n_groups = 2.5), "whole number")
+  expect_error(plot_wright(fd, xlim = 2), "ascending limits")
+  expect_error(plot_wright(fd, cex_labels = 0), "positive finite size")
+  # limits that admit no thresholds are an empty display, not a drawing
+  expect_error(plot_wright(fd, xlim = c(20, 24)), "no thresholds")
+  expect_error(plot_kidmap(fd, 1, xlim = c(20, 24)), "no thresholds")
+  expect_error(plot_pimap(fd, xlim = c(20, 24)), "no thresholds")
+  expect_error(plot_resid_cor(fd, cap = 0), "positive finite correlation")
+  expect_error(plot_resid_cor(fd, cap = -0.5), "positive finite correlation")
+  expect_no_error(plot_wright(fd, xlim = c(-3, 3)))
+  expect_no_error(plot_resid_cor(fd))
+})
+
+test_that("the nineteenth round's drawing grids are checked", {
+  set.seed(191)
+  X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300),
+    seq(-1, 1, length.out = 6), "-"))), 300, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fd <- rasch(X)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  fb <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_tcc(fd, grid = numeric(0)), "finite locations")
+  expect_error(plot_tcc(fd, grid = c(0, NA)), "finite locations")
+  expect_error(plot_btl_targeting(fb, grid = numeric(0)), "finite locations")
+  expect_error(plot_btl_categories(fb, grid = numeric(0)), "finite locations")
+  expect_error(plot_tif(fd, grid = 0), "finite locations")
+  expect_error(plot_btl_icc(fb, fb$objects$object[1], grid = c(0, NA)),
+               "finite locations")
+  expect_no_error(plot_tcc(fd))
+  expect_no_error(plot_btl_targeting(fb))
+})
+
+test_that("the twentieth round's roles and identifiers hold", {
+  # a role vector equal to a real item's responses is ambiguous: refusing it
+  # keeps a genuine item from vanishing from the fit, and items= resolves it
+  set.seed(201)
+  X <- matrix(rbinom(200 * 6, 1, 0.5), 200, 6)
+  colnames(X) <- paste0("I", 1:6)
+  dd <- data.frame(id = sprintf("P%03d", 1:200), X, stringsAsFactors = FALSE)
+  expect_error(rasch(dd, id = "id", factors = dd$I1),
+               "identical to a supplied role vector")
+  f <- rasch(dd, id = "id", factors = dd$I1, items = paste0("I", 1:6))
+  expect_equal(nrow(f$items), 6L)
+  expect_true("I1" %in% f$items$item)
+
+  # a recycled identifier would understate the sampling units
+  set.seed(202)
+  X2 <- matrix(rbinom(400 * 6, 1, plogis(outer(rnorm(400),
+    seq(-1, 1, length.out = 6), "-"))), 400, 6)
+  colnames(X2) <- paste0("I", 1:6)
+  d2 <- data.frame(id = sprintf("P%03d", 1:400), X2,
+                   grp = rep(c("a", "b"), 200))
+  f2 <- rasch(d2, id = "id", factors = "grp")
+  expect_error(dif_anova(f2, id = sprintf("S%03d", 1:200)),
+               "one identifier per row")
+  expect_no_error(dif_anova(f2, id = sprintf("S%03d", 1:400)))
+
+  # a person with no frame group would be dropped from every set
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 203)
+  ts <- attr(de, "truth")$item_sets
+  dna <- de; dna$group <- as.character(dna$group); dna$group[1:7] <- NA
+  expect_error(rasch_efrm(dna, item_sets = ts, groups = "group", id = "id",
+                          boot_reps = 0), "missing or blank frame group")
+  dbl <- de; dbl$group <- as.character(dbl$group); dbl$group[1:3] <- "   "
+  expect_error(rasch_efrm(dbl, item_sets = ts, groups = "group", id = "id",
+                          boot_reps = 0), "missing or blank frame group")
+
+  # blank structural identifiers are not levels
+  dm <- simulate_mfrm(n_persons = 80, n_items = 4, n_raters = 3)
+  for (col in c("person", "item", "rater")) {
+    bad <- dm
+    bad[[col]] <- as.character(bad[[col]])
+    bad[[col]][bad[[col]] == unique(bad[[col]])[1]] <- " "
+    expect_error(rasch_mfrm(bad, person = "person", item = "item",
+                            score = "score", facets = "rater"),
+                 "blank identifier")
+  }
+  dbe <- simulate_btl_efrm(n_objects_per_set = 4, n_sets = 2,
+                           n_judges_per_panel = 8, n_panels = 2,
+                           reps_within = 6, reps_cross = 6, seed = 204)
+  os <- attr(dbe, "truth")$object_sets
+  bj <- dbe; bj$judge <- as.character(bj$judge); bj$judge[1:3] <- " "
+  expect_error(btl_efrm(bj, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = "panel", object_sets = os,
+                        se_method = "conditional"), "blank judge identifier")
+  bp <- dbe; bp$panel <- as.character(bp$panel); bp$panel[1:3] <- "  "
+  expect_error(btl_efrm(bp, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = "panel", object_sets = os,
+                        se_method = "conditional"), "blank panel identifier")
+
+  fd <- rasch(X2)
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_kidmap(fd, c(1, 2)), "exactly one person")
+  expect_error(plot_resid_dist(fd, bins = 10.5), "whole number")
+  expect_error(plot_resid_dist(fd, bins = 0), "whole number")
+  d10 <- data.frame(pid = rep(1:100, 2), t = rep(1:2, each = 100),
+                    Q1 = rbinom(200, 1, 0.5))
+  expect_error(rack_data(d10, character(0), "t", "Q1"),
+               "exactly one column")
+  expect_error(stack_data(d10, c("pid", "t"), "t", "Q1"),
+               "exactly one column")
+  expect_error(rack_data(d10, "pid", "nope", "Q1"), "column not found")
+})
+
+test_that("the twenty-first round's identifiers hold", {
+  # the mapped judge -> panel route validates as the column route does
+  dbe <- simulate_btl_efrm(n_objects_per_set = 4, n_sets = 2,
+                           n_judges_per_panel = 8, n_panels = 2,
+                           reps_within = 6, reps_cross = 6, seed = 204)
+  os <- attr(dbe, "truth")$object_sets
+  jn <- unique(as.character(dbe$judge))
+  pmap <- stats::setNames(rep(c("p1", "p2"), length.out = length(jn)), jn)
+  bad <- pmap; bad[1:2] <- " "
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = bad, object_sets = os,
+                        se_method = "conditional"),
+               "blank panel identifier")
+  expect_no_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                           judge = "judge", panels = pmap, object_sets = os,
+                           se_method = "conditional"))
+
+  # a blank component survives inside a crossed label, so each source
+  # grouping is checked before the cells are crossed
+  de <- simulate_efrm(n_per_group = 150, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 211)
+  ts <- attr(de, "truth")$item_sets
+  de$sex <- rep(c("m", "f"), length.out = nrow(de))
+  db <- de; db$sex[1:5] <- "  "
+  expect_error(rasch_efrm(db, item_sets = ts, groups = c("group", "sex"),
+                          id = "id", boot_reps = 0),
+               "blank value\\(s\\) in frame group column")
+  dn <- de; dn$sex[1:5] <- NA
+  expect_error(rasch_efrm(dn, item_sets = ts, groups = c("group", "sex"),
+                          id = "id", boot_reps = 0),
+               "missing or blank frame group")
+  f <- rasch_efrm(de, item_sets = ts, groups = c("group", "sex"),
+                  id = "id", boot_reps = 0)
+  expect_equal(levels(factor(f$person[["group:sex"]])),
+               c("g1:f", "g1:m", "g2:f", "g2:m"))
+})
+
+test_that("restricted models are not silently relaxed by a refit", {
+  set.seed(221)
+  Xp <- matrix(sample(0:2, 400 * 6, TRUE), 400, 6)
+  colnames(Xp) <- paste0("Q", 1:6)
+  prd <- data.frame(item = colnames(Xp), w = c(0, 0, 1, 1, 2, 2))
+  fe <- rasch_explanatory(Xp, predictors = prd, formula = ~ w,
+                          level = "item")
+  # the rating refit would drop the design, so the models are not nested
+  expect_error(lr_test(fe), "not nested")
+  expect_no_error(lr_test(rasch(Xp, model = "PCM")))
+
+  Xd <- matrix(rbinom(400 * 6, 1, 0.55), 400, 6)
+  colnames(Xd) <- paste0("I", 1:6)
+  prd2 <- data.frame(item = colnames(Xd), w = c(0, 0, 1, 1, 2, 2))
+  fed <- rasch_explanatory(Xd, predictors = prd2, formula = ~ w,
+                           level = "item")
+  expect_error(tailored_analysis(fed, chance = 0.25),
+               "restricts the item locations")
+
+  # the parallel reference must be analysed under the model that was fitted
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  cnt <- 0L
+  invisible(utils::capture.output(
+    trace(".explanatory_refit_modified", where = asNamespace("rasch"),
+          tracer = function() cnt <<- cnt + 1L, print = FALSE)))
+  on.exit(try(invisible(utils::capture.output(
+    untrace(".explanatory_refit_modified", where = asNamespace("rasch")))),
+    silent = TRUE), add = TRUE)
+  expect_no_error(plot_scree(fe, parallel = TRUE, reps = 3))
+  expect_gt(cnt, 0L)
+
+  db <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 2)
+  obj <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
+  bp <- data.frame(object = obj, w = seq_along(obj) %% 2)
+  fbe <- btl_explanatory(db, predictors = bp, formula = ~ w,
+                         object_a = "object_a", object_b = "object_b",
+                         winner = "winner", judge = "judge")
+  gm <- rep(c("x", "y"), length.out = nrow(fbe$comparisons))
+  expect_error(btl_dif(fbe, factors = gm), "explanatory comparison fit")
+})
+
+test_that("planted features are planted, or refused", {
+  # an item named in several dependence pairs carries every one of them
+  sd2 <- simulate_rasch(600, 8, dependence = list(
+    pairs = list(c(1, 3), c(2, 3)), strength = 2.5), seed = 222)
+  rc <- residual_correlations(rasch(sd2))$matrix
+  expect_gt(rc[1, 3], 0.08)
+  expect_gt(rc[2, 3], 0.08)
+
+  # a dichotomous item has one threshold and cannot be disordered
+  expect_warning(sd3 <- simulate_rasch(300, 6, disordered = 3, seed = 223),
+                 "polytomous items only")
+  expect_false(any(grepl("disordered",
+                         attr(sd3, "truth")$planted %||% character(0))))
+
+  # a unit ratio is a comparison between frames
+  expect_error(simulate_efrm(100, 5, n_sets = 1, set_unit_ratio = 1.3),
+               "must be 1 when `n_sets` is 1")
+  expect_error(simulate_efrm(100, 5, n_groups = 1, group_unit_ratio = 1.2),
+               "must be 1 when `n_groups` is 1")
+  expect_no_error(simulate_efrm(100, 5, n_sets = 1, set_unit_ratio = 1))
+})
+
+test_that("a failed export keeps the caller's device and its own file name", {
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({try(dev.off(), silent = TRUE); unlink(tf)}, add = TRUE)
+  d0 <- grDevices::dev.cur()
+  suppressWarnings(.rr_save_plot(function() plot(1), "x",
+                                 file.path(tempdir(), "no_such_dir_zz"),
+                                 "png", 7, 5, 96))
+  expect_identical(grDevices::dev.cur(), d0)
+
+  # two item names that sanitise alike must not share one file
+  expect_equal(length(unique(.rr_safe_stem(c("A/B", "A B", "A_B")))), 3L)
+  set.seed(225)
+  Xc <- matrix(rbinom(300 * 3, 1, 0.5), 300, 3)
+  colnames(Xc) <- c("A/B", "A B", "C")
+  od <- file.path(tempdir(), "outprobe")
+  unlink(od, recursive = TRUE)
+  invisible(save_outputs(rasch(Xc), od, formats = "png", item_plots = TRUE))
+  expect_equal(length(list.files(od, pattern = "_icc\\.png$",
+                                 recursive = TRUE)), 3L)
+})
+
+test_that("every export name path keeps its own file", {
+  # objects, like items, can sanitise to the same stem
+  set.seed(233)
+  db <- simulate_btl(n_objects = 6, n_judges = 24, reps_per_pair = 4)
+  ren <- c(O1 = "A/B", O2 = "A B", O3 = "C", O4 = "D", O5 = "E", O6 = "F")
+  for (cc in c("object_a", "object_b", "winner"))
+    db[[cc]] <- unname(ren[as.character(db[[cc]])])
+  fb <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  od <- file.path(tempdir(), "gapsbtl"); unlink(od, recursive = TRUE)
+  invisible(suppressWarnings(save_outputs(fb, od, formats = "png",
+                                          item_plots = TRUE)))
+  expect_equal(length(list.files(od, pattern = "_icc[.]png$",
+                                 recursive = TRUE)), 6L)
+
+  # facet tables and facet plots take their names the same way
+  set.seed(235)
+  np <- 40; items <- paste0("It", 1:3); raters <- paste0("R", 1:3)
+  occ <- c("t1", "t2")
+  g <- expand.grid(person = sprintf("P%02d", 1:np), item = items,
+                   rater = raters, occasion = occ, stringsAsFactors = FALSE)
+  th <- stats::setNames(rnorm(np), sprintf("P%02d", 1:np))
+  di <- stats::setNames(seq(-1, 1, length.out = 3), items)
+  sv <- stats::setNames(c(-0.4, 0, 0.4), raters)
+  ov <- stats::setNames(c(-0.2, 0.2), occ)
+  g$score <- rbinom(nrow(g), 2, plogis((th[g$person] - di[g$item] -
+                                        sv[g$rater] - ov[g$occasion]) / 2))
+  names(g)[names(g) == "rater"] <- "r/x"
+  names(g)[names(g) == "occasion"] <- "r x"
+  fm <- rasch_mfrm(g, person = "person", item = "item", score = "score",
+                   facets = c("r/x", "r x"))
+  md <- file.path(tempdir(), "gapsmfrm"); unlink(md, recursive = TRUE)
+  invisible(suppressWarnings(save_outputs(fm, md, formats = "png")))
+  expect_equal(length(grep("facet", basename(list.files(md, pattern = "csv$",
+                                                        recursive = TRUE)),
+                           value = TRUE)), 2L)
+  expect_equal(length(list.files(md, pattern = "facet_severities.*png$",
+                                 recursive = TRUE)), 2L)
+
+  # the report closes only devices it opened
+  X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({try(dev.off(), silent = TRUE); unlink(tf)}, add = TRUE)
+  d0 <- grDevices::dev.cur()
+  rp <- file.path(tempdir(), "gapsrep.html"); unlink(rp)
+  invisible(suppressWarnings(report_html(rasch(X), rp)))
+  expect_identical(grDevices::dev.cur(), d0)
+  expect_true(file.exists(rp))
+})
+
+test_that("the explanatory scree reference aligns its person rows", {
+  set.seed(241)
+  N <- 200
+  Xp <- matrix(sample(0:2, N * 6, TRUE), N, 6)
+  colnames(Xp) <- paste0("Q", 1:6)
+  Xp[7, ] <- NA                     # a respondent with no person estimate
+  d <- data.frame(id = sprintf("P%03d", 1:N), Xp,
+                  sex = rep(c("m", "f"), length.out = N))
+  prd <- data.frame(item = colnames(Xp), w = c(0, 0, 1, 1, 2, 2))
+  fe <- rasch_explanatory(d, predictors = prd, formula = ~ w, level = "item",
+                          id = "id", factors = "sex", items = colnames(Xp))
+  expect_gt(sum(is.na(fe$person$theta)), 0L)
+  ref <- .scree_reference(fe, k = 2, reps = 3)
+  expect_true(all(is.finite(unlist(ref))))
+
+  # the refit carries the retained rows' identifiers and factors, stays an
+  # explanatory fit, and keeps an approved departure in force
+  keep <- !is.na(fe$person$theta)
+  fr <- relax_explanatory(fe, "Q3", "location")
+  rf <- .explanatory_refit_modified(fr, fr$X[keep, , drop = FALSE],
+                                    person_rows = which(keep))
+  expect_s3_class(rf, "rasch_explanatory")
+  expect_equal(nrow(rf$person), sum(keep))
+  expect_equal(nrow(rf$factors), sum(keep))
+  expect_identical(as.character(rf$person$id),
+                   as.character(fe$person$id[keep]))
+  expect_equal(ncol(rf$est$B), ncol(fr$est$B))
+  expect_gt(ncol(rf$est$B), ncol(fe$est$B))
+  expect_equal(nrow(rf$explanatory$relaxations),
+               nrow(fr$explanatory$relaxations))
+  # a source of the wrong height is refused rather than misaligned
+  expect_error(.explanatory_refit_modified(fe, fe$X[keep, , drop = FALSE],
+                                           person_rows = seq_len(N)),
+               "one fitted row per row")
+})
+
+test_that("a batch export that drew nothing does not report success", {
+  set.seed(242)
+  X <- matrix(rbinom(300 * 4, 1, 0.5), 300, 4)
+  colnames(X) <- paste0("I", 1:4)
+  f <- rasch(X)
+  png(tfd <- tempfile(fileext = ".png"))
+  on.exit({try(dev.off(), silent = TRUE); unlink(tfd)}, add = TRUE)
+  d0 <- grDevices::dev.cur()
+
+  zp <- file.path(tempdir(), "gapsbatch.zip"); unlink(zp)
+  expect_error(save_item_plots(f, what = "icc", file = zp, width = -1),
+               "positive finite value")
+  expect_false(file.exists(zp))
+
+  zp2 <- file.path(tempdir(), "gapsbatch2.zip"); unlink(zp2)
+  expect_error(save_item_plots(f, what = "icc", file = zp2,
+                               items = c("GHOST1", "GHOST2")),
+               "no archive was created")
+  expect_false(file.exists(zp2))
+  expect_identical(grDevices::dev.cur(), d0)
+
+  # partial success still produces a real archive, and says what is missing
+  zp3 <- file.path(tempdir(), "gapsbatch3.zip"); unlink(zp3)
+  expect_warning(save_item_plots(f, what = "icc", file = zp3,
+                                 items = c("I1", "GHOST")),
+                 "omitted: GHOST")
+  expect_true(file.exists(zp3))
+  expect_equal(nrow(utils::unzip(zp3, list = TRUE)), 1L)
+
+  zp4 <- file.path(tempdir(), "gapsbatch4.zip"); unlink(zp4)
+  invisible(save_item_plots(f, what = "icc", file = zp4))
+  cont <- utils::unzip(zp4, list = TRUE)$Name
+  expect_equal(length(cont), 4L)
+  expect_equal(length(unique(cont)), 4L)
+
+  pdfp <- file.path(tempdir(), "gapsbatch.pdf"); unlink(pdfp)
+  expect_error(save_item_plots(f, what = "icc", file = pdfp,
+                               items = c("GHOST1", "GHOST2")),
+               "no file was created")
+  expect_false(file.exists(pdfp))
+  invisible(save_item_plots(f, what = "icc", file = pdfp))
+  expect_true(file.exists(pdfp))
+})
+
+test_that("derived fits keep the controls they were built from", {
+  set.seed(251)
+  N <- 700; tau <- c(-0.7, 0.7); th <- rnorm(N)
+  X <- sapply(seq(-1, 1, length.out = 6), function(dd)
+    vapply(th, function(b) sample(0:2, 1, prob = item_moments(b, tau + dd)$P),
+           0L))
+  colnames(X) <- paste0("Q", 1:6)
+  d <- data.frame(id = sprintf("P%03d", 1:N), X,
+                  grp = rep(c("a", "b"), N / 2))
+  f <- rasch(d, id = "id", factors = "grp", model = "PCM", adjust_N = 2000)
+  lr <- lr_test(f)
+  # both parameterisations must be on the same chi-square scale
+  expect_equal(lr$fit_rsm$refit_spec$adjust_N, 2000)
+  expect_false(is.null(lr$fit_rsm$factors))
+  expect_no_error(dif_anova(lr$fit_rsm, factors = "grp"))
+  ratio <- sum(lr$fit_rsm$item_trait$chisq, na.rm = TRUE) /
+    sum(f$item_trait$chisq, na.rm = TRUE)
+  expect_gt(ratio, 0.5)
+
+  set.seed(252)
+  P <- 0.25 + 0.75 * plogis(outer(rnorm(800), seq(-2, 2, length.out = 10), "-"))
+  Xd <- matrix(rbinom(800 * 10, 1, P), 800, 10)
+  colnames(Xd) <- paste0("I", 1:10)
+  fd <- rasch(Xd, adjust_N = 2000)
+  ta <- tailored_analysis(fd, chance = 0.25)
+  expect_gt(sum(ta$anchored$item_trait$chisq, na.rm = TRUE) /
+              sum(fd$item_trait$chisq, na.rm = TRUE), 0.5)
+
+  # a subtest total spans a wider range than any member item
+  set.seed(253)
+  Xp <- matrix(sample(0:2, 400 * 8, TRUE), 400, 8)
+  colnames(Xp) <- paste0("I", 1:8)
+  fp <- rasch(Xp, model = "PCM", na_codes = 9)
+  cb <- combine_items(fp, list(c("I1", "I2", "I3", "I4", "I5")))
+  sn <- "I1+I2+I3+I4+I5"
+  expect_equal(sum(is.na(cb$X[, sn])), 0L)
+  expect_true(any(grepl("missing-data code", cb$notes)))
+
+  # the class-interval detail reconciles with the item table it quotes
+  cd <- chisq_detail(fd, "I4")
+  expect_gt(cd$adjust_factor, 1)
+  expect_equal(sum(cd$intervals$chisq_adjusted[cd$intervals$used]), cd$chisq,
+               tolerance = 1e-8)
+  cd0 <- chisq_detail(rasch(Xd), "I4")
+  expect_equal(cd0$adjust_factor, 1)
+  expect_equal(sum(cd0$intervals$chisq[cd0$intervals$used]), cd0$chisq,
+               tolerance = 1e-8)
+})
+
+test_that("frame invariance uses the covariance of the centred differences", {
+  set.seed(21)
+  K <- 6; npg <- 400
+  inm <- sprintf("I%02d", 1:K)
+  mvec <- c(1, 1, 1, 1, 1, 4)
+  delta <- seq(-1, 1, length.out = K)
+  tl <- lapply(seq_len(K), function(i)
+    if (mvec[i] == 1) delta[i] else delta[i] + seq(-1.2, 1.2, length.out = 4))
+  phi <- c(1 / sqrt(1.5), sqrt(1.5))
+  grp <- factor(rep(c("g1", "g2"), each = npg)); N <- length(grp)
+  theta <- rnorm(N, 0, 1.4)
+  X <- matrix(NA_integer_, N, K, dimnames = list(NULL, inm))
+  for (col in seq_len(K)) {
+    rho <- phi[as.integer(grp)]; m <- mvec[col]; ct <- cumsum(tl[[col]])
+    E <- cbind(0, sapply(seq_len(m), function(k) rho * (k * theta - ct[k])))
+    P <- exp(E - apply(E, 1, max)); P <- P / rowSums(P)
+    cum <- P %*% upper.tri(diag(m + 1L), diag = TRUE)
+    X[, col] <- as.integer(rowSums(runif(N) > cum))
+  }
+  dd <- data.frame(id = sprintf("P%04d", seq_len(N)), X, group = grp,
+                   check.names = FALSE)
+  fit <- rasch_efrm(dd, item_sets = list(set1 = inm), groups = "group",
+                    id = "id", boot_reps = 0)
+  fi <- frame_invariance(fit)
+  expect_true(all(is.finite(fi$locations$se)))
+  # C = I - 1w' is not symmetric when the items differ in maximum score, so
+  # Var(Cd) = C S C'. Under the mistaken C S C the five dichotomous items'
+  # standard errors come out ~6% too small and the five-category item's 22%
+  # too large: c(0.1751, 0.1657, 0.1553, 0.1579, 0.1611, 0.1120).
+  expect_equal(round(fi$locations$se, 4),
+               c(0.1857, 0.1768, 0.1644, 0.1676, 0.1703, 0.0914),
+               tolerance = 1e-3)
+  expect_equal(fi$summary$rmse, sqrt(mean(fi$locations$se^2)),
+               tolerance = 1e-8)
+})
+
+test_that("displays and refusals match the analysis they report", {
+  # an EFRM fitted without the bootstrap has no unit standard errors
+  de <- simulate_efrm(n_per_group = 120, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 261)
+  fe <- rasch_efrm(de, item_sets = attr(de, "truth")$item_sets,
+                   groups = "group", id = "id", boot_reps = 0)
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_true(all(is.na(fe$frames$se_log_rho)))
+  expect_no_error(plot_frames(fe))
+
+  # the observed points follow the fit's own per-item class intervals
+  set.seed(262)
+  N <- 600; th <- rnorm(N)
+  X <- matrix(rbinom(N * 8, 1,
+    plogis(outer(th, seq(-1.5, 1.5, length.out = 8), "-"))), N, 8)
+  colnames(X) <- paste0("I", 1:8)
+  X[1:250, 3] <- NA
+  f <- rasch(X)
+  expect_false(is.null(f$ci_item))
+  i3 <- .item_idx(f, "I3")
+  ex <- if (!is.null(f$person$extreme)) f$person$extreme else rep(FALSE, N)
+  used <- .fit_class_intervals(f, i3, f$X[, i3], f$person$theta, ex,
+                               f$n_groups, FALSE, NULL)
+  expect_equal(max(used, na.rm = TRUE),
+               nrow(chisq_detail(f, "I3")$intervals))
+  # an explicit request is still honoured
+  expect_equal(max(.fit_class_intervals(f, i3, f$X[, i3], f$person$theta, ex,
+                                        4, TRUE, NULL), na.rm = TRUE), 4)
+  expect_no_error(plot_icc(f, "I3", observed = TRUE))
+  expect_no_error(plot_ccc(f, "I3", observed = TRUE))
+  expect_no_error(plot_threshold_prob(f, "I3", observed = TRUE))
+})
+
+test_that("reports, batches and simulations refuse malformed requests", {
+  set.seed(271)
+  X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  f <- rasch(X)
+  rp <- file.path(tempdir(), "gapsr1.html"); unlink(rp)
+  expect_error(report_html(f, rp, dpi = -100), "positive finite value")
+  expect_error(report_html(f, rp, dpi = c(100, 200)), "positive finite value")
+  expect_error(report_html(f, rp, title = c("A", "B")), "one non-missing title")
+  expect_error(report_html(f, c(rp, rp)), "one non-missing path")
+  expect_false(file.exists(rp))
+  expect_error(report_document(f, file.path(tempdir(), "g.html"),
+                               title = c("A", "B")), "one non-missing title")
+
+  # save_outputs checks before it creates anything
+  od <- file.path(tempdir(), "gapsso"); unlink(od, recursive = TRUE)
+  expect_error(save_outputs(f, od, width = -1), "positive finite value")
+  expect_false(dir.exists(od))
+  expect_error(save_outputs(f, od, item_plots = NA), "TRUE or FALSE")
+  expect_error(save_outputs(f, c(od, od)), "one non-missing path")
+
+  # sim_apply takes one atomic scalar per replicate
+  b <- sim_replicate(simulate_rasch, 2, n_persons = 120, n_items = 5,
+                     seed = 271)
+  r1 <- sim_apply(b, function(d) data.frame(a = 1))
+  expect_equal(attr(r1, "n_failed"), 2L)
+  r2 <- sim_apply(b, function(d) list(c(1, 2, 3)))
+  expect_equal(attr(r2, "n_failed"), 2L)
+  expect_equal(length(r2), 2L)
+  r3 <- sim_apply(b, function(d) mean(rasch(d)$items$location))
+  expect_equal(attr(r3, "n_failed"), 0L)
+
+  # a sequence-dependent design is not the same data under a different order
+  set.seed(272)
+  db <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
+  db$ord <- seq_len(nrow(db))
+  db2 <- db; db2$ord <- rev(db2$ord)
+  p1 <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge",
+            order = "ord", position = TRUE)
+  p2 <- btl(db2, "object_a", "object_b", winner = "winner", judge = "judge",
+            order = "ord", position = TRUE)
+  expect_false(compare_fits(seqA = p1, seqB = p2)$same_data[2])
+  # orientation stays arbitrary when nothing sequence-dependent is fitted
+  sw <- db; a <- as.character(sw$object_a)
+  sw$object_a <- as.character(sw$object_b); sw$object_b <- a
+  q1 <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  q2 <- btl(sw, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_true(compare_fits(plainA = q1, plainB = q2)$same_data[2])
+
+  # every judge needs a panel, and a lone frame carries no unit or origin
+  dbe <- simulate_btl_efrm(n_objects_per_set = 4, n_sets = 2,
+                           n_judges_per_panel = 8, n_panels = 2,
+                           reps_within = 6, reps_cross = 6, seed = 273)
+  os <- attr(dbe, "truth")$object_sets
+  jn <- unique(as.character(dbe$judge))
+  full <- stats::setNames(rep(c("p1", "p2"), length.out = length(jn)), jn)
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = full[1:(length(full) - 3)],
+                        object_sets = os, se_method = "conditional"),
+               "missing from the panels map")
+  expect_error(simulate_btl_efrm(4, 2, 6, n_panels = 1, panel_units = 1.4,
+                                 seed = 1), "must be 1 when `n_panels` is 1")
+  expect_error(simulate_btl_efrm(4, n_sets = 1, set_units = 1.3, seed = 1),
+               "must be 1 when `n_sets` is 1")
+  expect_error(simulate_btl_efrm(4, n_sets = 1, set_origins = 0.5, seed = 1),
+               "must be 0 when `n_sets` is 1")
+  expect_no_error(simulate_btl_efrm(4, n_sets = 1, set_units = 1,
+                                    set_origins = 0, seed = 1))
+})
+
+test_that("design-restricted fits are refused where locations are not items", {
+  set.seed(281)
+  q <- data.frame(item = paste0("I", 1:8), operation = rep(0:1, each = 4),
+                  format = rep(c("A", "B"), 4))
+  d0 <- -1 + 0.7 * q$operation + 0.4 * (q$format == "B")
+  mk <- function(dv, n = 800) { th <- rnorm(n)
+    Y <- matrix(rbinom(n * 8, 1, plogis(outer(th, dv, "-"))), n, 8)
+    colnames(Y) <- q$item; Y }
+  X1 <- mk(d0); X2 <- mk(d0)
+  expl <- rasch_explanatory(X1, predictors = q, formula = ~ operation + format)
+  ref <- rasch(X2)
+  expect_error(equate_tests(expl, ref, independent = TRUE),
+               "not defined for an explanatory calibration")
+  expect_no_error(equate_tests(rasch(X1), ref, independent = TRUE))
+  subs <- list(paste0("I", 1:4), paste0("I", 5:8))
+  expect_error(dimensionality_magnitude(expl, subs),
+               "not defined for an explanatory calibration")
+  expect_no_error(dimensionality_magnitude(rasch(X1), subs))
+
+  # the object design centres on the objects actually calibrated
+  set.seed(282)
+  db <- simulate_btl(n_objects = 7, n_judges = 20, reps_per_pair = 3)
+  ob <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
+  bp <- data.frame(object = ob, w = seq_along(ob) %% 2)
+  fbe <- btl_explanatory(db, predictors = bp, formula = ~ w,
+                         object_a = "object_a", object_b = "object_b",
+                         winner = "winner", judge = "judge")
+  lo <- fbe$objects$location[!(fbe$objects$extreme %in% TRUE)]
+  expect_equal(mean(lo), 0, tolerance = 1e-6)
+  expect_error(btl_equate(fbe, fbe), "explanatory comparison fit")
+})
+
+test_that("simulation plants what it records, and reports what it cannot", {
+  # speededness needs a tail
+  expect_warning(s2 <- simulate_rasch(200, 2, speeded = 0.3, seed = 284),
+                 "at least three items")
+  expect_false(any(grepl("peeded", attr(s2, "truth")$planted %||%
+                           character(0))))
+  # a chain is fine; a source regenerated as a later target is not
+  expect_no_error(simulate_rasch(400, 6, dependence = list(
+    pairs = list(c(1, 3), c(3, 5))), seed = 285))
+  expect_error(simulate_rasch(400, 6, dependence = list(
+    pairs = list(c(3, 5), c(1, 3))), seed = 285),
+    "source of an earlier dependence")
+  # group units follow the group labels, not the sorted level order
+  dg <- simulate_efrm(n_per_group = 30, items_per_set = 4, n_sets = 2,
+                      n_groups = 12, group_unit_ratio = 2, seed = 286)
+  ph <- attr(dg, "truth")$phi
+  expect_equal(names(ph), sprintf("g%d", 1:12))
+  expect_false(is.unsorted(ph))
+  # a bias planted on a rater who answers at random is not planted at all
+  expect_error(simulate_mfrm(80, 4, 4, erratic_raters = 0.25,
+                             interaction = list(rater = "R1", item = "I1",
+                                                bias = 2), seed = 287),
+               "erratic raters")
+  expect_no_error(simulate_mfrm(80, 4, 4, erratic_raters = 0.25,
+                                interaction = list(rater = "R4", item = "I1",
+                                                   bias = 2), seed = 287))
+})
+
+test_that("a batch archive and a data signature say what they are", {
+  set.seed(288)
+  X <- matrix(rbinom(300 * 4, 1, 0.5), 300, 4)
+  colnames(X) <- paste0("I", 1:4)
+  f <- rasch(X)
+  zp <- file.path(tempdir(), "gapsfresh.zip"); unlink(zp)
+  invisible(save_item_plots(f, what = "icc", file = zp))
+  expect_equal(nrow(utils::unzip(zp, list = TRUE)), 4L)
+  # zip() appends: a second call must not carry the first call's plots
+  invisible(save_item_plots(f, what = "icc", file = zp,
+                            items = c("I1", "I2")))
+  expect_equal(nrow(utils::unzip(zp, list = TRUE)), 2L)
+  expect_equal(.estimation_label(f), "pairwise conditional ML")
+
+  # position is a fitted covariate, presentation is data: a plain fit and a
+  # position fit of the same comparisons are still the same data
+  set.seed(291)
+  db <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
+  db$ord <- seq_len(nrow(db))
+  plain <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  posn <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge",
+              position = TRUE, order = "ord")
+  expect_true(compare_fits(plain = plain, position = posn)$same_data[2])
+  sw <- db; k <- seq(1, nrow(sw), by = 2)
+  a <- as.character(sw$object_a); b <- as.character(sw$object_b)
+  sw$object_a[k] <- b[k]; sw$object_b[k] <- a[k]
+  posn2 <- btl(sw, "object_a", "object_b", winner = "winner",
+               judge = "judge", position = TRUE, order = "ord")
+  expect_false(compare_fits(pA = posn, pB = posn2)$same_data[2])
+})
+
+test_that("curves, styles and selectors follow the design they describe", {
+  # a score curve belongs to an administration, not only to a group
+  de <- simulate_efrm(n_per_group = 120, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 301)
+  ts <- attr(de, "truth")$item_sets
+  g1 <- which(de$group == "g1")
+  de[g1[1:60], ts[[2]]] <- NA          # half of g1 sat set 1 only
+  fe <- rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                   boot_reps = 0)
+  sc <- fe$score_curves
+  expect_true("design" %in% names(sc))
+  expect_setequal(unique(paste0(sc$group, ":", sc$design)),
+                  c("g1:set1", "g1:set1 + set2", "g2:set1 + set2"))
+  mx <- tapply(sc$expected_score, paste0(sc$group, ":", sc$design), max)
+  expect_lt(mx[["g1:set1"]], mx[["g1:set1 + set2"]])
+
+  # a response style redraws from the probabilities the response was drawn
+  # under, so planted local dependence survives it
+  d1 <- simulate_rasch(800, 8, model = "PCM", n_categories = 3,
+                       dependence = list(pairs = list(c(1, 2)), strength = 3),
+                       response_style = list(type = "extreme", prop = 0.5,
+                                             strength = 1.6), seed = 302)
+  rc <- residual_correlations(rasch(d1, model = "PCM"))$matrix
+  expect_gt(rc[1, 2], 0.05)
+  d0 <- simulate_rasch(300, 6, model = "PCM", n_categories = 3,
+                       response_style = list(type = "extreme", prop = 0.5,
+                                             strength = 0), seed = 303)
+  expect_false(any(grepl("style", attr(d0, "truth")$planted %||%
+                           character(0))))
+
+  # an object set aside at a boundary keeps its predictor row
+  set.seed(304)
+  db <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 3)
+  ob <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
+  win <- ob[1]
+  db$winner[db$object_a == win | db$object_b == win] <- win
+  bp <- data.frame(object = ob, w = seq_along(ob) %% 2)
+  expect_no_error(btl_explanatory(db, predictors = bp, formula = ~ w,
+                                  object_a = "object_a",
+                                  object_b = "object_b", winner = "winner",
+                                  judge = "judge"))
+
+  # a repeated identifier does not select a row
+  dd <- data.frame(pid = rep(sprintf("P%02d", 1:60), 2),
+                   t = rep(1:2, each = 60))
+  set.seed(305)
+  for (j in 1:6) dd[[paste0("Q", j)]] <- rbinom(120, 1, 0.5)
+  st <- stack_data(dd, "pid", "t", paste0("Q", 1:6))
+  fs <- rasch(st, id = "id", factors = "time", items = paste0("Q", 1:6))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_error(plot_pcc(fs, "P01"), "appears in 2 rows")
+  expect_error(plot_kidmap(fs, "P01"), "appears in 2 rows")
+  expect_no_error(plot_pcc(fs, 1))
+  expect_no_error(plot_kidmap(fs, 1))
+
+  # the post-hoc identifier is checked where the analysis is described
+  set.seed(306)
+  X <- matrix(rbinom(400 * 6, 1, plogis(outer(rnorm(400),
+    seq(-1, 1, length.out = 6), "-"))), 400, 6)
+  colnames(X) <- paste0("I", 1:6)
+  d2 <- data.frame(id = sprintf("P%03d", 1:400), X,
+                   grp = rep(c("a", "b"), 200))
+  f2 <- rasch(d2, id = "id", factors = "grp")
+  expect_error(dif_posthoc(f2, "I2", term = "grp",
+                           id = sprintf("S%03d", 1:200)),
+               "one identifier per row")
+  expect_no_error(dif_posthoc(f2, "I2", term = "grp"))
+})
+
+test_that("a chained dependence carries no unplanted shift", {
+  # 1 -> 3 -> 5: item 3's own carry-over must enter its expectation, or the
+  # residual it passes on has a systematic mean and shifts item 5
+  d <- simulate_rasch(1500, 6, dependence = list(
+    pairs = list(c(1, 3), c(3, 5)), strength = 3), seed = 312)
+  rc <- residual_correlations(rasch(d))$matrix
+  ctl <- rc[2, 4]
+  expect_gt(rc[1, 3] - ctl, 0.08)     # both planted pairs survive the chain
+  expect_gt(rc[3, 5] - ctl, 0.08)
+
+  bias5 <- function(pairs, reps = 8) {
+    mean(replicate(reps, {
+      dd <- simulate_rasch(700, 6, dependence = list(pairs = pairs,
+                                                     strength = 3))
+      tr <- attr(dd, "truth"); f <- rasch(dd)
+      (f$items$location - mean(f$items$location))[5] -
+        (tr$difficulty - mean(tr$difficulty))[5]
+    }))
+  }
+  set.seed(321)
+  chain <- bias5(list(c(1, 3), c(3, 5)))
+  single <- bias5(list(c(3, 5)))
+  # the chain must not displace item 5 beyond what its own pair does
+  expect_lt(abs(chain - single), 0.3)
+})
+
+test_that("names are carried as values, not parsed out of labels", {
+  # a set name containing the label separator keeps its items
+  de <- simulate_efrm(n_per_group = 120, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 321)
+  ts <- attr(de, "truth")$item_sets
+  names(ts) <- c("read+write", "maths")
+  fe <- rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                   boot_reps = 0)
+  sc <- fe$score_curves
+  expect_true(all(grepl("read\\+write", unique(sc$design))))
+  # both sets contribute: the curve tops out near the full weighted score
+  expect_gt(max(sc$expected_score), 8)
+
+  # a level no item or object carries is not a design column
+  set.seed(322)
+  X <- matrix(rbinom(500 * 6, 1, plogis(outer(rnorm(500),
+    seq(-1, 1, length.out = 6), "-"))), 500, 6)
+  colnames(X) <- paste0("I", 1:6)
+  prd <- data.frame(item = colnames(X),
+                    fmt = factor(rep(c("mc", "open"), 3),
+                                 levels = c("mc", "open", "essay")))
+  expect_no_error(rasch_explanatory(X, predictors = prd, formula = ~ fmt,
+                                    level = "item"))
+  db <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 3)
+  ob <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
+  bp <- data.frame(object = ob,
+                   kind = factor(rep(c("a", "b"), 3),
+                                 levels = c("a", "b", "never_used")))
+  expect_no_error(btl_explanatory(db, predictors = bp, formula = ~ kind,
+                                  object_a = "object_a",
+                                  object_b = "object_b", winner = "winner",
+                                  judge = "judge"))
+})
+
+test_that("a resolved comparison name cannot be an existing object", {
+  ren <- c(O1 = "A", O2 = "A (g1)", O3 = "C", O4 = "D", O5 = "E")
+  set.seed(41)
+  d <- simulate_btl(n_objects = 5, n_judges = 60, reps_per_pair = 12,
+                    seed = 41)
+  for (cc in c("object_a", "object_b", "winner"))
+    d[[cc]] <- unname(ren[as.character(d[[cc]])])
+  jn <- unique(as.character(d$judge))
+  jm <- stats::setNames(rep(c("g1", "g2"), length.out = length(jn)), jn)
+  d$grp <- unname(jm[as.character(d$judge)])
+  hit <- (d$object_a == "A" | d$object_b == "A") & d$grp == "g1"
+  d$winner[hit] <- "A"
+  f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  g <- d$grp[match(paste(f$comparisons$object_a, f$comparisons$object_b,
+                         f$comparisons$judge),
+                   paste(d$object_a, d$object_b, d$judge))]
+  dif <- btl_dif(f, factors = g, min_n = 5)
+  expect_true(any(dif$summary$uniform_DIF %in% TRUE))
+  # merging the resolved copy into the existing object would bias it
+  expect_true(any(grepl("already name object", dif$notes)))
+  expect_equal(nrow(f$objects), 5L)
+})
+
+test_that("defaults, reserved names and generated names behave", {
+  # a default ratio describes the ordinary design, not an explicit request
+  d1 <- simulate_efrm(100, 5, n_sets = 1)
+  expect_true(any(grepl("ratio 1.00", attr(d1, "truth")$planted)))
+  expect_error(simulate_efrm(100, 5, n_sets = 1, set_unit_ratio = 1.3),
+               "must be 1 when `n_sets` is 1")
+  expect_no_error(simulate_efrm(100, 5, n_groups = 1))
+  expect_true(any(grepl("ratio 1.30",
+                        attr(simulate_efrm(100, 5, n_sets = 2),
+                             "truth")$planted)))
+
+  # a person factor cannot claim a generated column's name
+  set.seed(341)
+  X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  expect_error(rasch(X, factors = data.frame(
+    class_interval = rep(c("a", "b"), 150))), "reserved")
+  expect_error(rasch(X, factors = data.frame(
+    theta = rep(c("a", "b"), 150))), "reserved")
+  expect_no_error(rasch(X, factors = data.frame(grp = rep(c("a", "b"), 150))))
+
+  # the detail scales by the statistic's own denominator
+  set.seed(342)
+  N <- 800; th <- rnorm(N)
+  Xm <- matrix(rbinom(N * 8, 1,
+    plogis(outer(th, seq(-1.5, 1.5, length.out = 8), "-"))), N, 8)
+  colnames(Xm) <- paste0("I", 1:8)
+  Xm[1:300, 3] <- NA
+  fm <- rasch(Xm, adjust_N = 2000)
+  cd <- chisq_detail(fm, "I3")
+  expect_equal(sum(cd$intervals$chisq_adjusted[cd$intervals$used]), cd$chisq,
+               tolerance = 1e-8)
+
+  # generated and repeated names in the frame design
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 343)
+  ts <- attr(de, "truth")$item_sets
+  expect_error(rasch_efrm(de, item_sets = list(`(rest)` = ts[[1]]),
+                          groups = "group", id = "id", boot_reps = 0),
+               "already contains a set named")
+  de$sex <- rep(c("m", "f"), length.out = nrow(de))
+  expect_error(rasch_efrm(de, item_sets = ts, groups = c("group", "group"),
+                          id = "id", boot_reps = 0), "named more than once")
+  fe <- rasch_efrm(de, item_sets = ts, groups = "group", id = "id",
+                   boot_reps = 0)
+
+  # the report names the estimator the fit used
+  rp <- file.path(tempdir(), "gapslbl.html"); unlink(rp)
+  invisible(suppressWarnings(report_html(fe, rp)))
+  h <- paste(readLines(rp, warn = FALSE), collapse = " ")
+  expect_false(grepl("Pairwise conditional estimation", h))
+  expect_true(grepl("set-link", h))
+
+  # a batch target is one path
+  f <- rasch(X)
+  expect_error(save_item_plots(f, what = "icc", file = character(0)),
+               "one non-missing path")
+  expect_error(save_item_plots(f, what = "icc",
+                               file = c(file.path(tempdir(), "a.zip"),
+                                        file.path(tempdir(), "b.zip"))),
+               "one non-missing path")
+})
+
+test_that("empty definitions are refused and one-person designs hold", {
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 351)
+  ts <- attr(de, "truth")$item_sets
+  expect_error(rasch_efrm(de, item_sets = c(ts, list(ghost = character(0))),
+                          groups = "group", id = "id", boot_reps = 0),
+               "no items")
+  expect_error(rasch_efrm(de, item_sets = c(ts, list(ghost = "  ")),
+                          groups = "group", id = "id", boot_reps = 0),
+               "no items")
+  dbe <- simulate_btl_efrm(n_objects_per_set = 4, n_sets = 2,
+                           n_judges_per_panel = 8, n_panels = 2,
+                           reps_within = 6, reps_cross = 6, seed = 352)
+  os <- attr(dbe, "truth")$object_sets
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = "panel",
+                        object_sets = c(os, list(ghost = character(0))),
+                        se_method = "conditional"), "no objects")
+
+  db <- simulate_btl(n_objects = 5, n_judges = 20, reps_per_pair = 3)
+  fb <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_error(btl_dif(fb, factors = list()), "at least one judge factor")
+
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  # one person: the administration pattern is persons x cells, not its
+  # transpose, so the design must cover every cell that person answered
+  dm <- simulate_mfrm(n_persons = 40, n_items = 4, n_raters = 3, seed = 354)
+  one <- dm[dm$person == unique(dm$person)[1], , drop = FALSE]
+  fm1 <- rasch_mfrm(one, person = "person", item = "item", score = "score",
+                    facets = "rater")
+  expect_equal(nrow(fm1$X), 1L)
+  blocks <- .design_blocks(fm1)
+  expect_equal(length(blocks), 1L)
+  expect_equal(length(blocks[[1]]), ncol(fm1$X))
+  expect_no_error(test_information(fm1))
+  expect_no_error(plot_tif(fm1))
+
+  # one person in a group: their sets must be the sets they answered
+  de2 <- simulate_efrm(n_per_group = 150, items_per_set = 4, n_sets = 2,
+                       n_groups = 2, seed = 361)
+  ts2 <- attr(de2, "truth")$item_sets
+  keep <- c(which(de2$group == "g1"), which(de2$group == "g2")[1])
+  fe <- rasch_efrm(de2[keep, , drop = FALSE], item_sets = ts2,
+                   groups = "group", id = "id", boot_reps = 0)
+  ti <- test_information(fe)
+  expect_true(all(grepl("set1\\+set2", unique(ti$design))))
+  expect_no_error(plot_tif(fe))
+})
+
+test_that("a dropped row cannot define the analysis it is dropped from", {
+  set.seed(371)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3,
+                     model = "polytomous", n_categories = 3)
+  db$cnt <- 1L
+  base <- btl(db, "object_a", "object_b", response = "response",
+              judge = "judge", count = "cnt")
+  ghost <- db[1, , drop = FALSE]
+  ghost$response <- 5L; ghost$cnt <- 0L
+  gone <- btl(rbind(db, ghost), "object_a", "object_b", response = "response",
+              judge = "judge", count = "cnt")
+  expect_equal(gone$m, base$m)
+  expect_true(any(grepl("dropped", gone$notes)))
+
+  # an external person factor is checked exactly as a named column is
+  set.seed(375)
+  dm <- simulate_mfrm(n_persons = 60, n_items = 4, n_raters = 3, seed = 372)
+  v <- data.frame(g = sample(c("a", "b"), nrow(dm), TRUE))
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater", factors = v),
+               "varies within person")
+  pu <- unique(as.character(dm$person))
+  cst <- data.frame(g = ifelse(match(as.character(dm$person), pu) %% 2 == 0,
+                               "a", "b"))
+  expect_no_error(rasch_mfrm(dm, person = "person", item = "item",
+                             score = "score", facets = "rater",
+                             factors = cst))
+  expect_no_error(rasch_mfrm(dm, person = "person", item = "item",
+                             score = "score", facets = "rater",
+                             factors = data.frame(
+                               g = rep(c("a", "b"), length.out = length(pu)))))
+
+  # by-value group labels are values, not column names
+  de <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 373)
+  ts <- attr(de, "truth")$item_sets
+  de$cohort <- rep(c("g1", "g2"), length.out = nrow(de))
+  fe <- rasch_efrm(de, item_sets = ts, groups = de$group, id = "id",
+                   factors = "cohort", items = unlist(ts), boot_reps = 0)
+  expect_true("cohort" %in% names(fe$person))
+
+  # every judge needs a stated panel, and every set a real name
+  dbe <- simulate_btl_efrm(n_objects_per_set = 4, n_sets = 2,
+                           n_judges_per_panel = 8, n_panels = 2,
+                           reps_within = 6, reps_cross = 6, seed = 374)
+  os <- attr(dbe, "truth")$object_sets
+  jn <- unique(as.character(dbe$judge))
+  pm <- stats::setNames(rep(c("p1", "p2"), length.out = length(jn)), jn)
+  pm[2] <- NA
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = pm, object_sets = os,
+                        se_method = "conditional"),
+               "missing or blank panel identifier")
+  expect_error(rasch_efrm(de, item_sets = stats::setNames(ts, c("   ", "s2")),
+                          groups = "group", id = "id", boot_reps = 0),
+               "NAMED list")
+  mapv <- stats::setNames(rep(c("s1", "s2"), each = 5), unlist(ts))
+  mapv[1] <- "  "
+  expect_error(rasch_efrm(de, item_sets = mapv, groups = "group", id = "id",
+                          boot_reps = 0), "blank set name")
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = "panel",
+                        object_sets = stats::setNames(os, c(" ", "s2")),
+                        se_method = "conditional"), "named list")
+})
