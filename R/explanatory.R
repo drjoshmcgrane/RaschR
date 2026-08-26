@@ -372,9 +372,10 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
                             thresholds = c("free", "pc"), maxit = 60,
                             tol = 1e-8) {
   ties <- match.arg(ties); thresholds <- match.arg(thresholds)
-  if (!is.data.frame(data) ||
-      !all(c(object_a, object_b) %in% names(data)))
+  if (!is.data.frame(data))
     stop("`object_a` and `object_b` must name columns in `data`")
+  .check_reshape_column(data, object_a, "object_a")
+  .check_reshape_column(data, object_b, "object_b")
   if (!is.data.frame(predictors) || !"object" %in% names(predictors))
     stop("`predictors` must be a data frame with an `object` column")
   observed_objects <- unique(c(trimws(as.character(data[[object_a]])),

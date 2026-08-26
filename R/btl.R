@@ -206,13 +206,20 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   data <- as.data.frame(data)
   if (is.null(winner) && is.null(response))
     stop("give either `winner` (dichotomous) or `response` (polytomous)")
+  # the polytomous branch reads `response` and never looks at `winner`, so
+  # accepting both would fit one outcome while the caller states another
+  if (!is.null(winner) && !is.null(response))
+    stop("give either `winner` (dichotomous) or `response` (polytomous), ",
+         "not both: the response would be fitted and the winner ignored")
   if (!is.null(margin) && is.null(winner))
     stop("`margin` requires `winner`")
   if (!is.null(order) && is.null(judge))
     stop("`order` requires `judge`: exposure is a within-judge history")
-  for (col in c(object_a, object_b, winner, response, margin, judge, count,
-                order))
-    if (!col %in% names(data)) stop("column not found: ", col)
+  for (nm in c("object_a", "object_b", "winner", "response", "margin",
+               "judge", "count", "order")) {
+    v <- get(nm, inherits = FALSE)
+    if (!is.null(v)) .check_reshape_column(data, v, nm)
+  }
   a <- trimws(as.character(data[[object_a]]))
   b <- trimws(as.character(data[[object_b]]))
   if (any(!is.na(a) & !nzchar(a)) || any(!is.na(b) & !nzchar(b)))

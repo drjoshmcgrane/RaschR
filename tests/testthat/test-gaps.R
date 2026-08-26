@@ -2076,3 +2076,65 @@ test_that("unknown identifiers and blank key items do not stand in for data", {
                "unsupported model type")
   expect_no_error(.validate_app_project(mk("rasch")))
 })
+
+test_that("one outcome, one column per role, one item name per key entry", {
+  set.seed(411)
+  db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3,
+                     model = "polytomous", n_categories = 3)
+  # the polytomous branch never looks at `winner`
+  expect_error(btl(db, "object_a", "object_b", winner = "object_a",
+                   response = "response", judge = "judge"), "not both")
+  expect_no_error(btl(db, "object_a", "object_b", response = "response",
+                      judge = "judge"))
+  dbw <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
+  expect_no_error(btl(dbw, "object_a", "object_b", winner = "winner",
+                      judge = "judge"))
+  ob <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
+  bp <- data.frame(object = ob, w = seq_along(ob) %% 2)
+  expect_error(btl_explanatory(db, predictors = bp, formula = ~ w,
+                               object_a = "object_a", object_b = "object_b",
+                               winner = "object_a", response = "response",
+                               judge = "judge"), "not both")
+
+  # a role names exactly one column
+  expect_error(btl(dbw, c("object_a", "object_b"), "object_b",
+                   winner = "winner"), "exactly one column")
+  expect_error(btl(dbw, character(0), "object_b", winner = "winner"),
+               "exactly one column")
+  dm <- simulate_mfrm(n_persons = 40, n_items = 4, n_raters = 3, seed = 412)
+  expect_error(rasch_mfrm(dm, person = c("person", "item"), item = "item",
+                          score = "score", facets = "rater"),
+               "exactly one column")
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = character(0), facets = "rater"),
+               "exactly one column")
+  expect_no_error(rasch_mfrm(dm, person = "person", item = "item",
+                             score = "score", facets = "rater"))
+
+  # every key form needs an item name
+  set.seed(413)
+  resp <- matrix(sample(c("A", "B", "C"), 400 * 3, TRUE), 400, 3)
+  colnames(resp) <- paste0("Q", 1:3)
+  expect_error(rasch(resp, key = data.frame(item = c("Q1", "", "Q3"),
+                                            key = c("A", "A", "C"))),
+               "missing or blank item name")
+  expect_error(rasch(resp, key = stats::setNames(c("A", "A", "C"),
+                                                 c("Q1", "", "Q3"))),
+               "missing or blank item name")
+  expect_error(rasch(resp, key = stats::setNames(c("A", "A", "C"),
+                                                 c("Q1", NA, "Q3"))),
+               "missing or blank item name")
+  expect_no_error(rasch(resp, key = c(Q1 = "A", Q2 = "A", Q3 = "C")))
+
+  # the stored schema is read as stored
+  X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  f0 <- rasch(X)
+  mk <- function(sc) list(format = "rasch-shiny-project", schema = sc,
+                          data = as.data.frame(X), base_fit = f0,
+                          model_type = "rasch")
+  for (bad in list(factor("future"), 1.5, TRUE, "1", 2L))
+    expect_error(.validate_app_project(mk(bad)), "schema")
+  expect_no_error(.validate_app_project(mk(1L)))
+  expect_no_error(.validate_app_project(mk(1)))
+})

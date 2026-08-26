@@ -678,8 +678,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
          "polytomous margins to a winner, or use btl() for a single-frame polytomous ",
          "analysis.")
   data <- as.data.frame(data)
-  for (col in c(object_a, object_b, winner, judge))
-    if (!col %in% names(data)) stop("column not found: ", col)
+  for (nm in c("object_a", "object_b", "winner", "judge")) {
+    v <- get(nm, inherits = FALSE)
+    if (!is.null(v)) .check_reshape_column(data, v, nm)
+  }
   a <- trimws(as.character(data[[object_a]]))
   b <- trimws(as.character(data[[object_b]]))
   wn <- trimws(as.character(data[[winner]]))

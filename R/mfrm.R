@@ -234,6 +234,12 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       stop("'interaction' must name one of the facets")
   }
   stopifnot(is.data.frame(data))
+  # person, item and score each name ONE column: several names pass the
+  # existence check below and then fail on a base subscript error
+  for (nm in c("person", "item", "score")) {
+    v <- get(nm, inherits = FALSE)
+    if (!is.null(v)) .check_reshape_column(data, v, nm)
+  }
   need <- c(person, item, score, facets)
   miss <- setdiff(need, names(data))
   if (length(miss)) stop("column(s) not in data: ", paste(miss, collapse = ", "))

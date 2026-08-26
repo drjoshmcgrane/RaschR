@@ -56,6 +56,12 @@
     key <- setNames(as.character(key$key), as.character(key$item))
   }
   if (is.null(names(key))) stop("the key must be named by item")
+  # a key entry that names no item scores no item: the real item would be
+  # left unscored and dropped from the analysis without a word
+  blank_nm <- is.na(names(key)) | !nzchar(trimws(names(key)))
+  if (any(blank_nm))
+    stop("missing or blank item name in the key (entr(ies) ",
+         paste(which(blank_nm), collapse = ", "), ")")
   if (anyDuplicated(names(key)))
     stop("duplicate key entr(ies) for item(s): ",
          paste(unique(names(key)[duplicated(names(key))]), collapse = ", "),

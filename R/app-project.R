@@ -8,8 +8,11 @@
   fail <- function(message) stop(message, call. = FALSE)
   if (!is.list(project) || !identical(project$format, "rasch-shiny-project"))
     fail("not a rasch analysis file")
-  schema <- suppressWarnings(as.integer(project$schema))
-  if (length(schema) != 1L || is.na(schema) || schema != 1L)
+  # the schema is read as stored: coercing it would accept "1", TRUE, 1.5
+  # and a factor's level code as schema 1
+  schema <- project$schema
+  if (length(schema) != 1L || !is.numeric(schema) || is.na(schema) ||
+      schema != 1L)
     fail("unsupported rasch analysis-file schema")
   if (!(is.data.frame(project$data) || is.matrix(project$data)))
     fail("the analysis file does not contain a valid source dataset")
