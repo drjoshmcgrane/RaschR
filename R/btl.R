@@ -27,6 +27,18 @@
 # the dependence is measured in logits (Davidson & Beaver 1977 order-effect
 # device; response-dependence logic of Marais & Andrich 2008).
 .btl_exposure <- function(a, b, x, m, jd, ord, w = rep(1, length(a))) {
+  # the history is built by walking each judge's comparisons in sequence,
+  # so the sequence has to order them. Tied values are broken by row order,
+  # and the same data read in a different order would then carry different
+  # exposure and carry-over covariates.
+  dup <- duplicated(data.frame(judge = jd, ord = ord,
+                               stringsAsFactors = FALSE))
+  if (any(dup))
+    stop("the judging sequence repeats within judge(s): ",
+         paste(utils::head(unique(jd[dup]), 5), collapse = ", "),
+         if (length(unique(jd[dup])) > 5) ", ..." else "",
+         "; a repeated value leaves the order of those comparisons to the ",
+         "row order of the data", call. = FALSE)
   R <- length(a)
   Fa <- Fb <- Wa <- Wb <- numeric(R)
   cnt <- new.env(hash = TRUE, parent = emptyenv())
@@ -234,6 +246,10 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   # the real counts/positions -- coerce through the character labels and
   # refuse anything non-numeric
   .num_col <- function(x, what) {
+    # as.numeric() on a complex vector keeps the real part and discards the
+    # imaginary one without a word, so a complex column is refused outright
+    if (is.complex(x))
+      stop("`", what, "` is complex; it must hold real numeric values")
     v <- suppressWarnings(as.numeric(if (is.factor(x)) as.character(x) else x))
     if (any(is.na(v) & !is.na(x)))
       stop("`", what, "` has non-numeric value(s); it must be numeric")
@@ -246,6 +262,8 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     stop("`", count, "` must hold whole non-negative replication counts; ",
          "zero-count rows are dropped")
   ord <- if (is.null(order)) NULL else .num_col(data[[order]], order)
+  if (!is.null(ord) && any(!is.finite(ord[!is.na(ord)])))
+    stop("`", order, "` must hold finite sequence values")
   notes <- character(0)
   if (!is.null(anchors)) {
     if (!is.numeric(anchors) || is.null(names(anchors)) ||
@@ -340,6 +358,18 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       stop("`margin` is a character column; supply an ORDERED factor ",
            "(levels smallest to largest margin) or a numeric magnitude, ",
            "so the margin order is explicit rather than alphabetical")
+    # anything else that merely sorts -- a logical, a complex, a Date --
+    # would produce plausible-looking categories from a scale that is not a
+    # margin, and a negative or infinite magnitude is not a margin either
+    if (!is.factor(mg)) {
+      if (!is.numeric(mg) || is.complex(mg) || !is.null(oldClass(mg)))
+        stop("`margin` must be an ORDERED factor (levels smallest to ",
+             "largest margin) or a plain numeric magnitude; a ",
+             paste(class(mg), collapse = "/"), " column is not a margin")
+      if (any(!is.finite(mg[!is.na(mg)])) || any(mg[!is.na(mg)] < 0))
+        stop("`margin` magnitudes must be finite and non-negative: a ",
+             "margin is a distance from a tie")
+    }
     wn <- trimws(as.character(data[[winner]]))
     is_a <- !is.na(wn) & wn == a
     is_b <- !is.na(wn) & wn == b

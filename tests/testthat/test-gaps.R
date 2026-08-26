@@ -2138,3 +2138,79 @@ test_that("one outcome, one column per role, one item name per key entry", {
   expect_no_error(.validate_app_project(mk(1L)))
   expect_no_error(.validate_app_project(mk(1)))
 })
+
+test_that("banks, sequences and margins are read as the values they hold", {
+  # a factor bank column read as level codes would rewrite every location
+  set.seed(421)
+  X <- matrix(rbinom(400 * 6, 1, plogis(outer(rnorm(400),
+    seq(-2, 2, length.out = 6), "-"))), 400, 6)
+  colnames(X) <- paste0("I", 1:6)
+  f <- rasch(X)
+  bank <- data.frame(item = colnames(X),
+                     location = c(-2.5, -1.2, 0.25, 0.9, 2.1, 4.0), se = 0)
+  bank_f <- bank; bank_f$location <- factor(bank_f$location)
+  e1 <- equate_tests(f, bank)
+  e2 <- equate_tests(f, bank_f)
+  expect_equal(e1$shift, e2$shift)
+  expect_equal(e1$table$location_2, e2$table$location_2)
+
+  # the judging sequence has to order the comparisons it describes
+  set.seed(423)
+  db <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
+  db$ord <- ave(seq_len(nrow(db)), db$judge, FUN = seq_along)
+  fo <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge",
+            order = "ord")
+  expect_false(is.null(fo$dependence))
+  j <- names(which(table(db$judge) >= 2))[1]
+  rows <- which(db$judge == j)[1:2]
+  tied <- db; tied$ord[rows[2]] <- tied$ord[rows[1]]
+  expect_error(btl(tied, "object_a", "object_b", winner = "winner",
+                   judge = "judge", order = "ord"), "sequence repeats")
+  inf <- db; inf$ord[3] <- Inf
+  expect_error(btl(inf, "object_a", "object_b", winner = "winner",
+                   judge = "judge", order = "ord"), "finite sequence")
+  # the same data in another row order gives the same fit
+  sh <- db[sample(nrow(db)), ]
+  f2 <- btl(sh, "object_a", "object_b", winner = "winner", judge = "judge",
+            order = "ord")
+  expect_equal(sort(fo$objects$location), sort(f2$objects$location))
+
+  # a margin is an ordered factor or a non-negative magnitude
+  mk <- function(mg) {
+    d <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 4)
+    d$margin <- mg[seq_len(nrow(d))]; d
+  }
+  expect_error(btl(mk(rep(c(TRUE, FALSE), 200)), "object_a", "object_b",
+                   winner = "winner", margin = "margin"), "not a margin")
+  expect_error(btl(mk(as.Date("2020-01-01") + 0:399), "object_a", "object_b",
+                   winner = "winner", margin = "margin"), "not a margin")
+  expect_error(btl(mk(rep(c(-1, 2), 200)), "object_a", "object_b",
+                   winner = "winner", margin = "margin"),
+               "finite and non-negative")
+  expect_error(btl(mk(rep(c(Inf, 2), 200)), "object_a", "object_b",
+                   winner = "winner", margin = "margin"),
+               "finite and non-negative")
+  expect_no_error(btl(mk(rep(c(1, 2), 200)), "object_a", "object_b",
+                      winner = "winner", margin = "margin"))
+
+  # a replication count is real
+  dc <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
+  dc$cnt <- complex(real = 2, imaginary = 1)
+  expect_error(btl(dc, "object_a", "object_b", winner = "winner",
+                   count = "cnt"), "complex")
+
+  # the wide many-facet form checks its selectors too
+  dm <- simulate_mfrm(n_persons = 40, n_items = 4, n_raters = 3, seed = 422)
+  w <- reshape(dm, idvar = c("person", "rater"), timevar = "item",
+               direction = "wide")
+  names(w) <- sub("^score[.]", "", names(w))
+  its <- setdiff(names(w), c("person", "rater"))
+  expect_no_error(rasch_mfrm(w, person = "person", items = its,
+                             facets = "rater"))
+  expect_error(rasch_mfrm(w, person = c("person", "rater"), items = its,
+                          facets = "rater"), "exactly one column")
+  expect_error(rasch_mfrm(w, person = character(0), items = its,
+                          facets = "rater"), "exactly one column")
+  expect_error(rasch_mfrm(w, person = "person", items = character(0),
+                          facets = "rater"), "at least one item column")
+})

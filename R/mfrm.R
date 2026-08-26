@@ -168,10 +168,16 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
        !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2))
     stop("`n_groups` must be one whole number of at least 2 class intervals")
   .check_column_names(data)
+  # the person column is dereferenced by BOTH entry forms, so it is resolved
+  # to one existing column before either of them runs; item and score are
+  # the long form's own and are checked on that path
+  .check_reshape_column(data, person, "person")
   # wide entry: item score columns are melted to the long form internally
   if (!is.null(items)) {
     if (!is.null(item) || !is.null(score))
       stop("give either `items` (wide: one column per item) or `item` + `score` (long)")
+    if (!length(items))
+      stop("`items` must name at least one item column")
     miss <- setdiff(c(person, facets, items), names(data))
     if (length(miss)) stop("column(s) not in data: ", paste(miss, collapse = ", "))
     long <- data.frame(
@@ -226,6 +232,9 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   }
   if (is.null(item) || is.null(score))
     stop("give either `items` (wide) or `item` + `score` (long)")
+  # the long form dereferences these, so each names one existing column
+  .check_reshape_column(data, item, "item")
+  .check_reshape_column(data, score, "score")
   if (!is.null(interaction)) {
     if (length(interaction) != 1L || is.na(interaction))
       stop("'interaction' must name exactly one facet")
@@ -234,12 +243,6 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       stop("'interaction' must name one of the facets")
   }
   stopifnot(is.data.frame(data))
-  # person, item and score each name ONE column: several names pass the
-  # existence check below and then fail on a base subscript error
-  for (nm in c("person", "item", "score")) {
-    v <- get(nm, inherits = FALSE)
-    if (!is.null(v)) .check_reshape_column(data, v, nm)
-  }
   need <- c(person, item, score, facets)
   miss <- setdiff(need, names(data))
   if (length(miss)) stop("column(s) not in data: ", paste(miss, collapse = ", "))

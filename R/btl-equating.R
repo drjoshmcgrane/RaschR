@@ -42,8 +42,8 @@
     se_supplied <- "se" %in% names(reference)
     if (!"se" %in% names(reference)) reference$se <- NA_real_
     out <- data.frame(object = trimws(as.character(reference$object)),
-                      location = suppressWarnings(as.numeric(reference$location)),
-                      se = suppressWarnings(as.numeric(reference$se)),
+                      location = .bank_numeric(reference$location),
+                      se = .bank_numeric(reference$se),
                       stringsAsFactors = FALSE)
     if (anyNA(out$object) || any(!nzchar(out$object)))
       stop("bank object names must be non-missing and non-empty")
@@ -164,6 +164,11 @@
 #'                   independent = TRUE)
 #' eq$table
 #' @export
+# A factor column read with as.numeric() returns level codes, not values:
+# an object bank of -2.5, 0.25, 4.0 would silently become 1, 2, 3.
+.bank_numeric <- function(x)
+  suppressWarnings(as.numeric(if (is.factor(x)) as.character(x) else x))
+
 btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
                        independent = NULL) {
   if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)

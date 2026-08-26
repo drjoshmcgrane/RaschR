@@ -75,9 +75,14 @@
   if (!"max" %in% names(reference)) reference$max <- NA_integer_
   out <- reference[, c("item", "location", "se", "max")]
   out$item <- trimws(as.character(out$item))
-  out$location <- suppressWarnings(as.numeric(out$location))
-  out$se <- suppressWarnings(as.numeric(out$se))
-  out$max <- suppressWarnings(as.numeric(out$max))
+  # a factor column must be read through its LABELS: as.numeric() on a
+  # factor returns level codes, so a bank of -2.5, 0.25, 4.0 would silently
+  # become 1, 2, 3 and every equated location with it
+  .bank_num <- function(x) suppressWarnings(as.numeric(
+    if (is.factor(x)) as.character(x) else x))
+  out$location <- .bank_num(out$location)
+  out$se <- .bank_num(out$se)
+  out$max <- .bank_num(out$max)
   if (anyNA(out$item) || any(!nzchar(out$item)))
     stop("reference item names must be non-missing and non-empty")
   if (anyDuplicated(out$item))

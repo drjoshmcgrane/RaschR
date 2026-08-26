@@ -63,13 +63,29 @@
   tailored bootstrap resamples each unidentified row as its own person
   rather than clustering them into one. A genuinely repeated design still
   withholds its Wald inference.
+* An item or object bank is read through its labels. A factor column of
+  locations, standard errors or maximum scores was passed to
+  `as.numeric()`, which returns level codes, so a bank of -2.5, 0.25 and
+  4.0 equated as 1, 2 and 3 with nothing to show for it.
+* A judging sequence must order the comparisons it describes. Values
+  repeating within a judge left the order of those comparisons to the row
+  order of the data, so the same data read in a different order carried
+  different exposure and carry-over covariates; repeated and non-finite
+  sequence values are now refused. A margin must be an ordered factor or a
+  finite non-negative magnitude, where a logical, complex or Date column,
+  and negative or infinite magnitudes, produced plausible-looking
+  categories from a scale that is not a margin. A replication count must
+  be real, since coercing a complex one discards its imaginary part in
+  silence.
 * A paired-comparison call must state one outcome. Supplying both
   `winner` and `response` fitted the response and ignored the winner, so
   changing every winner left the fit identical; the combination is now
   refused, in `btl_explanatory()` too. Every column-role argument names
   exactly one existing column before it is dereferenced, in the
   comparison, frame-adjusted comparison, explanatory comparison and
-  many-facet entry points alike.
+  many-facet entry points alike, and in the many-facet case through the
+  wide entry as well as the long one, which needs at least one item
+  column.
 * A multiple-choice scoring table refuses a missing or blank item name in
   every key form -- the option/score table, the item/key table and the
   named vector -- as well as a missing or blank option, and a key refuses
