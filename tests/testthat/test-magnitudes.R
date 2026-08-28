@@ -244,6 +244,20 @@ test_that("rack_data and stack_data reshape repeated measurements", {
                "more than one row")
   expect_error(stack_data(rbind(d, d[1, ]), "pid", "t", c("Q1", "Q2")),
                "same time point")
+  expect_error(rack_data(d, "pid", "pid", c("Q1", "Q2")), "distinct")
+  expect_error(stack_data(d, "pid", "pid", c("Q1", "Q2")), "distinct")
+  dn <- d; names(dn)[1L] <- "1"
+  expect_error(rack_data(dn, 1, "1", c("Q1", "Q2")), "distinct")
+  expect_error(stack_data(dn, 1, "1", c("Q1", "Q2")), "distinct")
+  expect_error(rack_data(d, "pid", "t", factor(c("Q1", "Q2"))),
+               "at least one item column")
+  expect_error(stack_data(d, "pid", "t", factor(c("Q1", "Q2"))),
+               "at least one item column")
+  dd <- data.frame(pid = rep(1:2, 2),
+                   t = rep(as.Date(c("2020-01-01", "2020-01-02")), each = 2),
+                   Q = 1:4)
+  expect_true(all(c("Q@2020-01-01", "Q@2020-01-02") %in%
+                    names(rack_data(dd, "pid", "t", "Q"))))
 
   # Separators in source values cannot merge distinct person-time cells,
   # and generated output names cannot silently duplicate one another.

@@ -11,7 +11,9 @@ equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
 
 \item{reference}{A second \code{\link{rasch}} fit, or a data frame with
 columns \code{item}, \code{location}, and optionally \code{se}. Item
-names must be unique and locations finite. For bank-based drift inference,
+names and column names must be unique. Numeric fields may be numeric
+columns, numeric text, or factors with numeric labels; other column
+classes are refused. Locations must be finite. For bank-based drift inference,
 attach the bank's joint item-location covariance as a square matrix in
 \code{attr(reference, "cov_location")}, ordered like the bank rows (or
 named by item); marginal SEs alone do not carry the centring covariance.
@@ -32,11 +34,11 @@ returned but inferential drift columns are withheld.}
 \value{
 A list with the comparison \code{table} (locations, standard
   errors, difference, t, raw and Holm-adjusted p, drift flag), the
-  estimated \code{shift},
+  estimated \code{shift} and its \code{shift_method},
   the location \code{correlation}, the root mean square difference after
   shifting (\code{rmsd}), the number of common items \code{n_common}, the
   number with usable standard errors \code{n}, and whether drift inference
-  was available (\code{inferential}). The \code{notes} component records
+  was available (\code{inferential}). The \code{note} component records
   exclusions and the reason inference was withheld, where applicable.
 }
 \description{
@@ -51,6 +53,9 @@ shift is the precision-weighted mean
 \deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j},}
 and each item is tested using \eqn{d_j-\hat s} with a variance that
 accounts for the estimated shift through the items' joint covariance.
+If fewer than two common items have usable variances but at least two have
+finite locations, the function returns their unweighted mean difference as
+a descriptive fallback and records \code{shift_method = "unweighted"}.
 Drift inference requires
 independent calibrations and at least three common items with usable joint
 covariance information. Otherwise the function returns a descriptive link.

@@ -39,7 +39,7 @@ Feeds the item-by-rater interaction (fit with \code{interaction = }).}
 person's overall level and barely differentiate items (feeds the rater
 fit residual and the item-by-rater interaction).}
 
-\item{seed}{Optional RNG seed.}
+\item{seed}{Optional non-negative whole-number RNG seed.}
 }
 \value{
 A long data frame of class \code{"rasch_sim"} (\code{person},
@@ -48,7 +48,9 @@ A long data frame of class \code{"rasch_sim"} (\code{person},
 }
 \description{
 Generates fully crossed ratings from a many-facet Rasch model (Linacre
-1989), with optional erratic raters, item-by-rater interaction, or halo.
+1989), with optional erratic raters, item-by-rater interaction, or halo. A
+positive rater proportion selects at least one rater when the requested
+departures can coexist.
 }
 \examples{
 d <- simulate_mfrm(60, 5, 6, rater_severity_sd = 0.8, seed = 1)

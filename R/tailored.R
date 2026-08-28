@@ -109,7 +109,8 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("tailored_analysis() requires an unanchored calibration because it estimates its own common origin")
   if (!is.null(spec$pc_components))
     stop("tailored_analysis() is not defined for principal-component constrained thresholds")
-  if (length(chance) != 1L || !is.finite(chance) || chance <= 0 || chance >= 1)
+  if (length(chance) != 1L || !is.numeric(chance) || !is.finite(chance) ||
+      chance <= 0 || chance >= 1)
     stop("chance must be one finite value strictly between 0 and 1")
 
   anchor_requested <- anchor_items
@@ -187,8 +188,9 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
                     significant = NA)
   boot_used <- NA_integer_
   if (se_method == "bootstrap") {
-    if (length(boot_reps) != 1L || !is.finite(boot_reps) || boot_reps < 50L ||
-        boot_reps != floor(boot_reps))
+    if (length(boot_reps) != 1L || !is.numeric(boot_reps) ||
+        !is.finite(boot_reps) || boot_reps < 50L ||
+        boot_reps != floor(boot_reps) || boot_reps > .Machine$integer.max)
       stop("boot_reps must be one whole number of at least 50 for tailored bootstrap inference")
     boot_reps <- as.integer(boot_reps)
     draws <- list()

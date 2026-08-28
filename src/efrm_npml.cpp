@@ -92,6 +92,24 @@ List efrm_fit_weights_cpp(NumericMatrix L, NumericMatrix logw,
 
   bool converged = false;
   double step = R_PosInf;
+  double loglik = R_NegInf;
+  double loglik_step = R_PosInf;
+  int iterations = 0;
+  const bool check_convergence = R_finite(tol) && tol > 0.0;
+  const auto observed_loglik = [&]() {
+    double value = 0.0;
+    for (int i = 0; i < n; ++i) {
+      const int h = mix_idx[i] - 1;
+      double mx = R_NegInf;
+      for (int q = 0; q < K; ++q)
+        mx = std::max(mx, L(i, q) + current(h, q));
+      double denom = 0.0;
+      for (int q = 0; q < K; ++q)
+        denom += std::exp(L(i, q) + current(h, q) - mx);
+      value += count[i] * (mx + std::log(denom));
+    }
+    return value;
+  };
   for (int it = 0; it < maxit; ++it) {
     NumericMatrix w(H, K);
     NumericVector group_count(H);
@@ -127,14 +145,32 @@ List efrm_fit_weights_cpp(NumericMatrix L, NumericMatrix logw,
     for (int h = 0; h < H; ++h)
       for (int q = 0; q < K; ++q)
         current(h, q) = std::log(w(h, q));
-    if (step < tol) {
-      converged = true;
-      break;
+
+    iterations = it + 1;
+    if (check_convergence) {
+      const double next_loglik = observed_loglik();
+      loglik_step = next_loglik - loglik;
+      loglik = next_loglik;
+      // Adjacent grid masses may continue to exchange weight on an almost
+      // flat ridge. The observed-likelihood increment is the standard EM
+      // stopping criterion and is the quantity relevant to the fitted link.
+      if (R_finite(loglik_step) &&
+          std::abs(loglik_step) <= tol * (1.0 + std::abs(loglik))) {
+        converged = true;
+        break;
+      }
     }
   }
+  // Coordinate-ascent calls use tol = 0 for a fixed number of EM updates.
+  // Their intermediate likelihood is unused; retain the final value without
+  // repeating the likelihood pass at every update.
+  if (!check_convergence) loglik = observed_loglik();
   return List::create(_["logw"] = current,
                       _["converged"] = converged,
-                      _["step"] = step);
+                      _["step"] = step,
+                      _["loglik"] = loglik,
+                      _["loglik_step"] = loglik_step,
+                      _["iterations"] = iterations);
 }
 
 // [[Rcpp::export]]

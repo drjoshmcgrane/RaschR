@@ -21,6 +21,9 @@
 .prepare_X <- function(X, na_codes = -1) {
   notes <- character(0)
   X <- as.matrix(X)
+  if (is.complex(X))
+    stop("complex response scores are not supported; scores must be real integer counts",
+         call. = FALSE)
   if (is.null(colnames(X))) colnames(X) <- sprintf("I%02d", seq_len(ncol(X)))
   if (anyNA(colnames(X)) || any(!nzchar(colnames(X))))
     stop("item column names must be non-missing and non-empty")
@@ -28,8 +31,26 @@
     stop("item column names must be unique: ",
          paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
   Xn <- suppressWarnings(apply(X, 2, function(col) as.numeric(as.character(col))))
+  dim(Xn) <- dim(X); dimnames(Xn) <- dimnames(X)
+  too_large <- !is.na(Xn) & is.finite(Xn) &
+    (Xn > .Machine$integer.max | Xn < -.Machine$integer.max)
+  if (any(too_large))
+    stop("score(s) outside the supported integer range in: ",
+         paste(colnames(X)[colSums(too_large) > 0], collapse = ", "),
+         "; rescore the response categories before analysis", call. = FALSE)
   Xi <- suppressWarnings(apply(X, 2, function(col) as.integer(as.character(col))))
-  dim(Xn) <- dim(X); dim(Xi) <- dim(X); dimnames(Xi) <- dimnames(X)
+  dim(Xi) <- dim(X); dimnames(Xi) <- dimnames(X)
+  # An infinite numeric value is corrupt response data, not a missing-data
+  # marker. as.integer(Inf) returns NA, which previously sent it down the
+  # ordinary "non-numeric entries set to missing" path and silently removed it.
+  # `NaN` is also `NA` in R, so test the converted values directly rather
+  # than guarding the check with !is.na(X). Genuine NA is not NaN.
+  nonfinite <- is.infinite(Xn) | is.nan(Xn)
+  if (any(nonfinite))
+    stop("non-finite score(s) in: ",
+         paste(colnames(X)[colSums(nonfinite) > 0], collapse = ", "),
+         "; use NA or a declared missing-data code for missing responses",
+         call. = FALSE)
   # as.integer() TRUNCATES fractional values (1.9 -> 1) without a warning:
   # that silently alters response data, so it must be an error, not a note
   frac <- colSums(!is.na(Xn) & !is.na(Xi) & Xn != Xi) > 0
@@ -136,14 +157,15 @@
 #'   item-trait chi-squares. See Details.
 #' @param anchors Optional anchor table for equating: a data frame with
 #'   columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
-#'   Anchors determine the scale origin.
+#'   Column names must be unique. Anchors determine the scale origin.
 #' @param na_codes Values to read as missing. Defaults to \code{-1}, the
 #'   conventional missing-response code; any negative score is also treated as
 #'   missing, since valid category scores start at zero.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence
 #'   tolerance of the pairwise conditional estimation.
 #' @param key Optional multiple-choice key: a named item-to-option vector, an
-#'   item/key table, or an item/option/score table. See Details.
+#'   item/key table, or an item/option/score table. Table column names must be
+#'   unique. See Details.
 #' @param pc_components \code{NULL} (the default) estimates all PCM thresholds
 #'   freely. Values from 1 to 4 use the principal-components form in
 #'   \code{\link{pcml_pc}}: location, then spread, skewness, and kurtosis.
@@ -167,6 +189,9 @@
 #' can affect the item-trait probability when fewer than about ten responses
 #' locate each person. In short administrations, read the statistics with the
 #' characteristic curve and residual fit rather than as stand-alone decisions.
+#' The item summary retains the raw ANOVA probability as \code{p_anova} and
+#' its Holm familywise adjustment as \code{p_anova_adj}; use the adjusted
+#' probability for inference across items.
 #' @return An object of class \code{"rasch"}. Its principal components are
 #'   the item summary, threshold table, person table, score table, residuals,
 #'   reliability, targeting, item-trait statistics, threshold diagnostics,
@@ -225,10 +250,11 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     stop("`adjust_N` must be one positive finite reference sample size")
   if (!is.null(n_groups) &&
       (length(n_groups) != 1L || !is.numeric(n_groups) ||
-       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2))
+       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2 ||
+       n_groups > .Machine$integer.max))
     stop("`n_groups` must be one whole number of at least 2 class intervals")
   if (length(maxit) != 1L || !is.numeric(maxit) || !is.finite(maxit) ||
-      maxit != floor(maxit) || maxit < 1)
+      maxit != floor(maxit) || maxit < 1 || maxit > .Machine$integer.max)
     stop("`maxit` must be one whole positive iteration cap")
   if (length(tol) != 1L || !is.numeric(tol) || !is.finite(tol) || tol <= 0)
     stop("`tol` must be one positive finite tolerance")
@@ -237,6 +263,17 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
       stop("pc_components applies to the PCM only")
     if (!is.null(anchors))
       stop("pc_components cannot be combined with anchors")
+  }
+  if (!is.null(anchors)) {
+    if (!is.data.frame(anchors))
+      stop("anchors must be a data frame with columns item, k, tau")
+    .check_column_names(anchors)
+    missing_anchor_columns <- setdiff(c("item", "k", "tau"), names(anchors))
+    if (length(missing_anchor_columns))
+      stop("anchors must contain columns item, k, tau; missing: ",
+           paste(missing_anchor_columns, collapse = ", "))
+    if (!nrow(anchors))
+      stop("anchors must contain at least one threshold or item-location row")
   }
 
   # --- split data frame into ID, factors, and item columns ---------------
@@ -266,8 +303,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     # documented column-name form; a row-length character vector is a
     # grouping vector passed by value. A short non-matching character input
     # remains a misspelled-column error rather than silently changing modes.
-    factors_are_cols <- is.character(factors) &&
-      length(factors) != nrow(data)
+    factors_are_cols <- .role_columns(factors, nm, nrow(data))
     factors_by_value <- !is.null(factors) && is.atomic(factors) &&
       !factors_are_cols
     if (factors_are_cols) {
@@ -287,6 +323,14 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
         stop("duplicate factor column name(s): ",
              paste(unique(names(factors)[duplicated(names(factors))]),
                    collapse = ", "))
+      clash <- intersect(names(factors), nm)
+      different <- clash[!vapply(clash, function(cn)
+        .same_role_values(factors[[cn]], data[[cn]]), logical(1))]
+      if (length(different) && is.null(items))
+        stop("external factor column(s) share item-data names but contain ",
+             "different values: ", paste(different, collapse = ", "),
+             ". Rename the external factor column(s), or name the item ",
+             "columns explicitly with items=", call. = FALSE)
       fac_df <- factors
     } else if (factors_by_value) {
       # a factors= grouping vector passed by VALUE (not by column name):
@@ -604,7 +648,9 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
                          infit_z = ifit$infit_z, outfit_z = ifit$outfit_z,
                          chisq = it$chisq, df = it$df, p = it$p,
                          p_adj = it$p_adj, p_bonf = it$p_bonf,
-                         F_anova = ia$F_anova, p_anova = ia$p)
+                         F_anova = ia$F_anova, p_anova = ia$p,
+                         p_anova_adj = ia$p_adj,
+                         p_anova_bonf = ia$p_bonf)
   rownames(items_df) <- NULL
 
   # --- score table (complete responders; raw score is only sufficient when

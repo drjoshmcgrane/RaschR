@@ -67,22 +67,18 @@
                       location = reference$items$location,
                       se = reference$items$se,
                       max = reference$items$max))
+  .check_column_names(reference)
   reference <- as.data.frame(reference)
+  .check_column_names(reference)
   if (!all(c("item", "location") %in% names(reference)))
     stop("reference needs columns item, location (and ideally se)")
-  se_supplied <- "se" %in% names(reference)
   if (!"se" %in% names(reference)) reference$se <- NA_real_
   if (!"max" %in% names(reference)) reference$max <- NA_integer_
   out <- reference[, c("item", "location", "se", "max")]
   out$item <- trimws(as.character(out$item))
-  # a factor column must be read through its LABELS: as.numeric() on a
-  # factor returns level codes, so a bank of -2.5, 0.25, 4.0 would silently
-  # become 1, 2, 3 and every equated location with it
-  .bank_num <- function(x) suppressWarnings(as.numeric(
-    if (is.factor(x)) as.character(x) else x))
-  out$location <- .bank_num(out$location)
-  out$se <- .bank_num(out$se)
-  out$max <- .bank_num(out$max)
+  out$location <- .bank_numeric(out$location, "location")
+  out$se <- .bank_numeric(out$se, "se")
+  out$max <- .bank_numeric(out$max, "max")
   if (anyNA(out$item) || any(!nzchar(out$item)))
     stop("reference item names must be non-missing and non-empty")
   if (anyDuplicated(out$item))
@@ -95,7 +91,6 @@
   if (any(!is.na(out$max) & (!is.finite(out$max) | out$max < 1 |
                              out$max != floor(out$max))))
     stop("reference max values must be positive whole numbers or NA")
-  attr(out, "se_supplied") <- se_supplied
   out
 }
 
@@ -112,6 +107,9 @@
 #' \deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j},}
 #' and each item is tested using \eqn{d_j-\hat s} with a variance that
 #' accounts for the estimated shift through the items' joint covariance.
+#' If fewer than two common items have usable variances but at least two have
+#' finite locations, the function returns their unweighted mean difference as
+#' a descriptive fallback and records \code{shift_method = "unweighted"}.
 #' Drift inference requires
 #' independent calibrations and at least three common items with usable joint
 #' covariance information. Otherwise the function returns a descriptive link.
@@ -120,7 +118,9 @@
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param reference A second \code{\link{rasch}} fit, or a data frame with
 #'   columns \code{item}, \code{location}, and optionally \code{se}. Item
-#'   names must be unique and locations finite. For bank-based drift inference,
+#'   names and column names must be unique. Numeric fields may be numeric
+#'   columns, numeric text, or factors with numeric labels; other column
+#'   classes are refused. Locations must be finite. For bank-based drift inference,
 #'   attach the bank's joint item-location covariance as a square matrix in
 #'   \code{attr(reference, "cov_location")}, ordered like the bank rows (or
 #'   named by item); marginal SEs alone do not carry the centring covariance.
@@ -137,11 +137,11 @@
 #'   returned but inferential drift columns are withheld.
 #' @return A list with the comparison \code{table} (locations, standard
 #'   errors, difference, t, raw and Holm-adjusted p, drift flag), the
-#'   estimated \code{shift},
+#'   estimated \code{shift} and its \code{shift_method},
 #'   the location \code{correlation}, the root mean square difference after
 #'   shifting (\code{rmsd}), the number of common items \code{n_common}, the
 #'   number with usable standard errors \code{n}, and whether drift inference
-#'   was available (\code{inferential}). The \code{notes} component records
+#'   was available (\code{inferential}). The \code{note} component records
 #'   exclusions and the reason inference was withheld, where applicable.
 #' @examples
 #' set.seed(1); d <- seq(-1.5, 1.5, length.out = 8)
@@ -194,8 +194,10 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
             1e-6 * pmax(1, ref$se, cov_se)))
       stop("the bank standard errors must agree with the diagonal of ",
            "attr(reference, 'cov_location')")
-    if (!isTRUE(attr(ref, "se_supplied", exact = TRUE)))
-      ref$se <- cov_se
+    # The joint covariance supplies every marginal variance. Retain a stated
+    # SE after checking it against the diagonal, and complete any genuinely
+    # missing entries from that same diagonal.
+    ref$se[!stated] <- cov_se[!stated]
     b <- ref[match(common, ref$item), ]
   }
   known_max <- is.finite(b$max)
@@ -207,6 +209,7 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
          "compatibility can be checked")
   d <- a$location - b$location
   v <- a$se^2 + b$se^2
+  finite_loc <- is.finite(d)
   # an item whose location or SE is unavailable (for example a weakly
   # determined item whose SE is honestly NA) cannot contribute to the
   # precision-weighted shift or the drift tests, but it must not poison
@@ -214,9 +217,39 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   # the table with NA test columns
   usable <- is.finite(d) & is.finite(v)
   notes <- character(0)
-  if (any(!usable)) {
+  w <- numeric(0)
+  if (shift == "mean" && sum(usable) >= 2L) {
+    w <- 1 / pmax(v[usable], 1e-10)
+    c0 <- sum(w * d[usable]) / sum(w)
+    shift_method <- "precision-weighted"
+  } else if (shift == "mean") {
+    if (sum(finite_loc) < 2L)
+      stop("need at least two common items with finite locations to estimate ",
+           "an origin shift")
+    c0 <- mean(d[finite_loc])
+    shift_method <- "unweighted"
+    notes <- c(notes, paste(
+      "fewer than two common items had usable variances; the reported shift",
+      "is the unweighted mean of the finite location differences and is descriptive"))
+  } else {
+    c0 <- 0
+    shift_method <- "none"
+  }
+  if (shift_method == "precision-weighted" && any(!usable)) {
     notes <- c(notes, sprintf(
-      "common item(s) excluded from the shift and drift tests (location or SE unavailable): %s",
+      "common item(s) excluded from the precision-weighted shift and drift tests (location or SE unavailable): %s",
+      paste(common[!usable], collapse = ", ")))
+  } else if (shift_method == "unweighted") {
+    no_se <- finite_loc & !usable
+    if (any(no_se)) notes <- c(notes, sprintf(
+      "common item(s) included in the descriptive shift but excluded from drift tests because their standard errors were unavailable: %s",
+      paste(common[no_se], collapse = ", ")))
+    if (any(!finite_loc)) notes <- c(notes, sprintf(
+      "common item(s) excluded from the shift and drift tests because their locations were unavailable: %s",
+      paste(common[!finite_loc], collapse = ", ")))
+  } else if (any(!usable)) {
+    notes <- c(notes, sprintf(
+      "drift tests unavailable for common item(s) with unavailable locations or standard errors: %s",
       paste(common[!usable], collapse = ", ")))
   }
   independent_ok <- if (is.null(independent)) !inherits(reference, "rasch")
@@ -248,14 +281,6 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   # Var(d_i - c0) = [(I - 1u') Sigma (I - u 1')]_ii over the usable items,
   # with Sigma the sum of the two calibrations' item-location covariances
   var_d <- rep(NA_real_, length(common))
-  if (shift == "mean") {
-    if (sum(usable) >= 2L) {
-      w <- 1 / pmax(v[usable], 1e-10)
-      c0 <- sum(w * d[usable]) / sum(w)
-    } else c0 <- mean(d[is.finite(d)])
-  } else {
-    c0 <- 0
-  }
   if (inferential) {
     Sg <- .equate_loc_cov(fit, common) + .equate_loc_cov(reference, common)
     if (shift == "mean") {
@@ -278,10 +303,10 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
                     t = t, p = p, p_adj = p_adj,
                     drift = ifelse(is.na(p_adj), NA, p_adj < 0.05))
   rownames(tab) <- NULL
-  finite_loc <- is.finite(d)
   cor_link <- if (sum(finite_loc) >= 2L)
     stats::cor(a$location[finite_loc], b$location[finite_loc]) else NA_real_
   structure(class = "rasch_equate", list(table = tab, shift = c0,
+       shift_method = shift_method,
        correlation = cor_link,
        rmsd = sqrt(mean((d[finite_loc] - c0)^2)), n = n,
        n_common = length(common), inferential = inferential,
@@ -329,12 +354,15 @@ plot_equate <- function(fit, reference, shift = c("mean", "none"),
   abline(eq$shift, 1, col = .rr$ink, lwd = 2)
   # excluded items (NA SEs) still appear as points, but the average band
   # and the drift highlighting are computed over the usable rows only
-  band <- 1.96 * sqrt(mean(tab$se_1^2 + tab$se_2^2, na.rm = TRUE))
+  band_rows <- paired & is.finite(tab$se_1) & is.finite(tab$se_2)
+  band <- if (any(band_rows))
+    1.96 * sqrt(mean(tab$se_1[band_rows]^2 + tab$se_2[band_rows]^2))
+  else NA_real_
   if (is.finite(band)) {
     abline(eq$shift + band, 1, lty = 3, col = .rr$soft)
     abline(eq$shift - band, 1, lty = 3, col = .rr$soft)
   }
-  hs <- is.finite(tab$se_1)
+  hs <- paired & is.finite(tab$se_1)
   segments(tab$location_2[hs], tab$location_1[hs] - 1.96 * tab$se_1[hs],
            tab$location_2[hs], tab$location_1[hs] + 1.96 * tab$se_1[hs],
            col = paste0(.rr$soft, "88"))
@@ -350,8 +378,9 @@ plot_equate <- function(fit, reference, shift = c("mean", "none"),
 
 #' @export
 print.rasch_equate <- function(x, ...) {
-  cat(sprintf("Common-item equating over %d item(s): shift %.3f, correlation %.3f, RMSD %.3f\n",
-              x$n_common, x$shift, x$correlation, x$rmsd))
+  method <- if (is.null(x$shift_method)) "method unavailable" else x$shift_method
+  cat(sprintf("Common-item equating over %d item(s): shift %.3f (%s), correlation %.3f, RMSD %.3f\n",
+              x$n_common, x$shift, method, x$correlation, x$rmsd))
   core <- c("item", "location_1", "location_2", "adj_difference", "t",
             "p_adj", "drift")
   print(.fmt_df(x$table[, intersect(core, names(x$table))]), row.names = FALSE)

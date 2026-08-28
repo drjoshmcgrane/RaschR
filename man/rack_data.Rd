@@ -12,7 +12,7 @@ stack_data(data, person, time, items)
 \arguments{
 \item{data}{A long data frame with one measurement per row.}
 
-\item{person, time}{Names of the person and time-point columns.}
+\item{person, time}{Names of distinct person and time-point columns.}
 
 \item{items}{Character vector naming the item columns.}
 }

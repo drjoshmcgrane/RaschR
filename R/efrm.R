@@ -335,7 +335,13 @@
 
 .efrm_npml_fit_weights_r <- function(L, logw, mix_idx, count,
                                      maxit = 100L, tol = 1e-7) {
-  conv <- FALSE; step <- Inf
+  conv <- FALSE; step <- Inf; ll_step <- Inf; ll <- -Inf; iterations <- 0L
+  check_convergence <- is.finite(tol) && tol > 0
+  observed_loglik <- function(current) {
+    A <- L + current[mix_idx, , drop = FALSE]
+    mx <- apply(A, 1L, max)
+    sum(count * (mx + log(rowSums(exp(A - mx)))))
+  }
   for (it in seq_len(maxit)) {
     A <- L + logw[mix_idx, , drop = FALSE]
     mx <- apply(A, 1L, max)
@@ -349,12 +355,28 @@
     }
     next_logw <- log(w)
     step <- max(abs(w - exp(logw)))
-    if (step < tol) {
-      logw <- next_logw; conv <- TRUE; break
-    }
     logw <- next_logw
+    iterations <- it
+    if (check_convergence) {
+      ll_new <- observed_loglik(logw)
+      ll_step <- ll_new - ll
+      ll <- ll_new
+      # Adjacent grid masses can move slowly along an almost flat likelihood
+      # ridge. Convergence of the observed likelihood is the relevant EM
+      # criterion; requiring every mass itself to stop moving falsely labels a
+      # stable set transformation as unconverged.
+      if (is.finite(ll_step) && abs(ll_step) <= tol * (1 + abs(ll))) {
+        conv <- TRUE
+        break
+      }
+    }
   }
-  list(logw = logw, converged = conv, step = step)
+  # Coordinate-ascent calls deliberately use tol = 0 for a fixed number of
+  # EM updates. Their intermediate likelihood is not used, so calculate it
+  # once after the updates rather than once per iteration.
+  if (!check_convergence) ll <- observed_loglik(logw)
+  list(logw = logw, converged = conv, step = step,
+       loglik = ll, loglik_step = ll_step, iterations = iterations)
 }
 
 # Semiparametric likelihood link for two item sets. The common persons'
@@ -422,11 +444,12 @@
   # than maximise the likelihood of the linked responses.
   add_weights <- function(L, logw)
     L + logw[mix_idx, , drop = FALSE]
-  fit_weights <- function(L, logw, maxit = 100L)
+  fit_weights <- function(L, logw, maxit = 100L, tol = 0) {
     if (use_cpp)
-      efrm_fit_weights_cpp(L, logw, mix_idx, count, maxit, 1e-7)
+      efrm_fit_weights_cpp(L, logw, mix_idx, count, maxit, tol)
     else
-      .efrm_npml_fit_weights_r(L, logw, mix_idx, count, maxit, 1e-7)
+      .efrm_npml_fit_weights_r(L, logw, mix_idx, count, maxit, tol)
+  }
   logw <- matrix(-log(length(grid)), length(mix_levels), length(grid),
                  dimnames = list(mix_levels, NULL))
   converged <- FALSE
@@ -460,17 +483,24 @@
   # corresponding joint log likelihood.
   Lb <- likelihood(exp(par[1L]) * grid + par[2L], ob, score_b,
                    tau_v[cb], db)
-  ew <- fit_weights(La + Lb, logw)
+  final_mass_maxit <- getOption("rasch.efrm_npml_mass_maxit", 500L)
+  if (length(final_mass_maxit) != 1L || !is.numeric(final_mass_maxit) ||
+      !is.finite(final_mass_maxit) || final_mass_maxit != floor(final_mass_maxit) ||
+      final_mass_maxit < 1L || final_mass_maxit > .Machine$integer.max)
+    stop("option rasch.efrm_npml_mass_maxit must be one positive whole number")
+  ew <- fit_weights(La + Lb, logw, as.integer(final_mass_maxit), 1e-7)
   logw <- ew$logw; w <- exp(logw)
   A <- add_weights(La + Lb, logw); mx <- apply(A, 1L, max)
   ll <- sum(count * (mx + log(rowSums(exp(A - mx)))))
-  converged <- converged || (!is.null(op) && op$convergence == 0L &&
-                              last_step < 1e-3)
+  converged <- (converged || (!is.null(op) && op$convergence == 0L &&
+                              last_step < 1e-3)) && isTRUE(ew$converged)
   edge_mass_by_group <- w[, 1L] + w[, ncol(w)]
   edge_mass <- max(edge_mass_by_group)
   if (isTRUE(getOption("rasch.efrm_link_debug", FALSE)))
     message("EFRM NPML: step=", signif(last_step, 4),
             ", mass step=", signif(ew$step, 4),
+            ", mass loglik step=", signif(ew$loglik_step, 4),
+            ", mass iterations=", ew$iterations,
             ", optim=", op$convergence,
             ", max group edge mass=", signif(edge_mass, 4))
   if (!all(is.finite(par)) || !is.finite(ll) || edge_mass > 0.02) return(NULL)
@@ -495,6 +525,17 @@
 }
 .efrm_cancelled <- function() .rasch_cancelled("EFRM estimation")
 
+# A covariance estimate from a bootstrap needs more than a small absolute
+# handful of successful draws. Keep the historical 30-draw floor for the
+# smallest supported bootstrap, but require a majority when more are asked
+# for so a badly failing design cannot look adequately sampled.
+.rasch_min_boot_success <- function(boot_reps) {
+  max(30L, as.integer(floor(boot_reps / 2) + 1L))
+}
+.efrm_min_boot_success <- function(boot_reps) {
+  .rasch_min_boot_success(boot_reps)
+}
+
 # Apply deterministic bootstrap jobs either serially or on a persistent
 # socket cluster. Random draws are made by the caller before this function is
 # entered, so changing the worker count cannot change the simulated samples.
@@ -512,9 +553,16 @@
   env_limits <- suppressWarnings(as.integer(env_limits))
   limits <- c(limits, env_limits[is.finite(env_limits) & env_limits > 0L])
 
-  option_limits <- c(getOption("rasch.max_workers", NA_integer_),
-                     getOption("rasch.efrm.max_workers", NA_integer_))
-  option_limits <- suppressWarnings(as.integer(option_limits))
+  worker_limit <- function(x) {
+    if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x < 1L ||
+        x != floor(x) || x > .Machine$integer.max)
+      return(NA_integer_)
+    as.integer(x)
+  }
+  option_limits <- vapply(
+    list(getOption("rasch.max_workers", NA_integer_),
+         getOption("rasch.efrm.max_workers", NA_integer_)),
+    worker_limit, integer(1))
   limits <- c(limits,
               option_limits[is.finite(option_limits) & option_limits >= 1L])
 
@@ -699,7 +747,8 @@
     # cost of one draw per replicate
     n_draws <- if (is.null(regen)) 0L else {
       nd <- getOption("rasch.efrm_link_draws", max(50L, boot_reps %/% 5L))
-      if (length(nd) != 1L || !is.finite(nd) || nd != floor(nd) || nd < 1)
+      if (length(nd) != 1L || !is.numeric(nd) || !is.finite(nd) ||
+          nd != floor(nd) || nd < 1 || nd > .Machine$integer.max)
         stop("option rasch.efrm_link_draws must be one positive whole number")
       as.integer(nd)
     }
@@ -751,12 +800,12 @@
     }
     complete <- stats::complete.cases(reps)
     reps_ok <- reps[complete, , drop = FALSE]
-    # scale the requirement to what was asked for: a flat "< 30" rejects every
-    # boot_reps below 30 without a single replicate having failed, and then
-    # blames the design for it
-    if (nrow(reps_ok) < max(2L, min(30L, boot_reps %/% 2L)))
+    min_success <- .efrm_min_boot_success(boot_reps)
+    if (nrow(reps_ok) < min_success)
       stop("the unit-linking bootstrap failed in most replicates; the linking ",
-           "design is too weak for stable alpha estimation")
+           "design is too weak for stable alpha estimation (", nrow(reps_ok),
+           " of ", boot_reps, " replicates were usable; at least ",
+           min_success, " are required)")
     cov_link <- stats::cov(reps_ok)
     link_reps <- reps_ok
     if (!is.null(dtilde_reps))
@@ -781,6 +830,10 @@
        cov_alpha_phi = cov_alpha_phi,
        link_reps = link_reps,
        dtilde_reps = dtilde_reps,
+       boot_reps_requested = as.integer(boot_reps),
+       boot_reps_used = if (is.null(link_reps)) 0L else nrow(link_reps),
+       boot_reps_failed = as.integer(boot_reps) -
+         (if (is.null(link_reps)) 0L else nrow(link_reps)),
        edges = data.frame(set_a = sets_u[vapply(point$edges, `[`, 1L, 1)],
                           set_b = sets_u[vapply(point$edges, `[`, 1L, 2)],
                           n = point$off_n, log_slope = point$ls_est,
@@ -866,8 +919,9 @@
 #' Score moments supply starting values and screen weak links. Response
 #' patterns must span a score range of at least four within a set. Overlapping
 #' item sets are not permitted. The public
-#' convergence flag covers both estimation stages; \code{stage1_converged}
-#' records the conditional stage separately.
+#' convergence flag covers the conditional calibration, the set-link
+#' transformation and its nonparametric nuisance masses;
+#' \code{stage1_converged} records the conditional stage separately.
 #'
 #' The hybrid covariance combines the pairwise Godambe covariance with a
 #' person bootstrap for set linking. Each replicate jointly redraws the
@@ -880,7 +934,9 @@
 #' log-likelihood comparison between group-dependent and equal group units.
 #' This difference is descriptive and contains no information about set units,
 #' which are identified at the linking stage. The accompanying Wald omnibus
-#' tests provide inference for the group- and set-unit families. Unit estimates
+#' tests provide inference for the group- and set-unit families. Their
+#' probabilities are Holm-adjusted as one omnibus family; the individual
+#' unit contrasts form a second Holm-adjusted follow-up family. Unit estimates
 #' are retained for sparse designs, but probabilities require at least 50
 #' persons or effective persons in every group and at least 50 common persons
 #' on every set-link edge.
@@ -901,14 +957,17 @@
 #' @param data Persons-by-items data (matrix or data frame, like
 #'   \code{\link{rasch}}), plus a person-group column.
 #' @param item_sets A named list mapping set names to item-column names, or
-#'   a named character vector mapping item names to set names. Items not
+#'   a named character vector mapping every analysed item exactly once to a
+#'   set. The vector cannot name items outside the analysis. Items not
 #'   mentioned form their own set \code{"(rest)"} when a list is given.
 #' @param groups Name of the person-group column in \code{data}, or a vector
 #'   with one entry per person.
 #'   Several columns define crossed group cells. Their units are returned in
 #'   \code{phi_table}; \code{phi_factorial} and
 #'   \code{phi_factorial_tests} contain the GLS factorial decomposition and
-#'   omnibus Wald tests. Structurally unidentified units are refused. Very
+#'   omnibus Wald tests. Raw probabilities are retained in \code{p}; decisions
+#'   use \code{p_adj}, Holm-adjusted across the factorial terms. Structurally
+#'   unidentified units are refused. Very
 #'   imprecise but identified units are retained with a warning.
 #' @param id Person identifier, either a column name or one value per row.
 #'   EFRM data require one response row per person, so identifiers must be
@@ -923,7 +982,9 @@
 #'   bootstrap of all stages).
 #' @param boot_reps Bootstrap replicates; defaults to 300 for the linking
 #'   bootstrap and 200 for the full bootstrap. Use zero to omit unit
-#'   uncertainty; otherwise at least 30 are required.
+#'   uncertainty; otherwise at least 30 are required. A bootstrap covariance is
+#'   reported only when at least 30 and more than half of the requested
+#'   replicates are usable.
 #' @param progress Optional function called as \code{progress(stage, current,
 #'   total)} during long uncertainty calculations. It is intended for
 #'   interfaces and batch logging and does not alter estimation.
@@ -942,8 +1003,15 @@
 #'   \code{alpha_table}, \code{set_table}, common-unit item and threshold
 #'   tables, group-specific \code{score_curves}, \code{efrm_vs_rasch}, and
 #'   \code{linking}, and the person support used for unit inference in
-#'   \code{unit_support}. See the extended frame of reference vignette for
-#'   their interpretation.
+#'   \code{unit_support}. The requested, usable and failed uncertainty
+#'   replicates used by the returned uncertainty method are reported as
+#'   \code{boot_reps_requested}, \code{boot_reps_used} and
+#'   \code{boot_reps_failed}; the hybrid set-link counts are repeated inside
+#'   \code{linking}. When a full bootstrap was requested, its requested,
+#'   attempted, usable and failed counts are retained separately in the
+#'   corresponding \code{full_boot_reps_*} components, including when the fit
+#'   falls back to hybrid standard errors. See the extended frame of reference
+#'   vignette for their interpretation.
 #' @references
 #' Andrich, D. (1982). An extension of the Rasch model for ratings providing
 #' both location and dispersion parameters. Psychometrika, 47(1), 105--113.
@@ -1016,13 +1084,15 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     stop("`adjust_N` must be one positive finite reference sample size")
   if (!is.null(n_groups) &&
       (length(n_groups) != 1L || !is.numeric(n_groups) ||
-       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2))
+       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2 ||
+       n_groups > .Machine$integer.max))
     stop("`n_groups` must be one whole number of at least 2 class intervals")
   n_groups_requested <- n_groups
   se_method <- match.arg(se_method)
   if (is.null(boot_reps)) boot_reps <- if (se_method == "hybrid") 300L else 200L
-  if (length(boot_reps) != 1L || !is.finite(boot_reps) || boot_reps < 0L ||
-      boot_reps != floor(boot_reps))
+  if (length(boot_reps) != 1L || !is.numeric(boot_reps) ||
+      !is.finite(boot_reps) || boot_reps < 0L ||
+      boot_reps != floor(boot_reps) || boot_reps > .Machine$integer.max)
     stop("boot_reps must be one non-negative whole number")
   boot_reps <- as.integer(boot_reps)
   if (boot_reps > 0L && boot_reps < 30L)
@@ -1031,8 +1101,9 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     stop("progress must be NULL or a function")
   if (!is.null(cancel) && !is.function(cancel))
     stop("cancel must be NULL or a function")
-  if (length(workers) != 1L || !is.finite(workers) || workers < 1L ||
-      workers != floor(workers))
+  if (length(workers) != 1L || !is.numeric(workers) || !is.finite(workers) ||
+      workers < 1L || workers != floor(workers) ||
+      workers > .Machine$integer.max)
     stop("workers must be one positive whole number")
   workers <- as.integer(workers)
   workers <- min(workers, .efrm_available_workers(), max(1L, boot_reps))
@@ -1041,7 +1112,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     stop("parallel EFRM workers require an installed package; install rasch ",
          "before using workers above one")
   if (!is.null(seed)) {
-    if (length(seed) != 1L || !is.finite(seed) || seed < 0 ||
+    if (length(seed) != 1L || !is.numeric(seed) || !is.finite(seed) || seed < 0 ||
         seed != floor(seed) || seed > .Machine$integer.max)
       stop("seed must be NULL or one non-negative whole number within the integer range")
     seed <- as.integer(seed)
@@ -1059,8 +1130,10 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   # artefacts of the 61-point default. It is deliberately not a public model
   # option: changing the grid is a validation exercise, not an analyst choice.
   link_grid_n <- getOption("rasch.efrm_link_grid_n", 61L)
-  if (length(link_grid_n) != 1L || !is.finite(link_grid_n) ||
-      link_grid_n != floor(link_grid_n) || link_grid_n < 21L)
+  if (length(link_grid_n) != 1L || !is.numeric(link_grid_n) ||
+      !is.finite(link_grid_n) ||
+      link_grid_n != floor(link_grid_n) || link_grid_n < 21L ||
+      link_grid_n > .Machine$integer.max)
     stop("option rasch.efrm_link_grid_n must be one whole number of at least 21")
   link_grid_n <- as.integer(link_grid_n)
   # --- roles ----------------------------------------------------------------
@@ -1068,7 +1141,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   grp_components <- NULL
   if (is.data.frame(data)) {
     nm <- names(data)
-    if (is.character(groups) && length(groups) != nrow(data)) {
+    if (.role_columns(groups, nm, nrow(data))) {
       # column name(s); a character vector of length nrow(data) is the
       # group values themselves and is handled below
       miss <- setdiff(groups, nm)
@@ -1109,8 +1182,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
              nrow(data), " rows")
       id_vec <- id
     }
-    factors_are_cols <- is.character(factors) &&
-      length(factors) != nrow(data)
+    factors_are_cols <- .role_columns(factors, nm, nrow(data))
     if (factors_are_cols) {
       missf <- setdiff(factors, nm)
       if (length(missf))
@@ -1128,6 +1200,14 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
         stop("duplicate factor column name(s): ",
              paste(unique(names(factors)[duplicated(names(factors))]),
                    collapse = ", "))
+      clash <- intersect(names(factors), nm)
+      different <- clash[!vapply(clash, function(cn)
+        .same_role_values(factors[[cn]], data[[cn]]), logical(1))]
+      if (length(different) && is.null(items))
+        stop("external factor column(s) share item-data names but contain ",
+             "different values: ", paste(different, collapse = ", "),
+             ". Rename the external factor column(s), or name the item ",
+             "columns explicitly with items=", call. = FALSE)
       fac_df <- factors
     } else if (!is.null(factors) && is.atomic(factors)) {
       if (length(factors) != nrow(data))
@@ -1141,8 +1221,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     # Frame-defining columns are already stored below as part of the frame
     # structure. Repeating them as ordinary factors creates duplicate names
     # and can make a later DIF or refit select the wrong column.
-    if (!is.null(fac_df) && is.character(groups) &&
-        length(groups) != nrow(data))
+    if (!is.null(fac_df) && .role_columns(groups, nm, nrow(data)))
       fac_df <- fac_df[, !names(fac_df) %in% groups, drop = FALSE]
     # a data column whose values are identical to a by-value role vector is
     # almost certainly that same variable: exclude it so it is not also
@@ -1151,7 +1230,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       nm[vapply(data, function(col)
         length(col) == length(v) && isTRUE(all.equal(
           as.character(col), as.character(v))), logical(1))]
-    groups_are_cols <- is.character(groups) && length(groups) != nrow(data)
+    groups_are_cols <- .role_columns(groups, nm, nrow(data))
     # a data column whose values are identical to a by-value role vector
     # may be that same variable, or a genuine item that happens to agree.
     # Deciding silently risks fitting the wrong analysis either way, so an
@@ -1337,6 +1416,10 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
            paste(unique(names(item_sets)[duplicated(names(item_sets))]),
                  collapse = ", "),
            "; each item may be assigned to one set")
+    extra <- setdiff(names(item_sets), colnames(X))
+    if (length(extra))
+      stop("item_sets map item(s) not in the data: ",
+           paste(extra, collapse = ", "))
     set_of <- as.character(item_sets)[match(colnames(X), names(item_sets))]
     if (anyNA(set_of))
       stop("item(s) missing from the item_sets map: ",
@@ -1549,22 +1632,30 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     alpha <- link$alpha; mu <- link$mu
     if (any(link$edges$converged %in% FALSE)) {
       warning("one or more semiparametric set links stopped before the scale ",
-              "step met its convergence tolerance; inspect fit$linking$alpha_edges",
+              "transformation and nuisance masses met their convergence ",
+              "tolerances; inspect fit$linking$alpha_edges",
               call. = FALSE)
       notes <- c(notes, paste(
-        "one or more semiparametric set links stopped before the scale step",
-        "met its convergence tolerance"))
+        "one or more semiparametric set links stopped before the scale",
+        "transformation and nuisance masses met their convergence tolerances"))
     }
   } else {
     alpha <- setNames(1, sets_u); mu <- setNames(0, sets_u)
     link <- list(alpha = alpha, se_log_alpha = setNames(0, sets_u), mu = mu,
-                 cov_link = NULL, cov_alpha_phi = NULL, edges = data.frame())
+                 cov_link = NULL, cov_alpha_phi = NULL,
+                 boot_reps_requested = 0L, boot_reps_used = 0L,
+                 boot_reps_failed = 0L, edges = data.frame())
   }
 
   # --- optional full person bootstrap of all stages ----------------------------
   boot <- NULL
-  if (se_method == "bootstrap" &&
+  full_boot_reps_requested <- if (se_method == "bootstrap") boot_reps else 0L
+  full_boot_reps_attempted <- 0L
+  full_boot_reps_used <- 0L
+  full_boot_reps_failed <- 0L
+  if (se_method == "bootstrap" && boot_reps > 0L &&
       !any(link$edges$converged %in% FALSE)) {
+    full_boot_reps_attempted <- boot_reps
     Npers <- nrow(Xv)
     boot_replicate <- function(idx) {
       Xb <- Xv[idx, , drop = FALSE]
@@ -1602,10 +1693,21 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       if (!is.null(res)) collect[r, ] <- res
     }
     collect <- collect[stats::complete.cases(collect), , drop = FALSE]
-    if (nrow(collect) < max(30, boot_reps / 2)) {
-      warning("the full bootstrap failed in most replicates; ",
-              "falling back to hybrid standard errors")
+    full_boot_reps_used <- nrow(collect)
+    full_boot_reps_failed <- boot_reps - full_boot_reps_used
+    min_success <- .rasch_min_boot_success(boot_reps)
+    if (full_boot_reps_used < min_success) {
+      fallback_note <- sprintf(
+        paste0("full person bootstrap: %d of %d replicates were usable; ",
+               "at least %d are required, so hybrid standard errors were returned"),
+        full_boot_reps_used, boot_reps, min_success)
+      warning(fallback_note, call. = FALSE)
+      notes <- c(notes, fallback_note)
     } else boot <- collect
+  } else if (se_method == "bootstrap" && boot_reps > 0L) {
+    notes <- c(notes, paste(
+      "full person bootstrap was not attempted because the fitted set link",
+      "did not meet its convergence criterion; hybrid standard errors were returned"))
   }
 
   # --- assembly in arbitrary units ----------------------------------------------
@@ -1799,7 +1901,18 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
             stringsAsFactors = FALSE)
         }
         fit$phi_factorial_tests <- do.call(rbind, tests)
-        if (!phi_ok) fit$phi_factorial_tests$p <- NA_real_
+        fit$phi_factorial_tests$p_adj <- NA_real_
+        usable <- is.finite(fit$phi_factorial_tests$p)
+        fit$phi_factorial_tests$p_adj[usable] <- stats::p.adjust(
+          fit$phi_factorial_tests$p[usable], method = "holm")
+        fit$phi_factorial_tests$significant <- ifelse(
+          is.finite(fit$phi_factorial_tests$p_adj),
+          fit$phi_factorial_tests$p_adj < 0.05, NA)
+        if (!phi_ok) {
+          fit$phi_factorial_tests$p <- NA_real_
+          fit$phi_factorial_tests$p_adj <- NA_real_
+          fit$phi_factorial_tests$significant <- NA
+        }
       }
     }
   }
@@ -1894,6 +2007,12 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   if (!is.null(unit_omnibus)) {
     unit_omnibus$p[unit_omnibus$term == "group units (phi)" & !phi_ok] <- NA_real_
     unit_omnibus$p[unit_omnibus$term == "set units (alpha)" & !alpha_ok] <- NA_real_
+    unit_omnibus$p_adj <- NA_real_
+    usable <- is.finite(unit_omnibus$p)
+    unit_omnibus$p_adj[usable] <- stats::p.adjust(
+      unit_omnibus$p[usable], method = "holm")
+    unit_omnibus$significant <- ifelse(
+      is.finite(unit_omnibus$p_adj), unit_omnibus$p_adj < 0.05, NA)
   }
 
   ut <- rbind(
@@ -1968,13 +2087,24 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   fit$linking <- list(
     phi_edges = edges_g,
     alpha_edges = link$edges,
+    boot_reps_requested = link$boot_reps_requested,
+    boot_reps_used = link$boot_reps_used,
+    boot_reps_failed = link$boot_reps_failed,
     alpha_method = if (S > 1L)
       "finite-grid semiparametric maximum likelihood" else "not applicable",
     alpha_grid = if (S > 1L)
       c(lower = -8, upper = 8, points = link_grid_n) else NULL)
   report("finalising", 1L, 1L)
   fit$se_method <- if (!is.null(boot)) "bootstrap" else "hybrid"
-  fit$boot_reps_used <- if (!is.null(boot)) nrow(boot) else NA_integer_
+  fit$boot_reps_requested <- if (!is.null(boot)) boot_reps else
+    link$boot_reps_requested
+  fit$boot_reps_used <- if (!is.null(boot)) nrow(boot) else
+    link$boot_reps_used
+  fit$boot_reps_failed <- fit$boot_reps_requested - fit$boot_reps_used
+  fit$full_boot_reps_requested <- full_boot_reps_requested
+  fit$full_boot_reps_attempted <- full_boot_reps_attempted
+  fit$full_boot_reps_used <- full_boot_reps_used
+  fit$full_boot_reps_failed <- full_boot_reps_failed
   fit$workers <- workers
   fit$seed <- seed
   fit$virtual_map <- vmap
@@ -2010,7 +2140,7 @@ print.rasch_efrm <- function(x, ...) {
   cat("(composite likelihood: descriptive; informative for ",
       x$efrm_vs_rasch$informative_for, ")\n", sep = "")
   if (!is.null(x$efrm_vs_rasch$unit_omnibus)) {
-    cat("Omnibus Wald tests of equal units:\n")
+    cat("Omnibus Wald tests of equal units (Holm-adjusted family):\n")
     print(.fmt_df(x$efrm_vs_rasch$unit_omnibus), row.names = FALSE)
   }
   if (!is.null(x$efrm_vs_rasch$unit_tests)) {
@@ -2110,7 +2240,9 @@ plot_icc_frames <- function(fit, item, n_groups = fit$n_groups,
   rows <- which(vm$item == item)
   if (!length(rows)) stop("no such item: ", item)
   group_label <- NULL
-  if (is.character(group) && length(group) < nrow(fit$X)) {
+  if (.role_columns(group,
+                    if (is.null(fit$factors)) character(0) else names(fit$factors),
+                    nrow(fit$X))) {
     bad <- intersect(group, fit$frame_group %||% character(0))
     if (length(bad))
       stop("frame-defining factors belong to the frame curves, not the DIF overlay: ",

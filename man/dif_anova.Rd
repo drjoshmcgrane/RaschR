@@ -42,7 +42,7 @@ factor-by-factor terms); \code{"factorial"} also crosses the factors
 with each other. Immaterial with a single factor.}
 
 \item{sizes}{If \code{TRUE}, refit each flagged item-term and calculate
-pairwise DIF differences in logits using \code{\link{dif_size}}.}
+adjusted marginal contrasts in logits using \code{\link{dif_posthoc}}.}
 
 \item{id}{Person identifier for stacked or repeated-measures data. It may
 be a column name stored in the fit or a vector with one value per row;
@@ -65,8 +65,10 @@ A list with:
   uniform and non-uniform tests, partial eta-squared, adjusted
   probabilities, DIF flags, and supersession flag.}
   \item{\code{terms}}{The complete item-wise analysis-of-variance tables.}
-  \item{\code{sizes}}{When requested, pairwise logit differences for the
-  significant, non-superseded item-terms.}
+  \item{\code{sizes}}{When requested, marginal pairwise differences for
+  main effects and difference-in-differences magnitudes for interactions,
+  adjusted over the complete nominated factor design. This is retained as
+  an alias of \code{posthoc}.}
   \item{\code{posthoc}}{When \code{sizes = TRUE}, marginal pairwise
   differences for main effects and difference-in-differences magnitudes
   for interactions, calculated by \code{\link{dif_posthoc}}.}

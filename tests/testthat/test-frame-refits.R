@@ -167,6 +167,33 @@ test_that("subtests and DIF splits retain the active Rasch specification", {
                     "M1 (original)"))
 })
 
+test_that("split provenance survives later ordinary structural refits", {
+  d <- simulate_rasch(500, 8, n_groups = 2, seed = 351)
+  f <- rasch(d, id = "id", factors = "group")
+  sp <- split_items(f, "I03", by = "group")
+  expect_equal(.n_unsplit_sources(.split_source_map(sp)), 7L)
+
+  dr <- drop_items(sp, "I08")
+  expect_identical(names(dr$split_map), colnames(dr$X))
+  expect_true(all(dr$split_map[grep("I03", names(dr$split_map))] == "I03"))
+  expect_equal(.n_unsplit_sources(.split_source_map(dr)), 6L)
+
+  co <- combine_items(sp, c("I07", "I08"))
+  expect_identical(names(co$split_map), colnames(co$X))
+  expect_true(all(co$split_map[grep("I03", names(co$split_map))] == "I03"))
+  expect_identical(unname(co$split_map[["I07+I08"]]), "I07+I08")
+  expect_equal(.n_unsplit_sources(.split_source_map(co)), 6L)
+
+  split_copy <- names(sp$split_map)[names(sp$split_map) != sp$split_map][1L]
+  expect_false(is.na(split_copy))
+  expect_error(combine_items(sp, c(split_copy, "I07")),
+               "group-specific split item.*cannot be combined")
+
+  map <- c("I1 (A)" = "I1", "I1 (B)" = "I1", I2 = "I2")
+  expect_setequal(.split_source_items(c("I1 (A)", "I1 (A)", "I2"), map),
+                  c("I1", "I2"))
+})
+
 test_that("structural refits do not silently transform external anchors", {
   d <- simulate_rasch(500, 8, seed = 35)
   a <- data.frame(item = "I01", k = 1, tau = 1)
@@ -206,7 +233,8 @@ test_that("DIF resolution returns its final residual-DIF table", {
   rr <- resolve_dif(f, max_splits = 0)
   expect_named(rr, c("fit", "splits", "n_splits", "stopped", "dif",
                      "notes", "n_remaining_dif", "n_nonuniform"))
-  expect_equal(rr$n_remaining_dif, if (is.null(rr$dif)) 0L else nrow(rr$dif))
+  expect_equal(rr$n_remaining_dif, if (is.null(rr$dif)) 0L else
+    length(.split_source_items(rr$dif$item, .split_source_map(rr$fit))))
   expect_error(resolve_dif(f, min_anchors = ncol(f$X)), "min_anchors")
 
   bad <- f; bad$est$converged <- FALSE

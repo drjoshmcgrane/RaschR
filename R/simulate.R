@@ -35,14 +35,17 @@
 }
 
 .sim_count <- function(x, name, min = 1L) {
-  if (length(x) != 1L || !is.finite(x) || x != floor(x) || x < min)
+  if (length(x) != 1L || !is.numeric(x) || is.complex(x) ||
+      !is.null(oldClass(x)) || !is.finite(x) || x != floor(x) || x < min ||
+      x > .Machine$integer.max)
     stop(name, " must be one whole number >= ", min)
   as.integer(x)
 }
 
 .sim_scalar <- function(x, name, lower = -Inf, upper = Inf,
                         lower_open = FALSE, upper_open = FALSE) {
-  ok <- length(x) == 1L && is.finite(x) &&
+  ok <- length(x) == 1L && is.numeric(x) && !is.complex(x) &&
+    is.null(oldClass(x)) && is.finite(x) &&
     if (lower_open) x > lower else x >= lower
   ok <- ok && if (upper_open) x < upper else x <= upper
   if (!ok) {
@@ -51,6 +54,85 @@
     stop(name, " must be one finite value in ", left, lower, ", ", upper, right)
   }
   as.numeric(x)
+}
+
+.sim_seed <- function(seed) {
+  if (is.null(seed)) return(NULL)
+  .sim_count(seed, "seed", 0L)
+}
+
+.sim_vector <- function(x, name, lengths, lower = -Inf, upper = Inf,
+                        lower_open = FALSE, upper_open = FALSE) {
+  ok <- is.numeric(x) && !is.complex(x) && is.null(oldClass(x)) &&
+    length(x) %in% lengths && all(is.finite(x))
+  if (ok) {
+    ok <- all(if (lower_open) x > lower else x >= lower) &&
+      all(if (upper_open) x < upper else x <= upper)
+  }
+  if (!ok)
+    stop(name, " must contain plain finite numeric values with length ",
+         paste(lengths, collapse = " or "))
+  as.numeric(x)
+}
+
+.sim_structure <- function(x, name, allowed, required = character()) {
+  if (is.null(x)) return(NULL)
+  if (!is.list(x) || is.data.frame(x))
+    stop(name, " must be NULL or a named list")
+  if (!length(x)) {
+    if (length(required))
+      stop(name, " must contain ", paste(required, collapse = ", "))
+    return(x)
+  }
+  nm <- names(x)
+  if (is.null(nm) || anyNA(nm) || any(!nzchar(trimws(nm))) || anyDuplicated(nm))
+    stop(name, " must be a named list with unique, non-missing names")
+  unknown <- setdiff(nm, allowed)
+  if (length(unknown))
+    stop(name, " has unknown component(s): ", paste(unknown, collapse = ", "))
+  missing <- setdiff(required, nm)
+  if (length(missing))
+    stop(name, " must contain ", paste(missing, collapse = ", "))
+  x
+}
+
+# Construct a finite object vector with the requested sample correlation to x.
+# The random component is centred and projected off x before being rescaled,
+# rather than merely combined with x and expected to be orthogonal in a small
+# realised object set.
+.sim_correlated_fixed <- function(x, rho, target_sd,
+                                  draw = function(n) stats::rnorm(n)) {
+  if (abs(rho) == 1) return(rho * x)
+  xx <- sum(x^2)
+  for (attempt in seq_len(20L)) {
+    z <- draw(length(x))
+    z <- z - mean(z)
+    z <- z - x * sum(z * x) / xx
+    zsd <- stats::sd(z)
+    if (is.finite(zsd) && zsd > sqrt(.Machine$double.eps)) {
+      z <- z / zsd * target_sd
+      return(rho * x + sqrt(1 - rho^2) * z)
+    }
+  }
+  stop("could not construct the requested finite object correlation")
+}
+
+# Allocate a finite set of observations as evenly as possible across the
+# requested IDs. Unlike sampling with replacement, this guarantees that every
+# declared judge contributes data when the design contains enough rows.
+.sim_balanced_ids <- function(ids, n, what = "levels") {
+  if (n < length(ids))
+    stop("the generated design has ", n, " observations, fewer than the ",
+         length(ids), " requested ", what)
+  out <- rep(ids, n %/% length(ids))
+  rem <- n %% length(ids)
+  if (rem) out <- c(out, sample(ids, rem, replace = FALSE))
+  sample(out, length(out), replace = FALSE)
+}
+
+.sim_planted_count <- function(prop, n) {
+  if (prop <= 0) return(0L)
+  min(n, max(1L, as.integer(round(prop * n))))
 }
 
 # person locations from one of a few distributions
@@ -114,7 +196,9 @@
 #' Generates dichotomous, partial credit, or rating scale data. Optional
 #' arguments introduce item misfit, guessing, multidimensionality, local
 #' dependence, DIF, response styles, or missingness. Generating values are
-#' stored in \code{attr(x, "truth")}.
+#' stored in \code{attr(x, "truth")}. A positive planted proportion selects
+#' at least one person or response cell when the requested departures can
+#' coexist.
 #'
 #' @param n_persons,n_items Sample size and test length.
 #' @param model \code{"dichotomous"}, \code{"PCM"}, or \code{"RSM"}. Under
@@ -136,7 +220,9 @@
 #' @param guessing Scalar or length-\code{n_items} lower asymptote
 #'   (dichotomous): low-location persons answer correctly by chance.
 #' @param second_dim \code{NULL}, or \code{list(items=, rho=)}: the named items
-#'   load on a second trait correlated \code{rho} with the first.
+#'   load on a second trait whose realised sample correlation with the first
+#'   is \code{rho}. At least three persons are needed unless \code{rho} is
+#'   -1 or 1.
 #' @param dependence \code{NULL}, or \code{list(pairs=, strength=)}: each pair's
 #'   second item responds partly to the first. This departure feeds the
 #'   residual-dependence diagnostics.
@@ -157,7 +243,7 @@
 #' @param n_groups Number of equal person groups (a \code{group} factor column
 #'   is added when > 1, for DIF).
 #' @param missing Proportion of responses set missing (completely at random).
-#' @param seed Optional RNG seed.
+#' @param seed Optional non-negative whole-number RNG seed.
 #' @return A data frame of class \code{"rasch_sim"} (item columns
 #'   \code{I01}..., an \code{id} column, and a \code{group} column when
 #'   grouped), with \code{attr(x, "truth")} holding the generating parameters
@@ -180,6 +266,7 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
                            dif = NULL, careless = 0, response_style = NULL,
                            speeded = 0, disordered = NULL,
                            n_groups = 1, missing = 0, seed = NULL) {
+  seed <- .sim_seed(seed)
   if (!is.null(seed)) {
     .old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(.old_stream), add = TRUE)
@@ -201,13 +288,30 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   if (model != "dichotomous")
     n_categories <- .sim_count(n_categories, "n_categories", 3L)
   m <- if (model == "dichotomous") 1L else as.integer(n_categories) - 1L
+  second_dim <- .sim_structure(second_dim, "second_dim",
+                               c("items", "rho"), "items")
+  dependence <- .sim_structure(dependence, "dependence",
+                               c("pairs", "strength"), "pairs")
+  dif <- .sim_structure(dif, "dif",
+                        c("items", "uniform", "nonuniform"), "items")
+  response_style <- .sim_structure(response_style, "response_style",
+                                   c("type", "prop", "strength"))
+  if (!is.null(response_style) && m == 1L) {
+    warning("response_style applies to polytomous items only; ignored for dichotomous data")
+    response_style <- NULL
+  }
   inm <- sprintf("I%02d", seq_len(I))
   as_idx <- function(x) {
     if (is.null(x) || !length(x)) return(integer(0))
-    if (is.numeric(x) && any(!is.na(x) & x != round(x)))
-      stop("item index(es) must be whole numbers, got: ",
-           paste(x[!is.na(x) & x != round(x)], collapse = ", "))
-    i <- if (is.character(x)) match(x, inm) else as.integer(x)
+    if (is.character(x)) {
+      i <- match(x, inm)
+    } else if (is.numeric(x) && !is.complex(x) && is.null(oldClass(x))) {
+      if (any(!is.finite(x)) || any(x != round(x)))
+        stop("item index(es) must be finite whole numbers")
+      i <- as.integer(x)
+    } else {
+      stop("item selectors must be item names or plain numeric indices")
+    }
     if (anyNA(i) || any(i < 1L | i > I))
       stop("unknown item name(s)/index(es): ",
            paste(x[is.na(i) | i < 1L | i > I], collapse = ", "))
@@ -215,18 +319,17 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   }
 
   # item locations, thresholds, slopes, guessing (with per-item overrides)
-  if (!(length(difficulty) %in% c(2L, I)) || any(!is.finite(difficulty)))
-    stop("difficulty must contain two finite endpoints or one finite value per item")
+  difficulty <- .sim_vector(difficulty, "difficulty", unique(c(2L, I)))
   delta <- setNames(if (length(difficulty) == I) difficulty
                     else seq(difficulty[1], difficulty[2], length.out = I), inm)
-  disc <- if (length(discrimination) == I) discrimination else rep(discrimination[1], I)
-  guess <- if (length(guessing) == I) guessing else rep(guessing[1], I)
-  if (!(length(discrimination) %in% c(1L, I)) ||
-      any(!is.finite(disc) | disc <= 0))
-    stop("discrimination must be positive and have length 1 or n_items")
-  if (!(length(guessing) %in% c(1L, I)) ||
-      any(!is.finite(guess) | guess < 0 | guess >= 1))
-    stop("guessing must be in [0, 1) and have length 1 or n_items")
+  discrimination <- .sim_vector(discrimination, "discrimination",
+                                unique(c(1L, I)), lower = 0,
+                                lower_open = TRUE)
+  guessing <- .sim_vector(guessing, "guessing", unique(c(1L, I)),
+                          lower = 0, upper = 1, upper_open = TRUE)
+  disc <- if (length(discrimination) == I) discrimination else
+    rep(discrimination, I)
+  guess <- if (length(guessing) == I) guessing else rep(guessing, I)
   if (m > 1L && any(guess > 0)) {
     warning("guessing applies to dichotomous items only; ignored for ", model)
     guess[] <- 0
@@ -267,14 +370,20 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     if (!length(dim_items))
       stop("second_dim$items must name at least one item")
     rho <- second_dim$rho %||% 0.5
-    if (length(rho) != 1L || !is.finite(rho) || abs(rho) > 1)
+    if (length(rho) != 1L || !is.numeric(rho) || is.complex(rho) ||
+        !is.null(oldClass(rho)) || !is.finite(rho) || abs(rho) > 1)
       stop("second_dim$rho must be a single correlation in [-1, 1]")
-    # centre both components so the secondary trait keeps the REQUESTED
-    # mean and sd: combining two mean-mu variables shifted the mean to
-    # mu(rho + sqrt(1 - rho^2))
-    z2 <- .sim_theta(N, theta_mean, theta_sd, theta_dist)
-    theta2 <- theta_mean + rho * (theta - theta_mean) +
-      sqrt(1 - rho^2) * (z2 - theta_mean)
+    if (theta_sd == 0)
+      stop("second_dim requires theta_sd > 0 because a latent correlation is otherwise undefined")
+    if (N < 3L && abs(rho) < 1)
+      stop("second_dim needs at least three persons to realise a finite ",
+           "correlation strictly between -1 and 1")
+    # Construct the orthogonal component in the realised sample. This makes
+    # the requested mean, spread and correlation exact rather than relying on
+    # an independent random draw to be orthogonal in a small sample.
+    theta2 <- theta_mean + .sim_correlated_fixed(
+      theta - theta_mean, rho, theta_sd,
+      draw = function(n) .sim_theta(n, 0, theta_sd, theta_dist))
   }
 
   X <- matrix(NA_integer_, N, I, dimnames = list(NULL, inm))
@@ -380,7 +489,7 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     if (ss == 0 || sprop == 0) {
       response_style <- NULL
     } else {
-    style_idx <- sample(N, round(sprop * N))
+    style_idx <- sample(N, .sim_planted_count(sprop, N))
     mid <- m / 2
     dev2 <- ((0:m - mid) / mid)^2
     w <- if (stype == "extreme") exp(ss * dev2)
@@ -402,11 +511,26 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   # careless responders: answer uniformly at random
   careless_idx <- integer(0)
   if (careless > 0) {
-    careless_idx <- sample(N, round(careless * N))
+    n_careless <- .sim_planted_count(careless, N)
+    # Keep the two planted response mechanisms disjoint where the requested
+    # proportions permit it. When they overlap unavoidably, leave as many
+    # styled persons intact as possible rather than erasing the style by an
+    # incidental random overlap.
+    ordinary <- setdiff(seq_len(N), style_idx)
+    n_ordinary <- min(n_careless, length(ordinary))
+    careless_idx <- if (n_ordinary)
+      ordinary[sample.int(length(ordinary), n_ordinary)] else integer(0)
+    remaining <- n_careless - n_ordinary
+    if (remaining)
+      careless_idx <- c(
+        careless_idx, style_idx[sample.int(length(style_idx), remaining)])
     X[careless_idx, ] <- matrix(sample(0:m, length(careless_idx) * I, TRUE),
                                 length(careless_idx), I)
     # careless overwrites any response style; the truth must not double-count
     style_idx <- setdiff(style_idx, careless_idx)
+    if (!is.null(response_style) && !length(style_idx))
+      warning("response_style could not remain because careless = 1 replaces ",
+              "every person's responses; no response style is recorded")
   }
 
   # speededness: a contiguous not-reached tail over the last items. `speeded`
@@ -420,14 +544,20 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
             "not-reached tail; ignored")
     speeded <- 0
   }
+  speeded_idx <- integer(0)
   if (speeded > 0 && I >= 3L) {
     k <- max(1L, round(0.4 * I)); z0 <- I - k
-    for (p in which(stats::runif(N) < speeded)) {
+    speeded_idx <- sample(N, .sim_planted_count(speeded, N))
+    for (p in speeded_idx) {
       stop_at <- z0 + sample.int(k, 1L) - 1L              # drop point in zone
       if (stop_at < I) X[p, (stop_at + 1L):I] <- NA
     }
   }
-  if (missing > 0) X[sample(length(X), round(missing * length(X)))] <- NA
+  missing_cells <- integer(0)
+  if (missing > 0) {
+    missing_cells <- sample(length(X), .sim_planted_count(missing, length(X)))
+    X[missing_cells] <- NA
+  }
 
   out <- data.frame(id = sprintf("P%04d", seq_len(N)), X,
                     check.names = FALSE, stringsAsFactors = FALSE)
@@ -457,17 +587,23 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     "speededness (%.0f%% not-reached at the last item)", 100 * speeded))
   if (length(dis_items)) planted <- c(planted, sprintf(
     "disordered thresholds on %s", paste(inm[dis_items], collapse = ", ")))
-  if (missing > 0) planted <- c(planted, sprintf("%.0f%% missing", 100 * missing))
+  if (length(missing_cells)) planted <- c(planted, sprintf(
+    "%d response%s missing completely at random (%.1f%%)",
+    length(missing_cells), if (length(missing_cells) == 1L) "" else "s",
+    100 * length(missing_cells) / length(X)))
 
   attr(out, "truth") <- list(
     layout = "rasch",
     description = sprintf("%s, %d persons x %d items%s", model, N, I,
       if (!is.null(group)) sprintf(", %d groups", nlevels(group)) else ""),
     model = model, n_persons = N, n_items = I,
-    theta = theta, theta2 = theta2, difficulty = delta, thresholds = tau,
+    person_id = out$id, theta = theta, theta2 = theta2,
+    difficulty = delta, thresholds = tau,
     discrimination = disc, guessing = guess,
     groups = group, dim_items = inm[dim_items], dif_items = inm[dif_items],
-    careless_idx = careless_idx, style_idx = style_idx, planted = planted)
+    careless_idx = careless_idx, style_idx = style_idx,
+    speeded_idx = speeded_idx, missing_cells = missing_cells,
+    planted = planted)
   class(out) <- c("rasch_sim", "data.frame")
   out
 }
@@ -498,22 +634,29 @@ print.rasch_sim <- function(x, ...) {
 #' attribute, erratic judges, or within-judge dependence. Generating values are
 #' stored in \code{attr(x, "truth")}.
 #'
-#' @param n_objects,n_judges Objects to scale and judges comparing them.
+#' @param n_objects,n_judges Objects to scale and judges comparing them. Every
+#'   judge is allocated at least one comparison; the simulator refuses a
+#'   design with fewer comparisons than judges.
 #' @param reps_per_pair Comparisons made of each object pair.
 #' @param model \code{"dichotomous"} (a winner) or \code{"polytomous"} (a rated
 #'   margin in \code{n_categories} categories; an earlier development-era value
 #'   \code{"graded"} is accepted as an alias).
 #' @param n_categories Categories for the polytomous model.
 #' @param object_sd Spread of the object locations (evenly spaced, sum-zero).
+#' @param object_locations Optional numeric vector of generated object
+#'   locations. It must have length \code{n_objects}; names, when supplied,
+#'   must identify the generated objects. Values are centred to identify the
+#'   origin and take precedence over \code{object_sd}.
 #' @param second_attribute \code{NULL}, or \code{list(rho=)}: half the judges
-#'   rank by a second object attribute correlated \code{rho} with the first.
+#'   rank by a second object attribute whose realised correlation with the
+#'   first is \code{rho}.
 #'   This introduces residual dimensionality and possible intransitivity.
 #' @param erratic_judges Proportion of judges who choose at random.
 #' @param dependence \code{NULL}, or \code{list(exposure=, carry_over=)}:
 #'   within-judge order effects (a seen-before advantage and a pull from the
 #'   judge's own earlier verdicts). Adds an \code{order} column. Feeds the
 #'   dependence effects fitted by \code{\link{btl}}.
-#' @param seed Optional RNG seed.
+#' @param seed Optional non-negative whole-number RNG seed.
 #' @return A data frame of class \code{"rasch_sim"}: \code{object_a},
 #'   \code{object_b}, \code{winner} (or \code{response} when polytomous),
 #'   \code{judge}, and \code{order} when dependence is planted; with
@@ -527,7 +670,9 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
                          model = c("dichotomous", "polytomous", "graded"),
                          n_categories = 4,
                          object_sd = 1, second_attribute = NULL,
-                         erratic_judges = 0, dependence = NULL, seed = NULL) {
+                         erratic_judges = 0, dependence = NULL, seed = NULL,
+                         object_locations = NULL) {
+  seed <- .sim_seed(seed)
   if (!is.null(seed)) {
     .old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(.old_stream), add = TRUE)
@@ -543,30 +688,47 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
   object_sd <- .sim_scalar(object_sd, "object_sd", lower = 0)
   erratic_judges <- .sim_scalar(erratic_judges, "erratic_judges",
                                 lower = 0, upper = 1)
+  second_attribute <- .sim_structure(second_attribute, "second_attribute",
+                                     "rho")
+  dependence <- .sim_structure(dependence, "dependence",
+                               c("exposure", "carry_over"))
   if (model == "polytomous")
     n_categories <- .sim_count(n_categories, "n_categories", 3L)
   m <- if (model == "polytomous") as.integer(n_categories) - 1L else 1L
   objs <- sprintf("O%d", seq_len(K)); jids <- sprintf("J%d", seq_len(J))
-  beta <- setNames(as.numeric(scale(seq_len(K))) * object_sd, objs)
+  if (is.null(object_locations)) {
+    beta <- setNames(as.numeric(scale(seq_len(K))) * object_sd, objs)
+  } else {
+    location_names <- names(object_locations)
+    object_locations <- .sim_vector(object_locations, "object_locations", K)
+    if (!is.null(location_names) &&
+        (!setequal(location_names, objs) || anyDuplicated(location_names)))
+      stop("named object_locations must identify every generated object exactly")
+    if (!is.null(location_names))
+      object_locations <- stats::setNames(object_locations, location_names)[objs]
+    beta <- setNames(object_locations - mean(object_locations), objs)
+  }
   tau <- if (m > 1L) .sim_thresholds(0, m, 1.2) else NULL
 
   # a second object attribute (orthogonal part) for the two-camp design
   beta2 <- NULL; camp <- NULL
   if (!is.null(second_attribute)) {
+    beta_sd <- stats::sd(beta)
+    if (!is.finite(beta_sd) || beta_sd <= sqrt(.Machine$double.eps))
+      stop("second_attribute requires object locations with positive spread because an object correlation is otherwise undefined")
     rho <- second_attribute$rho %||% 0.3
     rho <- .sim_scalar(rho, "second_attribute$rho", lower = -1, upper = 1)
-    beta2 <- setNames(rho * beta + sqrt(1 - rho^2) *
-      as.numeric(scale(stats::rnorm(K))) * object_sd, objs)
+    beta2 <- setNames(.sim_correlated_fixed(beta, rho, beta_sd), objs)
     camp <- setNames(rep(c("a", "b"), length.out = J), jids)
   }
-  erratic <- if (erratic_judges > 0)
-    jids[seq_len(round(erratic_judges * J))] else character(0)
-
   pr <- t(utils::combn(objs, 2))
   d <- data.frame(object_a = rep(pr[, 1], each = reps_per_pair),
                   object_b = rep(pr[, 2], each = reps_per_pair),
                   stringsAsFactors = FALSE)
-  d$judge <- sample(jids, nrow(d), TRUE)
+  d$judge <- .sim_balanced_ids(jids, nrow(d), "judges")
+  n_erratic <- .sim_planted_count(erratic_judges, J)
+  erratic <- if (n_erratic) sample(jids, n_erratic, replace = FALSE) else
+    character(0)
 
   win_prob <- function(a, b, jd) {
     ba <- if (!is.null(camp) && camp[jd] == "b") beta2[a] else beta[a]
@@ -574,15 +736,18 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
     ba - bb
   }
   # dependence needs a per-judge judgment order and running history
-  ord <- NULL
+  if (!is.null(dependence)) {
+    exq <- .sim_scalar(dependence$exposure %||% 0, "dependence$exposure")
+    cry <- .sim_scalar(dependence$carry_over %||% 0,
+                       "dependence$carry_over")
+    if (exq == 0 && cry == 0) dependence <- NULL
+  }
   if (!is.null(dependence)) {
     d <- d[order(d$judge), ]
     d$order <- stats::ave(seq_len(nrow(d)), d$judge, FUN = seq_along)
     seen <- new.env(parent = emptyenv()); hs <- new.env(parent = emptyenv())
     hc <- new.env(parent = emptyenv())
     g0 <- function(e, k) if (is.null(v <- e[[k]])) 0 else v
-    exq <- .sim_scalar(dependence$exposure %||% 0, "dependence$exposure")
-    cry <- .sim_scalar(dependence$carry_over %||% 0, "dependence$carry_over")
     resp <- integer(nrow(d))
     for (r in seq_len(nrow(d))) {
       j <- d$judge[r]; a <- d$object_a[r]; b <- d$object_b[r]
@@ -628,7 +793,9 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
     layout = "btl",
     description = sprintf("%s, %d objects, %d judges, %d comparisons",
                           model, K, J, nrow(d)),
-    model = model, location = beta, location2 = beta2, camp = camp,
+    model = model, location = beta, location2 = beta2,
+    attribute_correlation = if (is.null(beta2)) NULL else
+      stats::cor(beta, beta2), camp = camp,
     erratic = erratic, planted = planted)
   class(d) <- c("rasch_sim", "data.frame")
   d
@@ -637,7 +804,9 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
 #' Simulate many-facet Rasch data
 #'
 #' Generates fully crossed ratings from a many-facet Rasch model (Linacre
-#' 1989), with optional erratic raters, item-by-rater interaction, or halo.
+#' 1989), with optional erratic raters, item-by-rater interaction, or halo. A
+#' positive rater proportion selects at least one rater when the requested
+#' departures can coexist.
 #'
 #' @param n_persons,n_items,n_raters Facet sizes (fully crossed).
 #' @param n_categories Rating categories.
@@ -652,7 +821,7 @@ simulate_btl <- function(n_objects = 8, n_judges = 12, reps_per_pair = 25,
 #' @param halo Proportion of raters showing a halo effect: they rate by the
 #'   person's overall level and barely differentiate items (feeds the rater
 #'   fit residual and the item-by-rater interaction).
-#' @param seed Optional RNG seed.
+#' @param seed Optional non-negative whole-number RNG seed.
 #' @return A long data frame of class \code{"rasch_sim"} (\code{person},
 #'   \code{item}, \code{rater}, \code{score}) ready for
 #'   \code{\link{rasch_mfrm}}, with the truth attached.
@@ -666,6 +835,7 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
                           n_categories = 4, theta_sd = 1.2, item_sd = 1,
                           rater_severity_sd = 0.6, erratic_raters = 0,
                           interaction = NULL, halo = 0, seed = NULL) {
+  seed <- .sim_seed(seed)
   if (!is.null(seed)) {
     .old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(.old_stream), add = TRUE)
@@ -682,6 +852,9 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
   erratic_raters <- .sim_scalar(erratic_raters, "erratic_raters",
                                 lower = 0, upper = 1)
   halo <- .sim_scalar(halo, "halo", lower = 0, upper = 1)
+  interaction <- .sim_structure(interaction, "interaction",
+                                c("rater", "item", "bias"),
+                                c("rater", "item", "bias"))
   m <- n_categories - 1L
   pids <- sprintf("P%03d", seq_len(N)); iids <- sprintf("I%d", seq_len(I))
   rids <- sprintf("R%d", seq_len(R))
@@ -689,13 +862,17 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
   delta <- setNames(seq(-item_sd, item_sd, length.out = I), iids)
   lambda <- setNames(as.numeric(scale(stats::rnorm(R))) * rater_severity_sd, rids)
   base_tau <- .sim_thresholds(0, m, 1.2)
-  erratic <- if (erratic_raters > 0) rids[seq_len(round(erratic_raters * R))] else character(0)
+  erratic <- if (erratic_raters > 0)
+    rids[seq_len(.sim_planted_count(erratic_raters, R))] else character(0)
   # halo raters (drawn from the end, disjoint from the erratic ones): they
   # rate by the person's overall level, barely differentiating the items;
   # capped at the eligible pool so the truth never records NA raters
   halo_r <- if (halo > 0) {
     pool <- setdiff(rev(rids), erratic)
-    pool[seq_len(min(length(pool), round(halo * R)))]
+    if (!length(pool))
+      stop("halo cannot be planted because every rater is erratic; lower ",
+           "erratic_raters or set halo to zero")
+    pool[seq_len(min(length(pool), .sim_planted_count(halo, R)))]
   } else character(0)
   int_bias <- matrix(0, I, R, dimnames = list(iids, rids))
   if (!is.null(interaction)) {
@@ -742,7 +919,7 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
     layout = "mfrm",
     description = sprintf("%d persons x %d items x %d raters (%d ratings)",
                           N, I, R, nrow(d)),
-    theta = theta, difficulty = delta, severity = lambda,
+    person_id = pids, theta = theta, difficulty = delta, severity = lambda,
     erratic = erratic, halo = halo_r, planted = planted)
   class(d) <- c("rasch_sim", "data.frame")
   d
@@ -754,7 +931,8 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
 #' frames (Humphry 2005): a person in group g responding to an item in set s
 #' does so at the frame unit rho = alpha_set * phi_group scaling the whole
 #' exponent. The planted set- and group-unit ratios are recovered by
-#' \code{\link{rasch_efrm}}.
+#' \code{\link{rasch_efrm}}. A positive careless-response or missingness
+#' proportion selects at least one person or response cell.
 #'
 #' @param n_per_group Persons in each group.
 #' @param items_per_set Items in each set.
@@ -766,7 +944,14 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
 #'   evenly spaced thresholds are centred on the item locations, with the
 #'   frame unit scaling the whole exponent as in the dichotomous case.
 #' @param theta_sd Spread of person ability.
-#' @param seed Optional RNG seed.
+#' @param item_drift Optional \code{list(items=, group=, shift=)}. The named
+#'   item or items move by \code{shift} logits in one generated person group,
+#'   violating item invariance across frames.
+#' @param careless Proportion of persons whose complete response vectors are
+#'   replaced by random category choices.
+#' @param missing Proportion of response cells set missing completely at
+#'   random after the responses are generated.
+#' @param seed Optional non-negative whole-number RNG seed.
 #' @return A wide data frame of class \code{"rasch_sim"}, containing an ID,
 #'   item columns, and group. Its truth attribute contains the item-set map
 #'   required by \code{\link{rasch_efrm}}.
@@ -780,11 +965,13 @@ simulate_mfrm <- function(n_persons = 80, n_items = 5, n_raters = 6,
 simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
                           n_groups = 2, set_unit_ratio = 1.3,
                           group_unit_ratio = 1, n_categories = 2,
-                          theta_sd = 1.3, seed = NULL) {
+                          theta_sd = 1.3, seed = NULL, item_drift = NULL,
+                          careless = 0, missing = 0) {
   # recorded before validation assigns to the formals, which would make
   # missing() report every argument as supplied
   set_ratio_given <- !missing(set_unit_ratio)
   group_ratio_given <- !missing(group_unit_ratio)
+  seed <- .sim_seed(seed)
   if (!is.null(seed)) {
     .old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(.old_stream), add = TRUE)
@@ -801,6 +988,11 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
   group_unit_ratio <- .sim_scalar(group_unit_ratio, "group_unit_ratio",
                                   lower = 0, lower_open = TRUE)
   theta_sd <- .sim_scalar(theta_sd, "theta_sd", lower = 0)
+  careless <- .sim_scalar(careless, "careless", lower = 0, upper = 1)
+  missing <- .sim_scalar(missing, "missing", lower = 0, upper = 1)
+  item_drift <- .sim_structure(item_drift, "item_drift",
+                               c("items", "group", "shift"),
+                               c("items", "group", "shift"))
   # a ratio is a comparison between frames: with one frame there is nothing
   # to span, and the span would silently return a unit while the recorded
   # truth claimed the requested ratio
@@ -833,6 +1025,21 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
   grp <- factor(rep(sprintf("g%d", seq_len(G)), each = npg))
   gidx <- rep(seq_len(G), each = npg)                  # group NUMBER per person
   names(phi) <- sprintf("g%d", seq_len(G))             # unit by group label
+  drift <- rep(0, length(inm)); names(drift) <- inm
+  drift_group <- NULL
+  if (!is.null(item_drift)) {
+    drift_items <- as.character(item_drift$items)
+    if (!length(drift_items) || anyNA(drift_items) ||
+        any(!nzchar(drift_items)) || anyDuplicated(drift_items) ||
+        any(!drift_items %in% inm))
+      stop("item_drift$items must name one or more generated items exactly once")
+    if (length(item_drift$group) != 1L || is.na(item_drift$group) ||
+        !as.character(item_drift$group) %in% levels(grp))
+      stop("item_drift$group must name one generated group")
+    item_drift$shift <- .sim_scalar(item_drift$shift, "item_drift$shift")
+    drift[drift_items] <- item_drift$shift
+    drift_group <- as.character(item_drift$group)
+  }
   N <- length(grp); theta <- .sim_theta(N, 0, theta_sd)
   X <- matrix(NA_integer_, N, length(inm), dimnames = list(NULL, inm))
   for (col in seq_along(inm)) {
@@ -841,16 +1048,32 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
     # wrong group as soon as there are ten of them
     s <- set_of[inm[col]]
     rho <- alpha[s] * phi[gidx]                        # per-person unit
+    shift <- if (is.null(drift_group)) rep(0, N) else
+      ifelse(as.character(grp) == drift_group, drift[inm[col]], 0)
     if (m == 1L) {
       X[, col] <- as.integer(stats::runif(N) <
-                    stats::plogis(rho * (theta - delta[inm[col]])))
+                    stats::plogis(rho * (theta - delta[inm[col]] - shift)))
     } else {
       ct <- cumsum(tau_list[[inm[col]]])
-      E <- cbind(0, sapply(seq_len(m), function(k) rho * (k * theta - ct[k])))
+      E <- cbind(0, sapply(seq_len(m), function(k)
+        rho * (k * theta - ct[k] - k * shift)))
       P <- exp(E - apply(E, 1, max)); P <- P / rowSums(P)
       cum <- P %*% upper.tri(diag(m + 1L), diag = TRUE)
       X[, col] <- as.integer(rowSums(stats::runif(N) > cum))
     }
+  }
+  careless_idx <- integer(0)
+  if (careless > 0) {
+    careless_idx <- sample.int(N, .sim_planted_count(careless, N))
+    X[careless_idx, ] <- matrix(
+      sample(0:m, length(careless_idx) * ncol(X), replace = TRUE),
+      nrow = length(careless_idx), ncol = ncol(X))
+  }
+  missing_cells <- integer(0)
+  if (missing > 0) {
+    missing_cells <- sample.int(
+      length(X), .sim_planted_count(missing, length(X)))
+    X[missing_cells] <- NA_integer_
   }
   out <- data.frame(id = sprintf("P%04d", seq_len(N)), X, group = grp,
                     check.names = FALSE, stringsAsFactors = FALSE)
@@ -859,15 +1082,28 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
   if (group_unit_ratio != 1)
     planted <- c(planted, sprintf("group-unit ratio %.2f across %d groups",
                                   group_unit_ratio, G))
+  if (!is.null(item_drift) && item_drift$shift != 0)
+    planted <- c(planted, sprintf("item drift in %s: %s shifted %.2f logits",
+      drift_group, paste(names(drift)[drift != 0], collapse = ", "),
+      item_drift$shift))
+  if (length(careless_idx)) planted <- c(planted,
+    sprintf("%d careless responder(s)", length(careless_idx)))
+  if (length(missing_cells)) planted <- c(planted,
+    sprintf("%.1f%% responses missing completely at random",
+            100 * length(missing_cells) / length(X)))
   attr(out, "truth") <- list(
     layout = "efrm",
     description = sprintf("%d persons, %d sets x %d groups, %d items (%d categories)",
                           N, S, G, length(inm), m + 1L),
-    theta = theta, difficulty = delta,
+    person_id = out$id, theta = theta, difficulty = delta,
     thresholds = if (m > 1L) tau_list else NULL,
     alpha = alpha, phi = phi,
     item_sets = setNames(set_items, sprintf("set%d", seq_len(S))),
-    groups = grp, planted = planted)
+    groups = grp, item_drift = if (is.null(item_drift)) NULL else
+      list(items = names(drift)[drift != 0], group = drift_group,
+           shift = item_drift$shift),
+    careless_idx = careless_idx, missing_cells = missing_cells,
+    planted = planted)
   class(out) <- c("rasch_sim", "data.frame")
   out
 }
@@ -899,7 +1135,9 @@ sim_replicate <- function(FUN, n, ..., seed = NULL) {
   if (!is.function(FUN)) stop("FUN must be a simulation function")
   n <- .sim_count(n, "n")
   base <- if (is.null(seed)) sample.int(1e6, 1L)
-          else .sim_count(seed, "seed", 0L)
+          else .sim_seed(seed)
+  if (base > .Machine$integer.max - n + 1L)
+    stop("seed plus the requested replicate count exceeds the integer range")
   reps <- lapply(seq_len(n), function(k) FUN(..., seed = base + k - 1L))
   structure(reps, class = "rasch_sim_batch", n = n,
             layout = attr(reps[[1]], "truth")$layout)
@@ -968,12 +1206,14 @@ print.rasch_sim_batch <- function(x, ...) {
 #' \code{simulate_*} function (carried on the data as
 #' \code{attr(sim, "truth")}): item difficulties and person abilities for a
 #' Rasch fit, object locations for a paired-comparison fit, rater severities
-#' (with item and person measures) for a many-facet fit, and the set units for
-#' a frames fit. Locations are mean-centred before comparison, since the model
-#' identifies them only up to an origin.
+#' (with item and person measures) for a many-facet fit, set and group units
+#' for a Rasch frames fit, and common object locations, panel and set units,
+#' and set origins for a paired-comparison frames fit. Locations are
+#' mean-centred where the model identifies them only up to an origin.
 #'
 #' @param fit A fit of the simulated data (\code{\link{rasch}},
-#'   \code{\link{btl}}, \code{\link{rasch_mfrm}}, or \code{\link{rasch_efrm}}).
+#'   \code{\link{btl}}, \code{\link{rasch_mfrm}}, \code{\link{rasch_efrm}},
+#'   or \code{\link{btl_efrm}}).
 #' @param sim The simulated data (from a \code{simulate_*} function).
 #' @return A list of class \code{"rasch_recovery"}: \code{summary} (per
 #'   parameter type: n, correlation, RMSE, bias) and \code{pieces} (the true
@@ -999,12 +1239,29 @@ sim_recovery <- function(fit, sim) {
       label = if (is.null(label)) NA_character_ else as.character(label)[keep],
       true = true[keep], estimated = est[keep], stringsAsFactors = FALSE)
   }
+  add_person <- function() {
+    true_id <- tr$person_id %||% names(tr$theta)
+    est_id <- if (!is.null(fit$person) && "id" %in% names(fit$person))
+      as.character(fit$person$id) else NULL
+    if (!is.null(true_id) && !is.null(est_id)) {
+      at <- match(est_id, as.character(true_id))
+      keep <- !is.na(at)
+      if (any(keep))
+        add("person ability", tr$theta[at[keep]], fit$person$theta[keep],
+            est_id[keep], centre = TRUE)
+    } else if (!is.null(fit$person) &&
+               length(tr$theta) == length(fit$person$theta)) {
+      # Compatibility with simulation objects created before person IDs were
+      # recorded in their truth attributes.
+      add("person ability", tr$theta, fit$person$theta, centre = TRUE)
+    }
+  }
   lay <- tr$layout
   if (lay == "rasch") {
     ei <- setNames(fit$items$location, fit$items$item)
     cm <- intersect(names(tr$difficulty), names(ei))
     add("item difficulty", tr$difficulty[cm], ei[cm], cm, centre = TRUE)
-    add("person ability", tr$theta, fit$person$theta, centre = TRUE)
+    add_person()
   } else if (lay == "btl") {
     ot <- fit$objects
     # recovery is judged on calibrated locations; an extrapolated boundary
@@ -1026,7 +1283,7 @@ sim_recovery <- function(fit, sim) {
       ci <- intersect(names(tr$difficulty), names(ei))
       add("item difficulty", tr$difficulty[ci], ei[ci], ci, centre = TRUE)
     }
-    add("person ability", tr$theta, fit$person$theta, centre = TRUE)
+    add_person()
   } else if (lay == "efrm") {
     at <- fit$alpha_table
     # units are identified up to a common scale, so compare on the centred
@@ -1042,6 +1299,26 @@ sim_recovery <- function(fit, sim) {
       ephi <- fit$phi_table$phi[match(glab, fit$phi_table$group)]
       add("group unit (log)", log(tr$phi), log(ephi), glab, centre = TRUE)
     }
+  } else if (lay == "btl_efrm") {
+    # The simulator and estimator use the same identifying conventions:
+    # geometric-mean-one panel units, alpha_1 = 1 and kappa_1 = 0. These
+    # parameters can therefore be compared directly rather than re-centred.
+    ot <- fit$objects
+    ev <- setNames(ot$v %||% ot$location, ot$object)
+    cm <- intersect(names(tr$v), names(ev))
+    add("object location", tr$v[cm], ev[cm], cm)
+
+    ep <- setNames(fit$phi_table$phi, fit$phi_table$panel)
+    cm <- intersect(names(tr$phi), names(ep))
+    add("panel unit (log)", log(tr$phi[cm]), log(ep[cm]), cm)
+
+    ea <- setNames(fit$alpha_table$alpha, fit$alpha_table$set)
+    cm <- intersect(names(tr$alpha), names(ea))
+    add("set unit (log)", log(tr$alpha[cm]), log(ea[cm]), cm)
+
+    ek <- setNames(fit$kappa_table$kappa, fit$kappa_table$set)
+    cm <- intersect(names(tr$kappa), names(ek))
+    add("set origin", tr$kappa[cm], ek[cm], cm)
   } else stop("unsupported layout: ", lay)
 
   # bias after centring is structurally zero for any parameter identified
@@ -1124,6 +1401,8 @@ plot_recovery <- function(x, ...) {
 #'
 #' @param n_objects_per_set,n_sets Objects in each set and number of sets.
 #' @param n_judges_per_panel,n_panels Judges in each panel and number of panels.
+#'   Comparisons are balanced across panels and judges; a design with fewer
+#'   comparisons than judges is refused.
 #' @param reps_within Replications of each within-set object pair.
 #' @param reps_cross Replications of each cross-set object pair.
 #' @param panel_units Panel units \code{phi} (length \code{n_panels}); the
@@ -1134,7 +1413,9 @@ plot_recovery <- function(x, ...) {
 #' @param set_origins Set origins \code{kappa} (length \code{n_sets}); the
 #'   default is all zero, and \code{kappa_1} is forced to zero.
 #' @param object_sd Spread of the within-set calibration locations.
-#' @param seed Optional RNG seed.
+#' @param erratic_judges Proportion of judges who choose between the two
+#'   objects at random.
+#' @param seed Optional non-negative whole-number RNG seed.
 #' @return A data frame of class \code{"rasch_sim"} with columns
 #'   \code{object_a}, \code{object_b}, \code{winner}, \code{judge} and
 #'   \code{panel}, and \code{attr(x, "truth")} holding the common-scale values
@@ -1153,7 +1434,9 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
                               n_judges_per_panel = 6, n_panels = 2,
                               reps_within = 20, reps_cross = 20,
                               panel_units = NULL, set_units = NULL,
-                              set_origins = NULL, object_sd = 1, seed = NULL) {
+                              set_origins = NULL, object_sd = 1,
+                              seed = NULL, erratic_judges = 0) {
+  seed <- .sim_seed(seed)
   if (!is.null(seed)) {
     .old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(.old_stream), add = TRUE)
@@ -1167,16 +1450,24 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
   reps_cross <- .sim_count(reps_cross, "reps_cross")
   object_sd <- .sim_scalar(object_sd, "object_sd", lower = 0,
                            lower_open = TRUE)
+  erratic_judges <- .sim_scalar(erratic_judges, "erratic_judges",
+                                lower = 0, upper = 1)
 
-  phi <- if (is.null(panel_units)) rep(1, G) else as.numeric(panel_units)
-  if (length(phi) != G || any(!is.finite(phi) | phi <= 0))
+  phi <- if (is.null(panel_units)) rep(1, G) else panel_units
+  if (!is.numeric(phi) || is.complex(phi) || !is.null(oldClass(phi)) ||
+      length(phi) != G || any(!is.finite(phi) | phi <= 0))
     stop("panel_units must contain n_panels positive finite values")
-  alpha <- if (is.null(set_units)) rep(1, S) else as.numeric(set_units)
-  if (length(alpha) != S || any(!is.finite(alpha) | alpha <= 0))
+  phi <- as.numeric(phi)
+  alpha <- if (is.null(set_units)) rep(1, S) else set_units
+  if (!is.numeric(alpha) || is.complex(alpha) || !is.null(oldClass(alpha)) ||
+      length(alpha) != S || any(!is.finite(alpha) | alpha <= 0))
     stop("set_units must contain n_sets positive finite values")
-  kappa <- if (is.null(set_origins)) rep(0, S) else as.numeric(set_origins)
-  if (length(kappa) != S || any(!is.finite(kappa)))
+  alpha <- as.numeric(alpha)
+  kappa <- if (is.null(set_origins)) rep(0, S) else set_origins
+  if (!is.numeric(kappa) || is.complex(kappa) || !is.null(oldClass(kappa)) ||
+      length(kappa) != S || any(!is.finite(kappa)))
     stop("set_origins must contain n_sets finite values")
+  kappa <- as.numeric(kappa)
   # a unit and an origin are relative to the other frames: with one frame
   # the normalisation below would silently return them to the reference
   # while the recorded truth claimed the requested values
@@ -1220,13 +1511,55 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
     aa <- c(aa, rep(grid$oa, reps_cross)); bb <- c(bb, rep(grid$ob, reps_cross))
   }
   R <- length(aa)
-  jd <- sample(judges, R, replace = TRUE)
-  pan <- panel_of[jd]
+  # Balance panels within every set-pair stratum and then balance judges
+  # within their panels. Requested panels and judges therefore cannot vanish
+  # from a finite generated sample merely by chance.
+  stratum <- paste(pmin(set_of[aa], set_of[bb]),
+                   pmax(set_of[aa], set_of[bb]), sep = ":")
+  if (R < length(judges))
+    stop("the generated design has ", R, " comparisons, fewer than the ",
+         length(judges), " requested judges")
+  pan <- character(R)
+  # Continue one randomly ordered panel cycle across strata. Counts differ by
+  # at most one both overall and, when a stratum is large enough, within it.
+  panel_cycle <- rep(sample(panel_nm, G, replace = FALSE), length.out = R)
+  cursor <- 0L
+  for (ss in unique(stratum)) {
+    rows <- which(stratum == ss)
+    take <- cursor + seq_along(rows)
+    pan[rows] <- sample(panel_cycle[take], length(rows), replace = FALSE)
+    cursor <- cursor + length(rows)
+  }
+  jd <- character(R)
+  for (g in panel_nm) {
+    rows <- which(pan == g)
+    pool <- names(panel_of)[panel_of == g]
+    jd[rows] <- .sim_balanced_ids(pool, length(rows),
+                                  paste0("judges in ", g))
+  }
+
+  n_erratic <- .sim_planted_count(erratic_judges, length(judges))
+  if (n_erratic) {
+    # Distribute erratic judges across panels as evenly as their number
+    # permits, then select them at random within each panel.
+    take <- rep(n_erratic %/% G, G)
+    extra <- n_erratic %% G
+    if (extra) {
+      extra_panels <- sample(seq_len(G), extra, replace = FALSE)
+      take[extra_panels] <- take[extra_panels] + 1L
+    }
+    erratic <- unlist(lapply(seq_len(G), function(g) {
+      pool <- names(panel_of)[panel_of == panel_nm[g]]
+      if (take[g]) sample(pool, take[g], replace = FALSE) else character(0)
+    }), use.names = FALSE)
+  } else erratic <- character(0)
   # frame-dependent logit: within-set uses beta, cross-set uses the common v
   same <- set_of[aa] == set_of[bb]
   lp <- ifelse(same, phi[match(pan, panel_nm)] * (beta[aa] - beta[bb]),
                phi[match(pan, panel_nm)] * (v[aa] - v[bb]))
   win_a <- stats::runif(R) < stats::plogis(lp)
+  bad <- jd %in% erratic
+  if (any(bad)) win_a[bad] <- sample(c(FALSE, TRUE), sum(bad), replace = TRUE)
   d <- data.frame(object_a = aa, object_b = bb,
                   winner = ifelse(win_a, aa, bb),
                   judge = jd, panel = unname(pan),
@@ -1240,6 +1573,8 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
     "set units alpha = (%s)", paste(sprintf("%.2f", alpha), collapse = ", ")))
   if (any(kappa != 0)) planted <- c(planted, sprintf(
     "set origins kappa = (%s)", paste(sprintf("%.2f", kappa), collapse = ", ")))
+  if (length(erratic)) planted <- c(planted, sprintf(
+    "%d erratic judge(s): %s", length(erratic), paste(erratic, collapse = ", ")))
   if (!length(planted)) planted <- "equal units (phi = alpha = 1)"
 
   attr(d, "truth") <- list(
@@ -1248,7 +1583,8 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
                           S * Kp, S, G, R),
     v = v, beta = beta, phi = setNames(phi, panel_nm),
     alpha = setNames(alpha, set_nm), kappa = setNames(kappa, set_nm),
-    set_of = set_of, object_sets = objs_by_set, planted = planted)
+    set_of = set_of, object_sets = objs_by_set, erratic = erratic,
+    planted = planted)
   class(d) <- c("rasch_sim", "data.frame")
   d
 }

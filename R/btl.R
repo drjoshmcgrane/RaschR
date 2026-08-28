@@ -113,20 +113,27 @@
 #' If comparison order is supplied, exposure and carry-over effects are
 #' estimated from each judge's preceding comparisons. The \code{position}
 #' term estimates a first-presentation effect. These coefficients enter the
-#' model jointly with the object locations and are reported in logits. The
-#' carry-over estimate and clustered SE remain descriptive below 30 judges;
+#' model jointly with the object locations and are reported in logits. They
+#' are refused when the comparison design confounds them exactly with the
+#' object-location contrasts. The carry-over estimate and clustered SE
+#' remain descriptive below 30 judges;
 #' its probability is withheld because null calibration is mildly
-#' anti-conservative at smaller judge counts.
+#' anti-conservative at smaller judge counts. Raw probabilities are retained,
+#' but simultaneous decisions across the fitted dependence effects use Holm's
+#' familywise adjustment in \code{dependence$p_adj}.
 #' Anchors fix nominated object locations and replace the sum-zero origin.
 #'
 #' @param data A data frame with one comparison per row.
 #' @param object_a,object_b Names of the columns holding the two objects
-#'   compared.
+#'   compared. Columns used for the comparison roles must be distinct.
 #' @param winner Name of the column holding the winner of each row: its
 #'   value must equal one of the two objects. \code{"tie"} and \code{"draw"}
-#'   mark ties. Ignored when \code{response} is supplied.
+#'   mark ties. Do not supply both \code{winner} and \code{response}.
 #' @param margin Optional ordered margin-of-victory column, combined with
-#'   \code{winner} to construct an orientation-invariant response.
+#'   \code{winner} to construct an orientation-invariant response. Use an
+#'   ordered factor (levels from the smallest to largest margin) or a positive
+#'   numeric magnitude. Margins on ties and rows excluded from the analysis
+#'   are ignored.
 #' @param thresholds \code{"free"} (default) estimates every symmetric
 #'   threshold; \code{"pc"} retains only the symmetric spread component.
 #' @param response Optional ordered response favouring \code{object_a} over
@@ -157,7 +164,8 @@
 #'   \code{osi}, \code{loglik}, composite-likelihood information \code{cl},
 #'   convergence details, and \code{notes}. Ordered-response fits also contain
 #'   \code{thresholds}, \code{m}, and \code{categories}. Fits using
-#'   \code{order} contain \code{dependence} and \code{dependence_data}.
+#'   \code{order} contain \code{dependence} and \code{dependence_data}; the
+#'   former reports raw \code{p} and Holm-adjusted \code{p_adj}.
 #'   An undefeated or winless object is set aside from estimation, as an
 #'   extreme person is in a Rasch calibration, and reported in
 #'   \code{objects} with \code{extreme = TRUE} at an extrapolated location:
@@ -232,6 +240,19 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     v <- get(nm, inherits = FALSE)
     if (!is.null(v)) .check_reshape_column(data, v, nm)
   }
+  role_columns <- unlist(Filter(Negate(is.null),
+                                list(object_a = object_a,
+                                     object_b = object_b,
+                                     winner = winner,
+                                     response = response,
+                                     margin = margin,
+                                     judge = judge,
+                                     count = count,
+                                     order = order)), use.names = TRUE)
+  repeated_roles <- unique(role_columns[duplicated(role_columns)])
+  if (length(repeated_roles))
+    stop("comparison role columns must be distinct; repeated: ",
+         paste(repeated_roles, collapse = ", "))
   a <- trimws(as.character(data[[object_a]]))
   b <- trimws(as.character(data[[object_b]]))
   if (any(!is.na(a) & !nzchar(a)) || any(!is.na(b) & !nzchar(b)))
@@ -266,9 +287,10 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     stop("`", order, "` must hold finite sequence values")
   notes <- character(0)
   if (!is.null(anchors)) {
-    if (!is.numeric(anchors) || is.null(names(anchors)) ||
+    if (!is.numeric(anchors) || !length(anchors) || is.null(names(anchors)) ||
         any(!nzchar(names(anchors))))
-      stop("`anchors` must be a named numeric vector (names = object names)")
+      stop("`anchors` must be a non-empty named numeric vector ",
+           "(names = object names)")
     if (any(!is.finite(anchors)))
       stop("anchor value(s) must be finite: ",
            paste(names(anchors)[!is.finite(anchors)], collapse = ", "))
@@ -360,15 +382,12 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
            "so the margin order is explicit rather than alphabetical")
     # anything else that merely sorts -- a logical, a complex, a Date --
     # would produce plausible-looking categories from a scale that is not a
-    # margin, and a negative or infinite magnitude is not a margin either
+    # margin
     if (!is.factor(mg)) {
       if (!is.numeric(mg) || is.complex(mg) || !is.null(oldClass(mg)))
         stop("`margin` must be an ORDERED factor (levels smallest to ",
              "largest margin) or a plain numeric magnitude; a ",
              paste(class(mg), collapse = "/"), " column is not a margin")
-      if (any(!is.finite(mg[!is.na(mg)])) || any(mg[!is.na(mg)] < 0))
-        stop("`margin` magnitudes must be finite and non-negative: a ",
-             "margin is a distance from a tie")
     }
     wn <- trimws(as.character(data[[winner]]))
     is_a <- !is.na(wn) & wn == a
@@ -387,6 +406,15 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     # margin value must not open win and loss categories nothing was
     # judged in, which would leave both extremes empty and stop the fit
     scale_rows <- usable & !tie
+    # Only retained non-ties define the margin scale. Dropped rows and ties
+    # carry no analysed margin; for an analysed win, zero is itself a tie and
+    # cannot be labelled as a positive margin of victory.
+    if (!is.factor(mg)) {
+      kept_margin <- mg[scale_rows & !is.na(mg)]
+      if (any(!is.finite(kept_margin)) || any(kept_margin <= 0))
+        stop("retained non-tie `margin` magnitudes must be finite and ",
+             "positive: zero is a tie, not a margin of victory")
+    }
     lv <- if (is.factor(mg)) levels(droplevels(mg[scale_rows])) else
       as.character(sort(unique(mg[scale_rows & !is.na(mg)])))
     q <- length(lv)
@@ -529,9 +557,12 @@ print.rasch_btl <- function(x, ...) {
       } else {
         st_lab <- "z"; st_r <- x$dependence$z[r]
       }
-      cat(sprintf("%s: %.3f logits (SE %.3f, %s = %.2f, p = %s)\n",
+      use_adj <- !is.null(x$dependence$p_adj)
+      shown_p <- if (use_adj) x$dependence$p_adj[r] else x$dependence$p[r]
+      cat(sprintf("%s: %.3f logits (SE %.3f, %s = %.2f, %s = %s)\n",
                   lab, x$dependence$estimate[r], x$dependence$se[r],
-                  st_lab, st_r, .fmt_p(x$dependence$p[r])))
+                  st_lab, st_r, if (use_adj) "Holm p" else "p",
+                  .fmt_p(shown_p)))
     }
   }
   if (!is.null(x$thresholds)) {
@@ -828,6 +859,20 @@ plot_btl <- function(fit, band = 2.5) {
         "dependence effect(s) with no informative comparisons dropped: %s",
         paste(colnames(Z)[!keepz], collapse = ", ")))
       Z <- Z[, keepz, drop = FALSE]; pz <- ncol(Z)
+    }
+    if (pz) {
+      # An order or dependence covariate can be exactly reproduced by the
+      # object contrasts in a thin comparison graph. For example, a constant
+      # first-position column is an object-potential difference on a tree.
+      # The requested effect is then not separately identified; a numerical
+      # inverse or ridge would only choose an arbitrary decomposition.
+      Dloc <- Bmat[ia, , drop = FALSE] - Bmat[ib, , drop = FALSE]
+      augmented <- cbind(Dloc, Z)
+      if (qr(augmented, tol = 1e-10)$rank < ncol(augmented))
+        stop("the position/dependence effects are not separately identified ",
+             "from the object locations in this comparison design; randomise ",
+             "presentation order or add comparison cycles before estimating ",
+             "these effects", call. = FALSE)
     }
   }
   np <- nb + q + pz
@@ -1184,6 +1229,12 @@ plot_btl <- function(fit, band = 2.5) {
         "simulation found mild anti-conservatism at 14 judges; the estimate ",
         "and clustered standard error remain descriptive"))
     }
+    dependence$p_adj <- NA_real_
+    usable_p <- is.finite(dependence$p)
+    dependence$p_adj[usable_p] <- stats::p.adjust(
+      dependence$p[usable_p], method = "holm")
+    dependence$significant <- ifelse(
+      is.finite(dependence$p_adj), dependence$p_adj < 0.05, NA)
     rownames(dependence) <- NULL
   }
   thresholds <- NULL; components <- NULL
@@ -1475,7 +1526,7 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 #' @param object Object name.
 #' @param group Optional judge grouping for a DIF overlay: either one value
 #'   per comparison row of \code{fit$comparisons} or a vector named by
-#'   judge. Observed means are then drawn separately per group, as
+#'   every judge in the fit. Observed means are then drawn separately per group, as
 #'   \code{\link{plot_icc}} draws person groups.
 #' @param grid Opponent-location grid, in logits.
 #' @param min_n An opponent's observed point is drawn only when the object
@@ -1524,15 +1575,28 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
   cm <- fit$comparisons
   gv <- NULL
   if (!is.null(group)) {
-    gv <- if (length(group) == nrow(cm)) as.character(group) else {
-      if (is.null(names(group)))
-        stop("`group` must have one entry per comparison or be named by judge")
+    gv <- if (!is.null(names(group))) {
+      if (anyNA(names(group)) || any(!nzchar(trimws(names(group)))))
+        stop("the group map must use non-missing judge names")
       if (anyDuplicated(names(group)))
         stop("duplicate judge(s) in the group map: ",
              paste(unique(names(group)[duplicated(names(group))]),
                    collapse = ", "),
              "; each judge may carry one value")
+      observed <- unique(cm$judge[!is.na(cm$judge)])
+      absent <- setdiff(observed, names(group))
+      extra <- setdiff(names(group), observed)
+      if (length(absent))
+        stop("judge(s) missing from the group map: ",
+             paste(utils::head(absent, 5L), collapse = ", "))
+      if (length(extra))
+        stop("group map names judge(s) not present in the fit: ",
+             paste(utils::head(extra, 5L), collapse = ", "))
       unname(as.character(group)[match(cm$judge, names(group))])
+    } else {
+      if (length(group) != nrow(cm))
+        stop("`group` must have one entry per comparison or be named by judge")
+      as.character(group)
     }
   }
   sel_a <- cm$object_a == object
@@ -1644,6 +1708,9 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
 #' @export
 plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
                                 bins = 6) {
+  if (missing(effect)) effect <- "exposure"
+  if (!is.character(effect) || length(effect) != 1L || is.na(effect))
+    stop("`effect` must be one of \"exposure\" or \"carry_over\"")
   effect <- match.arg(effect)
   bins <- .check_whole(bins, "bins", 2)
   dd <- fit$dependence_data
@@ -1700,11 +1767,15 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
   lab <- gsub("_", "-", effect)
   yl <- range(c(ob, fb, 0), na.rm = TRUE); yl <- yl + c(-1, 1) * 0.08 * (diff(yl) + 1e-6)
   xr <- range(xb); xl <- xr + c(-1, 1) * (0.12 * diff(xr) + 0.05)
+  use_adj <- "p_adj" %in% names(eff)
+  shown_p <- if (use_adj) eff$p_adj else eff$p
   op <- .rr_canvas(xl, yl, sprintf("%s covariate", lab),
                    if (m == 1L) "Observed - expected win probability"
                    else "Observed - expected response",
-                   sprintf("%s dependence: %.3f logits (SE %.3f, p = %s)",
-                           lab, eff$estimate, eff$se, .fmt_p(eff$p)),
+                   sprintf("%s dependence: %.3f logits (SE %.3f, %s = %s)",
+                           lab, eff$estimate, eff$se,
+                           if (use_adj) "Holm p" else "p",
+                           .fmt_p(shown_p)),
                    grid_x = TRUE)
   on.exit(par(op))
   abline(h = 0, lty = 3, col = .rr$soft)
@@ -1728,6 +1799,18 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 # Katzenbeisser 1998 model these judge-covariate-by-object terms in the
 # log-linear frame).
 # ---------------------------------------------------------------------------
+
+# Denominator reference for a resolved BTL-DIF contrast. The ordinary
+# two-cell comparison retains its simulation-calibrated Welch reference.
+# With more cells, the individual cluster contributions needed for a general
+# Satterthwaite calculation are not recoverable from cell effective counts;
+# anchor the reference to the weakest contributing cell instead.
+.btl_dif_contrast_df <- function(effective_judges) {
+  if (length(effective_judges) == 2L)
+    return(max(sum(effective_judges) - 2, 1))
+  max(min(effective_judges) - 1, 1)
+}
+
 #' DIF analysis for paired comparisons
 #'
 #' Tests whether object locations differ across groups of judges. Several
@@ -1746,11 +1829,16 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' models do not contain the fitted panel and set units.
 #'
 #' A significant uniform term is followed by a joint refit in which the object
-#' has one location per factor cell. Differences between these locations are
-#' reported in logits. A cell needs at least eight effective judges for
-#' pairwise inference; otherwise its location and differences remain
-#' descriptive. Pairwise tests use degrees of freedom based on the effective
-#' judges in the two cells. Higher-order terms supersede their component terms.
+#' has one location per cell of the complete judge-factor design. Main-effect
+#' magnitudes average these cells equally over the other factors. Interaction
+#' magnitudes are differences between differences, with the corresponding
+#' higher-order tensor contrast beyond two factors. A contributing cell needs
+#' at least eight effective judges for inference; otherwise its location and
+#' contrasts remain descriptive. Higher-order terms supersede their component
+#' terms. Two-cell contrasts retain the Welch reference used by the ordinary
+#' pairwise comparison. Contrasts spanning more than two fitted cells use the
+#' effective-judge count in their least-supported cell as a conservative
+#' denominator reference.
 #' Models fitted with \code{order} retain the exposure and carry-over effects
 #' in both the residual analysis and refit.
 #' Between-judge tests use HC3 covariance so unequal comparison workloads do
@@ -1769,14 +1857,14 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' @param fit An ordinary paired-comparison fit from \code{\link{btl}}.
 #' @param factors One judge factor, or a named list containing several. Each
 #'   factor may have one value per comparison row or be a vector named by
-#'   judge.
+#'   every judge in the fit.
 #' @param objects Objects to test; all by default.
 #' @param effects \code{"main"} (default) models several factors additively
 #'   (each factor's main effect and its band interaction); \code{"factorial"}
 #'   also crosses the factors with one another.
 #' @param p_adjust Multiplicity adjustment over all object-by-term tests;
-#'   the resolved-size probabilities are adjusted separately in one pool over
-#'   all objects, terms, and cell pairs.
+#'   the resolved-contrast probabilities are adjusted separately in one pool
+#'   over all objects, terms, and contrasts.
 #' @param alpha Significance level for adjusted probabilities.
 #' @param flag_logits Absolute resolved difference flagged as practically
 #'   significant.
@@ -1791,8 +1879,9 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   full per-object analysis-of-variance table, including its raw and
 #'   effective judge support); \code{levels} (resolved
 #'   location, SE, comparison count, judge count and effective judge count per
-#'   object, term and cell); \code{sizes} (per object, term and cell pair:
-#'   difference in logits, judge support for both cells, SE, t, degrees of
+#'   object, term and complete-design cell); \code{sizes} (per object, term
+#'   and marginal or interaction contrast: difference in logits, judge
+#'   support for both sides, SE, t, degrees of
 #'   freedom, adjusted p, significance and practical flags); \code{effects},
 #'   \code{factors}, \code{alpha}, \code{p_adjust}, \code{flag_logits}, and
 #'   \code{notes}. \code{summary_factors} retains the factor membership of
@@ -1866,15 +1955,28 @@ btl_dif <- function(fit, factors, objects = NULL,
                collapse = ", "))
   fnames <- names(factors)
   gvs <- lapply(factors, function(g) {
-    if (length(g) == nrow(cm)) as.character(g)
-    else {
-      if (is.null(names(g)))
-        stop("each factor needs one value per comparison or names by judge")
+    if (!is.null(names(g))) {
+      if (anyNA(names(g)) || any(!nzchar(trimws(names(g)))))
+        stop("named judge factors must use non-missing judge names")
       if (anyDuplicated(names(g)))
         stop("duplicate judge(s) in a named factor: ",
              paste(unique(names(g)[duplicated(names(g))]), collapse = ", "),
              "; each judge may carry one value")
+      observed <- unique(cm$judge[!is.na(cm$judge)])
+      absent <- setdiff(observed, names(g))
+      extra <- setdiff(names(g), observed)
+      if (length(absent))
+        stop("judge(s) missing from a named factor: ",
+             paste(utils::head(absent, 5L), collapse = ", "),
+             "; every judge needs an explicit factor entry")
+      if (length(extra))
+        stop("named factor includes judge(s) not present in the fit: ",
+             paste(utils::head(extra, 5L), collapse = ", "))
       unname(as.character(g)[match(cm$judge, names(g))])
+    } else {
+      if (length(g) != nrow(cm))
+        stop("each factor needs one value per comparison or names by judge")
+      as.character(g)
     }
   })
   # judge-group DIF tests judge ATTRIBUTES: a row-wise factor that varies
@@ -2148,17 +2250,26 @@ btl_dif <- function(fit, factors, objects = NULL,
     lapply(summary_tab$term, function(tt) fnames[match(tvars(tt), safe)])
 
   # resolution: for each flagged, non-superseded group term, resolve the object
-  # into one copy per cell of the term's factors and report the location
-  # differences in logits (a main-effect term by its levels, an interaction by
-  # its factor-combination cells)
+  # over the COMPLETE judge-factor design. The omnibus terms were fitted
+  # jointly, so resolving only the selected term would pool nuisance factors
+  # in their observed proportions and change the estimand in an unbalanced
+  # design. Main effects are equal-cell marginal differences; interactions
+  # are the corresponding tensor contrasts.
+  full_factors <- as.data.frame(lapply(gvs, function(x) factor(x)),
+                                check.names = FALSE)
+  names(full_factors) <- fnames
+  full_cell <- .factor_cells(full_factors, sep = ":")
+  full_map <- unique(data.frame(cell = as.character(full_cell), full_factors,
+                                check.names = FALSE))
+  full_map <- full_map[match(levels(full_cell), full_map$cell), , drop = FALSE]
   lev_rows <- list(); sz_rows <- list()
   flagged <- if (is.null(summary_tab)) integer(0) else
     which(summary_tab$uniform_DIF & !summary_tab$superseded)
   for (r in flagged) {
     ob <- summary_tab$object[r]; tt <- summary_tab$term[r]; ttd <- relab(tt)
     jf <- match(tvars(tt), safe)
-    cell <- as.character(.factor_cells(as.data.frame(
-      lapply(jf, function(j) gvs[[j]]), check.names = FALSE), sep = ":"))
+    target <- fnames[jf]
+    cell <- as.character(full_cell)
     inv <- ok & (cm$object_a == ob | cm$object_b == ob)
     # cell sizes in comparisons (count-weighted), not rows
     lev_n <- tapply(cm$weight[inv], cell[inv], sum)
@@ -2254,23 +2365,45 @@ btl_dif <- function(fit, factors, objects = NULL,
       object = ob, term = tt, level = use_lev, location = loc,
       se = lev_se, n = as.numeric(lev_n[use_lev]),
       n_judges = unname(lev_j), effective_judges = unname(lev_eff))
-    pr <- t(utils::combn(seq_along(use_lev), 2))
-    pair_ok <- lev_ok[pr[, 1]] & lev_ok[pr[, 2]]
-    pair_se <- sqrt(pmax(diag(vv)[pr[, 1]] + diag(vv)[pr[, 2]] -
-                         2 * vv[pr], 1e-12))
-    pair_se[!pair_ok] <- NA_real_
-    pair_df <- pmax(lev_eff[pr[, 1]] + lev_eff[pr[, 2]] - 2, 1)
-    pair_df[!pair_ok] <- NA_real_
-    sz_rows[[length(sz_rows) + 1L]] <- data.frame(
-      object = ob, term = tt,
-      level_a = use_lev[pr[, 1]], level_b = use_lev[pr[, 2]],
-      difference = loc[pr[, 1]] - loc[pr[, 2]],
-      n_judges_a = unname(lev_j[pr[, 1]]),
-      n_judges_b = unname(lev_j[pr[, 2]]),
-      effective_judges_a = unname(lev_eff[pr[, 1]]),
-      effective_judges_b = unname(lev_eff[pr[, 2]]),
-      se = pair_se,
-      df = pair_df)
+    map_use <- full_map[match(use_lev, full_map$cell), , drop = FALSE]
+    fam <- tryCatch(.dif_posthoc_family(full_factors, map_use, target,
+                                        within = character(0)),
+                    error = function(e) e)
+    if (inherits(fam, "error")) {
+      notes <- c(notes, sprintf("%s [%s]: %s", ob, ttd,
+                                conditionMessage(fam)))
+      next
+    }
+    for (nm in names(fam$family)) {
+      w <- fam$family[[nm]][use_lev]
+      w[is.na(w)] <- 0
+      pos <- which(w > 0); neg <- which(w < 0); used <- c(pos, neg)
+      if (!length(pos) || !length(neg)) next
+      contrast_ok <- all(lev_ok[used])
+      contrast_se <- if (contrast_ok)
+        sqrt(max(drop(t(w) %*% vv %*% w), 1e-12)) else NA_real_
+      # The established two-cell comparison uses its validated Welch
+      # reference. There is no corresponding Welch formula based only on
+      # cell effective counts for a contrast spanning three or more fitted
+      # cells, so use the weakest contributing cell as a conservative
+      # small-cluster reference instead of treating pooled cell counts as
+      # independent degrees of freedom.
+      contrast_df <- if (!contrast_ok) {
+        NA_real_
+      } else {
+        .btl_dif_contrast_df(lev_eff[used])
+      }
+      sz_rows[[length(sz_rows) + 1L]] <- data.frame(
+        object = ob, term = tt, contrast = nm,
+        level_a = paste(use_lev[pos], collapse = ", "),
+        level_b = paste(use_lev[neg], collapse = ", "),
+        difference = sum(w * loc),
+        n_judges_a = sum(lev_j[pos]), n_judges_b = sum(lev_j[neg]),
+        effective_judges_a = sum(lev_eff[pos]),
+        effective_judges_b = sum(lev_eff[neg]),
+        se = contrast_se, df = contrast_df,
+        stringsAsFactors = FALSE)
+    }
   }
   # a summary row can be flagged yet carry no magnitude row; say so rather
   # than leave the omission silent

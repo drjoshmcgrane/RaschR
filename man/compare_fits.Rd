@@ -7,7 +7,7 @@
 compare_fits(..., reference = 1)
 }
 \arguments{
-\item{...}{Two or more fitted objects, preferably named. Supply either all
+\item{...}{Two or more fitted objects, preferably given unique names. Supply either all
 Rasch-family fits or all \code{btl} fits. For \code{btl}, fits of the same
 comparison data (same objects, comparisons, and judges) support the
 likelihood columns -- e.g. free versus principal-component thresholds,

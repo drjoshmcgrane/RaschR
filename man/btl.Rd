@@ -27,18 +27,21 @@ btl(
 \item{data}{A data frame with one comparison per row.}
 
 \item{object_a, object_b}{Names of the columns holding the two objects
-compared.}
+compared. Columns used for the comparison roles must be distinct.}
 
 \item{winner}{Name of the column holding the winner of each row: its
 value must equal one of the two objects. \code{"tie"} and \code{"draw"}
-mark ties. Ignored when \code{response} is supplied.}
+mark ties. Do not supply both \code{winner} and \code{response}.}
 
 \item{response}{Optional ordered response favouring \code{object_a} over
 \code{object_b}: an ordered factor from least to greatest preference for
 \code{object_a}, or integer scores \code{0..m}.}
 
 \item{margin}{Optional ordered margin-of-victory column, combined with
-\code{winner} to construct an orientation-invariant response.}
+\code{winner} to construct an orientation-invariant response. Use an
+ordered factor (levels from the smallest to largest margin) or a positive
+numeric magnitude. Margins on ties and rows excluded from the analysis
+are ignored.}
 
 \item{judge}{Optional name of a judge column; enables the judge fit
 table and clusters the sandwich standard errors by judge.}
@@ -77,7 +80,8 @@ A \code{"rasch_btl"} object. Principal components are
   \code{osi}, \code{loglik}, composite-likelihood information \code{cl},
   convergence details, and \code{notes}. Ordered-response fits also contain
   \code{thresholds}, \code{m}, and \code{categories}. Fits using
-  \code{order} contain \code{dependence} and \code{dependence_data}.
+  \code{order} contain \code{dependence} and \code{dependence_data}; the
+  former reports raw \code{p} and Holm-adjusted \code{p_adj}.
   An undefeated or winless object is set aside from estimation, as an
   extreme person is in a Rasch calibration, and reported in
   \code{objects} with \code{extreme = TRUE} at an extrapolated location:
@@ -123,10 +127,14 @@ retains the symmetric spread component, which can stabilise thin categories.
 If comparison order is supplied, exposure and carry-over effects are
 estimated from each judge's preceding comparisons. The \code{position}
 term estimates a first-presentation effect. These coefficients enter the
-model jointly with the object locations and are reported in logits. The
-carry-over estimate and clustered SE remain descriptive below 30 judges;
+model jointly with the object locations and are reported in logits. They
+are refused when the comparison design confounds them exactly with the
+object-location contrasts. The carry-over estimate and clustered SE
+remain descriptive below 30 judges;
 its probability is withheld because null calibration is mildly
-anti-conservative at smaller judge counts.
+anti-conservative at smaller judge counts. Raw probabilities are retained,
+but simultaneous decisions across the fitted dependence effects use Holm's
+familywise adjustment in \code{dependence$p_adj}.
 Anchors fix nominated object locations and replace the sum-zero origin.
 }
 \examples{

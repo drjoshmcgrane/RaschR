@@ -27,24 +27,28 @@ btl_explanatory(
 \item{data}{A data frame with one comparison per row.}
 
 \item{predictors}{Data frame with one row per object, an \code{object}
-column, and the predictors named in \code{formula}.}
+column, and the predictors named in \code{formula}. Column names must be
+unique.}
 
 \item{formula}{One-sided explanatory formula, including selected
 interactions if required.}
 
 \item{object_a, object_b}{Names of the columns holding the two objects
-compared.}
+compared. Columns used for the comparison roles must be distinct.}
 
 \item{winner}{Name of the column holding the winner of each row: its
 value must equal one of the two objects. \code{"tie"} and \code{"draw"}
-mark ties. Ignored when \code{response} is supplied.}
+mark ties. Do not supply both \code{winner} and \code{response}.}
 
 \item{response}{Optional ordered response favouring \code{object_a} over
 \code{object_b}: an ordered factor from least to greatest preference for
 \code{object_a}, or integer scores \code{0..m}.}
 
 \item{margin}{Optional ordered margin-of-victory column, combined with
-\code{winner} to construct an orientation-invariant response.}
+\code{winner} to construct an orientation-invariant response. Use an
+ordered factor (levels from the smallest to largest margin) or a positive
+numeric magnitude. Margins on ties and rows excluded from the analysis
+are ignored.}
 
 \item{judge}{Optional name of a judge column; enables the judge fit
 table and clusters the sandwich standard errors by judge.}

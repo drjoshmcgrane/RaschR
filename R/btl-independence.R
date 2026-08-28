@@ -322,10 +322,7 @@ btl_dimensionality <- function(fit, reps = 200L) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; dimensionality inference is unavailable")
-  if (length(reps) != 1L || !is.finite(reps) || reps < 20L ||
-      reps != floor(reps))
-    stop("reps must be one whole number of at least 20")
-  reps <- as.integer(reps)
+  reps <- .check_whole(reps, "reps", 20)
   if (inherits(fit, "rasch_btl_efrm"))
     return(.btl_dimensionality_efrm(fit, reps))
   tab <- fit$objects
@@ -351,7 +348,6 @@ btl_dimensionality <- function(fit, reps = 200L) {
   # must carry them too -- order effects push the marginal pair rates away
   # from plogis(beta_i - beta_j) in a structured way, and a reference without
   # them reads that structure as a second attribute (false positives)
-  d_lp <- beta[ia] - beta[ib]
   tau <- if (m > 1L) fit$thresholds$tau else NULL
   dep <- fit$dependence
   seq_sim <- NULL

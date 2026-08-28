@@ -23,6 +23,7 @@
 # calculated column -- a factor called class_interval would stand in for the
 # fitted intervals every fit statistic is computed over.
 .person_reserved <- c("id", "n_items", "raw", "max_raw", "weighted_score",
+                      "max_weighted_score",
                       "theta", "se", "extreme", "infit_ms", "outfit_ms",
                       "infit_z", "outfit_z", "fit_resid", "natural_resid",
                       "df_fit", "class_interval")
@@ -53,10 +54,11 @@
     if (null_ok) return(invisible(NULL))
     stop("`", name, "` must be supplied", call. = FALSE)
   }
+  upper <- min(max, .Machine$integer.max)
   if (length(x) != 1L || !is.numeric(x) || !is.finite(x) ||
-      x != floor(x) || x < min || x > max)
+      x != floor(x) || x < min || x > upper)
     stop("`", name, "` must be one whole number between ", min, " and ",
-         if (is.finite(max)) max else "the design limit", call. = FALSE)
+         if (is.finite(max)) max else "the integer range", call. = FALSE)
   invisible(as.integer(x))
 }
 
@@ -71,7 +73,7 @@
 # Shared validation for the Newton controls every estimator accepts.
 .check_controls <- function(maxit, tol) {
   if (length(maxit) != 1L || !is.numeric(maxit) || !is.finite(maxit) ||
-      maxit != floor(maxit) || maxit < 1)
+      maxit != floor(maxit) || maxit < 1 || maxit > .Machine$integer.max)
     stop("`maxit` must be one whole positive iteration cap", call. = FALSE)
   if (length(tol) != 1L || !is.numeric(tol) || !is.finite(tol) || tol <= 0)
     stop("`tol` must be one positive finite tolerance", call. = FALSE)
@@ -91,7 +93,7 @@
 #' @export
 threshold_index <- function(m) {
   if (!is.numeric(m) || !length(m) || any(!is.finite(m)) ||
-      any(m != floor(m)) || any(m < 0))
+      any(m != floor(m)) || any(m < 0) || any(m > .Machine$integer.max))
     stop("`m` must hold at least one whole non-negative maximum score")
   thr <- do.call(rbind, lapply(seq_along(m), function(i)
     if (m[i] >= 1) data.frame(item = i, k = seq_len(m[i])) else NULL))
@@ -141,12 +143,49 @@ threshold_index <- function(m) {
   if (any(noninf))
     stop("non-finite score(s) in ", what, " (e.g. ", xc[noninf][1],
          "); scores must be integer counts", call. = FALSE)
+  outside <- obs & is.finite(Xn) &
+    (Xn > .Machine$integer.max | Xn < -.Machine$integer.max)
+  if (any(outside))
+    stop("score(s) outside the supported integer range in ", what,
+         " (e.g. ", format(Xn[outside][1]),
+         "); rescore the response categories before analysis", call. = FALSE)
   bad <- obs & Xn != round(Xn)
   if (any(bad))
     stop("non-integer score(s) in ", what, " (e.g. ",
          format(Xn[bad][1]), "); Rasch categories are integer counts -- ",
          "round or rescore explicitly before analysis", call. = FALSE)
   invisible(TRUE)
+}
+
+# The low-level estimators do not perform rasch()'s category preparation.
+# Their pair tables index scores directly as 0, ..., m, so negative values are
+# silently omitted by tabulate(), a gap creates a threshold for a category that
+# was never observed, and a constant/all-missing column has no estimable item
+# parameter. Refuse those inputs before integer storage or pair construction.
+.pcml_score_matrix <- function(X) {
+  X <- as.matrix(X)
+  if (length(dim(X)) != 2L || nrow(X) < 1L || ncol(X) < 2L)
+    stop("`X` must contain at least one person and two item columns",
+         call. = FALSE)
+  nm <- colnames(X)
+  if (!is.null(nm) && (anyNA(nm) || any(!nzchar(nm))))
+    stop("item column names must be non-missing and non-empty", call. = FALSE)
+  .check_integer_scores(X, "the score matrix")
+  storage.mode(X) <- "integer"
+  for (j in seq_len(ncol(X))) {
+    z <- sort(unique(X[!is.na(X[, j]), j]))
+    lab <- if (is.null(colnames(X))) paste0("column ", j) else
+      paste0("item ", colnames(X)[j])
+    if (!length(z))
+      stop(lab, " has no observed scores", call. = FALSE)
+    if (length(z) < 2L)
+      stop(lab, " is constant; item parameters require at least two observed scores",
+           call. = FALSE)
+    if (!identical(z, seq.int(0L, max(z))))
+      stop(lab, " must use consecutive integer categories from 0; observed: ",
+           paste(z, collapse = ", "), call. = FALSE)
+  }
+  X
 }
 
 .pcml_check_connected <- function(pairs, L, item_names, anchored = integer(0)) {
@@ -408,8 +447,9 @@ threshold_index <- function(m) {
 #' estimates each \eqn{\delta_{ik}}; the RSM imposes
 #' \eqn{\delta_{ik}=\beta_i+\tau_k} through a design matrix.
 #'
-#' @param X Persons-by-items integer score matrix (categories from 0). Missing
-#'   values are handled by pairwise deletion, so linked booklet designs and
+#' @param X Persons-by-items integer score matrix. Each item must have at least
+#'   two observed categories, numbered consecutively from 0. Missing values are
+#'   handled by pairwise deletion, so linked booklet designs and
 #'   random missingness estimate without imputation; the item-pair graph must
 #'   be connected (some person answering items in both of any two blocks),
 #'   otherwise relative locations between blocks are unidentified and the fit
@@ -422,7 +462,7 @@ threshold_index <- function(m) {
 #'   (individual anchoring); \code{k = NA} fixes the item's mean location at
 #'   \code{tau} while its thresholds remain free (average anchoring). The
 #'   remaining parameters are estimated on the anchored scale and no
-#'   recentring is applied. PCM only.
+#'   recentring is applied. Column names must be unique. PCM only.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
 #' @return A list containing the threshold table \code{thr}, covariance matrix
 #'   \code{cov_tau}, pairwise conditional log-likelihood, iteration count,
@@ -452,8 +492,7 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
   if (!is.null(colnames(X)) && anyDuplicated(colnames(X)))
     stop("item column names must be unique: ",
          paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
-  X <- as.matrix(X); .check_integer_scores(X, "the score matrix")
-  storage.mode(X) <- "integer"
+  X <- .pcml_score_matrix(X)
   m <- apply(X, 2, max, na.rm = TRUE); L <- ncol(X)
   thr <- threshold_index(m); M <- nrow(thr)
   inames <- if (is.null(colnames(X))) paste0("V", seq_len(L)) else colnames(X)
@@ -461,9 +500,14 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
   weak <- .pcml_weak_thresholds(X, m, thr, inames)
 
   if (!is.null(anchors)) {
+    if (!is.data.frame(anchors))
+      stop("anchors must be a data frame with columns item, k, tau")
+    .check_column_names(anchors)
     if (model != "PCM") stop("anchoring is supported for the PCM only")
     if (!all(c("item", "k", "tau") %in% names(anchors)))
       stop("anchors needs columns item, k, tau")
+    if (!nrow(anchors))
+      stop("anchors must contain at least one fixed threshold or item mean")
     a_item <- if (is.character(anchors$item) || is.factor(anchors$item))
       match(as.character(anchors$item), colnames(X))
     else {
@@ -668,8 +712,9 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 #' a reduced-rank polynomial trend, which can stabilise sparse categories at
 #' the cost of restricting the threshold pattern.
 #'
-#' @param X Persons-by-items integer score matrix (categories from 0).
-#'   Missing values are handled by pairwise deletion.
+#' @param X Persons-by-items integer score matrix. Each item must have at least
+#'   two observed categories, numbered consecutively from 0. Missing values are
+#'   handled by pairwise deletion.
 #' @param n_components Maximum number of components per item: 1 (location
 #'   only) up to 4 (location, spread, skewness, kurtosis; the highest
 #'   derived by Pedler 1987). Capped per item at its own number of
@@ -715,8 +760,7 @@ pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
   if (!is.null(colnames(X)) && anyDuplicated(colnames(X)))
     stop("item column names must be unique: ",
          paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
-  X <- as.matrix(X); .check_integer_scores(X, "the score matrix")
-  storage.mode(X) <- "integer"
+  X <- .pcml_score_matrix(X)
   m <- apply(X, 2, max, na.rm = TRUE); L <- ncol(X)
   thr <- threshold_index(m); M <- nrow(thr)
   ncomp <- pmin(m, n_components, 4L)
@@ -752,7 +796,7 @@ pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
   thr$tau <- sol$tau; thr$se <- sol$se_tau
 
   labs <- c("spread", "skewness", "kurtosis")
-  comp <- data.frame(item = colnames(X),
+  comp <- data.frame(item = inames,
                      location = c(sol$beta[seq_len(L - 1L)],
                                   -sum(sol$beta[seq_len(L - 1L)])),
                      location_se = NA_real_,

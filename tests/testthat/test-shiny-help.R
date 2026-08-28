@@ -75,10 +75,22 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_false(grepl("rho = phi x alpha", src, fixed = TRUE))
   expect_match(src, 'style_lo_red(num_dt(d), d, "p_adj", 0.05)',
                fixed = TRUE)
+  expect_match(src, '!all(c("object", "location") %in% names(a))',
+               fixed = TRUE)
+  expect_match(src, 'if (!"se" %in% names(a)) a$se <- NA_real_',
+               fixed = TRUE)
+  expect_match(src, 'identical(r$shift_method, "unweighted")',
+               fixed = TRUE)
+  expect_match(src, 'p_bold = c("p_adj", "p_anova_adj")', fixed = TRUE)
+  expect_false(grepl('p_bold = c("p", "p_adj")', src, fixed = TRUE))
+  expect_match(src, ': judge-group DIF needs judge-constant factors',
+               fixed = TRUE)
+  expect_match(src, 'judge_factor <- function(x, label)', fixed = TRUE)
   expect_match(src, '"p_adj_kappa"', fixed = TRUE)
   expect_match(src, "maxit = eo$maxit, tol = eo$tol", fixed = TRUE)
   expect_match(src, 'input$spread_alpha %||% 0.05', fixed = TRUE)
-  expect_match(src, 'input$spread_padj %||% "holm"', fixed = TRUE)
+  expect_match(src, 'run_adjust <- "holm"', fixed = TRUE)
+  expect_false(grepl("dif_padj|spread_padj|inv_screen", src))
   expect_match(src, 'spread_test(fit, alpha = %s, p_adjust = %s)',
                fixed = TRUE)
   expect_match(src, 'callr::r_bg', fixed = TRUE)
@@ -110,8 +122,6 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_false(grepl('input$pc_id', src, fixed = TRUE))
   expect_match(src, 'unique(f$virtual_map$item)', fixed = TRUE)
   expect_match(src, "A location split cannot model", fixed = TRUE)
-  expect_match(src, "Summary counts must use the same reporting rule",
-               fixed = TRUE)
 })
 
 test_that("the app uses structurally stable responsive control layouts", {

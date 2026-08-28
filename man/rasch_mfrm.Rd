@@ -21,9 +21,11 @@ rasch_mfrm(
 )
 }
 \arguments{
-\item{data}{Long-format data frame.}
+\item{data}{Long-format data frame, or a wide data frame when \code{items}
+is supplied.}
 
-\item{person}{Name of the person identifier column.}
+\item{person}{Name of the person identifier column. Person, item, score,
+facet, and person-factor columns must define distinct roles.}
 
 \item{item}{Name of the item column.}
 
@@ -100,9 +102,11 @@ An item-by-facet interaction retains equal discrimination but allows facet
 differences to vary by item. The omnibus Wald test in
 \code{interaction_test} is the primary test; cell tests are Holm-adjusted
 follow-ups. Interaction probabilities require at least
-\eqn{\max\{30,q+2\}} persons and effective persons at every level of the
-interactive facet, where \eqn{q} is the omnibus degrees of freedom.
-Estimates remain descriptive when this condition is not met.
+\eqn{\max\{30,q+2\}} persons and effective persons in every observed
+item-by-level cell, where \eqn{q} is the omnibus degrees of freedom.
+The interaction covariance must also identify the omnibus contrast and
+leave positive denominator degrees of freedom. Estimates remain descriptive
+when these conditions are not met.
 }
 \examples{
 set.seed(1)

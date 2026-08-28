@@ -118,10 +118,24 @@ test_that("a bank link is descriptive without its joint covariance", {
   eq <- btl_equate(f1, bank)
 
   expect_lt(abs(eq$shift), 1e-8)
+  expect_identical(eq$shift_method, "precision-weighted")
   expect_false(eq$inferential)
   expect_true(all(is.na(eq$table$drifting)))
   expect_match(paste(eq$notes, collapse = " "), "joint object-location covariance")
   expect_equal(eq$n_common, nrow(f1$objects))
+
+  bank_no_se <- bank
+  bank_no_se$se[] <- NA_real_
+  eq_unweighted <- btl_equate(f1, bank_no_se)
+  expect_identical(eq_unweighted$shift_method, "unweighted")
+  expect_equal(eq_unweighted$n_inference, 0L)
+  expect_equal(eq_unweighted$shift,
+               mean(f1$objects$location - bank_no_se$location),
+               tolerance = 1e-12)
+  expect_true(all(is.na(eq_unweighted$table$p_adj)))
+  expect_match(paste(eq_unweighted$notes, collapse = " "), "unweighted mean")
+  expect_match(paste(eq_unweighted$notes, collapse = " "),
+               "included in the descriptive shift")
 
   # A separately calibrated bank can carry the full covariance explicitly.
   attr(bank, "cov_location") <- f1$cov_beta
@@ -130,7 +144,7 @@ test_that("a bank link is descriptive without its joint covariance", {
   expect_equal(sum(eq_cov$table$drifting), 0L)
 })
 
-test_that("btl_equate guards fewer than three common objects and non-btl input", {
+test_that("btl_equate permits a two-object link but withholds drift tests", {
   set.seed(23)
   objs <- paste0("O", 1:6)
   beta <- setNames(seq(-1.5, 1.5, length.out = 6), objs)
@@ -144,7 +158,15 @@ test_that("btl_equate guards fewer than three common objects and non-btl input",
   bank2 <- data.frame(object = c("O1", "O2", "Z1", "Z2"),
                       location = c(-1, -0.5, 0.5, 1),
                       se = rep(0.2, 4), stringsAsFactors = FALSE)
-  expect_error(btl_equate(f1, bank2), "three common")
+  eq2 <- btl_equate(f1, bank2)
+  expect_equal(eq2$n_common, 2L)
+  expect_true(is.finite(eq2$shift))
+  expect_false(eq2$inferential)
+  expect_true(all(is.na(eq2$table$p_adj)))
+  expect_match(paste(eq2$notes, collapse = " "), "at least three common")
+
+  bank1 <- bank2[bank2$object != "O2", ]
+  expect_error(btl_equate(f1, bank1), "at least two common")
 
   bank_dup <- rbind(
     data.frame(object = f1$objects$object, location = f1$objects$location,

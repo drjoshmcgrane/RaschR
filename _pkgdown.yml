@@ -49,6 +49,7 @@ news:
 articles:
 - title: Vignettes
   contents:
+  - data-structures
   - rasch-workflow
   - dif-repeated-measures
   - many-facet
@@ -97,6 +98,7 @@ reference:
 - title: Persons
   contents:
   - person_wle
+  - weighted_person_estimates
   - person_extrapolated
   - score_table
 

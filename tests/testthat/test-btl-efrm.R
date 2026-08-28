@@ -70,6 +70,7 @@ test_that("planted set units (alpha) and origins (kappa) are recovered", {
                   c("panel units (phi)", "set units (alpha)",
                     "set origins (kappa)"))
   expect_true(all(is.na(fit$unit_omnibus$p)))
+  expect_true(all(is.na(fit$unit_omnibus$p_adj)))
   expect_true(all(c("p_adj", "significant") %in%
                     names(fit$alpha_table)))
 })
@@ -225,9 +226,25 @@ test_that("bootstrap SEs propagate linking uncertainty (estimates unchanged)", {
                  se_method = "conditional")
   expect_equal(fb$alpha_table$alpha, fc$alpha_table$alpha)   # same estimator
   expect_equal(fb$objects$v, fc$objects$v)
-  # the bootstrap carries stage-one noise the conditional errors omit
-  expect_gt(fb$alpha_table$se_log_alpha[2], fc$alpha_table$se_log_alpha[2])
+  # The bootstrap refits stage one rather than conditioning on it. Its
+  # realised SE need not exceed the conditional SE in every finite set of
+  # resamples, so test the distinct, finite result rather than its direction.
+  expect_true(is.finite(fb$alpha_table$se_log_alpha[2]))
+  expect_gt(fb$alpha_table$se_log_alpha[2], 0)
+  expect_false(isTRUE(all.equal(fb$alpha_table$se_log_alpha[2],
+                                fc$alpha_table$se_log_alpha[2],
+                                tolerance = 1e-8)))
+  expect_identical(fb$boot_reps_requested, 40L)
+  expect_identical(fb$boot_reps_used + fb$boot_reps_failed,
+                   fb$boot_reps_requested)
   expect_true(all(is.finite(fb$unit_omnibus$df2)))
+  expect_equal(fb$unit_omnibus$p_adj,
+               p.adjust(fb$unit_omnibus$p, "holm"))
+  follow_p <- c(fb$phi_table$p, fb$alpha_table$p, fb$kappa_table$p)
+  follow_adj <- c(fb$phi_table$p_adj, fb$alpha_table$p_adj,
+                  fb$kappa_table$p_adj)
+  ok <- is.finite(follow_p)
+  expect_equal(follow_adj[ok], p.adjust(follow_p[ok], "holm"))
 
   # The model-based bootstrap draws comparison outcomes independently. Its
   # reference is therefore normal/chi-square, not the finite-judge reference
@@ -235,6 +252,9 @@ test_that("bootstrap SEs propagate linking uncertainty (estimates unchanged)", {
   set.seed(10)
   fp <- btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel", os,
                  se_method = "bootstrap", boot_reps = 30)
+  expect_identical(fp$boot_reps_requested, 30L)
+  expect_identical(fp$boot_reps_used + fp$boot_reps_failed,
+                   fp$boot_reps_requested)
   expect_true(all(is.infinite(fp$unit_omnibus$df2)))
   expect_true(all(is.infinite(fp$alpha_table$df)))
 })

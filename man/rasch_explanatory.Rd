@@ -27,7 +27,7 @@ rasch_explanatory(
 \item{predictors}{Data frame containing an \code{item} column and the
 predictors named in \code{formula}. With \code{level = "threshold"}, it
 must also contain \code{threshold}, with one row for every fitted item
-threshold.}
+threshold. Column names must be unique.}
 
 \item{formula}{One-sided explanatory formula. For example,
 \code{~ format + operation + format:operation}. The reserved

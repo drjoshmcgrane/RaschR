@@ -35,7 +35,9 @@ its cross-frame location does not. This refit does not estimate a separate
 discrimination and therefore does not resolve a discrimination-only flag
 from \code{\link{frame_invariance}}. Review or remove such an item instead.
 Use \code{\link{drop_items}} when the item should no longer contribute to
-measurement.
+measurement. Each resolved version must observe every score category of the
+source item. If it does not, the refit is refused rather than renumbering
+that frame's scores.
 }
 \examples{
 d <- simulate_efrm(n_per_group = 200, items_per_set = 6, n_sets = 2,

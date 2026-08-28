@@ -60,8 +60,9 @@ fit <- rasch_efrm(
   item_sets = truth$item_sets,
   groups = "group",
   id = "id",
-  boot_reps = 30,
-  workers = 1
+  boot_reps = 50,
+  workers = 1,
+  seed = 25
 )
 fit
 ```
@@ -121,7 +122,8 @@ fit_crossed$phi_factorial_tests
 ```
 
 The factorial tables give the GLS decomposition of the estimated log group
-units. They do not replace the frame-level estimates.
+units. Use `p_adj`, which applies Holm's correction across the factorial
+terms, for decisions. The tables do not replace the frame-level estimates.
 
 ## Uncertainty and equal-unit comparisons
 
@@ -142,15 +144,23 @@ completed batches, or cancel the process without replacing the current
 analysis. R scripts can supply `progress` and `cancel` callbacks for the same
 controls.
 
+The fit records the requested, usable and failed bootstrap counts. The linking
+covariance is withheld unless at least 30 and more than half of the requested
+replicates are usable. A requested full bootstrap also records its attempted,
+usable and failed counts in `full_boot_reps_*`. These remain available if too
+few full refits succeed and the fit returns hybrid standard errors instead.
+
 ```{r comparison}
 fit$efrm_vs_rasch$unit_omnibus
 fit$efrm_vs_rasch$unit_tests
 ```
 
-The omnibus Wald tests assess the set- and group-unit families. Individual
-unit contrasts are Holm-adjusted follow-ups. The raw composite-likelihood
-difference is descriptive and compares the group-unit stage only. Set units
-are identified in the linking stage and are assessed by their Wald test.
+The omnibus Wald tests assess the set- and group-unit families. Their
+probabilities are adjusted together by Holm's method. Individual unit
+contrasts form a separate Holm-adjusted follow-up family. The raw
+composite-likelihood difference is descriptive and compares the group-unit
+stage only. Set units are identified in the linking stage and are assessed by
+their Wald test.
 Probabilities require at least 50 persons or effective persons in every group
 and at least 50 common persons on every set-link edge. Sparse designs retain
 the unit estimates without an inferential probability.
@@ -160,7 +170,17 @@ distributions gave set-unit bias within 0.004 log-units, empirical-to-reported
 SE ratios from 0.97 to 1.05, and null rejection from 4.0 to 5.0 per cent for
 the hybrid method. The complete person bootstrap was mildly conservative in
 the corresponding null design. Sets with only three dichotomous items were
-not identified; four-item sets were recovered without bias.
+not identified; four-item sets were recovered without bias in adequately
+supported samples.
+
+A separate null study checked the complete decision families. With 200
+persons per group and six items per set, 489 of 500 fits were analysed. The
+Holm familywise rejection rates were 3.5 per cent for the omnibus tests and
+1.6 per cent for the individual unit contrasts. A boundary design with 100
+persons per group and four items per set refused 493 of 1,000 fits and did not
+converge in another 24. Among the 483 analysed fits, the corresponding rates
+were 5.2 and 2.5 per cent. A design should not be used merely because it is
+formally identifiable.
 
 ## Item invariance across frames
 

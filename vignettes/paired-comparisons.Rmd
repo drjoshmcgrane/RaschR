@@ -67,6 +67,11 @@ contradictions in the observed ordering.
 Residual dimensionality asks whether comparisons contain a structured second
 attribute after the primary scale is fitted.
 
+When a judgment-order column is supplied, `fit$dependence` reports position,
+exposure and carry-over effects together. Use `p_adj`, which applies Holm's
+correction across the effects with available inference; `p` is retained as the
+raw probability.
+
 ```{r structure}
 tr <- btl_transitivity(fit)
 tr
@@ -105,9 +110,14 @@ bd$sizes
 
 ## Equate panels through common objects
 
-`btl_equate` aligns two calibrations that share at least three objects. For two
+`btl_equate` aligns two calibrations that share at least two objects. Two
+common objects identify a descriptive origin shift; at least three with
+usable covariance information are needed for object-drift tests. For two
 fitted calibrations, drift inference is withheld until independent judges and
-comparisons are stated explicitly.
+comparisons are stated explicitly. The shift is precision-weighted when at
+least two common objects have usable variances. If they do not, the function
+uses the unweighted mean location difference, labels it in `shift_method`, and
+keeps the link descriptive.
 
 ```{r equating-example, eval = FALSE}
 eq <- btl_equate(current_panel, reference_panel, independent = TRUE)
@@ -162,21 +172,28 @@ stages. The parametric bootstrap (`se_method = "bootstrap"`) draws independent
 outcomes from the fitted model. The conditional option used above reports
 estimates and conditional standard errors but withholds probabilities because
 it does not propagate stage-one uncertainty into the set link. With either
-bootstrap, omnibus tests cover the unit families and individual contrasts are
-Holm-adjusted follow-ups. Judge-bootstrap tests require at least six judges
+bootstrap, omnibus probabilities are Holm-adjusted across the three unit
+families. Individual panel-unit, set-unit and set-origin contrasts form one
+separate Holm-adjusted follow-up family. Judge-bootstrap tests require at least six judges
 and 5.5 effective judges in every panel, and eight of each on a set link.
 Judge resamples are distributed over four workers by default, or fewer where
 the system imposes a lower limit. Set `seed` to reproduce the resamples. The
 parametric bootstrap remains serial because its refits are inexpensive. In the
 application, frame estimation runs in the background and may be cancelled.
 
-With 12 judges and 20 repetitions per pair, null rejection for the three unit
-families was 3.3--5.3 per cent under the judge bootstrap and 3.0--6.7 per cent
-under the independent-outcome bootstrap. The staged set-unit estimate has
-small finite-sample attenuation when the within-set locations are imprecise:
-log-unit bias was -0.041 at 20 repetitions per pair, -0.016 at 50 and -0.007
-at 100. The bootstrap intervals retained nominal coverage at the 20-repetition
-design.
+With six judges per panel and 20 repetitions per pair, a 1,000-fit null study
+gave raw marginal rejection of 3.3 per cent for panel units, 6.7 per cent for
+set units and 6.0 per cent for set origins. Holm familywise rejection was 3.9
+per cent across the omnibus decisions and 3.0 per cent across their follow-ups;
+set-unit coverage was 0.900. This design lies in the caution band reported by
+the fit. With 12 judges per panel and the default 200 resamples, raw set-unit
+rejection was 4.6 per cent, the empirical-to-reported SE ratio was 0.992 and
+coverage was 0.934 over 500 null fits.
+With more within- and cross-set information, finite-sample attenuation of the
+set-unit estimate declined: log-unit bias was -0.041 at 20 repetitions per
+pair, -0.016 at 50 and -0.006 at 100. Reported decisions use Holm adjustment
+across the three omnibus tests; the individual unit contrasts form a separate
+Holm-adjusted family.
 
 ## A worked analysis on real data
 

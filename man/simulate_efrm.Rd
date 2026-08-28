@@ -13,7 +13,10 @@ simulate_efrm(
   group_unit_ratio = 1,
   n_categories = 2,
   theta_sd = 1.3,
-  seed = NULL
+  seed = NULL,
+  item_drift = NULL,
+  careless = 0,
+  missing = 0
 )
 }
 \arguments{
@@ -33,7 +36,17 @@ frame unit scaling the whole exponent as in the dichotomous case.}
 
 \item{theta_sd}{Spread of person ability.}
 
-\item{seed}{Optional RNG seed.}
+\item{seed}{Optional non-negative whole-number RNG seed.}
+
+\item{item_drift}{Optional \code{list(items=, group=, shift=)}. The named
+item or items move by \code{shift} logits in one generated person group,
+violating item invariance across frames.}
+
+\item{careless}{Proportion of persons whose complete response vectors are
+replaced by random category choices.}
+
+\item{missing}{Proportion of response cells set missing completely at
+random after the responses are generated.}
 }
 \value{
 A wide data frame of class \code{"rasch_sim"}, containing an ID,
@@ -45,7 +58,8 @@ Generates data whose latent unit differs across item-set by person-group
 frames (Humphry 2005): a person in group g responding to an item in set s
 does so at the frame unit rho = alpha_set * phi_group scaling the whole
 exponent. The planted set- and group-unit ratios are recovered by
-\code{\link{rasch_efrm}}.
+\code{\link{rasch_efrm}}. A positive careless-response or missingness
+proportion selects at least one person or response cell.
 }
 \examples{
 d <- simulate_efrm(200, 6, set_unit_ratio = 1.3, seed = 1)

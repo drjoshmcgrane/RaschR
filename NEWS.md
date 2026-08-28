@@ -1,5 +1,131 @@
 # rasch 1.12.1
 
+* `pcml_pc()` now labels unnamed response matrices consistently, and direct
+  `pcml()` calls reject an empty anchor table. Available-case item-rest
+  correlations exclude respondents with no observed rest score.
+* Frame-invariance bootstraps keep singleton person-group strata in their
+  original group. Paired-comparison order effects are refused when the
+  comparison design confounds them with the object locations.
+* Automatic DIF follow-ups now use the adjustment method and significance
+  level supplied to `dif_anova()`. `dif_posthoc()` also checks item selectors
+  before fitting the contrast family.
+* A saved app analysis now restores its data roles, estimation controls and
+  embedded supporting data, so it can be re-estimated after it is reopened.
+  Simulation recovery covers paired-comparison Extended Frames, including
+  object locations, panel and set units, and set origins.
+* Shiny background fits are tied to the data and analysis that launched them.
+  A completed EFRM or paired-comparison frame fit is discarded if that context
+  has changed, and opening a saved analysis cancels work still in progress.
+  A new Comparative Judgement fit clears earlier requested DIF and frame
+  results, while reopening a saved fit retains the results stored with it.
+
+* The Shiny application can simulate ordinary and explanatory Rasch,
+  Comparative Judgement, Multiple Ratings, Extended Frames and paired-
+  comparison Extended Frames data. Model parameters can be varied and
+  model-specific departures planted. `simulate_efrm()` now supports item
+  drift, careless response and missingness, while `simulate_btl_efrm()` can
+  plant erratic judges. A positive planted proportion affects at least one
+  observation whenever the requested departures can coexist; incompatible
+  mixtures are diagnosed. Rasch simulation truth records speeded persons and
+  the cells selected for missingness.
+* `weighted_person_estimates()` provides supplementary person measures from
+  externally imposed item or item-set weights. It leaves the fitted
+  calibration and the ordinary measures used for fit, reliability, targeting
+  and DIF unchanged. Its Warm correction and sandwich standard error now both
+  use the variability of the weighted score; the earlier correction treated
+  weights as replicated observations. A new first-listed vignette gives the
+  data structure required by every model family.
+* Simulation truth now retains person identifiers, so recovery matches person
+  estimates by ID after rows are reordered. A planted second trait has its
+  requested realised correlation. Paired-comparison simulators balance
+  comparisons across the declared judges and refuse designs with too few
+  comparisons. MFRM interaction probabilities require adequate support in
+  every item-by-facet cell rather than only at the pooled facet level.
+
+* EFRM convergence now covers the fitted nonparametric masses as well as the
+  set transformation. Linking uncertainty requires at least 30 usable
+  resamples and more than half of those requested; the requested, usable and
+  failed counts are retained in the fit. The full-bootstrap attempt remains
+  recorded when too few refits succeed and hybrid standard errors are
+  returned. BTL-EFRM applies the same usable-resample rule and accounting.
+  Fixed-iteration EFRM linking no longer recalculates an unused likelihood at
+  every intermediate mass update.
+* Automatic DIF resolution now acts on the adjusted omnibus result. Pairwise
+  contrasts describe the location of a multifactor effect but do not impose a
+  second significance test. Thin or incompatible factor cells are still
+  refused. A prior manual split now counts as one resolved source item rather
+  than several anchors, and its provenance survives later item dropping or
+  subtest formation. The reported residual count is the number of source
+  items, not the number of item-by-factor terms.
+* BTL-DIF retains the validated Welch reference for two-cell contrasts and
+  uses the least-supported effective-judge cell as a conservative reference
+  for contrasts spanning more cells. In 500 balanced four-cell null fits, the
+  new reference rejected 3.6%, against 6.2% for the superseded pooled-count
+  rule. BTL-EFRM no longer counts a set unit fixed after an identification
+  failure as an estimated parameter.
+* The application uses Holm-adjusted probabilities for its DIF, frame
+  invariance, threshold-spread, explanatory and supplementary item-fit
+  decisions. BTL judge-group factors that vary within judge are refused rather
+  than reduced to the first comparison row.
+* Subtests must be formed before DIF splitting. A group-specific split copy
+  cannot be combined because it does not provide a common item across groups.
+
+* BTL-EFRM now refits every object set after its panel units are reconciled.
+  The reported object locations, expected probabilities, composite
+  likelihood and equal-unit comparison therefore come from the same fitted
+  parameters. Previously, stable sets retained their independently optimised
+  locations while their probabilities were evaluated at the reconciled
+  units.
+* Multifactor DIF magnitudes now match the adjusted omnibus estimand.
+  Ordinary and paired-comparison main effects average complete factor cells
+  equally over nuisance factors; interactions use differences between
+  differences. DIF contrasts are withheld when the compared groups do not
+  share an observed score structure. ETS classifications use the adjusted
+  probabilities for both significance and departure beyond category A.
+* Structural refits preserve score categories. Subtests, DIF splits and EFRM
+  frame resolutions are refused when a required score category is absent,
+  rather than allowing ordinary data preparation to renumber the scores.
+  Resampling refits treat category loss as an unsuccessful replicate.
+  Supplied app anchors and scoring keys now fail closed when malformed,
+  inapplicable or unmatched.
+* Crossed EFRM factorial tests and BTL order-effect tests now retain raw
+  probabilities but use Holm-adjusted probabilities for decisions. In fresh
+  null simulations, crossed-EFRM familywise rejection was 5.55% over 2,000
+  fits (5.93% pooled over 3,000); the three marginal rates were 5.25--5.75%.
+  BTL familywise rejection was 5.9% over 1,000 fits with position, exposure
+  and carry-over fitted together.
+* `simulate_btl()` now constructs a second object attribute with the requested
+  realised correlation, rather than obtaining that correlation only in
+  expectation. The largest error over 1,200 short and long object sets was
+  3.9e-16; dimensionality power was 87% in the re-run of the strong design.
+  Structured simulator options are checked before their components are used.
+* DIF splitting omits factor levels for which an item has fewer than two
+  observed categories, and refuses a split unless at least two levels remain.
+  EFRM refits and wide MFRM conversion use collision-free internal names;
+  named BTL-EFRM panel maps take precedence over data-column names. Numeric
+  `NaN` responses are refused rather than treated as ordinary missing data.
+* EFRM and BTL-EFRM retain raw unit-test probabilities but use Holm-adjusted
+  probabilities for decisions. Omnibus tests are adjusted across the reported
+  unit families. BTL-EFRM follow-up contrasts form one family across panel
+  units, set units and set origins, rather than three separately adjusted
+  tables. The application uses the same adjusted probabilities. In null
+  simulations, EFRM omnibus-family rejection was 3.5% and follow-up-family
+  rejection was 1.6% among 489 analysed fits. After the reconciled-panel
+  BTL-EFRM refit, the corresponding rates were 3.9% and 3.0% over 1,000 null
+  fits in the six-judge-per-panel caution design. A 500-fit supported-design
+  top-up gave 4.6% raw set-unit rejection and 0.934 interval coverage.
+* Character role arguments are resolved from matching column names rather
+  than their length. Named judge maps are matched by judge even when their
+  length happens to equal the number of comparisons. Missing DIF identifiers
+  remain as separate analysis units, conflicting external factor columns are
+  refused, and scores outside R's integer range no longer become missing on
+  coercion. Paired-comparison equating now permits its documented descriptive
+  two-object link while continuing to require three objects for drift tests.
+* Common-item and common-object equating now label an unweighted descriptive
+  shift when fewer than two common items or objects have usable variances. The
+  functions no longer describe that fallback as precision-weighted or say
+  that observations used in it were excluded from the shift.
+
 * Every location axis is labelled at whole logits when the span allows,
   through one shared tick rule; the previous defaults could leave an axis
   extreme between labels. The person-item map begins and ends its
@@ -63,20 +189,23 @@
   tailored bootstrap resamples each unidentified row as its own person
   rather than clustering them into one. A genuinely repeated design still
   withholds its Wald inference.
-* An item or object bank is read through its labels. A factor column of
-  locations, standard errors or maximum scores was passed to
-  `as.numeric()`, which returns level codes, so a bank of -2.5, 0.25 and
-  4.0 equated as 1, 2 and 3 with nothing to show for it.
+* Item and object banks are read through their labels. A factor column of
+  locations, standard errors or maximum scores was passed to `as.numeric()`,
+  which returns level codes, so a bank of -2.5, 0.25 and 4.0 equated as 1, 2
+  and 3. Numeric text remains accepted; invalid text and non-numeric classes
+  are refused. An attached joint covariance now completes individual missing
+  standard errors rather than doing so only when the bank omitted the whole
+  column. Bank, predictor, key and anchor tables also require unique column
+  names.
 * A judging sequence must order the comparisons it describes. Values
   repeating within a judge left the order of those comparisons to the row
   order of the data, so the same data read in a different order carried
   different exposure and carry-over covariates; repeated and non-finite
-  sequence values are now refused. A margin must be an ordered factor or a
-  finite non-negative magnitude, where a logical, complex or Date column,
-  and negative or infinite magnitudes, produced plausible-looking
-  categories from a scale that is not a margin. A replication count must
-  be real, since coercing a complex one discards its imaginary part in
-  silence.
+  sequence values are now refused. A retained non-tie margin must be an
+  ordered factor or a finite positive magnitude; zero denotes a tie. Margins
+  on ties and excluded rows do not define the response scale. Logical,
+  complex and Date columns are refused. A replication count must be real,
+  since coercing a complex one discards its imaginary part in silence.
 * A paired-comparison call must state one outcome. Supplying both
   `winner` and `response` fitted the response and ignored the winner, so
   changing every winner left the fit identical; the combination is now
@@ -85,7 +214,31 @@
   comparison, frame-adjusted comparison, explanatory comparison and
   many-facet entry points alike, and in the many-facet case through the
   wide entry as well as the long one, which needs at least one item
-  column.
+  column. Many-facet person, item, score, facet and person-factor roles must
+  also be distinct.
+* Paired-comparison equating uses the documented precision-weighted origin
+  shift when two common objects have usable standard errors. Three remain
+  necessary for object-level drift inference, but that inferential threshold
+  no longer changes the descriptive link estimator.
+* Named item-set, judge-panel, judge-factor and Wright-map assignments must
+  cover their fitted units exactly. Missing entries no longer discard units,
+  and extra entries no longer pass as unnoticed spelling errors. Empty or
+  blank panels are refused. Repeated-measure person and time roles must be
+  distinct.
+* Simulation counts, parameters and seeds are read only as plain numeric
+  values. Factors and classed or complex vectors can no longer be interpreted
+  through their storage codes, and replicate seeds cannot overflow the integer
+  range. A zero-effect BTL dependence specification is treated as no planted
+  dependence.
+* The low-level `pcml()` and `pcml_pc()` estimators now refuse negative,
+  non-consecutive, constant and all-missing item-score columns. Their pair
+  tables require at least two observed categories numbered from zero; negative
+  values were previously omitted by `tabulate()` rather than diagnosed.
+  The main `rasch()` entry point also refuses non-finite scores rather than
+  treating them as ordinary non-numeric missing entries.
+* MFRM and EFRM exports and app displays draw their observed residual scree
+  without requesting the parallel reference that is unavailable for their
+  virtual response-cell designs.
 * A multiple-choice scoring table refuses a missing or blank item name in
   every key form -- the option/score table, the item/key table and the
   named vector -- as well as a missing or blank option, and a key refuses
@@ -325,7 +478,7 @@
   unavailable. Their probabilities remain `NA`.
 
 * Sparse-unit safeguards now use the sampling units that inform each test.
-  MFRM interaction tests use the least-supported facet level; EFRM unit tests
+  MFRM interaction tests use the least-supported item-by-level cell; EFRM unit tests
   require adequate persons on every group or set link; BTL-EFRM judge
   bootstraps require adequate effective judges in every panel or link; and
   frame-invariance tests exclude weak frame calibrations.

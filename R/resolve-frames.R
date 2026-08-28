@@ -33,7 +33,9 @@
 #' discrimination and therefore does not resolve a discrimination-only flag
 #' from \code{\link{frame_invariance}}. Review or remove such an item instead.
 #' Use \code{\link{drop_items}} when the item should no longer contribute to
-#' measurement.
+#' measurement. Each resolved version must observe every score category of the
+#' source item. If it does not, the refit is refused rather than renumbering
+#' that frame's scores.
 #'
 #' @param fit A fitted object from \code{\link{rasch_efrm}}.
 #' @param items Item names to resolve.
@@ -62,6 +64,9 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
          "person factors use split_items() instead")
   if (!length(items)) stop("name at least one item to resolve")
   items <- as.character(items)
+  if (anyDuplicated(items))
+    stop("item(s) named more than once: ",
+         paste(unique(items[duplicated(items)]), collapse = ", "))
 
   all_items <- names(fit$set_of)
   bad <- setdiff(items, all_items)
@@ -75,14 +80,17 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
   gvec <- as.character(grp)
 
   src <- .efrm_source_matrix(fit, all_items)
+  source_max <- .efrm_source_maxima(fit)
 
   cols <- list()
   new_set <- character()
+  source_base <- character()
   made <- list()
   for (it in all_items) {
     if (!it %in% items) {
       cols[[it]] <- src[, it]
       new_set[it] <- fit$set_of[[it]]
+      source_base[it] <- it
       next
     }
     for (lv in glev) {
@@ -94,13 +102,19 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
         stop("generated resolved-item name already exists: ", nm)
       cols[[nm]] <- v
       new_set[nm] <- fit$set_of[[it]]
+      source_base[nm] <- it
       made[[it]] <- c(made[[it]], lv)
     }
   }
 
   source <- as.data.frame(cols, check.names = FALSE,
                          stringsAsFactors = FALSE)
-  refit <- .efrm_refit(fit, source, new_set, boot_reps = boot_reps)
+  resolved_max <- stats::setNames(
+    as.numeric(source_max[source_base[names(source)]]), names(source))
+  .require_score_structure(source, resolved_max,
+                           "the resolved-frame refit")
+  refit <- .efrm_refit(fit, source, new_set, boot_reps = boot_reps,
+                       score_max = resolved_max)
   if (!isTRUE(refit$est$converged))
     stop("the resolved frame calibration did not converge; the sensitivity analysis is unavailable")
   if (any(refit$linking$alpha_edges$converged %in% FALSE))

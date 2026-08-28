@@ -21,6 +21,7 @@
 # (item, option, score) assigning an integer score to every credited
 # option (unlisted options score 0). Matching is case-insensitive.
 .resolve_key <- function(key) {
+  if (is.data.frame(key)) .check_column_names(key)
   if (is.data.frame(key) && all(c("item", "option", "score") %in% names(key))) {
     key$item <- as.character(key$item)
     # a row with no item names no item: split() would file it under a
@@ -37,7 +38,8 @@
       stop("missing or blank option in the scoring table for item(s): ",
            paste(unique(as.character(key$item)[blank_opt]), collapse = ", "))
     sc <- suppressWarnings(as.numeric(as.character(key$score)))
-    if (anyNA(sc) || any(!is.finite(sc)) || any(sc != floor(sc)) || any(sc < 0))
+    if (anyNA(sc) || any(!is.finite(sc)) || any(sc != floor(sc)) ||
+        any(sc < 0) || any(sc > .Machine$integer.max))
       stop("option scores must be non-negative integers")
     key$score <- as.integer(sc)
     map <- lapply(split(key, key$item), function(d) {
@@ -102,8 +104,8 @@
   # rather than drop it silently
   unmatched <- setdiff(names(map), colnames(X))
   if (length(unmatched))
-    warning("key item(s) with no matching data column (ignored): ",
-            paste(unmatched, collapse = ", "), call. = FALSE)
+    stop("key item(s) with no matching data column: ",
+         paste(unmatched, collapse = ", "), call. = FALSE)
   raw <- matrix(trimws(toupper(as.character(X[, keyed]))), nrow(X),
                 length(keyed), dimnames = list(NULL, keyed))
   raw[raw %in% c("", "NA", "-1")] <- NA
@@ -157,6 +159,7 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
     stop("`items` must name at least one item")
   raw <- fit$mc$raw; map <- fit$mc$map
   if (is.null(items)) items <- colnames(raw)
+  items <- as.character(items)
   unknown <- setdiff(items, colnames(raw))
   if (length(unknown))
     stop("item(s) without raw multiple-choice responses: ",
@@ -219,7 +222,9 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
 #' plot_distractors(fit, "M3")
 #' @export
 plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
-  if (length(item) != 1L) stop("`item` must name exactly one item")
+  if (length(item) != 1L || is.na(item))
+    stop("`item` must name exactly one item")
+  item <- as.character(item)
   n_groups <- .check_whole(n_groups, "n_groups", 2)
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
   if (!item %in% colnames(fit$mc$raw)) stop("no such keyed item: ", item)
@@ -304,8 +309,13 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
 #' pr$option_scores
 #' @export
 distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
+  if (length(min_n) != 1L || !is.numeric(min_n) || !is.finite(min_n) ||
+      min_n != floor(min_n) || min_n < 1L || min_n > .Machine$integer.max)
+    stop("`min_n` must be one positive whole number")
   if (length(z) != 1L || !is.numeric(z) || !is.finite(z) || z <= 0)
     stop("`z` must be one positive finite separation threshold")
+  if (!is.null(items) && !length(items))
+    stop("`items` must name at least one keyed item")
   da <- distractor_analysis(fit, items = items, min_n = min_n)
   raw <- fit$mc$raw
   ev <- list(); os <- list()

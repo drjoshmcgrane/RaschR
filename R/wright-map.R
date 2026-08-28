@@ -27,11 +27,14 @@
 #'   of one or more variables retained in \code{fit$person}, a vector or factor
 #'   of panel memberships with one value per person, or a numeric matrix or
 #'   data frame whose columns contain the estimates for the panels. Missing
-#'   estimates are permitted. For EFRM fits, \code{"groups"} uses the fitted
-#'   person groups.
+#'   estimates are permitted; other non-finite values are not. Panel
+#'   memberships cannot be missing or blank. For EFRM fits, \code{"groups"}
+#'   uses the fitted person groups.
 #' @param item_panels Optional vector or factor assigning each item row to a
-#'   panel. A named vector is matched to item names; an unnamed vector is used
-#'   in item order. A named list may instead map panel names to item names.
+#'   panel. A named vector must name every fitted item exactly once; an unnamed
+#'   vector is used in item order. A named list may instead assign every fitted
+#'   item exactly once to a non-empty panel. Memberships cannot be missing or
+#'   blank.
 #'   For EFRM fits, use \code{"sets"}, \code{"groups"}, or
 #'   \code{c("sets", "groups")} to arrange the calibrated response columns by
 #'   item set, person group, or frame. This option requires WrightMap 1.5 or
@@ -126,7 +129,12 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
     ans <- as.matrix(panels)
     if (!is.numeric(ans))
       stop("A person-panel matrix must contain numeric estimates.", call. = FALSE)
-    if (!nrow(ans)) stop("person_panels has no rows.", call. = FALSE)
+    if (!nrow(ans) || !ncol(ans))
+      stop("person_panels must contain at least one panel of estimates.",
+           call. = FALSE)
+    if (any(!is.na(ans) & !is.finite(ans)))
+      stop("A person-panel matrix may contain finite estimates or missing values, not infinities.",
+           call. = FALSE)
     return(ans)
   }
 
@@ -134,8 +142,12 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
       length(panels) == 1L && panels == "groups") {
     panels <- fit$frame_group[1L]
   }
+  if (!length(panels))
+    stop("person_panels must define at least one panel.", call. = FALSE)
   if (is.character(panels) && length(panels) <= ncol(fit$person) &&
       all(panels %in% names(fit$person))) {
+    if (anyDuplicated(panels))
+      stop("Person-panel variables must be distinct.", call. = FALSE)
     gdat <- fit$person[panels]
     group <- if (ncol(gdat) == 1L) gdat[[1L]] else
       interaction(gdat, drop = TRUE, sep = " x ")
@@ -146,8 +158,10 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   }
   if (anyNA(group))
     stop("Person-panel memberships cannot be missing.", call. = FALSE)
-  group <- if (is.factor(group)) droplevels(group) else
-    factor(group, levels = unique(group))
+  group <- trimws(as.character(group))
+  if (any(!nzchar(group)))
+    stop("Person-panel memberships cannot be blank.", call. = FALSE)
+  group <- factor(group, levels = unique(group))
   if (nlevels(group) < 1L)
     stop("person_panels defines no panels.", call. = FALSE)
   ans <- vapply(levels(group), function(g) {
@@ -191,12 +205,19 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
 
 .wright_item_panels <- function(fit, panels, item_names) {
   if (is.null(panels)) return(NULL)
+  if (!length(panels))
+    stop("item_panels must define at least one panel.", call. = FALSE)
 
   if (is.list(panels)) {
-    if (is.null(names(panels)) || any(!nzchar(names(panels))))
+    if (is.null(names(panels)) || anyNA(names(panels)) ||
+        any(!nzchar(trimws(names(panels)))) || anyDuplicated(names(panels)))
       stop("A list supplied to item_panels must name every panel.", call. = FALSE)
+    if (any(!lengths(panels)))
+      stop("Every panel in an item_panels list must contain at least one item.",
+           call. = FALSE)
     members <- as.character(unlist(panels, use.names = FALSE))
-    if (anyDuplicated(members) || !setequal(members, item_names))
+    if (anyNA(members) || any(!nzchar(trimws(members))) ||
+        anyDuplicated(members) || !setequal(members, item_names))
       stop("A list supplied to item_panels must contain each item exactly once.",
            call. = FALSE)
     lookup <- stats::setNames(rep(names(panels), lengths(panels)), members)
@@ -211,6 +232,8 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
     fields[fields == "groups"] <- "group"
     if (!is.null(map) && length(fields) <= 2L &&
         all(fields %in% names(map))) {
+      if (anyDuplicated(fields))
+        stop("EFRM item-panel fields must be distinct.", call. = FALSE)
       if (nrow(map) != length(item_names) ||
           !identical(as.character(map$vkey), item_names))
         stop("The fitted design map is not aligned with the response columns.",
@@ -224,7 +247,8 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   if (!is.atomic(panels) || is.matrix(panels))
     stop("item_panels must be a vector or factor.", call. = FALSE)
   if (!is.null(names(panels))) {
-    if (anyDuplicated(names(panels)) || !all(item_names %in% names(panels)))
+    if (anyNA(names(panels)) || any(!nzchar(trimws(names(panels)))) ||
+        anyDuplicated(names(panels)) || !setequal(names(panels), item_names))
       stop("Named item_panels must contain each item name exactly once.",
            call. = FALSE)
     panels <- panels[item_names]
@@ -233,6 +257,8 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   }
   if (anyNA(panels))
     stop("Item-panel memberships cannot be missing.", call. = FALSE)
-  if (is.factor(panels)) droplevels(panels) else
-    factor(panels, levels = unique(panels))
+  panels <- trimws(as.character(panels))
+  if (any(!nzchar(panels)))
+    stop("Item-panel memberships cannot be blank.", call. = FALSE)
+  factor(panels, levels = unique(panels))
 }

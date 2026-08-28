@@ -27,11 +27,8 @@ test_that("drop_items removes items and refits, for rasch and efrm", {
 })
 
 test_that("drop_items keeps the standard errors the source fit had", {
-  # boot_reps_used is NA both for a fit whose standard errors came from the
-  # analytic route and for one asked for none, and reading both as zero used
-  # to refit without any -- which left no test on the set units, so the
-  # documented stopping rule (drop, refit, stop when the unit test goes
-  # quiet) could not be carried out with the function the docs point at.
+  # Structural refits reproduce the requested uncertainty calculation. The
+  # successful count is reported separately and may be smaller.
   d <- simulate_efrm(n_per_group = 400, items_per_set = 6, n_sets = 2,
                      n_groups = 1, set_unit_ratio = 1.4, seed = 3)
   tr <- attr(d, "truth")
@@ -40,7 +37,10 @@ test_that("drop_items keeps the standard errors the source fit had", {
   with_se <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
                         id = "id")
   expect_true(any(is.finite(with_se$alpha_table$se_log_alpha)))
-  expect_true(is.na(with_se$boot_reps_used))   # the case that used to fail
+  expect_identical(with_se$boot_reps_requested, 300L)
+  expect_gte(with_se$boot_reps_used, 150L)
+  expect_identical(with_se$boot_reps_failed,
+                   with_se$boot_reps_requested - with_se$boot_reps_used)
   kept <- drop_items(with_se, drop1)
   expect_true(all(is.finite(kept$alpha_table$se_log_alpha)))
   expect_true(all(is.finite(kept$efrm_vs_rasch$unit_tests$p_adj)))
@@ -49,6 +49,9 @@ test_that("drop_items keeps the standard errors the source fit had", {
   without <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
                         id = "id", boot_reps = 0)
   expect_true(all(is.na(without$alpha_table$se_log_alpha)))
+  expect_identical(without$boot_reps_requested, 0L)
+  expect_identical(without$boot_reps_used, 0L)
+  expect_identical(without$boot_reps_failed, 0L)
   expect_true(all(is.na(drop_items(without, drop1)$alpha_table$se_log_alpha)))
   # and an explicit zero still wins over the source fit's own standard errors
   expect_true(all(is.na(

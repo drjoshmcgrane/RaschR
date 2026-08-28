@@ -29,6 +29,9 @@ test_that("saved app analyses make a validated round trip", {
     kept_fits = list(reference = fit),
     kept_fit_code = list(reference = list(code = "fit <- rasch(X)",
                                           value = "fit")),
+    settings = list(model_type = "rasch", item_cols = colnames(X),
+                    ng_auto = TRUE, maxit = 75),
+    resources = list(key = NULL),
     simulation = list(),
     results = list()
   )
@@ -42,6 +45,8 @@ test_that("saved app analyses make a validated round trip", {
   expect_equal(restored$base_fit$items, fit$items)
   expect_identical(restored$rcode, project$rcode)
   expect_identical(restored$kept_fit_code, project$kept_fit_code)
+  expect_identical(restored$settings, project$settings)
+  expect_identical(restored$resources, project$resources)
 })
 
 test_that("invalid app analysis files are refused", {
@@ -58,6 +63,12 @@ test_that("invalid app analysis files are refused", {
                  data = as.data.frame(X), base_fit = fit)
   saveRDS(future, bad)
   expect_error(.read_app_project(bad), "unsupported")
+
+  malformed <- list(format = "rasch-shiny-project", schema = 1L,
+                    data = as.data.frame(X), base_fit = fit,
+                    settings = "not a list")
+  saveRDS(malformed, bad)
+  expect_error(.read_app_project(bad), "invalid settings")
 })
 
 test_that("opening a project retains results tied to its active fit", {
@@ -78,7 +89,12 @@ test_that("opening a project retains results tied to its active fit", {
     format = "rasch-shiny-project", schema = 1L,
     data = as.data.frame(X), model_type = "rasch", base_fit = fit,
     rasch_steps = list(), btl_steps = list(), rcode = "fit <- rasch(dat)",
-    kept_fits = list(), kept_fit_code = list(), simulation = list(),
+    kept_fits = list(), kept_fit_code = list(),
+    settings = list(model_type = "rasch", id_col = "(none)",
+                    factor_cols = character(0), item_cols = colnames(X),
+                    thr_structure = "pcm", ng_auto = FALSE, ng = "6",
+                    maxit = 75, tol = 1e-7),
+    resources = list(anchors = NULL, key = NULL), simulation = list(),
     results = list(lr = list(marker = 17L)))
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path), add = TRUE)
@@ -91,6 +107,143 @@ test_that("opening a project retains results tied to its active fit", {
     session$flushReact()
     expect_identical(lr_res()$marker, 17L)
     expect_s3_class(fit(), "rasch")
+    expect_equal(raw_data(), as.data.frame(X))
+    expect_no_error(src <- data_source_code())
+    expect_match(src, 'readRDS\\("test[.]rasch"\\)')
+    expect_match(src, "dat <- project[$]data")
+    expect_identical(restored_project_settings(), project$settings)
+    expect_identical(restored_project_resources(), project$resources)
+    html <- paste(as.character(output$data_main), collapse = " ")
+    expect_false(grepl("Welcome to rasch", html, fixed = TRUE))
+    expect_match(html, "Data preview", fixed = TRUE)
+
+    # Saving again captures the current run-defining controls rather than
+    # relying on column-name guesses at the next opening.
+    session$setInputs(id_col = "(none)", item_cols = colnames(X),
+                      factor_cols = character(0), thr_structure = "pcm",
+                      ng_auto = FALSE, ng = "6", maxit = 75, tol = 1e-7)
+    saved <- project_state()
+    expect_identical(saved$settings$item_cols, colnames(X))
+    expect_identical(saved$settings$ng, "6")
+    expect_identical(saved$settings$maxit, 75)
+  })
+})
+
+test_that("CJ results and background work remain tied to their launching fit", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  d1 <- simulate_btl(5, 8, 2, seed = 91)
+  d2 <- simulate_btl(5, 8, 2, seed = 92)
+  bt1 <- btl(d1, "object_a", "object_b", "winner", judge = "judge")
+  bt2 <- btl(d2, "object_a", "object_b", "winner", judge = "judge")
+  project <- list(
+    format = "rasch-shiny-project", schema = 1L,
+    data = as.data.frame(d1), model_type = "btl", base_fit = bt1,
+    rasch_steps = list(), btl_steps = list(), rcode = "bt <- btl(dat)",
+    kept_fits = list(), kept_fit_code = list(),
+    settings = list(model_type = "btl", bt_a = "object_a",
+                    bt_b = "object_b", bt_win = "winner",
+                    bt_judge = "judge"),
+    resources = list(), simulation = list(),
+    results = list(btl_dif = list(marker = 23L)))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+  .save_app_project(project, path)
+
+  shiny::testServer(e$server, {
+    # A successful replacement owns none of the preceding fit's requested
+    # results, even when the replacement is another CJ calibration.
+    bdif_res(list(marker = 12L))
+    btlef_res(list(marker = 11L))
+    complete_fit(bt2, "bt <- btl(dat)", character(0), "dat <- replacement")
+    session$flushReact()
+    expect_null(bdif_res())
+    expect_null(btlef_res())
+
+    # The fit observer must not erase results serialised with a reopened fit.
+    session$setInputs(project_file = list(
+      datapath = path, name = "cj.rasch", size = file.info(path)$size,
+      type = "application/octet-stream"))
+    session$flushReact()
+    expect_identical(bdif_res()$marker, 23L)
+    expect_identical(btl_fit()$objects$object, bt1$objects$object)
+
+    # Opening a project cancels either kind of worker before restoring state.
+    fake_process <- function() {
+      p <- new.env(parent = emptyenv())
+      p$alive <- TRUE
+      p$is_alive <- function() p$alive
+      p$kill_tree <- function() p$alive <- FALSE
+      p$kill <- function() p$alive <- FALSE
+      p
+    }
+    ep <- fake_process(); bp <- fake_process()
+    fake_job <- function(process) list(
+      process = process, progress = NULL,
+      progress_file = tempfile(), log_file = tempfile())
+    efrm_job(fake_job(ep)); btlef_job(fake_job(bp))
+    session$setInputs(project_file = list(
+      datapath = path, name = "cj-again.rasch", size = file.info(path)$size,
+      type = "application/octet-stream"))
+    session$flushReact()
+    expect_false(ep$alive)
+    expect_false(bp$alive)
+    expect_null(efrm_job())
+    expect_null(btlef_job())
+    expect_identical(bdif_res()$marker, 23L)
+
+    # A worker result is current only while its context, data and CJ base fit
+    # are the same as at launch.
+    st <- list(context = analysis_context(), data = raw_data(),
+               check_btl_fit = TRUE, base_fit = btl_fit())
+    expect_true(background_job_is_current(st))
+    advance_analysis_context()
+    expect_false(background_job_is_current(st))
+
+    st$context <- analysis_context()
+    st$data <- raw_data()
+    expect_true(background_job_is_current(st))
+    btl_fit(bt2)
+    expect_false(background_job_is_current(st))
+
+    btl_fit(bt1)
+    st$base_fit <- bt1
+    sim_data(as.data.frame(d2))
+    expect_false(background_job_is_current(st))
+
+    # Both completion observers apply the guard before storing their result.
+    completed_process <- function(value) {
+      p <- new.env(parent = emptyenv())
+      p$is_alive <- function() FALSE
+      p$get_result <- function() list(value = value, warnings = character(0))
+      p
+    }
+    common <- list(progress = NULL, progress_file = tempfile(),
+                   log_file = tempfile(), context = analysis_context(),
+                   data = raw_data())
+    ej <- c(list(process = completed_process(bt2), code_call = NULL,
+                 src_line = "dat <- old", se_method = "hybrid",
+                 simulation_stamp = NULL), common)
+    advance_analysis_context()
+    efrm_job(ej)
+    session$flushReact()
+    expect_null(efrm_job())
+    expect_identical(btl_fit()$objects$location, bt1$objects$location)
+
+    btlef_res(NULL); clear_btl_analysis_steps()
+    bj <- c(list(process = completed_process(list(marker = 99L)),
+                 check_btl_fit = TRUE, base_fit = bt1), common)
+    btlef_job(bj)
+    session$flushReact()
+    expect_null(btlef_job())
+    expect_null(btlef_res())
+    expect_length(btl_analysis_steps(), 0L)
   })
 })
 
@@ -116,6 +269,113 @@ test_that("a failed replacement leaves the current app analysis intact", {
                  "dat <- existing")
     expect_identical(fit_val(), current)
     expect_length(analysis_steps(), 1L)
+  })
+})
+
+test_that("the app calculates and restores external person weights", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  current <- rasch(simulate_rasch(80, 5, seed = 921))
+  w <- data.frame(item = colnames(current$X),
+                  weight = c(2, 2, 1, 1, 0.5))
+  path <- tempfile(fileext = ".csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(w, path, row.names = FALSE)
+
+  shiny::testServer(e$server, {
+    fit_val(current)
+    session$setInputs(
+      person_weight_level = "item",
+      person_weights_file = list(datapath = path, name = "weights.csv",
+        size = file.info(path)$size, type = "text/csv"),
+      person_weights_go = 1)
+    session$flushReact()
+    z <- person_weight_state()
+    expect_equal(nrow(z$table), nrow(current$X))
+    expect_identical(z$by, "item")
+    expect_match(person_weight_code(), "weighted_person_estimates")
+  })
+})
+
+test_that("the app simulator preserves explanatory metadata and frame calls", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  shiny::testServer(e$server, {
+    session$setInputs(
+      sim_layout = "rasch_exp", sim_seed = 17,
+      sr_persons = 100, sr_items = 6, sr_model = "dichotomous", sr_cats = 4,
+      sr_mean = 0, sr_sd = 1, sr_dist = "normal", sr_diff = c(-2, 2),
+      sr_over = 0, sr_under = 0, sr_guess = FALSE, sr_2d = FALSE,
+      sr_rho = 0.3, sr_dep = FALSE, sr_dif = FALSE, sr_difmag = 1,
+      sr_style = FALSE, sr_styletype = "extreme", sr_speeded = 0,
+      sr_careless = 0, sr_missing = 0, sx_cont = 1, sx_cat = 0.5,
+      sx_interaction = TRUE, sx_int = 0.4, sx_depart = 0.7, sim_go = 1)
+    session$flushReact()
+    expect_equal(nrow(sim_predictors_val()), 6L)
+    expect_identical(sim_interactions_val(), "exposure:type")
+    regenerated <- eval(parse(text = sim_code_val()))
+    expect_s3_class(regenerated, "rasch_sim")
+    expect_equal(nrow(attr(regenerated, "predictors")), 6L)
+    expect_identical(attr(regenerated, "truth")$explanatory_formula,
+                     "~ exposure + type + exposure:type")
+    expect_true(any(grepl("fixed explanatory departure",
+                          attr(regenerated, "truth")$planted)))
+
+    bundle <- tempfile(fileext = ".zip")
+    unpacked <- tempfile("rasch-simulation-test-")
+    dir.create(unpacked)
+    on.exit(unlink(c(bundle, unpacked), recursive = TRUE, force = TRUE),
+            add = TRUE)
+    write_sim_bundle(bundle)
+    bundle_files <- utils::unzip(bundle, list = TRUE)$Name
+    expect_setequal(bundle_files,
+      c("data.csv", "simulation.R", "truth.rds", "predictors.csv",
+        "README.txt"))
+    utils::unzip(bundle, exdir = unpacked)
+    expect_equal(nrow(read.csv(file.path(unpacked, "data.csv"))), 100L)
+    expect_identical(readRDS(file.path(unpacked, "truth.rds"))$layout,
+                     "rasch")
+    expect_equal(nrow(read.csv(file.path(unpacked, "predictors.csv"))), 6L)
+
+    session$setInputs(
+      sim_layout = "btl_efrm", sim_seed = 18,
+      sbf_objects = 4, sbf_sets = 2, sbf_judges = 4, sbf_panels = 2,
+      sbf_within = 5, sbf_cross = 5, sbf_objsd = 1,
+      sbf_setratio = 1.3, sbf_panelratio = 1.2, sbf_origin = 0.5,
+      sbf_erratic = 0.25, sim_go = 2)
+    session$flushReact()
+    regenerated <- eval(parse(text = sim_code_val()))
+    tr <- attr(regenerated, "truth")
+    expect_identical(tr$layout, "btl_efrm")
+    expect_length(tr$erratic, 2L)
+
+    # Recovery must use the active frame-adjusted comparison fit, not the
+    # equal-unit base fit. A truth-valued stand-in isolates that app routing
+    # from the estimator, which is covered by test-simulate.R.
+    framed <- structure(list(
+      objects = data.frame(object = names(tr$v), v = unname(tr$v)),
+      phi_table = data.frame(panel = names(tr$phi), phi = unname(tr$phi)),
+      alpha_table = data.frame(set = names(tr$alpha), alpha = unname(tr$alpha)),
+      kappa_table = data.frame(set = names(tr$kappa), kappa = unname(tr$kappa))),
+      class = c("rasch_btl_efrm", "rasch_btl"))
+    btl_fit(framed)
+    fitted_sim_gen(sim_gen())
+    rr <- sim_recovery_val()
+    expect_s3_class(rr, "rasch_recovery")
+    expect_setequal(rr$summary$parameter,
+      c("object location", "panel unit (log)", "set unit (log)", "set origin"))
   })
 })
 
@@ -155,5 +415,129 @@ test_that("the app exposes reproducible WrightMap panel controls", {
     expect_match(output$wright_code,
                  'item_panels = c("sets", "groups")', fixed = TRUE)
     expect_type(output$wright, "list")
+  })
+})
+
+test_that("uploaded frame maps refuse conflicting or unknown assignments", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  app <- .app_test_path()
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+  duplicate <- tempfile(fileext = ".csv")
+  unknown <- tempfile(fileext = ".csv")
+  blank <- tempfile(fileext = ".csv")
+  spaced <- tempfile(fileext = ".csv")
+  on.exit(unlink(c(duplicate, unknown, blank, spaced)), add = TRUE)
+  write.csv(data.frame(item = c("I1", "I1"), set = c("A", "B")),
+            duplicate, row.names = FALSE)
+  write.csv(data.frame(item = c("I1", "wrong"), set = c("A", "B")),
+            unknown, row.names = FALSE)
+  write.csv(data.frame(item = c("I1", "I2"), set = c("A", " ")),
+            blank, row.names = FALSE)
+  write.csv(data.frame(item = c(" I1 ", "I2"), set = c(" A ", "B")),
+            spaced, row.names = FALSE)
+
+  shiny::testServer(e$server, {
+    expect_error(read_frame_map(list(datapath = duplicate), "item",
+                                c("I1", "I2"), "item"),
+                 "assigns item values more than once")
+    expect_error(read_frame_map(list(datapath = unknown), "item",
+                                c("I1", "I2"), "item"),
+                 "unknown item values")
+    expect_error(read_frame_map(list(datapath = blank), "item",
+                                c("I1", "I2"), "item"),
+                 "non-blank set")
+    expect_identical(
+      read_frame_map(list(datapath = spaced), "item", c("I1", "I2"),
+                     "item"),
+      c(I1 = "A", I2 = "B"))
+  })
+})
+
+test_that("supplied app anchors fail closed", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  app <- .app_test_path()
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+  bad_rasch <- tempfile(fileext = ".csv")
+  bad_btl <- tempfile(fileext = ".csv")
+  on.exit(unlink(c(bad_rasch, bad_btl)), add = TRUE)
+  write.csv(data.frame(item = "I1", value = 0), bad_rasch,
+            row.names = FALSE)
+  write.csv(data.frame(object = "A", value = 0), bad_btl,
+            row.names = FALSE)
+
+  shiny::testServer(e$server, {
+    session$setInputs(anchor_file = list(
+      datapath = bad_rasch, name = "bad.csv", size = file.info(bad_rasch)$size,
+      type = "text/csv"))
+    expect_error(anchors_in(), "needs columns item, k, tau")
+    session$setInputs(bt_anchor_file = list(
+      datapath = bad_btl, name = "bad.csv", size = file.info(bad_btl)$size,
+      type = "text/csv"))
+    expect_error(bt_anchors_in(), "needs columns object, location")
+  })
+})
+
+test_that("app BTL DIF refuses a factor that varies within judge", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  app <- .app_test_path()
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(app, envir = e))
+  pair <- as.data.frame(t(utils::combn(LETTERS[1:5], 2)),
+                        stringsAsFactors = FALSE)
+  names(pair) <- c("object_a", "object_b")
+  beta <- setNames(seq(-1, 1, length.out = 5), LETTERS[1:5])
+  set.seed(902)
+  d <- do.call(rbind, lapply(sprintf("J%02d", 1:12), function(j) {
+    z <- pair
+    z$judge <- j
+    p <- plogis(beta[z$object_a] - beta[z$object_b])
+    z$winner <- ifelse(runif(nrow(z)) < p, z$object_a, z$object_b)
+    z$group <- if (j <= "J06") "G1" else "G2"
+    z
+  }))
+  d$group[d$judge == "J01" & seq_len(nrow(d)) == 2L] <- "changed"
+  bt_current <- btl(d, "object_a", "object_b", winner = "winner",
+                    judge = "judge")
+  path <- tempfile(fileext = ".csv")
+  stable_path <- tempfile(fileext = ".csv")
+  on.exit(unlink(c(path, stable_path)), add = TRUE)
+  write.csv(d, path, row.names = FALSE)
+  stable <- d
+  stable$group[stable$judge == "J01"] <- "G1"
+  write.csv(stable, stable_path, row.names = FALSE)
+
+  shiny::testServer(e$server, {
+    btl_fit(bt_current)
+    session$setInputs(
+      file = list(datapath = path, name = "comparisons.csv",
+                  size = file.info(path)$size, type = "text/csv"),
+      bt_judge = "judge", bdif_factors = "group")
+    session$flushReact()
+    expect_error(bdif_factor_maps(), "varies within judge")
+    expect_match(bdif_code_grp(), "judge_factor <- function", fixed = TRUE)
+    expect_silent(parse(text = bdif_code_grp()))
+    session$setInputs(file = list(
+      datapath = stable_path, name = "stable.csv",
+      size = file.info(stable_path)$size, type = "text/csv"))
+    session$flushReact()
+    maps <- bdif_factor_maps()
+    expect_identical(unname(maps$group["J01"]), "G1")
   })
 })

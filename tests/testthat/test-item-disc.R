@@ -121,7 +121,16 @@ test_that("the report and saved outputs carry the invariance test", {
 
   html <- tempfile(fileext = ".html")
   on.exit(unlink(html), add = TRUE)
-  report_html(f, html)
+  report_warnings <- character(0)
+  withCallingHandlers(
+    report_html(f, html),
+    warning = function(w) {
+      report_warnings <<- c(report_warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(report_warnings), 0L)
+  expect_true(all(grepl("residual PCA is undefined", report_warnings)))
   x <- readLines(html, warn = FALSE)
   expect_true(any(grepl("Item invariance across frames", x)))
   # the section reports whichever way the test came out; which branch fires
@@ -135,7 +144,16 @@ test_that("the report and saved outputs carry the invariance test", {
 
   dir <- tempfile(); dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
-  invisible(save_outputs(f, dir, formats = "png", item_plots = FALSE))
+  save_warnings <- character(0)
+  withCallingHandlers(
+    save_outputs(f, dir, formats = "png", item_plots = FALSE),
+    warning = function(w) {
+      save_warnings <<- c(save_warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(save_warnings), 0L)
+  expect_true(all(grepl("residual PCA is undefined", save_warnings)))
   saved <- list.files(dir, pattern = "invariance", recursive = TRUE,
                       full.names = TRUE)
   expect_length(saved, 3L)

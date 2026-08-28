@@ -64,7 +64,10 @@
 }
 
 .check_column_names <- function(x) {
-  if (!is.data.frame(x)) return(invisible(NULL))
+  # Named lists are accepted as table-like banks in a few public APIs. Check
+  # their names before as.data.frame() repairs duplicates (for example, two
+  # `location` components become `location` and `location.1`).
+  if (!is.data.frame(x) && !is.list(x)) return(invisible(NULL))
   nm <- names(x)
   if (anyNA(nm) || any(!nzchar(nm)))
     stop("data column names must be non-missing and non-empty")
@@ -72,6 +75,53 @@
     stop("data column names must be unique: ",
          paste(unique(nm[duplicated(nm)]), collapse = ", "))
   invisible(NULL)
+}
+
+# Character role arguments have two documented forms: column names or one
+# value per response row. Resolve the column-name form by content, not by
+# length. In particular, a data set with N columns and N rows may validly
+# nominate all N column names. Repeated labels of length N remain values,
+# even when those labels happen to coincide with data-column names.
+.role_columns <- function(x, data_names, n) {
+  if (!is.character(x) || !length(x)) return(FALSE)
+  exact_names <- !anyNA(x) && !anyDuplicated(x) &&
+    all(nzchar(x)) && all(x %in% data_names)
+  exact_names || length(x) != n
+}
+
+# Compare an externally supplied role column with a same-named data column.
+# Classes are deliberately ignored (factor versus character is harmless),
+# but missingness and displayed values must agree row for row.
+.same_role_values <- function(x, y) {
+  if (length(x) != length(y)) return(FALSE)
+  xc <- as.character(x); yc <- as.character(y)
+  identical(is.na(xc), is.na(yc)) &&
+    identical(xc[!is.na(xc)], yc[!is.na(yc)])
+}
+
+# Numeric fields in an external calibration bank may arrive as plain numeric
+# vectors, character columns, or factors whose labels are numeric. Factors
+# must be read through their labels; other classes (Date, logical, complex,
+# and so on) are not calibration values. Failed conversion is an input error,
+# not a missing standard error.
+.bank_numeric <- function(x, field) {
+  if (is.factor(x)) {
+    raw <- as.character(x)
+  } else if (is.character(x)) {
+    raw <- x
+  } else if (is.numeric(x) && !is.complex(x) && is.null(oldClass(x))) {
+    return(as.numeric(x))
+  } else {
+    stop("bank `", field, "` must contain plain numeric values, numeric ",
+         "text, or factor labels; a ", paste(class(x), collapse = "/"),
+         " column is not a calibration field", call. = FALSE)
+  }
+  out <- suppressWarnings(as.numeric(raw))
+  bad <- !is.na(raw) & is.na(out)
+  if (any(bad))
+    stop("bank `", field, "` contains a non-numeric value (e.g. '",
+         raw[bad][1L], "')", call. = FALSE)
+  out
 }
 
 # obs_p and est_p are observed and expected category PROPORTIONS, not

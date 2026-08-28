@@ -161,7 +161,8 @@ test_that("factorial procedure: interaction post-hocs and sizes for significant 
     plogis(outer(th, d, "-") - outer(sh, c(0, 0, 1, 0, 0, 0)))), n, 6)
   colnames(X) <- paste0("I", 1:6)
   fit <- rasch(data.frame(X, g1 = g1, g2 = g2), factors = c("g1", "g2"))
-  fa <- dif_anova(fit, sizes = TRUE, effects = "factorial")
+  fa <- dif_anova(fit, sizes = TRUE, effects = "factorial",
+                  p_adjust = "bonferroni", alpha = 0.10)
 
   # the g1:g2 interaction is significant for the planted item and
   # supersedes the main effects it involves
@@ -179,15 +180,21 @@ test_that("factorial procedure: interaction post-hocs and sizes for significant 
                       fa$posthoc$term == "g1:g2", ]
   expect_gt(nrow(ph3), 0)
   expect_true(any(ph3$practical))
+  direct <- dif_posthoc(fit, "I3", term = c("g1", "g2"),
+                        factors = c("g1", "g2"),
+                        p_adjust = "bonferroni", alpha = 0.10)
+  ii <- match(ph3$contrast, direct$table$contrast)
+  expect_false(anyNA(ii))
+  expect_equal(ph3$p_adj, direct$table$p_adj[ii])
+  expect_identical(ph3$significant, direct$table$significant[ii])
 
-  # sizes: logit magnitudes for the significant term, the b:y cell apart
+  # sizes is the complete-design interaction contrast (and remains an alias
+  # of posthoc for compatibility), not unadjusted pairwise cell distances
   sz <- fa$sizes[fa$sizes$item == "I3" & fa$sizes$term == "g1:g2", ]
   expect_gt(nrow(sz), 0)
-  by_pairs <- sz[sz$level_a == "b:y" | sz$level_b == "b:y", ]
-  other_pairs <- sz[!(sz$level_a == "b:y" | sz$level_b == "b:y"), ]
-  expect_gt(min(abs(by_pairs$difference)), max(abs(other_pairs$difference)))
-  expect_lt(abs(max(abs(by_pairs$difference)) - 1.1), 0.4)
-  expect_true(any(by_pairs$practical))
+  expect_equal(sz, ph3)
+  expect_true(any(abs(sz$estimate) > 0.5))
+  expect_true(any(sz$practical))
   # clean items produce no size rows
   expect_false(any(fa$sizes$item == "I5"))
 })
@@ -427,6 +434,14 @@ test_that("resolve_dif splits DIF items by effect size and protects anchors", {
   rp <- resolve_dif(fp, min_anchors = 3)
   # never fewer than min_anchors original items left unsplit
   expect_gte(10L - length(unique(rp$splits$item)), 3L)
+
+  # A manual split already consumes one source item from the reference set.
+  # Its two copies must not be counted as two fresh anchors by a later run.
+  spp <- split_items(fp, "I10", by = "grp")
+  expect_equal(.n_unsplit_sources(.split_source_map(spp)), 9L)
+  rpp <- resolve_dif(spp, min_anchors = 8)
+  expect_lte(rpp$n_splits, 1L)
+  expect_gte(.n_unsplit_sources(.split_source_map(rpp$fit)), 8L)
 })
 
 test_that("resolve_dif leaves non-uniform DIF visible", {
@@ -482,6 +497,12 @@ test_that("DIF follow-ups keep punctuated factor names structural", {
   ph <- dif_posthoc(fit, "P2", term = "age:band",
                     factors = c("age:band", "sex"))
   expect_identical(ph$term, "`age:band`")
+  expect_error(dif_posthoc(fit, factor("P2"), term = "age:band"),
+               "non-missing item name")
+  expect_error(dif_posthoc(fit, 1 + 1i, term = "age:band"),
+               "finite whole-number index")
+  expect_error(dif_posthoc(fit, 1.5, term = "age:band"),
+               "finite whole-number index")
   expect_s3_class(resolve_dif(fit, max_splits = 0), "rasch_resolve_dif")
 })
 

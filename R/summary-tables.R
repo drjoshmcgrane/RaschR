@@ -188,13 +188,18 @@ targeting_table <- function(fit) {
                                    if (fit$thr_structure == "pc")
                                      "principal components (spread)"
                                    else "free symmetric")
-  if (!is.null(fit$dependence))
-    for (r in seq_len(nrow(fit$dependence)))
+  if (!is.null(fit$dependence)) {
+    use_adj <- !is.null(fit$dependence$p_adj)
+    for (r in seq_len(nrow(fit$dependence))) {
+      shown_p <- if (use_adj) fit$dependence$p_adj[r] else fit$dependence$p[r]
       rows[[length(rows) + 1L]] <- c(
         sprintf("Within-judge %s (logits)",
                 gsub("_", "-", fit$dependence$effect[r])),
-        sprintf("%s (SE %s, p = %s)", num(fit$dependence$estimate[r]),
-                num(fit$dependence$se[r]), .fmt_p(fit$dependence$p[r])))
+        sprintf("%s (SE %s, %s = %s)", num(fit$dependence$estimate[r]),
+                num(fit$dependence$se[r]), if (use_adj) "Holm p" else "p",
+                .fmt_p(shown_p)))
+    }
+  }
   out <- data.frame(statistic = vapply(rows, `[`, "", 1),
                     value = vapply(rows, `[`, "", 2))
   rownames(out) <- NULL

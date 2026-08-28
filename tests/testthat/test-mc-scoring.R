@@ -97,3 +97,18 @@ test_that("key validation guards remain informative", {
   expect_error(rasch(raw, key = data.frame(item = "M9", key = "A")),
                "no key item matches")
 })
+
+test_that("a factor item selector is read by its label in distractor plots", {
+  s <- sim_mc_partial(N = 300)
+  fit <- rasch(s$raw, key = setNames(rep("A", 6), colnames(s$raw)))
+  fit$mc$raw[, "M1"] <- rep(c("A", "B"), length.out = nrow(fit$mc$raw))
+  fit$mc$raw[, "M3"] <- rep(c("A", "C"), length.out = nrow(fit$mc$raw))
+  labels <- NULL
+  testthat::local_mocked_bindings(
+    .rr_legend = function(pos, ...) labels <<- list(...)[[1L]],
+    .package = "rasch")
+  grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
+  plot_distractors(fit, factor("M3"))
+  expect_true(any(grepl("^C", labels)))
+  expect_false(any(grepl("^B", labels)))
+})

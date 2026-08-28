@@ -30,7 +30,8 @@ rasch_efrm(
 \code{\link{rasch}}), plus a person-group column.}
 
 \item{item_sets}{A named list mapping set names to item-column names, or
-a named character vector mapping item names to set names. Items not
+a named character vector mapping every analysed item exactly once to a
+set. The vector cannot name items outside the analysis. Items not
 mentioned form their own set \code{"(rest)"} when a list is given.}
 
 \item{groups}{Name of the person-group column in \code{data}, or a vector
@@ -38,7 +39,9 @@ with one entry per person.
 Several columns define crossed group cells. Their units are returned in
 \code{phi_table}; \code{phi_factorial} and
 \code{phi_factorial_tests} contain the GLS factorial decomposition and
-omnibus Wald tests. Structurally unidentified units are refused. Very
+omnibus Wald tests. Raw probabilities are retained in \code{p}; decisions
+use \code{p_adj}, Holm-adjusted across the factorial terms. Structurally
+unidentified units are refused. Very
 imprecise but identified units are retained with a warning.}
 
 \item{id}{Person identifier, either a column name or one value per row.
@@ -59,7 +62,9 @@ bootstrap of all stages).}
 
 \item{boot_reps}{Bootstrap replicates; defaults to 300 for the linking
 bootstrap and 200 for the full bootstrap. Use zero to omit unit
-uncertainty; otherwise at least 30 are required.}
+uncertainty; otherwise at least 30 are required. A bootstrap covariance is
+reported only when at least 30 and more than half of the requested
+replicates are usable.}
 
 \item{progress}{Optional function called as \code{progress(stage, current,
 total)} during long uncertainty calculations. It is intended for
@@ -84,8 +89,15 @@ An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
   \code{alpha_table}, \code{set_table}, common-unit item and threshold
   tables, group-specific \code{score_curves}, \code{efrm_vs_rasch}, and
   \code{linking}, and the person support used for unit inference in
-  \code{unit_support}. See the extended frame of reference vignette for
-  their interpretation.
+  \code{unit_support}. The requested, usable and failed uncertainty
+  replicates used by the returned uncertainty method are reported as
+  \code{boot_reps_requested}, \code{boot_reps_used} and
+  \code{boot_reps_failed}; the hybrid set-link counts are repeated inside
+  \code{linking}. When a full bootstrap was requested, its requested,
+  attempted, usable and failed counts are retained separately in the
+  corresponding \code{full_boot_reps_*} components, including when the fit
+  falls back to hybrid standard errors. See the extended frame of reference
+  vignette for their interpretation.
 }
 \description{
 Fits Humphry's extended frame of reference model, in which the unit can
@@ -119,8 +131,9 @@ parameters are then
 Score moments supply starting values and screen weak links. Response
 patterns must span a score range of at least four within a set. Overlapping
 item sets are not permitted. The public
-convergence flag covers both estimation stages; \code{stage1_converged}
-records the conditional stage separately.
+convergence flag covers the conditional calibration, the set-link
+transformation and its nonparametric nuisance masses;
+\code{stage1_converged} records the conditional stage separately.
 
 The hybrid covariance combines the pairwise Godambe covariance with a
 person bootstrap for set linking. Each replicate jointly redraws the
@@ -133,7 +146,9 @@ The \code{efrm_vs_rasch} component records the within-frame composite
 log-likelihood comparison between group-dependent and equal group units.
 This difference is descriptive and contains no information about set units,
 which are identified at the linking stage. The accompanying Wald omnibus
-tests provide inference for the group- and set-unit families. Unit estimates
+tests provide inference for the group- and set-unit families. Their
+probabilities are Holm-adjusted as one omnibus family; the individual
+unit contrasts form a second Holm-adjusted follow-up family. Unit estimates
 are retained for sparse designs, but probabilities require at least 50
 persons or effective persons in every group and at least 50 common persons
 on every set-link edge.

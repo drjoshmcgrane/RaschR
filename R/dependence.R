@@ -242,9 +242,9 @@ print.rasch_dependence <- function(x, ...) {
 spread_test <- function(fit, maxit = 60, tol = 1e-8,
                         alpha = 0.05, p_adjust = "holm") {
   if (!inherits(fit, "rasch")) stop("spread_test needs a rasch fit")
-  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
-    stop("alpha must be one probability strictly between 0 and 1")
-  if (length(p_adjust) != 1L || !p_adjust %in% stats::p.adjust.methods)
+  .check_prob(alpha, "alpha")
+  if (!is.character(p_adjust) || length(p_adjust) != 1L ||
+      !p_adjust %in% stats::p.adjust.methods)
     stop("p_adjust must name a method in stats::p.adjust.methods")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; the spread test is unavailable")

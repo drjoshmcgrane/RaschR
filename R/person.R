@@ -96,6 +96,228 @@ person_wle <- function(tau_list, disc = 1) {
   list(theta = theta, se = se)
 }
 
+#' Person estimates with externally imposed weights
+#'
+#' Calculates a second set of person measures after assigning relative
+#' weights to items or item sets. The fitted calibration is not changed.
+#' In particular, these estimates do not replace the ordinary Rasch person
+#' measures used for fit, reliability, targeting or DIF.
+#'
+#' @details
+#' Let \eqn{q_i} be the external weight and \eqn{a_i} the model unit for
+#' response cell \eqn{i}. Write
+#' \eqn{H(\theta)=\sum_i q_i a_i^2V_i(\theta)} and
+#' \eqn{J(\theta)=\sum_i q_i^2a_i^2V_i(\theta)}. The estimate solves the
+#' externally weighted Warm score equation
+#' \deqn{\sum_i q_i a_i\{x_i-E_i(\theta)\}+
+#' \frac{J(\theta)\sum_i q_i a_i^3\mu_{3i}(\theta)}
+#' {2H(\theta)^2}=0.}
+#' Its standard error is the sandwich form
+#' \deqn{\operatorname{SE}(\hat\theta)=
+#' \frac{\{\sum_iq_i^2a_i^2V_i(\hat\theta)\}^{1/2}}
+#' {\sum_iq_ia_i^2V_i(\hat\theta)}.}
+#' This matters because an external weight changes the estimating equation;
+#' it does not create independent replications of an item. With equal weights
+#' the equation and standard error reduce to the person estimates in
+#' \code{fit$person}. Weights are normalised to mean one over the fitted
+#' response cells, so only their relative values matter. A zero weight omits
+#' that item or set from the secondary measure.
+#'
+#' For an MFRM fit, an item weight applies to all response cells belonging to
+#' that item. For an EFRM fit, \code{by = "set"} uses the fitted item-set map
+#' unless \code{sets} is supplied.
+#'
+#' @param fit A fitted object from \code{\link{rasch}},
+#'   \code{\link{rasch_mfrm}} or \code{\link{rasch_efrm}}.
+#' @param weights A named numeric vector of non-negative finite relative
+#'   weights. Names must identify every fitted item when \code{by = "item"},
+#'   or every item set when \code{by = "set"}.
+#' @param by Whether \code{weights} names individual \code{"item"}s or
+#'   \code{"set"}s.
+#' @param sets For \code{by = "set"}, a named character vector mapping items
+#'   to sets, or a named list whose elements contain item names. It can be
+#'   omitted for an EFRM fit, which already contains this map.
+#' @return A data frame with the person identifiers and factors, observed
+#'   item count, raw and externally weighted scores, maximum scores, weighted
+#'   location, sandwich standard error and extreme-score flag. The resolved
+#'   item weights are retained in the \code{"weighting"} attribute.
+#' @references
+#' Warm, T. A. (1989). Weighted likelihood estimation of ability in item
+#' response theory. Psychometrika, 54(3), 427--450.
+#' @examples
+#' set.seed(1)
+#' d <- simulate_rasch(n_persons = 200, n_items = 6)
+#' fit <- rasch(d)
+#' weighted_person_estimates(
+#'   fit, setNames(c(2, 2, 1, 1, 0.5, 0.5), colnames(fit$X)))
+#' @export
+weighted_person_estimates <- function(fit, weights,
+                                      by = c("item", "set"), sets = NULL) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be an ordinary, multiple-ratings or extended-frames Rasch fit",
+         call. = FALSE)
+  by <- match.arg(by)
+  if (!is.numeric(weights) || !length(weights) || is.null(names(weights)) ||
+      any(is.na(names(weights))) || any(!nzchar(names(weights))) ||
+      anyDuplicated(names(weights)) || any(!is.finite(weights)) ||
+      any(weights < 0))
+    stop("`weights` must be a non-empty named numeric vector of non-negative finite values",
+         call. = FALSE)
+  if (!any(weights > 0))
+    stop("at least one external weight must be positive", call. = FALSE)
+
+  X <- fit$X
+  if (!is.matrix(X)) X <- as.matrix(X)
+  cells <- colnames(X)
+  if (is.null(cells) || !length(cells) || length(fit$tau_list) != ncol(X))
+    stop("the fitted response cells and thresholds are incomplete",
+         call. = FALSE)
+  if (inherits(fit, c("rasch_mfrm", "rasch_efrm"))) {
+    vm <- fit$virtual_map
+    if (is.null(vm) || !all(c("vkey", "item") %in% names(vm)))
+      stop("the fitted response-cell map is unavailable", call. = FALSE)
+    ii <- match(cells, as.character(vm$vkey))
+    if (anyNA(ii))
+      stop("the fitted response-cell map does not cover every response cell",
+           call. = FALSE)
+    source_item <- as.character(vm$item[ii])
+  } else {
+    source_item <- cells
+  }
+  items <- unique(source_item)
+
+  set_of <- NULL
+  if (by == "item") {
+    if (!is.null(sets))
+      stop("`sets` is used only when `by = \"set\"`", call. = FALSE)
+    missing_w <- setdiff(items, names(weights))
+    extra_w <- setdiff(names(weights), items)
+    if (length(missing_w) || length(extra_w))
+      stop("item weights must name every fitted item exactly",
+           if (length(missing_w)) paste0("; missing: ", paste(missing_w, collapse = ", ")) else "",
+           if (length(extra_w)) paste0("; unknown: ", paste(extra_w, collapse = ", ")) else "",
+           call. = FALSE)
+    q <- unname(weights[source_item])
+  } else {
+    if (is.null(sets) && inherits(fit, "rasch_efrm")) sets <- fit$set_of
+    if (is.null(sets))
+      stop("`sets` must map every fitted item when `by = \"set\"`",
+           call. = FALSE)
+    if (is.list(sets)) {
+      if (!length(sets) || is.null(names(sets)) ||
+          any(is.na(names(sets))) || any(!nzchar(names(sets))) ||
+          anyDuplicated(names(sets)) ||
+          !all(vapply(sets, function(z)
+            (is.character(z) || is.factor(z)) && length(z), logical(1))))
+        stop("a set list needs unique non-empty names and item-name elements",
+             call. = FALSE)
+      set_items <- unlist(lapply(sets, as.character), use.names = FALSE)
+      set_names <- rep(names(sets), lengths(sets))
+      if (anyDuplicated(set_items))
+        stop("an item cannot belong to more than one externally weighted set",
+             call. = FALSE)
+      set_of <- stats::setNames(set_names, set_items)
+    } else {
+      if (!(is.character(sets) || is.factor(sets)) || !length(sets) ||
+          is.null(names(sets)) || any(is.na(names(sets))) ||
+          any(!nzchar(names(sets))) || anyDuplicated(names(sets)) ||
+          anyNA(sets) || any(!nzchar(as.character(sets))))
+        stop("`sets` must be a named item-to-set vector or a named list",
+             call. = FALSE)
+      set_of <- stats::setNames(as.character(sets), names(sets))
+    }
+    missing_set <- setdiff(items, names(set_of))
+    extra_set <- setdiff(names(set_of), items)
+    if (length(missing_set) || length(extra_set))
+      stop("the set map must name every fitted item exactly",
+           if (length(missing_set)) paste0("; missing: ", paste(missing_set, collapse = ", ")) else "",
+           if (length(extra_set)) paste0("; unknown: ", paste(extra_set, collapse = ", ")) else "",
+           call. = FALSE)
+    set_names <- unique(unname(set_of[items]))
+    missing_w <- setdiff(set_names, names(weights))
+    extra_w <- setdiff(names(weights), set_names)
+    if (length(missing_w) || length(extra_w))
+      stop("set weights must name every fitted set exactly",
+           if (length(missing_w)) paste0("; missing: ", paste(missing_w, collapse = ", ")) else "",
+           if (length(extra_w)) paste0("; unknown: ", paste(extra_w, collapse = ", ")) else "",
+           call. = FALSE)
+    q <- unname(weights[set_of[source_item]])
+  }
+  q <- q / mean(q)
+
+  disc <- fit$disc
+  if (is.null(disc)) disc <- rep(1, ncol(X))
+  if (length(disc) == 1L) disc <- rep(disc, ncol(X))
+  if (!is.numeric(disc) || length(disc) != ncol(X) ||
+      any(!is.finite(disc)) || any(disc <= 0))
+    stop("the fitted model units are unavailable", call. = FALSE)
+
+  obs <- !is.na(X) & rep(q > 0, each = nrow(X))
+  m <- vapply(fit$tau_list, length, integer(1))
+  theta <- se <- rep(NA_real_, nrow(X))
+  weighted_score <- rowSums(sweep(X, 2L, q * disc, `*`), na.rm = TRUE)
+  weighted_score[rowSums(obs) == 0L] <- NA_real_
+  max_weighted_score <- as.numeric(obs %*% (q * disc * m))
+  raw <- rowSums(replace(X, !obs, NA_real_), na.rm = TRUE)
+  raw[rowSums(obs) == 0L] <- NA_real_
+  max_raw <- as.numeric(obs %*% m)
+  extreme <- !is.na(weighted_score) &
+    (weighted_score <= 1e-12 |
+       weighted_score >= max_weighted_score - 1e-12)
+  pat <- apply(obs, 1L, function(z) paste(which(z), collapse = ","))
+
+  for (key in unique(pat)) {
+    cols <- as.integer(strsplit(key, ",", fixed = TRUE)[[1L]])
+    if (!length(cols)) next
+    who_pat <- which(pat == key)
+    for (Wu in unique(signif(weighted_score[who_pat], 12L))) {
+      who <- who_pat[signif(weighted_score[who_pat], 12L) == Wu]
+      score <- function(th) {
+        mo <- lapply(cols, function(j)
+          item_moments(th, fit$tau_list[[j]], disc = disc[j]))
+        E <- vapply(mo, `[[`, 0, "E")
+        V <- vapply(mo, `[[`, 0, "V")
+        m3 <- vapply(mo, `[[`, 0, "mu3")
+        H <- sum(q[cols] * disc[cols]^2 * V)
+        J <- sum(q[cols]^2 * disc[cols]^2 * V)
+        sum(q[cols] * disc[cols] * (X[who[1L], cols] - E)) +
+          J * sum(q[cols] * disc[cols]^3 * m3) / (2 * H^2)
+      }
+      root <- tryCatch(stats::uniroot(score, c(-30, 30), tol = 1e-9)$root,
+                       error = function(e) NA_real_)
+      theta[who] <- root
+      if (is.finite(root)) {
+        V <- vapply(cols, function(j)
+          item_moments(root, fit$tau_list[[j]], disc = disc[j])$V, 0)
+        H <- sum(q[cols] * disc[cols]^2 * V)
+        J <- sum(q[cols]^2 * disc[cols]^2 * V)
+        se[who] <- sqrt(J) / H
+      }
+    }
+  }
+
+  identity_cols <- intersect(unique(c("id", names(fit$factors))),
+                             names(fit$person))
+  out <- cbind(fit$person[, identity_cols, drop = FALSE],
+               data.frame(n_items = rowSums(obs), raw = raw,
+                          max_raw = max_raw,
+                          weighted_score = weighted_score,
+                          max_weighted_score = max_weighted_score,
+                          theta = theta, se = se, extreme = extreme,
+                          check.names = FALSE))
+  weighting <- data.frame(response_cell = cells, item = source_item,
+                          set = if (is.null(set_of)) NA_character_
+                            else unname(set_of[source_item]),
+                          supplied_weight = if (by == "item")
+                            unname(weights[source_item])
+                          else unname(weights[set_of[source_item]]),
+                          normalised_weight = q,
+                          stringsAsFactors = FALSE)
+  attr(out, "weighting") <- weighting
+  attr(out, "by") <- by
+  out
+}
+
 # Person locations for an arbitrary response matrix, grouped by
 # missing-data pattern so each WLE score table is solved once. disc is a
 # single common discrimination (frame unit); raw scores stay sufficient.

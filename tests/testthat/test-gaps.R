@@ -229,6 +229,8 @@ test_that("dimensionality: 10-component PCA, scree, manual subsets, exact CI", {
   expect_true(all(diff(pc$eigen_table$eigenvalue) <= 1e-10))
   expect_equal(pc$eigen_table$cumulative[10],
                sum(pc$eigenvalues[1:10]) / sum(pc$eigenvalues))
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
   et <- plot_scree(fit)
   expect_equal(nrow(et), 10)
 
@@ -454,6 +456,10 @@ test_that("matrix items selection validates and subsets", {
                "whole numbers")
   expect_error(pcml(X, maxit = 5.5), "iteration cap")
   expect_error(pcml_pc(X, tol = 0), "tolerance")
+  expect_error(pcml(X, maxit = .Machine$integer.max + 1), "iteration cap")
+  expect_error(residual_pca(suppressWarnings(rasch(X)),
+                            n_components = .Machine$integer.max + 1),
+               "integer range")
 })
 
 test_that("every estimator validates its controls and coercions", {
@@ -677,6 +683,8 @@ test_that("utility boundaries from the eighth review round hold", {
   fd <- suppressWarnings(rasch(X))
   expect_error(combine_items(fd, groups = list()), "non-empty")
   expect_error(compare_fits(fd, fd, reference = 1.9), "whole number")
+  expect_error(compare_fits(a = fd, a = fd), "fit names must be unique")
+  expect_error(compare_fits(fd, fit1 = fd), "fit names must be unique")
   expect_error(item_moments(c(0, 1), c(-1, 1)), "one finite location")
   expect_error(item_moments(0, c(-1, 1), disc = 0), "positive finite")
   dd <- data.frame(pid = rep(1:100, 2), t = rep(1:2, each = 100),
@@ -931,6 +939,8 @@ test_that("the seventeenth round's boundaries hold", {
   on.exit({dev.off(); unlink(tf)}, add = TRUE)
   expect_no_error(plot_icc(fd, "I2", group = c("group", "sex")))
   expect_error(plot_icc(fd, "I2", grid = numeric(0)), "finite locations")
+  expect_error(plot_icc(fd, "I2", grid = c(0, -1, 1)),
+               "strictly increasing")
   expect_error(plot_icc(fd, "I2", n_groups = NA), "whole number")
   expect_error(plot_ccc(fd, "I2", observed = c(TRUE, FALSE)), "TRUE or FALSE")
   expect_error(plot_pimap(fd, xlim = 2), "ascending limits")
@@ -989,6 +999,8 @@ test_that("the nineteenth round's drawing grids are checked", {
   on.exit({dev.off(); unlink(tf)}, add = TRUE)
   expect_error(plot_tcc(fd, grid = numeric(0)), "finite locations")
   expect_error(plot_tcc(fd, grid = c(0, NA)), "finite locations")
+  expect_error(plot_tif(fd, grid = c(1000, 1001)),
+               "no positive test information")
   expect_error(plot_btl_targeting(fb, grid = numeric(0)), "finite locations")
   expect_error(plot_btl_categories(fb, grid = numeric(0)), "finite locations")
   expect_error(plot_tif(fd, grid = 0), "finite locations")
@@ -1118,6 +1130,7 @@ test_that("restricted models are not silently relaxed by a refit", {
                           level = "item")
   # the rating refit would drop the design, so the models are not nested
   expect_error(lr_test(fe), "not nested")
+  expect_error(lr_test(1), "fitted Rasch-family object")
   expect_no_error(lr_test(rasch(Xp, model = "PCM")))
 
   Xd <- matrix(rbinom(400 * 6, 1, 0.55), 400, 6)
@@ -1355,6 +1368,8 @@ test_that("derived fits keep the controls they were built from", {
   # a subtest total spans a wider range than any member item
   set.seed(253)
   Xp <- matrix(sample(0:2, 400 * 8, TRUE), 400, 8)
+  Xp[1, 1:5] <- 0L; Xp[1, 6:8] <- 2L
+  Xp[2, 1:5] <- 2L; Xp[2, 6:8] <- 0L
   colnames(Xp) <- paste0("I", 1:8)
   fp <- rasch(Xp, model = "PCM", na_codes = 9)
   cb <- combine_items(fp, list(c("I1", "I2", "I3", "I4", "I5")))
@@ -2089,6 +2104,10 @@ test_that("one outcome, one column per role, one item name per key entry", {
   dbw <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
   expect_no_error(btl(dbw, "object_a", "object_b", winner = "winner",
                       judge = "judge"))
+  expect_error(btl(dbw, "object_a", "object_b", winner = "object_a"),
+               "role columns must be distinct")
+  expect_error(btl(dbw, "object_a", "object_b", winner = "winner",
+                   judge = "object_a"), "role columns must be distinct")
   ob <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
   bp <- data.frame(object = ob, w = seq_along(ob) %% 2)
   expect_error(btl_explanatory(db, predictors = bp, formula = ~ w,
@@ -2110,6 +2129,18 @@ test_that("one outcome, one column per role, one item name per key entry", {
                "exactly one column")
   expect_no_error(rasch_mfrm(dm, person = "person", item = "item",
                              score = "score", facets = "rater"))
+
+  dbe <- simulate_btl_efrm(4, 2, 3, 2, reps_within = 4, reps_cross = 4,
+                           seed = 414)
+  ose <- attr(dbe, "truth")$object_sets
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "object_a", panels = "panel",
+                        object_sets = ose, se_method = "conditional"),
+               "role columns must be distinct")
+  expect_error(btl_efrm(dbe, "object_a", "object_b", winner = "winner",
+                        judge = "judge", panels = "judge",
+                        object_sets = ose, se_method = "conditional"),
+               "role columns must be distinct")
 
   # every key form needs an item name
   set.seed(413)
@@ -2156,7 +2187,8 @@ test_that("banks, sequences and margins are read as the values they hold", {
 
   # the judging sequence has to order the comparisons it describes
   set.seed(423)
-  db <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
+  db <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3,
+                     dependence = list(exposure = 0.3, carry_over = 0.3))
   db$ord <- ave(seq_len(nrow(db)), db$judge, FUN = seq_along)
   fo <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge",
             order = "ord")
@@ -2175,7 +2207,7 @@ test_that("banks, sequences and margins are read as the values they hold", {
             order = "ord")
   expect_equal(sort(fo$objects$location), sort(f2$objects$location))
 
-  # a margin is an ordered factor or a non-negative magnitude
+  # a margin is an ordered factor or a positive magnitude on retained wins
   mk <- function(mg) {
     d <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 4)
     d$margin <- mg[seq_len(nrow(d))]; d
@@ -2186,10 +2218,23 @@ test_that("banks, sequences and margins are read as the values they hold", {
                    winner = "winner", margin = "margin"), "not a margin")
   expect_error(btl(mk(rep(c(-1, 2), 200)), "object_a", "object_b",
                    winner = "winner", margin = "margin"),
-               "finite and non-negative")
+               "finite and positive")
   expect_error(btl(mk(rep(c(Inf, 2), 200)), "object_a", "object_b",
                    winner = "winner", margin = "margin"),
-               "finite and non-negative")
+               "finite and positive")
+  zero <- mk(rep(c(1, 2), 200)); zero$margin[1] <- 0
+  expect_error(btl(zero, "object_a", "object_b", winner = "winner",
+                   margin = "margin"), "zero is a tie")
+  # a tie and a zero-count row do not define the analysed margin scale
+  ignored_tie <- mk(rep(c(1, 2), 200))
+  ignored_tie$winner[1] <- "tie"; ignored_tie$margin[1] <- -1
+  expect_no_error(btl(ignored_tie, "object_a", "object_b", winner = "winner",
+                      margin = "margin"))
+  ignored_count <- mk(rep(c(1, 2), 200))
+  ignored_count$n <- 1; ignored_count$n[1] <- 0
+  ignored_count$margin[1] <- -1
+  expect_no_error(btl(ignored_count, "object_a", "object_b", winner = "winner",
+                      margin = "margin", count = "n"))
   expect_no_error(btl(mk(rep(c(1, 2), 200)), "object_a", "object_b",
                       winner = "winner", margin = "margin"))
 
@@ -2213,4 +2258,154 @@ test_that("banks, sequences and margins are read as the values they hold", {
                           facets = "rater"), "exactly one column")
   expect_error(rasch_mfrm(w, person = "person", items = character(0),
                           facets = "rater"), "at least one item column")
+  expect_error(rasch_mfrm(w, person = "person", items = c(its, "person"),
+                          facets = "rater"), "cannot also be the person")
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "person", facets = "rater"), "must be distinct")
+  expect_error(rasch_mfrm(dm, person = "person", item = "item",
+                          score = "score", facets = "rater", factors = "item"),
+               "cannot also define another model role")
+})
+
+test_that("external calibration and design tables are interpreted strictly", {
+  set.seed(431)
+  X <- matrix(rbinom(500 * 6, 1, plogis(outer(rnorm(500),
+    seq(-1.5, 1.5, length.out = 6), "-"))), 500, 6)
+  colnames(X) <- paste0("I", 1:6)
+  f <- rasch(X)
+  bank <- data.frame(item = f$items$item, location = f$items$location,
+                     se = f$items$se, max = f$items$max)
+
+  bad <- bank; bad$location <- as.Date("2020-01-01") + seq_len(nrow(bad))
+  expect_error(equate_tests(f, bad), "not a calibration field")
+  bad <- bank; bad$location <- complex(real = bad$location, imaginary = 1)
+  expect_error(equate_tests(f, bad), "not a calibration field")
+  bad <- bank; bad$se <- as.character(bad$se); bad$se[1] <- "unknown"
+  expect_error(equate_tests(f, bad), "non-numeric value")
+  duplicate_bank <- bank
+  names(duplicate_bank)[2] <- "item"
+  expect_error(equate_tests(f, duplicate_bank), "column names must be unique")
+  duplicate_list <- as.list(bank)
+  names(duplicate_list)[2] <- "item"
+  expect_error(equate_tests(f, duplicate_list), "column names must be unique")
+
+  # An attached covariance completes individual missing marginal SEs.
+  bank_cov <- bank; bank_cov$se <- NA_real_
+  attr(bank_cov, "cov_location") <- .equate_loc_cov(f, bank_cov$item)
+  eq <- equate_tests(f, bank_cov)
+  expect_true(eq$inferential)
+  expect_equal(eq$n, nrow(bank_cov))
+
+  item_predictors <- data.frame(item = colnames(X), x = seq_len(ncol(X)))
+  names(item_predictors)[2] <- "item"
+  expect_error(.explanatory_metadata(item_predictors, ~ item, X),
+               "column names must be unique")
+  object_predictors <- data.frame(object = LETTERS[1:5], x = seq_len(5))
+  names(object_predictors)[2] <- "object"
+  expect_error(.btl_explanatory_design(object_predictors, ~ object,
+                                       LETTERS[1:5]),
+               "column names must be unique")
+
+  key <- data.frame(item = "I1", option = "A", score = 1)
+  names(key)[3] <- "option"
+  expect_error(.resolve_key(key), "column names must be unique")
+  anchors <- data.frame(item = "I1", k = 1, tau = 0)
+  names(anchors)[3] <- "k"
+  expect_error(rasch(X, anchors = anchors), "column names must be unique")
+})
+
+test_that("paired-comparison banks complete SEs and use two-point precision links", {
+  objects <- LETTERS[1:5]
+  pairs <- t(utils::combn(objects, 2))
+  d <- data.frame(a = rep(pairs[, 1], each = 20),
+                  b = rep(pairs[, 2], each = 20))
+  d$winner <- ifelse(rep(seq_len(20), nrow(pairs)) <= 10, d$a, d$b)
+  fit <- btl(d, "a", "b", winner = "winner")
+
+  bank_cov <- data.frame(object = fit$objects$object,
+                         location = fit$objects$location, se = NA_real_)
+  attr(bank_cov, "cov_location") <- fit$cov_beta
+  eq_cov <- btl_equate(fit, bank_cov)
+  expect_true(eq_cov$inferential)
+  expect_equal(eq_cov$n_inference, nrow(bank_cov))
+
+  delta <- c(0, 8, 80, 80, 80)
+  bank_two <- data.frame(object = fit$objects$object,
+                         location = fit$objects$location - delta,
+                         se = c(0.05, 1, NA, NA, NA))
+  eq_two <- btl_equate(fit, bank_two)
+  usable <- is.finite(bank_two$se)
+  variance <- fit$objects$se[usable]^2 + bank_two$se[usable]^2
+  expected <- weighted.mean(delta[usable], 1 / pmax(variance, 1e-10))
+  expect_equal(eq_two$shift, expected)
+  expect_false(eq_two$inferential)
+
+  duplicate_bank <- bank_two
+  names(duplicate_bank)[2] <- "object"
+  expect_error(btl_equate(fit, duplicate_bank),
+               "column names must be unique")
+  duplicate_list <- as.list(bank_two)
+  names(duplicate_list)[2] <- "object"
+  expect_error(btl_equate(fit, duplicate_list),
+               "column names must be unique")
+})
+
+test_that("maps and public controls cannot silently select another analysis", {
+  set.seed(441)
+  X <- matrix(rbinom(240 * 6, 1, 0.5), 240, 6)
+  colnames(X) <- paste0("I", 1:6)
+  fac <- rep(c("a", "b"), each = 120)
+  fit <- rasch(data.frame(X, fac), factors = "fac")
+
+  blank <- data.frame(fac, check.names = FALSE)
+  names(blank) <- ""
+  expect_error(dif_anova(fit, factors = blank), "non-empty name")
+  expect_error(residual_correlations(fit, flag = factor(1)), "flag")
+  expect_error(residual_pca(fit, n_components = factor(1)), "n_components")
+  expect_error(dimensionality_test(fit, alpha = factor(0.05),
+                                   min_score_points = 2), "alpha")
+  expect_error(dimensionality_test(fit, component = factor(1),
+                                   min_score_points = 2), "component")
+  expect_error(plot_guttman(fit, max_persons = factor(80)), "max_persons")
+  expect_error(resolve_dif(fit, min_anchors = factor(3)), "min_anchors")
+  expect_error(split_items(fit, c("I1", "I1"), by = "fac"),
+               "more than once")
+  expect_error(drop_items(fit, c("I1", "I1")), "more than once")
+  expect_error(dif_posthoc(fit, "I1", term = c("fac", "fac")),
+               "more than once")
+
+  de <- simulate_efrm(25, 3, n_sets = 2, n_groups = 2, seed = 442)
+  tr <- attr(de, "truth")
+  item_map <- setNames(rep(names(tr$item_sets), lengths(tr$item_sets)),
+                       unlist(tr$item_sets, use.names = FALSE))
+  expect_error(rasch_efrm(de, item_sets = c(item_map, TYPO = "set1"),
+                          groups = "group", boot_reps = 0),
+               "not in the data")
+
+  db <- simulate_btl_efrm(4, 2, 3, 2, reps_within = 4, reps_cross = 4,
+                          seed = 443)
+  os <- attr(db, "truth")$object_sets
+  panel_map <- setNames(db$panel, db$judge)
+  panel_map <- panel_map[!duplicated(names(panel_map))]
+  expect_error(btl_efrm(db, "object_a", "object_b", "winner", "judge",
+                        c(panel_map, TYPO = "panel1"), os,
+                        se_method = "conditional"), "not present")
+  dup_sets <- os; names(dup_sets) <- rep("set", length(dup_sets))
+  expect_error(btl_efrm(db, "object_a", "object_b", "winner", "judge",
+                        "panel", dup_sets, se_method = "conditional"),
+               "duplicate set name")
+  dup_member <- os; dup_member[[1]] <- c(dup_member[[1]], dup_member[[1]][1])
+  expect_error(btl_efrm(db, "object_a", "object_b", "winner", "judge",
+                        "panel", dup_member, se_method = "conditional"),
+               "repeated within")
+
+  dc <- simulate_btl(5, 16, 6, seed = 444)
+  bf <- btl(dc, "object_a", "object_b", "winner", judge = "judge")
+  judges <- unique(bf$comparisons$judge)
+  group_map <- setNames(rep(c("a", "b"), length.out = length(judges)), judges)
+  expect_error(btl_dif(bf, group_map[-1]), "missing from a named factor")
+  expect_error(btl_dif(bf, c(group_map, TYPO = "a")), "not present")
+  grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
+  expect_error(plot_btl_icc(bf, "O3", group = group_map[-1]),
+               "missing from the group map")
 })

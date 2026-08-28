@@ -66,6 +66,65 @@ NONE_CH <- c(None = "(none)")
 .read_app_project <- .rasch_internal(".read_app_project")
 .save_app_project <- .rasch_internal(".save_app_project")
 
+# Controls that determine the fitted analysis. Project files retain these
+# separately from display-only choices so reopening an analysis also restores
+# the inputs needed to estimate it again. File-backed inputs are embedded as
+# parsed data in the project resources below rather than as expired temporary
+# paths.
+.project_radio_inputs <- c(
+  "model_type", "lp_layout", "lp_structure", "rasch_calibration",
+  "thr_structure", "thr_mode", "exp_level", "bt_thr", "bt_ties",
+  "anchor_type", "btlef_se")
+.project_select_inputs <- c(
+  "id_col", "ef_id", "ef_group", "lp_person", "lp_item", "lp_score",
+  "lp_interaction", "bt_a", "bt_b", "bt_win", "bt_judge", "bt_count",
+  "pc_rank", "ng", "ef_se", "ef_workers", "btlef_panel",
+  "btlef_workers")
+.project_selectize_inputs <- c(
+  "factor_cols", "item_cols", "ef_items", "lp_facets", "lp_items_wide",
+  "bt_margin", "bt_response", "bt_order", "bt_jfactors", "exp_main",
+  "exp_interactions")
+.project_checkbox_inputs <- c("ef_prefix", "bt_position", "ng_auto")
+.project_numeric_inputs <- c(
+  "run_adjN", "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
+  "btlef_seed")
+
+.collect_app_settings <- function(input) {
+  ids <- unique(c(.project_radio_inputs, .project_select_inputs,
+                  .project_selectize_inputs, .project_checkbox_inputs,
+                  .project_numeric_inputs))
+  current <- shiny::reactiveValuesToList(input, all.names = TRUE)
+  # Predictor-type controls are generated from the uploaded metadata and do
+  # not have fixed IDs. Retain their type, reference and ordinal-order values.
+  dynamic <- grep("^exp_(type|ref|order)_[0-9]+$", names(current), value = TRUE)
+  ids <- unique(c(ids, dynamic))
+  out <- current[intersect(ids, names(current))]
+  out[!vapply(out, is.null, logical(1))]
+}
+
+.restore_app_settings <- function(session, settings) {
+  if (!is.list(settings) || !length(settings)) return(invisible(NULL))
+  apply_ids <- function(ids, fun, argument = "selected") {
+    for (id in intersect(ids, names(settings))) {
+      args <- list(session = session, inputId = id)
+      args[[argument]] <- settings[[id]]
+      do.call(fun, args)
+    }
+  }
+  apply_ids(.project_radio_inputs, shiny::updateRadioButtons)
+  apply_ids(.project_select_inputs, shiny::updateSelectInput)
+  apply_ids(.project_selectize_inputs, shiny::updateSelectizeInput)
+  apply_ids(.project_checkbox_inputs, shiny::updateCheckboxInput,
+            argument = "value")
+  apply_ids(.project_numeric_inputs, shiny::updateNumericInput,
+            argument = "value")
+  dynamic <- grep("^exp_(type|ref)_[0-9]+$", names(settings), value = TRUE)
+  apply_ids(dynamic, shiny::updateSelectInput)
+  orders <- grep("^exp_order_[0-9]+$", names(settings), value = TRUE)
+  apply_ids(orders, shiny::updateTextInput, argument = "value")
+  invisible(NULL)
+}
+
 
 .efrm_detected_cores <- if (requireNamespace("rasch", quietly = TRUE))
   getFromNamespace(".efrm_available_workers", "rasch")() else if (
@@ -803,7 +862,7 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                         accept = ".csv", placeholder = "optional"),
               conditionalPanel("input.rasch_calibration != 'explanatory'",
                 fileInput("anchor_file", info_label("Anchors for equating (CSV: item,k,tau)",
-                          paste("Names not present are ignored. Individual anchoring fixes",
+                          paste("Every named item must be present. Individual anchoring fixes",
                                 "each threshold; average anchoring fixes each item's mean",
                                 "while its thresholds remain free.")),
                           accept = ".csv", placeholder = "optional"),
@@ -1162,7 +1221,25 @@ panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("peopl
       accordion_panel("Person fit", value = "persons_pfit",
         plotCard("pfit", hover = TRUE)),
       accordion_panel("Fit residual distribution", value = "persons_rdist",
-        plotCard("rdist_p")))),
+        plotCard("rdist_p")),
+      accordion_panel("Externally weighted estimates", value = "persons_weights",
+        accordion_info(
+          "A secondary person measure based on externally imposed relative weights. The fitted calibration and the ordinary estimates used for fit, reliability, targeting and DIF do not change."),
+        layout_columns(col_widths = breakpoints(sm = 12, lg = c(4, 8)),
+          card(card_body(
+            radioButtons("person_weight_level",
+              info_label("Weights apply to",
+                "Item weights apply to every response cell for that item. Set weights apply one relative weight to each nominated set."),
+              c("Items" = "item", "Item sets" = "set"),
+              selected = "item", inline = TRUE),
+            fileInput("person_weights_file", "Weights CSV", accept = ".csv",
+              buttonLabel = "Choose CSV…", placeholder = "No file selected"),
+            p(class = "text-muted small",
+              "Items: item, weight. Sets: item, set, weight. For an Extended Frames fit, set, weight is sufficient."),
+            input_task_button("person_weights_go", "Calculate weighted estimates",
+                              type = "primary", class = "w-100"))),
+          tableCard("person_weight_tbl", "Weighted person estimates",
+            info = "Person locations and sandwich standard errors from the externally weighted score. Zero-weight items are omitted. These are supplementary estimates, not replacements for the fitted Rasch measures."))))),
     # paired-comparison (BTL) fits: the judges are the persons here, so the
     # page carries their fit and their transitivity consistency -- the two
     # judge-level lenses (offered only when a judge column was nominated)
@@ -1301,13 +1378,11 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
                              "constituent main effects.")),
                        c("Main effects" = "main",
                          "With interactions" = "factorial"))),
-        numericInput("dif_alpha", "Significance level (alpha)", value = 0.05,
+        numericInput("dif_alpha",
+                     info_label("Significance level (alpha)",
+                       "Applied to Holm-adjusted probabilities across the DIF family."),
+                     value = 0.05,
                      min = 0.001, max = 0.5, step = 0.01),
-        selectInput("dif_padj", "Multiplicity adjustment",
-                    c("Holm (familywise)" = "holm",
-                      "Benjamini-Hochberg (FDR)" = "BH",
-                      "Bonferroni (familywise)" = "bonferroni",
-                      "None" = "none")),
         conditionalPanel("output.dif_refit_available == true",
           hr(),
           h6(span("Resolve DIF",
@@ -1483,7 +1558,7 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
           uiOutput("btl_eq_summary")),
         layout_columns(col_widths = 12,
           tableCard("btl_eq_tbl", "Common-object comparison",
-            info = "Each common object is compared with the shifted identity line after the precision-weighted origin shift (the two sum-zero scales are centred on different object sets). Inferential columns are withheld unless the reference carries its joint covariance or is fixed. Where available, p_adj is the multiplicity-adjusted drift p-value, shown red below 0.05."),
+            info = "Each common object is compared with the shifted identity line. The shift is precision-weighted when at least two common objects have usable standard errors; otherwise it is an unweighted descriptive mean. Inferential columns are withheld unless the reference carries its joint covariance or is fixed. Where available, p_adj is the multiplicity-adjusted drift p-value, shown red below 0.05."),
           plotCard("btl_eq_plot", "Equating plot",
             info = "The two calibrations' common-object locations against the shifted identity line, with per-object error bars and a dotted guide band at the average pooled precision; objects that drift after the multiplicity adjustment are highlighted and labelled.",
             hover = TRUE))
@@ -1499,7 +1574,7 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
                      c("Uploaded calibration CSV" = "csv",
                        "A kept fit from Compare" = "kept")),
         conditionalPanel("input.eq_source == 'csv'",
-          fileInput("eq_file", "Reference calibration (CSV: item,location,se,max)",
+          fileInput("eq_file", "Reference calibration (CSV: item,location; optional se,max)",
                     accept = ".csv"),
           checkboxInput("eq_csv_independent",
                         "Independent sampling units", TRUE)),
@@ -1622,12 +1697,6 @@ panel_frames <- nav_panel("Extended Frames", value = "p_frames", icon = bs_icon(
             tableCard("alpha_tbl", "Item set units (alpha) and locations"))),
       layout_columns(col_widths = 12,
         div(class = "rasch-section-toolbar",
-            input_switch("inv_screen",
-                         info_label("Screen",
-                           paste("Uses unadjusted probabilities to identify",
-                                 "items for examination. Leave it off for",
-                                 "Holm familywise control.")),
-                         value = FALSE),
             div(class = "rasch-inline-select",
               selectInput("inv_se",
                 info_label("Uncertainty",
@@ -1857,12 +1926,6 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
                       "Applied after adjustment to the one-sided probabilities."),
                     value = 0.05, min = 0.001, max = 0.25, step = 0.01,
                     width = "160px"),
-                  selectInput("spread_padj",
-                    info_label("Multiplicity adjustment",
-                      "Adjusts the one-sided probabilities across eligible superitems."),
-                    choices = c("Holm" = "holm", "Bonferroni" = "bonferroni",
-                                "False discovery rate" = "BH", "None" = "none"),
-                    selected = "holm", width = "190px"),
                   div(class = "mb-3",
                     input_task_button("run_spread", "Run spread test",
                                       type = "primary")))),
@@ -1979,11 +2042,14 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
     sidebar = sidebar(width = 400, open = "desktop",
       radioButtons("sim_layout", "Data type", c(
         "Rasch" = "rasch",
+        "Explanatory Rasch" = "rasch_exp",
         "Comparative Judgement" = "btl",
+        "Explanatory Comparative Judgement" = "btl_exp",
         "Multiple Ratings (MFRM)" = "mfrm",
-        "Extended Frames (EFRM)" = "efrm")),
+        "Extended Frames (EFRM)" = "efrm",
+        "Extended Frames (Comparative Judgement)" = "btl_efrm")),
       # ---------------------------------------------------------- Rasch ----
-      conditionalPanel("input.sim_layout == 'rasch'",
+      conditionalPanel("input.sim_layout == 'rasch' || input.sim_layout == 'rasch_exp'",
         sliderInput("sr_persons", "Persons", 100, 2000, 600, 50),
         sliderInput("sr_items", "Items", 5, 40, 15, 1),
         radioButtons("sr_model", "Model", inline = TRUE,
@@ -2000,6 +2066,15 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
             "Skewed" = "skew", "Bimodal" = "bimodal")),
           sliderInput("sr_diff", "Item difficulty range", -4, 4,
                       c(-2.5, 2.5), 0.25))),
+        conditionalPanel("input.sim_layout == 'rasch_exp'",
+          accordion(open = FALSE, accordion_panel(
+            title = "Explanatory structure", value = "sr_explanatory",
+            sliderInput("sx_cont", "Continuous-predictor effect", -2, 2, 1, 0.1),
+            sliderInput("sx_cat", "Categorical-predictor effect", -2, 2, 0.6, 0.1),
+            checkboxInput("sx_interaction", "Include their interaction", FALSE),
+            conditionalPanel("input.sx_interaction == true",
+              sliderInput("sx_int", "Interaction effect", -2, 2, 0.6, 0.1)),
+            sliderInput("sx_depart", "Fixed departure for one item", 0, 2, 0, 0.1)))),
         accordion(open = FALSE, accordion_panel(
           title = span(bs_icon("bug"), " Misfit to plant"), value = "misfit",
           sliderInput("sr_over", "Over-discriminating items", 0, 5, 0, 1),
@@ -2023,7 +2098,7 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
           sliderInput("sr_careless", "Careless responders", 0, 0.3, 0, 0.02),
           sliderInput("sr_missing", "Missing data", 0, 0.3, 0, 0.02)))),
       # ---------------------------------------------------------- BTL ----
-      conditionalPanel("input.sim_layout == 'btl'",
+      conditionalPanel("input.sim_layout == 'btl' || input.sim_layout == 'btl_exp'",
         sliderInput("sb_objects", "Objects", 4, 20, 8, 1),
         sliderInput("sb_judges", "Judges", 3, 30, 12, 1),
         sliderInput("sb_reps", "Comparisons per pair", 5, 60, 25, 5),
@@ -2032,6 +2107,15 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         conditionalPanel("input.sb_model == 'polytomous'",
           sliderInput("sb_cats", "Categories", 3, 6, 4, 1)),
         sliderInput("sb_objsd", "Object-location spread", 0.5, 2.5, 1, 0.1),
+        conditionalPanel("input.sim_layout == 'btl_exp'",
+          accordion(open = FALSE, accordion_panel(
+            title = "Explanatory structure", value = "sb_explanatory",
+            sliderInput("sbe_cont", "Continuous-predictor effect", -2, 2, 1, 0.1),
+            sliderInput("sbe_cat", "Categorical-predictor effect", -2, 2, 0.6, 0.1),
+            checkboxInput("sbe_interaction", "Include their interaction", FALSE),
+            conditionalPanel("input.sbe_interaction == true",
+              sliderInput("sbe_int", "Interaction effect", -2, 2, 0.6, 0.1)),
+            sliderInput("sbe_depart", "Fixed departure for one object", 0, 2, 0, 0.1)))),
         accordion(open = FALSE, accordion_panel(
           title = span(bs_icon("bug"), " Misfit to plant"), value = "misfit",
           sliderInput("sb_erratic", "Erratic judges", 0, 0.4, 0, 0.05),
@@ -2059,16 +2143,39 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         sliderInput("se_items", "Items per set", 5, 15, 8, 1),
         sliderInput("se_sets", "Item sets", 2, 4, 2, 1),
         sliderInput("se_groups", "Person groups", 2, 4, 2, 1),
+        sliderInput("se_cats", "Response categories", 2, 6, 2, 1),
         sliderInput("se_thsd", "Person SD (logits)", 0.8, 2.5, 1.3, 0.1),
         sliderInput("se_setratio", "Set-unit ratio", 1, 2, 1.3, 0.05),
-        sliderInput("se_grpratio", "Group-unit ratio", 1, 2, 1, 0.05)),
+        sliderInput("se_grpratio", "Group-unit ratio", 1, 2, 1, 0.05),
+        accordion(open = FALSE, accordion_panel(
+          title = span(bs_icon("bug"), " Misfit to plant"), value = "se_misfit",
+          checkboxInput("se_drift", "Item drift in one group", FALSE),
+          conditionalPanel("input.se_drift == true",
+            sliderInput("se_driftmag", "Item drift (logits)", 0.3, 2, 1, 0.1)),
+          sliderInput("se_careless", "Careless responders", 0, 0.3, 0, 0.02),
+          sliderInput("se_missing", "Missing data", 0, 0.3, 0, 0.02)))),
+      # ----------------------------------------------------- BTL-EFRM ----
+      conditionalPanel("input.sim_layout == 'btl_efrm'",
+        sliderInput("sbf_objects", "Objects per set", 3, 12, 6, 1),
+        sliderInput("sbf_sets", "Object sets", 2, 4, 2, 1),
+        sliderInput("sbf_judges", "Judges per panel", 3, 15, 6, 1),
+        sliderInput("sbf_panels", "Judge panels", 2, 4, 2, 1),
+        sliderInput("sbf_within", "Comparisons per within-set pair", 5, 40, 20, 5),
+        sliderInput("sbf_cross", "Comparisons per cross-set pair", 5, 40, 20, 5),
+        sliderInput("sbf_objsd", "Object-location spread", 0.5, 2.5, 1, 0.1),
+        sliderInput("sbf_setratio", "Set-unit ratio", 1, 2, 1.3, 0.05),
+        sliderInput("sbf_panelratio", "Panel-unit ratio", 1, 2, 1, 0.05),
+        sliderInput("sbf_origin", "Set-origin span", 0, 2, 0.5, 0.1),
+        accordion(open = FALSE, accordion_panel(
+          title = span(bs_icon("bug"), " Misfit to plant"), value = "sbf_misfit",
+          sliderInput("sbf_erratic", "Erratic judges", 0, 0.4, 0, 0.05)))),
       hr(),
       numericInput("sim_seed", "Random seed", 1, min = 1),
       input_task_button("sim_go", "Simulate & load", type = "primary",
                         class = "w-100")),
     # ----------------------------------------------------------- main ----
     card(card_body(
-      p(class = "lead mb-1", "Generate data with known departures from the model."),
+      p(class = "lead mb-1", "Generate data with known parameters and optional departures."),
       p(class = "text-muted small mb-0",
         "Pick a data type, set the size and any departures, then select Simulate & load. The data loads with its roles assigned; go to Data and select Estimate to fit it. The planted values are listed below and attached to the data.")),
     uiOutput("sim_truth"),
@@ -2089,9 +2196,13 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         card_header(span(bs_icon("code-slash"), " Reproducible code")),
         card_body(verbatimTextOutput("sim_code"), padding = 10)),
       card(class = "mt-3", full_screen = TRUE,
-        card_header(span("Preview of the loaded data (first rows)",
-                         info_icon(app_help("sim_preview"),
-                                   "About this table"))),
+        card_header_bar("Preview of the loaded data (first rows)",
+          info = app_help("sim_preview"),
+          buttons = div(class = "d-flex gap-1",
+            downloadButton("sim_data_csv", "Data (CSV)",
+                           class = "btn-outline-secondary btn-xs"),
+            downloadButton("sim_bundle_zip", "Data + setup (ZIP)",
+                           class = "btn-outline-secondary btn-xs"))),
         card_body(DTOutput("sim_preview"), rcode_details("sim_preview"),
                   padding = 8))))
   ))
@@ -2156,11 +2267,31 @@ ui <- page_navbar(
 server <- function(input, output, session) {
 
   # ------------------------------------------------------------- data in --
+  # A monotonically increasing token identifies the active analysis context.
+  # Background workers retain the token and their input data at launch; their
+  # results are accepted only while both still match. This prevents a worker
+  # started for one analysis from updating a later fit or reopened project.
+  analysis_context <- reactiveVal(0L)
+  advance_analysis_context <- function() {
+    z <- isolate(analysis_context())
+    if (!is.numeric(z) || length(z) != 1L || !is.finite(z) ||
+        z >= .Machine$integer.max) z <- 0L
+    z <- as.integer(z) + 1L
+    analysis_context(z)
+    invisible(z)
+  }
+
   # simulated data (from the Simulate page) takes precedence over a demo or
   # an upload until one of those replaces it
   sim_data <- reactiveVal(NULL)
   sim_truth_val <- reactiveVal(NULL)
   sim_code_val <- reactiveVal(NULL)
+  sim_predictors_val <- reactiveVal(NULL)
+  sim_interactions_val <- reactiveVal(character(0))
+  restored_project_name <- reactiveVal(NULL)
+  restored_project_settings <- reactiveVal(list())
+  restored_project_resources <- reactiveVal(list())
+  person_weight_state <- reactiveVal(NULL)
   # generation stamps: which simulation is loaded, and which one the current
   # fit was estimated on (recovery only renders when they agree)
   sim_gen <- reactiveVal(0L)
@@ -2171,6 +2302,9 @@ server <- function(input, output, session) {
     dc <- input$demo_choice
     if (!identical(dc, "none")) {
       sim_data(NULL); sim_truth_val(NULL); sim_code_val(NULL)
+      sim_predictors_val(NULL); sim_interactions_val(character(0))
+      restored_project_name(NULL)
+      restored_project_settings(list()); restored_project_resources(list())
       updateRadioButtons(session, "model_type",
                          selected = if (dc %in% c("dich", "pcm", "rsm"))
                            "rasch" else dc)
@@ -2181,8 +2315,17 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   observeEvent(input$file, {
     sim_data(NULL); sim_truth_val(NULL); sim_code_val(NULL)
+    sim_predictors_val(NULL); sim_interactions_val(character(0))
+    restored_project_name(NULL)
+    restored_project_settings(list()); restored_project_resources(list())
     updateSelectInput(session, "demo_choice", selected = "none")
   })
+  observeEvent(input$exp_predictors, {
+    if (!is.null(input$exp_predictors)) {
+      sim_predictors_val(NULL)
+      sim_interactions_val(character(0))
+    }
+  }, ignoreInit = TRUE)
 
   raw_data <- reactive({
     if (!is.null(sim_data())) return(sim_data())
@@ -2205,8 +2348,13 @@ server <- function(input, output, session) {
     # the reproducible-code sprintf("%d") would not
     seed <- suppressWarnings(as.integer(round(input$sim_seed %||% 1)))
     if (is.na(seed)) seed <- 1L
+    sim_call <- NULL
+    predictors <- NULL
+    wanted_interactions <- character(0)
+    nums <- function(x) paste(format(as.numeric(x), digits = 15, trim = TRUE,
+                                     scientific = FALSE), collapse = ", ")
     d <- tryCatch(withProgress(message = "Simulating…", value = 0.5, {
-      if (lay == "rasch") {
+      if (lay %in% c("rasch", "rasch_exp")) {
         I <- input$sr_items; disc <- rep(1, I)
         no <- min(input$sr_over, I); nu <- min(input$sr_under, I - no)
         if (no > 0) disc[seq_len(no)] <- 2.8
@@ -2223,38 +2371,230 @@ server <- function(input, output, session) {
                uniform = input$sr_difmag) else NULL
         rstyle <- if (isTRUE(input$sr_style) && input$sr_model != "dichotomous")
           list(type = input$sr_styletype %||% "extreme", prop = 0.25) else NULL
-        simulate_rasch(input$sr_persons, I, model = input$sr_model,
+        difficulty <- input$sr_diff %||% c(-2.5, 2.5)
+        if (lay == "rasch_exp") {
+          item <- sprintf("I%02d", seq_len(I))
+          exposure <- seq(-1, 1, length.out = I)
+          type <- rep(c("A", "B"), length.out = I)
+          difficulty <- (input$sx_cont %||% 1) * exposure +
+            (input$sx_cat %||% 0.6) * (type == "B")
+          if (isTRUE(input$sx_interaction)) {
+            difficulty <- difficulty + (input$sx_int %||% 0.6) *
+              exposure * (type == "B")
+            wanted_interactions <- "exposure:type"
+          }
+          difficulty <- difficulty - mean(difficulty)
+          depart_item <- item[max(1L, round(I / 2))]
+          if ((input$sx_depart %||% 0) > 0) {
+            departure <- rep(-input$sx_depart / (I - 1L), I)
+            departure[match(depart_item, item)] <- input$sx_depart
+            difficulty <- difficulty + departure
+          }
+          predictors <- data.frame(item = item, exposure = exposure,
+                                   type = type, stringsAsFactors = FALSE)
+        }
+        out <- simulate_rasch(input$sr_persons, I, model = input$sr_model,
           n_categories = input$sr_cats %||% 4L,
           theta_mean = input$sr_mean %||% 0, theta_sd = input$sr_sd %||% 1,
           theta_dist = input$sr_dist %||% "normal",
-          difficulty = input$sr_diff %||% c(-2.5, 2.5),
+          difficulty = difficulty,
           discrimination = disc,
           guessing = guess, second_dim = s2, dependence = dep, dif = dif,
           n_groups = if (!is.null(dif)) 2L else 1L,
           careless = input$sr_careless, response_style = rstyle,
           speeded = input$sr_speeded %||% 0, missing = input$sr_missing,
           seed = seed)
-      } else if (lay == "btl") {
+        a <- c(sprintf("n_persons = %d, n_items = %d", input$sr_persons, I),
+          sprintf('model = "%s"', input$sr_model),
+          sprintf("theta_mean = %s, theta_sd = %s", input$sr_mean, input$sr_sd),
+          if (input$sr_dist != "normal") sprintf('theta_dist = "%s"', input$sr_dist),
+          sprintf("difficulty = c(%s)", nums(difficulty)),
+          if (input$sr_model != "dichotomous")
+            sprintf("n_categories = %d", input$sr_cats %||% 4L),
+          if (input$sr_over > 0 || input$sr_under > 0)
+            sprintf("discrimination = c(%s)", nums(disc)),
+          if (any(guess != 0)) sprintf("guessing = c(%s)", nums(guess)),
+          if (!is.null(s2)) sprintf('second_dim = list(items = c(%s), rho = %s)',
+            paste0('"', s2$items, '"', collapse = ", "), s2$rho),
+          if (!is.null(dep))
+            'dependence = list(pairs = list(c("I01", "I02")), strength = 2.2)',
+          if (!is.null(dif)) sprintf(
+            'dif = list(items = "%s", uniform = %s), n_groups = 2',
+            dif$items, dif$uniform),
+          if (!is.null(rstyle)) sprintf(
+            'response_style = list(type = "%s", prop = 0.25)', rstyle$type),
+          if (input$sr_speeded > 0) sprintf("speeded = %s", input$sr_speeded),
+          if (input$sr_careless > 0) sprintf("careless = %s", input$sr_careless),
+          if (input$sr_missing > 0) sprintf("missing = %s", input$sr_missing))
+        base_call <- sprintf("simulate_rasch(\n  %s,\n  seed = %d)",
+                             paste(Filter(nzchar, a), collapse = ",\n  "), seed)
+        if (lay == "rasch_exp") {
+          sim_call <- paste0("local({\n  predictors <- data.frame(\n",
+            "    item = ", qvec(predictors$item), ",\n",
+            "    exposure = c(", nums(predictors$exposure), "),\n",
+            "    type = ", qvec(predictors$type), ",\n",
+            "    stringsAsFactors = FALSE)\n  d <- ",
+            gsub("\n", "\n  ", base_call),
+            "\n  attr(d, \"predictors\") <- predictors\n",
+            "  truth <- attr(d, \"truth\")\n",
+            "  truth$predictors <- predictors\n",
+            "  truth$explanatory_formula <- \"",
+            if (length(wanted_interactions))
+              "~ exposure + type + exposure:type" else "~ exposure + type",
+            "\"\n",
+            if ((input$sx_depart %||% 0) > 0) sprintf(
+              "  truth$planted <- c(truth$planted, \"fixed explanatory departure for %s (%.2f logits)\")\n",
+              depart_item, input$sx_depart) else "",
+            "  attr(d, \"truth\") <- truth\n  d\n})")
+          tr <- attr(out, "truth")
+          tr$predictors <- predictors
+          tr$explanatory_formula <- if (length(wanted_interactions))
+            "~ exposure + type + exposure:type" else "~ exposure + type"
+          if ((input$sx_depart %||% 0) > 0) tr$planted <- c(tr$planted,
+            sprintf("fixed explanatory departure for %s (%.2f logits)",
+                    depart_item, input$sx_depart))
+          attr(out, "truth") <- tr
+          attr(out, "predictors") <- predictors
+        } else sim_call <- base_call
+        out
+      } else if (lay %in% c("btl", "btl_exp")) {
         s2 <- if (isTRUE(input$sb_2a)) list(rho = input$sb_rho) else NULL
         dep <- if (isTRUE(input$sb_dep)) list(exposure = 0.6, carry_over = 1) else NULL
-        simulate_btl(input$sb_objects, input$sb_judges, input$sb_reps,
+        object_locations <- NULL
+        if (lay == "btl_exp") {
+          K <- input$sb_objects; object <- sprintf("O%d", seq_len(K))
+          exposure <- seq(-1, 1, length.out = K)
+          type <- rep(c("A", "B"), length.out = K)
+          object_locations <- (input$sbe_cont %||% 1) * exposure +
+            (input$sbe_cat %||% 0.6) * (type == "B")
+          if (isTRUE(input$sbe_interaction)) {
+            object_locations <- object_locations + (input$sbe_int %||% 0.6) *
+              exposure * (type == "B")
+            wanted_interactions <- "exposure:type"
+          }
+          depart_object <- object[max(1L, round(K / 2))]
+          if ((input$sbe_depart %||% 0) > 0) {
+            departure <- rep(-input$sbe_depart / (K - 1L), K)
+            departure[match(depart_object, object)] <- input$sbe_depart
+            object_locations <- object_locations + departure
+          }
+          predictors <- data.frame(object = object, exposure = exposure,
+                                   type = type, stringsAsFactors = FALSE)
+        }
+        out <- simulate_btl(input$sb_objects, input$sb_judges, input$sb_reps,
           model = input$sb_model, n_categories = input$sb_cats %||% 4L,
           object_sd = input$sb_objsd %||% 1,
+          object_locations = object_locations,
           second_attribute = s2, erratic_judges = input$sb_erratic,
           dependence = dep, seed = seed)
+        base_call <- sprintf(
+          'simulate_btl(%d, %d, %d, model = "%s"%s, object_sd = %s%s%s%s%s,\n  seed = %d)',
+          input$sb_objects, input$sb_judges, input$sb_reps, input$sb_model,
+          if (identical(input$sb_model, "polytomous"))
+            sprintf(", n_categories = %d", input$sb_cats %||% 4L) else "",
+          input$sb_objsd,
+          if (!is.null(object_locations))
+            sprintf(", object_locations = c(%s)", nums(object_locations)) else "",
+          if (input$sb_erratic > 0)
+            sprintf(", erratic_judges = %s", input$sb_erratic) else "",
+          if (isTRUE(input$sb_2a))
+            sprintf(", second_attribute = list(rho = %s)", input$sb_rho) else "",
+          if (isTRUE(input$sb_dep))
+            ", dependence = list(exposure = 0.6, carry_over = 1)" else "", seed)
+        if (lay == "btl_exp") {
+          sim_call <- paste0("local({\n  predictors <- data.frame(\n",
+            "    object = ", qvec(predictors$object), ",\n",
+            "    exposure = c(", nums(predictors$exposure), "),\n",
+            "    type = ", qvec(predictors$type), ",\n",
+            "    stringsAsFactors = FALSE)\n  d <- ",
+            gsub("\n", "\n  ", base_call),
+            "\n  attr(d, \"predictors\") <- predictors\n",
+            "  truth <- attr(d, \"truth\")\n",
+            "  truth$predictors <- predictors\n",
+            "  truth$explanatory_formula <- \"",
+            if (length(wanted_interactions))
+              "~ exposure + type + exposure:type" else "~ exposure + type",
+            "\"\n",
+            if ((input$sbe_depart %||% 0) > 0) sprintf(
+              "  truth$planted <- c(truth$planted, \"fixed explanatory departure for %s (%.2f logits)\")\n",
+              depart_object, input$sbe_depart) else "",
+            "  attr(d, \"truth\") <- truth\n  d\n})")
+          tr <- attr(out, "truth")
+          tr$predictors <- predictors
+          tr$explanatory_formula <- if (length(wanted_interactions))
+            "~ exposure + type + exposure:type" else "~ exposure + type"
+          if ((input$sbe_depart %||% 0) > 0) tr$planted <- c(tr$planted,
+            sprintf("fixed explanatory departure for %s (%.2f logits)",
+                    depart_object, input$sbe_depart))
+          attr(out, "truth") <- tr
+          attr(out, "predictors") <- predictors
+        } else sim_call <- base_call
+        out
       } else if (lay == "mfrm") {
         intr <- if (isTRUE(input$sm_int))
           list(rater = "R2", item = "I2", bias = 1.8) else NULL
-        simulate_mfrm(input$sm_persons, input$sm_items, input$sm_raters,
+        out <- simulate_mfrm(input$sm_persons, input$sm_items, input$sm_raters,
           n_categories = input$sm_cats, theta_sd = input$sm_thsd %||% 1.2,
           item_sd = input$sm_itemsd %||% 1, rater_severity_sd = input$sm_sev,
           erratic_raters = input$sm_erratic, halo = input$sm_halo %||% 0,
           interaction = intr, seed = seed)
-      } else {
-        simulate_efrm(input$se_pergroup, input$se_items, input$se_sets,
+        sim_call <- sprintf(
+          'simulate_mfrm(%d, %d, %d, n_categories = %d, theta_sd = %s, item_sd = %s, rater_severity_sd = %s%s%s%s,\n  seed = %d)',
+          input$sm_persons, input$sm_items, input$sm_raters, input$sm_cats,
+          input$sm_thsd %||% 1.2, input$sm_itemsd %||% 1, input$sm_sev,
+          if (input$sm_erratic > 0)
+            sprintf(", erratic_raters = %s", input$sm_erratic) else "",
+          if (input$sm_halo > 0) sprintf(", halo = %s", input$sm_halo) else "",
+          if (isTRUE(input$sm_int))
+            ', interaction = list(rater = "R2", item = "I2", bias = 1.8)' else "",
+          seed)
+        out
+      } else if (lay == "efrm") {
+        drift <- if (isTRUE(input$se_drift))
+          list(items = sprintf("S1I%02d", max(1L, round(input$se_items / 2))),
+               group = "g2", shift = input$se_driftmag) else NULL
+        out <- simulate_efrm(input$se_pergroup, input$se_items, input$se_sets,
           input$se_groups, set_unit_ratio = input$se_setratio,
           group_unit_ratio = input$se_grpratio,
-          theta_sd = input$se_thsd %||% 1.3, seed = seed)
+          n_categories = input$se_cats %||% 2L,
+          theta_sd = input$se_thsd %||% 1.3, item_drift = drift,
+          careless = input$se_careless %||% 0,
+          missing = input$se_missing %||% 0, seed = seed)
+        sim_call <- sprintf(
+          'simulate_efrm(%d, %d, %d, %d, set_unit_ratio = %s, group_unit_ratio = %s, n_categories = %d, theta_sd = %s%s%s%s,\n  seed = %d)',
+          input$se_pergroup, input$se_items, input$se_sets, input$se_groups,
+          input$se_setratio, input$se_grpratio, input$se_cats %||% 2L,
+          input$se_thsd %||% 1.3,
+          if (!is.null(drift)) sprintf(
+            ', item_drift = list(items = "%s", group = "g2", shift = %s)',
+            drift$items, drift$shift) else "",
+          if ((input$se_careless %||% 0) > 0)
+            sprintf(", careless = %s", input$se_careless) else "",
+          if ((input$se_missing %||% 0) > 0)
+            sprintf(", missing = %s", input$se_missing) else "", seed)
+        out
+      } else {
+        span_units <- function(ratio, n) exp(seq(0, log(ratio), length.out = n))
+        panel_units <- span_units(input$sbf_panelratio, input$sbf_panels)
+        set_units <- span_units(input$sbf_setratio, input$sbf_sets)
+        set_origins <- seq(0, input$sbf_origin, length.out = input$sbf_sets)
+        out <- simulate_btl_efrm(
+          input$sbf_objects, input$sbf_sets, input$sbf_judges,
+          input$sbf_panels, input$sbf_within, input$sbf_cross,
+          panel_units = panel_units, set_units = set_units,
+          set_origins = set_origins, object_sd = input$sbf_objsd,
+          erratic_judges = input$sbf_erratic, seed = seed)
+        sim_call <- sprintf(
+          paste0('simulate_btl_efrm(%d, %d, %d, %d, %d, %d,\n',
+            '  panel_units = c(%s), set_units = c(%s),\n',
+            '  set_origins = c(%s), object_sd = %s%s, seed = %d)'),
+          input$sbf_objects, input$sbf_sets, input$sbf_judges,
+          input$sbf_panels, input$sbf_within, input$sbf_cross,
+          nums(panel_units), nums(set_units), nums(set_origins),
+          input$sbf_objsd,
+          if (input$sbf_erratic > 0)
+            sprintf(", erratic_judges = %s", input$sbf_erratic) else "", seed)
+        out
       }
     }), error = function(e) e)
     if (inherits(d, "error")) {
@@ -2262,55 +2602,23 @@ server <- function(input, output, session) {
                        type = "error", duration = 10); return()
     }
     sim_truth_val(attr(d, "truth"))
-    # a reproducible simulate_*() call reflecting the current settings
-    sim_code_val(switch(lay,
-      rasch = {
-        a <- c(sprintf("n_persons = %d, n_items = %d", input$sr_persons, I),
-          sprintf('model = "%s"', input$sr_model),
-          sprintf("theta_mean = %s, theta_sd = %s", input$sr_mean, input$sr_sd),
-          if (input$sr_dist != "normal") sprintf('theta_dist = "%s"', input$sr_dist),
-          sprintf("difficulty = c(%s, %s)", input$sr_diff[1], input$sr_diff[2]),
-          if (input$sr_model != "dichotomous") sprintf("n_categories = %d", input$sr_cats %||% 4L),
-          if (input$sr_over > 0 || input$sr_under > 0)
-            sprintf("discrimination = c(%s)", paste(round(disc, 1), collapse = ", ")),
-          if (any(guess != 0)) sprintf("guessing = c(%s)", paste(round(guess, 2), collapse = ", ")),
-          if (!is.null(s2)) sprintf('second_dim = list(items = c(%s), rho = %s)',
-            paste0('"', s2$items, '"', collapse = ", "), s2$rho),
-          if (!is.null(dep)) 'dependence = list(pairs = list(c("I01", "I02")), strength = 2.2)',
-          if (!is.null(dif)) sprintf('dif = list(items = "%s", uniform = %s), n_groups = 2',
-            dif$items, dif$uniform),
-          if (!is.null(rstyle)) sprintf('response_style = list(type = "%s", prop = 0.25)', rstyle$type),
-          if (input$sr_speeded > 0) sprintf("speeded = %s", input$sr_speeded),
-          if (input$sr_careless > 0) sprintf("careless = %s", input$sr_careless),
-          if (input$sr_missing > 0) sprintf("missing = %s", input$sr_missing))
-        sprintf("simulate_rasch(\n  %s,\n  seed = %d)",
-                paste(Filter(nzchar, a), collapse = ",\n  "), seed)
-      },
-      btl = sprintf('simulate_btl(%d, %d, %d, model = "%s"%s, object_sd = %s%s%s%s,\n  seed = %d)',
-        input$sb_objects, input$sb_judges, input$sb_reps, input$sb_model,
-        if (identical(input$sb_model, "polytomous"))
-          sprintf(", n_categories = %d", input$sb_cats %||% 4L) else "",
-        input$sb_objsd,
-        if (input$sb_erratic > 0) sprintf(", erratic_judges = %s", input$sb_erratic) else "",
-        if (isTRUE(input$sb_2a)) sprintf(", second_attribute = list(rho = %s)", input$sb_rho) else "",
-        if (isTRUE(input$sb_dep)) ", dependence = list(exposure = 0.6, carry_over = 1)" else "",
-        seed),
-      mfrm = sprintf('simulate_mfrm(%d, %d, %d, n_categories = %d, theta_sd = %s, item_sd = %s, rater_severity_sd = %s%s%s%s,\n  seed = %d)',
-        input$sm_persons, input$sm_items, input$sm_raters, input$sm_cats,
-        input$sm_thsd %||% 1.2, input$sm_itemsd %||% 1, input$sm_sev,
-        if (input$sm_erratic > 0) sprintf(", erratic_raters = %s", input$sm_erratic) else "",
-        if (input$sm_halo > 0) sprintf(", halo = %s", input$sm_halo) else "",
-        if (isTRUE(input$sm_int)) ', interaction = list(rater = "R2", item = "I2", bias = 1.8)' else "",
-        seed),
-      efrm = sprintf('simulate_efrm(%d, %d, %d, %d, set_unit_ratio = %s, group_unit_ratio = %s, theta_sd = %s,\n  seed = %d)',
-        input$se_pergroup, input$se_items, input$se_sets, input$se_groups,
-        input$se_setratio, input$se_grpratio, input$se_thsd %||% 1.3, seed)))
+    sim_predictors_val(predictors)
+    sim_interactions_val(wanted_interactions)
+    sim_code_val(sim_call)
+    restored_project_name(NULL)
+    restored_project_settings(list())
+    restored_project_resources(list())
     updateSelectInput(session, "demo_choice", selected = "none")
-    updateRadioButtons(session, "model_type",
-                       selected = if (lay == "rasch") "rasch" else lay)
-    if (lay == "rasch")
+    model_selected <- if (lay %in% c("rasch", "rasch_exp")) "rasch" else
+      if (lay %in% c("btl", "btl_exp", "btl_efrm")) "btl" else lay
+    updateRadioButtons(session, "model_type", selected = model_selected)
+    if (lay %in% c("rasch", "rasch_exp"))
       updateRadioButtons(session, "thr_structure",
         selected = if (input$sr_model == "RSM") "rsm" else "pcm")
+    updateRadioButtons(session, "rasch_calibration",
+      selected = if (lay %in% c("rasch_exp", "btl_exp")) "explanatory" else "free")
+    if (lay == "rasch_exp")
+      updateRadioButtons(session, "exp_level", selected = "item")
     # simulated many-facet data is long (person, item, rater, score)
     if (lay == "mfrm")
       updateRadioButtons(session, "lp_layout", selected = "long")
@@ -2329,7 +2637,7 @@ server <- function(input, output, session) {
       card_body(
         p(class = "mb-1", strong(tr$description)),
         if (length(tr$planted)) tagList(
-          p(class = "mb-1 small text-muted", "Planted departures:"),
+          p(class = "mb-1 small text-muted", "Generating values and departures:"),
           tags$ul(class = "small mb-1", lapply(tr$planted, tags$li)))
         else p(class = "small text-muted", "Model-conforming (no departures)."),
         p(class = "small mb-0", bs_icon("arrow-right-circle"),
@@ -2342,6 +2650,42 @@ server <- function(input, output, session) {
       datatable(d, rownames = FALSE, style = "bootstrap5", class = "table-sm compact",
                 options = list(dom = "t", scrollX = TRUE)), d)
   })
+  sim_file_stem <- function() paste0(
+    "rasch_sim_", sim_truth_val()$layout %||% "data", "_",
+    format(Sys.Date(), "%Y%m%d"))
+  output$sim_data_csv <- downloadHandler(
+    filename = function() paste0(sim_file_stem(), ".csv"),
+    content = function(file) {
+      req(!is.null(sim_data()))
+      write_csv_plain(sim_data(), file)
+    })
+  write_sim_bundle <- function(file) {
+    req(!is.null(sim_data()), nzchar(sim_code_val() %||% ""))
+    bundle <- tempfile("rasch-simulation-")
+    dir.create(bundle)
+    on.exit(unlink(bundle, recursive = TRUE, force = TRUE), add = TRUE)
+    write_csv_plain(sim_data(), file.path(bundle, "data.csv"))
+    writeLines(c("# Recreate the simulated data and its truth attribute",
+                 paste0("data <- ", sim_code_val())),
+               file.path(bundle, "simulation.R"))
+    saveRDS(sim_truth_val(), file.path(bundle, "truth.rds"))
+    if (!is.null(sim_predictors_val()))
+      write_csv_plain(sim_predictors_val(),
+                      file.path(bundle, "predictors.csv"))
+    writeLines(c(
+      "data.csv contains the simulated analysis data.",
+      "simulation.R recreates the classed dataset and its truth attribute.",
+      "truth.rds contains the exact generating values and planted departures.",
+      if (!is.null(sim_predictors_val()))
+        "predictors.csv contains the explanatory item or object metadata."
+      else NULL), file.path(bundle, "README.txt"))
+    old <- setwd(bundle); on.exit(setwd(old), add = TRUE)
+    utils::zip(file, list.files(".", all.files = FALSE), flags = "-9Xq")
+    invisible(file)
+  }
+  output$sim_bundle_zip <- downloadHandler(
+    filename = function() paste0(sim_file_stem(), ".zip"),
+    content = write_sim_bundle)
   output$sim_code <- renderText(sim_code_val() %||% "")
   # parameter recovery: the fit matching the simulated layout, compared to the
   # attached truth (re-attached, since sim_data() is stored as a plain frame)
@@ -2350,7 +2694,12 @@ server <- function(input, output, session) {
     # only compare a fit estimated on THIS simulation; a fit left over from
     # an earlier one would render misleading recovery numbers
     req(identical(fitted_sim_gen(), sim_gen()))
-    f <- if (identical(tr$layout, "btl")) btl_fit() else fit_or_null()
+    f <- if (identical(tr$layout, "btl")) btl_fit() else
+      if (identical(tr$layout, "btl_efrm")) {
+        z <- bfit()
+        req(inherits(z, "rasch_btl_efrm"))
+        z
+      } else fit_or_null()
     req(!is.null(f))
     obj <- sim_data(); attr(obj, "truth") <- tr
     tryCatch(sim_recovery(f, obj), error = function(e) NULL)
@@ -2368,24 +2717,59 @@ server <- function(input, output, session) {
   }, res = 96)
 
   anchors_in <- reactive({
-    if (is.null(input$anchor_file)) return(NULL)
-    a <- tryCatch(read.csv(input$anchor_file$datapath, stringsAsFactors = FALSE),
-                  error = function(e) NULL)
-    if (is.null(a) || !all(c("item", "k", "tau") %in% names(a))) {
-      showNotification("Anchor file needs columns item, k, tau - ignored.",
-                       type = "warning")
-      return(NULL)
-    }
+    a <- if (!is.null(input$anchor_file))
+      tryCatch(read.csv(input$anchor_file$datapath,
+                        check.names = FALSE, stringsAsFactors = FALSE),
+               error = function(e)
+                 stop("could not read the anchor CSV: ",
+                      conditionMessage(e), call. = FALSE))
+    else restored_project_resources()$anchors
+    if (is.null(a)) return(NULL)
+    if (anyDuplicated(names(a)))
+      stop("the anchor CSV has duplicate column names", call. = FALSE)
+    if (!all(c("item", "k", "tau") %in% names(a)))
+      stop("the anchor CSV needs columns item, k, tau", call. = FALSE)
+    if (!nrow(a)) stop("the anchor CSV contains no anchor rows", call. = FALSE)
+    a$item <- trimws(as.character(a$item))
+    if (anyNA(a$item) || any(!nzchar(a$item)))
+      stop("every anchor row needs a non-blank item name", call. = FALSE)
     a
   })
 
+  key_in <- reactive({
+    kf <- if (!is.null(input$key_file))
+      tryCatch(read.csv(input$key_file$datapath,
+                        check.names = FALSE, stringsAsFactors = FALSE),
+               error = function(e)
+                 stop("could not read the scoring-key CSV: ",
+                      conditionMessage(e), call. = FALSE))
+    else restored_project_resources()$key
+    if (is.null(kf)) {
+      if (identical(input$demo_choice, "dich")) return(.demo_dich_key())
+      return(NULL)
+    }
+    if (anyDuplicated(names(kf)))
+      stop("the scoring-key CSV has duplicate column names")
+    if (!(all(c("item", "key") %in% names(kf)) ||
+          all(c("item", "option", "score") %in% names(kf))))
+      stop("the scoring-key CSV needs columns item,key or item,option,score")
+    if (!nrow(kf)) stop("the scoring-key CSV contains no key rows")
+    kf
+  })
+
   exp_predictors_raw <- reactive({
-    req(input$exp_predictors)
-    p <- tryCatch(read.csv(input$exp_predictors$datapath,
-                           check.names = FALSE, stringsAsFactors = FALSE),
-                  error = function(e) e)
-    if (inherits(p, "error"))
-      stop("could not read the predictor metadata: ", conditionMessage(p))
+    if (!is.null(sim_predictors_val())) {
+      p <- sim_predictors_val()
+    } else if (!is.null(input$exp_predictors)) {
+      p <- tryCatch(read.csv(input$exp_predictors$datapath,
+                             check.names = FALSE, stringsAsFactors = FALSE),
+                    error = function(e) e)
+      if (inherits(p, "error"))
+        stop("could not read the predictor metadata: ", conditionMessage(p))
+    } else {
+      p <- restored_project_resources()$predictors
+      if (is.null(p)) req(FALSE)
+    }
     key <- if (identical(input$model_type, "btl")) "object" else "item"
     if (!key %in% names(p))
       stop("predictor metadata needs a ", key, " column")
@@ -2443,7 +2827,8 @@ server <- function(input, output, session) {
     p
   })
   output$exp_predictor_types <- renderUI({
-    if (is.null(input$exp_predictors)) return(NULL)
+    if (is.null(input$exp_predictors) && is.null(sim_predictors_val()) &&
+        is.null(restored_project_resources()$predictors)) return(NULL)
     p <- tryCatch(exp_predictors_raw(), error = function(e) NULL)
     if (is.null(p)) return(NULL)
     vars <- exp_predictor_vars()
@@ -2493,7 +2878,8 @@ server <- function(input, output, session) {
     }, character(1))
   })
   output$exp_formula_controls <- renderUI({
-    if (is.null(input$exp_predictors))
+    if (is.null(input$exp_predictors) && is.null(sim_predictors_val()) &&
+        is.null(restored_project_resources()$predictors))
       return(p(class = "text-muted small",
                "Upload predictor metadata to choose effects and interactions."))
     p <- tryCatch(exp_predictors_raw(), error = function(e) NULL)
@@ -2533,7 +2919,10 @@ server <- function(input, output, session) {
     z <- input$exp_main
     choices <- if (length(z) >= 2L)
       apply(utils::combn(z, 2L), 2L, paste, collapse = ":") else character(0)
-    keep <- intersect(input$exp_interactions %||% character(0), choices)
+    keep <- unique(c(intersect(input$exp_interactions %||% character(0), choices),
+                     intersect(restored_project_settings()$exp_interactions %||%
+                                 character(0), choices),
+                     intersect(sim_interactions_val(), choices)))
     updateSelectizeInput(session, "exp_interactions", choices = choices,
                          selected = keep, server = TRUE)
   }, ignoreNULL = FALSE)
@@ -2548,14 +2937,27 @@ server <- function(input, output, session) {
   # paired-comparison anchors: a two-column CSV (object, location) that places
   # this calibration on an existing scale, parsed defensively like anchors_in()
   bt_anchors_in <- reactive({
-    if (is.null(input$bt_anchor_file)) return(NULL)
-    a <- tryCatch(read.csv(input$bt_anchor_file$datapath, stringsAsFactors = FALSE),
-                  error = function(e) NULL)
-    if (is.null(a) || !all(c("object", "location") %in% names(a))) {
-      showNotification("Anchor file needs columns object, location - ignored.",
-                       type = "warning")
-      return(NULL)
-    }
+    a <- if (!is.null(input$bt_anchor_file))
+      tryCatch(read.csv(input$bt_anchor_file$datapath,
+                        check.names = FALSE, stringsAsFactors = FALSE),
+               error = function(e)
+                 stop("could not read the paired-comparison anchor CSV: ",
+                      conditionMessage(e), call. = FALSE))
+    else restored_project_resources()$bt_anchors
+    if (is.null(a)) return(NULL)
+    if (anyDuplicated(names(a)))
+      stop("the paired-comparison anchor CSV has duplicate column names",
+           call. = FALSE)
+    if (!all(c("object", "location") %in% names(a)))
+      stop("the paired-comparison anchor CSV needs columns object, location",
+           call. = FALSE)
+    if (!nrow(a))
+      stop("the paired-comparison anchor CSV contains no anchor rows",
+           call. = FALSE)
+    a$object <- trimws(as.character(a$object))
+    if (anyNA(a$object) || any(!nzchar(a$object)))
+      stop("every paired-comparison anchor row needs a non-blank object name",
+           call. = FALSE)
     a
   })
 
@@ -2639,6 +3041,41 @@ server <- function(input, output, session) {
                       selected = if (!is.na(g_c)) g_c else NONE)
   })
 
+  read_frame_map <- function(upload, id_col, units, label) {
+    mp <- tryCatch(
+      read.csv(upload$datapath, stringsAsFactors = FALSE,
+               check.names = FALSE),
+      error = function(e) e)
+    if (inherits(mp, "error"))
+      validate(need(FALSE, paste0("Could not read the ", label,
+                                 "-set CSV: ", conditionMessage(mp))))
+    validate(need(!anyDuplicated(names(mp)),
+                  paste0("The ", label, "-set CSV has duplicate column names.")))
+    validate(need(all(c(id_col, "set") %in% names(mp)),
+                  paste0("The ", label, "-set CSV needs columns ",
+                         id_col, " and set.")))
+    ids <- as.character(mp[[id_col]])
+    sets <- as.character(mp$set)
+    validate(need(!anyNA(ids) && all(nzchar(trimws(ids))),
+                  paste0("Every row of the ", label,
+                         "-set CSV needs a non-blank ", id_col, ".")))
+    validate(need(!anyNA(sets) && all(nzchar(trimws(sets))),
+                  paste0("Every row of the ", label,
+                         "-set CSV needs a non-blank set.")))
+    ids <- trimws(ids)
+    sets <- trimws(sets)
+    validate(need(!anyDuplicated(ids),
+                  paste0("The ", label, "-set CSV assigns ", id_col,
+                         " values more than once: ",
+                         paste(unique(ids[duplicated(ids)]), collapse = ", "), ".")))
+    extra <- setdiff(ids, units)
+    validate(need(!length(extra),
+                  paste0("The ", label, "-set CSV includes unknown ", id_col,
+                         " values: ", paste(utils::head(extra, 5L),
+                                            collapse = ", "), ".")))
+    stats::setNames(sets, ids)
+  }
+
   # item -> set map: uploaded CSV wins; otherwise infer from the item-name
   # prefix (the part before trailing digits/separators)
   ef_setmap <- reactive({
@@ -2647,16 +3084,18 @@ server <- function(input, output, session) {
               c(if (!is.null(input$ef_id) && input$ef_id != NONE) input$ef_id,
                 if (!is.null(input$ef_group) && input$ef_group != NONE) input$ef_group))
     if (!is.null(input$ef_sets)) {
-      mp <- tryCatch(read.csv(input$ef_sets$datapath, stringsAsFactors = FALSE),
-                     error = function(e) NULL)
-      if (!is.null(mp) && all(c("item", "set") %in% names(mp))) {
-        out <- setNames(as.character(mp$set), mp$item)
-        miss <- setdiff(its, names(out))
-        if (length(miss)) out[miss] <- "(rest)"
-        return(out[its])
-      }
-      showNotification("Item-set CSV needs columns item,set - using prefixes.",
-                       type = "warning")
+      out <- read_frame_map(input$ef_sets, "item", its, "item")
+      miss <- setdiff(its, names(out))
+      if (length(miss)) out[miss] <- "(rest)"
+      return(out[its])
+    }
+    saved <- restored_project_resources()$ef_setmap
+    if (!is.null(saved)) {
+      miss <- setdiff(its, names(saved))
+      validate(need(!length(miss),
+                    paste0("The saved item-set map does not cover: ",
+                           paste(utils::head(miss, 5L), collapse = ", "), ".")))
+      return(saved[its])
     }
     if (isTRUE(input$ef_prefix)) {
       pref <- sub("[_. -]*[0-9]+$", "", its)
@@ -2711,7 +3150,9 @@ server <- function(input, output, session) {
                          rsm = "Rating scale", mfrm = "Multiple Ratings",
                          efrm = "Extended Frames", btl = "Comparative Judgement")
   output$data_main <- renderUI({
-    if (identical(input$demo_choice %||% "none", "none") && is.null(input$file)) {
+    if (is.null(sim_data()) &&
+        identical(input$demo_choice %||% "none", "none") &&
+        is.null(input$file)) {
       div(class = "mx-auto", style = "max-width: 760px; margin-top: 8vh;",
         card(
           card_body(class = "empty-state",
@@ -2808,6 +3249,7 @@ server <- function(input, output, session) {
       created = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z")
     )
     analysis_steps(h)
+    advance_analysis_context()
     invisible(fitted)
   }
   clear_analysis_steps <- function() analysis_steps(list())
@@ -2822,6 +3264,7 @@ server <- function(input, output, session) {
       type = type, label = label, fit = fitted, details = details, code = code,
       created = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"))
     btl_analysis_steps(h)
+    advance_analysis_context()
     invisible(fitted)
   }
   clear_btl_analysis_steps <- function() btl_analysis_steps(list())
@@ -2832,6 +3275,7 @@ server <- function(input, output, session) {
       btl_analysis_steps(h[-length(h)])
       if (identical(removed$type, "btl_frames"))
         try(btlef_res(NULL), silent = TRUE)
+      advance_analysis_context()
       if (isTRUE(notify))
         showNotification(paste("Undid", removed$label), type = "message",
                          duration = 5)
@@ -2842,6 +3286,7 @@ server <- function(input, output, session) {
     removed <- h[[length(h)]]
     h <- h[-length(h)]
     analysis_steps(h)
+    advance_analysis_context()
     if (identical(removed$type, "dif_auto")) resolve_res(NULL)
     if (isTRUE(notify))
       showNotification(paste("Undid", removed$label), type = "message",
@@ -2892,6 +3337,7 @@ server <- function(input, output, session) {
   reset_to_original <- function() {
     clear_analysis_steps(); clear_btl_analysis_steps(); resolve_res(NULL)
     try(btlef_res(NULL), silent = TRUE)
+    advance_analysis_context()
     showNotification("Reset to the original data; showing the base analysis.",
                      type = "message", duration = 5)
   }
@@ -2906,6 +3352,11 @@ server <- function(input, output, session) {
   fit_val <- reactiveVal(NULL)
   analysis <- reactive(fit_val())
   btl_fit <- reactiveVal(NULL)
+  clear_btl_fit_results <- function() {
+    bdif_res(NULL)
+    btlef_res(NULL)
+    invisible(NULL)
+  }
   # shared estimation-control resolution (used by every model branch and
   # the reproducible-code footers)
   est_opts <- reactive(list(maxit = max(5, input$maxit %||% 60),
@@ -2913,6 +3364,9 @@ server <- function(input, output, session) {
   data_source_code <- reactive({
     if (!is.null(sim_data()) && nzchar(sim_code_val() %||% ""))
       return(paste0("dat <- ", sim_code_val()))
+    if (!is.null(sim_data()) && nzchar(restored_project_name() %||% ""))
+      return(paste0("project <- readRDS(", qstr(restored_project_name()),
+                    ")\ndat <- project$data"))
     if (!identical(input$demo_choice %||% "none", "none"))
       return(sprintf("dat <- rasch:::.app_example_data(%s)",
                      qstr(input$demo_choice)))
@@ -2955,8 +3409,10 @@ server <- function(input, output, session) {
     # Replace the preceding analysis only after the new fit has succeeded.
     # A failed or cancelled background fit therefore leaves its fitted object
     # and complete structural history available.
+    advance_analysis_context()
     clear_analysis_steps()
     clear_btl_analysis_steps()
+    clear_btl_fit_results()
     fitted_sim_gen(simulation_stamp)
     if (inherits(fit, "rasch_btl")) {
       btl_fit(fit); fit_val(NULL)
@@ -2998,12 +3454,27 @@ server <- function(input, output, session) {
     invisible(NULL)
   }
 
-  observeEvent(input$cancel_efrm, {
-    st <- efrm_job()
-    if (is.null(st)) return(invisible(NULL))
+  background_job_is_current <- function(st) {
+    if (!is.list(st) ||
+        !identical(st$context, isolate(analysis_context()))) return(FALSE)
+    current_data <- tryCatch(isolate(raw_data()), error = function(e) NULL)
+    if (!identical(st$data, current_data)) return(FALSE)
+    if (isTRUE(st$check_btl_fit) &&
+        !identical(st$base_fit, isolate(btl_fit()))) return(FALSE)
+    TRUE
+  }
+
+  cancel_efrm_job <- function() {
+    st <- isolate(efrm_job())
+    if (is.null(st)) return(invisible(FALSE))
     if (st$process$is_alive()) stop_efrm_process(st$process)
     close_efrm_job(st)
     efrm_job(NULL)
+    invisible(TRUE)
+  }
+
+  observeEvent(input$cancel_efrm, {
+    if (!cancel_efrm_job()) return(invisible(NULL))
     showNotification("EFRM estimation cancelled.", type = "message",
                      duration = 5)
   })
@@ -3045,6 +3516,13 @@ server <- function(input, output, session) {
     result <- tryCatch(st$process$get_result(), error = function(e) e)
     close_efrm_job(st)
     efrm_job(NULL)
+    if (!background_job_is_current(st)) {
+      showNotification(paste(
+        "The completed EFRM result was not used because the active data or",
+        "analysis changed while it was running."),
+        type = "warning", duration = 8)
+      return()
+    }
     if (inherits(result, "error")) {
       complete_fit(result, st$code_call, character(0), st$src_line,
                    st$simulation_stamp)
@@ -3060,6 +3538,11 @@ server <- function(input, output, session) {
   observeEvent(input$run, {
     if (!is.null(efrm_job())) {
       showNotification("An EFRM estimation is already running. Cancel it before starting another analysis.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    if (!is.null(btlef_job())) {
+      showNotification("A frame estimation is already running. Cancel it before starting another analysis.",
                        type = "warning", duration = 7)
       return(invisible(NULL))
     }
@@ -3150,6 +3633,7 @@ server <- function(input, output, session) {
         progress_file = progress_file, log_file = log_file,
         code_call = code_call, src_line = src_line,
         se_method = input$ef_se %||% "hybrid",
+        context = isolate(analysis_context()), data = df,
         simulation_stamp = if (!is.null(sim_data())) sim_gen() else NULL))
       return(invisible(NULL))
     }
@@ -3167,6 +3651,10 @@ server <- function(input, output, session) {
           bt_thr <- input$bt_thr %||% "free"
           bt_exp <- identical(input$rasch_calibration %||% "free",
                               "explanatory")
+          if (bt_exp && !is.null(input$bt_anchor_file))
+            stop("paired-comparison anchors cannot be combined with an ",
+                 "explanatory object calibration; remove the anchor file ",
+                 "or choose free calibration")
           # the judgment-order column enables the within-judge dependence
           # analysis (exposure and carry-over); it only exists with a judge
           bt_ord <- if (!is.null(input$bt_order) && nzchar(input$bt_order) &&
@@ -3186,8 +3674,12 @@ server <- function(input, output, session) {
             ep <- exp_predictors_in()
             ef <- exp_formula()
             code_notes <- c(
-              paste0("predictors <- read.csv(", qstr(input$exp_predictors$name),
-                     ", check.names = FALSE)"),
+              if (is.null(sim_predictors_val()) && !is.null(input$exp_predictors))
+                paste0("predictors <- read.csv(", qstr(input$exp_predictors$name),
+                       ", check.names = FALSE)")
+              else if (!is.null(restored_project_resources()$predictors))
+                "predictors <- project$resources$predictors"
+              else 'predictors <- attr(dat, "predictors")',
               exp_predictor_code(),
               paste0("explanatory_formula <- ",
                      paste(deparse(ef), collapse = " ")))
@@ -3205,9 +3697,11 @@ server <- function(input, output, session) {
               paste0("judge = ", qstr(input$bt_judge)),
             if (!is.null(bt_ord)) paste0("order = ", qstr(bt_ord)),
             if (bt_pos) "position = TRUE",
-            if (!is.null(bt_anchor_vec))
+            if (!is.null(bt_anchor_vec) && !is.null(input$bt_anchor_file))
               paste0("anchors = with(read.csv(", qstr(input$bt_anchor_file$name),
                      "), setNames(location, object))"),
+            if (!is.null(bt_anchor_vec) && is.null(input$bt_anchor_file))
+              "anchors = with(project$resources$bt_anchors, setNames(location, object))",
             if (!is.null(input$bt_count) && input$bt_count != NONE)
               paste0("count = ", qstr(input$bt_count)),
             if (!bt_graded && !bt_marg)
@@ -3281,20 +3775,9 @@ server <- function(input, output, session) {
           idc <- if (!is.null(input$id_col) && input$id_col != NONE) input$id_col else NULL
           fac <- if (length(input$factor_cols)) input$factor_cols else NULL
           its <- if (length(input$item_cols)) input$item_cols else NULL
-          # multiple-choice key: uploaded CSV, or the demo key for the demo
-          mc_key <- NULL
-          if (!is.null(input$key_file)) {
-            kf <- tryCatch(read.csv(input$key_file$datapath,
-                                    stringsAsFactors = FALSE),
-                           error = function(e) NULL)
-            if (!is.null(kf) && (all(c("item", "key") %in% names(kf)) ||
-                                 all(c("item", "option", "score") %in% names(kf))))
-              mc_key <- kf
-            else showNotification("Key CSV needs columns item,key or item,option,score - ignored.",
-                                  type = "warning")
-          } else if (identical(input$demo_choice, "dich")) {
-            mc_key <- .demo_dich_key()
-          }
+          # multiple-choice key: an uploaded CSV, the copy embedded in a
+          # reopened project, or the bundled key for the dichotomous example
+          mc_key <- key_in()
           exp_on <- identical(input$rasch_calibration %||% "free",
                               "explanatory")
           if (exp_on) {
@@ -3302,9 +3785,13 @@ server <- function(input, output, session) {
             ef <- exp_formula()
             level <- input$exp_level %||% "item"
             code_notes <- c(
-              paste0("predictors <- read.csv(",
-                     qstr(input$exp_predictors$name),
-                     ", check.names = FALSE)"),
+              if (is.null(sim_predictors_val()) && !is.null(input$exp_predictors))
+                paste0("predictors <- read.csv(",
+                       qstr(input$exp_predictors$name),
+                       ", check.names = FALSE)")
+              else if (!is.null(restored_project_resources()$predictors))
+                "predictors <- project$resources$predictors"
+              else 'predictors <- attr(dat, "predictors")',
               exp_predictor_code(),
               paste0("explanatory_formula <- ",
                      paste(deparse(ef), collapse = " ")))
@@ -3318,6 +3805,8 @@ server <- function(input, output, session) {
               code_args_common,
               if (!is.null(mc_key) && !is.null(input$key_file))
                 paste0("key = read.csv(", qstr(input$key_file$name), ")")
+              else if (!is.null(restored_project_resources()$key))
+                "key = project$resources$key"
               else if (!is.null(mc_key))
                 'key = setNames(rep("A", 15), sprintf("I%02d", 1:15))',
               code_est), collapse = ",\n  "), ")")
@@ -3327,16 +3816,15 @@ server <- function(input, output, session) {
               n_groups = ng, adjust_N = adjN, key = mc_key,
               maxit = eo$maxit, tol = eo$tol)
           } else {
-          # anchors match by item name; rows for absent items are ignored
+          # anchors match by item name; a supplied map must apply in full
           anc <- anchors_in()
           if (!is.null(anc)) {
             cand <- if (!is.null(its)) its else setdiff(names(df), c(idc, fac))
             present <- as.character(anc$item) %in% cand
             if (!all(present))
-              showNotification(sprintf("%d anchor row(s) ignored (items not in this dataset)",
-                                       sum(!present)), type = "warning")
-            anc <- anc[present, , drop = FALSE]
-            if (!nrow(anc)) anc <- NULL
+              stop("anchor item(s) are not in the selected analysis: ",
+                   paste(unique(as.character(anc$item[!present])),
+                         collapse = ", "))
             # average anchoring: collapse to one mean-location anchor per item
             if (!is.null(anc) && identical(input$anchor_type, "average")) {
               mu <- tapply(anc$tau, as.character(anc$item), mean)
@@ -3351,12 +3839,14 @@ server <- function(input, output, session) {
           pcc <- if (!rsm_on && identical(input$thr_mode, "pc"))
             as.integer(input$pc_rank %||% "4") else NULL
           if (!is.null(pcc) && !is.null(anc)) {
-            showNotification("Anchors are ignored under principal-components threshold estimation.",
-                             type = "warning", duration = 8)
-            anc <- NULL
+            stop("anchors cannot be combined with principal-components ",
+                 "threshold estimation; remove the anchor file or choose ",
+                 "ordinary partial-credit estimation")
           }
-          code_notes <- if (!is.null(anc) && !is.null(input$anchor_file)) c(
-            paste0("anchors <- read.csv(", qstr(input$anchor_file$name), ")"),
+          code_notes <- if (!is.null(anc)) c(
+            if (!is.null(input$anchor_file))
+              paste0("anchors <- read.csv(", qstr(input$anchor_file$name), ")")
+            else "anchors <- project$resources$anchors",
             paste0("anchors <- anchors[as.character(anchors$item) %in% ",
                    qvec(cand), ", , drop = FALSE]"),
             if (identical(input$anchor_type, "average")) c(
@@ -3369,10 +3859,11 @@ server <- function(input, output, session) {
             if (!is.null(fac)) paste0("factors = ", qvec(fac)),
             if (!is.null(its)) paste0("items = ", qvec(its)),
             code_args_common,
-            if (!is.null(anc) && !is.null(input$anchor_file))
-              "anchors = anchors",
+            if (!is.null(anc)) "anchors = anchors",
             if (!is.null(mc_key) && !is.null(input$key_file))
               paste0("key = read.csv(", qstr(input$key_file$name), ")")
+            else if (!is.null(restored_project_resources()$key))
+              "key = project$resources$key"
             else if (!is.null(mc_key))
               'key = setNames(rep("A", 15), sprintf("I%02d", 1:15))',
             if (!is.null(pcc)) paste0("pc_components = ", pcc),
@@ -3656,6 +4147,7 @@ server <- function(input, output, session) {
     if (!isTRUE(restoring_project())) {
       lr_res(NULL); dep_res(NULL); spread_res(NULL); dm_res(NULL)
       guess_res(NULL); contr_res(NULL); rescore_res(NULL)
+      person_weight_state(NULL)
       # An automatic resolution sets the override fit itself, so its trace
       # must survive its own refit; a fresh run or another override clears it.
       if (!identical(active_step_type(), "dif_auto")) resolve_res(NULL)
@@ -3736,7 +4228,7 @@ server <- function(input, output, session) {
   observeEvent(input$resolve_all, {
     run_factors <- names(fit()$factors)
     run_alpha <- dif_alpha()
-    run_adjust <- input$dif_padj %||% "holm"
+    run_adjust <- "holm"
     rr <- tryCatch(
       resolve_dif(fit(), factors = run_factors, alpha = run_alpha,
                   p_adjust = run_adjust),
@@ -4076,6 +4568,7 @@ server <- function(input, output, session) {
     se = "SE", theta = "Location", max_raw = "Max score", raw = "Raw score",
     n_items = "Items", chisq = "Chi-sq", df_fit = "Fit df", p = "p",
     p_adj = "Adj. p", p_bonf = "Bonf. p", p_anova = "ANOVA p",
+    p_anova_adj = "ANOVA adj. p", p_anova_bonf = "ANOVA Bonf. p",
     F_anova = "ANOVA F", F_uniform = "Uniform F",
     F_nonuniform = "Non-uniform F", p_uniform = "Uniform p",
     p_nonuniform = "Non-uniform p", p_uniform_adj = "Uniform adj. p",
@@ -4579,12 +5072,12 @@ server <- function(input, output, session) {
     code = function() sprintf("explanatory_test(%s)", expl_object_name()))
   register_table("expl_coef_tbl", function() expl_coef(),
     function() num_dt(expl_coef(),
-                       p_bold = c("p", "p_adj")),
+                       p_bold = "p_adj"),
     code = function() paste0(expl_object_name(),
       if (expl_is_cj()) "$object_coefficients" else "$est$coefficients"))
   register_table("expl_diag_tbl", function() expl_diag(), function() {
     num_dt(expl_diag(), page_len = 15, selection = "single",
-           p_bold = c("p", "p_adj"))
+           p_bold = "p_adj")
   }, code = function() sprintf(
     "explanatory_diagnostics(%s, p_adjust = \"holm\")", expl_object_name()))
   register_table("expl_relax_tbl", function() expl_fit()$explanatory$relaxations,
@@ -4740,7 +5233,7 @@ server <- function(input, output, session) {
   register_table("items_tbl", function() fit()$items, function() {
     d <- curate(fit()$items, "items", full = isTRUE(input$items_full))
     dt <- num_dt(d, page_len = 25, selection = "single",
-                 p_bold = c("p_adj", "p_anova"))
+                 p_bold = c("p_adj", "p_anova_adj"))
     # fit residual, infit and outfit are flagged by num_dt; the adjusted
     # chi-square probability turns red at .05 as well (no single flag column)
     for (j in which(names(d) == "p_adj"))
@@ -4960,6 +5453,98 @@ server <- function(input, output, session) {
     dt <- flag_fit_cols(dt, names(d))
     dt
   }, code = function() "fit$person")
+
+  observeEvent(input$person_weights_go, {
+    f <- fit()
+    upload <- input$person_weights_file
+    if (is.null(upload)) {
+      showNotification("Choose a weights CSV first.", type = "warning")
+      return()
+    }
+    parsed <- tryCatch({
+      d <- read.csv(upload$datapath, check.names = FALSE,
+                    stringsAsFactors = FALSE)
+      if (anyDuplicated(names(d)))
+        stop("the weights CSV has duplicate column names")
+      by <- input$person_weight_level %||% "item"
+      sets <- NULL
+      if (identical(by, "item")) {
+        if (!all(c("item", "weight") %in% names(d)))
+          stop("item weights need columns item and weight")
+        if (!nrow(d) || anyNA(d$item) || any(!nzchar(as.character(d$item))) ||
+            anyDuplicated(as.character(d$item)))
+          stop("item weights need one non-empty row per item")
+        weights <- stats::setNames(as.numeric(d$weight), as.character(d$item))
+      } else if ("item" %in% names(d)) {
+        if (!all(c("item", "set", "weight") %in% names(d)))
+          stop("set weights need columns item, set and weight")
+        if (!nrow(d) || anyNA(d[, c("item", "set", "weight")]) ||
+            any(!nzchar(as.character(d$item))) ||
+            any(!nzchar(as.character(d$set))) ||
+            anyDuplicated(as.character(d$item)))
+          stop("set weights need one complete row per item")
+        split_w <- split(as.numeric(d$weight), as.character(d$set))
+        if (any(vapply(split_w, function(z)
+          length(unique(z)) != 1L, logical(1))))
+          stop("every row in an item set must carry the same set weight")
+        weights <- vapply(split_w, `[`, numeric(1), 1L)
+        sets <- stats::setNames(as.character(d$set), as.character(d$item))
+      } else {
+        if (!inherits(f, "rasch_efrm"))
+          stop("set weights for this model need columns item, set and weight")
+        if (!all(c("set", "weight") %in% names(d)) || !nrow(d) ||
+            anyNA(d[, c("set", "weight")]) ||
+            any(!nzchar(as.character(d$set))) ||
+            anyDuplicated(as.character(d$set)))
+          stop("Extended Frames set weights need one row per set with columns set and weight")
+        weights <- stats::setNames(as.numeric(d$weight), as.character(d$set))
+      }
+      if (anyNA(weights)) stop("weights must be numeric")
+      tab <- weighted_person_estimates(f, weights, by = by, sets = sets)
+      list(table = tab, weights = weights, by = by, sets = sets,
+           filename = upload$name)
+    }, error = function(e) e)
+    if (inherits(parsed, "error")) {
+      showNotification(paste("Weighted estimates failed:",
+                             conditionMessage(parsed)),
+                       type = "error", duration = 10)
+      return()
+    }
+    person_weight_state(parsed)
+    showNotification("Weighted person estimates calculated.",
+                     type = "message", duration = 5)
+  })
+  named_vector_code <- function(x) paste0(
+    "c(", paste(sprintf("%s = %s", qstr(names(x)),
+                         format(unname(x), digits = 15, trim = TRUE,
+                                scientific = FALSE)), collapse = ", "), ")")
+  person_weight_code <- function() {
+    z <- person_weight_state(); req(!is.null(z))
+    lines <- paste0("weights <- ", named_vector_code(z$weights))
+    set_arg <- ""
+    if (!is.null(z$sets)) {
+      lines <- c(lines, paste0("item_sets <- ",
+        "c(", paste(sprintf("%s = %s", qstr(names(z$sets)),
+                             qstr(unname(z$sets))), collapse = ", "), ")"))
+      set_arg <- ", sets = item_sets"
+    }
+    c(lines, sprintf("weighted_person_estimates(fit, weights, by = %s%s)",
+                     qstr(z$by), set_arg)) |>
+      paste(collapse = "\n")
+  }
+  register_table("person_weight_tbl", function() {
+    z <- person_weight_state(); req(!is.null(z)); z$table
+  }, function() {
+    z <- person_weight_state()
+    validate(need(!is.null(z),
+                  "Upload the external weights and calculate the estimates."))
+    d <- z$table
+    datatable(d, rownames = FALSE, filter = "top", style = "bootstrap5",
+      class = "table-sm compact hover order-column",
+      options = list(pageLength = 15, scrollX = TRUE, dom = "tip")) |>
+      formatRound(names(d)[vapply(d, is.numeric, TRUE) &
+        !names(d) %in% c("raw", "max_raw", "n_items")], 3)
+  }, code = person_weight_code)
   # the person drawn on the kidmap: the selected table row, defaulting to 1
   sel_person <- reactive({
     n <- input$person_tbl_rows_selected
@@ -5047,7 +5632,13 @@ server <- function(input, output, session) {
                       all(nzchar(trimws(as.character(d$item)))) &&
                       all(nzchar(trimws(as.character(d$panel)))),
                     "The item panel map cannot contain blank values."))
-      return(stats::setNames(as.character(d$panel), as.character(d$item)))
+      item <- trimws(as.character(d$item))
+      panel <- trimws(as.character(d$panel))
+      validate(need(!anyDuplicated(item),
+                    paste0("The item panel map names item(s) more than once: ",
+                           paste(unique(item[duplicated(item)]),
+                                 collapse = ", "), ".")))
+      return(stats::setNames(panel, item))
     }
     if (identical(z, "sets_groups")) c("sets", "groups") else z
   })
@@ -5195,7 +5786,7 @@ server <- function(input, output, session) {
   dif_res <- reactive({
     f <- fit(); req(!is.null(f$factors))
     soft(dif_anova(f, effects = input$dif_effects %||% "main",
-                   p_adjust = input$dif_padj %||% "holm", alpha = dif_alpha()))
+                   p_adjust = "holm", alpha = dif_alpha()))
   })
   # code footer: omit the effects argument when there is only one factor
   dif_effects_arg <- function()
@@ -5212,7 +5803,7 @@ server <- function(input, output, session) {
     style_lo_red(dt, d, "p_nonuniform_adj", dif_alpha())
   }, code = function()
     sprintf('dif_anova(fit, %sp_adjust = %s, alpha = %s)$summary',
-            dif_effects_arg(), qstr(input$dif_padj %||% "holm"), dif_alpha()))
+            dif_effects_arg(), qstr("holm"), dif_alpha()))
   # full per-item ANOVA table: every model term, computed lazily when its
   # disclosure is first switched on (the DT renders only once visible)
   register_table("dif_full_tbl", function() dif_res()$terms, function() {
@@ -5222,7 +5813,7 @@ server <- function(input, output, session) {
     style_lo_red(num_dt(d), d, "p_adj", dif_alpha())
   }, code = function()
     sprintf('dif_anova(fit, %sp_adjust = %s, alpha = %s)$terms',
-            dif_effects_arg(), qstr(input$dif_padj %||% "holm"), dif_alpha()))
+            dif_effects_arg(), qstr("holm"), dif_alpha()))
   output$dif_note <- renderUI({
     r <- dif_res(); d <- r$summary
     sig <- sum(d$uniform_DIF | d$nonuniform_DIF, na.rm = TRUE)
@@ -5616,12 +6207,17 @@ server <- function(input, output, session) {
         sprintf("%.0f comparisons", f$n_comparisons),
         if (!is.null(f$judges)) sprintf("%d judges", nrow(f$judges))),
         collapse = " · ")
-      dep_rows <- if (!is.null(f$dependence))
-        lapply(seq_len(nrow(f$dependence)), function(r)
+      dep_rows <- if (!is.null(f$dependence)) {
+        use_adj <- !is.null(f$dependence$p_adj)
+        lapply(seq_len(nrow(f$dependence)), function(r) {
+          shown_p <- if (use_adj) f$dependence$p_adj[r] else f$dependence$p[r]
           stat_row(sprintf("Within-judge %s",
                            gsub("_", "-", f$dependence$effect[r])),
-                   sprintf("%.2f logits (%s)", f$dependence$estimate[r],
-                           p_lab(f$dependence$p[r]))))
+                   sprintf("%.2f logits (%s%s)", f$dependence$estimate[r],
+                           if (use_adj) "Holm-adjusted " else "",
+                           p_lab(shown_p)))
+        })
+      }
       tagList(
         div(class = "stat-head",
             model_lab, " · maximum likelihood · ", conv,
@@ -5717,8 +6313,10 @@ server <- function(input, output, session) {
                            choices = if (length(jf)) jf else character(0),
                            selected = jf)
     }
-    # judge-group DIF results belong to the fit they came from
-    bdif_res(NULL)
+    # Results computed on request belong to the fit they came from. A project
+    # restore is the exception: those results were saved with this exact fit
+    # and are reinstated later in the same flush cycle.
+    if (!isTRUE(restoring_project())) clear_btl_fit_results()
   }, ignoreNULL = FALSE)
   register_plot("btl_occ", function() {
     o <- sel_object(); req(o %in% bfit()$objects$object)
@@ -5784,7 +6382,8 @@ server <- function(input, output, session) {
     validate(need(!is.null(bfit()$dependence),
                   paste("No dependence effect was estimable:",
                         paste(bfit()$notes, collapse = "; "))))
-    num_dt(bfit()$dependence, p_bold = "p")
+    num_dt(bfit()$dependence,
+           p_bold = if ("p_adj" %in% names(bfit()$dependence)) "p_adj" else "p")
   }, code = function() "bt$dependence")
   # the graphical display of the selected dependence effect
   register_plot("btl_dep_plot", function() {
@@ -5878,18 +6477,20 @@ server <- function(input, output, session) {
                            a$n, if (a$weight_se) "TRUE" else "FALSE") })
 
   # ------------------------------------------------- BTL common-object equating --
-  # a banked reference calibration (object, location, se), parsed defensively;
-  # btl_equate() is carried as a value or an error so <3-common-object and
+  # a banked reference calibration (object, location, optional se), parsed defensively;
+  # btl_equate() is carried as a value or an error so <2-common-object and
   # other failures surface as a message rather than a red crash
   bt_eq_bank <- reactive({
     if (is.null(input$bt_eq_file)) return(NULL)
     a <- tryCatch(read.csv(input$bt_eq_file$datapath, stringsAsFactors = FALSE),
                   error = function(e) NULL)
-    if (is.null(a) || !all(c("object", "location", "se") %in% names(a))) {
-      showNotification("Reference CSV needs columns object, location, se - ignored.",
+    if (is.null(a) || !all(c("object", "location") %in% names(a))) {
+      showNotification("Reference CSV needs columns object and location - ignored.",
                        type = "warning")
       return(NULL)
     }
+    if (!"se" %in% names(a)) a$se <- NA_real_
+    if (is.logical(a$se) && all(is.na(a$se))) a$se <- NA_real_
     if ("m" %in% names(a) && length(unique(a$m[is.finite(a$m)])) == 1L)
       attr(a, "m") <- as.integer(unique(a$m[is.finite(a$m)]))
     a
@@ -5905,11 +6506,13 @@ server <- function(input, output, session) {
   output$btl_eq_summary <- renderUI({
     req(!is.null(bt_eq_bank()))
     r <- bt_equate(); req(!inherits(r, "error"))
+    label <- if (identical(r$shift_method, "unweighted"))
+      sprintf("Unweighted descriptive shift %.3f logits", r$shift)
+    else sprintf("Precision-weighted shift %.3f ± %s logits", r$shift,
+                 if (is.finite(r$shift_se)) sprintf("%.3f", r$shift_se)
+                 else "withheld")
     p(class = "text-muted small mb-0 mt-2",
-      sprintf("Shift %.3f ± %s logits over %d common object%s.",
-              r$shift,
-              if (is.finite(r$shift_se)) sprintf("%.3f", r$shift_se) else "withheld",
-              r$n_common,
+      sprintf("%s over %d common object%s.", label, r$n_common,
               if (r$n_common == 1L) "" else "s"))
   })
   # surface a failed btl_equate() as its own message. need()'s `message` is
@@ -5950,11 +6553,10 @@ server <- function(input, output, session) {
             np$object[1], np$location_2[1], np$location_1[1]))
 
   # -------------------------------------------- BTL DIF by judge group --
-  # the judge grouping handed to btl_dif() / plot_btl_icc(): the nominated
-  # factor's value on each judge's first row, named by judge
-  # the nominated judge factors as a named list of judge -> level maps (each
-  # factor is constant within judge, so the map is well defined); btl_dif
-  # models several factors jointly
+  # The nominated judge factors as named judge -> level maps. Build the maps
+  # only after checking the defining requirement: a judge has at most one
+  # observed value of each factor. The observed judges come from the fitted
+  # comparisons, so rows omitted from the analysis cannot add spurious names.
   bdif_factor_maps <- function() {
     if (is.null(btl_fit()))
       stop("run a Comparative Judgement analysis first")
@@ -5965,10 +6567,23 @@ server <- function(input, output, session) {
     jc <- input$bt_judge
     if (is.null(jc) || identical(jc, NONE) || !jc %in% names(df))
       stop("judge-group DIF needs the judge column nominated on the Data page")
-    jd <- as.character(df[[jc]]); first <- !duplicated(jd)
+    jd <- as.character(df[[jc]])
+    judges <- unique(as.character(btl_fit()$comparisons$judge))
+    judges <- judges[!is.na(judges)]
     setNames(lapply(fcs, function(fc) {
       if (!fc %in% names(df)) stop("column not found: ", fc)
-      setNames(as.character(df[[fc]])[first], jd[first])
+      value <- as.character(df[[fc]])
+      by_judge <- lapply(judges, function(j) {
+        z <- value[!is.na(jd) & jd == j]
+        unique(z[!is.na(z)])
+      })
+      varying <- lengths(by_judge) > 1L
+      if (any(varying))
+        stop("factor '", fc, "' varies within judge(s) ",
+             paste(judges[varying], collapse = ", "),
+             ": judge-group DIF needs judge-constant factors")
+      setNames(vapply(by_judge, function(z)
+        if (length(z)) z[1L] else NA_character_, ""), judges)
     }), fcs)
   }
   # the factors of one displayed ANOVA term, matched against a run's factor
@@ -6007,8 +6622,9 @@ server <- function(input, output, session) {
     ob <- fit$objects
     m <- if (is.null(fit$m)) 1L else fit$m
     cm <- fit$comparisons
-    gv <- if (length(group) == nrow(cm)) as.character(group) else
+    gv <- if (!is.null(names(group)))
       unname(as.character(group)[match(cm$judge, names(group))])
+    else as.character(group)
     sel_a <- cm$object_a == object; sel_b <- cm$object_b == object
     opp <- c(cm$object_b[sel_a], cm$object_a[sel_b])
     resp <- c(cm$response[sel_a], m - cm$response[sel_b])
@@ -6030,16 +6646,30 @@ server <- function(input, output, session) {
   # backtick nonsyntactic column names in emitted code
   bq <- function(s) ifelse(grepl("^[a-zA-Z.][a-zA-Z0-9._]*$", s),
                            s, sprintf("`%s`", s))
-  # the reproducible-code lines building the DISPLAYED run's factor list
+  # Reproducible code for the displayed run. It repeats the app's constancy
+  # check instead of selecting whichever value happens to occur first.
   bdif_code_grp <- function() {
     r <- bdif_res()
     fcs <- if (!is.null(r)) r$factors else (input$bdif_factors %||% "factor")
     jc <- (if (!is.null(r)) r$run_judge_col else input$bt_judge) %||% "judge"
-    one <- function(fc) sprintf(
-      "%s = setNames(as.character(dat$%s), dat$%s)[!duplicated(dat$%s)]",
-      bq(fc), bq(fc), bq(jc), bq(jc))
-    paste0("factors <- list(\n  ",
-           paste(vapply(fcs, one, ""), collapse = ",\n  "), ")")
+    one <- function(fc) sprintf("%s = judge_factor(dat$%s, %s)",
+                                bq(fc), bq(fc), qstr(fc))
+    paste0(
+      "judge_ids <- unique(as.character(bt$comparisons$judge))\n",
+      "judge_ids <- judge_ids[!is.na(judge_ids)]\n",
+      "judge_factor <- function(x, label) {\n",
+      sprintf("  j <- as.character(dat$%s)\n", bq(jc)),
+      "  u <- lapply(judge_ids, function(id) {\n",
+      "    z <- as.character(x)[!is.na(j) & j == id]\n",
+      "    unique(z[!is.na(z)])\n",
+      "  })\n",
+      "  if (any(lengths(u) > 1L))\n",
+      "    stop(sprintf(\"factor '%s' varies within judge\", label))\n",
+      "  setNames(vapply(u, function(z) if (length(z)) z[1L] else NA_character_,\n",
+      "                  character(1)), judge_ids)\n",
+      "}\n",
+      "factors <- list(\n  ",
+      paste(vapply(fcs, one, ""), collapse = ",\n  "), ")")
   }
   bdif_alpha <- reactive(clamp01(input$bdif_alpha, 0.05))
   bdif_effects <- reactive(input$bdif_effects %||% "main")
@@ -6342,10 +6972,9 @@ server <- function(input, output, session) {
   # frame separately and compares -- the check belongs beside the units it
   # validates, since a couple of items behaving differently across frames
   # move a unit by more than its standard error.
-  # Screening retains raw probabilities. Conditional inference covers item
-  # locations; bootstrap inference uses one combined Holm family over the
-  # location and discrimination comparisons.
-  inv_adjust <- reactive(if (isTRUE(input$inv_screen)) "none" else "holm")
+  # Conditional inference covers item locations; bootstrap inference covers
+  # both location and discrimination comparisons. Decisions use one combined
+  # Holm family in either case.
   inv_se <- reactive(input$inv_se %||% "conditional")
   inv_reps <- reactive({
     x <- suppressWarnings(as.integer(input$inv_boot %||% 200L))
@@ -6355,8 +6984,6 @@ server <- function(input, output, session) {
     x <- suppressWarnings(as.integer(input$inv_seed %||% 1L))
     if (!is.finite(x)) 1L else max(1L, x)
   })
-  # Keep the expensive bootstrap independent of the screen switch: changing
-  # the reporting rule should not resample and refit the model again.
   efrm_invariance_base <- reactive({
     tryCatch(withProgress(
       message = if (inv_se() == "bootstrap")
@@ -6370,36 +6997,9 @@ server <- function(input, output, session) {
   efrm_invariance <- reactive({
     z <- efrm_invariance_base()
     if (is.character(z)) return(z)
-    z$adjust <- inv_adjust()
-    for (part in c("locations", "discrimination")) {
-      p <- z[[part]][[
-        if (inv_adjust() == "holm") "p_adj" else "p"]]
-      z[[part]]$flagged <- ifelse(is.finite(p), p < z$alpha, NA)
-    }
-    # Summary counts must use the same reporting rule as the detail tables.
-    # Previously switching to the raw screen changed the row flags while the
-    # summary silently retained the Holm counts from the base calculation.
-    pairs <- unique(z$locations[c("set", "frame_1", "frame_2")])
-    z$summary <- if (nrow(pairs)) do.call(rbind, lapply(seq_len(nrow(pairs)),
-      function(i) {
-        k <- pairs[i, ]
-        same <- function(d) d$set == k$set & d$frame_1 == k$frame_1 &
-          d$frame_2 == k$frame_2
-        x <- z$locations[same(z$locations), , drop = FALSE]
-        y <- z$discrimination[same(z$discrimination), , drop = FALSE]
-        nx <- if (is.null(z$excluded)) 0L else sum(same(z$excluded))
-        data.frame(set = k$set, frame_1 = k$frame_1, frame_2 = k$frame_2,
-          n_items = nrow(x), n_excluded = nx,
-          rmsd = sqrt(mean(x$difference^2)), rmse = sqrt(mean(x$se^2)),
-          ratio = sqrt(mean(x$difference^2)) / sqrt(mean(x$se^2)),
-          n_location = sum(x$flagged %in% TRUE),
-          n_discrimination = if (identical(z$se_method, "bootstrap"))
-            sum(y$flagged %in% TRUE) else NA_integer_,
-          stringsAsFactors = FALSE)
-      })) else z$summary[0, , drop = FALSE]
     z
   })
-  inv_pcol <- function() if (inv_adjust() == "holm") "p_adj" else "p"
+  inv_pcol <- function() "p_adj"
   inv_or_note <- function(part) {
     z <- efrm_invariance()
     if (is.character(z)) return(data.frame(note = z, stringsAsFactors = FALSE))
@@ -6424,7 +7024,7 @@ server <- function(input, output, session) {
   inv_code <- function(part) sprintf(
     paste0("inv <- frame_invariance(fit, adjust = \"%s\", ",
            "se_method = \"%s\"%s)\ninv$%s"),
-    inv_adjust(), inv_se(),
+    "holm", inv_se(),
     if (inv_se() == "bootstrap")
       sprintf(", boot_reps = %d, seed = %d",
               inv_reps(), inv_seed())
@@ -6527,7 +7127,7 @@ server <- function(input, output, session) {
     x <- efrm_fit()$efrm_vs_rasch$unit_omnibus
     validate(need(!is.null(x) && nrow(x),
                   "No unit family has more than one level to test."))
-    style_lo_red(num_dt(x), x, "p", 0.05)
+    style_lo_red(num_dt(x), x, "p_adj", 0.05)
   }, code = function() "fit$efrm_vs_rasch$unit_omnibus")
 
   # ------------------------------------ BTL frames (paired-comparison EFRM) --
@@ -6538,16 +7138,17 @@ server <- function(input, output, session) {
   # description of the source for the frozen-run notes and code snippet.
   btlef_build_sets <- function(objs) {
     if (!is.null(input$btlef_sets_file)) {
-      mp <- tryCatch(read.csv(input$btlef_sets_file$datapath, stringsAsFactors = FALSE),
-                     error = function(e) NULL)
-      if (!is.null(mp) && all(c("object", "set") %in% names(mp))) {
-        out <- setNames(as.character(mp$set), as.character(mp$object))
-        miss <- setdiff(objs, names(out))
-        if (length(miss)) out[miss] <- "(rest)"
-        return(list(sets = split(objs, out[objs]), source = "the uploaded object-set CSV"))
-      }
-      showNotification("Object-set CSV needs columns object,set - inferring from name prefixes.",
-                       type = "warning")
+      out <- read_frame_map(input$btlef_sets_file, "object", objs, "object")
+      miss <- setdiff(objs, names(out))
+      if (length(miss)) out[miss] <- "(rest)"
+      return(list(sets = split(objs, out[objs]),
+                  source = "the uploaded object-set CSV"))
+    }
+    saved <- restored_project_resources()$btlef_sets
+    if (!is.null(saved)) {
+      assigned <- unlist(saved, use.names = FALSE)
+      if (setequal(assigned, objs) && !anyDuplicated(assigned))
+        return(list(sets = saved, source = "the map embedded in the saved analysis"))
     }
     pref <- sub("[_. -]*[0-9]+$", "", objs)
     pref[pref == ""] <- "(rest)"
@@ -6593,12 +7194,17 @@ server <- function(input, output, session) {
     invisible(r)
   }
 
-  observeEvent(input$cancel_btlef, {
-    st <- btlef_job()
-    if (is.null(st)) return(invisible(NULL))
+  cancel_btlef_job <- function() {
+    st <- isolate(btlef_job())
+    if (is.null(st)) return(invisible(FALSE))
     if (st$process$is_alive()) stop_efrm_process(st$process)
     close_efrm_job(st)
     btlef_job(NULL)
+    invisible(TRUE)
+  }
+
+  observeEvent(input$cancel_btlef, {
+    if (!cancel_btlef_job()) return(invisible(NULL))
     showNotification("Frame estimation cancelled.", type = "message",
                      duration = 5)
   })
@@ -6640,6 +7246,13 @@ server <- function(input, output, session) {
     result <- tryCatch(st$process$get_result(), error = function(e) e)
     close_efrm_job(st)
     btlef_job(NULL)
+    if (!background_job_is_current(st)) {
+      showNotification(paste(
+        "The completed frame result was not used because the active data or",
+        "Comparative Judgement analysis changed while it was running."),
+        type = "warning", duration = 8)
+      return()
+    }
     if (inherits(result, "error")) {
       showNotification(paste("Frame estimation failed:",
                              conditionMessage(result)),
@@ -6653,6 +7266,11 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$btlef_run, {
+    if (!is.null(efrm_job())) {
+      showNotification("An EFRM estimation is already running. Cancel it before estimating frames.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
     if (!is.null(btlef_job())) {
       showNotification("A frame estimation is already running. Cancel it before starting another.",
                        type = "warning", duration = 7)
@@ -6793,6 +7411,8 @@ server <- function(input, output, session) {
     btlef_job(list(
       process = process, progress = progress_bar,
       progress_file = progress_file, log_file = log_file,
+      context = isolate(analysis_context()), data = df,
+      check_btl_fit = TRUE, base_fit = isolate(btl_fit()),
       panel_col = pcol, judge_col = jc, set_source = sm$source,
       se_method = se_method, boot_reps = boot_reps,
       workers = workers, seed = seed,
@@ -6923,7 +7543,7 @@ server <- function(input, output, session) {
     r <- btlef_res(); req(!is.null(r)); d <- r$unit_omnibus
     validate(need(!is.null(d) && nrow(d),
                   "No unit family has more than one level to test."))
-    style_lo_red(num_dt(d), d, "p", 0.05)
+    style_lo_red(num_dt(d), d, "p_adj", 0.05)
   }, code = function() btlef_code_call("frm$unit_omnibus"))
   output$btlef_note <- renderUI({
     r <- btlef_res()
@@ -7049,8 +7669,15 @@ server <- function(input, output, session) {
     sprintf("dimensionality_magnitude(fit, list(%s, %s))$table",
             qvec(r$run_subtests[[1]]), qvec(r$run_subtests[[2]]))
   })
-  register_plot("scree", function() plot_scree(fit()),
-                code = function() "plot_scree(fit)")
+  register_plot("scree", function() {
+    f <- fit()
+    plot_scree(f, parallel = !inherits(f, c("rasch_efrm", "rasch_mfrm")))
+  }, code = function() {
+    f <- fit()
+    if (inherits(f, c("rasch_efrm", "rasch_mfrm")))
+      "plot_scree(fit, parallel = FALSE)"
+    else "plot_scree(fit)"
+  })
   register_table("loadings_tbl", function() residual_pca(fit())$loadings_matrix,
                  function() {
     d <- residual_pca(fit())$loadings_matrix   # up to the first 10 components
@@ -7170,7 +7797,7 @@ server <- function(input, output, session) {
   spread_res <- reactiveVal(NULL)
   observeEvent(input$run_spread, {
     run_alpha <- input$spread_alpha %||% 0.05
-    run_adjust <- input$spread_padj %||% "holm"
+    run_adjust <- "holm"
     r <- withProgress(message = "Principal-components refit…", value = 0.4,
                       tryCatch(spread_test(fit(), alpha = run_alpha,
                                            p_adjust = run_adjust),
@@ -7388,6 +8015,22 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------- export --
+  project_resources <- function() {
+    current_model <- if (!is.null(btl_fit())) "btl" else
+      if (inherits(fit_or_null(), "rasch_efrm")) "efrm" else
+      if (inherits(fit_or_null(), "rasch_mfrm")) "mfrm" else "rasch"
+    list(
+      anchors = tryCatch(anchors_in(), error = function(e) NULL),
+      bt_anchors = tryCatch(bt_anchors_in(), error = function(e) NULL),
+      key = tryCatch(key_in(), error = function(e) NULL),
+      predictors = tryCatch(exp_predictors_raw(), error = function(e) NULL),
+      ef_setmap = if (identical(current_model, "efrm"))
+        tryCatch(ef_setmap(), error = function(e) NULL) else NULL,
+      btlef_sets = if (identical(current_model, "btl"))
+        tryCatch(btlef_build_sets(as.character(bfit()$objects$object))$sets,
+                 error = function(e) NULL) else NULL)
+  }
+
   project_state <- function() list(
     format = "rasch-shiny-project", schema = 1L,
     package_version = tryCatch(as.character(utils::packageVersion("rasch")),
@@ -7401,14 +8044,18 @@ server <- function(input, output, session) {
     rasch_steps = analysis_steps(), btl_steps = btl_analysis_steps(),
     rcode = rcode_str(), kept_fits = kept_fits(),
     kept_fit_code = kept_fit_code(),
+    settings = .collect_app_settings(input),
+    resources = project_resources(),
     simulation = list(data = sim_data(), truth = sim_truth_val(),
-                      code = sim_code_val(), generation = sim_gen(),
+                      code = sim_code_val(), predictors = sim_predictors_val(),
+                      interactions = sim_interactions_val(), generation = sim_gen(),
                       fitted_generation = fitted_sim_gen()),
     results = list(
       resolve = resolve_res(), lr = lr_res(), rescore = rescore_res(),
       contrasts = contr_res(), btl_dif = bdif_res(), btl_frames = btlef_res(),
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
-      dependence = dep_res(), spread = spread_res(), guessing = guess_res()))
+      dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
+      person_weights = person_weight_state()))
 
   output$dl_project <- downloadHandler(
     filename = function()
@@ -7424,12 +8071,22 @@ server <- function(input, output, session) {
                        type = "error", duration = 10)
       return()
     }
+    cancelled_job <- cancel_efrm_job() | cancel_btlef_job()
+    advance_analysis_context()
+    if (cancelled_job)
+      showNotification(paste(
+        "The running background estimation was cancelled before the saved",
+        "analysis was opened."), type = "message", duration = 7)
     restoring_project(TRUE)
-    session$onFlushed(function() restoring_project(FALSE), once = TRUE)
     withProgress(message = "Opening saved analysis…", value = 0.5, {
+      restored_project_settings(p$settings %||% list())
+      restored_project_resources(p$resources %||% list())
       sim_data(as.data.frame(p$data, check.names = FALSE))
       sim_truth_val(p$simulation$truth %||% NULL)
       sim_code_val(p$simulation$code %||% NULL)
+      restored_project_name(input$project_file$name %||% "analysis.rasch")
+      sim_predictors_val(p$simulation$predictors %||% NULL)
+      sim_interactions_val(p$simulation$interactions %||% character(0))
       sim_gen(p$simulation$generation %||% 0L)
       fitted_sim_gen(p$simulation$fitted_generation %||% NULL)
       updateSelectInput(session, "demo_choice", selected = "none")
@@ -7460,8 +8117,17 @@ server <- function(input, output, session) {
       dm_res(rr$dimension_magnitude %||% NULL)
       dep_res(rr$dependence %||% NULL); spread_res(rr$spread %||% NULL)
       guess_res(rr$guessing %||% NULL)
+      person_weight_state(rr$person_weights %||% NULL)
     })
-    showNotification("Saved analysis opened. The active fit and its history have been restored.",
+    # raw_data() first refreshes the choices available to every role control;
+    # applying the stored selections after that flush prevents the automatic
+    # name guesses from overwriting the saved analysis configuration.
+    session$onFlushed(function() {
+      .restore_app_settings(session, restored_project_settings())
+      restoring_project(FALSE)
+    }, once = TRUE)
+    showNotification(paste("Saved analysis opened. The active fit, its history,",
+                           "data roles and estimation settings have been restored."),
                      type = "message", duration = 7)
     try(nav_select("nav", "p_summary", session = session), silent = TRUE)
   })

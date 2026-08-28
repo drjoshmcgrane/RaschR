@@ -76,6 +76,25 @@ test_that("complete-case CTT alpha is recomputed on the reported sample", {
   expect_equal(ct$alpha, manual, tolerance = 1e-12)
 })
 
+test_that("available-case item-rest correlations exclude empty rest sets", {
+  set.seed(2102)
+  X <- matrix(rbinom(200 * 4, 1, 0.5), 200, 4,
+              dimnames = list(NULL, paste0("I", 1:4)))
+  extra <- matrix(NA_integer_, 30, 4, dimnames = list(NULL, colnames(X)))
+  extra[, 1] <- 1L
+  X <- rbind(X, extra)
+  fit <- rasch(X)
+  ct <- ctt_table(fit, missing = "available")
+
+  answered_rest <- rowSums(!is.na(fit$X[, -1, drop = FALSE])) > 0L
+  rest_prop <- rowSums(fit$X[, -1, drop = FALSE], na.rm = TRUE) /
+    rowSums(matrix(rep(fit$m[-1], each = nrow(fit$X)), nrow(fit$X), 3) *
+              !is.na(fit$X[, -1, drop = FALSE]))
+  use <- !is.na(fit$X[, 1]) & answered_rest
+  expect_equal(ct$table$item_rest[1],
+               cor(fit$X[use, 1], rest_prop[use]), tolerance = 1e-12)
+})
+
 test_that("an unmatched winner is missing, not a tie", {
   set.seed(4)
   beta <- c(A = -1, B = 0, C = 1)

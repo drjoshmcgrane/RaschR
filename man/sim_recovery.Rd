@@ -8,7 +8,8 @@ sim_recovery(fit, sim)
 }
 \arguments{
 \item{fit}{A fit of the simulated data (\code{\link{rasch}},
-\code{\link{btl}}, \code{\link{rasch_mfrm}}, or \code{\link{rasch_efrm}}).}
+\code{\link{btl}}, \code{\link{rasch_mfrm}}, \code{\link{rasch_efrm}},
+or \code{\link{btl_efrm}}).}
 
 \item{sim}{The simulated data (from a \code{simulate_*} function).}
 }
@@ -22,9 +23,10 @@ Compares fitted parameters with the generating values from a
 \code{simulate_*} function (carried on the data as
 \code{attr(sim, "truth")}): item difficulties and person abilities for a
 Rasch fit, object locations for a paired-comparison fit, rater severities
-(with item and person measures) for a many-facet fit, and the set units for
-a frames fit. Locations are mean-centred before comparison, since the model
-identifies them only up to an origin.
+(with item and person measures) for a many-facet fit, set and group units
+for a Rasch frames fit, and common object locations, panel and set units,
+and set origins for a paired-comparison frames fit. Locations are
+mean-centred where the model identifies them only up to an origin.
 }
 \examples{
 d <- simulate_rasch(500, 12, seed = 1)

@@ -47,7 +47,8 @@ residual_correlations <- function(fit, flag = NULL) {
     stop("residual_correlations needs a rasch fit")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; residual correlations are unavailable")
-  if (!is.null(flag) && (length(flag) != 1L || !is.finite(flag) || flag <= 0))
+  if (!is.null(flag) && (length(flag) != 1L || !is.numeric(flag) ||
+                         !is.finite(flag) || flag <= 0))
     stop("flag must be NULL or one positive finite heuristic threshold")
   Z <- fit$residuals
   R <- cor(Z, use = "pairwise.complete.obs")
@@ -100,10 +101,7 @@ residual_pca <- function(fit, n_components = 10) {
   if (!inherits(fit, "rasch")) stop("residual_pca needs a rasch fit")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; residual PCA is unavailable")
-  if (length(n_components) != 1L || !is.finite(n_components) ||
-      n_components < 1L || n_components != floor(n_components))
-    stop("n_components must be one positive whole number")
-  n_components <- as.integer(n_components)
+  n_components <- .check_whole(n_components, "n_components", 1)
   R <- cor(fit$residuals, use = "pairwise.complete.obs")
   no_overlap <- is.na(R) & row(R) != col(R)
   if (any(no_overlap)) {
@@ -168,9 +166,7 @@ residual_pca <- function(fit, n_components = 10) {
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     .refuse("parallel residual reference is not available for mutually exclusive ",
          "EFRM/MFRM virtual designs; fit and analyse an observable design block")
-  if (length(reps) != 1L || !is.finite(reps) || reps < 2L)
-    stop("reps must be at least 2")
-  reps <- as.integer(reps)
+  reps <- .check_whole(reps, "reps", 2)
   tau_list <- fit$tau_list; L <- length(tau_list)
   disc_v <- if (is.null(fit$disc)) rep(1, L) else fit$disc
   if (any(abs(disc_v - 1) > 1e-12))
@@ -359,16 +355,9 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   if (!inherits(fit, "rasch")) stop("dimensionality_test needs a rasch fit")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; the dimensionality test is unavailable")
-  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
-    stop("alpha must be one probability strictly between 0 and 1")
-  if (length(component) != 1L || !is.finite(component) || component < 1L ||
-      component != floor(component))
-    stop("component must be one positive whole number")
-  if (length(min_score_points) != 1L || !is.finite(min_score_points) ||
-      min_score_points < 1L || min_score_points != floor(min_score_points))
-    stop("min_score_points must be one positive whole number")
-  component <- as.integer(component)
-  min_score_points <- as.integer(min_score_points)
+  .check_prob(alpha, "alpha")
+  component <- .check_whole(component, "component", 1)
+  min_score_points <- .check_whole(min_score_points, "min_score_points", 1)
   X <- fit$X
   manual <- !is.null(items_positive) || !is.null(items_negative)
   # the PCA is needed only to derive the automatic split; when it is

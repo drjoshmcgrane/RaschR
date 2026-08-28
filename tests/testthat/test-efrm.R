@@ -85,6 +85,10 @@ test_that("EFRM recovers the full unit grid (two sets x two groups)", {
   expect_setequal(fit$efrm_vs_rasch$unit_omnibus$term,
                   c("group units (phi)", "set units (alpha)"))
   expect_true(all(is.finite(fit$efrm_vs_rasch$unit_omnibus$p)))
+  expect_equal(fit$efrm_vs_rasch$unit_omnibus$p_adj,
+               p.adjust(fit$efrm_vs_rasch$unit_omnibus$p, "holm"))
+  expect_equal(fit$efrm_vs_rasch$unit_omnibus$significant,
+               fit$efrm_vs_rasch$unit_omnibus$p_adj < 0.05)
   expect_true(all(c("p_adj", "significant") %in%
                     names(fit$efrm_vs_rasch$unit_tests)))
 })
@@ -102,6 +106,7 @@ test_that("EFRM withholds unit tests for a sparsely represented group", {
   expect_false(fit$unit_support$phi_inference)
   expect_equal(min(fit$unit_support$group$n_persons), 10)
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_omnibus$p)))
+  expect_true(all(is.na(fit$efrm_vs_rasch$unit_omnibus$p_adj)))
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_tests$p)))
   expect_true(all(is.finite(fit$phi_table$phi)))
 })
@@ -379,6 +384,10 @@ test_that("EFRM standard error methods are coherent", {
                    se_method = "bootstrap", boot_reps = 50)
   expect_identical(fb$se_method, "bootstrap")
   expect_gte(fb$boot_reps_used, 30)
+  expect_identical(fb$full_boot_reps_requested, 50L)
+  expect_identical(fb$full_boot_reps_attempted, 50L)
+  expect_identical(fb$full_boot_reps_used, fb$boot_reps_used)
+  expect_identical(fb$full_boot_reps_failed, fb$boot_reps_failed)
   # the two methods agree on scale (well within a factor of two)
   ratio <- median(fit$thresholds_arbitrary$se / fb$thresholds_arbitrary$se)
   expect_gt(ratio, 0.5); expect_lt(ratio, 2)
@@ -627,7 +636,7 @@ test_that("EFRM reports bootstrap progress and supports cancellation", {
   tr <- attr(d, "truth")
   seen <- list()
   f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
-                  boot_reps = 30,
+                  boot_reps = 40,
                   seed = 914,
                   progress = function(stage, current, total)
                     seen[[length(seen) + 1L]] <<- c(stage, current, total))
@@ -636,7 +645,7 @@ test_that("EFRM reports bootstrap progress and supports cancellation", {
   expect_true(all(c("conditional calibration", "linking bootstrap",
                     "finalising") %in% stages))
   link <- seen[stages == "linking bootstrap"]
-  expect_identical(as.integer(tail(link, 1L)[[1L]][2:3]), c(30L, 30L))
+  expect_identical(as.integer(tail(link, 1L)[[1L]][2:3]), c(40L, 40L))
 
   completed <- 0L
   expect_condition(
@@ -669,9 +678,9 @@ test_that("parallel EFRM bootstraps are seed-identical to serial fits", {
                      n_groups = 2, seed = 915)
   tr <- attr(d, "truth")
   serial <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
-                       boot_reps = 30, workers = 1, seed = 916)
+                       boot_reps = 40, workers = 1, seed = 916)
   parallel <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
-                         boot_reps = 30, workers = 2, seed = 916)
+                         boot_reps = 40, workers = 2, seed = 916)
 
   expect_identical(parallel$alpha_table, serial$alpha_table)
   expect_identical(parallel$set_table, serial$set_table)
@@ -687,6 +696,10 @@ test_that("EFRM defaults to four workers subject to system limits", {
                          rasch.efrm.max_workers = NULL)
   on.exit(options(old_workers), add = TRUE)
   expect_identical(rasch:::.efrm_available_workers(), 1L)
+  options(rasch.max_workers = NULL)
+  available <- rasch:::.efrm_available_workers()
+  options(rasch.max_workers = factor("1"))
+  expect_identical(rasch:::.efrm_available_workers(), available)
 })
 
 test_that("an EFRM bootstrap seed does not take over the caller's RNG", {
@@ -696,6 +709,6 @@ test_that("an EFRM bootstrap seed does not take over the caller's RNG", {
   set.seed(918)
   before <- .Random.seed
   rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
-             boot_reps = 30, seed = 919)
+             boot_reps = 40, seed = 919)
   expect_identical(.Random.seed, before)
 })

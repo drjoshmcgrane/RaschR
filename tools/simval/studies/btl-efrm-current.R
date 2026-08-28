@@ -27,7 +27,7 @@ one <- function(r, panel_ratio, set_ratio, origin, seed0, se_method) {
   f <- tryCatch(btl_efrm(
     d, "object_a", "object_b", "winner", "judge", "panel",
     object_sets = tr$object_sets, se_method = se_method,
-    boot_reps = BOOT), error = function(e) NULL)
+    boot_reps = BOOT, workers = 1L), error = function(e) NULL)
   if (is.null(f)) return(c(blank, refused = 1, nonconv = 0))
   if (!isTRUE(f$converged))
     return(c(blank, refused = 0, nonconv = 1))

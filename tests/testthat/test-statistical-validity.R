@@ -575,11 +575,18 @@ test_that("dif_anova integrates with EFRM and MFRM fits", {
                      n_groups = 2, group_unit_ratio = 1.25, seed = 1)
   tr <- attr(d, "truth")
   expect_error(
-    dif_anova(rasch_efrm(d, item_sets = tr$item_sets, groups = tr$groups)),
+    dif_anova(rasch_efrm(
+      d, item_sets = tr$item_sets, groups = tr$groups,
+      items = unlist(tr$item_sets, use.names = FALSE),
+      boot_reps = 30, workers = 1
+    )),
     "frame structure")
   sex <- rep(c("m", "f"), length.out = nrow(d))
-  f2 <- rasch_efrm(d, item_sets = tr$item_sets, groups = tr$groups,
-                   factors = data.frame(sex = sex))
+  f2 <- rasch_efrm(
+    d, item_sets = tr$item_sets, groups = tr$groups,
+    items = unlist(tr$item_sets, use.names = FALSE),
+    factors = data.frame(sex = sex), boot_reps = 30, workers = 1
+  )
   d2 <- dif_anova(f2)
   expect_true(any(grepl("frame structure", d2$notes)))
   expect_gt(nrow(d2$summary), 0)
@@ -613,7 +620,7 @@ test_that("dif_anova integrates with EFRM and MFRM fits", {
   expect_error(
     rasch_mfrm(dd, person = "person", item = "item", score = "score",
                facets = "rater", factors = "rater"),
-    "varies within person")
+    "cannot also define another model role")
 })
 
 # --- capability round: pooled MFRM DIF, MFRM sizes, factorial EFRM frames --
@@ -691,17 +698,23 @@ test_that("EFRM unit identification is honest at both extremes", {
     for (i in 1:16) X[[i]] <- rbinom(N, 1, plogis(phi_t * (th - deltas[i])))
     X
   }
-  # all items equally difficult: the units are weakly identified at best.
-  # The identification check is on the information (rank/conditioning),
-  # not on a spread heuristic, so this full-rank case keeps its estimate;
-  # honesty lives in the SEs, which must be large enough that no unit
-  # difference could be claimed from them
-  fz <- rasch_efrm(mk(rep(0, 16)), groups = g, item_sets = sets,
-                   se_method = "hybrid")
+  # Within one set, equal item difficulties leave the group units weakly
+  # identified but do not require a set link. Retain the estimate and show
+  # its weakness through the uncertainty.
+  weak <- mk(rep(0, 16))
+  fz <- rasch_efrm(weak[, sets$A], groups = g,
+                   item_sets = list(A = sets$A), boot_reps = 0)
   lr <- abs(diff(log(fz$phi_table$phi)))
   se_lr <- sqrt(sum(fz$phi_table$se_log_phi^2))
   expect_lt(lr / se_lr, 2)              # no spurious unit claim
   expect_gt(min(fz$phi_table$se_log_phi), 0.2)   # no spurious precision
+  # The same flat thresholds cannot support a stable scale link between
+  # item sets. The linking bootstrap must refuse it rather than return a
+  # covariance estimated from a minority of the requested resamples.
+  expect_error(
+    rasch_efrm(weak, groups = g, item_sets = sets, se_method = "hybrid",
+               boot_reps = 30, workers = 1, seed = 42),
+    "unit-linking bootstrap failed")
   # a modest half-logit spread is real signal and must not be refused
   fm <- rasch_efrm(mk(rep(seq(-0.25, 0.25, length.out = 8), 2)),
                    groups = g, item_sets = sets, se_method = "hybrid")
@@ -726,6 +739,9 @@ test_that("phi_factorial_tests recover a planted region unit effect", {
                   se_method = "hybrid")
   tt <- f$phi_factorial_tests
   expect_setequal(tt$term, c("grp", "region", "grp:region"))
+  expect_true(all(c("p_adj", "significant") %in% names(tt)))
+  expect_equal(tt$p_adj, stats::p.adjust(tt$p, method = "holm"))
+  expect_identical(tt$significant, tt$p_adj < 0.05)
   expect_lt(tt$p[tt$term == "region"], 0.01)
   expect_gt(tt$p[tt$term == "grp"], 0.05)
   expect_gt(tt$p[tt$term == "grp:region"], 0.05)
@@ -1020,14 +1036,32 @@ test_that("EFRM fits export and report despite the residual-PCA refusal", {
   fit <- rasch_efrm(data.frame(X, grp = grp),
                     item_sets = list(core = colnames(X)), groups = "grp")
   out <- file.path(tempdir(), "efrm-export-regression")
-  expect_no_error(save_outputs(fit, out, formats = "png"))
+  save_warnings <- character(0)
+  withCallingHandlers(
+    save_outputs(fit, out, formats = "png"),
+    warning = function(w) {
+      save_warnings <<- c(save_warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(save_warnings), 0L)
+  expect_true(all(grepl("residual PCA is undefined", save_warnings)))
   for (nm in c("response_cell_statistics.csv", "items_common_unit.csv",
                "thresholds_common_unit.csv", "frame_model_comparison.csv",
                "unit_omnibus_tests.csv", "unit_contrasts.csv"))
     expect_true(file.exists(file.path(out, "tables", nm)), info = nm)
   expect_false(file.exists(file.path(out, "tables", "item_statistics.csv")))
   hfile <- file.path(tempdir(), "efrm-rep.html")
-  expect_no_error(report_html(fit, hfile))
+  report_warnings <- character(0)
+  withCallingHandlers(
+    report_html(fit, hfile),
+    warning = function(w) {
+      report_warnings <<- c(report_warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_gt(length(report_warnings), 0L)
+  expect_true(all(grepl("residual PCA is undefined", report_warnings)))
   html <- paste(readLines(hfile, warn = FALSE), collapse = "\n")
   expect_match(html, "Common-scale item estimates", fixed = TRUE)
   expect_match(html, "Response-cell fit", fixed = TRUE)
@@ -1126,14 +1160,15 @@ test_that("MFRM interaction omnibus uses the Hotelling-style F reference", {
   expect_true(all(ie$p >= 2 * pnorm(-abs(ie$z)) - 1e-12))
   out <- tempfile("mfrm-export-")
   on.exit(unlink(out, recursive = TRUE), add = TRUE)
-  invisible(save_outputs(fit, out, formats = "png", item_plots = FALSE))
+  expect_no_warning(invisible(
+    save_outputs(fit, out, formats = "png", item_plots = FALSE)))
   expect_true(file.exists(file.path(out, "tables",
                                     "interaction_omnibus_test.csv")))
   expect_true(file.exists(file.path(out, "tables",
                                     "response_cell_statistics.csv")))
 })
 
-test_that("MFRM interaction inference uses the least-supported facet level", {
+test_that("MFRM interaction inference uses the least-supported cell", {
   set.seed(3101)
   simP <- function(th, tau) {
     x <- 0:length(tau); p <- exp(x * th - c(0, cumsum(tau))); p / sum(p)
@@ -1148,10 +1183,28 @@ test_that("MFRM interaction inference uses the least-supported facet level", {
   fit <- rasch_mfrm(d, "person", "item", "score", facets = "rater",
                     interaction = "rater")
   expect_false(fit$interaction_test$inference_available)
+  expect_identical(fit$interaction_test$inference_available,
+                   is.finite(fit$interaction_test$p))
   expect_equal(min(fit$interaction_support$n_persons), 12)
   expect_true(is.na(fit$interaction_test$p))
   expect_true(all(is.na(fit$interaction_effects$p)))
   expect_true(all(is.finite(fit$interaction_effects$gamma)))
+
+  # A single sparse item-by-rater cell must withhold inference even when that
+  # rater has ample observations on the remaining items.
+  d2 <- expand.grid(person = persons, item = items,
+                    rater = paste0("R", 1:3), stringsAsFactors = FALSE)
+  d2 <- d2[d2$rater != "R1" | d2$item != "I1" |
+             d2$person %in% persons[1:12], ]
+  d2$score <- vapply(seq_len(nrow(d2)), function(i)
+    sample(0:2, 1, prob = simP(theta[d2$person[i]], c(-0.5, 0.5))), 0L)
+  fit2 <- rasch_mfrm(d2, "person", "item", "score", facets = "rater",
+                     interaction = "rater")
+  sparse <- fit2$interaction_support$item == "I1" &
+    fit2$interaction_support$level == "R1"
+  expect_equal(fit2$interaction_support$n_persons[sparse], 12)
+  expect_false(fit2$interaction_test$inference_available)
+  expect_true(all(is.na(fit2$interaction_effects$p)))
 })
 
 test_that("btl eff_params is withheld with clustered inference", {

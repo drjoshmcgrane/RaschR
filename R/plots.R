@@ -101,8 +101,9 @@
 }
 
 .check_grid <- function(grid) {
-  if (!is.numeric(grid) || length(grid) < 2L || any(!is.finite(grid)))
-    stop("`grid` must be a vector of at least two finite locations",
+  if (!is.numeric(grid) || length(grid) < 2L || any(!is.finite(grid)) ||
+      any(diff(grid) <= 0))
+    stop("`grid` must be a strictly increasing vector of at least two finite locations",
          call. = FALSE)
   invisible(grid)
 }
@@ -176,7 +177,9 @@
   base_tau <- fit$item_thresholds$tau[fit$item_thresholds$item == item]
   if (!length(base_tau)) stop("no common-scale thresholds for item ", item)
   group_label <- NULL
-  if (is.character(group) && length(group) < nrow(fit$X)) {
+  if (.role_columns(group,
+                    if (is.null(fit$factors)) character(0) else names(fit$factors),
+                    nrow(fit$X))) {
     if (is.null(fit$factors) || !all(group %in% names(fit$factors)))
       stop("every named group must be a person factor in the fit")
     group_label <- paste(group, collapse = " x ")
@@ -280,7 +283,9 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
   n_groups_given <- !is.null(n_groups)
   if (!is.null(n_groups)) n_groups <- .check_whole(n_groups, "n_groups", 2)
   if (!is.null(group)) {
-    if (is.character(group) && length(group) != nrow(fit$X)) {
+    if (.role_columns(group,
+                      if (is.null(fit$factors)) character(0) else names(fit$factors),
+                      nrow(fit$X))) {
       unknown <- if (is.null(fit$factors)) group else
         setdiff(group, names(fit$factors))
       if (length(unknown))
@@ -344,7 +349,9 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
     return(invisible(NULL))
   }
   tau_i <- fit$tau_list[[i]]; mmax <- length(tau_i)
-  if (is.character(group) && length(group) < nrow(fit$X) &&
+  if (.role_columns(group,
+                    if (is.null(fit$factors)) character(0) else names(fit$factors),
+                    nrow(fit$X)) &&
       !is.null(fit$factors) && all(group %in% names(fit$factors)))
     group <- if (length(group) == 1L) fit$factors[[group]] else
       .factor_cells(fit$factors[group], sep = ":")
@@ -844,6 +851,8 @@ plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
 plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
   .check_grid(grid)
   ti <- test_information(fit, grid)
+  if (!any(is.finite(ti$info) & ti$info > 0))
+    stop("the requested grid contains no positive test information; use locations nearer the calibrated range")
   if ("design" %in% names(ti) && length(unique(ti$design)) > 1L) {
     des <- unique(ti$design)
     cols <- rep_len(.rr$pal, length(des))

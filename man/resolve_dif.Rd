@@ -9,6 +9,7 @@ resolve_dif(
   factors = NULL,
   alpha = 0.05,
   p_adjust = "holm",
+  min_n = 20L,
   min_anchors = NULL,
   max_splits = NULL
 )
@@ -24,6 +25,11 @@ defaults to every nominated factor.}
 
 \item{p_adjust}{Multiplicity adjustment across items each round.}
 
+\item{min_n}{Minimum responders required in every item-by-factor cell before
+an automatic split is allowed. The omnibus DIF test determines whether a
+split is needed; pairwise follow-ups describe where the difference lies
+but are not a second significance gate.}
+
 \item{min_anchors}{Minimum number of original items to leave unsplit as the
 internal reference set. The procedure stops before this set becomes
 smaller; pervasive DIF is not artificial DIF. Default
@@ -36,7 +42,8 @@ of items.}
 A list of class \code{"rasch_resolve_dif"}: the final resolved
   \code{fit}, the \code{splits} performed (order, item, factor, partial
   eta-squared, source item, DIF magnitude in logits), the \code{stopped}
-  reason, and the residual \code{dif} table for the final fit.
+  reason, the residual \code{dif} table, and the number of distinct source
+  items that still show DIF in the final fit.
 }
 \description{
 Splits items with uniform DIF one at a time, beginning with the largest

@@ -59,6 +59,19 @@ test_that("simulate_btl plants misfit the paired-comparison diagnostics detect",
   expect_gt(co, 0.5)
 })
 
+test_that("simulate_btl accepts explanatory object locations", {
+  loc <- c(O1 = -1.2, O2 = -0.1, O3 = 0.2, O4 = 1.8)
+  d <- simulate_btl(4, 8, 20, object_locations = loc, seed = 81)
+  expect_equal(attr(d, "truth")$location, loc - mean(loc))
+  expect_error(simulate_btl(4, object_locations = c(1, 2, 3)),
+               "length 4")
+  expect_error(simulate_btl(4, object_locations = c(A = 1, B = 2, C = 3, D = 4)),
+               "every generated object")
+  expect_error(simulate_btl(4, object_locations = rep(1, 4),
+                            second_attribute = list(rho = 0.2)),
+               "positive spread")
+})
+
 test_that("simulate_mfrm plants rater severity, misfit, and interaction", {
   d <- simulate_mfrm(120, 5, 6, rater_severity_sd = 0.7, erratic_raters = 0.17,
                      interaction = list(rater = "R3", item = "I2", bias = 1.8),
@@ -103,6 +116,54 @@ test_that("simulate_efrm generates partial credit items on request", {
   d2 <- simulate_efrm(50, 4, n_sets = 2, n_groups = 2,
                       set_unit_ratio = 1.3, seed = 1)
   expect_identical(sum(as.matrix(d2[, 2:9])), 402L)
+})
+
+test_that("EFRM simulators plant frame-specific and judge departures", {
+  clean <- simulate_efrm(600, 5, n_sets = 2, n_groups = 2,
+                         set_unit_ratio = 1, seed = 710)
+  drift <- simulate_efrm(600, 5, n_sets = 2, n_groups = 2,
+    set_unit_ratio = 1,
+    item_drift = list(items = "S1I03", group = "g2", shift = 1.2),
+    careless = 0.05, missing = 0.03, seed = 710)
+  tr <- attr(drift, "truth")
+  expect_identical(tr$item_drift$group, "g2")
+  expect_identical(tr$item_drift$items, "S1I03")
+  expect_length(tr$careless_idx, 60L)
+  expect_equal(length(tr$missing_cells), round(0.03 * 1200 * 10))
+  # The same seed isolates the shifted item before the later contamination.
+  g2 <- clean$group == "g2"
+  expect_lt(mean(drift$S1I03[g2], na.rm = TRUE),
+            mean(clean$S1I03[g2], na.rm = TRUE) - 0.08)
+  expect_true(any(grepl("item drift", tr$planted)))
+
+  b <- simulate_btl_efrm(5, 2, n_judges_per_panel = 5, n_panels = 2,
+                         reps_within = 4, reps_cross = 4,
+                         erratic_judges = 0.2, seed = 711)
+  expect_length(attr(b, "truth")$erratic, 2L)
+  expect_true(any(grepl("erratic judge", attr(b, "truth")$planted)))
+  expect_setequal(unique(b$judge), sprintf("J%03d", 1:10))
+  expect_setequal(unique(b$panel), c("panel1", "panel2"))
+  expect_true(all(attr(b, "truth")$erratic %in% b$judge))
+  expect_equal(length(unique(b$panel[b$judge %in%
+                                    attr(b, "truth")$erratic])), 2L)
+  expect_lte(diff(range(table(b$judge))), 1L)
+  set_of <- attr(b, "truth")$set_of
+  stratum <- paste(pmin(set_of[b$object_a], set_of[b$object_b]),
+                   pmax(set_of[b$object_a], set_of[b$object_b]), sep = ":")
+  for (ss in unique(stratum))
+    expect_lte(diff(range(table(factor(b$panel[stratum == ss],
+                                       levels = c("panel1", "panel2"))))), 1L)
+})
+
+test_that("paired-comparison simulators retain every declared judge", {
+  d <- simulate_btl(n_objects = 3, n_judges = 20, reps_per_pair = 7,
+                    erratic_judges = 0.2, seed = 713)
+  expect_setequal(unique(d$judge), sprintf("J%d", 1:20))
+  expect_lte(diff(range(table(d$judge))), 1L)
+  expect_true(all(attr(d, "truth")$erratic %in% d$judge))
+  expect_error(simulate_btl(n_objects = 3, n_judges = 20,
+                            reps_per_pair = 1, seed = 714),
+               "fewer than the 20 requested judges")
 })
 
 test_that("the extra misfit types plant detectable signals", {
@@ -153,6 +214,36 @@ test_that("sim_replicate and sim_recovery support Monte Carlo and recovery", {
   rb <- sim_recovery(btl(d, "object_a", "object_b", winner = "winner",
                          judge = "judge"), d)
   expect_gt(rb$summary$correlation[1], 0.9)
+
+  # paired-comparison frames use their fitted identifying conventions: the
+  # common object scale, geometric-mean-one panel units, and the first set as
+  # the unit and origin reference
+  d <- simulate_btl_efrm(5, 2, 5, 2, 8, 8,
+    panel_units = c(1, 1.25), set_units = c(1, 1.3),
+    set_origins = c(0, 0.4), seed = 71)
+  tr <- attr(d, "truth")
+  bf <- btl_efrm(d, "object_a", "object_b", winner = "winner",
+                 judge = "judge", panels = "panel",
+                 object_sets = tr$object_sets, se_method = "conditional",
+                 boot_reps = 0)
+  rf <- sim_recovery(bf, d)
+  expect_setequal(rf$summary$parameter,
+    c("object location", "panel unit (log)", "set unit (log)", "set origin"))
+  expect_gt(rf$summary$correlation[
+    rf$summary$parameter == "object location"], 0.9)
+})
+
+test_that("person recovery matches generating truth by ID", {
+  d <- simulate_rasch(500, 12, seed = 721)
+  ord <- sample.int(nrow(d))
+  shuffled <- d[ord, , drop = FALSE]
+  fit <- rasch(shuffled, id = "id")
+  rec <- sim_recovery(fit, shuffled)
+  pp <- rec$pieces[["person ability"]]
+  expect_identical(pp$label, as.character(fit$person$id)[
+    is.finite(fit$person$theta)])
+  expect_gt(rec$summary$correlation[
+    rec$summary$parameter == "person ability"], 0.7)
 })
 
 test_that("audit fixes hold: PCM structure, truth honesty, recovery centring", {
@@ -256,4 +347,47 @@ test_that("a seeded simulator call leaves the caller's RNG stream alone", {
   invisible(simulate_btl(n_objects = 4, n_judges = 3, reps_per_pair = 2,
                          seed = 3))
   expect_false(exists(".Random.seed", envir = globalenv(), inherits = FALSE))
+})
+
+test_that("every positive planted proportion affects at least one observation", {
+  styled <- simulate_rasch(
+    10, 4, model = "PCM", n_categories = 3,
+    response_style = list(type = "extreme", prop = 0.01, strength = 1),
+    seed = 41)
+  expect_length(attr(styled, "truth")$style_idx, 1L)
+
+  careless <- simulate_rasch(10, 4, careless = 0.01, seed = 42)
+  expect_length(attr(careless, "truth")$careless_idx, 1L)
+
+  incomplete <- simulate_rasch(10, 4, speeded = 0.01,
+                               missing = 0.001, seed = 43)
+  truth <- attr(incomplete, "truth")
+  expect_length(truth$speeded_idx, 1L)
+  expect_length(truth$missing_cells, 1L)
+  expect_true(all(is.na(as.matrix(incomplete[, paste0("I0", 1:4)]))[
+    truth$missing_cells]))
+  expect_true(any(grepl("1 response missing", truth$planted, fixed = TRUE)))
+
+  erratic <- simulate_mfrm(10, 3, 2, erratic_raters = 0.01, seed = 44)
+  expect_length(attr(erratic, "truth")$erratic, 1L)
+  halo <- simulate_mfrm(10, 3, 2, halo = 0.01, seed = 45)
+  expect_length(attr(halo, "truth")$halo, 1L)
+  expect_error(simulate_mfrm(10, 3, 2, erratic_raters = 1,
+                             halo = 0.01, seed = 45),
+               "every rater is erratic")
+
+  expect_warning(
+    fully_careless <- simulate_rasch(
+      10, 4, model = "PCM", n_categories = 3, careless = 1,
+      response_style = list(type = "extreme", prop = 0.01, strength = 1),
+      seed = 46),
+    "response_style could not remain")
+  expect_length(attr(fully_careless, "truth")$style_idx, 0L)
+
+  framed <- simulate_efrm(n_per_group = 2, items_per_set = 2,
+                          n_sets = 2, n_groups = 2,
+                          careless = 0.01, missing = 0.001, seed = 47)
+  truth <- attr(framed, "truth")
+  expect_length(truth$careless_idx, 1L)
+  expect_length(truth$missing_cells, 1L)
 })

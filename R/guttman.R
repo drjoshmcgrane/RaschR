@@ -99,10 +99,7 @@ guttman_table <- function(fit) {
 #' plot_guttman(rasch(X))
 #' @export
 plot_guttman <- function(fit, max_persons = 80) {
-  if (length(max_persons) != 1L || !is.finite(max_persons) ||
-      max_persons < 1L || max_persons != floor(max_persons))
-    stop("max_persons must be one positive whole number")
-  max_persons <- as.integer(max_persons)
+  max_persons <- .check_whole(max_persons, "max_persons", 1)
   g <- guttman_table(fit); G <- g$matrix; m <- max(fit$m)
   N <- nrow(G)
   if (N > max_persons) G <- G[round(seq(1, N, length.out = max_persons)), , drop = FALSE]

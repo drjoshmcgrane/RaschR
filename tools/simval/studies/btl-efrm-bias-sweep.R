@@ -1,9 +1,9 @@
 # STUDY: btl-efrm-bias-sweep
 #
-# Does the small negative bias of the staged BTL-EFRM log set-unit estimate
+# Does the small negative bias of the linked BTL-EFRM log set-unit estimate
 # disappear as the within-set calibrations become more precise? Conditional
-# fits are sufficient because this study concerns the common point estimate,
-# not the deliberately withheld conditional inference.
+# fits are sufficient because this study concerns the reconciled point
+# estimate, not the deliberately withheld conditional inference.
 
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")

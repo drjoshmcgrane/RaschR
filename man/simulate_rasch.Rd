@@ -58,7 +58,9 @@ Values below 1 produce flatter responses and positive fit residuals.}
 (dichotomous): low-location persons answer correctly by chance.}
 
 \item{second_dim}{\code{NULL}, or \code{list(items=, rho=)}: the named items
-load on a second trait correlated \code{rho} with the first.}
+load on a second trait whose realised sample correlation with the first
+is \code{rho}. At least three persons are needed unless \code{rho} is
+-1 or 1.}
 
 \item{dependence}{\code{NULL}, or \code{list(pairs=, strength=)}: each pair's
 second item responds partly to the first. This departure feeds the
@@ -88,7 +90,7 @@ is added when > 1, for DIF).}
 
 \item{missing}{Proportion of responses set missing (completely at random).}
 
-\item{seed}{Optional RNG seed.}
+\item{seed}{Optional non-negative whole-number RNG seed.}
 }
 \value{
 A data frame of class \code{"rasch_sim"} (item columns
@@ -100,7 +102,9 @@ A data frame of class \code{"rasch_sim"} (item columns
 Generates dichotomous, partial credit, or rating scale data. Optional
 arguments introduce item misfit, guessing, multidimensionality, local
 dependence, DIF, response styles, or missingness. Generating values are
-stored in \code{attr(x, "truth")}.
+stored in \code{attr(x, "truth")}. A positive planted proportion selects
+at least one person or response cell when the requested departures can
+coexist.
 }
 \examples{
 # a clean scale with one over-discriminating item and one DIF item

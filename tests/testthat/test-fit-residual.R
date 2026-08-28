@@ -109,6 +109,9 @@ test_that("ANOVA item fit is calibrated under the model", {
   expect_true(all(c("df1", "df2", "p_adj", "p_bonf") %in% names(fit$item_anova)))
   expect_equal(fit$item_anova$p_adj,
                p.adjust(fit$item_anova$p, method = "holm"))
+  expect_equal(fit$items$p_anova, fit$item_anova$p)
+  expect_equal(fit$items$p_anova_adj, fit$item_anova$p_adj)
+  expect_equal(fit$items$p_anova_bonf, fit$item_anova$p_bonf)
   expect_equal(fit$item_anova$df1, rep(fit$n_groups - 1L, ncol(s$X)))
 })
 

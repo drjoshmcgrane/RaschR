@@ -122,8 +122,12 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
   for (i in seq_len(L)) {
     x <- X[, i]; ok <- !is.na(x)
     if (sum(ok) >= 3 && stats::sd(x[ok]) > 0) {
-      rest_p <- (rowSums(X, na.rm = TRUE) - ifelse(ok, x, 0)) /
-        pmax(rowSums(Mmat, na.rm = TRUE) - ifelse(ok, fit$m[i], 0), 1)
+      rest_max <- rowSums(Mmat, na.rm = TRUE) - ifelse(ok, fit$m[i], 0)
+      rest_p <- (rowSums(X, na.rm = TRUE) - ifelse(ok, x, 0)) / rest_max
+      # A respondent who answered only the focal item has no rest score.
+      # Treating the empty rest set as zero biases the corrected correlation
+      # in sparse or routed designs.
+      rest_p[!is.finite(rest_p) | rest_max <= 0] <- NA_real_
       tab$item_total[i] <- .safe_cor(x[ok], tot_p[ok])
       tab$item_rest[i] <- .safe_cor(x[ok], rest_p[ok])
       hi <- ok & thirds == 3; lo <- ok & thirds == 1
@@ -196,7 +200,7 @@ print.rasch_ctt <- function(x, ...) {
 #' occasions; \code{row_id} uniquely identifies each person-occasion row.
 #'
 #' @param data A long data frame with one measurement per row.
-#' @param person,time Names of the person and time-point columns.
+#' @param person,time Names of distinct person and time-point columns.
 #' @param items Character vector naming the item columns.
 #' @return \code{rack_data}: a wide data frame with one row per person and
 #'   \code{length(items) * n_times} item columns. \code{stack_data}: a data
@@ -218,11 +222,15 @@ print.rasch_ctt <- function(x, ...) {
 rack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
   .check_column_names(data)
-  if (!length(items)) stop("`items` must name at least one item column")
+  if (!is.character(items) || !length(items) || anyNA(items) ||
+      any(!nzchar(trimws(items))))
+    stop("`items` must name at least one item column")
   # dereferencing an empty or multiple column name gives a base subscript
   # error rather than a statement of what was wrong
   .check_reshape_column(data, person, "person")
   .check_reshape_column(data, time, "time")
+  if (identical(as.character(person), as.character(time)))
+    stop("the person and time columns must be distinct")
   pv <- trimws(as.character(data[[person]]))
   tv <- trimws(as.character(data[[time]]))
   if (anyNA(pv) || any(!nzchar(pv[!is.na(pv)])))
@@ -243,19 +251,22 @@ rack_data <- function(data, person, time, items) {
   bad <- setdiff(items, names(data))
   if (length(bad)) stop("item column(s) not found: ", paste(bad, collapse = ", "))
   times <- sort(unique(data[[time]]))
-  made <- unlist(lapply(times, function(tt) paste0(items, "@", tt)),
+  time_labels <- as.character(times)
+  made <- unlist(lapply(time_labels, function(tt) paste0(items, "@", tt)),
                  use.names = FALSE)
   if (anyDuplicated(c("id", made)))
     stop("generated racked column names are not unique; rename the items or time levels")
   ids <- unique(data[[person]])
   out <- data.frame(id = ids)
-  for (tt in times) {
+  for (j in seq_along(times)) {
+    tt <- times[j]
+    time_label <- time_labels[j]
     d_t <- data[data[[time]] == tt, , drop = FALSE]
     if (anyDuplicated(d_t[[person]]))
-      stop("more than one row for a person at time ", tt)
+      stop("more than one row for a person at time ", time_label)
     idx <- match(ids, d_t[[person]])
     blk <- d_t[idx, items, drop = FALSE]
-    names(blk) <- paste0(items, "@", tt)
+    names(blk) <- paste0(items, "@", time_label)
     out <- cbind(out, blk)
   }
   rownames(out) <- NULL
@@ -267,11 +278,15 @@ rack_data <- function(data, person, time, items) {
 stack_data <- function(data, person, time, items) {
   data <- as.data.frame(data)
   .check_column_names(data)
-  if (!length(items)) stop("`items` must name at least one item column")
+  if (!is.character(items) || !length(items) || anyNA(items) ||
+      any(!nzchar(trimws(items))))
+    stop("`items` must name at least one item column")
   # dereferencing an empty or multiple column name gives a base subscript
   # error rather than a statement of what was wrong
   .check_reshape_column(data, person, "person")
   .check_reshape_column(data, time, "time")
+  if (identical(as.character(person), as.character(time)))
+    stop("the person and time columns must be distinct")
   pv <- trimws(as.character(data[[person]]))
   tv <- trimws(as.character(data[[time]]))
   if (anyNA(pv) || any(!nzchar(pv[!is.na(pv)])))

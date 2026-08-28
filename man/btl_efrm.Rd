@@ -29,7 +29,8 @@ btl_efrm(
 \item{data}{A data frame with one comparison per row.}
 
 \item{object_a, object_b}{Names of the columns holding the two compared
-objects.}
+objects. Columns used for objects, winners, judges, and panel membership
+must be distinct.}
 
 \item{winner}{Name of the winner column. A value must match one of the two
 objects in that row. \code{"tie"} and \code{"draw"} mark ties; other
@@ -39,10 +40,12 @@ values are treated as missing.}
 errors and defines the panels when \code{panels} is a judge attribute).}
 
 \item{panels}{Either the name of a judge-attribute column in \code{data} or
-a named vector mapping judge to panel.}
+a named vector mapping every judge in the comparisons exactly once to a
+panel.}
 
 \item{object_sets}{A named list mapping set names to character vectors of
-object names; every compared object must belong to exactly one set.}
+object names. Set names must be unique, and every compared object must
+occur exactly once in exactly one set.}
 
 \item{response}{Not supported: this first implementation fits dichotomous
 winner data only. Supplying it raises an informative error.}
@@ -65,7 +68,9 @@ propagate stage-one uncertainty into the linking parameters; unit
 probabilities and omnibus tests are therefore withheld.}
 
 \item{boot_reps}{Number of replicates for \code{se_method = "bootstrap"}
-or \code{"judge_bootstrap"}; at least 30 are required.}
+or \code{"judge_bootstrap"}; at least 30 are required. Inference is
+returned only when at least 30 and more than half of the requested
+replicates are usable.}
 
 \item{workers}{Number of judge-bootstrap workers. The default is four,
 reduced when the system limit is lower. The parametric bootstrap remains
@@ -87,7 +92,8 @@ condition.}
 An object of class \code{"rasch_btl_efrm"}. It contains the object
   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
   unit-specific judge support, frame definitions, convergence information,
-  and analysis notes.
+  and analysis notes. \code{boot_reps_requested}, \code{boot_reps_used}
+  and \code{boot_reps_failed} report the bootstrap accounting.
 }
 \description{
 Fits paired comparisons when judges belong to panels and objects belong to
@@ -126,12 +132,18 @@ withheld because it does not propagate stage-one uncertainty. Bootstrap
 failures and boundary estimates are reported in \code{notes}.
 
 With one set, the model contains panel units only. With one set and one
-panel, it reduces to \code{\link{btl}}. Omnibus Wald tests provide inference
-for the unit families; individual contrasts are Holm-adjusted follow-ups.
+panel, it reduces to \code{\link{btl}}. Omnibus Wald probabilities are
+Holm-adjusted across the panel-unit, set-unit and set-origin families.
+Individual contrasts form a separate Holm-adjusted follow-up family across
+all three parameter types.
 Judge-bootstrap probabilities require at least six judges and 5.5 effective
 judges in every contributing panel, and eight of each on a set link. The
 support is returned in \code{unit_support}; estimates remain descriptive
-when a probability is withheld.
+when a probability is withheld. Fits with fewer than eight effective judges
+per panel or 9.5 per set link retain probabilities but report a caution.
+Set-unit estimates can also be attenuated when each object pair has little
+comparison information. In simulation, log-unit bias declined from about
+-0.11 with 10 repetitions per pair to less than -0.01 with 100 repetitions.
 }
 \examples{
 \donttest{

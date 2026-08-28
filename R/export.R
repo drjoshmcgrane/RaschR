@@ -481,7 +481,11 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   sp(function() plot_person_fit(fit), "person_fit")
   sp(function() plot_resid_cor(fit), "residual_correlations")
   sp(function() plot_pca(fit), "pca_loadings")
-  sp(function() plot_scree(fit), "scree")
+  # A structural fit has an observed residual decomposition when its cells
+  # overlap, but no valid full-refit parallel reference over the mutually
+  # exclusive virtual design. Export the observed scree deliberately instead
+  # of attempting the unavailable reference and warning from a normal export.
+  sp(function() plot_scree(fit, parallel = !structural), "scree")
   if (whole_item_design && all(fit$m == 1L))
     sp(function() plot_guttman(fit), "guttman_scalogram")
   sp(function() plot_resid_dist(fit, "items"), if (structural)
@@ -806,7 +810,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     shot(function() plot_resid_dist(fit, "items"), "resid_items"),
     shot(function() plot_resid_dist(fit, "persons"), "resid_persons"),
     "<h2>Dimensionality</h2>", dim_html,
-    shot(function() plot_scree(fit), "scree"),
+    shot(function() plot_scree(fit, parallel = !structural), "scree"),
     "<h2>Local dependence</h2>",
     sprintf(paste0("<p>Average residual correlation %.3f; binary Q3 flags ",
                    "withheld because there is no universal critical value.</p>"),

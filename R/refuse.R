@@ -23,21 +23,30 @@
     list(message = paste0(...), call = NULL)))
 }
 
-# Dichotomous ETS classification on the log-odds scale. The inferential
-# decision is itemwise: a multiplicity-adjusted variant is a different rule
-# and is therefore not used here.
+# Dichotomous ETS classification on the log-odds scale. `p` and `p_beyond`
+# are the probabilities used for decisions; callers that report a family of
+# comparisons pass their familywise-adjusted values here.
 ETS_DELTA_PER_LOGIT <- 2.35
 
-.ets_category <- function(difference, se, p, alpha = 0.05) {
+.ets_p_beyond <- function(difference, se) {
+  a_cut <- 1.0 / ETS_DELTA_PER_LOGIT      # 0.43 as published
+  d <- abs(difference)
+  # C additionally requires the magnitude to be significantly beyond the A
+  # ceiling. Shervish's interval-null p-value retains both normal tails.
+  out <- stats::pnorm((-a_cut - d) / se) +
+    stats::pnorm((a_cut - d) / se)
+  out[is.na(difference) | is.na(se) | se <= 0] <- NA_real_
+  out
+}
+
+.ets_category <- function(difference, se, p, alpha = 0.05,
+                          p_beyond = NULL) {
   a_cut <- 1.0 / ETS_DELTA_PER_LOGIT      # 0.43 as published
   c_cut <- 1.5 / ETS_DELTA_PER_LOGIT      # 0.64 as published
   d <- abs(difference)
   sig <- !is.na(p) & p < alpha
-  # C additionally requires the magnitude to be significantly beyond the A
-  # ceiling. Shervish's interval-null p-value retains both normal tails.
-  p_beyond <- stats::pnorm((-a_cut - d) / se) +
-    stats::pnorm((a_cut - d) / se)
-  beyond <- !is.na(se) & se > 0 & p_beyond < alpha
+  if (is.null(p_beyond)) p_beyond <- .ets_p_beyond(difference, se)
+  beyond <- !is.na(se) & se > 0 & !is.na(p_beyond) & p_beyond < alpha
   out <- ifelse(!sig | d <= a_cut, "A",
                 ifelse(d >= c_cut & beyond, "C", "B"))
   out[is.na(difference) | is.na(se)] <- NA_character_

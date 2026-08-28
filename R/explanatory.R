@@ -27,6 +27,7 @@
   level <- match.arg(level)
   if (!is.data.frame(predictors))
     stop("`predictors` must be a data frame")
+  .check_column_names(predictors)
   if (!"item" %in% names(predictors))
     stop("`predictors` needs an `item` column")
   if (!inherits(formula, "formula") || length(formula) != 2L)
@@ -211,6 +212,7 @@
                                     known = objects) {
   if (!is.data.frame(predictors) || !"object" %in% names(predictors))
     stop("`predictors` must be a data frame with an `object` column")
+  .check_column_names(predictors)
   if (!inherits(formula, "formula") || length(formula) != 2L)
     stop("`formula` must be one-sided, for example ~ domain + format")
   predictors$object <- as.character(predictors$object)
@@ -336,7 +338,8 @@
 #'
 #' @inheritParams btl
 #' @param predictors Data frame with one row per object, an \code{object}
-#'   column, and the predictors named in \code{formula}.
+#'   column, and the predictors named in \code{formula}. Column names must be
+#'   unique.
 #' @param formula One-sided explanatory formula, including selected
 #'   interactions if required.
 #' @return An object of class \code{"rasch_btl_explanatory"}, inheriting from
@@ -378,6 +381,7 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
   .check_reshape_column(data, object_b, "object_b")
   if (!is.data.frame(predictors) || !"object" %in% names(predictors))
     stop("`predictors` must be a data frame with an `object` column")
+  .check_column_names(predictors)
   observed_objects <- unique(c(trimws(as.character(data[[object_a]])),
                                trimws(as.character(data[[object_b]]))))
   observed_objects <- observed_objects[!is.na(observed_objects) &
@@ -508,7 +512,7 @@ print.rasch_btl_explanatory <- function(x, ...) {
 #' @param predictors Data frame containing an \code{item} column and the
 #'   predictors named in \code{formula}. With \code{level = "threshold"}, it
 #'   must also contain \code{threshold}, with one row for every fitted item
-#'   threshold.
+#'   threshold. Column names must be unique.
 #' @param formula One-sided explanatory formula. For example,
 #'   \code{~ format + operation + format:operation}. The reserved
 #'   \code{threshold} factor permits threshold-specific effects.

@@ -152,6 +152,9 @@ test_that("subtests absorb local dependence", {
   fl2 <- residual_correlations(fit2, flag = 0.2)$flagged
   expect_false(any(grepl("U04", fl2$item_a) | grepl("U04", fl2$item_b)))
   expect_true(any(grepl("subtest formed", fit2$notes)))
+  fit_factor <- combine_items(fit, list(factor(c("U04", "U05"))))
+  expect_equal(fit_factor$X[, "U04+U05"],
+               rowSums(fit$X[, c("U04", "U05"), drop = FALSE]))
   expect_error(combine_items(fit, list("U01")), "at least two")
   expect_error(combine_items(fit, list(c("U01", "ZZ"))), "not in the fit")
 })

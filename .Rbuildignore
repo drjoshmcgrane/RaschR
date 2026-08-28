@@ -22,5 +22,6 @@
 ^tests/testthat/_problems$
 ^figure$
 ^tmp$
+^output$
 ^tools/simval$
 ^vignettes/articles$

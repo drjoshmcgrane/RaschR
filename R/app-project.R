@@ -35,7 +35,7 @@
                    project$model_type, class(project$base_fit)[1]))
   }
   for (field in c("rasch_steps", "btl_steps", "kept_fits", "kept_fit_code",
-                  "simulation", "results"))
+                  "simulation", "results", "settings", "resources"))
     if (!is.null(project[[field]]) && !is.list(project[[field]]))
       fail(sprintf("the analysis file has an invalid %s field", field))
   invisible(project)

@@ -233,6 +233,16 @@ NULL
        excluded = excluded)
 }
 
+# Resample each person-group stratum without relying on sample(x)'s special
+# treatment of a length-one numeric vector. If the sole row in a stratum is
+# row 17, sample(17, replace = TRUE) samples from 1:17 rather than returning
+# row 17; sampling positions within the stratum preserves frame membership.
+.frame_stratified_resample <- function(strata) {
+  unlist(lapply(strata, function(ii)
+    ii[sample.int(length(ii), size = length(ii), replace = TRUE)]),
+    use.names = FALSE)
+}
+
 #' @rdname frame_invariance
 #' @export
 frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
@@ -247,8 +257,7 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
          "integer range")
   if (!isTRUE(fit$est$converged))
     stop("the frame calibration did not converge; invariance tests are unavailable")
-  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
-    stop("alpha must be one number between 0 and 1")
+  .check_prob(alpha, "alpha")
   adjust <- match.arg(adjust)
   se_method <- match.arg(se_method)
   grp <- .frame_group_values(fit)
@@ -286,11 +295,12 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
   dsc <- ans$discrimination
   reps_used <- 0L
   if (se_method == "bootstrap") {
-    if (length(boot_reps) != 1L || !is.finite(boot_reps) ||
-        boot_reps < 30L || boot_reps != floor(boot_reps))
+    if (length(boot_reps) != 1L || !is.numeric(boot_reps) ||
+        !is.finite(boot_reps) ||
+        boot_reps < 30L || boot_reps != floor(boot_reps) ||
+        boot_reps > .Machine$integer.max)
       stop("boot_reps must be a whole number of at least 30")
     if (!is.null(seed)) {
-      if (length(seed) != 1L || !is.finite(seed)) stop("seed must be one number")
       old_seed <- if (exists(".Random.seed", .GlobalEnv, inherits = FALSE))
         get(".Random.seed", .GlobalEnv) else NULL
       on.exit(if (is.null(old_seed)) {
@@ -308,7 +318,7 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
     bd <- matrix(NA_real_, boot_reps, nrow(cmp))
     ba <- matrix(NA_real_, boot_reps, nrow(dsc))
     for (b in seq_len(boot_reps)) {
-      ii <- unlist(lapply(strata, sample, replace = TRUE), use.names = FALSE)
+      ii <- .frame_stratified_resample(strata)
       fb <- tryCatch(.efrm_refit(
         fit, source[ii, , drop = FALSE], fit$set_of, boot_reps = 0,
         ids = sprintf("B%04dP%06d", b, seq_along(ii)),

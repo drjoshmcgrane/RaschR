@@ -51,14 +51,15 @@ item-trait chi-squares. See Details.}
 
 \item{anchors}{Optional anchor table for equating: a data frame with
 columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
-Anchors determine the scale origin.}
+Column names must be unique. Anchors determine the scale origin.}
 
 \item{na_codes}{Values to read as missing. Defaults to \code{-1}, the
 conventional missing-response code; any negative score is also treated as
 missing, since valid category scores start at zero.}
 
 \item{key}{Optional multiple-choice key: a named item-to-option vector, an
-item/key table, or an item/option/score table. See Details.}
+item/key table, or an item/option/score table. Table column names must be
+unique. See Details.}
 
 \item{pc_components}{\code{NULL} (the default) estimates all PCM thresholds
 freely. Values from 1 to 4 use the principal-components form in
@@ -141,6 +142,9 @@ appreciably to the person grouping used to test that item. The same issue
 can affect the item-trait probability when fewer than about ten responses
 locate each person. In short administrations, read the statistics with the
 characteristic curve and residual fit rather than as stand-alone decisions.
+The item summary retains the raw ANOVA probability as \code{p_anova} and
+its Holm familywise adjustment as \code{p_anova_adj}; use the adjusted
+probability for inference across items.
 }
 
 \examples{

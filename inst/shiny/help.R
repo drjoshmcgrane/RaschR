@@ -155,6 +155,11 @@ APP_HELP <- c(
     "Extreme scores and sparse response patterns can carry limited information",
     "and are identified in the table."
   ),
+  person_weight_tbl = paste(
+    "Reports supplementary person locations from externally imposed relative",
+    "item or item-set weights. Sandwich standard errors allow for the weighted",
+    "score; the fitted calibration and ordinary Rasch estimates do not change."
+  ),
   btl_obj_tbl = paste(
     "Reports each object's estimated location, standard error and fit over its",
     "comparisons. Select a row to inspect the object characteristic curve."
@@ -216,11 +221,15 @@ APP_HELP <- c(
   btl_eq_tbl = paste(
     "Places two comparative judgement calibrations on a common origin using",
     "shared objects. The shift and object differences show agreement between",
-    "the calibrations after linking."
+    "the calibrations after linking. The shift is precision-weighted when",
+    "usable standard errors are available; otherwise it is an unweighted",
+    "descriptive mean."
   ),
   eq_tbl = paste(
     "Compares common-item locations after the selected origin alignment.",
-    "Where joint uncertainty is available, adjusted tests identify item drift."
+    "The mean shift is precision-weighted when usable standard errors are",
+    "available and otherwise unweighted and descriptive. Where joint",
+    "uncertainty is available, adjusted tests identify item drift."
   ),
   eq_plot = paste(
     "Plots the common-item calibrations against the aligned identity line.",
@@ -282,7 +291,7 @@ APP_HELP <- c(
   facet_int_omnibus = paste(
     "Tests the complete item-by-facet interaction family. This omnibus result",
     "should be read before examining individual interaction cells. Inference",
-    "uses the least-supported level of the interactive facet."
+    "uses the least-supported item-by-level cell."
   ),
   facet_int_tbl = paste(
     "Reports item-by-facet departures from the additive many-facet model.",
@@ -312,7 +321,7 @@ APP_HELP <- c(
   btlef_units_tbl = paste(
     "Reports set units and origins for linked comparative judgement sets.",
     "Units describe scale changes; origins describe translations between sets.",
-    "The two adjusted probabilities are Holm follow-ups within their families."
+    "The adjusted probabilities form one Holm family across panel units, set units and origins."
   ),
   btlef_frames_tbl = paste(
     "Reports the unit, comparison count and fit of each panel-by-set frame.",
@@ -325,7 +334,8 @@ APP_HELP <- c(
   ),
   btlef_omnibus_tbl = paste(
     "Jointly tests whether each family of panel units, set units or set origins",
-    "can be replaced by its equal-unit restriction. Judge-bootstrap tests need",
+    "can be replaced by its equal-unit restriction. Decisions use Holm-adjusted",
+    "probabilities across these omnibus tests. Judge-bootstrap tests need",
     "six judges and 5.5 effective judges per panel, and eight per set link."
   ),
   efrm_cmp_tbl = paste(
@@ -335,7 +345,8 @@ APP_HELP <- c(
   ),
   efrm_omnibus_tbl = paste(
     "Jointly tests the equal-unit restriction for the group and item-set unit",
-    "families. These Wald tests provide the inferential model comparison when",
+    "families. Decisions use Holm-adjusted probabilities across the omnibus",
+    "tests. They provide the inferential model comparison when",
     "every group and set link has at least 50 contributing persons."
   ),
 
@@ -434,7 +445,11 @@ APP_HELP <- c(
     "Compares planted and recovered parameters for the current simulated data.",
     "Locations are aligned to the model's identifying origin."
   ),
-  sim_preview = "Shows the first rows of the simulated dataset currently loaded for analysis.",
+  sim_preview = paste(
+    "Shows the first rows of the simulated dataset currently loaded for analysis.",
+    "Download the data alone as CSV or with its generating call, truth and",
+    "explanatory metadata in the reproducibility bundle."
+  ),
   preview = "Shows the first rows and current column roles of the dataset to be analysed.",
 
   # Item explorer ---------------------------------------------------------
@@ -589,7 +604,8 @@ APP_HELP <- c(
   ),
   btl_dep_plot = paste(
     "Shows observed residual departure over the selected history covariate, with",
-    "the fitted dependence effect and the number of comparisons in each bin."
+    "the fitted dependence effect and the number of comparisons in each bin.",
+    "Probabilities are Holm-adjusted across the fitted dependence effects."
   ),
   bdif_occ = paste(
     "Shows the selected object's model curve and observed responses by judge-factor",

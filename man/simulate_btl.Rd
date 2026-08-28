@@ -14,11 +14,14 @@ simulate_btl(
   second_attribute = NULL,
   erratic_judges = 0,
   dependence = NULL,
-  seed = NULL
+  seed = NULL,
+  object_locations = NULL
 )
 }
 \arguments{
-\item{n_objects, n_judges}{Objects to scale and judges comparing them.}
+\item{n_objects, n_judges}{Objects to scale and judges comparing them. Every
+judge is allocated at least one comparison; the simulator refuses a
+design with fewer comparisons than judges.}
 
 \item{reps_per_pair}{Comparisons made of each object pair.}
 
@@ -31,7 +34,8 @@ margin in \code{n_categories} categories; an earlier development-era value
 \item{object_sd}{Spread of the object locations (evenly spaced, sum-zero).}
 
 \item{second_attribute}{\code{NULL}, or \code{list(rho=)}: half the judges
-rank by a second object attribute correlated \code{rho} with the first.
+rank by a second object attribute whose realised correlation with the
+first is \code{rho}.
 This introduces residual dimensionality and possible intransitivity.}
 
 \item{erratic_judges}{Proportion of judges who choose at random.}
@@ -41,7 +45,12 @@ within-judge order effects (a seen-before advantage and a pull from the
 judge's own earlier verdicts). Adds an \code{order} column. Feeds the
 dependence effects fitted by \code{\link{btl}}.}
 
-\item{seed}{Optional RNG seed.}
+\item{seed}{Optional non-negative whole-number RNG seed.}
+
+\item{object_locations}{Optional numeric vector of generated object
+locations. It must have length \code{n_objects}; names, when supplied,
+must identify the generated objects. Values are centred to identify the
+origin and take precedence over \code{object_sd}.}
 }
 \value{
 A data frame of class \code{"rasch_sim"}: \code{object_a},

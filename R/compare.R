@@ -83,7 +83,7 @@
 #' or EFRM item is represented by several response cells. These columns do
 #' not provide a formal selection test across different response data.
 #'
-#' @param ... Two or more fitted objects, preferably named. Supply either all
+#' @param ... Two or more fitted objects, preferably given unique names. Supply either all
 #'   Rasch-family fits or all \code{btl} fits. For \code{btl}, fits of the same
 #'   comparison data (same objects, comparisons, and judges) support the
 #'   likelihood columns -- e.g. free versus principal-component thresholds,
@@ -128,7 +128,11 @@ compare_fits <- function(..., reference = 1) {
          "their likelihoods are over different data")
   labs <- names(fits)
   if (is.null(labs)) labs <- rep("", length(fits))
+  if (anyNA(labs)) stop("fit names must not be missing")
   labs[labs == ""] <- paste0("fit", seq_along(fits))[labs == ""]
+  if (anyDuplicated(labs))
+    stop("fit names must be unique: ",
+         paste(unique(labs[duplicated(labs)]), collapse = ", "))
   if (is.character(reference)) reference <- match(reference, labs)
   if (is.na(reference) || reference < 1 || reference > length(fits))
     stop("no such reference fit")
@@ -334,6 +338,8 @@ print.rasch_compare <- function(x, ...) {
 #' lr_test(rasch(X, model = "PCM"))
 #' @export
 lr_test <- function(fit, maxit = 60, tol = 1e-8) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a fitted Rasch-family object from rasch()")
   if (!identical(fit$model, "PCM"))
     stop("lr_test() compares an unrestricted (PCM) fit with its rating ",
          "re-parameterisation; supply a PCM fit")

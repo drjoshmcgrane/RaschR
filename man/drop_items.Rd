@@ -19,7 +19,8 @@ the fitted specification; a number overrides it.}
 }
 \value{
 A refitted object of the same class as \code{fit}, carrying a note
-  recording which items were dropped.
+  recording which items were dropped. Split-item provenance is retained for
+  the items that remain.
 }
 \description{
 Removes named items and refits the analysis with the same model

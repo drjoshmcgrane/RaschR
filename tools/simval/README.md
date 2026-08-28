@@ -78,11 +78,12 @@ identifies the sources it ran against, not necessarily HEAD.
 
 The current-estimator studies run on 2026-08-21 carry R-tree hash
 `360e3609691b`: `alpha-correction-limits.csv`,
-`alpha-npml-coverage.csv`, `btl-efrm-current.csv`,
-`btl-efrm-bias-sweep.csv`, `mfrm-pooled-dif.csv`,
+`alpha-npml-coverage.csv`, `mfrm-pooled-dif.csv`,
 `tailored-bootstrap-topup.csv`, `btl-equating-clustered.csv`, and
 `cross-package-validation.csv`. Their script hashes identify the exact study
-files used.
+files used. `btl-efrm-current.csv` and `btl-efrm-bias-sweep.csv` were rerun on
+2026-08-27 after the reconciled-panel refit; both carry R-tree hash
+`dc534f567649`. Their current results are described below.
 
 The explanatory-model study run on 2026-08-23 is in
 `studies/explanatory-models.R`, with results in
@@ -174,7 +175,14 @@ granularity deliberately).
   mildly imbalanced BTL-DIF cell. With ten raw and 9.31 effective judges per
   level, the current pair-specific reference rejected exactly 5.0% over 2,000
   datasets. A diagnostic minimum-cell reference rejected 3.55% and was not
-  adopted. There were no refused or non-converged fits.
+  adopted for the two-cell comparison. There were no refused or non-converged
+  fits.
+- `results/btl-dif-multicell-df.csv` — the separate four-cell case. In 500
+  balanced 2 by 2 null datasets with 12 judges per cell, the weakest-cell
+  reference rejected 3.6% and gave 0.964 interval coverage. The superseded
+  pooled-count extension rejected 6.2% and covered 0.938. Multi-cell
+  contrasts therefore use the conservative weakest-cell rule while the
+  validated two-cell Welch rule is unchanged.
 - `results/btl-dif-hc3.csv` — null calibration of the between-judge residual
   test under a fourfold variance ratio. With 8 versus 16 judges, the classical
   equal-variance test rejected 11.72% or 1.78%, depending on which group was
@@ -313,7 +321,16 @@ granularity deliberately).
   uninformative designs the raw coefficient averaged 0.170 (12 items) and
   0.085 (24 items) while the rank-based adjusted coefficient centred at
   -0.015 and -0.002; a true 12-item design gave 0.948 raw and 0.936
-  adjusted (300 replicates per condition).
+adjusted (300 replicates per condition).
+
+- `results/person-external-weights.csv` — externally weighted person
+  estimation with fixed generating calibrations. The 18 conditions cover
+  equal, moderate, strong and zero weights; dichotomous and partial credit
+  items; three person locations; and differing model units. Across 5,000
+  persons per condition, absolute bias was at most 0.016 logits,
+  empirical SD/mean reported SE was 0.940--1.004, and 95% coverage was
+  0.941--0.978. No estimate was refused. The study is
+  `studies/person-external-weights.R`.
 - `results/comparison-validation.csv` — the release gate for the app's
   automatic model-comparison cards: every comparison surface validated
   under its null model and at least two departure magnitudes. Citation
@@ -356,7 +373,10 @@ granularity deliberately).
 - `results/alpha-correction.csv`, `alpha-correction-designs.csv`,
   `alpha-n-sweep.csv` and `studies/alpha-bootstrap-pointest.R` evaluate the
   superseded moment-based set link. They are retained to document why it was
-  replaced and must not be cited as evidence for the current estimator.
+  replaced and must not be cited as evidence for the current estimator. The
+  scratch script that produced `alpha-n-sweep.csv` was not retained, so that
+  file is a historical, non-reproducible record; its recorded path and hash
+  identify the missing script rather than an executable repository study.
 - `results/alpha-correction-limits.csv` — point-estimator stress tests for the
   current finite-grid semiparametric link. The study covers targeting, unit
   ratios, short sets, small samples, heavy-tailed and bimodal populations,
@@ -366,21 +386,84 @@ granularity deliberately).
   do not converge; the 41- and 101-point grid results are effectively equal.
 - `results/alpha-npml-coverage.csv` — sampling calibration of the current
   estimator under normal, wide bimodal and deliberately different group
-  distributions. Hybrid set-unit Type I is 4.0--5.0%, SE ratios are
-  0.97--1.05, and coverage is 0.927--0.960. Common-scale item SE ratios are
+  distributions. Raw marginal hybrid set-unit Type I is 4.0--5%, SE ratios
+  are 0.97--1.05, and coverage is 0.927--0.960. Common-scale item SE ratios are
   0.97--1.04. The complete bootstrap is mildly conservative under the null
   (2.5% rejection, 0.975 coverage) and calibrated under the planted ratio
   (SE ratio 0.99, coverage 0.938).
+- `results/efrm-unit-multiplicity-supported.csv` — complete-family null
+  calibration for the EFRM decision policy, with 200 persons per group and
+  six items per set. Of 500 attempted fits, 489 were analysed and 11 were
+  refused. At least one raw omnibus probability was below 0.05 in 10.4% of
+  analysed fits. Holm familywise rejection was 3.5% for the omnibus family
+  and 1.6% for the separate individual-contrast family. The script is
+  `studies/efrm-unit-multiplicity-supported.R`; the rows carry script hash
+  `6341acc22941fb7041fb08ec8f8bef0c` and R-tree hash `7356d398664f`.
+- `results/frame-unit-multiplicity.csv` — the same complete-family check for
+  BTL-EFRM, and an EFRM boundary design. The BTL-EFRM rows predate the
+  reconciled-panel refit and are superseded; they are retained as provenance,
+  not as evidence for the current estimator. The four-item,
+  100-person-per-group EFRM boundary attempted 1,000 fits: 493
+  were refused, 24 did not converge, and 483 were analysed. Conditional on
+  analysis, its Holm rates were 5.2% and 2.5%. The script is
+  `studies/frame-unit-multiplicity.R`; the rows carry script hash
+  `45abbc7d7938f9fc2416d2dbbf356eeb` and the same R-tree hash.
+- `results/audit-adjusted-dependence.csv` — null familywise error and power
+  for the crossed-EFRM and BTL dependence decisions, the finite-object
+  correlation check, and the affected dimensionality-power cell. Crossed
+  EFRM rejected 6.7% in the first 1,000 null fits; the independent top-up in
+  `results/crossed-efrm-factorial-topup.csv` gave 5.55% over 2,000 fresh fits,
+  with marginal rates 5.25--5.75% and no refusals or non-convergence. The
+  pooled familywise rate is 5.93% over 3,000 fits. BTL dependence familywise
+  rejection was 5.9% over 1,000 fits. The simulator reproduced requested
+  finite-object correlations to 3.9e-16 and dimensionality power was 87%.
+  The scripts are `studies/audit-adjusted-dependence.R` and
+  `studies/crossed-efrm-factorial-topup.R`; their hashes are
+  `3f1af2fcb6098b5996bda3e0987763f6` and
+  `70e9130564c43819760d330e925f53b1`, and both result sets carry R-tree hash
+  `8a6cc825b06a`. The final tree differs only in the subsequent compatibility
+  change that permits an empty optional simulator list; every generating and
+  fitting path used by these studies is unchanged.
 - `results/btl-efrm-current.csv` — current judge- and independent-outcome
-  bootstrap calibration for BTL-EFRM. Judge-bootstrap Type I is 3.7% for
-  panel units, 3.3% for set units and 5.3% for origins; the corresponding
-  independent-outcome rates are 3.7%, 6.7% and 3.0%. Coverage over null and
-  planted conditions is 0.933--0.970.
+  bootstrap calibration for BTL-EFRM, rerun after the reconciled-panel refit.
+  Over 300 null fits, raw marginal judge-bootstrap Type I was 3.7% for panel
+  units, 7.3% for set units and 5.0% for origins. The corresponding
+  independent-outcome rates were 4.3%, 6.7% and 3.7%. Set-unit coverage was
+  0.890 with the judge bootstrap and 0.933 with the independent-outcome
+  bootstrap; coverage for the other units was 0.923--0.963. This design has
+  six judges per panel and lies in the documented caution band.
+- `results/btl-efrm-multiplicity-current.csv` — 1,000 current-estimator null
+  fits in that caution-band design. Raw marginal Type I was 3.3% for panel
+  units, 6.7% for set units and 6.0% for origins. Holm familywise error was
+  3.9% across the three omnibus decisions and 3.0% across the individual
+  follow-ups. Set-unit coverage was 0.900; no fit was refused or failed to
+  converge. The script is `studies/btl-efrm-multiplicity-current.R`; its rows
+  carry script hash `a3635aff9d2c9ed79f437686651f3dc0` and R-tree hash
+  `8b2530afb990`.
+- `results/btl-efrm-supported-topup.csv` — the supported-design top-up with
+  12 judges per panel and the public default of 200 resamples. Across 500
+  null fits, raw set-unit Type I was 4.6%, the empirical-SD/mean-SE ratio was
+  0.992 and coverage was 0.934. The Holm-adjusted set-unit rate was 2.0% in
+  the omnibus family and 1.6% in the follow-up family. There were no refusals
+  or non-convergences. The script is
+  `studies/btl-efrm-supported-topup.R`; its rows carry script hash
+  `1f58bf65d9a4d192773c296596a78135` and the same R-tree hash.
 - `results/btl-efrm-bias-sweep.csv` — finite-sample attenuation from the
-  staged BTL-EFRM set link. Log set-unit bias decreases from −0.108 at 10
-  repetitions per pair to −0.041 at 20, −0.016 at 50 and −0.007 at 100
-  (500 datasets per cell). The bootstrap study above shows calibrated
-  coverage at 20 repetitions despite this point-estimate bias.
+  staged BTL-EFRM set link, rerun after the reconciled-panel refit. Log
+  set-unit bias decreases from −0.106 at 10 repetitions per pair to −0.041
+  at 20, −0.016 at 50 and −0.006 at 100 (500 datasets per cell). The
+  caution-band bootstrap study above shows that this finite-sample
+  attenuation can also reduce Wald coverage.
+- `results/coherence-fixes.csv` — direct checks of the repaired BTL-EFRM
+  fit and the multifactor DIF estimands. Across three information levels,
+  reported BTL-EFRM log likelihoods agreed with likelihoods reconstructed
+  from every stored fitted probability to numerical precision. Mean object
+  RMSE fell from 0.401 to 0.232 and 0.123 as repetitions increased. In a
+  correlated 3:1:1:3 two-factor design, ordinary DIF marginal magnitudes had
+  biases −0.021 and +0.017 logits, and paired-comparison DIF biases +0.026
+  and +0.032; 95% coverage was 0.92--0.96. The study is
+  `studies/coherence-fixes.R`; its 29 rows carry script hash
+  `25e3f34eddee8bb9d71f77d3c79e8a31` and R-tree hash `dc534f567649`.
 - `results/mfrm-pooled-dif.csv` — null calibration after putting uniform and
   non-uniform item tests in the one multiplicity family used for decisions.
   Familywise rejection is 4.7% with balanced raters and 3.8% when the second

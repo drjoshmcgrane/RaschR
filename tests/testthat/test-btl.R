@@ -583,14 +583,16 @@ test_that("btl_dif resolves interactions by cells and supersedes lower terms", {
   # the interaction is flagged and supersedes the significant A main effect
   expect_true(s5$uniform_DIF[s5$term == "A:B"])
   expect_true(s5$superseded[s5$term == "A"])
-  # only the non-superseded interaction is resolved, into all four cells
+  # only the non-superseded interaction is resolved. The cell locations stay
+  # visible, while its magnitude is the difference-in-differences contrast.
   s5sz <- r$sizes[r$sizes$object == "S05" & r$sizes$term == "A:B", ]
-  expect_setequal(unique(c(s5sz$level_a, s5sz$level_b)),
+  expect_equal(nrow(s5sz), 1L)
+  expect_match(s5sz$contrast, "g2 - g1 x h2 - h1", fixed = TRUE)
+  expect_setequal(r$levels$level[r$levels$object == "S05" &
+                                  r$levels$term == "A:B"],
                   c("g1:h1", "g1:h2", "g2:h1", "g2:h2"))
-  # the g2:h2 cell is the outlier: every pair involving it is large and flagged
-  g2h2 <- s5sz[s5sz$level_a == "g2:h2" | s5sz$level_b == "g2:h2", ]
-  expect_true(all(abs(g2h2$difference) > 2))
-  expect_true(any(g2h2$significant))
+  expect_gt(abs(s5sz$difference), 2)
+  expect_true(s5sz$significant)
 })
 
 test_that("btl_dif tolerates adversarial factor names (band, f1)", {
@@ -654,7 +656,10 @@ test_that("btl stores per-comparison dependence covariates and plots them", {
   expect_true(all(c("covariate", "observed", "fitted", "n") %in% names(be)))
   expect_setequal(be$covariate, c(-1, 0, 1))          # exposure's three levels
   expect_equal(sum(be$n), f$n_comparisons)
+  expect_equal(plot_btl_dependence(f), be)
   expect_no_error(plot_btl_dependence(f, "carry_over"))
+  expect_error(plot_btl_dependence(f, c("exposure", "carry_over")),
+               "effect.*one of")
   expect_error(plot_btl_dependence(btl(d, "a", "b", winner = "win"),
                                    "exposure"), "no dependence data")
 })
@@ -999,6 +1004,15 @@ test_that("position bias: a first-position advantage is recovered", {
   expect_output(print(ff), "First-position advantage")
 })
 
+test_that("position effects are refused when confounded with object locations", {
+  d <- rbind(
+    data.frame(a = "A", b = "B", win = rep(c("A", "B"), 20)),
+    data.frame(a = "B", b = "C", win = rep(c("B", "C"), 20)))
+  expect_no_error(btl(d, "a", "b", winner = "win"))
+  expect_error(btl(d, "a", "b", winner = "win", position = TRUE),
+               "not separately identified")
+})
+
 test_that("anchored estimation reproduces the free scale and equates panels", {
   set.seed(303)
   beta <- c(A = -1.2, B = -0.4, C = 0.1, D = 0.6, E = 0.9)
@@ -1198,13 +1212,37 @@ test_that("BTL DIF does not redefine an externally anchored object", {
   expect_true(any(grepl("externally anchored", z$notes)))
 })
 
+test_that("named judge factors are matched by judge before row length", {
+  set.seed(731)
+  objects <- LETTERS[1:5]
+  pairs <- t(combn(objects, 2))
+  d <- data.frame(a = rep(pairs[, 1], length.out = 120),
+                  b = rep(pairs[, 2], length.out = 120),
+                  judge = sprintf("J%03d", 1:120))
+  beta <- setNames(seq(-1, 1, length.out = 5), objects)
+  d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]),
+                  d$a, d$b)
+  fit <- btl(d, "a", "b", "win", judge = "judge")
+  group <- setNames(rep(c("g1", "g2"), each = 60), d$judge)
+  a <- btl_dif(fit, list(group = group))
+  b <- btl_dif(fit, list(group = group[sample(names(group))]))
+  expect_equal(a$terms, b$terms)
+  expect_equal(a$summary, b$summary)
+})
+
 test_that("a boundary object is reported at an extrapolated location", {
   set.seed(701)
   d <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 2)
+  # Make O1 deterministically winless; relying on one seed to happen to
+  # produce a boundary object makes this a simulator-RNG test instead.
+  has_o1 <- d$object_a == "O1" | d$object_b == "O1"
+  d$winner[has_o1] <- ifelse(d$object_a[has_o1] == "O1",
+                              d$object_b[has_o1], d$object_a[has_o1])
   f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
-  ext <- f$objects[f$objects$extreme, ]
+  ext <- f$objects[f$objects$object == "O1", ]
   cal <- f$objects[!f$objects$extreme, ]
   expect_identical(ext$object, "O1")
+  expect_true(ext$extreme)
   # winless: below every calibrated location, finite, no SE, no fit
   expect_true(is.finite(ext$location))
   expect_lt(ext$location, min(cal$location))

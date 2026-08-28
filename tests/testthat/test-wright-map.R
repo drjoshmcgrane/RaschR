@@ -81,6 +81,24 @@ test_that("person and item panels preserve their labels and ordering", {
                     Cohort2 = fit$person$theta + 0.2)
   d3 <- rasch:::.wright_map_data(fit, person_panels = supplied)
   expect_equal(d3$persons, supplied)
+
+  expect_error(rasch:::.wright_map_data(
+    fit, item_panels = c(setNames(rep("A", ncol(X)), colnames(X)),
+                         TYPO = "B")), "exactly once")
+  expect_error(rasch:::.wright_map_data(
+    fit, item_panels = c("A", "A", "B", " ", "C", "C")), "blank")
+  expect_error(rasch:::.wright_map_data(
+    fit, item_panels = list(A = colnames(X), Empty = character())),
+    "at least one item")
+  expect_error(rasch:::.wright_map_data(
+    fit, person_panels = rep(c("A", " "), n / 2)), "blank")
+  expect_error(rasch:::.wright_map_data(
+    fit, person_panels = matrix(c(Inf, rep(0, n - 1L)), ncol = 1L)),
+    "infinities")
+  expect_error(rasch:::.wright_map_data(
+    fit, person_panels = character()), "at least one panel")
+  expect_error(rasch:::.wright_map_data(
+    fit, person_panels = c("group", "group")), "distinct")
 })
 
 test_that("EFRM maps recover person groups and item sets from the fitted design", {
@@ -100,6 +118,8 @@ test_that("EFRM maps recover person groups and item sets from the fitted design"
   df <- rasch:::.wright_map_data(fit, item_panels = c("sets", "groups"))
   expect_equal(nlevels(df$item_panels), nrow(fit$frames))
   expect_equal(length(df$item_panels), nrow(fit$virtual_map))
+  expect_error(rasch:::.wright_map_data(
+    fit, item_panels = c("sets", "sets")), "distinct")
 })
 
 test_that("wright_map calls the installed WrightMap interface", {
