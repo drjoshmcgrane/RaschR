@@ -714,7 +714,7 @@ test_that("EFRM unit identification is honest at both extremes", {
   expect_error(
     rasch_efrm(weak, groups = g, item_sets = sets, se_method = "hybrid",
                boot_reps = 30, workers = 1, seed = 42),
-    "unit-linking bootstrap failed")
+    "unit-linking bootstrap replicates were usable")
   # a modest half-logit spread is real signal and must not be refused
   fm <- rasch_efrm(mk(rep(seq(-0.25, 0.25, length.out = 8), 2)),
                    groups = g, item_sets = sets, se_method = "hybrid")
