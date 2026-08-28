@@ -150,14 +150,18 @@ test_that("wide MFRM conversion avoids generated-name collisions", {
 })
 
 test_that("EFRM reports nuisance-mass non-convergence and bootstrap accounting", {
-  expect_identical(rasch:::.rasch_min_boot_success(30L), 30L)
-  expect_identical(rasch:::.rasch_min_boot_success(50L), 30L)
+  # a majority of the requested draws, and nothing further: an absolute
+  # floor of 30 would demand every replicate succeed at boot_reps = 30,
+  # which is the smallest value the fitter accepts
+  expect_identical(rasch:::.rasch_min_boot_success(30L), 16L)
+  expect_identical(rasch:::.rasch_min_boot_success(50L), 26L)
   expect_identical(rasch:::.rasch_min_boot_success(60L), 31L)
   expect_identical(rasch:::.rasch_min_boot_success(100L), 51L)
   expect_identical(rasch:::.rasch_min_boot_success(200L), 101L)
   expect_identical(rasch:::.rasch_min_boot_success(300L), 151L)
-  expect_identical(rasch:::.efrm_min_boot_success(30L), 30L)
-  expect_identical(rasch:::.efrm_min_boot_success(50L), 30L)
+  expect_lt(rasch:::.rasch_min_boot_success(30L), 30L)
+  expect_identical(rasch:::.efrm_min_boot_success(30L), 16L)
+  expect_identical(rasch:::.efrm_min_boot_success(50L), 26L)
   expect_identical(rasch:::.efrm_min_boot_success(60L), 31L)
   expect_identical(rasch:::.efrm_min_boot_success(100L), 51L)
   expect_identical(rasch:::.efrm_min_boot_success(200L), 101L)
@@ -196,7 +200,7 @@ test_that("a failed EFRM full bootstrap retains its accounting", {
   expect_warning(
     f <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
                     se_method = "bootstrap", boot_reps = 30, workers = 1),
-    "0 of 30 replicates were usable; at least 30 are required")
+    "0 of 30 replicates were usable; at least 16 are required")
   expect_identical(f$se_method, "hybrid")
   expect_identical(f$full_boot_reps_requested, 30L)
   expect_identical(f$full_boot_reps_attempted, 30L)

@@ -2404,7 +2404,12 @@ test_that("maps and public controls cannot silently select another analysis", {
   judges <- unique(bf$comparisons$judge)
   group_map <- setNames(rep(c("a", "b"), length.out = length(judges)), judges)
   expect_error(btl_dif(bf, group_map[-1]), "missing from a named factor")
-  expect_error(btl_dif(bf, c(group_map, TYPO = "a")), "not present")
+  # a map built from the source data names judges the fit set aside, so a
+  # name the fit does not carry is ignored and reported rather than refused.
+  # Every fitted judge must still have an entry, and that is what catches a
+  # mistyped judge name: it leaves the real judge unmapped.
+  extra_ok <- btl_dif(bf, c(group_map, TYPO = "a"))
+  expect_true(any(grepl("not in the fitted comparisons", extra_ok$notes)))
   grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
   expect_error(plot_btl_icc(bf, "O3", group = group_map[-1]),
                "missing from the group map")

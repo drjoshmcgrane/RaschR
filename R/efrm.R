@@ -525,12 +525,14 @@
 }
 .efrm_cancelled <- function() .rasch_cancelled("EFRM estimation")
 
-# A covariance estimate from a bootstrap needs more than a small absolute
-# handful of successful draws. Keep the historical 30-draw floor for the
-# smallest supported bootstrap, but require a majority when more are asked
-# for so a badly failing design cannot look adequately sampled.
+# A covariance estimate needs a majority of the requested draws to succeed,
+# so a badly failing design cannot look adequately sampled. The rule is a
+# majority and nothing further: boot_reps is already required to be at least
+# 30, so a majority is at least 16 draws. An additional absolute floor of 30
+# would demand that every replicate succeed at the smallest permitted
+# bootstrap, leaving no usable setting at the documented minimum.
 .rasch_min_boot_success <- function(boot_reps) {
-  max(30L, as.integer(floor(boot_reps / 2) + 1L))
+  as.integer(floor(boot_reps / 2) + 1L)
 }
 .efrm_min_boot_success <- function(boot_reps) {
   .rasch_min_boot_success(boot_reps)
@@ -802,10 +804,10 @@
     reps_ok <- reps[complete, , drop = FALSE]
     min_success <- .efrm_min_boot_success(boot_reps)
     if (nrow(reps_ok) < min_success)
-      stop("the unit-linking bootstrap failed in most replicates; the linking ",
-           "design is too weak for stable alpha estimation (", nrow(reps_ok),
-           " of ", boot_reps, " replicates were usable; at least ",
-           min_success, " are required)")
+      stop("too few unit-linking bootstrap replicates were usable for a ",
+           "stable alpha covariance (", nrow(reps_ok), " of ", boot_reps,
+           "; at least ", min_success, " are required). Raise `boot_reps`, ",
+           "or strengthen the linking design")
     cov_link <- stats::cov(reps_ok)
     link_reps <- reps_ok
     if (!is.null(dtilde_reps))
@@ -982,9 +984,9 @@
 #'   bootstrap of all stages).
 #' @param boot_reps Bootstrap replicates; defaults to 300 for the linking
 #'   bootstrap and 200 for the full bootstrap. Use zero to omit unit
-#'   uncertainty; otherwise at least 30 are required. A bootstrap covariance is
-#'   reported only when at least 30 and more than half of the requested
-#'   replicates are usable.
+#'   uncertainty; otherwise at least 30 are required. A bootstrap covariance
+#'   is reported only when more than half of the requested replicates are
+#'   usable.
 #' @param progress Optional function called as \code{progress(stage, current,
 #'   total)} during long uncertainty calculations. It is intended for
 #'   interfaces and batch logging and does not alter estimation.

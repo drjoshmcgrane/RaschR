@@ -1,5 +1,18 @@
 # rasch 1.12.1
 
+* A judge factor named by judge may name judges the fit set aside -- one
+  who only ever tied, or whose rows were dropped -- since a map built from
+  the source data necessarily does. Those entries are ignored and reported
+  in the notes rather than refused, in `btl_dif()` and `plot_btl_icc()`
+  alike; every fitted judge must still carry an entry, which is what
+  catches a mistyped judge name.
+* The bootstrap success rule is a majority of the requested replicates.
+  An additional absolute floor of 30 demanded that every replicate succeed
+  at `boot_reps = 30`, the smallest value the fitter accepts, so designs
+  that bootstrap perfectly well at 60 replicates could not be fitted at
+  the documented minimum. The message when too few succeed no longer
+  reports a design as too weak on the strength of one failed replicate.
+
 * `pcml_pc()` now labels unnamed response matrices consistently, and direct
   `pcml()` calls reject an empty anchor table. Available-case item-rest
   correlations exclude respondents with no observed rest score.

@@ -1589,9 +1589,8 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
       if (length(absent))
         stop("judge(s) missing from the group map: ",
              paste(utils::head(absent, 5L), collapse = ", "))
-      if (length(extra))
-        stop("group map names judge(s) not present in the fit: ",
-             paste(utils::head(extra, 5L), collapse = ", "))
+      # a map built from the source data legitimately names judges the fit
+      # set aside; they take no part in the curve, so they are ignored
       unname(as.character(group)[match(cm$judge, names(group))])
     } else {
       if (length(group) != nrow(cm))
@@ -1954,6 +1953,7 @@ btl_dif <- function(fit, factors, objects = NULL,
          paste(unique(names(factors)[duplicated(names(factors))]),
                collapse = ", "))
   fnames <- names(factors)
+  unfitted <- character(0)
   gvs <- lapply(factors, function(g) {
     if (!is.null(names(g))) {
       if (anyNA(names(g)) || any(!nzchar(trimws(names(g)))))
@@ -1969,9 +1969,11 @@ btl_dif <- function(fit, factors, objects = NULL,
         stop("judge(s) missing from a named factor: ",
              paste(utils::head(absent, 5L), collapse = ", "),
              "; every judge needs an explicit factor entry")
-      if (length(extra))
-        stop("named factor includes judge(s) not present in the fit: ",
-             paste(utils::head(extra, 5L), collapse = ", "))
+      # a map built from the source data legitimately names judges the fit
+      # set aside -- one who only ever tied, or whose rows were dropped --
+      # and they take no part in the analysis, so they are ignored and
+      # reported rather than refused
+      if (length(extra)) unfitted <<- union(unfitted, extra)
       unname(as.character(g)[match(cm$judge, names(g))])
     } else {
       if (length(g) != nrow(cm))
@@ -2045,6 +2047,11 @@ btl_dif <- function(fit, factors, objects = NULL,
 
   # per object: the residual ANOVA z ~ (f1 [+/*] fk) * band, one row per term
   notes <- character(0); term_rows <- list(); caution_count <- 0L
+  if (length(unfitted))
+    notes <- c(notes, paste0(
+      "judge(s) named in a factor but not in the fitted comparisons, and ",
+      "ignored: ", paste(utils::head(sort(unfitted), 5L), collapse = ", "),
+      if (length(unfitted) > 5L) ", ..." else ""))
   for (o in its) {
     sel_a <- cm$object_a == o & ok
     sel_b <- cm$object_b == o & ok
