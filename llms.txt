@@ -44,12 +44,12 @@ design.
 | Function | Model |
 |----|----|
 | [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) | Dichotomous Rasch, partial credit, and rating scale models |
-| [`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md) | Linear logistic test and linear partial credit models |
-| [`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md) | Explanatory comparative judgement models |
 | [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md) | Many-facet Rasch model |
 | [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md) | Extended frame of reference model |
+| [`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md) | Linear logistic test and linear partial credit models |
 | [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) | Comparative judgement models for dichotomous and polytomous paired comparisons |
 | [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md) | Extended frame of reference model for paired comparisons |
+| [`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md) | Explanatory comparative judgement models |
 
 Person measures are estimated by weighted likelihood (Warm, 1989).
 Externally imposed item or item-set weights can be used for a

@@ -27,19 +27,19 @@ groups, occasions, raters, and other parts of the measurement design.
 
 Use [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
 for the dichotomous, partial credit, and rating scale models;
-[`rasch_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
-for the linear logistic test and linear partial credit models;
 [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md)
-for additive item, rater, and other facet effects; and
+for additive item, rater, and other facet effects;
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)
-when the unit varies across linked frames.
+when the unit varies across linked frames; and
+[`rasch_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md)
+for the linear logistic test and linear partial credit models.
 [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fits
 comparative judgement models for dichotomous and polytomous paired
 comparisons;
-[`btl_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md)
-constrains object locations by observed characteristics; and
 [`btl_efrm`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)
-fits the linked-frame extension.
+fits the linked-frame extension; and
+[`btl_explanatory`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md)
+constrains object locations by observed characteristics.
 
 ## Graphical interface
 

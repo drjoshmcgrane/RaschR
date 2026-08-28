@@ -183,6 +183,15 @@ wide_ratings <- data.frame(
   Essay1 = c(2, 3, 1, 2),
   Essay2 = c(3, 2, 2, 2)
 )
+wide_ratings
+#>   person rater Essay1 Essay2
+#> 1    P01    R1      2      3
+#> 2    P01    R2      3      2
+#> 3    P02    R1      1      2
+#> 4    P02    R2      2      2
+```
+
+``` r
 
 fit <- rasch_mfrm(
   wide_ratings,
@@ -211,10 +220,28 @@ frame_data <- data.frame(
   S2I1 = c(0, 1, 1, 0, 0, 1),
   S2I2 = c(0, 1, 1, 0, 1, 1)
 )
+frame_data
+#>   person group S1I1 S1I2 S2I1 S2I2
+#> 1     P1     A    0    0    0    0
+#> 2     P2     A    1    0    1    1
+#> 3     P3     A    1    1    1    1
+#> 4     P4     B    0    0    0    0
+#> 5     P5     B    1    1    0    1
+#> 6     P6     B    1    1    1    1
+
 item_sets <- list(
   set1 = c("S1I1", "S1I2"),
   set2 = c("S2I1", "S2I2")
 )
+item_sets
+#> $set1
+#> [1] "S1I1" "S1I2"
+#> 
+#> $set2
+#> [1] "S2I1" "S2I2"
+```
+
+``` r
 
 fit <- rasch_efrm(
   frame_data,
@@ -276,6 +303,14 @@ object_design <- data.frame(
   genre = factor(c("essay", "essay", "report")),
   length = c(800, 950, 700)
 )
+object_design
+#>   object  genre length
+#> 1      A  essay    800
+#> 2      B  essay    950
+#> 3      C report    700
+```
+
+``` r
 
 fit <- btl_explanatory(
   comparisons,
@@ -300,6 +335,32 @@ object_sets <- list(
   set1 = c("S1A", "S1B", "S1C"),
   set2 = c("S2A", "S2B", "S2C")
 )
+object_sets
+#> $set1
+#> [1] "S1A" "S1B" "S1C"
+#> 
+#> $set2
+#> [1] "S2A" "S2B" "S2C"
+
+# the first four rows compare within a set, the last two across sets
+frame_comparisons <- data.frame(
+  object_a = c("S1A", "S1B", "S2A", "S2B", "S1A", "S1C"),
+  object_b = c("S1B", "S1C", "S2B", "S2C", "S2A", "S2C"),
+  winner   = c("S1A", "S1C", "S2A", "S2B", "S2A", "S1C"),
+  judge    = c("J1", "J1", "J2", "J2", "J3", "J3"),
+  panel    = c("east", "east", "west", "west", "east", "east")
+)
+frame_comparisons
+#>   object_a object_b winner judge panel
+#> 1      S1A      S1B    S1A    J1  east
+#> 2      S1B      S1C    S1C    J1  east
+#> 3      S2A      S2B    S2A    J2  west
+#> 4      S2B      S2C    S2B    J2  west
+#> 5      S1A      S2A    S2A    J3  east
+#> 6      S1C      S2C    S1C    J3  east
+```
+
+``` r
 
 fit <- btl_efrm(
   frame_comparisons,
