@@ -155,14 +155,17 @@ fit <- rasch_mfrm(
 Wide multiple-ratings data use one row per person-by-facet combination and
 one score column per item.
 
-```{r mfrm-wide, eval=FALSE}
+```{r mfrm-wide}
 wide_ratings <- data.frame(
   person = c("P01", "P01", "P02", "P02"),
   rater = c("R1", "R2", "R1", "R2"),
   Essay1 = c(2, 3, 1, 2),
   Essay2 = c(3, 2, 2, 2)
 )
+wide_ratings
+```
 
+```{r mfrm-wide-fit, eval=FALSE}
 fit <- rasch_mfrm(
   wide_ratings,
   person = "person",
@@ -179,7 +182,7 @@ EFRM response data use one row per person and one column per item, together
 with a person-group column. A separate named map assigns each item to exactly
 one item set.
 
-```{r efrm-structure, eval=FALSE}
+```{r efrm-structure}
 frame_data <- data.frame(
   person = paste0("P", 1:6),
   group = rep(c("A", "B"), each = 3),
@@ -188,11 +191,16 @@ frame_data <- data.frame(
   S2I1 = c(0, 1, 1, 0, 0, 1),
   S2I2 = c(0, 1, 1, 0, 1, 1)
 )
+frame_data
+
 item_sets <- list(
   set1 = c("S1I1", "S1I2"),
   set2 = c("S2I1", "S2I2")
 )
+item_sets
+```
 
+```{r efrm-fit, eval=FALSE}
 fit <- rasch_efrm(
   frame_data,
   item_sets = item_sets,
@@ -237,13 +245,16 @@ column is needed to estimate exposure or carry-over dependence.
 
 Explanatory Comparative Judgement adds one metadata row per object.
 
-```{r cj-explanatory, eval=FALSE}
+```{r cj-explanatory}
 object_design <- data.frame(
   object = c("A", "B", "C"),
   genre = factor(c("essay", "essay", "report")),
   length = c(800, 950, 700)
 )
+object_design
+```
 
+```{r cj-explanatory-fit, eval=FALSE}
 fit <- btl_explanatory(
   comparisons,
   predictors = object_design,
@@ -261,12 +272,25 @@ The comparison rows additionally identify each judge's panel. A named list
 assigns every object to one object set. Both within-set and cross-set
 comparisons are required to identify set units and origins.
 
-```{r cj-frames, eval=FALSE}
+```{r cj-frames}
 object_sets <- list(
   set1 = c("S1A", "S1B", "S1C"),
   set2 = c("S2A", "S2B", "S2C")
 )
+object_sets
 
+# the first four rows compare within a set, the last two across sets
+frame_comparisons <- data.frame(
+  object_a = c("S1A", "S1B", "S2A", "S2B", "S1A", "S1C"),
+  object_b = c("S1B", "S1C", "S2B", "S2C", "S2A", "S2C"),
+  winner   = c("S1A", "S1C", "S2A", "S2B", "S2A", "S1C"),
+  judge    = c("J1", "J1", "J2", "J2", "J3", "J3"),
+  panel    = c("east", "east", "west", "west", "east", "east")
+)
+frame_comparisons
+```
+
+```{r cj-frames-fit, eval=FALSE}
 fit <- btl_efrm(
   frame_comparisons,
   object_a = "object_a",

@@ -51,12 +51,12 @@ occasions, raters, and other parts of the measurement design.
 | Function | Model |
 |---|---|
 | `rasch()` | Dichotomous Rasch, partial credit, and rating scale models |
-| `rasch_explanatory()` | Linear logistic test and linear partial credit models |
-| `btl_explanatory()` | Explanatory comparative judgement models |
 | `rasch_mfrm()` | Many-facet Rasch model |
 | `rasch_efrm()` | Extended frame of reference model |
+| `rasch_explanatory()` | Linear logistic test and linear partial credit models |
 | `btl()` | Comparative judgement models for dichotomous and polytomous paired comparisons |
 | `btl_efrm()` | Extended frame of reference model for paired comparisons |
+| `btl_explanatory()` | Explanatory comparative judgement models |
 
 Person measures are estimated by weighted likelihood (Warm, 1989).
 Externally imposed item or item-set weights can be used for a supplementary
