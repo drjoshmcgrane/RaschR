@@ -184,9 +184,10 @@ contradictions in the observed ordering. Residual dimensionality asks
 whether comparisons contain a structured second attribute after the
 primary scale is fitted.</p>
 <p>When a judgment-order column is supplied, <code>fit$dependence</code>
-reports position, exposure and carry-over effects together. Use
-<code>p_adj</code>, which applies Holm’s correction across the effects
-with available inference; <code>p</code> is retained as the raw
+reports the exposure and carry-over effects; adding
+<code>position = TRUE</code> reports the position effect alongside them.
+Use <code>p_adj</code>, which applies Holm’s correction across the
+effects with available inference; <code>p</code> is retained as the raw
 probability.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_transitivity.html">btl_transitivity</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>

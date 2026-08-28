@@ -90,8 +90,7 @@ rasch_efrm(
   Bootstrap replicates; defaults to 300 for the linking bootstrap and
   200 for the full bootstrap. Use zero to omit unit uncertainty;
   otherwise at least 30 are required. A bootstrap covariance is reported
-  only when at least 30 and more than half of the requested replicates
-  are usable.
+  only when more than half of the requested replicates are usable.
 
 - progress:
 
