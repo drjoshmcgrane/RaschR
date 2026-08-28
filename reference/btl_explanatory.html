@@ -90,7 +90,8 @@ structure selected in <code>thresholds</code>.</p>
 
 <dt id="arg-predictors">predictors<a class="anchor" aria-label="anchor" href="#arg-predictors"></a></dt>
 <dd><p>Data frame with one row per object, an <code>object</code>
-column, and the predictors named in <code>formula</code>.</p></dd>
+column, and the predictors named in <code>formula</code>. Column names must be
+unique.</p></dd>
 
 
 <dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
@@ -100,13 +101,13 @@ interactions if required.</p></dd>
 
 <dt id="arg-object-a-object-b">object_a, object_b<a class="anchor" aria-label="anchor" href="#arg-object-a-object-b"></a></dt>
 <dd><p>Names of the columns holding the two objects
-compared.</p></dd>
+compared. Columns used for the comparison roles must be distinct.</p></dd>
 
 
 <dt id="arg-winner">winner<a class="anchor" aria-label="anchor" href="#arg-winner"></a></dt>
 <dd><p>Name of the column holding the winner of each row: its
 value must equal one of the two objects. <code>"tie"</code> and <code>"draw"</code>
-mark ties. Ignored when <code>response</code> is supplied.</p></dd>
+mark ties. Do not supply both <code>winner</code> and <code>response</code>.</p></dd>
 
 
 <dt id="arg-response">response<a class="anchor" aria-label="anchor" href="#arg-response"></a></dt>
@@ -117,7 +118,10 @@ mark ties. Ignored when <code>response</code> is supplied.</p></dd>
 
 <dt id="arg-margin">margin<a class="anchor" aria-label="anchor" href="#arg-margin"></a></dt>
 <dd><p>Optional ordered margin-of-victory column, combined with
-<code>winner</code> to construct an orientation-invariant response.</p></dd>
+<code>winner</code> to construct an orientation-invariant response. Use an
+ordered factor (levels from the smallest to largest margin) or a positive
+numeric magnitude. Margins on ties and rows excluded from the analysis
+are ignored.</p></dd>
 
 
 <dt id="arg-judge">judge<a class="anchor" aria-label="anchor" href="#arg-judge"></a></dt>

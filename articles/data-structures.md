@@ -1,0 +1,340 @@
+# Data structures for rasch models
+
+``` r
+
+library(rasch)
+```
+
+This vignette shows the data required by each model. The examples use
+plain data frames so that the required columns are visible. Column names
+can differ; name their roles in the fitting function.
+
+## Rasch, partial credit and rating scale models
+
+Use one row per person and one column per item. Scores begin at zero. A
+dichotomous item is coded 0/1; an item with four categories is coded 0,
+1, 2 or 3. Missing values may be `NA`; negative missing-value codes are
+also accepted through `na_codes`.
+
+``` r
+
+responses <- data.frame(
+  person = c("P01", "P02", "P03", "P04"),
+  group = c("control", "control", "treated", "treated"),
+  I1 = c(0, 1, 1, 1),
+  I2 = c(0, 1, 2, 2),
+  I3 = c(1, 2, 3, NA)
+)
+responses
+#>   person   group I1 I2 I3
+#> 1    P01 control  0  0  1
+#> 2    P02 control  1  1  2
+#> 3    P03 treated  1  2  3
+#> 4    P04 treated  1  2 NA
+```
+
+The identifier and person factors are not item responses. Name them
+explicitly, or nominate the item columns.
+
+``` r
+
+fit <- rasch(
+  responses,
+  id = "person",
+  factors = "group",
+  items = c("I1", "I2", "I3"),
+  model = "PCM"
+)
+```
+
+Use `model = "RSM"` only when the items share one rating-scale threshold
+structure. Items may have different maximum scores in the partial credit
+model.
+
+External weights are supplied after fitting. Item weights are a named
+numeric vector. Set weights additionally need an item-to-set map, except
+for an EFRM fit, which already contains one.
+
+``` r
+
+item_weights <- c(I1 = 2, I2 = 1, I3 = 0.5)
+weighted_person_estimates(fit, item_weights)
+
+set_of <- c(I1 = "core", I2 = "core", I3 = "extension")
+set_weights <- c(core = 2, extension = 1)
+weighted_person_estimates(fit, set_weights, by = "set", sets = set_of)
+```
+
+Only relative weights matter. The weighted estimates are supplementary;
+they do not replace the Rasch estimates used for fit, reliability,
+targeting or DIF. In the application, use a CSV with `item,weight`, or
+`item,set,weight` for set weights.
+
+## Explanatory item and threshold models
+
+The response data remain in the wide form above. A second data frame
+describes the items. Item-level predictors have one row per item and an
+`item` column.
+
+``` r
+
+item_design <- data.frame(
+  item = c("I1", "I2", "I3"),
+  format = c("selected", "constructed", "constructed"),
+  demand = c(0.2, 0.7, 1.1)
+)
+item_design
+#>   item      format demand
+#> 1   I1    selected    0.2
+#> 2   I2 constructed    0.7
+#> 3   I3 constructed    1.1
+```
+
+``` r
+
+fit <- rasch_explanatory(
+  responses,
+  predictors = item_design,
+  formula = ~ format + demand + format:demand,
+  level = "item",
+  id = "person",
+  factors = "group",
+  items = c("I1", "I2", "I3")
+)
+```
+
+Categorical predictors should be factors, continuous predictors numeric,
+and ordinal predictors ordered factors with their substantive order
+declared. When a predictor varies between thresholds within an item, use
+one row per threshold and include `item` and `threshold`.
+
+``` r
+
+threshold_design <- data.frame(
+  item = rep(c("I2", "I3"), c(2, 3)),
+  threshold = c(1, 2, 1, 2, 3),
+  wording_load = c(0.2, 0.4, 0.1, 0.5, 0.9)
+)
+threshold_design
+#>   item threshold wording_load
+#> 1   I2         1          0.2
+#> 2   I2         2          0.4
+#> 3   I3         1          0.1
+#> 4   I3         2          0.5
+#> 5   I3         3          0.9
+```
+
+``` r
+
+fit <- rasch_explanatory(
+  responses,
+  predictors = threshold_design,
+  formula = ~ wording_load + threshold,
+  level = "threshold",
+  id = "person",
+  factors = "group",
+  items = c("I2", "I3")
+)
+```
+
+## Multiple ratings
+
+Long data use one row per observed rating. The required roles are
+person, item, score and at least one facet. A rater, task or occasion
+can be a facet. A person-group variable is instead supplied through
+`factors`.
+
+``` r
+
+ratings <- data.frame(
+  person = c("P01", "P01", "P02", "P02"),
+  item = c("Essay1", "Essay2", "Essay1", "Essay2"),
+  rater = c("R1", "R2", "R2", "R1"),
+  occasion = c("first", "first", "first", "first"),
+  score = c(2, 3, 1, 2)
+)
+ratings
+#>   person   item rater occasion score
+#> 1    P01 Essay1    R1    first     2
+#> 2    P01 Essay2    R2    first     3
+#> 3    P02 Essay1    R2    first     1
+#> 4    P02 Essay2    R1    first     2
+```
+
+``` r
+
+fit <- rasch_mfrm(
+  ratings,
+  person = "person",
+  item = "item",
+  score = "score",
+  facets = c("rater", "occasion")
+)
+```
+
+Wide multiple-ratings data use one row per person-by-facet combination
+and one score column per item.
+
+``` r
+
+wide_ratings <- data.frame(
+  person = c("P01", "P01", "P02", "P02"),
+  rater = c("R1", "R2", "R1", "R2"),
+  Essay1 = c(2, 3, 1, 2),
+  Essay2 = c(3, 2, 2, 2)
+)
+
+fit <- rasch_mfrm(
+  wide_ratings,
+  person = "person",
+  facets = "rater",
+  items = c("Essay1", "Essay2")
+)
+```
+
+Long data are usually easier to inspect when a facet varies within
+items.
+
+## Extended Frames
+
+EFRM response data use one row per person and one column per item,
+together with a person-group column. A separate named map assigns each
+item to exactly one item set.
+
+``` r
+
+frame_data <- data.frame(
+  person = paste0("P", 1:6),
+  group = rep(c("A", "B"), each = 3),
+  S1I1 = c(0, 1, 1, 0, 1, 1),
+  S1I2 = c(0, 0, 1, 0, 1, 1),
+  S2I1 = c(0, 1, 1, 0, 0, 1),
+  S2I2 = c(0, 1, 1, 0, 1, 1)
+)
+item_sets <- list(
+  set1 = c("S1I1", "S1I2"),
+  set2 = c("S2I1", "S2I2")
+)
+
+fit <- rasch_efrm(
+  frame_data,
+  item_sets = item_sets,
+  groups = "group",
+  id = "person"
+)
+```
+
+Persons must connect the item sets, and common items across person
+groups must identify the group units. Crossed person-group factors can
+be supplied as several column names in `groups`.
+
+## Comparative Judgement
+
+Use one row per comparison. `object_a` and `object_b` identify the pair.
+For a dichotomous comparison, `winner` contains one of those two object
+names.
+
+``` r
+
+comparisons <- data.frame(
+  object_a = c("A", "A", "B", "A"),
+  object_b = c("B", "C", "C", "C"),
+  winner = c("A", "C", "B", "A"),
+  judge = c("J1", "J1", "J2", "J2")
+)
+comparisons
+#>   object_a object_b winner judge
+#> 1        A        B      A    J1
+#> 2        A        C      C    J1
+#> 3        B        C      B    J2
+#> 4        A        C      A    J2
+```
+
+``` r
+
+fit <- btl(
+  comparisons,
+  object_a = "object_a",
+  object_b = "object_b",
+  winner = "winner",
+  judge = "judge"
+)
+```
+
+For ordered comparisons, replace `winner` with an ordered response
+column whose categories run from preference for object B to preference
+for object A. A frequency column can represent repeated identical rows.
+A judgement-order column is needed to estimate exposure or carry-over
+dependence.
+
+Explanatory Comparative Judgement adds one metadata row per object.
+
+``` r
+
+object_design <- data.frame(
+  object = c("A", "B", "C"),
+  genre = factor(c("essay", "essay", "report")),
+  length = c(800, 950, 700)
+)
+
+fit <- btl_explanatory(
+  comparisons,
+  predictors = object_design,
+  formula = ~ genre + length,
+  object_a = "object_a",
+  object_b = "object_b",
+  winner = "winner",
+  judge = "judge"
+)
+```
+
+## Extended Frames for Comparative Judgement
+
+The comparison rows additionally identify each judge’s panel. A named
+list assigns every object to one object set. Both within-set and
+cross-set comparisons are required to identify set units and origins.
+
+``` r
+
+object_sets <- list(
+  set1 = c("S1A", "S1B", "S1C"),
+  set2 = c("S2A", "S2B", "S2C")
+)
+
+fit <- btl_efrm(
+  frame_comparisons,
+  object_a = "object_a",
+  object_b = "object_b",
+  winner = "winner",
+  judge = "judge",
+  panels = "panel",
+  object_sets = object_sets
+)
+```
+
+## Simulated data
+
+The **Simulate** page in the Shiny application generates every structure
+above, assigns its roles and retains the generating values. The
+corresponding R functions are
+[`simulate_rasch()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_rasch.md),
+[`simulate_btl()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_btl.md),
+[`simulate_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_mfrm.md),
+[`simulate_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_efrm.md)
+and
+[`simulate_btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/simulate_btl_efrm.md).
+Explanatory simulations add the item or object metadata used to generate
+the locations. Each simulator stores its parameter values and planted
+departures in `attr(data, "truth")`. The app can download the data as a
+CSV or as a bundle containing the generating call, true values and
+explanatory metadata.
+
+``` r
+
+d <- simulate_efrm(n_per_group = 100, items_per_set = 5, seed = 4)
+names(attr(d, "truth"))
+#>  [1] "layout"        "description"   "person_id"     "theta"        
+#>  [5] "difficulty"    "thresholds"    "alpha"         "phi"          
+#>  [9] "item_sets"     "groups"        "item_drift"    "careless_idx" 
+#> [13] "missing_cells" "planted"
+```

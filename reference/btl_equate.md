@@ -23,7 +23,9 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
   A second
   [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) fit,
   or a bank: a data frame with columns `object`, `location`, and
-  optionally `se`; object names must be unique and locations finite.
+  optionally `se`; object names and column names must be unique. Numeric
+  fields may be numeric columns, numeric text, or factors with numeric
+  labels; other column classes are refused. Locations must be finite.
   Bank-based drift inference requires the joint location covariance as a
   square matrix in `attr(fit2, "cov_location")`, ordered like the bank
   rows (or named by object), unless the bank is treated as fixed with
@@ -57,9 +59,9 @@ A list of class `"rasch_btl_equate"`: the comparison `table` (per common
 object: object, both locations and standard errors, their `difference`,
 the `shifted_difference` against the estimated origin, the pooled
 `se_diff`, `t`, raw and adjusted `p`, and the `drifting` flag); the
-estimated `shift` and its `shift_se`; `equated`, the second
-calibration's full object table re-expressed on `fit1`'s scale; the
-number of common objects `n_common`; the number usable for inference
+estimated `shift`, its `shift_method` and `shift_se`; `equated`, the
+second calibration's full object table re-expressed on `fit1`'s scale;
+the number of common objects `n_common`; the number usable for inference
 `n_inference`; whether inference was available `inferential`; `alpha`;
 `p_adjust`; and `notes`.
 
@@ -68,11 +70,15 @@ number of common objects `n_common`; the number usable for inference
 Let \\d_j\\ be the location difference for common object \\j\\ and
 \\v_j\\ its marginal variance. The origin shift is the
 precision-weighted mean \$\$\hat s=\frac{\sum_j d_j/v_j}{\sum_j
-1/v_j}.\$\$ Each object is tested using its shifted difference
-\\d_j-\hat s\\. The covariance calculation retains the dependence
-induced by the sum-zero constraints. Drift tests require independent
-calibrations and at least three common objects with usable covariance
-information.
+1/v_j}.\$\$ If fewer than two common objects have usable variances but
+at least two have finite locations, their unweighted mean difference is
+returned as a descriptive fallback and recorded in `shift_method`. Each
+object is tested using its shifted difference \\d_j-\hat s\\. The
+covariance calculation retains the dependence induced by the sum-zero
+constraints. Drift tests require independent calibrations and at least
+three common objects with usable covariance information. Two common
+objects identify a descriptive origin shift, but do not support an
+object-drift test.
 
 The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and

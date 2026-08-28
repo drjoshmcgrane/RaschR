@@ -23,11 +23,12 @@ compare_fits(..., reference = 1)
 
 - ...:
 
-  Two or more fitted objects, preferably named. Supply either all
-  Rasch-family fits or all `btl` fits. For `btl`, fits of the same
-  comparison data (same objects, comparisons, and judges) support the
-  likelihood columns – e.g. free versus principal-component thresholds,
-  with and without a position effect or within-judge dependence.
+  Two or more fitted objects, preferably given unique names. Supply
+  either all Rasch-family fits or all `btl` fits. For `btl`, fits of the
+  same comparison data (same objects, comparisons, and judges) support
+  the likelihood columns – e.g. free versus principal-component
+  thresholds, with and without a position effect or within-judge
+  dependence.
 
 - reference:
 

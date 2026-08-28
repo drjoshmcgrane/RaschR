@@ -35,13 +35,14 @@ btl(
 
 - object_a, object_b:
 
-  Names of the columns holding the two objects compared.
+  Names of the columns holding the two objects compared. Columns used
+  for the comparison roles must be distinct.
 
 - winner:
 
   Name of the column holding the winner of each row: its value must
-  equal one of the two objects. `"tie"` and `"draw"` mark ties. Ignored
-  when `response` is supplied.
+  equal one of the two objects. `"tie"` and `"draw"` mark ties. Do not
+  supply both `winner` and `response`.
 
 - response:
 
@@ -52,7 +53,10 @@ btl(
 - margin:
 
   Optional ordered margin-of-victory column, combined with `winner` to
-  construct an orientation-invariant response.
+  construct an orientation-invariant response. Use an ordered factor
+  (levels from the smallest to largest margin) or a positive numeric
+  magnitude. Margins on ties and rows excluded from the analysis are
+  ignored.
 
 - judge:
 
@@ -107,11 +111,12 @@ A `"rasch_btl"` object. Principal components are `objects`, `pairs`,
 `judges`, the total pair-fit test, `osi`, `loglik`, composite-likelihood
 information `cl`, convergence details, and `notes`. Ordered-response
 fits also contain `thresholds`, `m`, and `categories`. Fits using
-`order` contain `dependence` and `dependence_data`. An undefeated or
-winless object is set aside from estimation, as an extreme person is in
-a Rasch calibration, and reported in `objects` with `extreme = TRUE` at
-an extrapolated location: the profile solution with its score moved half
-a point inside the boundary against the calibrated scale. Its standard
+`order` contain `dependence` and `dependence_data`; the former reports
+raw `p` and Holm-adjusted `p_adj`. An undefeated or winless object is
+set aside from estimation, as an extreme person is in a Rasch
+calibration, and reported in `objects` with `extreme = TRUE` at an
+extrapolated location: the profile solution with its score moved half a
+point inside the boundary against the calibrated scale. Its standard
 error and fit are withheld and the row takes no part in inference or
 equating.
 
@@ -149,11 +154,15 @@ stabilise thin categories.
 If comparison order is supplied, exposure and carry-over effects are
 estimated from each judge's preceding comparisons. The `position` term
 estimates a first-presentation effect. These coefficients enter the
-model jointly with the object locations and are reported in logits. The
-carry-over estimate and clustered SE remain descriptive below 30 judges;
-its probability is withheld because null calibration is mildly
-anti-conservative at smaller judge counts. Anchors fix nominated object
-locations and replace the sum-zero origin.
+model jointly with the object locations and are reported in logits. They
+are refused when the comparison design confounds them exactly with the
+object-location contrasts. The carry-over estimate and clustered SE
+remain descriptive below 30 judges; its probability is withheld because
+null calibration is mildly anti-conservative at smaller judge counts.
+Raw probabilities are retained, but simultaneous decisions across the
+fitted dependence effects use Holm's familywise adjustment in
+`dependence$p_adj`. Anchors fix nominated object locations and replace
+the sum-zero origin.
 
 ## References
 

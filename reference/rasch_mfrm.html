@@ -82,11 +82,13 @@ statistics are reported on a common logit scale.</p>
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Long-format data frame.</p></dd>
+<dd><p>Long-format data frame, or a wide data frame when <code>items</code>
+is supplied.</p></dd>
 
 
 <dt id="arg-person">person<a class="anchor" aria-label="anchor" href="#arg-person"></a></dt>
-<dd><p>Name of the person identifier column.</p></dd>
+<dd><p>Name of the person identifier column. Person, item, score,
+facet, and person-factor columns must define distinct roles.</p></dd>
 
 
 <dt id="arg-item">item<a class="anchor" aria-label="anchor" href="#arg-item"></a></dt>
@@ -177,9 +179,11 @@ before fitting the model.</p>
 differences to vary by item. The omnibus Wald test in
 <code>interaction_test</code> is the primary test; cell tests are Holm-adjusted
 follow-ups. Interaction probabilities require at least
-\(\max\{30,q+2\}\) persons and effective persons at every level of the
-interactive facet, where \(q\) is the omnibus degrees of freedom.
-Estimates remain descriptive when this condition is not met.</p>
+\(\max\{30,q+2\}\) persons and effective persons in every observed
+item-by-level cell, where \(q\) is the omnibus degrees of freedom.
+The interaction covariance must also identify the omnibus contrast and
+leave positive denominator degrees of freedom. Estimates remain descriptive
+when these conditions are not met.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

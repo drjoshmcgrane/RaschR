@@ -249,10 +249,10 @@ questions.</p>
 <span><span class="co">#&gt;  level location se weak   n</span></span>
 <span><span class="co">#&gt;      A   -0.518       0 320</span></span>
 <span><span class="co">#&gt;      B    0.227       0 320</span></span>
-<span><span class="co">#&gt;  level_a level_b difference se z p p_adj lower upper significant practical  ets</span></span>
-<span><span class="co">#&gt;        A       B     -0.745                                        &gt;= 0.50 &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;  signed_area</span></span>
-<span><span class="co">#&gt;             </span></span>
+<span><span class="co">#&gt;  level_a level_b difference se z p p_adj lower upper significant practical</span></span>
+<span><span class="co">#&gt;        A       B     -0.745                                        &gt;= 0.50</span></span>
+<span><span class="co">#&gt;  p_beyond_A p_beyond_A_adj  ets signed_area</span></span>
+<span><span class="co">#&gt;                            &lt;NA&gt;            </span></span>
 <span><span class="co">#&gt; p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span></span>
 <span><span class="co">#&gt; notes: person identifiers repeat across response rows: resolved point differences remain descriptive, but sampling SEs, confidence intervals and Wald tests are withheld; use dif_contrasts for person-level inference or a whole-person bootstrap</span></span>
 <span><span class="va">dc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_contrasts.html">dif_contrasts</a></span><span class="op">(</span><span class="va">fit</span>, items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I03"</span>, <span class="st">"I06"</span><span class="op">)</span>, within <span class="op">=</span> <span class="st">"occasion"</span><span class="op">)</span></span>

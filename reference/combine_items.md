@@ -4,6 +4,9 @@ Replaces each nominated item group by a polytomous super-item whose
 score is the sum of its members, then refits the model. The function is
 commonly used to examine item groups identified by
 [`residual_correlations`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md).
+Every total from zero to the sum of the component maxima must be
+observed; otherwise the refit is refused rather than renumbering the
+superitem score.
 
 ## Usage
 
@@ -36,7 +39,12 @@ on the combined structure, with the combinations recorded in its notes.
 Person and item estimates are recalculated. Fit grouping, external
 anchors on unchanged items, keyed scoring, PCM constraints and
 optimisation controls are retained. Anchored items cannot be combined
-because the resulting superitem has no corresponding external anchor.
+because the resulting superitem has no corresponding external anchor. A
+group-specific copy produced by
+[`split_items()`](https://drjoshmcgrane.github.io/rasch/reference/split_items.md)
+cannot be combined: form the subtest before applying a DIF split.
+Existing split-item provenance is retained for items not included in a
+new subtest.
 
 ## See also
 

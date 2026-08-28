@@ -2,6 +2,8 @@
 
 ### Vignettes
 
+- [Data structures for rasch
+  models](https://drjoshmcgrane.github.io/rasch/articles/data-structures.md):
 - [A Rasch analysis
   workflow](https://drjoshmcgrane.github.io/rasch/articles/rasch-workflow.md):
 - [DIF with several person factors and repeated

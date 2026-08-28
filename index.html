@@ -132,7 +132,7 @@
 </tr>
 </tbody>
 </table>
-<p>Person measures are estimated by weighted likelihood (Warm, 1989). Anchored estimation is available for equating, and incomplete linked designs can be fitted when their observed response structure identifies a common scale.</p>
+<p>Person measures are estimated by weighted likelihood (Warm, 1989). Externally imposed item or item-set weights can be used for a supplementary person measure without changing the fitted calibration or its diagnostics. Anchored estimation is available for equating, and incomplete linked designs can be fitted when their observed response structure identifies a common scale.</p>
 <p>The item-response models follow Rasch (1960) and Andrich and Marais (2019). The explanatory item models follow Fischer (1973) and Fischer and Ponocny (1994), within the explanatory framework of De Boeck and Wilson (2004). Continuous, categorical or ordinal characteristics may be used; the comparative-judgement formulation applies the same fixed design to Bradley–Terry–Luce object locations. The frame models follow Humphry (2005) and Humphry and Andrich (2008). The comparative judgement models follow Bradley and Terry (1952), Luce (1959), Andrich (1978a), and Tutz (1986).</p>
 </div>
 <div class="section level2">
@@ -141,7 +141,7 @@
 <p>The package includes a graphical interface for analysts who do not normally work in R. Launch it after installation with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. An analysis can be saved as a <code>.rasch</code> project and reopened. Tables, figures and HTML, Word or PDF reports can be downloaded. The R code for each result is shown in the interface.</p>
+<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. An analysis can be saved as a <code>.rasch</code> project and reopened with its data roles and estimation settings. Tables, figures and HTML, Word or PDF reports can be downloaded. The R code for each result is shown in the interface. Its simulation page generates each supported data structure, with controls for its principal parameters and planted departures. Simulated data can be downloaded as a CSV or together with the generating call, true values and explanatory metadata.</p>
 <p align="center">
 <img src="reference/figures/app-items.png" alt="Item statistics and an item characteristic curve in the rasch Shiny application" width="90%"></p>
 </div>
@@ -183,7 +183,7 @@
 <span></span>
 <span><span class="co"># WrightMap is an optional dependency</span></span>
 <span><span class="fu"><a href="reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span>, person_panels <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
-<p>The <a href="https://drjoshmcgrane.github.io/rasch/reference/index.html">function reference</a> documents the data requirements and returned values for each analysis. The <a href="https://drjoshmcgrane.github.io/rasch/articles/">vignettes</a> cover the Rasch workflow, many-facet and extended-frame models, comparative judgement, explanatory modelling, repeated-measures DIF and validation.</p>
+<p>The <a href="https://drjoshmcgrane.github.io/rasch/reference/index.html">function reference</a> documents the data requirements and returned values for each analysis. The <a href="https://drjoshmcgrane.github.io/rasch/articles/">vignettes</a> begin with the data structures required by each model and cover the Rasch workflow, many-facet and extended-frame models, comparative judgement, explanatory modelling, repeated-measures DIF and validation.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

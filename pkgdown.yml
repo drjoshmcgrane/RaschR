@@ -3,6 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   articles/case-study-verbal-aggression: case-study-verbal-aggression.html
+  data-structures: data-structures.html
   dif-repeated-measures: dif-repeated-measures.html
   explanatory-models: explanatory-models.html
   extended-frame-reference: extended-frame-reference.html
@@ -13,7 +14,7 @@ articles:
   rasch-workflow: rasch-workflow.html
   articles/wording-units-height: wording-units-height.html
   articles/wording-units-selfesteem: wording-units-selfesteem.html
-last_built: 2026-08-26T11:24Z
+last_built: 2026-08-28T07:33Z
 urls:
   reference: https://drjoshmcgrane.github.io/rasch/reference
   article: https://drjoshmcgrane.github.io/rasch/articles

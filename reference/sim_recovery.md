@@ -4,9 +4,10 @@ Compares fitted parameters with the generating values from a
 `simulate_*` function (carried on the data as `attr(sim, "truth")`):
 item difficulties and person abilities for a Rasch fit, object locations
 for a paired-comparison fit, rater severities (with item and person
-measures) for a many-facet fit, and the set units for a frames fit.
-Locations are mean-centred before comparison, since the model identifies
-them only up to an origin.
+measures) for a many-facet fit, set and group units for a Rasch frames
+fit, and common object locations, panel and set units, and set origins
+for a paired-comparison frames fit. Locations are mean-centred where the
+model identifies them only up to an origin.
 
 ## Usage
 
@@ -22,8 +23,9 @@ sim_recovery(fit, sim)
   ([`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md),
   [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md),
   [`rasch_mfrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md),
+  [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md),
   or
-  [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md)).
+  [`btl_efrm`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md)).
 
 - sim:
 

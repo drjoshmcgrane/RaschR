@@ -37,7 +37,7 @@ btl_explanatory(
 - predictors:
 
   Data frame with one row per object, an `object` column, and the
-  predictors named in `formula`.
+  predictors named in `formula`. Column names must be unique.
 
 - formula:
 
@@ -46,13 +46,14 @@ btl_explanatory(
 
 - object_a, object_b:
 
-  Names of the columns holding the two objects compared.
+  Names of the columns holding the two objects compared. Columns used
+  for the comparison roles must be distinct.
 
 - winner:
 
   Name of the column holding the winner of each row: its value must
-  equal one of the two objects. `"tie"` and `"draw"` mark ties. Ignored
-  when `response` is supplied.
+  equal one of the two objects. `"tie"` and `"draw"` mark ties. Do not
+  supply both `winner` and `response`.
 
 - response:
 
@@ -63,7 +64,10 @@ btl_explanatory(
 - margin:
 
   Optional ordered margin-of-victory column, combined with `winner` to
-  construct an orientation-invariant response.
+  construct an orientation-invariant response. Use an ordered factor
+  (levels from the smallest to largest margin) or a positive numeric
+  magnitude. Margins on ties and rows excluded from the analysis are
+  ignored.
 
 - judge:
 

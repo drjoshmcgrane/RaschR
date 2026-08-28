@@ -128,8 +128,8 @@ among raters become item-dependent. A material interaction therefore
 qualifies the claim of invariant rater severity rather than merely
 improving fit. The joint Wald test is the primary test of the
 interaction family; individual cells are exploratory and adjusted by
-Holm’s method. The test uses the least-supported facet level and
-withholds probabilities when that level has fewer than `max(30, q + 2)`
+Holm’s method. The test uses the least-supported item-by-level cell and
+withholds probabilities when that cell has fewer than `max(30, q + 2)`
 persons or effective persons, where `q` is the omnibus degrees of
 freedom.
 

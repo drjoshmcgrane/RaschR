@@ -113,9 +113,10 @@ resolved locations would be too unstable to compare), with a note.</p></dd>
   the resolved location, standard error and sample size for each level.
   <code>pairs</code> contains logit differences, Wald statistics, confidence
   intervals, raw and adjusted probabilities, and practical flags. For
-  dichotomous items it also contains <code>ets</code>; for polytomous items it
-  contains the descriptive <code>signed_area</code>. Sampling-uncertainty fields
-  are <code>NA</code> when person identifiers repeat.</p>
+  dichotomous items it also contains <code>ets</code>, together with the raw and
+  adjusted probabilities for exceeding the ETS A boundary; for polytomous
+  items it contains the descriptive <code>signed_area</code>.
+  Sampling-uncertainty fields are <code>NA</code> when person identifiers repeat.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -143,11 +144,10 @@ repeated-measures design.</p>
 <p>For dichotomous items, <code>ets</code> applies the ETS A, B and C rules to the
 itemwise comparison. On the logit scale the magnitude cut-points are
 \(1/2.35=0.426\) and \(1.5/2.35=0.638\). Category A also includes an
-itemwise test that is not significant. Category C requires a magnitude of
+adjusted test that is not significant. Category C requires a magnitude of
 at least 0.638 and rejection of the interval null
-\(|\Delta|\leq 0.426\); B is the remainder. The category uses the raw
-itemwise probability, while <code>significant</code> uses <code>p_adjust</code> over
-the requested pairwise family.</p>
+\(|\Delta|\leq 0.426\); B is the remainder. Both probabilities are
+adjusted by <code>p_adjust</code> over the requested pairwise family.</p>
 <p>For a partial credit item with \(m_i\) thresholds, the signed area
 between the two expected-score curves has the closed form
 $$SA_{ab}=\int\{E_b(X\mid\theta)-E_a(X\mid\theta)\}\,d\theta
@@ -198,8 +198,8 @@ Psychometrika, 53(4), 495–502.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      b    0.018 0.126    0 300</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  level_a level_b difference    se      z       p   p_adj  lower  upper</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        a       b     -0.907 0.204 -4.441 &lt; 0.001 &lt; 0.001 -1.308 -0.507</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  significant practical ets signed_area</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>            *   &gt;= 0.50  C-            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  significant practical p_beyond_A p_beyond_A_adj ets signed_area</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            *   &gt;= 0.50      0.009          0.009  C-            </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span>
 </code></pre></div>
     </div>

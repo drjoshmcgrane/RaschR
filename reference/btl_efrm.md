@@ -38,7 +38,8 @@ btl_efrm(
 
 - object_a, object_b:
 
-  Names of the columns holding the two compared objects.
+  Names of the columns holding the two compared objects. Columns used
+  for objects, winners, judges, and panel membership must be distinct.
 
 - winner:
 
@@ -54,12 +55,13 @@ btl_efrm(
 - panels:
 
   Either the name of a judge-attribute column in `data` or a named
-  vector mapping judge to panel.
+  vector mapping every judge in the comparisons exactly once to a panel.
 
 - object_sets:
 
-  A named list mapping set names to character vectors of object names;
-  every compared object must belong to exactly one set.
+  A named list mapping set names to character vectors of object names.
+  Set names must be unique, and every compared object must occur exactly
+  once in exactly one set.
 
 - response:
 
@@ -91,7 +93,9 @@ btl_efrm(
 - boot_reps:
 
   Number of replicates for `se_method = "bootstrap"` or
-  `"judge_bootstrap"`; at least 30 are required.
+  `"judge_bootstrap"`; at least 30 are required. Inference is returned
+  only when at least 30 and more than half of the requested replicates
+  are usable.
 
 - workers:
 
@@ -123,7 +127,8 @@ btl_efrm(
 An object of class `"rasch_btl_efrm"`. It contains the object estimates,
 group- and set-unit tables, origin shifts, omnibus unit tests,
 unit-specific judge support, frame definitions, convergence information,
-and analysis notes.
+and analysis notes. `boot_reps_requested`, `boot_reps_used` and
+`boot_reps_failed` report the bootstrap accounting.
 
 ## Details
 
@@ -155,12 +160,18 @@ failures and boundary estimates are reported in `notes`.
 With one set, the model contains panel units only. With one set and one
 panel, it reduces to
 [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md). Omnibus
-Wald tests provide inference for the unit families; individual contrasts
-are Holm-adjusted follow-ups. Judge-bootstrap probabilities require at
-least six judges and 5.5 effective judges in every contributing panel,
-and eight of each on a set link. The support is returned in
-`unit_support`; estimates remain descriptive when a probability is
-withheld.
+Wald probabilities are Holm-adjusted across the panel-unit, set-unit and
+set-origin families. Individual contrasts form a separate Holm-adjusted
+follow-up family across all three parameter types. Judge-bootstrap
+probabilities require at least six judges and 5.5 effective judges in
+every contributing panel, and eight of each on a set link. The support
+is returned in `unit_support`; estimates remain descriptive when a
+probability is withheld. Fits with fewer than eight effective judges per
+panel or 9.5 per set link retain probabilities but report a caution.
+Set-unit estimates can also be attenuated when each object pair has
+little comparison information. In simulation, log-unit bias declined
+from about -0.11 with 10 repetitions per pair to less than -0.01 with
+100 repetitions.
 
 ## References
 
@@ -212,6 +223,6 @@ fit <- btl_efrm(d, "object_a", "object_b", winner = "winner",
 fit$alpha_table
 #>   set alpha se_log_alpha t df p p_adj significant
 #>  set1 1.000                                      
-#>  set2 1.607        0.077                         
+#>  set2 1.466        0.081                         
 # }
 ```
