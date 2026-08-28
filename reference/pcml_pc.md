@@ -19,9 +19,8 @@ pcml_pc(X, n_components = 4, maxit = 60, tol = 1e-08)
 
 - X:
 
-  Persons-by-items integer score matrix. Each item must have at least
-  two observed categories, numbered consecutively from 0. Missing values
-  are handled by pairwise deletion.
+  Persons-by-items integer score matrix (categories from 0). Missing
+  values are handled by pairwise deletion.
 
 - n_components:
 

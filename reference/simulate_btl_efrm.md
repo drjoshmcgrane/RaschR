@@ -27,8 +27,7 @@ simulate_btl_efrm(
   set_units = NULL,
   set_origins = NULL,
   object_sd = 1,
-  seed = NULL,
-  erratic_judges = 0
+  seed = NULL
 )
 ```
 
@@ -40,9 +39,7 @@ simulate_btl_efrm(
 
 - n_judges_per_panel, n_panels:
 
-  Judges in each panel and number of panels. Comparisons are balanced
-  across panels and judges; a design with fewer comparisons than judges
-  is refused.
+  Judges in each panel and number of panels.
 
 - reps_within:
 
@@ -73,11 +70,7 @@ simulate_btl_efrm(
 
 - seed:
 
-  Optional non-negative whole-number RNG seed.
-
-- erratic_judges:
-
-  Proportion of judges who choose between the two objects at random.
+  Optional RNG seed.
 
 ## Value
 
@@ -98,5 +91,5 @@ bt <- btl_efrm(d, "object_a", "object_b", winner = "winner",
 bt$alpha_table   # recovers the ~1.4 set unit
 #>   set alpha se_log_alpha t df p p_adj significant
 #>  set1 1.000                                      
-#>  set2 1.303        0.080                         
+#>  set2 1.457        0.079                         
 ```

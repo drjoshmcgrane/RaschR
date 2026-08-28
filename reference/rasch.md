@@ -73,7 +73,7 @@ rasch(
   Optional anchor table for equating: a data frame with columns `item`,
   `k`, and `tau`; see
   [`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md).
-  Column names must be unique. Anchors determine the scale origin.
+  Anchors determine the scale origin.
 
 - na_codes:
 
@@ -84,8 +84,7 @@ rasch(
 - key:
 
   Optional multiple-choice key: a named item-to-option vector, an
-  item/key table, or an item/option/score table. Table column names must
-  be unique. See Details.
+  item/key table, or an item/option/score table. See Details.
 
 - pc_components:
 
@@ -168,10 +167,7 @@ response contributes appreciably to the person grouping used to test
 that item. The same issue can affect the item-trait probability when
 fewer than about ten responses locate each person. In short
 administrations, read the statistics with the characteristic curve and
-residual fit rather than as stand-alone decisions. The item summary
-retains the raw ANOVA probability as `p_anova` and its Holm familywise
-adjustment as `p_anova_adj`; use the adjusted probability for inference
-across items.
+residual fit rather than as stand-alone decisions.
 
 ## References
 
@@ -231,15 +227,6 @@ fit$items
 #>      0.963   1.566   -0.429  5.526  6 0.478 1.000  1.000   0.941   0.465
 #>      1.018   1.767    0.196  5.761  6 0.451 1.000  1.000   0.708   0.643
 #>      1.012  -0.018    0.130  6.873  6 0.333 1.000  1.000   0.956   0.455
-#>  p_anova_adj p_anova_bonf
-#>        1.000        1.000
-#>        1.000        1.000
-#>        0.094        0.094
-#>        1.000        1.000
-#>        1.000        1.000
-#>        1.000        1.000
-#>        1.000        1.000
-#>        1.000        1.000
 fit$psi$PSI
 #> [1] 0.4907417
 ```

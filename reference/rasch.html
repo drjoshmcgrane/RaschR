@@ -21,7 +21,7 @@ score-to-measure table."><meta property="og:image" content="https://drjoshmcgran
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -49,7 +49,7 @@ score-to-measure table."><meta property="og:image" content="https://drjoshmcgran
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Fit a Rasch model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/rasch.R" class="external-link"><code>R/rasch.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/rasch.R" class="external-link"><code>R/rasch.R</code></a></small>
       <div class="d-none name"><code>rasch.Rd</code></div>
     </div>
 
@@ -129,7 +129,7 @@ item-trait chi-squares. See Details.</p></dd>
 <dt id="arg-anchors">anchors<a class="anchor" aria-label="anchor" href="#arg-anchors"></a></dt>
 <dd><p>Optional anchor table for equating: a data frame with
 columns <code>item</code>, <code>k</code>, and <code>tau</code>; see <code><a href="pcml.html">pcml</a></code>.
-Column names must be unique. Anchors determine the scale origin.</p></dd>
+Anchors determine the scale origin.</p></dd>
 
 
 <dt id="arg-na-codes">na_codes<a class="anchor" aria-label="anchor" href="#arg-na-codes"></a></dt>
@@ -140,8 +140,7 @@ missing, since valid category scores start at zero.</p></dd>
 
 <dt id="arg-key">key<a class="anchor" aria-label="anchor" href="#arg-key"></a></dt>
 <dd><p>Optional multiple-choice key: a named item-to-option vector, an
-item/key table, or an item/option/score table. Table column names must be
-unique. See Details.</p></dd>
+item/key table, or an item/option/score table. See Details.</p></dd>
 
 
 <dt id="arg-pc-components">pc_components<a class="anchor" aria-label="anchor" href="#arg-pc-components"></a></dt>
@@ -222,10 +221,7 @@ be anti-conservative in short tests because each response contributes
 appreciably to the person grouping used to test that item. The same issue
 can affect the item-trait probability when fewer than about ten responses
 locate each person. In short administrations, read the statistics with the
-characteristic curve and residual fit rather than as stand-alone decisions.
-The item summary retains the raw ANOVA probability as <code>p_anova</code> and
-its Holm familywise adjustment as <code>p_anova_adj</code>; use the adjusted
-probability for inference across items.</p>
+characteristic curve and residual fit rather than as stand-alone decisions.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -277,15 +273,6 @@ response theory. Psychometrika, 54(3), 427–450.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      0.963   1.566   -0.429  5.526  6 0.478 1.000  1.000   0.941   0.465</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      1.018   1.767    0.196  5.761  6 0.451 1.000  1.000   0.708   0.643</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>      1.012  -0.018    0.130  6.873  6 0.333 1.000  1.000   0.956   0.455</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  p_anova_adj p_anova_bonf</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        0.094        0.094</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        1.000        1.000</span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">psi</span><span class="op">$</span><span class="va">PSI</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.4907417</span>
 </code></pre></div>

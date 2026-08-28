@@ -18,8 +18,7 @@ simulate_btl(
   second_attribute = NULL,
   erratic_judges = 0,
   dependence = NULL,
-  seed = NULL,
-  object_locations = NULL
+  seed = NULL
 )
 ```
 
@@ -27,9 +26,7 @@ simulate_btl(
 
 - n_objects, n_judges:
 
-  Objects to scale and judges comparing them. Every judge is allocated
-  at least one comparison; the simulator refuses a design with fewer
-  comparisons than judges.
+  Objects to scale and judges comparing them.
 
 - reps_per_pair:
 
@@ -52,8 +49,8 @@ simulate_btl(
 - second_attribute:
 
   `NULL`, or `list(rho=)`: half the judges rank by a second object
-  attribute whose realised correlation with the first is `rho`. This
-  introduces residual dimensionality and possible intransitivity.
+  attribute correlated `rho` with the first. This introduces residual
+  dimensionality and possible intransitivity.
 
 - erratic_judges:
 
@@ -68,14 +65,7 @@ simulate_btl(
 
 - seed:
 
-  Optional non-negative whole-number RNG seed.
-
-- object_locations:
-
-  Optional numeric vector of generated object locations. It must have
-  length `n_objects`; names, when supplied, must identify the generated
-  objects. Values are centred to identify the origin and take precedence
-  over `object_sd`.
+  Optional RNG seed.
 
 ## Value
 
@@ -90,16 +80,16 @@ d <- simulate_btl(8, 12, erratic_judges = 0.15, seed = 1)
 bt <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
 bt$judges          # the erratic judges carry large fit residuals
 #>  judge  n infit_ms outfit_ms fit_resid df_fit
-#>     J1 59    0.834     0.724    -1.783 58.410
-#>    J10 58    1.362     1.516     2.989 57.420
-#>    J11 58    1.021     0.983    -0.117 57.420
-#>    J12 58    0.902     0.828    -1.179 57.420
-#>     J2 58    0.865     0.836    -1.170 57.420
-#>     J3 58    0.958     0.945    -0.369 57.420
-#>     J4 59    0.995     0.931    -0.471 58.410
-#>     J5 58    1.371     1.528     2.592 57.420
-#>     J6 58    1.018     1.057     0.400 57.420
-#>     J7 59    0.796     0.876    -0.807 58.410
-#>     J8 58    0.812     0.835    -1.226 57.420
-#>     J9 59    1.161     1.133     0.724 58.410
+#>     J1 64    1.230     1.286     1.401 63.360
+#>    J10 61    0.828     0.792    -1.344 60.390
+#>    J11 41    0.752     0.653    -1.860 40.590
+#>    J12 62    0.911     0.877    -0.760 61.380
+#>     J2 50    1.438     1.851     3.050 49.500
+#>     J3 59    0.933     0.899    -0.565 58.410
+#>     J4 65    1.093     1.195     1.179 64.350
+#>     J5 70    1.008     1.087     0.564 69.300
+#>     J6 60    0.914     0.893    -0.731 59.400
+#>     J7 54    1.048     1.015     0.083 53.460
+#>     J8 53    1.043     1.053     0.293 52.470
+#>     J9 61    0.831     0.799    -1.422 60.390
 ```

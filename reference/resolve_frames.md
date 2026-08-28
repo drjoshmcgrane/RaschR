@@ -46,9 +46,7 @@ discrimination-only flag from
 [`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md).
 Review or remove such an item instead. Use
 [`drop_items`](https://drjoshmcgrane.github.io/rasch/reference/drop_items.md)
-when the item should no longer contribute to measurement. Each resolved
-version must observe every score category of the source item. If it does
-not, the refit is refused rather than renumbering that frame's scores.
+when the item should no longer contribute to measurement.
 
 ## See also
 

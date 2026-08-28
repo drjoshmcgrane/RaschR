@@ -33,7 +33,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,7 @@
 McGrane</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/vignettes/plant-and-detect.Rmd" class="external-link"><code>vignettes/plant-and-detect.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/vignettes/plant-and-detect.Rmd" class="external-link"><code>vignettes/plant-and-detect.Rmd</code></a></small>
       <div class="d-none name"><code>plant-and-detect.Rmd</code></div>
     </div>
 
@@ -100,10 +100,10 @@ introduce a specified departure.</p>
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_rasch.html">simulate_rasch</a></span><span class="op">(</span>n_persons <span class="op">=</span> <span class="fl">400</span>, n_items <span class="op">=</span> <span class="fl">10</span>, seed <span class="op">=</span> <span class="fl">101</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "layout"         "description"    "model"          "n_persons"     </span></span>
-<span><span class="co">#&gt;  [5] "n_items"        "person_id"      "theta"          "theta2"        </span></span>
-<span><span class="co">#&gt;  [9] "difficulty"     "thresholds"     "discrimination" "guessing"      </span></span>
-<span><span class="co">#&gt; [13] "groups"         "dim_items"      "dif_items"      "careless_idx"  </span></span>
-<span><span class="co">#&gt; [17] "style_idx"      "speeded_idx"    "missing_cells"  "planted"</span></span></code></pre></div>
+<span><span class="co">#&gt;  [5] "n_items"        "theta"          "theta2"         "difficulty"    </span></span>
+<span><span class="co">#&gt;  [9] "thresholds"     "discrimination" "guessing"       "groups"        </span></span>
+<span><span class="co">#&gt; [13] "dim_items"      "dif_items"      "careless_idx"   "style_idx"     </span></span>
+<span><span class="co">#&gt; [17] "planted"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="parameter-recovery">Parameter recovery<a class="anchor" aria-label="anchor" href="#parameter-recovery"></a>
@@ -196,8 +196,8 @@ resolved locations in logits.</p>
 <span><span class="co">#&gt;     g2    1.266 0.162    0 250</span></span>
 <span><span class="co">#&gt;  level_a level_b difference    se      z       p   p_adj  lower  upper</span></span>
 <span><span class="co">#&gt;       g1      g2     -1.004 0.234 -4.287 &lt; 0.001 &lt; 0.001 -1.463 -0.545</span></span>
-<span><span class="co">#&gt;  significant practical p_beyond_A p_beyond_A_adj ets signed_area</span></span>
-<span><span class="co">#&gt;            *   &gt;= 0.50      0.007          0.007  C-            </span></span>
+<span><span class="co">#&gt;  significant practical ets signed_area</span></span>
+<span><span class="co">#&gt;            *   &gt;= 0.50  C-            </span></span>
 <span><span class="co">#&gt; p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span></span></code></pre></div>
 <p>A simulation study of DIF should record false-positive rates for
 invariant items as well as detection of the shifted item. Sample size,
@@ -255,14 +255,14 @@ quarter of the judges respond at random.</p>
 <span><span class="va">bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl.html">btl</a></span><span class="op">(</span><span class="va">b</span>, <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, winner <span class="op">=</span> <span class="st">"winner"</span>, judge <span class="op">=</span> <span class="st">"judge"</span><span class="op">)</span></span>
 <span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="op">-</span><span class="va">bt</span><span class="op">$</span><span class="va">judges</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="co">#&gt;  judge  n infit_ms outfit_ms fit_resid df_fit</span></span>
-<span><span class="co">#&gt;     J3 78    1.421     1.544     4.095 77.257</span></span>
-<span><span class="co">#&gt;     J6 79    1.343     1.412     3.044 78.248</span></span>
-<span><span class="co">#&gt;     J5 79    0.961     0.957    -0.363 78.248</span></span>
-<span><span class="co">#&gt;     J1 79    0.874     0.867    -1.164 78.248</span></span>
-<span><span class="co">#&gt;     J7 79    0.903     0.854    -1.356 78.248</span></span>
-<span><span class="co">#&gt;     J4 79    0.864     0.823    -1.688 78.248</span></span>
-<span><span class="co">#&gt;     J8 78    0.851     0.818    -1.742 77.257</span></span>
-<span><span class="co">#&gt;     J2 79    0.845     0.813    -1.901 78.248</span></span></code></pre></div>
+<span><span class="co">#&gt;     J1 74    1.457     1.525     3.995 73.295</span></span>
+<span><span class="co">#&gt;     J2 75    1.357     1.417     3.220 74.286</span></span>
+<span><span class="co">#&gt;     J6 70    1.071     1.076     0.588 69.333</span></span>
+<span><span class="co">#&gt;     J4 78    0.902     0.881    -1.193 77.257</span></span>
+<span><span class="co">#&gt;     J7 77    0.894     0.876    -1.340 76.267</span></span>
+<span><span class="co">#&gt;     J3 81    0.874     0.852    -1.518 80.229</span></span>
+<span><span class="co">#&gt;     J8 92    0.856     0.823    -1.890 91.124</span></span>
+<span><span class="co">#&gt;     J5 83    0.752     0.715    -2.951 82.210</span></span></code></pre></div>
 <p>Judge fit describes agreement with the common object scale.
 Transitivity is a different summary: it counts circular triads in the
 observed comparisons.</p>
@@ -270,17 +270,17 @@ observed comparisons.</p>
 <code class="sourceCode R"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_transitivity.html">btl_transitivity</a></span><span class="op">(</span><span class="va">bt</span><span class="op">)</span></span>
 <span><span class="va">tr</span><span class="op">$</span><span class="va">summary</span></span>
 <span><span class="co">#&gt;  n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency</span></span>
-<span><span class="co">#&gt;          7      21        26          0             0       0.250           1</span></span>
+<span><span class="co">#&gt;          7      21        30          2         0.067       0.250       0.733</span></span>
 <span><span class="co">#&gt;  zeta</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">tr</span><span class="op">$</span><span class="va">judges</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  judge n_comparisons n_triples n_circular circular_rate consistency</span></span>
-<span><span class="co">#&gt;     J6            79        19          7         0.368      -0.474</span></span>
-<span><span class="co">#&gt;     J3            78        10          3         0.300      -0.200</span></span>
-<span><span class="co">#&gt;     J1            79        25          2         0.080       0.680</span></span>
-<span><span class="co">#&gt;     J7            79        25          2         0.080       0.680</span></span>
-<span><span class="co">#&gt;     J2            79        26          0         0.000       1.000</span></span>
-<span><span class="co">#&gt;     J4            79        16          0         0.000       1.000</span></span></code></pre></div>
+<span><span class="co">#&gt;     J2            75        21          7         0.333      -0.333</span></span>
+<span><span class="co">#&gt;     J1            74        25          3         0.120       0.520</span></span>
+<span><span class="co">#&gt;     J6            70        35          4         0.114       0.543</span></span>
+<span><span class="co">#&gt;     J3            81        15          1         0.067       0.733</span></span>
+<span><span class="co">#&gt;     J8            92        30          1         0.033       0.867</span></span>
+<span><span class="co">#&gt;     J4            78        21          0         0.000       1.000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="repeated-simulation">Repeated simulation<a class="anchor" aria-label="anchor" href="#repeated-simulation"></a>
@@ -375,14 +375,6 @@ replicates each); the superseded person-frequency shortcut targeted a
 different contrast</td>
 </tr>
 <tr class="even">
-<td>Multifactor DIF magnitudes</td>
-<td>correlated, unbalanced 3:1:1:3 two-factor cells with planted 1- and
-2-logit effects</td>
-<td>equal-cell marginal estimates had biases -0.021 and +0.017 logits
-for ordinary Rasch DIF and +0.026 and +0.032 for paired-comparison DIF;
-coverage was 0.92-0.96 (100 replicates per model)</td>
-</tr>
-<tr class="odd">
 <td>Ordinary DIF covariance</td>
 <td>balanced, 1:4 ability imbalance, unequal observations/person, and a
 three-level 1:2:3 factor</td>
@@ -390,7 +382,7 @@ three-level 1:2:3 factor</td>
 6.4%, 4.6%, and 6.2%; full HC3 reached 22.0% and 20.2% in the two
 imbalanced designs and was rejected (500 replicates each)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Balanced homoskedastic DIF</td>
 <td>two- and three-level factors, 10–150 observations per
 group-by-interval cell</td>
@@ -399,7 +391,7 @@ classical power advantage declined from 3.10 points at ten per cell to
 0.84, 0.42, and 0.16 at 30, 75, and 150 for two levels, and from 1.72 at
 ten to 0.54 at 50 for three levels (5,000 paired replicates each)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Conditional DIF bootstrap</td>
 <td>dichotomous data, four-category PCM and RSM data, three-level
 groups, and correlated person factors</td>
@@ -410,7 +402,7 @@ reduced, but did not remove, artificial flags on invariant items, so it
 was not adopted as a replacement (100–300 datasets; 99–199 bootstrap
 refits each)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>DIF score purification</td>
 <td>four-category PCM and RSM data, plus two correlated person
 factors</td>
@@ -421,20 +413,13 @@ items, while a strongest-item recalibration was promising for
 non-uniform DIF but is not yet an automatic remedy (500 replicates per
 refined condition)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>BTL-DIF pairwise inference</td>
 <td>6 objects, 8 or 10 judges per factor level</td>
 <td>5.5% and 4.83% size when balanced; 5.0% with 10 raw/9.31 effective
 judges per level (2,000-replicate top-up); omnibus and pairwise
 inference are withheld below eight judges or eight effective judges per
 level</td>
-</tr>
-<tr class="even">
-<td>BTL-DIF multi-cell contrasts</td>
-<td>balanced 2 by 2 judge cells, 12 judges per cell</td>
-<td>the conservative weakest-cell reference gave 3.6% Type I error and
-0.964 coverage; the superseded pooled-count extension gave 6.2% and
-0.938 (500 replicates)</td>
 </tr>
 <tr class="odd">
 <td>BTL-DIF omnibus under unequal precision</td>
@@ -457,30 +442,20 @@ under the planted dependence condition (400 replicates)</td>
 </tr>
 <tr class="even">
 <td>EFRM set-unit linking</td>
-<td>200 persons/group, 6 items/set (500 null datasets); boundary cell
-with 100 persons/group and 4 items/set (1,000 attempts)</td>
-<td>supported-design Holm familywise error 3.5% for the omnibus family
-and 1.6% for individual follow-ups (489 analysed, 11 refused); boundary
-rates 5.2% and 2.5% among 483 analysed fits, with 493 refusals and 24
-non-convergences; raw marginal hybrid Type I remained 4.0-5.0% in the
-larger distributional studies</td>
+<td>500-600 persons, 8 items/set</td>
+<td>hybrid Type I 4.0-5.0%, SE ratios 0.97-1.05 and coverage 0.927-0.960
+under normal, bimodal and contrasting group distributions;
+full-bootstrap Type I 2.5% and coverage 0.975; unit probabilities
+require 50 persons on every contributing group or link</td>
 </tr>
 <tr class="odd">
-<td>Crossed EFRM factorial tests</td>
-<td>400 persons, 100 in each cell of a balanced 2 by 2 design, 12
-dichotomous items</td>
-<td>fresh-seed Holm familywise error 5.55% (2,000 replicates; 5.93%
-pooled over 3,000); marginal rates 5.25-5.75%; adjusted power 73% and
-100% for region unit ratios 1.25 and 1.50</td>
-</tr>
-<tr class="even">
 <td>EFRM compiled-kernel parity</td>
 <td>demonstration data, 30 seed-paired hybrid bootstrap replicates</td>
 <td>largest absolute difference from the retained R implementation
 1.30e-11 across set units, standard errors, origins, thresholds and edge
 likelihoods; all convergence flags agreed</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>EFRM parallel-bootstrap parity</td>
 <td>demonstration data, 300 hybrid replicates; simulated data, 30
 full-bootstrap replicates</td>
@@ -488,7 +463,7 @@ full-bootstrap replicates</td>
 samples and agreed exactly on every checked estimate and convergence
 flag</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>BTL-EFRM parallel-bootstrap parity</td>
 <td>3 sets, 2 panels, 20 judges, 200 judge-bootstrap replicates</td>
 <td>serial and default four-worker fits used the same pre-generated
@@ -496,29 +471,19 @@ judge resamples and agreed exactly on the complete reported result,
 apart from the recorded worker count; elapsed time fell from 17.34 to
 5.47 seconds on the executing machine</td>
 </tr>
-<tr class="odd">
-<td>BTL-EFRM bootstrap inference</td>
-<td>6 or 12 judges/panel, 6 objects/set, 20 repetitions/pair</td>
-<td>with six judges per panel, raw marginal Type I was 3.3% for panel
-units, 6.7% for set units and 6.0% for origins; Holm familywise error
-was 3.9% across omnibus decisions and 3.0% across follow-ups, while
-set-unit coverage was 0.900 (1,000 null fits). With 12 judges per panel
-and the default 200 resamples, raw set-unit Type I was 4.6%, SE ratio
-0.992 and coverage 0.934 (500 null fits)</td>
-</tr>
 <tr class="even">
-<td>BTL-EFRM fit coherence</td>
-<td>3 sets, 3 panels, 8/4 to 72/36 within/cross repetitions</td>
-<td>reported likelihoods agreed with likelihoods reconstructed from all
-fitted probabilities to numerical precision; mean common-scale object
-RMSE fell from 0.401 to 0.123 as information increased (180 attempted
-fits, 2 refused)</td>
+<td>BTL-EFRM unit tests</td>
+<td>12 judges, 6 objects/set</td>
+<td>judge-bootstrap Type I 3.3-5.3% for panel units, set units and
+origins; independent-outcome bootstrap 3.0-6.7% (300 replicates);
+judge-bootstrap probabilities require six judges and 5.5 effective
+judges per panel and eight per set link</td>
 </tr>
 <tr class="odd">
 <td>MFRM interaction omnibus</td>
 <td>50 or 200 persons, 6 raters, 25 df</td>
 <td>4.3% and 5.2% Type I error (600 fixed-truth replicates each);
-probabilities use the least-supported item-by-level cell and require
+probabilities use the least-supported facet level and require
 <code>max(30, q + 2)</code> effective persons</td>
 </tr>
 <tr class="even">
@@ -561,21 +526,13 @@ count)</td>
 <td>0.945-0.983; conservative in the tails</td>
 </tr>
 <tr class="odd">
-<td>Externally weighted person measures</td>
-<td>equal, moderate, strong and zero weights; dichotomous and partial
-credit items; equal and differing units</td>
-<td>absolute bias at most 0.016 logits, empirical SD/mean SE 0.940-1.004
-and 95% coverage 0.941-0.978 (5,000 persons in each of 18
-conditions)</td>
-</tr>
-<tr class="even">
 <td>Tailored bootstrap</td>
 <td>300 persons, 8 items, 399 resamples</td>
 <td>clean-item familywise error 0-2.5%; at least one of two hard items
 detected in 17.5% and 26.3% of datasets with guessing 0.15 and 0.30 (80
 full-procedure replicates per effect)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>CL-AIC model selection</td>
 <td>PCM vs RSM; free vs PC thresholds (items and CJ)</td>
 <td>null false selection 4.5-5.2% multi-parameter, ~17% one-parameter
@@ -583,42 +540,27 @@ full-procedure replicates per effect)</td>
 selection was 50% for PCM vs RSM and 99.5-100% for the
 threshold-structure comparisons</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Paired-comparison effect tests</td>
 <td>8 objects, 14 judges</td>
 <td>position/exposure nulls 5.8%/5.9%; carry-over 8.3% at 14 judges,
 5.3% at 30; power 62/39/77% at 0.6 logits</td>
 </tr>
-<tr class="odd">
-<td>Paired-comparison effect multiplicity</td>
-<td>8 objects, 30 judges, position, exposure and carry-over fitted
-together</td>
-<td>Holm familywise error 5.9% (1,000 null replicates); adjusted power
-at 0.3/0.6 logits was 42/97% for position, 10/44% for exposure and
-23/85% for carry-over</td>
-</tr>
 <tr class="even">
-<td>BTL second-attribute simulation</td>
-<td>3-15 objects, correlations -0.8 to 1; strong 15-object
-dimensionality design</td>
-<td>maximum realised-correlation error 3.9e-16 over 1,200 draws;
-leading-structure power 87% over 100 datasets</td>
-</tr>
-<tr class="odd">
 <td>Cross-package agreement</td>
 <td>sirt, eRm, TAM, BradleyTerry2, VGAM, lme4</td>
 <td>identical-likelihood comparators at solver precision; current EFRM
 set-unit bias +0.0036 vs TAM +0.0008 dichotomous and +0.0035 vs +0.0020
 polytomous</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Cross-package diagnostics</td>
 <td>eRm, TAM, psych, difR, PerFit, sirt</td>
 <td>alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98;
 DIF detection 80-88% across methods; dimensionality conservative (exact
 null, 67% power) vs DETECT (100%)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>EFRM boundary conditions</td>
 <td>3-8 items/set; 80-1,000 persons; ratios to 3.5; targeting,
 missingness and non-normality</td>
@@ -626,20 +568,12 @@ missingness and non-normality</td>
 refused; at 80 persons 11% refused and 2% did not converge; 41- and
 101-point grids agreed</td>
 </tr>
-<tr class="even">
-<td>EFRM weak-unit regression</td>
-<td>500 persons, two groups, equal item difficulties</td>
-<td>the one-set group units were retained with log-unit SE 0.53; the
-corresponding flat two-set link was refused when only 9 of 30 resamples
-were usable, separating imprecise group-unit estimation from unstable
-set linking</td>
-</tr>
 <tr class="odd">
 <td>BTL-EFRM staged link</td>
 <td>6 objects/set, 12 judges</td>
-<td>after the reconciled-panel refit, log set-unit bias decreased from
--0.106 at 10 repetitions per pair to -0.041 at 20, -0.016 at 50 and
--0.006 at 100 (500 datasets per cell)</td>
+<td>log set-unit bias decreased from -0.108 at 10 repetitions per pair
+to -0.041 at 20, -0.016 at 50 and -0.007 at 100; bootstrap coverage was
+0.933-0.950 at 20 repetitions</td>
 </tr>
 <tr class="even">
 <td>Explanatory Rasch models</td>

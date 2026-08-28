@@ -27,7 +27,7 @@ $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@ $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Fit the extended frame of reference model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/efrm.R" class="external-link"><code>R/efrm.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/efrm.R" class="external-link"><code>R/efrm.R</code></a></small>
       <div class="d-none name"><code>rasch_efrm.Rd</code></div>
     </div>
 
@@ -105,8 +105,7 @@ $$P(X_{ni}=x)=\frac{\exp\{\rho_{sg}[x\theta_n-
 
 <dt id="arg-item-sets">item_sets<a class="anchor" aria-label="anchor" href="#arg-item-sets"></a></dt>
 <dd><p>A named list mapping set names to item-column names, or
-a named character vector mapping every analysed item exactly once to a
-set. The vector cannot name items outside the analysis. Items not
+a named character vector mapping item names to set names. Items not
 mentioned form their own set <code>"(rest)"</code> when a list is given.</p></dd>
 
 
@@ -116,9 +115,7 @@ with one entry per person.
 Several columns define crossed group cells. Their units are returned in
 <code>phi_table</code>; <code>phi_factorial</code> and
 <code>phi_factorial_tests</code> contain the GLS factorial decomposition and
-omnibus Wald tests. Raw probabilities are retained in <code>p</code>; decisions
-use <code>p_adj</code>, Holm-adjusted across the factorial terms. Structurally
-unidentified units are refused. Very
+omnibus Wald tests. Structurally unidentified units are refused. Very
 imprecise but identified units are retained with a warning.</p></dd>
 
 
@@ -151,9 +148,7 @@ bootstrap of all stages).</p></dd>
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
 <dd><p>Bootstrap replicates; defaults to 300 for the linking
 bootstrap and 200 for the full bootstrap. Use zero to omit unit
-uncertainty; otherwise at least 30 are required. A bootstrap covariance
-is reported only when more than half of the requested replicates are
-usable.</p></dd>
+uncertainty; otherwise at least 30 are required.</p></dd>
 
 
 <dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
@@ -188,15 +183,8 @@ restored when estimation finishes.</p></dd>
   <code>alpha_table</code>, <code>set_table</code>, common-unit item and threshold
   tables, group-specific <code>score_curves</code>, <code>efrm_vs_rasch</code>, and
   <code>linking</code>, and the person support used for unit inference in
-  <code>unit_support</code>. The requested, usable and failed uncertainty
-  replicates used by the returned uncertainty method are reported as
-  <code>boot_reps_requested</code>, <code>boot_reps_used</code> and
-  <code>boot_reps_failed</code>; the hybrid set-link counts are repeated inside
-  <code>linking</code>. When a full bootstrap was requested, its requested,
-  attempted, usable and failed counts are retained separately in the
-  corresponding <code>full_boot_reps_*</code> components, including when the fit
-  falls back to hybrid standard errors. See the extended frame of reference
-  vignette for their interpretation.</p>
+  <code>unit_support</code>. See the extended frame of reference vignette for
+  their interpretation.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -220,9 +208,8 @@ $$\delta_{ik}=\widetilde\delta_{ik}/\alpha_s+\mu_s,
 Score moments supply starting values and screen weak links. Response
 patterns must span a score range of at least four within a set. Overlapping
 item sets are not permitted. The public
-convergence flag covers the conditional calibration, the set-link
-transformation and its nonparametric nuisance masses;
-<code>stage1_converged</code> records the conditional stage separately.</p>
+convergence flag covers both estimation stages; <code>stage1_converged</code>
+records the conditional stage separately.</p>
 <p>The hybrid covariance combines the pairwise Godambe covariance with a
 person bootstrap for set linking. Each replicate jointly redraws the
 within-frame thresholds and group units, then rebuilds the link. The joint
@@ -233,9 +220,7 @@ to each person resample.</p>
 log-likelihood comparison between group-dependent and equal group units.
 This difference is descriptive and contains no information about set units,
 which are identified at the linking stage. The accompanying Wald omnibus
-tests provide inference for the group- and set-unit families. Their
-probabilities are Holm-adjusted as one omnibus family; the individual
-unit contrasts form a second Holm-adjusted follow-up family. Unit estimates
+tests provide inference for the group- and set-unit families. Unit estimates
 are retained for sparse designs, but probabilities require at least 50
 persons or effective persons in every group and at least 50 common persons
 on every set-link edge.</p>

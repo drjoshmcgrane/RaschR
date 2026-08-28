@@ -33,8 +33,7 @@ drop_items(fit, items, boot_reps = NULL)
 ## Value
 
 A refitted object of the same class as `fit`, carrying a note recording
-which items were dropped. Split-item provenance is retained for the
-items that remain.
+which items were dropped.
 
 ## Details
 

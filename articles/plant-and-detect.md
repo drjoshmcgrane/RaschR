@@ -22,10 +22,10 @@ Each simulator stores the generating values in `attr(x, "truth")`.
 d <- simulate_rasch(n_persons = 400, n_items = 10, seed = 101)
 names(attr(d, "truth"))
 #>  [1] "layout"         "description"    "model"          "n_persons"     
-#>  [5] "n_items"        "person_id"      "theta"          "theta2"        
-#>  [9] "difficulty"     "thresholds"     "discrimination" "guessing"      
-#> [13] "groups"         "dim_items"      "dif_items"      "careless_idx"  
-#> [17] "style_idx"      "speeded_idx"    "missing_cells"  "planted"
+#>  [5] "n_items"        "theta"          "theta2"         "difficulty"    
+#>  [9] "thresholds"     "discrimination" "guessing"       "groups"        
+#> [13] "dim_items"      "dif_items"      "careless_idx"   "style_idx"     
+#> [17] "planted"
 ```
 
 ## Parameter recovery
@@ -132,8 +132,8 @@ dif_size(fit3, "I06", by = "group")
 #>     g2    1.266 0.162    0 250
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>       g1      g2     -1.004 0.234 -4.287 < 0.001 < 0.001 -1.463 -0.545
-#>  significant practical p_beyond_A p_beyond_A_adj ets signed_area
-#>            *   >= 0.50      0.007          0.007  C-            
+#>  significant practical ets signed_area
+#>            *   >= 0.50  C-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```
 
@@ -200,14 +200,14 @@ b <- simulate_btl(
 bt <- btl(b, "object_a", "object_b", winner = "winner", judge = "judge")
 bt$judges[order(-bt$judges$fit_resid), ]
 #>  judge  n infit_ms outfit_ms fit_resid df_fit
-#>     J3 78    1.421     1.544     4.095 77.257
-#>     J6 79    1.343     1.412     3.044 78.248
-#>     J5 79    0.961     0.957    -0.363 78.248
-#>     J1 79    0.874     0.867    -1.164 78.248
-#>     J7 79    0.903     0.854    -1.356 78.248
-#>     J4 79    0.864     0.823    -1.688 78.248
-#>     J8 78    0.851     0.818    -1.742 77.257
-#>     J2 79    0.845     0.813    -1.901 78.248
+#>     J1 74    1.457     1.525     3.995 73.295
+#>     J2 75    1.357     1.417     3.220 74.286
+#>     J6 70    1.071     1.076     0.588 69.333
+#>     J4 78    0.902     0.881    -1.193 77.257
+#>     J7 77    0.894     0.876    -1.340 76.267
+#>     J3 81    0.874     0.852    -1.518 80.229
+#>     J8 92    0.856     0.823    -1.890 91.124
+#>     J5 83    0.752     0.715    -2.951 82.210
 ```
 
 Judge fit describes agreement with the common object scale. Transitivity
@@ -219,17 +219,17 @@ comparisons.
 tr <- btl_transitivity(bt)
 tr$summary
 #>  n_objects n_pairs n_triples n_circular circular_rate chance_rate consistency
-#>          7      21        26          0             0       0.250           1
+#>          7      21        30          2         0.067       0.250       0.733
 #>  zeta
 #> 
 head(tr$judges)
 #>  judge n_comparisons n_triples n_circular circular_rate consistency
-#>     J6            79        19          7         0.368      -0.474
-#>     J3            78        10          3         0.300      -0.200
-#>     J1            79        25          2         0.080       0.680
-#>     J7            79        25          2         0.080       0.680
-#>     J2            79        26          0         0.000       1.000
-#>     J4            79        16          0         0.000       1.000
+#>     J2            75        21          7         0.333      -0.333
+#>     J1            74        25          3         0.120       0.520
+#>     J6            70        35          4         0.114       0.543
+#>     J3            81        15          1         0.067       0.733
+#>     J8            92        30          1         0.033       0.867
+#>     J4            78        21          0         0.000       1.000
 ```
 
 ## Repeated simulation
@@ -289,24 +289,20 @@ provenance in the result tables:
 | `dependence_magnitude` size | 800 persons, 10 items | 7.5% pooled-variance (pre-fix) to 4.8% covariance-based |
 | Class-interval item fit | 8–30 dichotomous items, 600 persons | HC3 was rejected (21.9–48.3% item-wise Type I); conventional ANOVA remained approximate, whereas item-trait Holm familywise error was 4.0–7.0% from ten items onward and 12.0–17.0% with eight items (200 replicates each) |
 | Repeated-measures DIF follow-up | 10:90 nuisance-cell imbalance | 5.25% size for a main effect and 5.4% for a mixed interaction (2,000 replicates each); the superseded person-frequency shortcut targeted a different contrast |
-| Multifactor DIF magnitudes | correlated, unbalanced 3:1:1:3 two-factor cells with planted 1- and 2-logit effects | equal-cell marginal estimates had biases -0.021 and +0.017 logits for ordinary Rasch DIF and +0.026 and +0.032 for paired-comparison DIF; coverage was 0.92-0.96 (100 replicates per model) |
 | Ordinary DIF covariance | balanced, 1:4 ability imbalance, unequal observations/person, and a three-level 1:2:3 factor | hybrid HC3-uniform/residual-ANOVA-non-uniform familywise error 4.0%, 6.4%, 4.6%, and 6.2%; full HC3 reached 22.0% and 20.2% in the two imbalanced designs and was rejected (500 replicates each) |
 | Balanced homoskedastic DIF | two- and three-level factors, 10–150 observations per group-by-interval cell | hybrid familywise error 4.3–5.2%; under local alternatives the classical power advantage declined from 3.10 points at ten per cell to 0.84, 0.42, and 0.16 at 30, 75, and 150 for two levels, and from 1.72 at ten to 0.54 at 50 for three levels (5,000 paired replicates each) |
 | Conditional DIF bootstrap | dichotomous data, four-category PCM and RSM data, three-level groups, and correlated person factors | preserving raw scores and refitting under the Rasch null gave acceptable global-null calibration but was usually more conservative and less powerful than the hybrid analysis; under a partial alternative it reduced, but did not remove, artificial flags on invariant items, so it was not adopted as a replacement (100–300 datasets; 99–199 bootstrap refits each) |
 | DIF score purification | four-category PCM and RSM data, plus two correlated person factors | preselecting a five-item anchor scale was liberal and leave-one-out matching was rejected; the public split-and-refit procedure retained uniform-DIF power and left 4.0–5.6% familywise error among invariant items, while a strongest-item recalibration was promising for non-uniform DIF but is not yet an automatic remedy (500 replicates per refined condition) |
 | BTL-DIF pairwise inference | 6 objects, 8 or 10 judges per factor level | 5.5% and 4.83% size when balanced; 5.0% with 10 raw/9.31 effective judges per level (2,000-replicate top-up); omnibus and pairwise inference are withheld below eight judges or eight effective judges per level |
-| BTL-DIF multi-cell contrasts | balanced 2 by 2 judge cells, 12 judges per cell | the conservative weakest-cell reference gave 3.6% Type I error and 0.964 coverage; the superseded pooled-count extension gave 6.2% and 0.938 (500 replicates) |
 | BTL-DIF omnibus under unequal precision | 8 versus 16 judges, fourfold variance ratio | classical Type I 11.7% or 1.8% depending on the allocation; HC3 Type I 5.6% and 4.0% (10,000 replicates each) |
 | BTL core cluster covariance | 10 balanced judges; 20 judges with one carrying 20% | CR1 Type I 5.4% and 4.2%, coverage 94.6% and 95.8%; delete-one-judge Type I 5.6% and 4.0%, coverage 94.4% and 96.0% (500 replicates each); no default change |
 | Superitem spread test | 900 persons, 8 items | 5.2% size at the binomial boundary (1,000 replicates); 100% power under the planted dependence condition (400 replicates) |
-| EFRM set-unit linking | 200 persons/group, 6 items/set (500 null datasets); boundary cell with 100 persons/group and 4 items/set (1,000 attempts) | supported-design Holm familywise error 3.5% for the omnibus family and 1.6% for individual follow-ups (489 analysed, 11 refused); boundary rates 5.2% and 2.5% among 483 analysed fits, with 493 refusals and 24 non-convergences; raw marginal hybrid Type I remained 4.0-5.0% in the larger distributional studies |
-| Crossed EFRM factorial tests | 400 persons, 100 in each cell of a balanced 2 by 2 design, 12 dichotomous items | fresh-seed Holm familywise error 5.55% (2,000 replicates; 5.93% pooled over 3,000); marginal rates 5.25-5.75%; adjusted power 73% and 100% for region unit ratios 1.25 and 1.50 |
+| EFRM set-unit linking | 500-600 persons, 8 items/set | hybrid Type I 4.0-5.0%, SE ratios 0.97-1.05 and coverage 0.927-0.960 under normal, bimodal and contrasting group distributions; full-bootstrap Type I 2.5% and coverage 0.975; unit probabilities require 50 persons on every contributing group or link |
 | EFRM compiled-kernel parity | demonstration data, 30 seed-paired hybrid bootstrap replicates | largest absolute difference from the retained R implementation 1.30e-11 across set units, standard errors, origins, thresholds and edge likelihoods; all convergence flags agreed |
 | EFRM parallel-bootstrap parity | demonstration data, 300 hybrid replicates; simulated data, 30 full-bootstrap replicates | serial, two-worker and four-worker fits used the same pre-generated samples and agreed exactly on every checked estimate and convergence flag |
 | BTL-EFRM parallel-bootstrap parity | 3 sets, 2 panels, 20 judges, 200 judge-bootstrap replicates | serial and default four-worker fits used the same pre-generated judge resamples and agreed exactly on the complete reported result, apart from the recorded worker count; elapsed time fell from 17.34 to 5.47 seconds on the executing machine |
-| BTL-EFRM bootstrap inference | 6 or 12 judges/panel, 6 objects/set, 20 repetitions/pair | with six judges per panel, raw marginal Type I was 3.3% for panel units, 6.7% for set units and 6.0% for origins; Holm familywise error was 3.9% across omnibus decisions and 3.0% across follow-ups, while set-unit coverage was 0.900 (1,000 null fits). With 12 judges per panel and the default 200 resamples, raw set-unit Type I was 4.6%, SE ratio 0.992 and coverage 0.934 (500 null fits) |
-| BTL-EFRM fit coherence | 3 sets, 3 panels, 8/4 to 72/36 within/cross repetitions | reported likelihoods agreed with likelihoods reconstructed from all fitted probabilities to numerical precision; mean common-scale object RMSE fell from 0.401 to 0.123 as information increased (180 attempted fits, 2 refused) |
-| MFRM interaction omnibus | 50 or 200 persons, 6 raters, 25 df | 4.3% and 5.2% Type I error (600 fixed-truth replicates each); probabilities use the least-supported item-by-level cell and require `max(30, q + 2)` effective persons |
+| BTL-EFRM unit tests | 12 judges, 6 objects/set | judge-bootstrap Type I 3.3-5.3% for panel units, set units and origins; independent-outcome bootstrap 3.0-6.7% (300 replicates); judge-bootstrap probabilities require six judges and 5.5 effective judges per panel and eight per set link |
+| MFRM interaction omnibus | 50 or 200 persons, 6 raters, 25 df | 4.3% and 5.2% Type I error (600 fixed-truth replicates each); probabilities use the least-supported facet level and require `max(30, q + 2)` effective persons |
 | MFRM multifactor DIF | 500 persons, 8 items, 6 raters | 4.7% familywise error with balanced raters and 3.8% when one group has two raters (1,000 replicates) |
 | Frame-invariance bootstrap size | 500 persons/frame, 8 common items | 3.0% combined Holm familywise error; SE ratios 1.00 locations and 1.03 discrimination (300 replicates) |
 | Frame-invariance bootstrap power | two affected items, 500 persons/frame | 96.3% for a one-logit location shift; 9.6% for a 1.5-fold discrimination change (120 replicates) |
@@ -314,17 +310,13 @@ provenance in the result tables:
 | Effective-judge thresholds | one judge with 15-50% of comparisons | ~9% at 4 effective, ~7% at 6-7, nominal when balanced |
 | Equating familywise error | 3, 5, and 10 anchors | 4.8-5.0% under the Holm adjustment (2,000 replicates per anchor count) |
 | Person-measure coverage | 10-item test, central range | 0.945-0.983; conservative in the tails |
-| Externally weighted person measures | equal, moderate, strong and zero weights; dichotomous and partial credit items; equal and differing units | absolute bias at most 0.016 logits, empirical SD/mean SE 0.940-1.004 and 95% coverage 0.941-0.978 (5,000 persons in each of 18 conditions) |
 | Tailored bootstrap | 300 persons, 8 items, 399 resamples | clean-item familywise error 0-2.5%; at least one of two hard items detected in 17.5% and 26.3% of datasets with guessing 0.15 and 0.30 (80 full-procedure replicates per effect) |
 | CL-AIC model selection | PCM vs RSM; free vs PC thresholds (items and CJ) | null false selection 4.5-5.2% multi-parameter, ~17% one-parameter (the theoretical AIC rates); at the strongest tested departures, selection was 50% for PCM vs RSM and 99.5-100% for the threshold-structure comparisons |
 | Paired-comparison effect tests | 8 objects, 14 judges | position/exposure nulls 5.8%/5.9%; carry-over 8.3% at 14 judges, 5.3% at 30; power 62/39/77% at 0.6 logits |
-| Paired-comparison effect multiplicity | 8 objects, 30 judges, position, exposure and carry-over fitted together | Holm familywise error 5.9% (1,000 null replicates); adjusted power at 0.3/0.6 logits was 42/97% for position, 10/44% for exposure and 23/85% for carry-over |
-| BTL second-attribute simulation | 3-15 objects, correlations -0.8 to 1; strong 15-object dimensionality design | maximum realised-correlation error 3.9e-16 over 1,200 draws; leading-structure power 87% over 100 datasets |
 | Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM, lme4 | identical-likelihood comparators at solver precision; current EFRM set-unit bias +0.0036 vs TAM +0.0008 dichotomous and +0.0035 vs +0.0020 polytomous |
 | Cross-package diagnostics | eRm, TAM, psych, difR, PerFit, sirt | alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98; DIF detection 80-88% across methods; dimensionality conservative (exact null, 67% power) vs DETECT (100%) |
 | EFRM boundary conditions | 3-8 items/set; 80-1,000 persons; ratios to 3.5; targeting, missingness and non-normality | absolute bias at most 0.022 under the model; all three-item links refused; at 80 persons 11% refused and 2% did not converge; 41- and 101-point grids agreed |
-| EFRM weak-unit regression | 500 persons, two groups, equal item difficulties | the one-set group units were retained with log-unit SE 0.53; the corresponding flat two-set link was refused when only 9 of 30 resamples were usable, separating imprecise group-unit estimation from unstable set linking |
-| BTL-EFRM staged link | 6 objects/set, 12 judges | after the reconciled-panel refit, log set-unit bias decreased from -0.106 at 10 repetitions per pair to -0.041 at 20, -0.016 at 50 and -0.006 at 100 (500 datasets per cell) |
+| BTL-EFRM staged link | 6 objects/set, 12 judges | log set-unit bias decreased from -0.108 at 10 repetitions per pair to -0.041 at 20, -0.016 at 50 and -0.007 at 100; bootstrap coverage was 0.933-0.950 at 20 repetitions |
 | Explanatory Rasch models | LLTM, LPCM, dichotomous and ordered CJ, with independent or judge-clustered comparisons | coefficient bias at most 0.005 logits, empirical SD/mean SE 0.99-1.03, coverage 0.938-0.955, and Kent-adjusted null rejection 4.2-6.0% (1,000 replicates per condition); fixed-departure Holm familywise error 4.3-4.7% and power 98.3-100% for a 0.8-logit departure (300 replicates per condition) |
 | Explanatory edge cases | 300-2,000 persons; dichotomous, four-category and mixed-maximum-score items | empirical SD/mean SE 0.993-1.026, coverage 0.942-0.954, Kent-adjusted null rejection 4.3-5.8%, and no refusals or non-convergence (1,000 replicates per condition); the unscaled probability rejected 98.6-100% and is retained only as `p_naive` |
 | Explanatory calibration R-squared | uninformative and true designs, 12 and 24 items | the raw coefficient averaged 0.170 and 0.085 for uninformative designs where the adjusted coefficient centred at -0.015 and -0.002; a true design gave 0.948 raw and 0.936 adjusted (300 replicates per condition) |

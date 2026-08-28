@@ -19,7 +19,6 @@ resolve_dif(
   factors = NULL,
   alpha = 0.05,
   p_adjust = "holm",
-  min_n = 20L,
   min_anchors = NULL,
   max_splits = NULL
 )
@@ -47,13 +46,6 @@ resolve_dif(
 
   Multiplicity adjustment across items each round.
 
-- min_n:
-
-  Minimum responders required in every item-by-factor cell before an
-  automatic split is allowed. The omnibus DIF test determines whether a
-  split is needed; pairwise follow-ups describe where the difference
-  lies but are not a second significance gate.
-
 - min_anchors:
 
   Minimum number of original items to leave unsplit as the internal
@@ -68,9 +60,8 @@ resolve_dif(
 
 A list of class `"rasch_resolve_dif"`: the final resolved `fit`, the
 `splits` performed (order, item, factor, partial eta-squared, source
-item, DIF magnitude in logits), the `stopped` reason, the residual `dif`
-table, and the number of distinct source items that still show DIF in
-the final fit.
+item, DIF magnitude in logits), the `stopped` reason, and the residual
+`dif` table for the final fit.
 
 ## References
 

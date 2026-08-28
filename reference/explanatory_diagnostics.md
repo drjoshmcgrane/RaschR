@@ -23,8 +23,4 @@ explanatory_diagnostics(fit, p_adjust = "holm")
 
 ## Value
 
-A data frame ordered by adjusted probability. For item fits, a `weak`
-column marks items whose thresholds the calibration flags as weakly
-identified; their probabilities are withheld, since the departure test
-rests on the same sparse categories, and a note on the table records the
-withholding.
+A data frame ordered by adjusted probability.

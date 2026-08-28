@@ -19,7 +19,7 @@ supports designs containing both between-person and within-person factors."><met
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,7 +47,7 @@ supports designs containing both between-person and within-person factors."><met
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Differential item functioning by residual analysis of variance</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/dif.R" class="external-link"><code>R/dif.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/dif.R" class="external-link"><code>R/dif.R</code></a></small>
       <div class="d-none name"><code>dif_anova.Rd</code></div>
     </div>
 
@@ -115,7 +115,7 @@ with each other. Immaterial with a single factor.</p></dd>
 
 <dt id="arg-sizes">sizes<a class="anchor" aria-label="anchor" href="#arg-sizes"></a></dt>
 <dd><p>If <code>TRUE</code>, refit each flagged item-term and calculate
-adjusted marginal contrasts in logits using <code><a href="dif_posthoc.html">dif_posthoc</a></code>.</p></dd>
+pairwise DIF differences in logits using <code><a href="dif_size.html">dif_size</a></code>.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
@@ -149,10 +149,8 @@ alter EFRM fits. Ignored for ordinary fits.</p></dd>
 <dd><p>The complete item-wise analysis-of-variance tables.</p></dd>
 
   <dt><code>sizes</code></dt>
-<dd><p>When requested, marginal pairwise differences for
-  main effects and difference-in-differences magnitudes for interactions,
-  adjusted over the complete nominated factor design. This is retained as
-  an alias of <code>posthoc</code>.</p></dd>
+<dd><p>When requested, pairwise logit differences for the
+  significant, non-superseded item-terms.</p></dd>
 
   <dt><code>posthoc</code></dt>
 <dd><p>When <code>sizes = TRUE</code>, marginal pairwise

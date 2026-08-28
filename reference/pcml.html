@@ -15,7 +15,7 @@ pairwise conditional likelihood (Zwinderman 1995)."><meta property="og:image" co
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,7 +43,7 @@ pairwise conditional likelihood (Zwinderman 1995)."><meta property="og:image" co
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Estimate Rasch thresholds by pairwise conditional maximum likelihood</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/estimation.R" class="external-link"><code>R/estimation.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/estimation.R" class="external-link"><code>R/estimation.R</code></a></small>
       <div class="d-none name"><code>pcml.Rd</code></div>
     </div>
 
@@ -62,9 +62,8 @@ pairwise conditional likelihood (Zwinderman 1995).</p>
 
 
 <dl><dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>Persons-by-items integer score matrix. Each item must have at least
-two observed categories, numbered consecutively from 0. Missing values are
-handled by pairwise deletion, so linked booklet designs and
+<dd><p>Persons-by-items integer score matrix (categories from 0). Missing
+values are handled by pairwise deletion, so linked booklet designs and
 random missingness estimate without imputation; the item-pair graph must
 be connected (some person answering items in both of any two blocks),
 otherwise relative locations between blocks are unidentified and the fit
@@ -83,7 +82,7 @@ columns <code>item</code> (name or column index), <code>k</code>, and <code>tau<
 (individual anchoring); <code>k = NA</code> fixes the item's mean location at
 <code>tau</code> while its thresholds remain free (average anchoring). The
 remaining parameters are estimated on the anchored scale and no
-recentring is applied. Column names must be unique. PCM only.</p></dd>
+recentring is applied. PCM only.</p></dd>
 
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>

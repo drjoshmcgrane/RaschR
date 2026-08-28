@@ -13,14 +13,13 @@ pcml(X, model = c("PCM", "RSM"), anchors = NULL, maxit = 60, tol = 1e-08)
 
 - X:
 
-  Persons-by-items integer score matrix. Each item must have at least
-  two observed categories, numbered consecutively from 0. Missing values
-  are handled by pairwise deletion, so linked booklet designs and random
-  missingness estimate without imputation; the item-pair graph must be
-  connected (some person answering items in both of any two blocks),
-  otherwise relative locations between blocks are unidentified and the
-  fit stops with an error naming the blocks – unless `anchors` fix an
-  item in every block, the disjoint-form equating case.
+  Persons-by-items integer score matrix (categories from 0). Missing
+  values are handled by pairwise deletion, so linked booklet designs and
+  random missingness estimate without imputation; the item-pair graph
+  must be connected (some person answering items in both of any two
+  blocks), otherwise relative locations between blocks are unidentified
+  and the fit stops with an error naming the blocks – unless `anchors`
+  fix an item in every block, the disjoint-form equating case.
 
 - model:
 
@@ -33,8 +32,7 @@ pcml(X, model = c("PCM", "RSM"), anchors = NULL, maxit = 60, tol = 1e-08)
   `k` fixes that single threshold (individual anchoring); `k = NA` fixes
   the item's mean location at `tau` while its thresholds remain free
   (average anchoring). The remaining parameters are estimated on the
-  anchored scale and no recentring is applied. Column names must be
-  unique. PCM only.
+  anchored scale and no recentring is applied. PCM only.
 
 - maxit, tol:
 

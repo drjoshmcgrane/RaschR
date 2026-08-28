@@ -44,8 +44,7 @@ rasch_efrm(
 - item_sets:
 
   A named list mapping set names to item-column names, or a named
-  character vector mapping every analysed item exactly once to a set.
-  The vector cannot name items outside the analysis. Items not mentioned
+  character vector mapping item names to set names. Items not mentioned
   form their own set `"(rest)"` when a list is given.
 
 - groups:
@@ -53,11 +52,9 @@ rasch_efrm(
   Name of the person-group column in `data`, or a vector with one entry
   per person. Several columns define crossed group cells. Their units
   are returned in `phi_table`; `phi_factorial` and `phi_factorial_tests`
-  contain the GLS factorial decomposition and omnibus Wald tests. Raw
-  probabilities are retained in `p`; decisions use `p_adj`,
-  Holm-adjusted across the factorial terms. Structurally unidentified
-  units are refused. Very imprecise but identified units are retained
-  with a warning.
+  contain the GLS factorial decomposition and omnibus Wald tests.
+  Structurally unidentified units are refused. Very imprecise but
+  identified units are retained with a warning.
 
 - id:
 
@@ -89,8 +86,7 @@ rasch_efrm(
 
   Bootstrap replicates; defaults to 300 for the linking bootstrap and
   200 for the full bootstrap. Use zero to omit unit uncertainty;
-  otherwise at least 30 are required. A bootstrap covariance is reported
-  only when more than half of the requested replicates are usable.
+  otherwise at least 30 are required.
 
 - progress:
 
@@ -123,15 +119,8 @@ An object of classes `"rasch_efrm"` and `"rasch"`. Model-specific
 components include `frames`, `phi_table`, `alpha_table`, `set_table`,
 common-unit item and threshold tables, group-specific `score_curves`,
 `efrm_vs_rasch`, and `linking`, and the person support used for unit
-inference in `unit_support`. The requested, usable and failed
-uncertainty replicates used by the returned uncertainty method are
-reported as `boot_reps_requested`, `boot_reps_used` and
-`boot_reps_failed`; the hybrid set-link counts are repeated inside
-`linking`. When a full bootstrap was requested, its requested,
-attempted, usable and failed counts are retained separately in the
-corresponding `full_boot_reps_*` components, including when the fit
-falls back to hybrid standard errors. See the extended frame of
-reference vignette for their interpretation.
+inference in `unit_support`. See the extended frame of reference
+vignette for their interpretation.
 
 ## Details
 
@@ -155,8 +144,7 @@ parameters are then
 \rho\_{sg}=\alpha_s\phi_g.\$\$ Score moments supply starting values and
 screen weak links. Response patterns must span a score range of at least
 four within a set. Overlapping item sets are not permitted. The public
-convergence flag covers the conditional calibration, the set-link
-transformation and its nonparametric nuisance masses; `stage1_converged`
+convergence flag covers both estimation stages; `stage1_converged`
 records the conditional stage separately.
 
 The hybrid covariance combines the pairwise Godambe covariance with a
@@ -171,8 +159,6 @@ log-likelihood comparison between group-dependent and equal group units.
 This difference is descriptive and contains no information about set
 units, which are identified at the linking stage. The accompanying Wald
 omnibus tests provide inference for the group- and set-unit families.
-Their probabilities are Holm-adjusted as one omnibus family; the
-individual unit contrasts form a second Holm-adjusted follow-up family.
 Unit estimates are retained for sparse designs, but probabilities
 require at least 50 persons or effective persons in every group and at
 least 50 common persons on every set-link edge.

@@ -7,16 +7,16 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/drjoshmcgrane/rasch/blob/master/inst/CITATION)
+[`inst/CITATION`](https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/inst/CITATION)
 
 McGrane J (2026). *rasch: Models and Diagnostics for Rasch Measurement
-Theory*. R package version 1.12.1,
+Theory*. R package version 1.12.0,
 <https://CRAN.R-project.org/package=rasch>.
 
     @Manual{,
       title = {{rasch}: Models and Diagnostics for Rasch Measurement Theory},
       author = {Josh McGrane},
       year = {2026},
-      note = {R package version 1.12.1},
+      note = {R package version 1.12.0},
       url = {https://CRAN.R-project.org/package=rasch},
     }

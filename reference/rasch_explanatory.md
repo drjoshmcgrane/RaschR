@@ -38,8 +38,7 @@ rasch_explanatory(
 
   Data frame containing an `item` column and the predictors named in
   `formula`. With `level = "threshold"`, it must also contain
-  `threshold`, with one row for every fitted item threshold. Column
-  names must be unique.
+  `threshold`, with one row for every fitted item threshold.
 
 - formula:
 

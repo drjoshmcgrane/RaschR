@@ -56,8 +56,6 @@ Examine fit, targeting and reliability, or compare fitted models.
 
 - [`person_wle()`](https://drjoshmcgrane.github.io/rasch/reference/person_wle.md)
   : Warm's weighted likelihood estimates by raw score
-- [`weighted_person_estimates()`](https://drjoshmcgrane.github.io/rasch/reference/weighted_person_estimates.md)
-  : Person estimates with externally imposed weights
 - [`person_extrapolated()`](https://drjoshmcgrane.github.io/rasch/reference/person_extrapolated.md)
   : Person measures with extrapolated extreme scores
 - [`score_table()`](https://drjoshmcgrane.github.io/rasch/reference/score_table.md)

@@ -32,8 +32,7 @@ btl_dif(
 - factors:
 
   One judge factor, or a named list containing several. Each factor may
-  have one value per comparison row or be a vector named by every judge
-  in the fit.
+  have one value per comparison row or be a vector named by judge.
 
 - objects:
 
@@ -48,8 +47,8 @@ btl_dif(
 - p_adjust:
 
   Multiplicity adjustment over all object-by-term tests; the
-  resolved-contrast probabilities are adjusted separately in one pool
-  over all objects, terms, and contrasts.
+  resolved-size probabilities are adjusted separately in one pool over
+  all objects, terms, and cell pairs.
 
 - alpha:
 
@@ -77,12 +76,11 @@ band – plus `uniform_DIF`, `nonuniform_DIF` and `superseded` flags);
 `terms` (the full per-object analysis-of-variance table, including its
 raw and effective judge support); `levels` (resolved location, SE,
 comparison count, judge count and effective judge count per object, term
-and complete-design cell); `sizes` (per object, term and marginal or
-interaction contrast: difference in logits, judge support for both
-sides, SE, t, degrees of freedom, adjusted p, significance and practical
-flags); `effects`, `factors`, `alpha`, `p_adjust`, `flag_logits`, and
-`notes`. `summary_factors` retains the factor membership of each
-displayed term.
+and cell); `sizes` (per object, term and cell pair: difference in
+logits, judge support for both cells, SE, t, degrees of freedom,
+adjusted p, significance and practical flags); `effects`, `factors`,
+`alpha`, `p_adjust`, `flag_logits`, and `notes`. `summary_factors`
+retains the factor membership of each displayed term.
 
 ## Details
 
@@ -97,22 +95,18 @@ residual and resolution models do not contain the fitted panel and set
 units.
 
 A significant uniform term is followed by a joint refit in which the
-object has one location per cell of the complete judge-factor design.
-Main-effect magnitudes average these cells equally over the other
-factors. Interaction magnitudes are differences between differences,
-with the corresponding higher-order tensor contrast beyond two factors.
-A contributing cell needs at least eight effective judges for inference;
-otherwise its location and contrasts remain descriptive. Higher-order
-terms supersede their component terms. Two-cell contrasts retain the
-Welch reference used by the ordinary pairwise comparison. Contrasts
-spanning more than two fitted cells use the effective-judge count in
-their least-supported cell as a conservative denominator reference.
-Models fitted with `order` retain the exposure and carry-over effects in
-both the residual analysis and refit. Between-judge tests use HC3
-covariance so unequal comparison workloads do not impose equal precision
-on judge means. Omnibus probabilities require at least eight judges and
-eight effective judges in every factor cell. Holm adjustment is the
-default; `"BH"` remains available for false-discovery-rate screening.
+object has one location per factor cell. Differences between these
+locations are reported in logits. A cell needs at least eight effective
+judges for pairwise inference; otherwise its location and differences
+remain descriptive. Pairwise tests use degrees of freedom based on the
+effective judges in the two cells. Higher-order terms supersede their
+component terms. Models fitted with `order` retain the exposure and
+carry-over effects in both the residual analysis and refit.
+Between-judge tests use HC3 covariance so unequal comparison workloads
+do not impose equal precision on judge means. Omnibus probabilities
+require at least eight judges and eight effective judges in every factor
+cell. Holm adjustment is the default; `"BH"` remains available for
+false-discovery-rate screening.
 
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce
@@ -160,9 +154,9 @@ btl_dif(f, grp, objects = "C")
 #> 
 #> Resolved locations (logits; holm over 1 comparison(s); practical 0.50)
 #>  object  term level_a level_b difference n_judges_a n_judges_b
-#>       C group      g2      g1     -1.121         10         10
-#>  effective_judges_a effective_judges_b    se      t     df   p_adj significant
-#>               9.340              9.326 0.249 -4.508 16.665 < 0.001           *
+#>       C group      g1      g2      1.121         10         10
+#>  effective_judges_a effective_judges_b    se     t     df   p_adj significant
+#>               9.326              9.340 0.249 4.508 16.665 < 0.001           *
 #>  practical
 #>          *
 #> Notes: 2 object-term test(s) have 8.0--9.4 effective judges in their smallest cell; see min_effective_judges and interpret these results cautiously; C [group]: level(s) g1, g2 have 8.0--9.4 effective judges; interpret pairwise inference cautiously 

@@ -17,7 +17,7 @@ calibration may be a fitted model or an object bank."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ calibration may be a fitted model or an object bank."><meta property="og:image" 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Equate two paired-comparison calibrations through their common objects</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/btl-equating.R" class="external-link"><code>R/btl-equating.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/btl-equating.R" class="external-link"><code>R/btl-equating.R</code></a></small>
       <div class="d-none name"><code>btl_equate.Rd</code></div>
     </div>
 
@@ -72,9 +72,7 @@ scale (origin) the equating targets.</p></dd>
 <dt id="arg-fit-">fit2<a class="anchor" aria-label="anchor" href="#arg-fit-"></a></dt>
 <dd><p>A second <code><a href="btl.html">btl</a></code> fit, or a bank: a data frame with
 columns <code>object</code>, <code>location</code>, and optionally <code>se</code>; object
-names and column names must be unique. Numeric fields may be numeric
-columns, numeric text, or factors with numeric labels; other column
-classes are refused. Locations must be finite. Bank-based drift inference
+names must be unique and locations finite. Bank-based drift inference
 requires the joint location covariance as a square matrix in
 <code>attr(fit2, "cov_location")</code>, ordered like the bank rows (or named by
 object), unless the bank is treated as fixed with zero SEs. A bank whose
@@ -108,10 +106,9 @@ calibrations require a joint or paired bootstrap for inference.</p></dd>
   <code>table</code> (per common object: object, both locations and standard
   errors, their <code>difference</code>, the <code>shifted_difference</code> against the
   estimated origin, the pooled <code>se_diff</code>, <code>t</code>, raw and adjusted
-  <code>p</code>, and the <code>drifting</code> flag); the estimated <code>shift</code>, its
-  <code>shift_method</code> and <code>shift_se</code>; <code>equated</code>, the second
-  calibration's full object table re-expressed on <code>fit1</code>'s scale; the
-  number of common objects
+  <code>p</code>, and the <code>drifting</code> flag); the estimated <code>shift</code> and
+  its <code>shift_se</code>; <code>equated</code>, the second calibration's full object
+  table re-expressed on <code>fit1</code>'s scale; the number of common objects
   <code>n_common</code>; the number usable for inference <code>n_inference</code>;
   whether inference was available <code>inferential</code>; <code>alpha</code>;
   <code>p_adjust</code>; and <code>notes</code>.</p>
@@ -122,15 +119,10 @@ calibrations require a joint or paired bootstrap for inference.</p></dd>
 \(v_j\) its marginal variance. The origin shift is the precision-weighted
 mean
 $$\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j}.$$
-If fewer than two common objects have usable variances but at least two have
-finite locations, their unweighted mean difference is returned as a
-descriptive fallback and recorded in <code>shift_method</code>.
 Each object is tested using its shifted difference \(d_j-\hat s\). The
 covariance calculation retains the dependence induced by the sum-zero
 constraints. Drift tests require independent calibrations and at least
-three common objects with usable covariance information. Two common objects
-identify a descriptive origin shift, but do not support an object-drift
-test.</p>
+three common objects with usable covariance information.</p>
 <p>The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and
 stable objects can appear to drift. In that case, repeat the equating with a

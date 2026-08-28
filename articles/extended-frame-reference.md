@@ -47,9 +47,8 @@ fit <- rasch_efrm(
   item_sets = truth$item_sets,
   groups = "group",
   id = "id",
-  boot_reps = 50,
-  workers = 1,
-  seed = 25
+  boot_reps = 30,
+  workers = 1
 )
 fit
 #> rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 300 persons
@@ -63,21 +62,21 @@ fit
 #> 
 #> Item set units (alpha) and locations:
 #>   set alpha se_log_alpha     mu n_items
-#>  set1 0.840        0.042  0.081       8
-#>  set2 1.190        0.042 -0.081       8
+#>  set1 0.840        0.045  0.081       8
+#>  set2 1.190        0.045 -0.081       8
 #> 
 #> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 20.620 with 1 extra unit parameter(s)
 #> (composite likelihood: descriptive; informative for group units (phi))
-#> Omnibus Wald tests of equal units (Holm-adjusted family):
-#>               term df   wald       p   p_adj significant
-#>  group units (phi)  1  7.442   0.006   0.006           *
-#>  set units (alpha)  1 17.016 < 0.001 < 0.001           *
+#> Omnibus Wald tests of equal units:
+#>               term df   wald       p
+#>  group units (phi)  1  7.442   0.006
+#>  set units (alpha)  1 15.171 < 0.001
 #> Holm-adjusted exploratory unit contrasts (H0: unit = 1):
 #>        parameter estimate    se      z       p   p_adj significant
 #>      log phi[g1]   -0.109 0.040 -2.728   0.006   0.013           *
 #>      log phi[g2]    0.109 0.040  2.728   0.006   0.013           *
-#>  log alpha[set1]   -0.174 0.042 -4.125 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.174 0.042  4.125 < 0.001 < 0.001           *
+#>  log alpha[set1]   -0.174 0.045 -3.895 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.174 0.045  3.895 < 0.001 < 0.001           *
 #> 
 #> Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves); a universal raw-score conversion is not defined across the expanded frame response cells; use score_curves and design-specific information
 ```
@@ -92,18 +91,18 @@ fit$phi_table       # person-group units
 #>     g2 1.115      0.040
 fit$alpha_table     # item-set units
 #>   set alpha se_log_alpha
-#>  set1 0.840        0.042
-#>  set2 1.190        0.042
+#>  set1 0.840        0.045
+#>  set2 1.190        0.045
 fit$set_table       # linked set locations
 #>   set     mu alpha n_items
 #>  set1  0.081 0.840       8
 #>  set2 -0.081 1.190       8
 fit$frames          # complete frame units
 #>   set group n_persons n_items alpha   phi   rho se_log_rho origin infit_ms
-#>  set1    g1       150       8 0.840 0.897 0.754      0.063  0.081    1.031
+#>  set1    g1       150       8 0.840 0.897 0.754      0.067  0.081    1.031
 #>  set2    g1       150       8 1.190 0.897 1.067      0.053 -0.081    1.048
 #>  set1    g2       150       8 0.840 1.115 0.937      0.053  0.081    1.063
-#>  set2    g2       150       8 1.190 1.115 1.327      0.063 -0.081    1.012
+#>  set2    g2       150       8 1.190 1.115 1.327      0.067 -0.081    1.012
 #>  outfit_ms fit_resid n_responses
 #>      0.989     0.185        1168
 #>      0.988    -0.316        1168
@@ -120,16 +119,7 @@ fit$linking         # set-linking design
 #> 
 #> $alpha_edges
 #>  set_a set_b   n log_slope converged edge_mass    loglik
-#>   set1  set2 300     0.348         1     0.009 -3522.116
-#> 
-#> $boot_reps_requested
-#> [1] 50
-#> 
-#> $boot_reps_used
-#> [1] 47
-#> 
-#> $boot_reps_failed
-#> [1] 3
+#>   set1  set2 300     0.348         1     0.009 -3522.108
 #> 
 #> $alpha_method
 #> [1] "finite-grid semiparametric maximum likelihood"
@@ -182,9 +172,7 @@ fit_crossed$phi_factorial_tests
 ```
 
 The factorial tables give the GLS decomposition of the estimated log
-group units. Use `p_adj`, which applies Holm’s correction across the
-factorial terms, for decisions. The tables do not replace the
-frame-level estimates.
+group units. They do not replace the frame-level estimates.
 
 ## Uncertainty and equal-unit comparisons
 
@@ -204,30 +192,22 @@ can select up to four workers, follow completed batches, or cancel the
 process without replacing the current analysis. R scripts can supply
 `progress` and `cancel` callbacks for the same controls.
 
-The fit records the requested, usable and failed bootstrap counts. The
-linking covariance is withheld unless at least 30 and more than half of
-the requested replicates are usable. A requested full bootstrap also
-records its attempted, usable and failed counts in `full_boot_reps_*`.
-These remain available if too few full refits succeed and the fit
-returns hybrid standard errors instead.
-
 ``` r
 
 fit$efrm_vs_rasch$unit_omnibus
-#>               term df   wald       p   p_adj significant
-#>  group units (phi)  1  7.442   0.006   0.006           *
-#>  set units (alpha)  1 17.016 < 0.001 < 0.001           *
+#>               term df   wald       p
+#>  group units (phi)  1  7.442   0.006
+#>  set units (alpha)  1 15.171 < 0.001
 fit$efrm_vs_rasch$unit_tests
 #>        parameter estimate    se      z       p   p_adj significant
 #>      log phi[g1]   -0.109 0.040 -2.728   0.006   0.013           *
 #>      log phi[g2]    0.109 0.040  2.728   0.006   0.013           *
-#>  log alpha[set1]   -0.174 0.042 -4.125 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.174 0.042  4.125 < 0.001 < 0.001           *
+#>  log alpha[set1]   -0.174 0.045 -3.895 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.174 0.045  3.895 < 0.001 < 0.001           *
 ```
 
-The omnibus Wald tests assess the set- and group-unit families. Their
-probabilities are adjusted together by Holm’s method. Individual unit
-contrasts form a separate Holm-adjusted follow-up family. The raw
+The omnibus Wald tests assess the set- and group-unit families.
+Individual unit contrasts are Holm-adjusted follow-ups. The raw
 composite-likelihood difference is descriptive and compares the
 group-unit stage only. Set units are identified in the linking stage and
 are assessed by their Wald test. Probabilities require at least 50
@@ -241,16 +221,7 @@ empirical-to-reported SE ratios from 0.97 to 1.05, and null rejection
 from 4.0 to 5.0 per cent for the hybrid method. The complete person
 bootstrap was mildly conservative in the corresponding null design. Sets
 with only three dichotomous items were not identified; four-item sets
-were recovered without bias in adequately supported samples.
-
-A separate null study checked the complete decision families. With 200
-persons per group and six items per set, 489 of 500 fits were analysed.
-The Holm familywise rejection rates were 3.5 per cent for the omnibus
-tests and 1.6 per cent for the individual unit contrasts. A boundary
-design with 100 persons per group and four items per set refused 493 of
-1,000 fits and did not converge in another 24. Among the 483 analysed
-fits, the corresponding rates were 5.2 and 2.5 per cent. A design should
-not be used merely because it is formally identifiable.
+were recovered without bias.
 
 ## Item invariance across frames
 

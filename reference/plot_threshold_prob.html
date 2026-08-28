@@ -27,7 +27,7 @@ ch. 22)."><meta property="og:image" content="https://drjoshmcgrane.github.io/ras
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@ ch. 22)."><meta property="og:image" content="https://drjoshmcgrane.github.io/ras
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Plot threshold probability curves</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/plots.R" class="external-link"><code>R/plots.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/plots.R" class="external-link"><code>R/plots.R</code></a></small>
       <div class="d-none name"><code>plot_threshold_prob.Rd</code></div>
     </div>
 
@@ -77,7 +77,7 @@ ch. 22).</p>
 <span>  <span class="va">item</span>,</span>
 <span>  grid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">6</span>, <span class="fl">6</span>, <span class="fl">0.05</span><span class="op">)</span>,</span>
 <span>  observed <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  n_groups <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  n_groups <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">n_groups</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -103,9 +103,7 @@ per class interval.</p></dd>
 
 
 <dt id="arg-n-groups">n_groups<a class="anchor" aria-label="anchor" href="#arg-n-groups"></a></dt>
-<dd><p>Class intervals for the observed points; by default the
-fit's own allocation for this item, so the points match the item-trait
-test they illustrate.</p></dd>
+<dd><p>Class intervals for the observed points.</p></dd>
 
 </dl></div>
     <div class="section level2">

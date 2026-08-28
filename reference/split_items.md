@@ -1,12 +1,9 @@
 # Split items by a person factor to resolve DIF
 
-Replaces each nominated item with one item per estimable level of a
-person factor, each carrying that level's responses only (other levels
-missing). A level must contain every score from zero to the fitted item
-maximum; levels that cannot retain the fitted scoring structure are
-omitted and recorded in the notes. Every retained group then receives
-its own item location, which resolves the invariance violation flagged
-by
+Replaces each nominated item with one item per level of a person factor,
+each carrying that level's responses only (other levels missing). Every
+group then receives its own item location, which resolves the invariance
+violation flagged by
 [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md);
 the distance between the split locations estimates the DIF size. The
 model is refitted with the same settings.

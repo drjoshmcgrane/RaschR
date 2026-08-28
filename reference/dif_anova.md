@@ -65,9 +65,9 @@ dif_anova(
 
 - sizes:
 
-  If `TRUE`, refit each flagged item-term and calculate adjusted
-  marginal contrasts in logits using
-  [`dif_posthoc`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md).
+  If `TRUE`, refit each flagged item-term and calculate pairwise DIF
+  differences in logits using
+  [`dif_size`](https://drjoshmcgrane.github.io/rasch/reference/dif_size.md).
 
 - id:
 
@@ -105,10 +105,8 @@ A list with:
 
 - `sizes`:
 
-  When requested, marginal pairwise differences for main effects and
-  difference-in-differences magnitudes for interactions, adjusted over
-  the complete nominated factor design. This is retained as an alias of
-  `posthoc`.
+  When requested, pairwise logit differences for the significant,
+  non-superseded item-terms.
 
 - `posthoc`:
 

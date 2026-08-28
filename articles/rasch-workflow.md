@@ -194,12 +194,9 @@ residuals.](rasch-workflow_files/figure-html/person-fit-plot-1.png)
 An unexpected response pattern may reflect coding or data-entry errors,
 careless responding, a secondary trait, or a genuine but unusual person.
 It is not, by itself, a reason to remove the person. In this example, 7
-persons (1.2%) fall outside the displayed band; the plot reports the
-same count and percentage. The `statistic` argument displays the
-standardised infit or outfit in place of the fit residual, under the
-same band. Fit residuals are unavailable for extreme response patterns
-because those patterns do not provide an interior location at which fit
-can be assessed.
+persons fall outside the displayed band. Fit residuals are unavailable
+for extreme response patterns because those patterns do not provide an
+interior location at which fit can be assessed.
 
 ## Targeting and information
 

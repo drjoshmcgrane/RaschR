@@ -5,29 +5,19 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Plot a person characteristic curve — plot_pcc"><meta name="description" content="The person characteristic curve: the modelled expectation at the
-person's estimated measure against item location, with the person's
-observed responses overlaid, grouped into item-difficulty intervals
-(proportion of maximum score per interval). A wholly dichotomous
-unit-discrimination fit draws the exact logistic curve. Polytomous,
-rating scale, many-facet, and frame fits have no single curve in the
-item location alone, so the model is displayed as its expected
-proportion of maximum for the actual items within each interval, under
-the fitted thresholds, response cells, and frame units. Erratic
-responding (for example lucky guessing on hard items by a
-low-proficiency person) shows as observed points far from the model,
-complementing the person fit residual."><meta property="og:description" content="The person characteristic curve: the modelled expectation at the
-person's estimated measure against item location, with the person's
-observed responses overlaid, grouped into item-difficulty intervals
-(proportion of maximum score per interval). A wholly dichotomous
-unit-discrimination fit draws the exact logistic curve. Polytomous,
-rating scale, many-facet, and frame fits have no single curve in the
-item location alone, so the model is displayed as its expected
-proportion of maximum for the actual items within each interval, under
-the fitted thresholds, response cells, and frame units. Erratic
-responding (for example lucky guessing on hard items by a
-low-proficiency person) shows as observed points far from the model,
-complementing the person fit residual."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Plot a person characteristic curve — plot_pcc"><meta name="description" content="The person characteristic curve: the probability of success as a
+function of item location at the person's estimated measure, with the
+person's observed responses overlaid, grouped into item-difficulty
+intervals (proportion of maximum score per interval). Erratic responding
+(for example lucky guessing on hard items by a low-proficiency person)
+shows as observed points far from the curve, complementing the person
+fit residual."><meta property="og:description" content="The person characteristic curve: the probability of success as a
+function of item location at the person's estimated measure, with the
+person's observed responses overlaid, grouped into item-difficulty
+intervals (proportion of maximum score per interval). Erratic responding
+(for example lucky guessing on hard items by a low-proficiency person)
+shows as observed points far from the curve, complementing the person
+fit residual."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -35,7 +25,7 @@ complementing the person fit residual."><meta property="og:image" content="https
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,23 +53,18 @@ complementing the person fit residual."><meta property="og:image" content="https
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Plot a person characteristic curve</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/plots.R" class="external-link"><code>R/plots.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/plots.R" class="external-link"><code>R/plots.R</code></a></small>
       <div class="d-none name"><code>plot_pcc.Rd</code></div>
     </div>
 
     <div class="ref-description section level2">
-    <p>The person characteristic curve: the modelled expectation at the
-person's estimated measure against item location, with the person's
-observed responses overlaid, grouped into item-difficulty intervals
-(proportion of maximum score per interval). A wholly dichotomous
-unit-discrimination fit draws the exact logistic curve. Polytomous,
-rating scale, many-facet, and frame fits have no single curve in the
-item location alone, so the model is displayed as its expected
-proportion of maximum for the actual items within each interval, under
-the fitted thresholds, response cells, and frame units. Erratic
-responding (for example lucky guessing on hard items by a
-low-proficiency person) shows as observed points far from the model,
-complementing the person fit residual.</p>
+    <p>The person characteristic curve: the probability of success as a
+function of item location at the person's estimated measure, with the
+person's observed responses overlaid, grouped into item-difficulty
+intervals (proportion of maximum score per interval). Erratic responding
+(for example lucky guessing on hard items by a low-proficiency person)
+shows as observed points far from the curve, complementing the person
+fit residual.</p>
     </div>
 
     <div class="section level2">
@@ -106,8 +91,7 @@ points (capped by the number of observed items).</p></dd>
 
 
 <dt id="arg-grid">grid<a class="anchor" aria-label="anchor" href="#arg-grid"></a></dt>
-<dd><p>Item-location grid over which the dichotomous curve is
-drawn; interval displays ignore it.</p></dd>
+<dd><p>Item-location grid over which to draw the curve.</p></dd>
 
 </dl></div>
     <div class="section level2">

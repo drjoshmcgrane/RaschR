@@ -5,8 +5,6 @@ frames (Humphry 2005): a person in group g responding to an item in set
 s does so at the frame unit rho = alpha_set \* phi_group scaling the
 whole exponent. The planted set- and group-unit ratios are recovered by
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
-A positive careless-response or missingness proportion selects at least
-one person or response cell.
 
 ## Usage
 
@@ -20,10 +18,7 @@ simulate_efrm(
   group_unit_ratio = 1,
   n_categories = 2,
   theta_sd = 1.3,
-  seed = NULL,
-  item_drift = NULL,
-  careless = 0,
-  missing = 0
+  seed = NULL
 )
 ```
 
@@ -59,23 +54,7 @@ simulate_efrm(
 
 - seed:
 
-  Optional non-negative whole-number RNG seed.
-
-- item_drift:
-
-  Optional `list(items=, group=, shift=)`. The named item or items move
-  by `shift` logits in one generated person group, violating item
-  invariance across frames.
-
-- careless:
-
-  Proportion of persons whose complete response vectors are replaced by
-  random category choices.
-
-- missing:
-
-  Proportion of response cells set missing completely at random after
-  the responses are generated.
+  Optional RNG seed.
 
 ## Value
 

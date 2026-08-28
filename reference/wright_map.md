@@ -38,20 +38,17 @@ wright_map(
   variables retained in `fit$person`, a vector or factor of panel
   memberships with one value per person, or a numeric matrix or data
   frame whose columns contain the estimates for the panels. Missing
-  estimates are permitted; other non-finite values are not. Panel
-  memberships cannot be missing or blank. For EFRM fits, `"groups"` uses
-  the fitted person groups.
+  estimates are permitted. For EFRM fits, `"groups"` uses the fitted
+  person groups.
 
 - item_panels:
 
   Optional vector or factor assigning each item row to a panel. A named
-  vector must name every fitted item exactly once; an unnamed vector is
-  used in item order. A named list may instead assign every fitted item
-  exactly once to a non-empty panel. Memberships cannot be missing or
-  blank. For EFRM fits, use `"sets"`, `"groups"`, or
-  `c("sets", "groups")` to arrange the calibrated response columns by
-  item set, person group, or frame. This option requires WrightMap 1.5
-  or later.
+  vector is matched to item names; an unnamed vector is used in item
+  order. A named list may instead map panel names to item names. For
+  EFRM fits, use `"sets"`, `"groups"`, or `c("sets", "groups")` to
+  arrange the calibrated response columns by item set, person group, or
+  frame. This option requires WrightMap 1.5 or later.
 
 - ...:
 
