@@ -216,7 +216,8 @@ stat_rows <- function(...) div(class = "stat-rows", ...)
 # context remains visible, but results no longer consume the first several
 # phone screens or give every statistic the visual weight of a warning.
 metric_tile <- function(id, label, value, detail = NULL, icon = NULL,
-                        status = c("neutral", "good", "warning", "accent")) {
+                        status = c("neutral", "good", "warning", "accent",
+                                   "person", "item")) {
   status <- match.arg(status)
   div(class = paste("metric-tile", paste0("metric-", status)),
     div(class = "metric-heading",
@@ -332,6 +333,10 @@ css <- HTML("
   .metric-accent { border-top-color: var(--bs-primary); }
   .metric-good { border-top-color: var(--bs-success); }
   .metric-warning { border-top-color: var(--bs-warning); }
+  /* the two sides of the model, in the colours the plots already use for
+     them: persons blue, items amber (see the Wright and person-item maps) */
+  .metric-person { border-top-color: #2563eb; }
+  .metric-item { border-top-color: #f59e0b; }
   .metric-heading { display: flex; align-items: center; min-width: 0;
     color: var(--bs-secondary-color); }
   .metric-icon { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; margin-right: .35rem; }
@@ -1353,6 +1358,22 @@ panel_targeting <- nav_panel("Targeting", value = "p_targeting", icon = bs_icon(
                     "distributions. It does not change the estimates.")),
             choices = seq(10, 60, 5), selected = 35, selectize = FALSE,
             width = "100%")),
+        div(class = "rasch-class-intervals",
+          selectInput("tg_group",
+            info_label("Person group",
+              paste("Restricts the person distribution to one level of a",
+                    "fitted person factor. The whole sample is shown by",
+                    "default; the selection is named on the plot.")),
+            choices = c("All persons" = ""), selected = "",
+            selectize = FALSE, width = "100%")),
+        div(class = "rasch-class-intervals",
+          selectInput("tg_items",
+            info_label("Item set",
+              paste("Restricts the threshold distribution to one item set.",
+                    "The whole instrument is shown by default; the",
+                    "selection is named on the plot.")),
+            choices = c("All items" = ""), selected = "",
+            selectize = FALSE, width = "100%")),
         div(class = "rasch-inline-check pb-1",
           checkboxInput("tg_information",
             info_label("Test information",
@@ -3198,7 +3219,7 @@ server <- function(input, output, session) {
                 showcase = glyph("grid"),
                 showcase_layout = "left center", theme = "primary"),
       value_box("Columns", ncol(df), showcase = glyph("columns"),
-                showcase_layout = "left center", theme = "primary"),
+                showcase_layout = "left center", theme = "warning"),
       value_box("Missing", sprintf("%.1f%%", miss),
                 showcase = glyph("missing"),
                 showcase_layout = "left center",
@@ -4784,9 +4805,9 @@ server <- function(input, output, session) {
     f <- fit()
     metric_grid(
       metric_tile("metric_persons", "Persons", nrow(f$X),
-                  icon = "distribution", status = "neutral"),
+                  icon = "distribution", status = "person"),
       metric_tile("metric_items", "Items", item_count_app(f),
-                  icon = "ruler", status = "neutral"),
+                  icon = "ruler", status = "item"),
       metric_tile("metric_psi", "PSI",
                   if (finite1(f$psi$PSI)) sprintf("%.3f", f$psi$PSI) else "—",
                   if (finite1(f$psi_noext$PSI))
@@ -5209,11 +5230,11 @@ server <- function(input, output, session) {
     cell_fit <- inherits(f, c("rasch_mfrm", "rasch_efrm"))
     metric_grid(
       metric_tile("metric_cells", if (cell_fit) "Response cells" else "Items",
-                  nrow(f$items), icon = "ruler"),
+                  nrow(f$items), icon = "ruler", status = "item"),
       metric_tile("metric_item_misfit", "Adjusted p < .05", mis,
-                  icon = "chisq", status = if (mis > 0) "warning" else "good"),
+                  icon = "chisq", status = "item"),
       metric_tile("metric_disordered", "Disordered thresholds", dis,
-                  icon = "disorder", status = if (dis > 0) "warning" else "good"))
+                  icon = "disorder", status = "item"))
   })
   register_code("items_vboxes", function() paste(
     "list(",
@@ -5432,11 +5453,13 @@ server <- function(input, output, session) {
     f <- fit(); d <- f$person
     mis <- sum(abs(d$fit_resid) > 2.5, na.rm = TRUE)
     metric_grid(
-      metric_tile("metric_persons", "Persons", nrow(d), icon = "distribution"),
+      metric_tile("metric_persons", "Persons", nrow(d), icon = "distribution",
+                  status = "person"),
       metric_tile("metric_extreme", "Extreme scores",
-                  sum(d$extreme, na.rm = TRUE), icon = "range"),
+                  sum(d$extreme, na.rm = TRUE), icon = "range",
+                  status = "person"),
       metric_tile("metric_person_misfit", "Misfitting persons", mis,
-                  icon = "outlier", status = if (mis > 0) "warning" else "good"))
+                  icon = "outlier", status = "person"))
   })
   register_code("persons_vboxes", function() paste(
     "list(",
@@ -5610,12 +5633,34 @@ server <- function(input, output, session) {
     r <- tg_rng() %||% c(-5, 5)
     info_arg <- if (isTRUE(information) && isTRUE(input$tg_information))
       ", information = TRUE" else ""
-    sprintf("%s(fit, bins = %d, xlim = c(%g, %g)%s)",
-            fun, tg_bins(), r[1], r[2], info_arg)
+    sel <- paste0(
+      if (!is.null(tg_group())) sprintf(", group = \"%s\"", tg_group()) else "",
+      if (!is.null(tg_items())) sprintf(", items = \"%s\"", tg_items()) else "")
+    sprintf("%s(fit, bins = %d, xlim = c(%g, %g)%s%s)",
+            fun, tg_bins(), r[1], r[2], info_arg, sel)
   }
+  # the person groups a fit actually carries, and its item sets if any
+  observeEvent(fit(), {
+    f <- fit()
+    lev <- if (!is.null(f$factors) && ncol(f$factors))
+      sort(unique(unlist(lapply(f$factors, function(v)
+        as.character(unique(v)))))) else character(0)
+    updateSelectInput(session, "tg_group",
+                      choices = c("All persons" = "", stats::setNames(lev, lev)),
+                      selected = "")
+    sets <- if (!is.null(f$set_of)) sort(unique(as.character(f$set_of)))
+            else character(0)
+    updateSelectInput(session, "tg_items",
+                      choices = c("All items" = "",
+                                  stats::setNames(sets, sets)),
+                      selected = "")
+  }, ignoreNULL = TRUE)
+  tg_group <- reactive({ z <- input$tg_group %||% ""; if (nzchar(z)) z else NULL })
+  tg_items <- reactive({ z <- input$tg_items %||% ""; if (nzchar(z)) z else NULL })
   register_plot("pim_p", function()
     plot_pimap(fit(), bins = tg_bins(), xlim = tg_rng(),
-               information = isTRUE(input$tg_information)),
+               information = isTRUE(input$tg_information),
+               group = tg_group(), items = tg_items()),
     code = tg_code("plot_pimap", information = TRUE))
   wright_package_on <- reactive(
     identical(input$wright_renderer, "wrightmap"))

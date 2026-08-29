@@ -2414,3 +2414,36 @@ test_that("maps and public controls cannot silently select another analysis", {
   expect_error(plot_btl_icc(bf, "O3", group = group_map[-1]),
                "missing from the group map")
 })
+
+test_that("the person-item map can be restricted to a group or an item set", {
+  set.seed(61)
+  X <- matrix(rbinom(400 * 8, 1, plogis(outer(rnorm(400),
+    seq(-1.5, 1.5, length.out = 8), "-"))), 400, 8)
+  colnames(X) <- paste0("I", 1:8)
+  d <- data.frame(id = sprintf("P%03d", 1:400), X,
+                  grp = rep(c("a", "b"), 200),
+                  sex = rep(c("m", "f"), each = 200))
+  f <- rasch(d, id = "id", factors = c("grp", "sex"))
+  png(tf <- tempfile(fileext = ".png"))
+  on.exit({dev.off(); unlink(tf)}, add = TRUE)
+  expect_no_error(plot_pimap(f))
+  expect_no_error(plot_pimap(f, group = "a"))
+  expect_no_error(plot_pimap(f, group = "m"))       # a second factor's level
+  expect_no_error(plot_pimap(f, items = c("I1", "I2", "I3")))
+  expect_no_error(plot_pimap(f, group = "a", items = c("I1", "I2", "I3")))
+  # a selection that names nothing is refused, not silently ignored
+  expect_error(plot_pimap(f, group = "zzz"), "not a level of any fitted")
+  expect_error(plot_pimap(f, items = c("I1", "NOPE")), "not in the fit")
+  expect_error(plot_pimap(f, group = c("a", "b")), "exactly one person-group")
+
+  # an extended-frame fit calibrates item-by-group cells, so a set name must
+  # match through the underlying items rather than the virtual keys
+  de <- simulate_efrm(n_per_group = 150, items_per_set = 6, n_sets = 2,
+                      n_groups = 2, seed = 25)
+  fe <- rasch_efrm(de, item_sets = attr(de, "truth")$item_sets,
+                   groups = "group", id = "id", boot_reps = 0)
+  expect_true(all(c("set1", "set2") %in% unique(as.character(fe$set_of))))
+  expect_no_error(plot_pimap(fe, items = "set1"))
+  expect_no_error(plot_pimap(fe, group = "g1"))
+  expect_no_error(plot_pimap(fe, group = "g1", items = "set2"))
+})

@@ -560,6 +560,14 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' @param information Whether to overlay the test information function on a
 #'   separate right-hand axis. Fits with more than one administrable design
 #'   receive one curve per design.
+#' @param group Optional person-group level: one level of a fitted person
+#'   factor, restricting the person distribution to those persons. A level
+#'   no fitted factor carries is an error.
+#' @param items Optional item selection restricting the threshold
+#'   distribution: item names, or one item-set name of an extended-frame
+#'   fit, whose virtual item-by-group cells match through their underlying
+#'   items. The selection is named in the legend, so a restricted map
+#'   cannot be read as the whole instrument.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -568,13 +576,21 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' colnames(X) <- paste0("I", 1:6)
 #' plot_pimap(rasch(X))
 #' @export
-plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
+plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
+                       group = NULL, items = NULL) {
   bins <- .check_whole(bins, "bins", 2)
   .check_flag(information, "information")
   .check_xlim(xlim)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
-  th <- fit$person$theta[!is.na(fit$person$theta)]
-  tau <- fit$thresholds$tau
+  # the two sides can be restricted independently: a person group against
+  # the whole instrument, or the whole sample against one item set. The
+  # subset is named on the plot, so a restricted map cannot be mistaken for
+  # the full one.
+  keep_p <- .pimap_persons(fit, group)
+  keep_i <- .pimap_items(fit, items)
+  th <- fit$person$theta[keep_p]
+  th <- th[!is.na(th)]
+  tau <- fit$thresholds$tau[keep_i]
   scale <- .pimap_scale(c(th, tau), xlim)
   rng <- scale$range
   th <- th[th >= rng[1] & th <= rng[2]]
@@ -615,8 +631,10 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   rect(brk[-length(brk)], -pi, brk[-1], 0, col = .rr$amber, border = "white", lwd = 0.6)
   segments(mean(th), 0, mean(th), ymax * 0.95, col = .rr$blue, lty = 2)
   segments(mean(tau), ymin * 0.95, mean(tau), 0, col = .rr$amber, lty = 2)
-  .rr_legend("topleft", c("Persons", if (structural)
-    "Calibration thresholds" else "Item thresholds"),
+  .rr_legend("topleft", c(
+    if (is.null(group)) "Persons" else paste0("Persons: ", group),
+    paste0(if (structural) "Calibration thresholds" else "Item thresholds",
+           if (!is.null(items)) paste0(": ", .pimap_item_label(items)) else "")),
              fill = c(.rr$blue, .rr$amber), border = NA, cex = 0.76)
   if (isTRUE(information)) {
     grid <- seq(rng[1], rng[2], length.out = 241L)
@@ -644,6 +662,59 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE) {
   }
   invisible(NULL)
 }
+
+# Restricting the person side: `group` names one level of a fitted person
+# factor. A level no factor carries is refused rather than silently drawing
+# the whole sample.
+.pimap_persons <- function(fit, group) {
+  n <- nrow(fit$person)
+  if (is.null(group)) return(rep(TRUE, n))
+  if (length(group) != 1L || is.na(group))
+    stop("`group` must name exactly one person-group level", call. = FALSE)
+  fac <- fit$factors
+  if (is.null(fac) || !ncol(fac))
+    stop("the fit carries no person factors, so it has no groups to select",
+         call. = FALSE)
+  hit <- vapply(fac, function(v) as.character(group) %in%
+                  as.character(unique(v)), TRUE)
+  if (!any(hit))
+    stop("`group` value '", group, "' is not a level of any fitted person ",
+         "factor; available: ",
+         paste(unique(unlist(lapply(fac, function(v)
+           as.character(unique(v))))), collapse = ", "), call. = FALSE)
+  as.character(fac[[which(hit)[1]]]) == as.character(group)
+}
+
+# Restricting the item side: item names, or one item-set name of an EFRM fit.
+# An EFRM calibrates item-by-group cells, so its fitted "items" are virtual
+# keys; the set map and the underlying item names are recovered through the
+# virtual map, and both name forms select.
+.pimap_items <- function(fit, items) {
+  fitted_nm <- fit$items$item[fit$thresholds$item]
+  vm <- fit$virtual_map
+  base_nm <- if (!is.null(vm))
+    as.character(vm$item)[match(fitted_nm, as.character(vm$vkey))]
+  else fitted_nm
+  base_nm[is.na(base_nm)] <- fitted_nm[is.na(base_nm)]
+  if (is.null(items)) return(rep(TRUE, length(fitted_nm)))
+  if (!is.character(items) || !length(items) || anyNA(items))
+    stop("`items` must name item(s), or one item set", call. = FALSE)
+  sets <- fit$set_of
+  if (length(items) == 1L && !is.null(sets) &&
+      items %in% as.character(sets))
+    return(base_nm %in% names(sets)[as.character(sets) == items])
+  if (length(items) == 1L && !is.null(vm) && items %in% as.character(vm$set))
+    return(base_nm %in% as.character(vm$item)[as.character(vm$set) == items])
+  known <- unique(c(fitted_nm, base_nm))
+  miss <- setdiff(items, known)
+  if (length(miss))
+    stop("item(s) not in the fit: ", paste(miss, collapse = ", "),
+         call. = FALSE)
+  fitted_nm %in% items | base_nm %in% items
+}
+
+.pimap_item_label <- function(items)
+  if (length(items) == 1L) items else paste0(length(items), " items")
 
 .pimap_scale <- function(values, xlim = NULL) {
   if (is.null(xlim)) {
