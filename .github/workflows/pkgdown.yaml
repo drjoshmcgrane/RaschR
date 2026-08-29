@@ -1,8 +1,10 @@
+# The site is deployed from the default branch only. A release event would
+# check out its own tag, so publishing a release for an earlier version
+# rebuilds the site from that older source and rolls the documentation
+# backwards. Run this workflow by hand against master to redeploy.
 on:
   push:
     branches: [main, master]
-  release:
-    types: [published]
   workflow_dispatch:
 
 name: pkgdown
