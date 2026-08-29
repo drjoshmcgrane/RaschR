@@ -2,6 +2,20 @@
 
 ## rasch 1.12.1
 
+- [`plot_pimap()`](https://drjoshmcgrane.github.io/rasch/reference/plot_pimap.md)
+  can restrict either side of the map: `group` takes one level of a
+  fitted person factor, and `items` takes item names or one item-set
+  name of an extended-frame fit, whose virtual item-by-group cells are
+  matched through their underlying items. The selection is named in the
+  legend, so a restricted map cannot be read as the whole instrument.
+  The application offers both as person-group and item-set controls
+  beside the person-item map.
+
+- The application colours its headline tiles by the side of the model
+  they describe: persons blue and items amber, the colours the Wright
+  and person-item maps already use. The data page follows, with rows
+  blue and columns amber.
+
 - The application’s comparative judgement example is dichotomous. It
   also carried an ordered preference and a margin, which invited a
   polytomous fit on its ten judges; a polytomous fit with the

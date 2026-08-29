@@ -60,7 +60,14 @@ distributions' colours. MFRM and EFRM thresholds belong to response cells.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_pimap</span><span class="op">(</span><span class="va">fit</span>, bins <span class="op">=</span> <span class="fl">35</span>, xlim <span class="op">=</span> <span class="cn">NULL</span>, information <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_pimap</span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  bins <span class="op">=</span> <span class="fl">35</span>,</span>
+<span>  xlim <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  information <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  group <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  items <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -85,6 +92,20 @@ labelled tick marks beyond the most extreme plotted estimate.</p></dd>
 <dd><p>Whether to overlay the test information function on a
 separate right-hand axis. Fits with more than one administrable design
 receive one curve per design.</p></dd>
+
+
+<dt id="arg-group">group<a class="anchor" aria-label="anchor" href="#arg-group"></a></dt>
+<dd><p>Optional person-group level: one level of a fitted person
+factor, restricting the person distribution to those persons. A level
+no fitted factor carries is an error.</p></dd>
+
+
+<dt id="arg-items">items<a class="anchor" aria-label="anchor" href="#arg-items"></a></dt>
+<dd><p>Optional item selection restricting the threshold
+distribution: item names, or one item-set name of an extended-frame
+fit, whose virtual item-by-group cells match through their underlying
+items. The selection is named in the legend, so a restricted map
+cannot be read as the whole instrument.</p></dd>
 
 </dl></div>
     <div class="section level2">

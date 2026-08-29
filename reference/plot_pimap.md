@@ -9,7 +9,14 @@ response cells.
 ## Usage
 
 ``` r
-plot_pimap(fit, bins = 35, xlim = NULL, information = FALSE)
+plot_pimap(
+  fit,
+  bins = 35,
+  xlim = NULL,
+  information = FALSE,
+  group = NULL,
+  items = NULL
+)
 ```
 
 ## Arguments
@@ -34,6 +41,20 @@ plot_pimap(fit, bins = 35, xlim = NULL, information = FALSE)
   Whether to overlay the test information function on a separate
   right-hand axis. Fits with more than one administrable design receive
   one curve per design.
+
+- group:
+
+  Optional person-group level: one level of a fitted person factor,
+  restricting the person distribution to those persons. A level no
+  fitted factor carries is an error.
+
+- items:
+
+  Optional item selection restricting the threshold distribution: item
+  names, or one item-set name of an extended-frame fit, whose virtual
+  item-by-group cells match through their underlying items. The
+  selection is named in the legend, so a restricted map cannot be read
+  as the whole instrument.
 
 ## Value
 
