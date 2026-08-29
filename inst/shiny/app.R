@@ -964,6 +964,32 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
     conditionalPanel("output.is_btl != true",
     uiOutput("items_vboxes"),
     rcode_details("items_vboxes"),
+    # The asymptotic fit statistics grow anticonservative with the sample;
+    # the bootstrap replaces their reference distributions with ones formed
+    # by refitting the model to data it generated. Post-estimation and
+    # costly (B refits), so it runs on request and clears on a new fit.
+    conditionalPanel("output.can_boot == true",
+      div(class = "d-flex align-items-end gap-2 flex-wrap mb-3",
+        input_task_button("boot_run", "Bootstrap the fit statistics",
+                          icon = bs_icon("arrow-repeat"),
+                          class = "btn-outline-primary"),
+        div(style = "width: 110px;",
+            numericInput("boot_B", "Replicates", value = 999,
+                         min = 99, max = 9999, step = 100)),
+        div(style = "width: 90px;",
+            numericInput("boot_seed", "Seed", value = 1, step = 1)),
+        span(class = "pb-2",
+          info_icon(paste("Generates data from the fitted model, refits each",
+                          "replicate, and refers every fit statistic to its",
+                          "own replicated null. The asymptotic references",
+                          "reject too readily as the sample grows; the",
+                          "bootstrap is calibrated at any size. Replaces the",
+                          "chi-square and fit-residual probabilities in the",
+                          "table, the tile, and the CSV until the next",
+                          "estimation. The smallest familywise-adjusted",
+                          "probability is items/(B + 1), so flagging at .05",
+                          "needs at least 20 replicates per item."))),
+        uiOutput("boot_state", inline = TRUE))),
     conditionalPanel("output.anchor_download_available == true",
       div(class = "mb-2 d-flex justify-content-end",
           downloadButton("dl_anchors", "Save anchors (CSV: item,k,tau)",
@@ -1426,7 +1452,7 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
                          class = "btn-outline-warning w-100 mt-2"))),
         conditionalPanel("output.dif_refit_available != true",
           uiOutput("dif_refit_note"))),
-      accordion(id = "dif_acc", open = FALSE,
+      accordion(id = "dif_acc", open = "dif_anova",
         accordion_panel("DIF analysis of variance", value = "dif_anova",
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("dif_tbl",
@@ -1528,7 +1554,7 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
                      min = 0.001, max = 0.5, step = 0.01),
         input_task_button("bdif_run", "Run DIF analysis",
                           type = "primary", class = "w-100")),
-      accordion(id = "bdif_acc", open = FALSE,
+      accordion(id = "bdif_acc", open = "bdif_anova",
         accordion_panel("DIF analysis of variance", value = "bdif_anova",
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("bdif_anova_tbl",
@@ -1769,7 +1795,7 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
     # persons x items residual matrix that paired comparisons do not produce,
     # so it hides and the pair-structure analogues take its place
     conditionalPanel("output.is_btl == true",
-      accordion(id = "btl_dim_acc", open = FALSE,
+      accordion(id = "btl_dim_acc", open = "btl_dim_swirl",
         accordion_panel(
           title = "Residual dimensions",
           value = "btl_dim_swirl",
@@ -1796,7 +1822,7 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
                      info = "How many circular triads each object sits in - the objects whose order is least stable, and the likeliest seat of a second attribute.",
                      height = "460px"))))),
     conditionalPanel("output.is_btl != true",
-    accordion(id = "dim_acc", open = FALSE,
+    accordion(id = "dim_acc", open = "dim_components",
       accordion_panel("Residual components", value = "dim_components",
         layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
           tableCard("loadings_tbl", title = "Loadings",
@@ -1876,7 +1902,7 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
             tableCard("btl_dep_comps",
               note = "Every comparison in judgment order with its exposure and carry-over covariates; a comparison is informative for an effect when its covariate is non-zero."))))),
     conditionalPanel("output.is_btl != true",
-    accordion(id = "ld_acc", open = FALSE,
+    accordion(id = "ld_acc", open = "ld_cormat",
       accordion_panel("Residual Correlations (Q3 statistics)", value = "ld_cormat",
         numericInput("ld_flag",
                      info_label("Flag threshold",
@@ -4600,6 +4626,8 @@ server <- function(input, output, session) {
     se = "SE", theta = "Location", max_raw = "Max score", raw = "Raw score",
     n_items = "Items", chisq = "Chi-sq", df_fit = "Fit df", p = "p",
     p_adj = "Adj. p", p_bonf = "Bonf. p", p_anova = "ANOVA p",
+    chisq_p_boot = "Boot p", chisq_p_boot_adj = "Boot adj. p",
+    fit_resid_p_boot = "Fit resid boot p",
     p_anova_adj = "ANOVA adj. p", p_anova_bonf = "ANOVA Bonf. p",
     F_anova = "ANOVA F", F_uniform = "Uniform F",
     F_nonuniform = "Non-uniform F", p_uniform = "Uniform p",
@@ -4636,7 +4664,7 @@ server <- function(input, output, session) {
     n_informative = "Informative comparisons")
   # p-value columns render as "<0.001" / 3 dp on the client, so sorting
   # still uses the raw value; detection runs on the ORIGINAL column names
-  P_COL_RE <- "^p$|^p_|_p$|^prob$|p_anova|p_adj|p_bonf|p_uniform|p_nonuniform"
+  P_COL_RE <- "^p$|^p_|_p$|^prob$|p_anova|p_adj|p_bonf|p_uniform|p_nonuniform|p_boot"
   P_RENDER <- DT::JS("function(data,type,row){ if(type==='display'){ if(data===null||data==='') return ''; var x=Number(data); return x<0.001 ? '&lt;0.001' : x.toFixed(3);} return data; }")
   # fit flags, consistent across every model table: a fit residual beyond
   # |2.5|, an outfit mean square outside 0.7-1.3, and an infit mean square
@@ -5227,50 +5255,141 @@ server <- function(input, output, session) {
       if (inherits(fit(), "rasch_mfrm")) "fit$item_effects" else
         "fit$item_arbitrary"
     })
+  # ---- bootstrap null for the fit statistics (post-estimation, on request)
+  boot_val <- reactiveVal(NULL)
+  observeEvent(fit(), boot_val(NULL), ignoreInit = TRUE)
+  output$can_boot <- reactive({
+    f <- fit_or_null()
+    !is.null(f) && inherits(f, "rasch") &&
+      !inherits(f, c("rasch_mfrm", "rasch_efrm", "rasch_explanatory")) &&
+      is.null(f$refit_spec$pc_components) &&
+      (is.null(f$disc) || length(unique(f$disc)) == 1L)
+  })
+  outputOptions(output, "can_boot", suspendWhenHidden = FALSE)
+  observeEvent(input$boot_run, {
+    f <- fit()
+    B <- suppressWarnings(as.integer(input$boot_B))
+    if (is.na(B) || B < 99 || B > 9999) {
+      showNotification("Replicates must be a whole number from 99 to 9999",
+                       type = "warning")
+      return(invisible(NULL))
+    }
+    seed <- suppressWarnings(as.integer(round(input$boot_seed %||% 1)))
+    if (is.na(seed)) seed <- 1L
+    bs <- withProgress(
+      message = sprintf("Bootstrapping the fit statistics (B = %d)", B),
+      value = NULL,
+      tryCatch(fit_bootstrap(f, B = B, seed = seed),
+               rasch_refusal = function(e) e, error = function(e) e))
+    if (inherits(bs, "rasch_refusal")) {
+      showNotification(conditionMessage(bs), type = "warning", duration = 10)
+      return(invisible(NULL))
+    }
+    if (inherits(bs, "error")) {
+      showNotification(paste("Bootstrap failed:", conditionMessage(bs)),
+                       type = "error", duration = 10)
+      return(invisible(NULL))
+    }
+    boot_val(list(bs = bs, B = B, seed = seed))
+  })
+  output$boot_state <- renderUI({
+    bv <- boot_val()
+    if (is.null(bv)) return(NULL)
+    span(class = "badge bg-primary-subtle text-primary-emphasis pb-2 mb-2",
+         sprintf("Bootstrap null active: %d of %d replicates, seed %d",
+                 bv$bs$B_used, bv$B, bv$seed))
+  })
+  # fit$items with the bootstrap probabilities alongside, for the table and
+  # its CSV; a NULL boot leaves the asymptotic table untouched
+  items_with_boot <- function() {
+    d <- fit()$items
+    bv <- boot_val()
+    if (is.null(bv)) return(d)
+    b <- bv$bs$items
+    idx <- match(d$item, b$item)
+    d$chisq_p_boot <- b$chisq_p_boot[idx]
+    d$chisq_p_boot_adj <- b$chisq_p_boot_adj[idx]
+    d$fit_resid_p_boot <- b$fit_resid_p_boot[idx]
+    d
+  }
+
   output$items_vboxes <- renderUI({
     f <- fit()
-    mis <- sum(f$items$p_adj < 0.05, na.rm = TRUE)
+    bv <- boot_val()
+    mis <- if (is.null(bv)) sum(f$items$p_adj < 0.05, na.rm = TRUE)
+           else sum(bv$bs$items$chisq_p_boot_adj < 0.05, na.rm = TRUE)
     dis <- sum(vapply(f$thresholds_diag, function(d)
       !d$ordered && length(d$thresholds) > 1, TRUE))
     cell_fit <- inherits(f, c("rasch_mfrm", "rasch_efrm"))
     metric_grid(
       metric_tile("metric_cells", if (cell_fit) "Response cells" else "Items",
                   nrow(f$items), icon = "ruler", status = "item"),
-      metric_tile("metric_item_misfit", "Adjusted p < .05", mis,
-                  icon = "chisq", status = if (mis > 0) "bad" else "good"),
+      metric_tile("metric_item_misfit",
+                  if (is.null(bv)) "Adjusted p < .05" else "Bootstrap p < .05",
+                  mis, icon = "chisq", status = if (mis > 0) "bad" else "good"),
       metric_tile("metric_disordered", "Disordered thresholds", dis,
                   icon = "disorder", status = if (dis > 0) "bad" else "good"))
   })
-  register_code("items_vboxes", function() paste(
-    "list(",
-    "  items = nrow(fit$items),",
-    "  adjusted_p_below_05 = sum(fit$items$p_adj < .05, na.rm = TRUE),",
-    "  disordered_thresholds = sum(vapply(fit$thresholds_diag, function(x)",
-    "    !x$ordered && length(x$thresholds) > 1, logical(1)))",
-    ")", sep = "\n"))
+  register_code("items_vboxes", function() {
+    bv <- boot_val()
+    flag <- if (is.null(bv))
+      "  adjusted_p_below_05 = sum(fit$items$p_adj < .05, na.rm = TRUE),"
+    else
+      "  bootstrap_p_below_05 = sum(bs$items$chisq_p_boot_adj < .05, na.rm = TRUE),"
+    paste(c(
+      if (!is.null(bv))
+        sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
+      "list(",
+      "  items = nrow(fit$items),",
+      flag,
+      "  disordered_thresholds = sum(vapply(fit$thresholds_diag, function(x)",
+      "    !x$ordered && length(x$thresholds) > 1, logical(1)))",
+      ")"), collapse = "\n")
+  })
   output$items_note <- renderUI({
     f <- fit(); d <- f$items
     dis <- names(which(vapply(f$thresholds_diag, function(x)
       !x$ordered && length(x$thresholds) > 1, TRUE)))
     unit <- if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
       "response cells" else "items"
-    sprintf("Note. %d of %d %s beyond |fit residual| 2.5; %d with adjusted chi-square p < .05; disordered thresholds: %s.",
+    bv <- boot_val()
+    chi <- if (is.null(bv))
+      sprintf("%d with adjusted chi-square p < .05",
+              sum(d$p_adj < 0.05, na.rm = TRUE))
+    else
+      sprintf("%d with bootstrap chi-square p < .05 (B = %d)",
+              sum(bv$bs$items$chisq_p_boot_adj < 0.05, na.rm = TRUE), bv$B)
+    sprintf("Note. %d of %d %s beyond |fit residual| 2.5; %s; disordered thresholds: %s.",
             sum(abs(d$fit_resid) > 2.5, na.rm = TRUE), nrow(d),
-            unit,
-            sum(d$p_adj < 0.05, na.rm = TRUE),
+            unit, chi,
             if (length(dis)) paste(dis, collapse = ", ") else "none")
   })
-  register_table("items_tbl", function() fit()$items, function() {
-    d <- curate(fit()$items, "items", full = isTRUE(input$items_full))
+  register_table("items_tbl", items_with_boot, function() {
+    bv <- boot_val()
+    # with a bootstrap null active the asymptotic probabilities give way to
+    # the calibrated ones, in the display and in the CSV alike
+    extra <- if (is.null(bv)) NULL
+             else c("chisq_p_boot_adj", "fit_resid_p_boot")
+    d <- curate(items_with_boot(), "items", full = isTRUE(input$items_full),
+                extra = extra)
+    if (!is.null(bv) && !isTRUE(input$items_full))
+      d$p_adj <- NULL
     dt <- num_dt(d, page_len = 25, selection = "single",
-                 p_bold = c("p_adj", "p_anova_adj"))
-    # fit residual, infit and outfit are flagged by num_dt; the adjusted
+                 p_bold = c("p_adj", "p_anova_adj", "chisq_p_boot_adj"))
+    # fit residual, infit and outfit are flagged by num_dt; the operative
     # chi-square probability turns red at .05 as well (no single flag column)
-    for (j in which(names(d) == "p_adj"))
+    for (j in which(names(d) %in% c("p_adj", "chisq_p_boot_adj")))
       dt <- formatStyle(dt, j, color = styleInterval(
         0.05, c("var(--bs-danger)", "inherit")))
     dt
-  }, code = function() "fit$items")
+  }, code = function() {
+    bv <- boot_val()
+    if (is.null(bv)) return("fit$items")
+    paste(sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
+          "merge(fit$items, bs$items[c(\"item\", \"chisq_p_boot\",",
+          "  \"chisq_p_boot_adj\", \"fit_resid_p_boot\")], by = \"item\")",
+          sep = "\n")
+  })
 
   # per-class-interval breakdown of the selected item's chi-square
   chisq_res <- reactive(chisq_detail(fit(), sel_item()))

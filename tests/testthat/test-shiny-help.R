@@ -81,7 +81,8 @@ test_that("the app retains the agreed model labels and frame safeguards", {
                fixed = TRUE)
   expect_match(src, 'identical(r$shift_method, "unweighted")',
                fixed = TRUE)
-  expect_match(src, 'p_bold = c("p_adj", "p_anova_adj")', fixed = TRUE)
+  expect_match(src, 'p_bold = c("p_adj", "p_anova_adj", "chisq_p_boot_adj")',
+               fixed = TRUE)
   expect_false(grepl('p_bold = c("p", "p_adj")', src, fixed = TRUE))
   expect_match(src, ': judge-group DIF needs judge-constant factors',
                fixed = TRUE)
