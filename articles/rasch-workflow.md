@@ -427,6 +427,10 @@ identifier, items, and person factors. The model is chosen there, and
 the scoring structure governs the choice exactly as it does in
 [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
 
+![The Data panel of the application. The sidebar assigns the person
+identifier, two person factors and ten item columns; the main area
+previews the responses.](figures/app-data.png)
+
 **Summary** gives the convergence, item–trait interaction and
 reliability read first here. **Items** carries the estimates and fit,
 with its own tabs for the characteristic curves, category probabilities,
@@ -436,13 +440,20 @@ two menus: **Independence** holds local dependence and trait
 dimensionality, and **Invariance** holds DIF, equating, guessing, facets
 and extended frames.
 
+![The Summary panel, showing the test of fit and targeting tables and
+the test characteristic curve.](figures/app-summary.png)
+
 Every result carries an **R code** disclosure beneath it. Opening it
 shows the call that produced that table or figure, so an analysis
 assembled in the application can be read as, and continued as, the
-script this vignette writes by hand. Under **More**, an analysis can be
-saved as a `.rasch` project and reopened with its data roles and
-estimation settings intact, or exported as tables, figures and an HTML,
-Word or PDF report.
+script this vignette writes by hand.
+
+![The test-of-fit table with its R code disclosure open, showing the
+call fit_summary_table(fit).](figures/app-rcode.png)
+
+Under **More**, an analysis can be saved as a `.rasch` project and
+reopened with its data roles and estimation settings intact, or exported
+as tables, figures and an HTML, Word or PDF report.
 
 ## References
 

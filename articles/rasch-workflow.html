@@ -421,6 +421,7 @@ per step. <strong>Data</strong> imports the responses and assigns each
 column its measurement role: person identifier, items, and person
 factors. The model is chosen there, and the scoring structure governs
 the choice exactly as it does in <code><a href="../reference/rasch.html">rasch()</a></code>.</p>
+<p><img src="figures/app-data.png" class="r-plt" alt="The Data panel of the application. The sidebar assigns the person identifier, two person factors and ten item columns; the main area previews the responses." width="100%"></p>
 <p><strong>Summary</strong> gives the convergence, item–trait
 interaction and reliability read first here. <strong>Items</strong>
 carries the estimates and fit, with its own tabs for the characteristic
@@ -430,13 +431,16 @@ class-interval chi-square. <strong>Persons</strong> and
 menus: <strong>Independence</strong> holds local dependence and trait
 dimensionality, and <strong>Invariance</strong> holds DIF, equating,
 guessing, facets and extended frames.</p>
+<p><img src="figures/app-summary.png" class="r-plt" alt="The Summary panel, showing the test of fit and targeting tables and the test characteristic curve." width="100%"></p>
 <p>Every result carries an <strong>R code</strong> disclosure beneath
 it. Opening it shows the call that produced that table or figure, so an
 analysis assembled in the application can be read as, and continued as,
-the script this vignette writes by hand. Under <strong>More</strong>, an
-analysis can be saved as a <code>.rasch</code> project and reopened with
-its data roles and estimation settings intact, or exported as tables,
-figures and an HTML, Word or PDF report.</p>
+the script this vignette writes by hand.</p>
+<p><img src="figures/app-rcode.png" class="r-plt" alt="The test-of-fit table with its R code disclosure open, showing the call fit_summary_table(fit)." width="70%"></p>
+<p>Under <strong>More</strong>, an analysis can be saved as a
+<code>.rasch</code> project and reopened with its data roles and
+estimation settings intact, or exported as tables, figures and an HTML,
+Word or PDF report.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
