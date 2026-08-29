@@ -90,10 +90,15 @@
   # and the dependence-adjusted DIF screen absorbs the share of a sequential
   # effect that the carry-over covariate can carry
   dif_exp <- 1.8
-  tau <- c(-1.1, 0, 1.1)
-  lev <- c("much worse", "a little worse", "a little better", "much better")
+  # A dichotomous example: the judges record which object won, and nothing
+  # else. It carried an ordered preference and a margin as well, which
+  # invited a polytomous fit on ten judges -- and a polytomous fit with the
+  # judging-order covariates estimates as many parameters as there are
+  # judge clusters, so the clustered covariance is rank-deficient and the
+  # example's own inference is withheld. Demonstrate the ordered response
+  # on a design that can carry it.
   seen <- new.env(parent = emptyenv())
-  winner <- character(nrow(d)); pref <- integer(nrow(d))
+  winner <- character(nrow(d))
   for (r in seq_len(nrow(d))) {
     j <- d$judge[r]; a <- d$object_a[r]; b <- d$object_b[r]
     ba <- beta[[a]]; bb <- beta[[b]]
@@ -105,18 +110,11 @@
     }
     ba <- ba + expo * isTRUE(get0(paste(j, a), seen, ifnotfound = FALSE))
     bb <- bb + expo * isTRUE(get0(paste(j, b), seen, ifnotfound = FALSE))
-    if (j == "J09") { p <- 0.5; Pp <- rep(0.25, 4) }
-    else { p <- plogis(ba - bb); Pp <- item_moments(ba - bb, tau)$P }
+    p <- if (j == "J09") 0.5 else plogis(ba - bb)
     winner[r] <- if (runif(1) < p) a else b
-    pref[r] <- sample.int(4, 1, prob = Pp)
     assign(paste(j, a), TRUE, seen); assign(paste(j, b), TRUE, seen)
   }
   d$winner <- winner
-  d$preference <- factor(lev[pref], levels = lev, ordered = TRUE)
-  # margin of win as an ordered factor (extreme categories are "much" wins)
-  d$margin <- factor(ifelse(d$preference %in% c("much worse", "much better"),
-                            "much", "a little"),
-                     levels = c("a little", "much"), ordered = TRUE)
   d <- d[sample(nrow(d)), ]   # present in random row order (t keeps the order)
   rownames(d) <- NULL
   d
