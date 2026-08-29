@@ -71,6 +71,13 @@
   count over B + 1, so flagging at .05 needs at least 20 replicates per
   item, which the control’s help states.
 
+- The application’s Wright map controls sit above the plot. They
+  rendered in the card footer, where choosing the WrightMap renderer
+  revealed its panel and display controls two screen-heights down; a
+  control that changes what is drawn belongs where the change is made.
+  The data preview also shows 25 rows rather than 10 — the sidebar it
+  sits beside is longer than ten rows ever were.
+
 - The application’s panels start closed, except where the accordion is
   the page: Local dependence, Trait dimensionality and DIF open their
   first panel, since everything those pages show lives inside one.
