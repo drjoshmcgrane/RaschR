@@ -70,7 +70,6 @@ score-to-measure table.</p>
 <span>  factors <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  items <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_groups <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  adjust_N <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  anchors <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  na_codes <span class="op">=</span> <span class="op">-</span><span class="fl">1</span>,</span>
 <span>  key <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -119,11 +118,6 @@ and Marais (2019, ch. 15): as
 many intervals of at least 50 non-extreme persons as the sample allows,
 at most 10, at least 2. The resolved value is stored in
 <code>fit$n_groups</code>.</p></dd>
-
-
-<dt id="arg-adjust-n">adjust_N<a class="anchor" aria-label="anchor" href="#arg-adjust-n"></a></dt>
-<dd><p>Optional reference sample size used to rescale the
-item-trait chi-squares. See Details.</p></dd>
 
 
 <dt id="arg-anchors">anchors<a class="anchor" aria-label="anchor" href="#arg-anchors"></a></dt>
@@ -193,10 +187,6 @@ alternative correct options. The third form assigns integer category
 scores to nominated options and fits the resulting item as polytomous;
 unlisted options score zero. Raw responses are retained in <code>fit$mc</code>
 for distractor analysis.</p>
-<p>If <code>adjust_N</code> is supplied, each item-trait chi-square is multiplied by
-the reference sample size divided by the number of classified persons.
-The scaling is global: an item answered by a subset retains its
-proportionally smaller share of the reference sample.</p>
     </div>
     <div class="section level2">
     <h2 id="estimated-item-discrimination">Estimated item discrimination<a class="anchor" aria-label="anchor" href="#estimated-item-discrimination"></a></h2>

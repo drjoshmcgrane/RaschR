@@ -18,7 +18,6 @@ rasch_explanatory(
   id = NULL,
   factors = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   na_codes = -1,
   key = NULL,
   maxit = 60,
@@ -28,8 +27,7 @@ rasch_explanatory(
 
 ## Arguments
 
-- data, items, id, factors, n_groups, adjust_N, na_codes, key, maxit,
-  tol:
+- data, items, id, factors, n_groups, na_codes, key, maxit, tol:
 
   As in
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).

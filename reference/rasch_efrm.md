@@ -19,7 +19,6 @@ rasch_efrm(
   factors = NULL,
   items = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   na_codes = -1,
   maxit = 50,
   tol = 1e-07,
@@ -65,7 +64,7 @@ rasch_efrm(
   data require one response row per person, so identifiers must be
   unique.
 
-- factors, items, n_groups, adjust_N, na_codes:
+- factors, items, n_groups, na_codes:
 
   As in
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).

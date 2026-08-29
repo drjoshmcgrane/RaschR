@@ -35,6 +35,12 @@ item's total `chisq`, `df`, and `p`. Intervals with fewer than 2
 responders are shown but carry no chi-square contribution
 (`used = FALSE`), matching the item-trait computation.
 
+## See also
+
+[`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md),
+which refers the item's total, and every other item fit statistic, to a
+bootstrap null rather than to its asymptotic distribution.
+
 ## Examples
 
 ``` r
@@ -49,10 +55,10 @@ chisq_detail(rasch(X), "I3")$intervals
 #> 3        3 118  0.01710555  0.01710555 0.54237288 0.5563815 -0.3062983
 #> 4        4  78  0.75817394  0.75817394 0.78205128 0.7246324  1.1352375
 #> 5        5  43  1.61003743  1.61003743 0.93023256 0.8604966  1.3198477
-#>        chisq          es used chisq_adjusted
-#> 1 4.69667044 -0.30053383 TRUE     4.69667044
-#> 2 0.07945293  0.03443639 TRUE     0.07945293
-#> 3 0.09381862 -0.02819704 TRUE     0.09381862
-#> 4 1.28876421  0.12854034 TRUE     1.28876421
-#> 5 1.74199785  0.20127488 TRUE     1.74199785
+#>        chisq          es used
+#> 1 4.69667044 -0.30053383 TRUE
+#> 2 0.07945293  0.03443639 TRUE
+#> 3 0.09381862 -0.02819704 TRUE
+#> 4 1.28876421  0.12854034 TRUE
+#> 5 1.74199785  0.20127488 TRUE
 ```

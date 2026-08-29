@@ -16,7 +16,6 @@ rasch(
   factors = NULL,
   items = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   anchors = NULL,
   na_codes = -1,
   key = NULL,
@@ -62,11 +61,6 @@ rasch(
   ch. 15): as many intervals of at least 50 non-extreme persons as the
   sample allows, at most 10, at least 2. The resolved value is stored in
   `fit$n_groups`.
-
-- adjust_N:
-
-  Optional reference sample size used to rescale the item-trait
-  chi-squares. See Details.
 
 - anchors:
 
@@ -141,11 +135,6 @@ alternative correct options. The third form assigns integer category
 scores to nominated options and fits the resulting item as polytomous;
 unlisted options score zero. Raw responses are retained in `fit$mc` for
 distractor analysis.
-
-If `adjust_N` is supplied, each item-trait chi-square is multiplied by
-the reference sample size divided by the number of classified persons.
-The scaling is global: an item answered by a subset retains its
-proportionally smaller share of the reference sample.
 
 ## Estimated item discrimination
 

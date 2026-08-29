@@ -16,7 +16,6 @@ rasch_mfrm(
   facets,
   items = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   na_codes = -1,
   interaction = NULL,
   factors = NULL,
@@ -64,10 +63,6 @@ rasch_mfrm(
   default) applies the class-interval rule of Andrich and Marais (2019,
   ch. 15) (at least 50 non-extreme persons per interval, at most 10
   intervals, at least 2).
-
-- adjust_N:
-
-  Optional reference sample size for the chi-square.
 
 - na_codes:
 

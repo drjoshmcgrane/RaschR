@@ -141,11 +141,37 @@ weights.</p>
 <h2 id="explanatory-item-and-threshold-models">Explanatory item and threshold models<a class="anchor" aria-label="anchor" href="#explanatory-item-and-threshold-models"></a>
 </h2>
 <p>The response data remain in the wide form above. A second data frame
-describes the items. Item-level predictors have one row per item and an
-<code>item</code> column.</p>
+— the one uploaded as a CSV in the application — describes the items.
+Its shape depends on the level being explained, and that is the
+distinction to get right before anything else.</p>
+<p>An <strong>item-level</strong> design has one row per item. The
+predictors describe the item as a whole, and the model explains the
+item’s location.</p>
+<p>A <strong>threshold-level</strong> design has one row per fitted
+<em>threshold</em>, identified by <code>item</code> and
+<code>threshold</code> together. The predictors may vary within an item,
+and the model explains each threshold separately.</p>
+<p>The number of rows a threshold design needs is fixed by the data, not
+chosen: an item scored 0 to <em>m</em> has <em>m</em> thresholds. For
+the responses above that is one for <code>I1</code>, two for
+<code>I2</code> and three for <code>I3</code> — six rows, not three.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span></span>
+<span><span class="va">maxima</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">responses</span><span class="op">[</span><span class="va">items</span><span class="op">]</span>, <span class="va">max</span>, <span class="fl">0</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>item <span class="op">=</span> <span class="va">items</span>, max_score <span class="op">=</span> <span class="va">maxima</span>, thresholds <span class="op">=</span> <span class="va">maxima</span>,</span>
+<span>           row.names <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   item max_score thresholds</span></span>
+<span><span class="co">#&gt; 1   I1         1          1</span></span>
+<span><span class="co">#&gt; 2   I2         2          2</span></span>
+<span><span class="co">#&gt; 3   I3         3          3</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">maxima</span><span class="op">)</span>          <span class="co"># rows a threshold-level design must have</span></span>
+<span><span class="co">#&gt; [1] 6</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="one-row-per-item">One row per item<a class="anchor" aria-label="anchor" href="#one-row-per-item"></a>
+</h3>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">item_design</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span>,</span>
+<span>  item <span class="op">=</span> <span class="va">items</span>,</span>
 <span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"selected"</span>, <span class="st">"constructed"</span>, <span class="st">"constructed"</span><span class="op">)</span>,</span>
 <span>  demand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2</span>, <span class="fl">0.7</span>, <span class="fl">1.1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
@@ -154,7 +180,7 @@ describes the items. Item-level predictors have one row per item and an
 <span><span class="co">#&gt; 1   I1    selected    0.2</span></span>
 <span><span class="co">#&gt; 2   I2 constructed    0.7</span></span>
 <span><span class="co">#&gt; 3   I3 constructed    1.1</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_explanatory.html">rasch_explanatory</a></span><span class="op">(</span></span>
 <span>  <span class="va">responses</span>,</span>
 <span>  predictors <span class="op">=</span> <span class="va">item_design</span>,</span>
@@ -162,36 +188,77 @@ describes the items. Item-level predictors have one row per item and an
 <span>  level <span class="op">=</span> <span class="st">"item"</span>,</span>
 <span>  id <span class="op">=</span> <span class="st">"person"</span>,</span>
 <span>  factors <span class="op">=</span> <span class="st">"group"</span>,</span>
-<span>  items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I1"</span>, <span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span></span>
+<span>  items <span class="op">=</span> <span class="va">items</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Categorical predictors should be factors, continuous predictors
-numeric, and ordinal predictors ordered factors with their substantive
-order declared. When a predictor varies between thresholds within an
-item, use one row per threshold and include <code>item</code> and
-<code>threshold</code>.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+</div>
+<div class="section level3">
+<h3 id="one-row-per-threshold">One row per threshold<a class="anchor" aria-label="anchor" href="#one-row-per-threshold"></a>
+</h3>
+<p>The same two predictors at threshold level. <code>format</code> is a
+property of the item, so it simply repeats down that item’s thresholds;
+<code>demand</code> now varies between them, which is the reason to work
+at this level at all. An item-level predictor is not excluded from a
+threshold design — it is constant within each item.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">threshold_design</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  threshold <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>,</span>
-<span>  wording_load <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2</span>, <span class="fl">0.4</span>, <span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span><span class="op">)</span></span>
+<span>  item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">items</span>, <span class="va">maxima</span><span class="op">)</span>,</span>
+<span>  threshold <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sequence.html" class="external-link">sequence</a></span><span class="op">(</span><span class="va">maxima</span><span class="op">)</span>,</span>
+<span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"selected"</span>, <span class="st">"constructed"</span>, <span class="st">"constructed"</span><span class="op">)</span>, <span class="va">maxima</span><span class="op">)</span>,</span>
+<span>  demand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2</span>,</span>
+<span>             <span class="fl">0.5</span>, <span class="fl">0.9</span>,</span>
+<span>             <span class="fl">0.4</span>, <span class="fl">0.8</span>, <span class="fl">1.4</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">threshold_design</span></span>
-<span><span class="co">#&gt;   item threshold wording_load</span></span>
-<span><span class="co">#&gt; 1   I2         1          0.2</span></span>
-<span><span class="co">#&gt; 2   I2         2          0.4</span></span>
-<span><span class="co">#&gt; 3   I3         1          0.1</span></span>
-<span><span class="co">#&gt; 4   I3         2          0.5</span></span>
-<span><span class="co">#&gt; 5   I3         3          0.9</span></span></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt;   item threshold      format demand</span></span>
+<span><span class="co">#&gt; 1   I1         1    selected    0.2</span></span>
+<span><span class="co">#&gt; 2   I2         1 constructed    0.5</span></span>
+<span><span class="co">#&gt; 3   I2         2 constructed    0.9</span></span>
+<span><span class="co">#&gt; 4   I3         1 constructed    0.4</span></span>
+<span><span class="co">#&gt; 5   I3         2 constructed    0.8</span></span>
+<span><span class="co">#&gt; 6   I3         3 constructed    1.4</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">threshold_design</span><span class="op">)</span> <span class="op">==</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">maxima</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_explanatory.html">rasch_explanatory</a></span><span class="op">(</span></span>
 <span>  <span class="va">responses</span>,</span>
 <span>  predictors <span class="op">=</span> <span class="va">threshold_design</span>,</span>
-<span>  formula <span class="op">=</span> <span class="op">~</span> <span class="va">wording_load</span> <span class="op">+</span> <span class="va">threshold</span>,</span>
+<span>  formula <span class="op">=</span> <span class="op">~</span> <span class="va">format</span> <span class="op">+</span> <span class="va">demand</span>,</span>
 <span>  level <span class="op">=</span> <span class="st">"threshold"</span>,</span>
 <span>  id <span class="op">=</span> <span class="st">"person"</span>,</span>
 <span>  factors <span class="op">=</span> <span class="st">"group"</span>,</span>
-<span>  items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I2"</span>, <span class="st">"I3"</span><span class="op">)</span></span>
+<span>  items <span class="op">=</span> <span class="va">items</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p><code>threshold</code> numbers the thresholds within an item, from 1,
+in order. It is not a running count across the instrument:
+<code>I2</code> has thresholds 1 and 2, and so does the first half of
+<code>I3</code>. <code>sequence(maxima)</code> above generates exactly
+that pattern, and is worth using in place of typing the column out.</p>
+<p>Three mistakes account for most refused designs. Each is named
+precisely when it happens, so the message identifies the rows to
+fix:</p>
+<ul>
+<li>one row per item where the level is <code>"threshold"</code>,
+leaving the design short by every threshold after the first, and every
+threshold missing where the numbering does not match. Both report
+<em>threshold-level predictors are missing</em>, listing the item and
+threshold of each;</li>
+<li>thresholds numbered continuously across the instrument (1 to 6 here)
+rather than from 1 within each item, which reports the same missing
+combinations alongside <em>predictor rows do not correspond to an
+observed item threshold</em> for the numbers that exist nowhere;</li>
+<li>a repeated <code>item</code> and <code>threshold</code> pair, which
+reports <em>threshold-level predictors need one row per item and
+threshold</em>.</li>
+</ul>
+<p>Categorical predictors should be factors, continuous predictors
+numeric, and ordinal predictors ordered factors with their substantive
+order declared. In the application, upload the same table as a CSV:
+<code>item</code> plus the predictor columns at item level, and
+<code>item,threshold</code> plus the predictor columns at threshold
+level. The predictor type of each column is set after the upload, so a
+column read as text can still be declared ordinal with its order
+given.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="multiple-ratings">Multiple ratings<a class="anchor" aria-label="anchor" href="#multiple-ratings"></a>
@@ -200,7 +267,7 @@ item, use one row per threshold and include <code>item</code> and
 person, item, score and at least one facet. A rater, task or occasion
 can be a facet. A person-group variable is instead supplied through
 <code>factors</code>.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ratings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  person <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"P01"</span>, <span class="st">"P01"</span>, <span class="st">"P02"</span>, <span class="st">"P02"</span><span class="op">)</span>,</span>
 <span>  item <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Essay1"</span>, <span class="st">"Essay2"</span>, <span class="st">"Essay1"</span>, <span class="st">"Essay2"</span><span class="op">)</span>,</span>
@@ -214,7 +281,7 @@ can be a facet. A person-group variable is instead supplied through
 <span><span class="co">#&gt; 2    P01 Essay2    R2    first     3</span></span>
 <span><span class="co">#&gt; 3    P02 Essay1    R2    first     1</span></span>
 <span><span class="co">#&gt; 4    P02 Essay2    R1    first     2</span></span></code></pre></div>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span></span>
 <span>  <span class="va">ratings</span>,</span>
 <span>  person <span class="op">=</span> <span class="st">"person"</span>,</span>
@@ -224,7 +291,7 @@ can be a facet. A person-group variable is instead supplied through
 <span><span class="op">)</span></span></code></pre></div>
 <p>Wide multiple-ratings data use one row per person-by-facet
 combination and one score column per item.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">wide_ratings</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  person <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"P01"</span>, <span class="st">"P01"</span>, <span class="st">"P02"</span>, <span class="st">"P02"</span><span class="op">)</span>,</span>
 <span>  rater <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R1"</span>, <span class="st">"R2"</span>, <span class="st">"R1"</span>, <span class="st">"R2"</span><span class="op">)</span>,</span>
@@ -237,7 +304,7 @@ combination and one score column per item.</p>
 <span><span class="co">#&gt; 2    P01    R2      3      2</span></span>
 <span><span class="co">#&gt; 3    P02    R1      1      2</span></span>
 <span><span class="co">#&gt; 4    P02    R2      2      2</span></span></code></pre></div>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span></span>
 <span>  <span class="va">wide_ratings</span>,</span>
 <span>  person <span class="op">=</span> <span class="st">"person"</span>,</span>
@@ -253,7 +320,7 @@ items.</p>
 <p>EFRM response data use one row per person and one column per item,
 together with a person-group column. A separate named map assigns each
 item to exactly one item set.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">frame_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  person <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"P"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span>,</span>
 <span>  group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">3</span><span class="op">)</span>,</span>
@@ -281,7 +348,7 @@ item to exactly one item set.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $set2</span></span>
 <span><span class="co">#&gt; [1] "S2I1" "S2I2"</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span></span>
 <span>  <span class="va">frame_data</span>,</span>
 <span>  item_sets <span class="op">=</span> <span class="va">item_sets</span>,</span>
@@ -298,7 +365,7 @@ be supplied as several column names in <code>groups</code>.</p>
 <p>Use one row per comparison. <code>object_a</code> and
 <code>object_b</code> identify the pair. For a dichotomous comparison,
 <code>winner</code> contains one of those two object names.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">comparisons</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  object_a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span><span class="op">)</span>,</span>
 <span>  object_b <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"B"</span>, <span class="st">"C"</span>, <span class="st">"C"</span>, <span class="st">"C"</span><span class="op">)</span>,</span>
@@ -311,7 +378,7 @@ be supplied as several column names in <code>groups</code>.</p>
 <span><span class="co">#&gt; 2        A        C      C    J1</span></span>
 <span><span class="co">#&gt; 3        B        C      B    J2</span></span>
 <span><span class="co">#&gt; 4        A        C      A    J2</span></span></code></pre></div>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl.html">btl</a></span><span class="op">(</span></span>
 <span>  <span class="va">comparisons</span>,</span>
 <span>  object_a <span class="op">=</span> <span class="st">"object_a"</span>,</span>
@@ -326,7 +393,7 @@ identical rows. A judgement-order column is needed to estimate exposure
 or carry-over dependence.</p>
 <p>Explanatory Comparative Judgement adds one metadata row per
 object.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">object_design</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  object <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span><span class="op">)</span>,</span>
 <span>  genre <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"essay"</span>, <span class="st">"essay"</span>, <span class="st">"report"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -337,7 +404,7 @@ object.</p>
 <span><span class="co">#&gt; 1      A  essay    800</span></span>
 <span><span class="co">#&gt; 2      B  essay    950</span></span>
 <span><span class="co">#&gt; 3      C report    700</span></span></code></pre></div>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_explanatory.html">btl_explanatory</a></span><span class="op">(</span></span>
 <span>  <span class="va">comparisons</span>,</span>
 <span>  predictors <span class="op">=</span> <span class="va">object_design</span>,</span>
@@ -355,7 +422,7 @@ object.</p>
 list assigns every object to one object set. Both within-set and
 cross-set comparisons are required to identify set units and
 origins.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">object_sets</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  set1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"S1A"</span>, <span class="st">"S1B"</span>, <span class="st">"S1C"</span><span class="op">)</span>,</span>
 <span>  set2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"S2A"</span>, <span class="st">"S2B"</span>, <span class="st">"S2C"</span><span class="op">)</span></span>
@@ -383,7 +450,7 @@ origins.</p>
 <span><span class="co">#&gt; 4      S2B      S2C    S2B    J2  west</span></span>
 <span><span class="co">#&gt; 5      S1A      S2A    S2A    J3  east</span></span>
 <span><span class="co">#&gt; 6      S1C      S2C    S1C    J3  east</span></span></code></pre></div>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_efrm.html">btl_efrm</a></span><span class="op">(</span></span>
 <span>  <span class="va">frame_comparisons</span>,</span>
 <span>  object_a <span class="op">=</span> <span class="st">"object_a"</span>,</span>
@@ -407,7 +474,7 @@ the locations. Each simulator stores its parameter values and planted
 departures in <code>attr(data, "truth")</code>. The app can download the
 data as a CSV or as a bundle containing the generating call, true values
 and explanatory metadata.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_efrm.html">simulate_efrm</a></span><span class="op">(</span>n_per_group <span class="op">=</span> <span class="fl">100</span>, items_per_set <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "layout"        "description"   "person_id"     "theta"        </span></span>

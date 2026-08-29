@@ -271,6 +271,74 @@ at 20 repetitions per pair, -0.016 at 50 and -0.006 at 100. Reported
 decisions use Holm adjustment across the three omnibus tests; the
 individual unit contrasts form a separate Holm-adjusted family.
 
+## The same analysis in the application
+
+[`rasch::run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
+fits comparative judgement designs alongside the other models, and the
+sequence above maps onto its panels. Choosing **Comparative Judgement**
+as the model changes what the **Data** panel asks for: instead of item
+columns it wants the two object columns and the observed preference,
+with the judge column and any judge factors beside them. A
+judgment-order column is assigned here too, which is what makes the
+exposure and carry-over terms available later.
+
+![The Data panel with the comparative judgement roles assigned: the two
+object columns, the observed preference, and the judge
+column.](figures/app-cj-data.png)
+
+**Summary** reports what
+[`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
+prints: the design counts, the pairwise chi-square, the object
+separation index, and the within-judge exposure and carry-over effects
+when a judgment-order column was assigned — with inference withheld on
+designs too small to support it, stated as a note rather than silently.
+A design whose comparison graph does not connect is refused for the same
+reason it is refused in the code — the relative locations are not
+identified.
+
+![The Summary panel for a comparative judgement fit: the design counts,
+object separation and pairwise fit tiles, and the test-of-fit
+table.](figures/app-cj-summary.png)
+
+**Items** becomes the object panel. The caterpillar plot orders the
+objects by location with their confidence intervals, which is the
+graphical form of `fit$objects`; the panels beside it hold the symmetric
+thresholds, the threshold components and the category probability curves
+for an ordered design, and the pairwise fit that
+[`btl_transitivity()`](https://drjoshmcgrane.github.io/rasch/reference/btl_transitivity.md)
+summarises.
+
+![The object panel, showing the caterpillar plot of object locations
+with confidence intervals.](figures/app-cj-items.png)
+
+**Persons** becomes the judge panel: judge fit, the surprise index that
+[`judge_surprise()`](https://drjoshmcgrane.github.io/rasch/reference/judge_surprise.md)
+returns, and the consistency of each judge’s comparisons. These describe
+agreement with the common object scale, and are not person measures —
+the same caution the code section makes.
+
+![The judge panel, showing judge fit and consistency against the common
+object scale.](figures/app-cj-judges.png)
+
+Under **Invariance**, the DIF panel runs
+[`btl_dif()`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)
+over the nominated judge factors. It reports the omnibus test with
+judges as the independent units, the factor-specific object locations
+and their pairwise differences in logits, and the raw and effective
+judge counts in each level — so a design below the eight-judge boundary
+shows why its inference is withheld rather than simply returning
+nothing.
+
+![The DIF panel for a comparative judgement fit, showing the omnibus
+test across judge groups with the judge counts per
+level.](figures/app-cj-dif.png)
+
+Equating and extended frames sit in the same menu. Frame estimation runs
+in the background and can be cancelled, because the judge bootstrap is
+the expensive part of the analysis. As in the Rasch panels, every table
+and figure carries an **R code** disclosure holding the call that
+produced it.
+
 ## A worked analysis on real data
 
 The [party blocs case
