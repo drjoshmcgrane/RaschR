@@ -139,13 +139,13 @@ of probabilities by Holm’s method.
 
 departures <- explanatory_diagnostics(fit)
 head(departures)
-#>  item     component parameters_added departure deviance_reduction df     p
-#>    I6 Item location                1     0.205              9.201  1 0.128
-#>    I8 Item location                1    -0.195              8.582  1 0.138
-#>    I1 Item location                1     0.141              4.645  1 0.257
-#>    I3 Item location                1    -0.135              4.272  1 0.283
-#>    I5 Item location                1    -0.097              2.247  1 0.455
-#>    I7 Item location                1     0.093              2.056  1 0.465
+#>  item     component parameters_added departure deviance_reduction df     p weak
+#>    I6 Item location                1     0.205              9.201  1 0.128     
+#>    I8 Item location                1    -0.195              8.582  1 0.138     
+#>    I1 Item location                1     0.141              4.645  1 0.257     
+#>    I3 Item location                1    -0.135              4.272  1 0.283     
+#>    I5 Item location                1    -0.097              2.247  1 0.455     
+#>    I7 Item location                1     0.093              2.056  1 0.465     
 #>  p_adj
 #>  1.000
 #>  1.000

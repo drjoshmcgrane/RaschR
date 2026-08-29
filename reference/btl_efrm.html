@@ -19,7 +19,7 @@ structure."><meta property="og:image" content="https://drjoshmcgrane.github.io/r
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,7 +47,7 @@ structure."><meta property="og:image" content="https://drjoshmcgrane.github.io/r
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Fit the extended frame of reference model for paired comparisons</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/btl-efrm.R" class="external-link"><code>R/btl-efrm.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/btl-efrm.R" class="external-link"><code>R/btl-efrm.R</code></a></small>
       <div class="d-none name"><code>btl_efrm.Rd</code></div>
     </div>
 
@@ -92,7 +92,8 @@ structure.</p>
 
 <dt id="arg-object-a-object-b">object_a, object_b<a class="anchor" aria-label="anchor" href="#arg-object-a-object-b"></a></dt>
 <dd><p>Names of the columns holding the two compared
-objects.</p></dd>
+objects. Columns used for objects, winners, judges, and panel membership
+must be distinct.</p></dd>
 
 
 <dt id="arg-winner">winner<a class="anchor" aria-label="anchor" href="#arg-winner"></a></dt>
@@ -108,12 +109,14 @@ errors and defines the panels when <code>panels</code> is a judge attribute).</p
 
 <dt id="arg-panels">panels<a class="anchor" aria-label="anchor" href="#arg-panels"></a></dt>
 <dd><p>Either the name of a judge-attribute column in <code>data</code> or
-a named vector mapping judge to panel.</p></dd>
+a named vector mapping every judge in the comparisons exactly once to a
+panel.</p></dd>
 
 
 <dt id="arg-object-sets">object_sets<a class="anchor" aria-label="anchor" href="#arg-object-sets"></a></dt>
 <dd><p>A named list mapping set names to character vectors of
-object names; every compared object must belong to exactly one set.</p></dd>
+object names. Set names must be unique, and every compared object must
+occur exactly once in exactly one set.</p></dd>
 
 
 <dt id="arg-response">response<a class="anchor" aria-label="anchor" href="#arg-response"></a></dt>
@@ -146,7 +149,9 @@ probabilities and omnibus tests are therefore withheld.</p></dd>
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
 <dd><p>Number of replicates for <code>se_method = "bootstrap"</code>
-or <code>"judge_bootstrap"</code>; at least 30 are required.</p></dd>
+or <code>"judge_bootstrap"</code>; at least 30 are required. Inference is
+returned only when at least 30 and more than half of the requested
+replicates are usable.</p></dd>
 
 
 <dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
@@ -180,7 +185,8 @@ condition.</p></dd>
     <p>An object of class <code>"rasch_btl_efrm"</code>. It contains the object
   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
   unit-specific judge support, frame definitions, convergence information,
-  and analysis notes.</p>
+  and analysis notes. <code>boot_reps_requested</code>, <code>boot_reps_used</code>
+  and <code>boot_reps_failed</code> report the bootstrap accounting.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -211,12 +217,18 @@ preliminary inspection. Its unit probabilities and omnibus tests are
 withheld because it does not propagate stage-one uncertainty. Bootstrap
 failures and boundary estimates are reported in <code>notes</code>.</p>
 <p>With one set, the model contains panel units only. With one set and one
-panel, it reduces to <code><a href="btl.html">btl</a></code>. Omnibus Wald tests provide inference
-for the unit families; individual contrasts are Holm-adjusted follow-ups.
+panel, it reduces to <code><a href="btl.html">btl</a></code>. Omnibus Wald probabilities are
+Holm-adjusted across the panel-unit, set-unit and set-origin families.
+Individual contrasts form a separate Holm-adjusted follow-up family across
+all three parameter types.
 Judge-bootstrap probabilities require at least six judges and 5.5 effective
 judges in every contributing panel, and eight of each on a set link. The
 support is returned in <code>unit_support</code>; estimates remain descriptive
-when a probability is withheld.</p>
+when a probability is withheld. Fits with fewer than eight effective judges
+per panel or 9.5 per set link retain probabilities but report a caution.
+Set-unit estimates can also be attenuated when each object pair has little
+comparison information. In simulation, log-unit bias declined from about
+-0.11 with 10 repetitions per pair to less than -0.01 with 100 repetitions.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -257,7 +269,7 @@ when a probability is withheld.</p>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">alpha_table</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   set alpha se_log_alpha t df p p_adj significant</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  set1 1.000                                      </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  set2 1.607        0.077                         </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  set2 1.466        0.081                         </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

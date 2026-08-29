@@ -16,7 +16,7 @@ plot_threshold_prob(
   item,
   grid = seq(-6, 6, 0.05),
   observed = FALSE,
-  n_groups = fit$n_groups
+  n_groups = NULL
 )
 ```
 
@@ -42,7 +42,9 @@ plot_threshold_prob(
 
 - n_groups:
 
-  Class intervals for the observed points.
+  Class intervals for the observed points; by default the fit's own
+  allocation for this item, so the points match the item-trait test they
+  illustrate.
 
 ## Value
 

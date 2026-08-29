@@ -33,7 +33,7 @@ split."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,7 @@ split."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Resolve differential item functioning by iterative item splitting</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/subtests.R" class="external-link"><code>R/subtests.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/subtests.R" class="external-link"><code>R/subtests.R</code></a></small>
       <div class="d-none name"><code>resolve_dif.Rd</code></div>
     </div>
 
@@ -86,6 +86,7 @@ split.</p>
 <span>  factors <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  alpha <span class="op">=</span> <span class="fl">0.05</span>,</span>
 <span>  p_adjust <span class="op">=</span> <span class="st">"holm"</span>,</span>
+<span>  min_n <span class="op">=</span> <span class="fl">20L</span>,</span>
 <span>  min_anchors <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  max_splits <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -113,6 +114,13 @@ defaults to every nominated factor.</p></dd>
 <dd><p>Multiplicity adjustment across items each round.</p></dd>
 
 
+<dt id="arg-min-n">min_n<a class="anchor" aria-label="anchor" href="#arg-min-n"></a></dt>
+<dd><p>Minimum responders required in every item-by-factor cell before
+an automatic split is allowed. The omnibus DIF test determines whether a
+split is needed; pairwise follow-ups describe where the difference lies
+but are not a second significance gate.</p></dd>
+
+
 <dt id="arg-min-anchors">min_anchors<a class="anchor" aria-label="anchor" href="#arg-min-anchors"></a></dt>
 <dd><p>Minimum number of original items to leave unsplit as the
 internal reference set. The procedure stops before this set becomes
@@ -130,7 +138,8 @@ of items.</p></dd>
     <p>A list of class <code>"rasch_resolve_dif"</code>: the final resolved
   <code>fit</code>, the <code>splits</code> performed (order, item, factor, partial
   eta-squared, source item, DIF magnitude in logits), the <code>stopped</code>
-  reason, and the residual <code>dif</code> table for the final fit.</p>
+  reason, the residual <code>dif</code> table, and the number of distinct source
+  items that still show DIF in the final fit.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

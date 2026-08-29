@@ -3,7 +3,9 @@
 Generates dichotomous, partial credit, or rating scale data. Optional
 arguments introduce item misfit, guessing, multidimensionality, local
 dependence, DIF, response styles, or missingness. Generating values are
-stored in `attr(x, "truth")`.
+stored in `attr(x, "truth")`. A positive planted proportion selects at
+least one person or response cell when the requested departures can
+coexist.
 
 ## Usage
 
@@ -83,7 +85,8 @@ simulate_rasch(
 - second_dim:
 
   `NULL`, or `list(items=, rho=)`: the named items load on a second
-  trait correlated `rho` with the first.
+  trait whose realised sample correlation with the first is `rho`. At
+  least three persons are needed unless `rho` is -1 or 1.
 
 - dependence:
 
@@ -130,7 +133,7 @@ simulate_rasch(
 
 - seed:
 
-  Optional RNG seed.
+  Optional non-negative whole-number RNG seed.
 
 ## Value
 

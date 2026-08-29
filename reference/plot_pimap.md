@@ -2,7 +2,9 @@
 
 The targeting display: the person location distribution above the axis
 and the calibration threshold distribution mirrored below it, on a
-shared logit scale. MFRM and EFRM thresholds belong to response cells.
+shared logit scale. Dashed lines mark the person and threshold means in
+their distributions' colours. MFRM and EFRM thresholds belong to
+response cells.
 
 ## Usage
 

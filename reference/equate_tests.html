@@ -17,7 +17,7 @@ item bank."><meta property="og:image" content="https://drjoshmcgrane.github.io/r
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ item bank."><meta property="og:image" content="https://drjoshmcgrane.github.io/r
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Equate two test calibrations through their common items</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/equating.R" class="external-link"><code>R/equating.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/equating.R" class="external-link"><code>R/equating.R</code></a></small>
       <div class="d-none name"><code>equate_tests.Rd</code></div>
     </div>
 
@@ -71,7 +71,9 @@ item bank.</p>
 <dt id="arg-reference">reference<a class="anchor" aria-label="anchor" href="#arg-reference"></a></dt>
 <dd><p>A second <code><a href="rasch.html">rasch</a></code> fit, or a data frame with
 columns <code>item</code>, <code>location</code>, and optionally <code>se</code>. Item
-names must be unique and locations finite. For bank-based drift inference,
+names and column names must be unique. Numeric fields may be numeric
+columns, numeric text, or factors with numeric labels; other column
+classes are refused. Locations must be finite. For bank-based drift inference,
 attach the bank's joint item-location covariance as a square matrix in
 <code>attr(reference, "cov_location")</code>, ordered like the bank rows (or
 named by item); marginal SEs alone do not carry the centring covariance.
@@ -98,11 +100,11 @@ returned but inferential drift columns are withheld.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with the comparison <code>table</code> (locations, standard
   errors, difference, t, raw and Holm-adjusted p, drift flag), the
-  estimated <code>shift</code>,
+  estimated <code>shift</code> and its <code>shift_method</code>,
   the location <code>correlation</code>, the root mean square difference after
   shifting (<code>rmsd</code>), the number of common items <code>n_common</code>, the
   number with usable standard errors <code>n</code>, and whether drift inference
-  was available (<code>inferential</code>). The <code>notes</code> component records
+  was available (<code>inferential</code>). The <code>note</code> component records
   exclusions and the reason inference was withheld, where applicable.</p>
     </div>
     <div class="section level2">
@@ -113,6 +115,9 @@ shift is the precision-weighted mean
 $$\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j},$$
 and each item is tested using \(d_j-\hat s\) with a variance that
 accounts for the estimated shift through the items' joint covariance.
+If fewer than two common items have usable variances but at least two have
+finite locations, the function returns their unweighted mean difference as
+a descriptive fallback and records <code>shift_method = "unweighted"</code>.
 Drift inference requires
 independent calibrations and at least three common items with usable joint
 covariance information. Otherwise the function returns a descriptive link.

@@ -25,7 +25,7 @@ the cost of restricting the threshold pattern."><meta property="og:image" conten
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,7 @@ the cost of restricting the threshold pattern."><meta property="og:image" conten
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Estimate Rasch thresholds using a principal-component parameterisation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/estimation.R" class="external-link"><code>R/estimation.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/estimation.R" class="external-link"><code>R/estimation.R</code></a></small>
       <div class="d-none name"><code>pcml_pc.Rd</code></div>
     </div>
 
@@ -77,8 +77,9 @@ the cost of restricting the threshold pattern.</p>
 
 
 <dl><dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>Persons-by-items integer score matrix (categories from 0).
-Missing values are handled by pairwise deletion.</p></dd>
+<dd><p>Persons-by-items integer score matrix. Each item must have at least
+two observed categories, numbered consecutively from 0. Missing values are
+handled by pairwise deletion.</p></dd>
 
 
 <dt id="arg-n-components">n_components<a class="anchor" aria-label="anchor" href="#arg-n-components"></a></dt>

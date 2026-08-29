@@ -8,10 +8,14 @@
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Simulate person-by-item Rasch data — simulate_rasch"><meta name="description" content='Generates dichotomous, partial credit, or rating scale data. Optional
 arguments introduce item misfit, guessing, multidimensionality, local
 dependence, DIF, response styles, or missingness. Generating values are
-stored in attr(x, "truth").'><meta property="og:description" content='Generates dichotomous, partial credit, or rating scale data. Optional
+stored in attr(x, "truth"). A positive planted proportion selects
+at least one person or response cell when the requested departures can
+coexist.'><meta property="og:description" content='Generates dichotomous, partial credit, or rating scale data. Optional
 arguments introduce item misfit, guessing, multidimensionality, local
 dependence, DIF, response styles, or missingness. Generating values are
-stored in attr(x, "truth").'><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+stored in attr(x, "truth"). A positive planted proportion selects
+at least one person or response cell when the requested departures can
+coexist.'><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -19,7 +23,7 @@ stored in attr(x, "truth").'><meta property="og:image" content="https://drjoshmc
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,7 +51,7 @@ stored in attr(x, "truth").'><meta property="og:image" content="https://drjoshmc
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Simulate person-by-item Rasch data</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/simulate.R" class="external-link"><code>R/simulate.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/simulate.R" class="external-link"><code>R/simulate.R</code></a></small>
       <div class="d-none name"><code>simulate_rasch.Rd</code></div>
     </div>
 
@@ -55,7 +59,9 @@ stored in attr(x, "truth").'><meta property="og:image" content="https://drjoshmc
     <p>Generates dichotomous, partial credit, or rating scale data. Optional
 arguments introduce item misfit, guessing, multidimensionality, local
 dependence, DIF, response styles, or missingness. Generating values are
-stored in <code>attr(x, "truth")</code>.</p>
+stored in <code>attr(x, "truth")</code>. A positive planted proportion selects
+at least one person or response cell when the requested departures can
+coexist.</p>
     </div>
 
     <div class="section level2">
@@ -137,7 +143,9 @@ Values below 1 produce flatter responses and positive fit residuals.</p></dd>
 
 <dt id="arg-second-dim">second_dim<a class="anchor" aria-label="anchor" href="#arg-second-dim"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(items=, rho=)</code>: the named items
-load on a second trait correlated <code>rho</code> with the first.</p></dd>
+load on a second trait whose realised sample correlation with the first
+is <code>rho</code>. At least three persons are needed unless <code>rho</code> is
+-1 or 1.</p></dd>
 
 
 <dt id="arg-dependence">dependence<a class="anchor" aria-label="anchor" href="#arg-dependence"></a></dt>
@@ -185,7 +193,7 @@ is added when &gt; 1, for DIF).</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>Optional RNG seed.</p></dd>
+<dd><p>Optional non-negative whole-number RNG seed.</p></dd>
 
 </dl></div>
     <div class="section level2">

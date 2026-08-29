@@ -1,13 +1,16 @@
 # Plot the item map (location against fit residual)
 
-Fitted columns plotted by location and fit residual, with the
-conventional acceptance band at +/- 2.5. MFRM and EFRM points are
-response cells; ordinary Rasch points are items.
+Fitted columns plotted by location and a fit statistic, with the
+conventional acceptance band at +/- 2.5. The default statistic is the
+log-of-mean-square fit residual; `"infit"` and `"outfit"` display the
+Wilson–Hilferty standardised mean squares, to which the same band
+convention applies. MFRM and EFRM points are response cells; ordinary
+Rasch points are items.
 
 ## Usage
 
 ``` r
-plot_item_map(fit, band = 2.5)
+plot_item_map(fit, statistic = c("residual", "infit", "outfit"), band = 2.5)
 ```
 
 ## Arguments
@@ -17,9 +20,13 @@ plot_item_map(fit, band = 2.5)
   A fitted object from
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
 
+- statistic:
+
+  `"residual"` (the default fit residual), `"infit"`, or `"outfit"`.
+
 - band:
 
-  Fit residual acceptance band.
+  Acceptance band for the standardised statistic.
 
 ## Value
 

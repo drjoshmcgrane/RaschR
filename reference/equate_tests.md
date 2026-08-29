@@ -22,13 +22,15 @@ equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
   A second
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
   fit, or a data frame with columns `item`, `location`, and optionally
-  `se`. Item names must be unique and locations finite. For bank-based
-  drift inference, attach the bank's joint item-location covariance as a
-  square matrix in `attr(reference, "cov_location")`, ordered like the
-  bank rows (or named by item); marginal SEs alone do not carry the
-  centring covariance. A bank treated as fixed may instead have zero
-  SEs. A polytomous bank must also include `max`, the maximum item
-  score.
+  `se`. Item names and column names must be unique. Numeric fields may
+  be numeric columns, numeric text, or factors with numeric labels;
+  other column classes are refused. Locations must be finite. For
+  bank-based drift inference, attach the bank's joint item-location
+  covariance as a square matrix in `attr(reference, "cov_location")`,
+  ordered like the bank rows (or named by item); marginal SEs alone do
+  not carry the centring covariance. A bank treated as fixed may instead
+  have zero SEs. A polytomous bank must also include `max`, the maximum
+  item score.
 
 - shift:
 
@@ -49,11 +51,12 @@ equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
 
 A list with the comparison `table` (locations, standard errors,
 difference, t, raw and Holm-adjusted p, drift flag), the estimated
-`shift`, the location `correlation`, the root mean square difference
-after shifting (`rmsd`), the number of common items `n_common`, the
-number with usable standard errors `n`, and whether drift inference was
-available (`inferential`). The `notes` component records exclusions and
-the reason inference was withheld, where applicable.
+`shift` and its `shift_method`, the location `correlation`, the root
+mean square difference after shifting (`rmsd`), the number of common
+items `n_common`, the number with usable standard errors `n`, and
+whether drift inference was available (`inferential`). The `note`
+component records exclusions and the reason inference was withheld,
+where applicable.
 
 ## Details
 
@@ -62,10 +65,13 @@ its marginal variance. With `shift = "mean"` the scale shift is the
 precision-weighted mean \$\$\hat s=\frac{\sum_j d_j/v_j}{\sum_j
 1/v_j},\$\$ and each item is tested using \\d_j-\hat s\\ with a variance
 that accounts for the estimated shift through the items' joint
-covariance. Drift inference requires independent calibrations and at
-least three common items with usable joint covariance information.
-Otherwise the function returns a descriptive link. Fitted calibrations
-must have converged.
+covariance. If fewer than two common items have usable variances but at
+least two have finite locations, the function returns their unweighted
+mean difference as a descriptive fallback and records
+`shift_method = "unweighted"`. Drift inference requires independent
+calibrations and at least three common items with usable joint
+covariance information. Otherwise the function returns a descriptive
+link. Fitted calibrations must have converged.
 
 ## Examples
 

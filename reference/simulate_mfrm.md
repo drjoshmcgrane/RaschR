@@ -2,6 +2,8 @@
 
 Generates fully crossed ratings from a many-facet Rasch model (Linacre
 1989), with optional erratic raters, item-by-rater interaction, or halo.
+A positive rater proportion selects at least one rater when the
+requested departures can coexist.
 
 ## Usage
 
@@ -59,7 +61,7 @@ simulate_mfrm(
 
 - seed:
 
-  Optional RNG seed.
+  Optional non-negative whole-number RNG seed.
 
 ## Value
 

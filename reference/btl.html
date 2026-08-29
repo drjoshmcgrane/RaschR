@@ -17,7 +17,7 @@ reported with an object separation index and design diagnostics."><meta property
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ reported with an object separation index and design diagnostics."><meta property
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Fit comparative judgement models to paired comparisons</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/btl.R" class="external-link"><code>R/btl.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/btl.R" class="external-link"><code>R/btl.R</code></a></small>
       <div class="d-none name"><code>btl.Rd</code></div>
     </div>
 
@@ -87,13 +87,13 @@ reported with an object separation index and design diagnostics.</p>
 
 <dt id="arg-object-a-object-b">object_a, object_b<a class="anchor" aria-label="anchor" href="#arg-object-a-object-b"></a></dt>
 <dd><p>Names of the columns holding the two objects
-compared.</p></dd>
+compared. Columns used for the comparison roles must be distinct.</p></dd>
 
 
 <dt id="arg-winner">winner<a class="anchor" aria-label="anchor" href="#arg-winner"></a></dt>
 <dd><p>Name of the column holding the winner of each row: its
 value must equal one of the two objects. <code>"tie"</code> and <code>"draw"</code>
-mark ties. Ignored when <code>response</code> is supplied.</p></dd>
+mark ties. Do not supply both <code>winner</code> and <code>response</code>.</p></dd>
 
 
 <dt id="arg-response">response<a class="anchor" aria-label="anchor" href="#arg-response"></a></dt>
@@ -104,7 +104,10 @@ mark ties. Ignored when <code>response</code> is supplied.</p></dd>
 
 <dt id="arg-margin">margin<a class="anchor" aria-label="anchor" href="#arg-margin"></a></dt>
 <dd><p>Optional ordered margin-of-victory column, combined with
-<code>winner</code> to construct an orientation-invariant response.</p></dd>
+<code>winner</code> to construct an orientation-invariant response. Use an
+ordered factor (levels from the smallest to largest margin) or a positive
+numeric magnitude. Margins on ties and rows excluded from the analysis
+are ignored.</p></dd>
 
 
 <dt id="arg-judge">judge<a class="anchor" aria-label="anchor" href="#arg-judge"></a></dt>
@@ -163,7 +166,14 @@ threshold; <code>"pc"</code> retains only the symmetric spread component.</p></d
   <code>osi</code>, <code>loglik</code>, composite-likelihood information <code>cl</code>,
   convergence details, and <code>notes</code>. Ordered-response fits also contain
   <code>thresholds</code>, <code>m</code>, and <code>categories</code>. Fits using
-  <code>order</code> contain <code>dependence</code> and <code>dependence_data</code>.</p>
+  <code>order</code> contain <code>dependence</code> and <code>dependence_data</code>; the
+  former reports raw <code>p</code> and Holm-adjusted <code>p_adj</code>.
+  An undefeated or winless object is set aside from estimation, as an
+  extreme person is in a Rasch calibration, and reported in
+  <code>objects</code> with <code>extreme = TRUE</code> at an extrapolated location:
+  the profile solution with its score moved half a point inside the
+  boundary against the calibrated scale. Its standard error and fit are
+  withheld and the row takes no part in inference or equating.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -195,10 +205,14 @@ retains the symmetric spread component, which can stabilise thin categories.</p>
 <p>If comparison order is supplied, exposure and carry-over effects are
 estimated from each judge's preceding comparisons. The <code>position</code>
 term estimates a first-presentation effect. These coefficients enter the
-model jointly with the object locations and are reported in logits. The
-carry-over estimate and clustered SE remain descriptive below 30 judges;
+model jointly with the object locations and are reported in logits. They
+are refused when the comparison design confounds them exactly with the
+object-location contrasts. The carry-over estimate and clustered SE
+remain descriptive below 30 judges;
 its probability is withheld because null calibration is mildly
-anti-conservative at smaller judge counts.
+anti-conservative at smaller judge counts. Raw probabilities are retained,
+but simultaneous decisions across the fitted dependence effects use Holm's
+familywise adjustment in <code>dependence$p_adj</code>.
 Anchors fix nominated object locations and replace the sum-zero origin.</p>
     </div>
     <div class="section level2">
@@ -242,11 +256,11 @@ model to incorporate within-pair order effects. Biometrics, 33(4),
 <span class="r-out co"><span class="r-pr">#&gt;</span> Bradley-Terry-Luce analysis: 4 objects, 180 comparisons</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Conditional ML: converged in 6 iterations; sandwich SEs</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Object separation index 0.963; pairwise chi-square 1.07 on 3 df, p = 0.783</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  object location    se comparisons wins fit_resid</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       A   -1.238 0.214          90   16    -0.111</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       B   -0.354 0.186          90   36     0.526</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       C    0.448 0.180          90   56    -0.056</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       D    1.144 0.209          90   72     0.037</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  object location    se comparisons wins fit_resid extreme</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       A   -1.238 0.214          90   16    -0.111        </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       B   -0.354 0.186          90   36     0.526        </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       C    0.448 0.180          90   56    -0.056        </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       D    1.144 0.209          90   72     0.037        </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -44,17 +44,19 @@ design.
 | Function | Model |
 |----|----|
 | [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) | Dichotomous Rasch, partial credit, and rating scale models |
-| [`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md) | Linear logistic test and linear partial credit models |
-| [`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md) | Explanatory comparative judgement models |
 | [`rasch_mfrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_mfrm.md) | Many-facet Rasch model |
 | [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md) | Extended frame of reference model |
+| [`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md) | Linear logistic test and linear partial credit models |
 | [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) | Comparative judgement models for dichotomous and polytomous paired comparisons |
 | [`btl_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/btl_efrm.md) | Extended frame of reference model for paired comparisons |
+| [`btl_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/btl_explanatory.md) | Explanatory comparative judgement models |
 
 Person measures are estimated by weighted likelihood (Warm, 1989).
-Anchored estimation is available for equating, and incomplete linked
-designs can be fitted when their observed response structure identifies
-a common scale.
+Externally imposed item or item-set weights can be used for a
+supplementary person measure without changing the fitted calibration or
+its diagnostics. Anchored estimation is available for equating, and
+incomplete linked designs can be fitted when their observed response
+structure identifies a common scale.
 
 The item-response models follow Rasch (1960) and Andrich and Marais
 (2019). The explanatory item models follow Fischer (1973) and Fischer
@@ -78,9 +80,13 @@ rasch::run_app()
 
 The application imports data, assigns variables to their measurement
 roles, fits the selected model, and displays the resulting tables and
-plots. An analysis can be saved as a `.rasch` project and reopened.
-Tables, figures and HTML, Word or PDF reports can be downloaded. The R
-code for each result is shown in the interface.
+plots. An analysis can be saved as a `.rasch` project and reopened with
+its data roles and estimation settings. Tables, figures and HTML, Word
+or PDF reports can be downloaded. The R code for each result is shown in
+the interface. Its simulation page generates each supported data
+structure, with controls for its principal parameters and planted
+departures. Simulated data can be downloaded as a CSV or together with
+the generating call, true values and explanatory metadata.
 
 ![Item statistics and an item characteristic curve in the rasch Shiny
 application](reference/figures/app-items.png)
@@ -134,9 +140,10 @@ wright_map(fit, person_panels = "group")
 The [function
 reference](https://drjoshmcgrane.github.io/rasch/reference/index.html)
 documents the data requirements and returned values for each analysis.
-The [vignettes](https://drjoshmcgrane.github.io/rasch/articles/) cover
-the Rasch workflow, many-facet and extended-frame models, comparative
-judgement, explanatory modelling, repeated-measures DIF and validation.
+The [vignettes](https://drjoshmcgrane.github.io/rasch/articles/) begin
+with the data structures required by each model and cover the Rasch
+workflow, many-facet and extended-frame models, comparative judgement,
+explanatory modelling, repeated-measures DIF and validation.
 
 ## References
 

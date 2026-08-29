@@ -61,9 +61,10 @@ A list of class `"rasch_dif_size"`. `levels` contains the resolved
 location, standard error and sample size for each level. `pairs`
 contains logit differences, Wald statistics, confidence intervals, raw
 and adjusted probabilities, and practical flags. For dichotomous items
-it also contains `ets`; for polytomous items it contains the descriptive
-`signed_area`. Sampling-uncertainty fields are `NA` when person
-identifiers repeat.
+it also contains `ets`, together with the raw and adjusted probabilities
+for exceeding the ETS A boundary; for polytomous items it contains the
+descriptive `signed_area`. Sampling-uncertainty fields are `NA` when
+person identifiers repeat.
 
 ## Details
 
@@ -88,11 +89,10 @@ for person-level inference in a repeated-measures design.
 For dichotomous items, `ets` applies the ETS A, B and C rules to the
 itemwise comparison. On the logit scale the magnitude cut-points are
 \\1/2.35=0.426\\ and \\1.5/2.35=0.638\\. Category A also includes an
-itemwise test that is not significant. Category C requires a magnitude
+adjusted test that is not significant. Category C requires a magnitude
 of at least 0.638 and rejection of the interval null \\\|\Delta\|\leq
-0.426\\; B is the remainder. The category uses the raw itemwise
-probability, while `significant` uses `p_adjust` over the requested
-pairwise family.
+0.426\\; B is the remainder. Both probabilities are adjusted by
+`p_adjust` over the requested pairwise family.
 
 For a partial credit item with \\m_i\\ thresholds, the signed area
 between the two expected-score curves has the closed form
@@ -151,7 +151,7 @@ dif_size(fit, "I3", by = "grp")
 #>      b    0.018 0.126    0 300
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>        a       b     -0.907 0.204 -4.441 < 0.001 < 0.001 -1.308 -0.507
-#>  significant practical ets signed_area
-#>            *   >= 0.50  C-            
+#>  significant practical p_beyond_A p_beyond_A_adj ets signed_area
+#>            *   >= 0.50      0.009          0.009  C-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
 ```

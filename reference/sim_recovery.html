@@ -9,15 +9,17 @@
 simulate_* function (carried on the data as
 attr(sim, "truth")): item difficulties and person abilities for a
 Rasch fit, object locations for a paired-comparison fit, rater severities
-(with item and person measures) for a many-facet fit, and the set units for
-a frames fit. Locations are mean-centred before comparison, since the model
-identifies them only up to an origin.'><meta property="og:description" content='Compares fitted parameters with the generating values from a
+(with item and person measures) for a many-facet fit, set and group units
+for a Rasch frames fit, and common object locations, panel and set units,
+and set origins for a paired-comparison frames fit. Locations are
+mean-centred where the model identifies them only up to an origin.'><meta property="og:description" content='Compares fitted parameters with the generating values from a
 simulate_* function (carried on the data as
 attr(sim, "truth")): item difficulties and person abilities for a
 Rasch fit, object locations for a paired-comparison fit, rater severities
-(with item and person measures) for a many-facet fit, and the set units for
-a frames fit. Locations are mean-centred before comparison, since the model
-identifies them only up to an origin.'><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+(with item and person measures) for a many-facet fit, set and group units
+for a Rasch frames fit, and common object locations, panel and set units,
+and set origins for a paired-comparison frames fit. Locations are
+mean-centred where the model identifies them only up to an origin.'><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -25,7 +27,7 @@ identifies them only up to an origin.'><meta property="og:image" content="https:
 
     <a class="navbar-brand me-2" href="../index.html">rasch</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +55,7 @@ identifies them only up to an origin.'><meta property="og:image" content="https:
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Compare fitted and generating parameters</h1>
-      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/v1.12.0/R/simulate.R" class="external-link"><code>R/simulate.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/drjoshmcgrane/rasch/blob/master/R/simulate.R" class="external-link"><code>R/simulate.R</code></a></small>
       <div class="d-none name"><code>sim_recovery.Rd</code></div>
     </div>
 
@@ -62,9 +64,10 @@ identifies them only up to an origin.'><meta property="og:image" content="https:
 <code>simulate_*</code> function (carried on the data as
 <code>attr(sim, "truth")</code>): item difficulties and person abilities for a
 Rasch fit, object locations for a paired-comparison fit, rater severities
-(with item and person measures) for a many-facet fit, and the set units for
-a frames fit. Locations are mean-centred before comparison, since the model
-identifies them only up to an origin.</p>
+(with item and person measures) for a many-facet fit, set and group units
+for a Rasch frames fit, and common object locations, panel and set units,
+and set origins for a paired-comparison frames fit. Locations are
+mean-centred where the model identifies them only up to an origin.</p>
     </div>
 
     <div class="section level2">
@@ -78,7 +81,8 @@ identifies them only up to an origin.</p>
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
 <dd><p>A fit of the simulated data (<code><a href="rasch.html">rasch</a></code>,
-<code><a href="btl.html">btl</a></code>, <code><a href="rasch_mfrm.html">rasch_mfrm</a></code>, or <code><a href="rasch_efrm.html">rasch_efrm</a></code>).</p></dd>
+<code><a href="btl.html">btl</a></code>, <code><a href="rasch_mfrm.html">rasch_mfrm</a></code>, <code><a href="rasch_efrm.html">rasch_efrm</a></code>,
+or <code><a href="btl_efrm.html">btl_efrm</a></code>).</p></dd>
 
 
 <dt id="arg-sim">sim<a class="anchor" aria-label="anchor" href="#arg-sim"></a></dt>
