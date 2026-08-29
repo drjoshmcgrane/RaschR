@@ -52,7 +52,11 @@ d <- simulate_efrm(
   seed = 25
 )
 truth <- attr(d, "truth")
+d
 ```
+
+The simulated data carry the units the fit below has to recover: a set-unit
+ratio of 1.30 and a group-unit ratio of 1.10.
 
 ```{r fit}
 fit <- rasch_efrm(
