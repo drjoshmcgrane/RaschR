@@ -86,7 +86,7 @@ NONE_CH <- c(None = "(none)")
   "exp_interactions")
 .project_checkbox_inputs <- c("ef_prefix", "bt_position", "ng_auto")
 .project_numeric_inputs <- c(
-  "run_adjN", "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
+  "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
   "btlef_seed")
 
 .collect_app_settings <- function(input) {
@@ -854,10 +854,6 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                           selected = max(.efrm_worker_values))),
             tags$details(class = "rasch-advanced",
               tags$summary("Advanced"),
-              numericInput("run_adjN",
-                           span("Adjust chi-square to N",
-                                info_icon("Recomputes the item-trait and item chi-squares as if the sample size were N; useful with very large samples, where trivial misfit reaches significance.")),
-                           value = NA, min = 50),
               numericInput("maxit", "Maximum iterations", value = 60, min = 5, step = 5),
               numericInput("tol", "Convergence criterion", value = 1e-8,
                            min = 1e-12, step = 1e-8),
@@ -930,7 +926,7 @@ panel_summary <- nav_panel("Summary", value = "p_summary", icon = bs_icon("clipb
     ),
     # server-rendered: the likelihood-ratio card only when it applies
     uiOutput("summary_bottom"),
-    accordion(id = "test_acc", open = "test_tcc", class = "mb-3",
+    accordion(id = "test_acc", open = FALSE, class = "mb-3",
       accordion_panel("Test characteristic curve", value = "test_tcc",
         plotCard("tcc")),
       accordion_panel("Test information", value = "test_tif",
@@ -938,9 +934,12 @@ panel_summary <- nav_panel("Summary", value = "p_summary", icon = bs_icon("clipb
       accordion_panel("Guttman scalogram", value = "test_guttman",
         plotCard("guttman", height = "640px", hover = TRUE))),
     div(class = "rasch-plot-toolbar mb-3",
-        axis_control("ts_axis", standard = c(-6, 6), wide = c(-8, 8))),
+        axis_control("ts_axis", standard = c(-6, 6), wide = c(-8, 8)))),
     # paired-comparison (BTL) fits: the headline value boxes and the
-    # test-of-fit summary table
+    # test-of-fit summary table. This block and the override block below are
+    # siblings of the Rasch-only panel above, not children: nested inside it,
+    # `is_btl == true` contradicts the ancestor's `is_btl != true` and the
+    # BTL summary can never render.
     conditionalPanel("output.is_btl == true",
       uiOutput("btl_boxes"),
       rcode_details("btl_boxes"),
@@ -957,7 +956,7 @@ panel_summary <- nav_panel("Summary", value = "p_summary", icon = bs_icon("clipb
             conditionalPanel("output.is_btl != true",
               tableCard("change_person_tbl", "Person estimates",
                 info = "Original and active person locations for the same response rows. This shows how a DIF split or dependence superitem changes person measurement as well as the item calibration.")))))
-  )))
+  ))
 
 # ---------------------------------------------------------------- ITEMS --
 panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"),
@@ -1083,7 +1082,7 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
                       downloadButton("chisq_cat_csv", "Categories CSV",
                                      class = "btn-outline-secondary btn-xs")),
                   rcode_details("chisq")))),
-    accordion(id = "items_acc", open = "items_thrmap", class = "mt-3 mb-3",
+    accordion(id = "items_acc", open = FALSE, class = "mt-3 mb-3",
       accordion_panel("Threshold map", value = "items_thrmap",
         plotCard("thrmap")),
       accordion_panel("Item fit map", value = "items_imap",
@@ -1137,7 +1136,7 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
           info = "Expected response for the selected object over opponent location, with observed means for sufficiently observed opponents.",
           extra = downloadButton("btl_occ_all_pdf", "All (PDF)",
                                  class = "btn-outline-secondary btn-xs"))),
-      accordion(id = "btl_items_acc", open = "btl_caterpillar",
+      accordion(id = "btl_items_acc", open = FALSE,
                 class = "mt-3 mb-3",
         accordion_panel("Object caterpillar", value = "btl_caterpillar",
           plotCard("btl_plot")),
@@ -1226,7 +1225,7 @@ panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("peopl
                          class = "btn-outline-secondary btn-xs"),
           downloadButton("kidmap_all_zip", "All (PNG)",
                          class = "btn-outline-secondary btn-xs")))),
-    accordion(id = "persons_acc", open = "persons_pfit", class = "mt-3",
+    accordion(id = "persons_acc", open = FALSE, class = "mt-3",
       accordion_panel("Person fit", value = "persons_pfit",
         plotCard("pfit", hover = TRUE)),
       accordion_panel("Fit residual distribution", value = "persons_rdist",
@@ -1253,7 +1252,7 @@ panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("peopl
     # page carries their fit and their transitivity consistency -- the two
     # judge-level lenses (offered only when a judge column was nominated)
     conditionalPanel("output.is_btl == true && output.has_judges == true",
-      accordion(id = "btl_judge_acc", open = "btl_judge_fit",
+      accordion(id = "btl_judge_acc", open = FALSE,
         accordion_panel(
           title = "Judge fit",
           value = "btl_judge_fit",
@@ -1288,7 +1287,7 @@ panel_targeting <- nav_panel("Targeting", value = "p_targeting", icon = bs_icon(
         tableCard("btl_info_tbl", "Design information"),
         plotCard("btl_targeting_plot", "Design information and targeting")),
       conditionalPanel("output.active_btlef != true",
-      accordion(class = "mt-3",
+      accordion(class = "mt-3", open = FALSE,
         accordion_panel("Next most informative pairs", value = "btl_next_panel",
           layout_columns(col_widths = breakpoints(sm = 12, md = c(4, 8)),
             div(
@@ -1427,7 +1426,7 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
                          class = "btn-outline-warning w-100 mt-2"))),
         conditionalPanel("output.dif_refit_available != true",
           uiOutput("dif_refit_note"))),
-      accordion(id = "dif_acc", open = "dif_anova",
+      accordion(id = "dif_acc", open = FALSE,
         accordion_panel("DIF analysis of variance", value = "dif_anova",
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("dif_tbl",
@@ -1529,7 +1528,7 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
                      min = 0.001, max = 0.5, step = 0.01),
         input_task_button("bdif_run", "Run DIF analysis",
                           type = "primary", class = "w-100")),
-      accordion(id = "bdif_acc", open = "bdif_anova",
+      accordion(id = "bdif_acc", open = FALSE,
         accordion_panel("DIF analysis of variance", value = "bdif_anova",
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("bdif_anova_tbl",
@@ -1770,7 +1769,7 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
     # persons x items residual matrix that paired comparisons do not produce,
     # so it hides and the pair-structure analogues take its place
     conditionalPanel("output.is_btl == true",
-      accordion(id = "btl_dim_acc", open = "btl_dim_swirl",
+      accordion(id = "btl_dim_acc", open = FALSE,
         accordion_panel(
           title = "Residual dimensions",
           value = "btl_dim_swirl",
@@ -1797,7 +1796,7 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
                      info = "How many circular triads each object sits in - the objects whose order is least stable, and the likeliest seat of a second attribute.",
                      height = "460px"))))),
     conditionalPanel("output.is_btl != true",
-    accordion(id = "dim_acc", open = "dim_components",
+    accordion(id = "dim_acc", open = FALSE,
       accordion_panel("Residual components", value = "dim_components",
         layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
           tableCard("loadings_tbl", title = "Loadings",
@@ -1872,12 +1871,12 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
                               c("Exposure" = "exposure",
                                 "Carry-over" = "carry_over"),
                               width = "130px"))))),
-        accordion(class = "mt-3",
+        accordion(class = "mt-3", open = FALSE,
           accordion_panel("Comparison covariates", value = "btl_dep_comps_panel",
             tableCard("btl_dep_comps",
               note = "Every comparison in judgment order with its exposure and carry-over covariates; a comparison is informative for an effect when its covariate is non-zero."))))),
     conditionalPanel("output.is_btl != true",
-    accordion(id = "ld_acc", open = "ld_cormat",
+    accordion(id = "ld_acc", open = FALSE,
       accordion_panel("Residual Correlations (Q3 statistics)", value = "ld_cormat",
         numericInput("ld_flag",
                      info_label("Flag threshold",
@@ -3184,11 +3183,18 @@ server <- function(input, output, session) {
             bs_icon("clipboard-data", size = "3rem", class = "text-primary mb-2"),
             h2("Welcome to rasch"),
             p(class = "lead mb-4",
-              "Fit and examine models within Rasch Measurement Theory, using R or the graphical interface."),
+              "Fit and evaluate models within Rasch Measurement Theory."),
+            # Reopening a saved analysis is a way to START one, so it belongs
+            # beside uploading rather than only under More: the file input it
+            # triggers stays on the Export panel, next to the download that
+            # writes the file.
             div(class = "d-flex justify-content-center gap-2 flex-wrap mb-4",
               tags$button(class = "btn btn-outline-primary btn-lg", type = "button",
                           onclick = "document.getElementById('file').click();",
-                          bs_icon("upload"), " Upload data")),
+                          bs_icon("upload"), " Upload data"),
+              tags$button(class = "btn btn-outline-primary btn-lg", type = "button",
+                          onclick = "document.getElementById('project_file').click();",
+                          bs_icon("folder2-open"), " Open saved analysis")),
             p(class = "text-muted small mb-2", "Or start from a specific example:"),
             div(class = "d-flex flex-wrap gap-1 justify-content-center",
               lapply(names(.demo_chip_labels), function(k)
@@ -3581,15 +3587,10 @@ server <- function(input, output, session) {
     # automatic class intervals pass NULL; rasch() resolves the rule and
     # reports the value used in fit$n_groups
     ng <- if (isTRUE(input$ng_auto %||% TRUE)) NULL else input$ng
-    # chi-square sample-size adjustment is applied inside the fit, so every
-    # tab and export sees the same adjusted statistics
-    adjN <- if (!is.null(input$run_adjN) && !is.na(input$run_adjN) &&
-                input$run_adjN > 0) input$run_adjN else NA
     # reproducible-code pieces (spliced into the branch-specific call below)
     src_line <- data_source_code()
     code_args_common <- c(
-      if (!is.null(ng)) paste0("n_groups = ", ng),
-      if (!is.na(adjN)) paste0("adjust_N = ", adjN))
+      if (!is.null(ng)) paste0("n_groups = ", ng))
     eo <- est_opts()
     code_est <- c(paste0("maxit = ", eo$maxit),
                   paste0("tol = ", format(eo$tol)))
@@ -3624,7 +3625,7 @@ server <- function(input, output, session) {
         collapse = ",\n  "), ")")
       fit_args <- list(
         data = df, item_sets = sm, groups = group_arg, id = id_arg,
-        items = names(sm), n_groups = ng, adjust_N = adjN,
+        items = names(sm), n_groups = ng,
         maxit = eo$maxit, tol = eo$tol,
         se_method = input$ef_se %||% "hybrid", boot_reps = reps,
         workers = workers, seed = seed)
@@ -3783,7 +3784,7 @@ server <- function(input, output, session) {
               code_est), collapse = ",\n  "), ")")
             rasch_mfrm(df, person = input$lp_person,
                        facets = input$lp_facets, items = input$lp_items_wide,
-                       n_groups = ng, adjust_N = adjN, interaction = lp_int,
+                       n_groups = ng, interaction = lp_int,
                        maxit = eo$maxit, tol = eo$tol)
           } else {
             if (any(c(input$lp_person, input$lp_item, input$lp_score) == NONE) ||
@@ -3799,7 +3800,7 @@ server <- function(input, output, session) {
               code_est), collapse = ",\n  "), ")")
             rasch_mfrm(df, person = input$lp_person, item = input$lp_item,
                        score = input$lp_score, facets = input$lp_facets,
-                       n_groups = ng, adjust_N = adjN, interaction = lp_int,
+                       n_groups = ng, interaction = lp_int,
                        maxit = eo$maxit, tol = eo$tol)
           }
         } else {
@@ -3844,7 +3845,7 @@ server <- function(input, output, session) {
             rasch_explanatory(
               df, predictors = ep, formula = ef, level = level,
               id = idc, factors = fac, items = its,
-              n_groups = ng, adjust_N = adjN, key = mc_key,
+              n_groups = ng, key = mc_key,
               maxit = eo$maxit, tol = eo$tol)
           } else {
           # anchors match by item name; a supplied map must apply in full
@@ -3901,7 +3902,7 @@ server <- function(input, output, session) {
             code_est), collapse = ",\n  "), ")")
           rasch(df, model = if (rsm_on) "RSM" else "PCM",
                 id = idc, factors = fac, items = its,
-                n_groups = ng, adjust_N = adjN, anchors = anc,
+                n_groups = ng, anchors = anc,
                 key = mc_key, pc_components = pcc,
                 maxit = eo$maxit, tol = eo$tol)
           }
@@ -5259,8 +5260,6 @@ server <- function(input, output, session) {
             sum(d$p_adj < 0.05, na.rm = TRUE),
             if (length(dis)) paste(dis, collapse = ", ") else "none")
   })
-  # any chi-square sample-size adjustment is applied inside the fit (the
-  # adjust_N run control), so the table shows the fit's own statistics
   register_table("items_tbl", function() fit()$items, function() {
     d <- curate(fit()$items, "items", full = isTRUE(input$items_full))
     dt <- num_dt(d, page_len = 25, selection = "single",
