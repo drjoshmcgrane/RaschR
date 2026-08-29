@@ -2,6 +2,14 @@
 
 ## rasch 1.12.1
 
+- The application’s comparative judgement example is dichotomous. It
+  also carried an ordered preference and a margin, which invited a
+  polytomous fit on its ten judges; a polytomous fit with the
+  judging-order covariates estimates as many parameters as there are
+  judge clusters, so the example withheld its own cluster-robust
+  inference. The ordered response is demonstrated on designs that can
+  carry it.
+
 - The application’s post-estimation notification lists its notes. They
   were joined on a newline, which the notification renders as ordinary
   whitespace, so a fit reporting more than one note read as a single
