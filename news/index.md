@@ -60,12 +60,26 @@
   and the panel stayed empty; the override history moves out of that
   panel with them, matching the object estimates it already reported.
 
-- The application’s panels start closed. Twelve accordions opened a
-  panel on arrival — ten naming one and two relying on the default,
-  which opens the first — so every page presented a choice already made.
-  `More` also loses the only route to reopening a saved analysis: **Open
-  saved analysis** now sits beside **Upload data** on the welcome
-  screen, since reopening one is a way to start.
+- The application’s Items page can bootstrap the fit statistics on
+  request: one button runs
+  [`fit_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+  on the active fit and swaps the chi-square and fit-residual
+  probabilities in the table, its CSV, the headline tile and the note
+  for the calibrated ones, labelled as such and cleared by the next
+  estimation. The default 999 replicates clears the familywise
+  resolution floor — the smallest Holm-adjusted probability is the item
+  count over B + 1, so flagging at .05 needs at least 20 replicates per
+  item, which the control’s help states.
+
+- The application’s panels start closed, except where the accordion is
+  the page: Local dependence, Trait dimensionality and DIF open their
+  first panel, since everything those pages show lives inside one.
+  Elsewhere twelve accordions opened a panel on arrival — ten naming one
+  and two relying on the default, which opens the first — so every page
+  presented a choice already made. `More` also loses the only route to
+  reopening a saved analysis: **Open saved analysis** now sits beside
+  **Upload data** on the welcome screen, since reopening one is a way to
+  start.
 
 - The workflow and comparative judgement vignettes demonstrate the
   application over the analysis they set out in code, rather than a
