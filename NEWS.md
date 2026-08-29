@@ -10,7 +10,11 @@
 * The application colours its headline tiles by the side of the model they
   describe: persons blue and items amber, the colours the Wright and
   person-item maps already use. The data page follows, with rows blue and
-  columns amber.
+  columns amber. Tiles that report a check keep their own reading, now
+  green when it passes and red when it wants attention: item and person
+  misfit, disordered thresholds, separation, coefficient alpha, the
+  item-trait probability and the explanatory comparison. Amber is left to
+  mean the item side alone, so the two readings cannot be confused.
 * The application's comparative judgement example is dichotomous. It also
   carried an ordered preference and a margin, which invited a polytomous
   fit on its ten judges; a polytomous fit with the judging-order covariates

@@ -216,8 +216,8 @@ stat_rows <- function(...) div(class = "stat-rows", ...)
 # context remains visible, but results no longer consume the first several
 # phone screens or give every statistic the visual weight of a warning.
 metric_tile <- function(id, label, value, detail = NULL, icon = NULL,
-                        status = c("neutral", "good", "warning", "accent",
-                                   "person", "item")) {
+                        status = c("neutral", "good", "bad", "warning",
+                                   "accent", "person", "item")) {
   status <- match.arg(status)
   div(class = paste("metric-tile", paste0("metric-", status)),
     div(class = "metric-heading",
@@ -331,7 +331,11 @@ css <- HTML("
     box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
   .metric-neutral { border-top-color: var(--bs-border-color); }
   .metric-accent { border-top-color: var(--bs-primary); }
+  /* the diagnostic pair: green when a check passes, red when it wants
+     attention. Amber is not used for it, because amber now marks the item
+     side of the model and the two readings would be indistinguishable. */
   .metric-good { border-top-color: var(--bs-success); }
+  .metric-bad { border-top-color: var(--bs-danger); }
   .metric-warning { border-top-color: var(--bs-warning); }
   /* the two sides of the model, in the colours the plots already use for
      them: persons blue, items amber (see the Wright and person-item maps) */
@@ -4815,7 +4819,7 @@ server <- function(input, output, session) {
                   else "Without extremes —",
                   icon = "separation",
                   status = if (finite1(f$psi$PSI) && f$psi$PSI >= 0.7)
-                    "good" else "warning"),
+                    "good" else "bad"),
       metric_tile("metric_alpha", "Alpha",
                   if (!alpha_design_applicable(f)) "—"
                   else if (finite1(f$alpha$alpha)) sprintf("%.3f", f$alpha$alpha)
@@ -4829,14 +4833,14 @@ server <- function(input, output, session) {
                   status = if (!alpha_design_applicable(f))
                     "neutral" else if (finite1(f$alpha$alpha) &&
                                              f$alpha$alpha >= 0.7)
-                    "good" else "warning"),
+                    "good" else "bad"),
       metric_tile("metric_item_trait",
                   if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
                     "Response-cell-trait p" else "Item-trait p",
                   if (finite1(f$total_chisq_p)) fmt_p(f$total_chisq_p) else "—",
                   icon = "chisq",
                   status = if (finite1(f$total_chisq_p) &&
-                              f$total_chisq_p >= 0.05) "good" else "warning"),
+                              f$total_chisq_p >= 0.05) "good" else "bad"),
       metric_tile("metric_power", "Power of fit", f$power_of_fit,
                   icon = "power", status = "neutral")
     )
@@ -5083,7 +5087,7 @@ server <- function(input, output, session) {
                   icon = "graph-up"),
       metric_tile("metric_expl_test", "Against free calibration", p_lab(p),
                   icon = "chisq",
-                  status = if (is.finite(p) && p < .05) "warning" else "good"))
+                  status = if (is.finite(p) && p < .05) "bad" else "good"))
   })
   expl_object_name <- reactive(if (expl_is_cj()) "bt" else "fit")
   register_code("expl_boxes", function() sprintf(
@@ -5232,9 +5236,9 @@ server <- function(input, output, session) {
       metric_tile("metric_cells", if (cell_fit) "Response cells" else "Items",
                   nrow(f$items), icon = "ruler", status = "item"),
       metric_tile("metric_item_misfit", "Adjusted p < .05", mis,
-                  icon = "chisq", status = "item"),
+                  icon = "chisq", status = if (mis > 0) "bad" else "good"),
       metric_tile("metric_disordered", "Disordered thresholds", dis,
-                  icon = "disorder", status = "item"))
+                  icon = "disorder", status = if (dis > 0) "bad" else "good"))
   })
   register_code("items_vboxes", function() paste(
     "list(",
@@ -5459,7 +5463,7 @@ server <- function(input, output, session) {
                   sum(d$extreme, na.rm = TRUE), icon = "range",
                   status = "person"),
       metric_tile("metric_person_misfit", "Misfitting persons", mis,
-                  icon = "outlier", status = "person"))
+                  icon = "outlier", status = if (mis > 0) "bad" else "good"))
   })
   register_code("persons_vboxes", function() paste(
     "list(",
@@ -6220,12 +6224,12 @@ server <- function(input, output, session) {
                   if (finite1(f$osi$PSI)) sprintf("%.3f", f$osi$PSI) else "—",
                   icon = "separation",
                   status = if (finite1(f$osi$PSI) && f$osi$PSI >= 0.7)
-                    "good" else "warning"),
+                    "good" else "bad"),
       metric_tile("metric_pair_fit", "Pairwise fit p",
                   if (finite1(f$total_p)) fmt_p(f$total_p) else "—",
                   icon = "chisq",
                   status = if (finite1(f$total_p) && f$total_p >= 0.05)
-                    "good" else "warning"))
+                    "good" else "bad"))
   })
   register_code("btl_boxes", function() paste(
     "list(",
