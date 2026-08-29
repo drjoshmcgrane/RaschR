@@ -585,7 +585,8 @@ card_header_bar <- function(title = NULL, buttons = NULL, info = NULL)
 # floats a uiOutput(<id>_tip) tooltip (rendered server-side via nearPoints())
 # over it. Left FALSE (the default) for every other plot card.
 plotCard <- function(id, title = NULL, height = "560px", info = NULL,
-                     controls = NULL, extra = NULL, hover = FALSE) {
+                     controls = NULL, extra = NULL, hover = FALSE,
+                     controls_top = FALSE) {
   info <- app_help(id, info)
   plot_out <- if (isTRUE(hover))
     div(style = "position: relative",
@@ -594,6 +595,10 @@ plotCard <- function(id, title = NULL, height = "560px", info = NULL,
                                      delayType = "throttle")),
         uiOutput(paste0(id, "_tip")))
   else plotOutput(id, height = height)
+  # controls_top puts the toolbar between the header and the plot. The
+  # footer is right for display tweaks read after the figure; a control that
+  # CHANGES what is drawn -- and reveals further controls when switched --
+  # belongs above a tall plot, or its consequences appear out of sight.
   card(
     full_screen = TRUE,
     `data-bs-theme` = "light",
@@ -601,9 +606,12 @@ plotCard <- function(id, title = NULL, height = "560px", info = NULL,
       downloadButton(paste0(id, "_png"), "PNG", class = "btn-outline-secondary btn-xs"),
       downloadButton(paste0(id, "_pdf"), "PDF", class = "btn-outline-secondary btn-xs"),
       extra)),
+    if (!is.null(controls) && isTRUE(controls_top))
+      card_body(class = "rasch-plot-toolbar py-2", controls,
+                padding = 8, fillable = FALSE),
     card_body(plot_out, rcode_details(id),
               padding = 8, fillable = FALSE),
-    if (!is.null(controls))
+    if (!is.null(controls) && !isTRUE(controls_top))
       card_footer(class = "rasch-plot-toolbar", controls)
   )
 }
@@ -1335,6 +1343,7 @@ panel_targeting <- nav_panel("Targeting", value = "p_targeting", icon = bs_icon(
       layout_columns(col_widths = 12,
         plotCard("pim_p", "Person-item threshold distribution"),
         plotCard("wright", "Wright map", height = "640px",
+          controls_top = TRUE,
           controls = tagList(
             div(class = "rasch-inline-select",
               selectInput("wright_renderer",
@@ -3273,7 +3282,7 @@ server <- function(input, output, session) {
     round_preview(
       datatable(d, rownames = FALSE, style = "bootstrap5",
                 class = "table-sm compact hover order-column",
-                options = list(pageLength = 10, scrollX = TRUE, dom = "tip")), d)
+                options = list(pageLength = 25, scrollX = TRUE, dom = "tip")), d)
   })
   output$rcode_fit <- renderText({
     validate(need(!is.null(current_rcode()),
