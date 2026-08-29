@@ -3393,8 +3393,14 @@ server <- function(input, output, session) {
                         if (length(code_notes)) c("", code_notes), "",
                         code_call), collapse = "\n"))
     if (length(fit$notes))
-      showNotification(paste(fit$notes, collapse = "\n"), type = "message",
-                       duration = 8)
+      # each note is an independent statement, and the notification renders
+      # as HTML, where a newline is only whitespace: joining on one runs
+      # separate notes into a single unreadable sentence
+      showNotification(
+        if (length(fit$notes) == 1L) fit$notes
+        else tags$ul(class = "mb-0 ps-3",
+                     lapply(fit$notes, function(n) tags$li(n))),
+        type = "message", duration = 8)
     conv <- if (!is.null(fit$est)) fit$est$converged else fit$converged
     if (!isTRUE(conv)) {
       msg <- if (inherits(fit, "rasch_efrm") &&

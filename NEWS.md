@@ -1,5 +1,11 @@
 # rasch 1.12.1
 
+* The application's post-estimation notification lists its notes. They were
+  joined on a newline, which the notification renders as ordinary
+  whitespace, so a fit reporting more than one note read as a single run-on
+  sentence -- withheld cluster-robust inference and a withheld carry-over
+  probability ran together into one unreadable line.
+
 * A judge factor named by judge may name judges the fit set aside -- one
   who only ever tied, or whose rows were dropped -- since a map built from
   the source data necessarily does. Those entries are ignored and reported
