@@ -329,25 +329,85 @@ dependence, and DIF sequence.
 
 ## The same analysis in the application
 
-`rasch::run_app()` follows the sequence above, one panel per step. **Data**
-imports the responses and assigns each column its measurement role: person
-identifier, items, and person factors. The model is chosen there, and the
-scoring structure governs the choice exactly as it does in `rasch()`.
+`rasch::run_app()` runs the sequence above, one panel per step, and every
+result carries the call that produced it. The walkthrough below follows the
+same order as the code, so a reader can move between the two.
 
-```{r app-data, echo = FALSE, out.width = "100%", fig.alt = "The Data panel of the application. The sidebar assigns the person identifier, two person factors and ten item columns; the main area previews the responses."}
+**Data** imports the responses and assigns each column its measurement role:
+person identifier, items, and person factors. The model is chosen here, and
+the scoring structure governs that choice exactly as it does in `rasch()`.
+The example datasets in the sidebar load a complete design with its roles
+already assigned, which is the quickest way to see the whole sequence.
+
+```{r app-data, echo = FALSE, out.width = "100%", fig.alt = "The Data panel of the application. The sidebar assigns the person identifier, person factors and item columns; the main area previews the responses."}
 knitr::include_graphics("figures/app-data.png")
 ```
 
-**Summary** gives the convergence, item--trait interaction and reliability
-read first here. **Items** carries the estimates and fit, with its own tabs
-for the characteristic curves, category probabilities, thresholds, category
-frequencies and the class-interval chi-square. **Persons** and **Targeting**
-follow, then the analyses grouped under two menus: **Independence** holds
-local dependence and trait dimensionality, and **Invariance** holds DIF,
-equating, guessing, facets and extended frames.
+**Summary** is read first: convergence, the item--trait interaction, the
+person separation index and coefficient alpha, and the targeting of the
+person distribution against the threshold distribution. It answers the same
+questions as `fit_summary_table()` and `targeting_table()` above. Tiles that
+report a check are green when it passes and red when it wants attention;
+tiles that report a count are coloured by the side of the model they
+describe, persons blue and items amber, the colours the Wright and
+person-item maps use.
 
-```{r app-summary, echo = FALSE, out.width = "100%", fig.alt = "The Summary panel, showing the test of fit and targeting tables and the test characteristic curve."}
+```{r app-summary, echo = FALSE, out.width = "100%", fig.alt = "The Summary panel, showing the test of fit, reliability and targeting tables with the test characteristic curve."}
 knitr::include_graphics("figures/app-summary.png")
+```
+
+**Items** carries the estimates and fit statistics of the item table above.
+Selecting a row draws that item on the right, with tabs for the
+characteristic curve, the category probabilities, the thresholds, the
+category frequencies, and the class-interval chi-square. The panels beneath
+hold the threshold map, the item fit map, the fit residual distribution and
+the traditional statistics; they open on demand rather than by default.
+
+```{r app-items, echo = FALSE, out.width = "100%", fig.alt = "The Items panel: the item statistics table on the left with one misfitting item in red, and its item characteristic curve on the right."}
+knitr::include_graphics("figures/app-items.png")
+```
+
+The **Chi-square** tab is the class-interval breakdown `chisq_detail()`
+returns: per interval the size, the observed and expected means, the
+standardised residual and its chi-square component. It is where a
+significant item--trait interaction is read as a pattern rather than a
+number.
+
+```{r app-chisq, echo = FALSE, out.width = "100%", fig.alt = "The class-interval chi-square tab, showing observed and expected means by class interval for the selected item."}
+knitr::include_graphics("figures/app-items-chisq.png")
+```
+
+**Persons** holds the person estimates and their fit, and **Targeting** the
+person-item map and the test information the code produces with
+`plot_pimap()` and `test_information()`. Both maps can be restricted to one
+person group or one item set, and the restriction is named in the legend so
+a partial map cannot be read as the whole instrument.
+
+```{r app-persons, echo = FALSE, out.width = "100%", fig.alt = "The Persons panel, showing the person estimate table and the person fit summary."}
+knitr::include_graphics("figures/app-persons.png")
+```
+
+```{r app-targeting, echo = FALSE, out.width = "100%", fig.alt = "The Targeting panel, showing the person-item map with the person distribution against the item thresholds."}
+knitr::include_graphics("figures/app-targeting.png")
+```
+
+The remaining analyses sit under two menus that divide them by the
+assumption they examine. **Independence** holds local dependence and trait
+dimensionality --- the residual correlations and principal components of this
+vignette's dependence section.
+
+```{r app-local, echo = FALSE, out.width = "100%", fig.alt = "The Local dependence panel, showing the residual correlation matrix with the flagged pairs above the nominated threshold."}
+knitr::include_graphics("figures/app-local.png")
+```
+
+**Invariance** holds differential item functioning, equating, guessing,
+facets and extended frames. The DIF panel runs `dif_anova()` over the
+nominated person factors, reports the uniform and non-uniform tests with
+their Holm adjustment and effect sizes, and draws the observed and expected
+curves by group for a selected item.
+
+```{r app-dif, echo = FALSE, out.width = "100%", fig.alt = "The DIF panel, showing the analysis of variance table by item and term with the flagged items and the characteristic curves by person group."}
+knitr::include_graphics("figures/app-dif.png")
 ```
 
 Every result carries an **R code** disclosure beneath it. Opening it shows
@@ -355,13 +415,19 @@ the call that produced that table or figure, so an analysis assembled in the
 application can be read as, and continued as, the script this vignette
 writes by hand.
 
-```{r app-rcode, echo = FALSE, out.width = "70%", fig.alt = "The test-of-fit table with its R code disclosure open, showing the call fit_summary_table(fit)."}
+```{r app-rcode, echo = FALSE, out.width = "80%", fig.alt = "A results table with its R code disclosure open, showing the call that produced it."}
 knitr::include_graphics("figures/app-rcode.png")
 ```
 
 Under **More**, an analysis can be saved as a `.rasch` project and reopened
 with its data roles and estimation settings intact, or exported as tables,
-figures and an HTML, Word or PDF report.
+figures and an HTML, Word or PDF report. The same menu holds the simulation
+designs of the plant-and-detect vignette and the model comparison that
+`compare_fits()` and `lr_test()` produce.
+
+```{r app-export, echo = FALSE, out.width = "100%", fig.alt = "The Export panel, offering the tables, figures and report formats an analysis can be written out as."}
+knitr::include_graphics("figures/app-export.png")
+```
 
 ## References
 

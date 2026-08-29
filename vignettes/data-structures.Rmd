@@ -75,12 +75,35 @@ DIF. In the application, use a CSV with `item,weight`, or
 
 ## Explanatory item and threshold models
 
-The response data remain in the wide form above. A second data frame describes
-the items. Item-level predictors have one row per item and an `item` column.
+The response data remain in the wide form above. A second data frame --- the
+one uploaded as a CSV in the application --- describes the items. Its shape
+depends on the level being explained, and that is the distinction to get
+right before anything else.
+
+An **item-level** design has one row per item. The predictors describe the
+item as a whole, and the model explains the item's location.
+
+A **threshold-level** design has one row per fitted *threshold*, identified by
+`item` and `threshold` together. The predictors may vary within an item, and
+the model explains each threshold separately.
+
+The number of rows a threshold design needs is fixed by the data, not chosen:
+an item scored 0 to *m* has *m* thresholds. For the responses above that is
+one for `I1`, two for `I2` and three for `I3` --- six rows, not three.
+
+```{r threshold-count}
+items <- c("I1", "I2", "I3")
+maxima <- vapply(responses[items], max, 0, na.rm = TRUE)
+data.frame(item = items, max_score = maxima, thresholds = maxima,
+           row.names = NULL)
+sum(maxima)          # rows a threshold-level design must have
+```
+
+### One row per item
 
 ```{r item-predictors}
 item_design <- data.frame(
-  item = c("I1", "I2", "I3"),
+  item = items,
   format = c("selected", "constructed", "constructed"),
   demand = c(0.2, 0.7, 1.1)
 )
@@ -95,35 +118,68 @@ fit <- rasch_explanatory(
   level = "item",
   id = "person",
   factors = "group",
-  items = c("I1", "I2", "I3")
+  items = items
 )
 ```
 
-Categorical predictors should be factors, continuous predictors numeric, and
-ordinal predictors ordered factors with their substantive order declared.
-When a predictor varies between thresholds within an item, use one row per
-threshold and include `item` and `threshold`.
+### One row per threshold
+
+The same two predictors at threshold level. `format` is a property of the
+item, so it simply repeats down that item's thresholds; `demand` now varies
+between them, which is the reason to work at this level at all. An item-level
+predictor is not excluded from a threshold design --- it is constant within
+each item.
 
 ```{r threshold-predictors}
 threshold_design <- data.frame(
-  item = rep(c("I2", "I3"), c(2, 3)),
-  threshold = c(1, 2, 1, 2, 3),
-  wording_load = c(0.2, 0.4, 0.1, 0.5, 0.9)
+  item = rep(items, maxima),
+  threshold = sequence(maxima),
+  format = rep(c("selected", "constructed", "constructed"), maxima),
+  demand = c(0.2,
+             0.5, 0.9,
+             0.4, 0.8, 1.4)
 )
 threshold_design
+nrow(threshold_design) == sum(maxima)
 ```
 
 ```{r explanatory-threshold-fit, eval=FALSE}
 fit <- rasch_explanatory(
   responses,
   predictors = threshold_design,
-  formula = ~ wording_load + threshold,
+  formula = ~ format + demand,
   level = "threshold",
   id = "person",
   factors = "group",
-  items = c("I2", "I3")
+  items = items
 )
 ```
+
+`threshold` numbers the thresholds within an item, from 1, in order. It is
+not a running count across the instrument: `I2` has thresholds 1 and 2, and
+so does the first half of `I3`. `sequence(maxima)` above generates exactly
+that pattern, and is worth using in place of typing the column out.
+
+Three mistakes account for most refused designs. Each is named precisely
+when it happens, so the message identifies the rows to fix:
+
+- one row per item where the level is `"threshold"`, leaving the design short
+  by every threshold after the first, and every threshold missing where the
+  numbering does not match. Both report *threshold-level predictors are
+  missing*, listing the item and threshold of each;
+- thresholds numbered continuously across the instrument (1 to 6 here)
+  rather than from 1 within each item, which reports the same missing
+  combinations alongside *predictor rows do not correspond to an observed
+  item threshold* for the numbers that exist nowhere;
+- a repeated `item` and `threshold` pair, which reports *threshold-level
+  predictors need one row per item and threshold*.
+
+Categorical predictors should be factors, continuous predictors numeric, and
+ordinal predictors ordered factors with their substantive order declared. In
+the application, upload the same table as a CSV: `item` plus the predictor
+columns at item level, and `item,threshold` plus the predictor columns at
+threshold level. The predictor type of each column is set after the upload,
+so a column read as text can still be declared ordinal with its order given.
 
 ## Multiple ratings
 
