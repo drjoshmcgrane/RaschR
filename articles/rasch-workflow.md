@@ -11,10 +11,8 @@ and person fit, targeting, dependence, and differential item functioning
 without knowing whether the scale separates the sample or supplies
 information over the relevant part of the latent trait.
 
-The same analyses are available in the Shiny application. Run
-[`rasch::run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
-to import data, fit a model, inspect the results, and export tables or
-plots without writing R analysis code.
+The same analyses are available in the Shiny application, which follows
+this same order; the closing section maps each step onto its panel.
 
 ## Fit the model required by the scoring structure
 
@@ -419,6 +417,32 @@ should be applied with
 which refits the calibration and updates the item and person estimates.
 The revised fit then goes through the same summary, fit, targeting,
 dependence, and DIF sequence.
+
+## The same analysis in the application
+
+[`rasch::run_app()`](https://drjoshmcgrane.github.io/rasch/reference/run_app.md)
+follows the sequence above, one panel per step. **Data** imports the
+responses and assigns each column its measurement role: person
+identifier, items, and person factors. The model is chosen there, and
+the scoring structure governs the choice exactly as it does in
+[`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+
+**Summary** gives the convergence, item–trait interaction and
+reliability read first here. **Items** carries the estimates and fit,
+with its own tabs for the characteristic curves, category probabilities,
+thresholds, category frequencies and the class-interval chi-square.
+**Persons** and **Targeting** follow, then the analyses grouped under
+two menus: **Independence** holds local dependence and trait
+dimensionality, and **Invariance** holds DIF, equating, guessing, facets
+and extended frames.
+
+Every result carries an **R code** disclosure beneath it. Opening it
+shows the call that produced that table or figure, so an analysis
+assembled in the application can be read as, and continued as, the
+script this vignette writes by hand. Under **More**, an analysis can be
+saved as a `.rasch` project and reopened with its data roles and
+estimation settings intact, or exported as tables, figures and an HTML,
+Word or PDF report.
 
 ## References
 

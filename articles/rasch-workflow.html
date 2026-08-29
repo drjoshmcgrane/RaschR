@@ -89,9 +89,9 @@ item and person fit, targeting, dependence, and differential item
 functioning (DIF). The order matters. A fit statistic is difficult to
 interpret without knowing whether the scale separates the sample or
 supplies information over the relevant part of the latent trait.</p>
-<p>The same analyses are available in the Shiny application. Run
-<code><a href="../reference/run_app.html">rasch::run_app()</a></code> to import data, fit a model, inspect the
-results, and export tables or plots without writing R analysis code.</p>
+<p>The same analyses are available in the Shiny application, which
+follows this same order; the closing section maps each step onto its
+panel.</p>
 <div class="section level2">
 <h2 id="fit-the-model-required-by-the-scoring-structure">Fit the model required by the scoring structure<a class="anchor" aria-label="anchor" href="#fit-the-model-required-by-the-scoring-structure"></a>
 </h2>
@@ -412,6 +412,31 @@ should be applied with <code><a href="../reference/resolve_dif.html">resolve_dif
 calibration and updates the item and person estimates. The revised fit
 then goes through the same summary, fit, targeting, dependence, and DIF
 sequence.</p>
+</div>
+<div class="section level2">
+<h2 id="the-same-analysis-in-the-application">The same analysis in the application<a class="anchor" aria-label="anchor" href="#the-same-analysis-in-the-application"></a>
+</h2>
+<p><code><a href="../reference/run_app.html">rasch::run_app()</a></code> follows the sequence above, one panel
+per step. <strong>Data</strong> imports the responses and assigns each
+column its measurement role: person identifier, items, and person
+factors. The model is chosen there, and the scoring structure governs
+the choice exactly as it does in <code><a href="../reference/rasch.html">rasch()</a></code>.</p>
+<p><strong>Summary</strong> gives the convergence, item–trait
+interaction and reliability read first here. <strong>Items</strong>
+carries the estimates and fit, with its own tabs for the characteristic
+curves, category probabilities, thresholds, category frequencies and the
+class-interval chi-square. <strong>Persons</strong> and
+<strong>Targeting</strong> follow, then the analyses grouped under two
+menus: <strong>Independence</strong> holds local dependence and trait
+dimensionality, and <strong>Invariance</strong> holds DIF, equating,
+guessing, facets and extended frames.</p>
+<p>Every result carries an <strong>R code</strong> disclosure beneath
+it. Opening it shows the call that produced that table or figure, so an
+analysis assembled in the application can be read as, and continued as,
+the script this vignette writes by hand. Under <strong>More</strong>, an
+analysis can be saved as a <code>.rasch</code> project and reopened with
+its data roles and estimation settings intact, or exported as tables,
+figures and an HTML, Word or PDF report.</p>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
