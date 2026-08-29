@@ -117,7 +117,14 @@ frame-dependent unit.</p>
 <span>  group_unit_ratio <span class="op">=</span> <span class="fl">1.10</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">25</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span>
+<span><span class="va">d</span></span>
+<span><span class="co">#&gt; Simulated efrm data: 300 persons, 2 sets x 2 groups, 16 items (2 categories)</span></span>
+<span><span class="co">#&gt; Planted departures:</span></span>
+<span><span class="co">#&gt;   - set-unit ratio 1.30 across 2 sets</span></span>
+<span><span class="co">#&gt;   - group-unit ratio 1.10 across 2 groups</span></span></code></pre></div>
+<p>The simulated data carry the units the fit below has to recover: a
+set-unit ratio of 1.30 and a group-unit ratio of 1.10.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span></span>
 <span>  <span class="va">d</span>,</span>

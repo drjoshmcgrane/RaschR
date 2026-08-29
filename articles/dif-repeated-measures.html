@@ -129,7 +129,18 @@ interaction.</p>
 <span>  <span class="va">X</span>,</span>
 <span>  group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">group</span>, <span class="fl">2</span><span class="op">)</span>,</span>
 <span>  occasion <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"T1"</span>, <span class="st">"T2"</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">N</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># the same three persons at each occasion: the identifier repeats down the</span></span>
+<span><span class="co"># rows, which is what makes the design repeated measures</span></span>
+<span><span class="va">dat</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="va">N</span> <span class="op">+</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pid"</span>, <span class="st">"I01"</span>, <span class="st">"I02"</span>, <span class="st">"I03"</span>, <span class="st">"group"</span>, <span class="st">"occasion"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;      pid I01 I02 I03 group occasion</span></span>
+<span><span class="co">#&gt; 1   P001   1   1   0     A       T1</span></span>
+<span><span class="co">#&gt; 2   P002   1   1   1     A       T1</span></span>
+<span><span class="co">#&gt; 3   P003   1   1   1     A       T1</span></span>
+<span><span class="co">#&gt; 321 P001   0   1   0     A       T2</span></span>
+<span><span class="co">#&gt; 322 P002   1   1   0     A       T2</span></span>
+<span><span class="co">#&gt; 323 P003   1   1   1     A       T2</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="fit-once-and-test-both-factors">Fit once and test both factors<a class="anchor" aria-label="anchor" href="#fit-once-and-test-both-factors"></a>

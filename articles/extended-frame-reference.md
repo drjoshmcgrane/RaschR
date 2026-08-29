@@ -38,7 +38,15 @@ d <- simulate_efrm(
   seed = 25
 )
 truth <- attr(d, "truth")
+d
+#> Simulated efrm data: 300 persons, 2 sets x 2 groups, 16 items (2 categories)
+#> Planted departures:
+#>   - set-unit ratio 1.30 across 2 sets
+#>   - group-unit ratio 1.10 across 2 groups
 ```
+
+The simulated data carry the units the fit below has to recover: a
+set-unit ratio of 1.30 and a group-unit ratio of 1.10.
 
 ``` r
 

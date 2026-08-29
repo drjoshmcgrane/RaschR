@@ -52,6 +52,17 @@ dat <- data.frame(
   group = rep(group, 2),
   occasion = rep(c("T1", "T2"), each = N)
 )
+
+# the same three persons at each occasion: the identifier repeats down the
+# rows, which is what makes the design repeated measures
+dat[c(1:3, N + 1:3), c("pid", "I01", "I02", "I03", "group", "occasion")]
+#>      pid I01 I02 I03 group occasion
+#> 1   P001   1   1   0     A       T1
+#> 2   P002   1   1   1     A       T1
+#> 3   P003   1   1   1     A       T1
+#> 321 P001   0   1   0     A       T2
+#> 322 P002   1   1   0     A       T2
+#> 323 P003   1   1   1     A       T2
 ```
 
 ## Fit once and test both factors
