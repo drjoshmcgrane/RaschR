@@ -1267,3 +1267,29 @@ test_that("the observed-ICC display survives a fully omitted comparator set", {
   # omission note still draw, with no visible points
   expect_no_error(plot_btl_icc(f, "O2"))
 })
+
+test_that("the dependence plot's baseline carries a fitted position effect", {
+  d <- simulate_btl(8, 14, reps_per_pair = 12,
+                    dependence = list(exposure = 0.6), seed = 42)
+  f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge",
+           order = "order", position = TRUE)
+  expect_true("position" %in% f$dependence$effect)
+  # the partial residual under the FULL fitted model centres on zero; a
+  # baseline that omits the fitted position coefficient displaces every
+  # point through the nonlinear expected-score map
+  dd <- f$dependence_data
+  bl <- setNames(f$objects$location, f$objects$object)
+  tau <- if (!is.null(f$thresholds)) f$thresholds$tau else numeric(1)
+  dep <- setNames(f$dependence$estimate, f$dependence$effect)
+  Em <- function(v) vapply(v, function(t) item_moments(t, tau)$E, 0)
+  base <- unname(bl[dd$object_a] - bl[dd$object_b])
+  lin <- base + dep[["exposure"]] * dd$exposure +
+    dep[["carry_over"]] * dd$carry_over + dep[["position"]] * dd$position
+  expect_lt(abs(mean(dd$response - Em(lin))), 0.005)
+  expect_gt(abs(mean(dd$response - Em(lin - dep[["position"]] * dd$position))),
+            0.02)
+  # and the plot itself runs on a position-fitted model
+  pdf(NULL); on.exit(dev.off())
+  expect_no_error(plot_btl_dependence(f, "exposure"))
+  expect_no_error(plot_btl_dependence(f, "carry_over"))
+})

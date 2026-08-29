@@ -323,35 +323,6 @@
                    resid_ss = NA_real_, stringsAsFactors = FALSE))
 }
 
-# Flatten an aov (single- or multi-stratum) into one row per term, carrying
-# the residual sum of squares of the term's own stratum so a partial
-# eta-squared can be formed against the right error in a mixed design.
-.aov_terms_flat <- function(a) {
-  sm <- summary(a)
-  strata <- if (inherits(a, "aovlist")) sm else list(sm)
-  rows <- list()
-  for (st in strata) {
-    tab <- st[[1L]]; rn <- trimws(rownames(tab))
-    nm <- names(tab)
-    rss <- if ("Residuals" %in% rn) tab[["Sum Sq"]][rn == "Residuals"] else NA_real_
-    for (k in seq_len(nrow(tab)))
-      rows[[length(rows) + 1L]] <- data.frame(
-        term = rn[k], df = tab[["Df"]][k], sum_sq = tab[["Sum Sq"]][k],
-        mean_sq = tab[["Mean Sq"]][k],
-        F_value = if ("F value" %in% nm) tab[["F value"]][k] else NA_real_,
-        p = if ("Pr(>F)" %in% nm) tab[["Pr(>F)"]][k] else NA_real_,
-        resid_ss = rss, stringsAsFactors = FALSE)
-  }
-  out <- do.call(rbind, rows)
-  # missing responses unbalance a mixed design, and aov then projects a
-  # within term onto an earlier (between-person) error stratum as well as
-  # its own; only the deepest stratum tests the term against its proper
-  # error, so keep each term's last occurrence (Residuals rows stay
-  # per-stratum for the partial eta-squared)
-  dup <- out$term != "Residuals" & duplicated(out$term, fromLast = TRUE)
-  out[!dup, , drop = FALSE]
-}
-
 # Shared validation of the DIF-family arguments; every public DIF entry
 # point applies the same rules.
 .check_dif_args <- function(alpha, p_adjust, flag_logits = NULL,
@@ -840,8 +811,9 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     nu <- terms[terms$item == it & terms$term == paste0(tt, ":ci"), ,
                 drop = FALSE]
     if (!nrow(u)) next
-    # .aov_terms_flat deduplicates strata-split terms; a term reaching here
-    # twice would silently break every isTRUE() below, so fail loudly
+    # .dif_type2 and .dif_within_tests each emit one row per term; a term
+    # reaching here twice would silently break every isTRUE() below, so
+    # fail loudly rather than trust that upstream invariant
     if (nrow(u) > 1 || nrow(nu) > 1)
       stop("internal error: term '", tt, "' appears in several error strata")
     srows[[length(srows) + 1L]] <- data.frame(

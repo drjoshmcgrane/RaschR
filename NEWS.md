@@ -46,6 +46,13 @@
   condition contradicted the ancestor's and the panel stayed empty; the
   override history moves out of that panel with them, matching the object
   estimates it already reported.
+* `plot_btl_dependence()` includes a fitted first-position advantage in its
+  partial-residual baseline. The baseline summed only the exposure and
+  carry-over terms, and the expected-score map is nonlinear, so on a fit made
+  with `position = TRUE` every observed and fitted departure in the plot was
+  displaced; the estimates were never affected. Found by review; the
+  regression test pins the corrected baseline's partial residuals at zero
+  under the fitted model.
 * The application's Items page can bootstrap the fit statistics on request:
   one button runs `fit_bootstrap()` on the active fit and swaps the
   chi-square and fit-residual probabilities in the table, its CSV, the

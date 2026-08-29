@@ -1727,12 +1727,17 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
   dep <- setNames(fit$dependence$estimate, fit$dependence$effect)
   phi <- if ("exposure" %in% names(dep)) dep[["exposure"]] else 0
   psi <- if ("carry_over" %in% names(dep)) dep[["carry_over"]] else 0
+  # the first-position advantage, when fitted, shifts every comparison's
+  # linear predictor; the expected-score map is nonlinear, so leaving it out
+  # of the baseline would displace both the observed and the fitted departure
+  pos <- if ("position" %in% names(dep)) dep[["position"]] else 0
+  pos_cov <- if (is.null(dd$position)) 0 else dd$position
   Emom <- function(v) vapply(v, function(t) item_moments(t, tau)$E, 0)
 
   # partial-residual display: hold everything but this effect at its fitted
   # value, so the plotted departure isolates this covariate's contribution
   base <- unname(bl[dd$object_a] - bl[dd$object_b])
-  lin_full <- base + phi * dd$exposure + psi * dd$carry_over
+  lin_full <- base + phi * dd$exposure + psi * dd$carry_over + pos * pos_cov
   cov <- dd[[effect]]
   coef_e <- if (effect == "exposure") phi else psi
   E_other <- Emom(lin_full - coef_e * cov)
