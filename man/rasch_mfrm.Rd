@@ -12,7 +12,6 @@ rasch_mfrm(
   facets,
   items = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   na_codes = -1,
   interaction = NULL,
   factors = NULL,
@@ -45,8 +44,6 @@ where the facet varies within items.}
 \code{NULL} (the default) applies the class-interval rule of Andrich and
 Marais (2019, ch. 15) (at least 50
 non-extreme persons per interval, at most 10 intervals, at least 2).}
-
-\item{adjust_N}{Optional reference sample size for the chi-square.}
 
 \item{na_codes}{Score values to read as missing (default \code{-1}); any
 negative score is also treated as missing.}

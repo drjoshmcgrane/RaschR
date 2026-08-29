@@ -54,10 +54,9 @@ test_that("dependence resolution retains controls and refuses constrained polyto
   set.seed(12)
   X <- matrix(rbinom(1000 * 8, 1, .5), 1000, 8,
               dimnames = list(NULL, paste0("I", 1:8)))
-  f <- rasch(X, n_groups = 7, adjust_N = 1200, maxit = 75, tol = 1e-9)
+  f <- rasch(X, n_groups = 7, maxit = 75, tol = 1e-9)
   dm <- dependence_magnitude(f, "I5", "I4")
   expect_equal(dm$refit$refit_spec$n_groups, 7)
-  expect_equal(dm$refit$refit_spec$adjust_N, 1200)
   expect_equal(dm$refit$refit_spec$maxit, 75)
 
   d <- simulate_rasch(500, 7, model = "RSM", n_categories = 4, seed = 13)

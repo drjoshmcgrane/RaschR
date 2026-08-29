@@ -13,7 +13,6 @@ rasch_explanatory(
   id = NULL,
   factors = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   na_codes = -1,
   key = NULL,
   maxit = 60,
@@ -21,7 +20,7 @@ rasch_explanatory(
 )
 }
 \arguments{
-\item{data, items, id, factors, n_groups, adjust_N, na_codes, key, maxit, tol}{As in
+\item{data, items, id, factors, n_groups, na_codes, key, maxit, tol}{As in
 \code{\link{rasch}}.}
 
 \item{predictors}{Data frame containing an \code{item} column and the

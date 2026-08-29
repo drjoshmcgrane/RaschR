@@ -109,7 +109,6 @@
 #'   \code{NULL} (the default) applies the class-interval rule of Andrich and
 #'   Marais (2019, ch. 15) (at least 50
 #'   non-extreme persons per interval, at most 10 intervals, at least 2).
-#' @param adjust_N Optional reference sample size for the chi-square.
 #' @param na_codes Score values to read as missing (default \code{-1}); any
 #'   negative score is also treated as missing.
 #' @param items Optional character vector of item score columns for data in
@@ -160,13 +159,9 @@
 #' @export
 rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
                        items = NULL, n_groups = NULL,
-                       adjust_N = NA, na_codes = -1, interaction = NULL,
+                       na_codes = -1, interaction = NULL,
                        factors = NULL, maxit = 60, tol = 1e-8) {
   .check_controls(maxit, tol)
-  if (length(adjust_N) != 1L ||
-      (!is.na(adjust_N) && (!is.numeric(adjust_N) || !is.finite(adjust_N) ||
-                            adjust_N <= 0)))
-    stop("`adjust_N` must be one positive finite reference sample size")
   if (!is.null(n_groups) &&
       (length(n_groups) != 1L || !is.numeric(n_groups) ||
        !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2 ||
@@ -270,7 +265,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     }
     return(rasch_mfrm(long, person = tmp_person, item = tmp_item,
                       score = tmp_score, facets = facets,
-                      n_groups = n_groups, adjust_N = adjust_N,
+                      n_groups = n_groups,
                       na_codes = na_codes, interaction = interaction,
                       factors = fac_pass, maxit = maxit, tol = tol))
   }
@@ -533,8 +528,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     }
   }
   .check_factor_frame(fac_df)
-  fit <- .assemble_fit("MFRM", Xv, est, persons_u, fac_df, n_groups,
-                       adjust_N, notes)
+  fit <- .assemble_fit("MFRM", Xv, est, persons_u, fac_df, n_groups, notes)
   # When an item is represented by several facet cells, the expanded
   # columns are not one administered item set. Alpha and a universal
   # raw-score conversion over those columns have no test-level interpretation.

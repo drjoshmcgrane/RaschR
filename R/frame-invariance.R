@@ -133,7 +133,6 @@ NULL
       names(category_signature) <- colnames(Xg)
       f <- tryCatch(do.call(rasch, list(
         data = Xg, model = "PCM", n_groups = spec$n_groups,
-        adjust_N = spec$adjust_N %||% NA_real_,
         maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7)),
         error = function(e) NULL)
       if (is.null(f) || !isTRUE(f$est$converged)) next

@@ -114,7 +114,7 @@
     groups = group_vars, id = id_name,
     factors = if (length(extra)) extra else NULL, items = colnames(source),
     n_groups = spec$n_groups %||% fit$n_groups,
-    adjust_N = spec$adjust_N %||% NA_real_, na_codes = spec$na_codes %||% -1,
+    na_codes = spec$na_codes %||% -1,
     maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7,
     min_link_persons = spec$min_link_persons %||% 30,
     se_method = se_method %||% spec$se_method %||% fit$se_method,
@@ -170,7 +170,7 @@
     data = source, model = model %||% spec$model %||% fit$model,
     id = fit$person$id,
     factors = fit$factors, n_groups = spec$n_groups %||% fit$n_groups,
-    adjust_N = spec$adjust_N %||% NA_real_, anchors = anchors,
+    anchors = anchors,
     na_codes = spec$na_codes %||% -1, key = key,
     pc_components = spec$pc_components,
     maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8))

@@ -99,10 +99,9 @@ test_that("drop_items preserves anchors and principal-component PCM", {
   d <- simulate_rasch(400, 8, seed = 4)
   anchors <- data.frame(item = "I01", k = 1, tau = 1)
   f <- rasch(d, id = "id", anchors = anchors, n_groups = 7,
-             adjust_N = 500, maxit = 80, tol = 1e-9)
+             maxit = 80, tol = 1e-9)
   f2 <- drop_items(f, "I08")
   expect_equal(as.character(f2$est$anchors$item), "I01")
-  expect_equal(f2$refit_spec$adjust_N, 500)
   expect_equal(f2$refit_spec$n_groups, 7)
   expect_error(drop_items(f, c("I01", "I08")), "remove every anchor")
 
@@ -144,12 +143,11 @@ test_that("subtests and DIF splits retain the active Rasch specification", {
     item = rep(c("M1", "M2"), each = 2),
     option = rep(c("A", "B"), 2), score = rep(c(2L, 1L), 2))
   f <- rasch(d, factors = "grp", key = key, n_groups = 7,
-             adjust_N = 750, maxit = 80, tol = 1e-9)
+             maxit = 80, tol = 1e-9)
 
   sp <- split_items(f, "M1", by = "grp")
   expect_setequal(colnames(sp$mc$raw), c("M2", "M1 (A)", "M1 (B)"))
   expect_equal(sp$refit_spec$n_groups, 7)
-  expect_equal(sp$refit_spec$adjust_N, 750)
   expect_equal(sp$refit_spec$maxit, 80)
 
   su <- combine_items(f, list(c("M1", "I3")))

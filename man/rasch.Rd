@@ -11,7 +11,6 @@ rasch(
   factors = NULL,
   items = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   anchors = NULL,
   na_codes = -1,
   key = NULL,
@@ -45,9 +44,6 @@ and Marais (2019, ch. 15): as
 many intervals of at least 50 non-extreme persons as the sample allows,
 at most 10, at least 2. The resolved value is stored in
 \code{fit$n_groups}.}
-
-\item{adjust_N}{Optional reference sample size used to rescale the
-item-trait chi-squares. See Details.}
 
 \item{anchors}{Optional anchor table for equating: a data frame with
 columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
@@ -114,11 +110,6 @@ alternative correct options. The third form assigns integer category
 scores to nominated options and fits the resulting item as polytomous;
 unlisted options score zero. Raw responses are retained in \code{fit$mc}
 for distractor analysis.
-
-If \code{adjust_N} is supplied, each item-trait chi-square is multiplied by
-the reference sample size divided by the number of classified persons.
-The scaling is global: an item answered by a subset retains its
-proportionally smaller share of the reference sample.
 }
 \section{Estimated item discrimination}{
 

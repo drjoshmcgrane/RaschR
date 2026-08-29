@@ -205,7 +205,6 @@ residual_pca <- function(fit, n_components = 10) {
         .explanatory_refit_modified(fit, Xr, person_rows = which(keep))
       else
         rasch(Xr, model = fit$model, n_groups = fit$n_groups,
-              adjust_N = spec$adjust_N %||% NA_real_,
               anchors = spec$anchors, pc_components = spec$pc_components,
               maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
       error = function(e) {

@@ -389,7 +389,6 @@ test_that("item and anchor indices are validated, not truncated", {
   expect_error(rasch(X, anchors = data.frame(item = 1.9, k = 1, tau = 0)),
                "whole numbers")
   expect_error(rasch(X, n_groups = 1.9), "whole number")
-  expect_error(rasch(X, adjust_N = Inf), "finite")
   expect_error(rasch(X, tol = 0), "positive")
 })
 
@@ -492,9 +491,6 @@ test_that("MFRM controls and anchor values are validated", {
   expect_error(rasch_mfrm(dm, person = "person", item = "item",
                           score = "score", facets = "rater", n_groups = 1.9),
                "whole number")
-  expect_error(rasch_mfrm(dm, person = "person", item = "item",
-                          score = "score", facets = "rater", adjust_N = Inf),
-               "finite")
   X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
   colnames(X) <- paste0("I", 1:5)
   expect_error(pcml(X, anchors = data.frame(item = 2, k = 1, tau = Inf)),
@@ -1346,10 +1342,9 @@ test_that("derived fits keep the controls they were built from", {
   colnames(X) <- paste0("Q", 1:6)
   d <- data.frame(id = sprintf("P%03d", 1:N), X,
                   grp = rep(c("a", "b"), N / 2))
-  f <- rasch(d, id = "id", factors = "grp", model = "PCM", adjust_N = 2000)
+  f <- rasch(d, id = "id", factors = "grp", model = "PCM")
   lr <- lr_test(f)
-  # both parameterisations must be on the same chi-square scale
-  expect_equal(lr$fit_rsm$refit_spec$adjust_N, 2000)
+  # the refit must carry the person factors the follow-up analyses need
   expect_false(is.null(lr$fit_rsm$factors))
   expect_no_error(dif_anova(lr$fit_rsm, factors = "grp"))
   ratio <- sum(lr$fit_rsm$item_trait$chisq, na.rm = TRUE) /
@@ -1360,7 +1355,7 @@ test_that("derived fits keep the controls they were built from", {
   P <- 0.25 + 0.75 * plogis(outer(rnorm(800), seq(-2, 2, length.out = 10), "-"))
   Xd <- matrix(rbinom(800 * 10, 1, P), 800, 10)
   colnames(Xd) <- paste0("I", 1:10)
-  fd <- rasch(Xd, adjust_N = 2000)
+  fd <- rasch(Xd)
   ta <- tailored_analysis(fd, chance = 0.25)
   expect_gt(sum(ta$anchored$item_trait$chisq, na.rm = TRUE) /
               sum(fd$item_trait$chisq, na.rm = TRUE), 0.5)
@@ -1379,12 +1374,7 @@ test_that("derived fits keep the controls they were built from", {
 
   # the class-interval detail reconciles with the item table it quotes
   cd <- chisq_detail(fd, "I4")
-  expect_gt(cd$adjust_factor, 1)
-  expect_equal(sum(cd$intervals$chisq_adjusted[cd$intervals$used]), cd$chisq,
-               tolerance = 1e-8)
-  cd0 <- chisq_detail(rasch(Xd), "I4")
-  expect_equal(cd0$adjust_factor, 1)
-  expect_equal(sum(cd0$intervals$chisq[cd0$intervals$used]), cd0$chisq,
+  expect_equal(sum(cd$intervals$chisq[cd$intervals$used]), cd$chisq,
                tolerance = 1e-8)
 })
 
@@ -1793,16 +1783,16 @@ test_that("defaults, reserved names and generated names behave", {
     theta = rep(c("a", "b"), 150))), "reserved")
   expect_no_error(rasch(X, factors = data.frame(grp = rep(c("a", "b"), 150))))
 
-  # the detail scales by the statistic's own denominator
+  # the detail reconciles with the statistic when an item has missing data
   set.seed(342)
   N <- 800; th <- rnorm(N)
   Xm <- matrix(rbinom(N * 8, 1,
     plogis(outer(th, seq(-1.5, 1.5, length.out = 8), "-"))), N, 8)
   colnames(Xm) <- paste0("I", 1:8)
   Xm[1:300, 3] <- NA
-  fm <- rasch(Xm, adjust_N = 2000)
+  fm <- rasch(Xm)
   cd <- chisq_detail(fm, "I3")
-  expect_equal(sum(cd$intervals$chisq_adjusted[cd$intervals$used]), cd$chisq,
+  expect_equal(sum(cd$intervals$chisq[cd$intervals$used]), cd$chisq,
                tolerance = 1e-8)
 
   # generated and repeated names in the frame design

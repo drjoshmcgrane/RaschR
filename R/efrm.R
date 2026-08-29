@@ -974,7 +974,7 @@
 #' @param id Person identifier, either a column name or one value per row.
 #'   EFRM data require one response row per person, so identifiers must be
 #'   unique.
-#' @param factors,items,n_groups,adjust_N,na_codes As in \code{\link{rasch}}.
+#' @param factors,items,n_groups,na_codes As in \code{\link{rasch}}.
 #' @param maxit,tol Outer iteration cap and convergence tolerance of the
 #'   bilinear pairwise stage.
 #' @param min_link_persons Minimum number of common persons required for a
@@ -1068,7 +1068,7 @@
 #' }
 #' @export
 rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
-                       items = NULL, n_groups = NULL, adjust_N = NA,
+                       items = NULL, n_groups = NULL,
                        na_codes = -1, maxit = 50, tol = 1e-7,
                        min_link_persons = 30,
                        se_method = c("hybrid", "bootstrap"),
@@ -1080,10 +1080,6 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   .check_column_names(data)
   .check_controls(maxit, tol)
   min_link_persons <- .check_whole(min_link_persons, "min_link_persons", 1)
-  if (length(adjust_N) != 1L ||
-      (!is.na(adjust_N) && (!is.numeric(adjust_N) || !is.finite(adjust_N) ||
-                            adjust_N <= 0)))
-    stop("`adjust_N` must be one positive finite reference sample size")
   if (!is.null(n_groups) &&
       (length(n_groups) != 1L || !is.numeric(n_groups) ||
        !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2 ||
@@ -1773,7 +1769,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     fac_all <- cbind(fac_all, gc_chr)
   }
   if (!is.null(fac_df)) fac_all <- cbind(fac_all, fac_df)
-  fit <- .assemble_fit("EFRM", Xv, est, id_vec, fac_all, n_groups, adjust_N,
+  fit <- .assemble_fit("EFRM", Xv, est, id_vec, fac_all, n_groups,
                        notes, disc = rho_v)
   # Several frame-specific copies of one item are calibration cells, not
   # additional administered items. Alpha and one raw-score conversion over
@@ -2114,7 +2110,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   fit$refit_spec <- list(
     groups = if (!is.null(grp_components)) names(grp_components) else grp_name,
     factors = setdiff(names(fit$factors), fit$frame_group),
-    n_groups = n_groups_requested, adjust_N = adjust_N, na_codes = na_codes,
+    n_groups = n_groups_requested, na_codes = na_codes,
     maxit = maxit, tol = tol, min_link_persons = min_link_persons,
     se_method = se_method, boot_reps = boot_reps, workers = workers,
     seed = seed)

@@ -38,3 +38,8 @@ X <- matrix(rbinom(400 * 6, 1, plogis(outer(rnorm(400), d, "-"))), 400, 6)
 colnames(X) <- paste0("I", 1:6)
 chisq_detail(rasch(X), "I3")$intervals
 }
+\seealso{
+\code{\link{fit_bootstrap}}, which refers the item's total, and
+  every other item fit statistic, to a bootstrap null rather than to its
+  asymptotic distribution.
+}

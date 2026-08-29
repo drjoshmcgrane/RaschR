@@ -129,11 +129,6 @@
 #' unlisted options score zero. Raw responses are retained in \code{fit$mc}
 #' for distractor analysis.
 #'
-#' If \code{adjust_N} is supplied, each item-trait chi-square is multiplied by
-#' the reference sample size divided by the number of classified persons.
-#' The scaling is global: an item answered by a subset retains its
-#' proportionally smaller share of the reference sample.
-#'
 #' @param data Persons-by-items integer score matrix (categories from 0), or a
 #'   data frame also containing ID and person-factor columns. Missing values
 #'   are allowed subject to the identification and ignorability conditions
@@ -153,8 +148,6 @@
 #'   many intervals of at least 50 non-extreme persons as the sample allows,
 #'   at most 10, at least 2. The resolved value is stored in
 #'   \code{fit$n_groups}.
-#' @param adjust_N Optional reference sample size used to rescale the
-#'   item-trait chi-squares. See Details.
 #' @param anchors Optional anchor table for equating: a data frame with
 #'   columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
 #'   Column names must be unique. Anchors determine the scale origin.
@@ -231,7 +224,7 @@
 #' fit$psi$PSI
 #' @export
 rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
-                  items = NULL, n_groups = NULL, adjust_N = NA, anchors = NULL,
+                  items = NULL, n_groups = NULL, anchors = NULL,
                   na_codes = -1, key = NULL, pc_components = NULL,
                   maxit = 60, tol = 1e-8) {
   .check_column_names(data)
@@ -241,13 +234,6 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   .factors_label <- if (is.name(.factors_sym))
     as.character(.factors_sym) else "factor"
   model <- match.arg(model)
-  # adjust_N rescales the item-trait chi-square by (reference N / classified
-  # N); a non-positive or infinite reference would zero, negate, or blow up
-  # every statistic
-  if (length(adjust_N) != 1L ||
-      (!is.na(adjust_N) && (!is.numeric(adjust_N) || !is.finite(adjust_N) ||
-                            adjust_N <= 0)))
-    stop("`adjust_N` must be one positive finite reference sample size")
   if (!is.null(n_groups) &&
       (length(n_groups) != 1L || !is.numeric(n_groups) ||
        !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2 ||
@@ -535,7 +521,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
             "p-values are unreliable -- increase maxit or check the data ",
             "for unanswerable structure", call. = FALSE)
   .check_factor_frame(fac_df)
-  fit <- .assemble_fit(model, X, est, id_vec, fac_df, n_groups, adjust_N,
+  fit <- .assemble_fit(model, X, est, id_vec, fac_df, n_groups,
                        c(prep$notes, est$notes))
   fit$mc <- mc
   # Keep the arguments that define the fitted model. Post-fit operations such
@@ -555,7 +541,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
     rownames(key_spec) <- NULL
   }
   fit$refit_spec <- list(
-    model = model, n_groups = n_groups_requested, adjust_N = adjust_N,
+    model = model, n_groups = n_groups_requested,
     anchors = anchors_named, na_codes = na_codes, key = key_spec,
     pc_components = pc_components, maxit = maxit, tol = tol)
   fit
@@ -567,7 +553,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
 # unequal discriminations the raw score is no longer sufficient, so person
 # estimation switches to the weighted-score routine and the score table is
 # replaced by per-unit score curves.
-.assemble_fit <- function(model, X, est, id_vec, fac_df, n_groups, adjust_N,
+.assemble_fit <- function(model, X, est, id_vec, fac_df, n_groups,
                           notes, disc = NULL) {
   m <- est$m; L <- ncol(X)
   thr <- est$thr
@@ -610,7 +596,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   ci_list <- if (anyNA(X))
     .class_intervals_by_item(X, person$theta, person$extreme, ng_req)
   else NULL
-  it <- .item_trait(X, mo, ci, adjust_N = adjust_N, ci_list = ci_list)
+  it <- .item_trait(X, mo, ci, ci_list = ci_list)
   ia <- .item_anova(Z, ci, person$extreme, ci_list = ci_list)
   psi <- .psi(person$theta, person$se)
   psi_noext <- .psi(person$theta, person$se, keep = !person$extreme)

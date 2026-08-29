@@ -359,12 +359,10 @@ lr_test <- function(fit, maxit = 60, tol = 1e-8) {
     stop("lr_test() requires an unrestricted PCM fit; fixed threshold anchors change the null constraints")
   if (!is.null(spec$pc_components))
     stop("lr_test() requires an unrestricted PCM fit; principal-component threshold constraints are already a restricted model")
-  # the refit is meant to sit beside the PCM fit, so it must be scaled and
-  # grouped the same way: dropping adjust_N puts the two sets of item-trait
-  # chi-squares on different scales, and dropping the person factors makes
-  # the returned fit useless for the follow-up analyses
+  # the refit is meant to sit beside the PCM fit, so it must be grouped the
+  # same way: dropping the person factors makes the returned fit useless for
+  # the follow-up analyses
   rsm <- rasch(fit$X, model = "RSM", n_groups = fit$n_groups,
-               adjust_N = spec$adjust_N %||% NA_real_,
                id = fit$person$id, factors = fit$factors,
                maxit = maxit, tol = tol)
   if (!isTRUE(rsm$est$converged))

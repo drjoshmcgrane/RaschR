@@ -123,7 +123,6 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   Xt[cut_cells] <- NA
   tailored <- rasch(Xt, model = fit$model, id = fit$person$id,
                     factors = fit$factors, n_groups = fit$n_groups,
-                    adjust_N = spec$adjust_N %||% NA_real_,
                     maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)
   if (!isTRUE(tailored$est$converged))
     stop("the tailored calibration did not converge; the comparison is unavailable")
@@ -151,7 +150,6 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   a3 <- data.frame(item = anchor_items, k = NA, tau = ta_loc)
   origin_equated <- rasch(fit$X, model = fit$model, id = fit$person$id,
                           factors = fit$factors, n_groups = fit$n_groups,
-                          adjust_N = spec$adjust_N %||% NA_real_,
                           anchors = a3, maxit = spec$maxit %||% 60,
                           tol = spec$tol %||% 1e-8)
   if (!isTRUE(origin_equated$est$converged))
@@ -171,7 +169,6 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   # different scale from its own siblings
   anchored <- .assemble_fit(fit$model, fit$X, est4, fit$person$id,
                             fit$factors, fit$n_groups,
-                            spec$adjust_N %||% NA_real_,
                             c(fit$notes,
                               "all item parameters anchored at their tailored values; persons re-estimated"))
 
@@ -205,7 +202,6 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
         Xb, model = fit$model, id = bs$id,
         factors = if (is.null(fit$factors)) NULL else
           fit$factors[take, , drop = FALSE], n_groups = fit$n_groups,
-        adjust_N = spec$adjust_N %||% NA_real_,
         maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
         error = function(e) NULL)
       tb <- if (is.null(fb)) NULL else tryCatch(suppressWarnings(

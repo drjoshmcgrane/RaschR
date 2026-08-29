@@ -90,6 +90,7 @@ reference:
   - fit_summary_table
   - targeting_table
   - chisq_detail
+  - fit_bootstrap
   - test_information
   - lr_test
   - compare_fits

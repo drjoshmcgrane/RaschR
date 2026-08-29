@@ -1,5 +1,69 @@
 # rasch 1.12.1
 
+* `fit_bootstrap()` gives the item fit statistics a null distribution they can
+  be referred to. Every one of them is computed at estimated person locations
+  and referred to a distribution derived as though those locations were known,
+  and each is miscalibrated by an amount that moves with the sample. The
+  item-trait chi-square forms its class intervals by selecting on the
+  estimates, so the expected interval means carry a bias that does not shrink
+  while the intervals grow: at eight items a correctly fitting item is
+  rejected 8.9% of the time at 250 persons and 99.9% at 4,000, and the
+  whole-test total rejects every correctly fitting instrument from 1,000
+  persons on. The fit residual fails the other way, its null SD running from
+  0.74 at 250 persons to 1.00 at 4,000 with a mean drifting to -0.36, so the
+  conventional 2.5 cut flags under 1% of correctly fitting items and means
+  something different at each sample size. Infit z beyond 1.96 flags 11.5% at
+  250 persons and 68.4% at 4,000. The bootstrap generates from the fitted
+  model and sends every replicate down the same road as the observed data, so
+  the same bias enters the null and cancels: item-level error is 0.031-0.048
+  for the chi-square across all five sample sizes, 0.034-0.059 for the fit
+  residual and 0.040-0.071 for outfit z, and the whole-test total holds at
+  0.020-0.050. Power is retained in full --- an item generated at
+  discrimination 2.5 is detected 1.000 of the time at 2,000 persons while the
+  clean items beside it come back from 0.723 to 0.037. One set of replicates
+  serves every statistic, since a replicate must refit the whole model in any
+  case, and the whole-test readings include the mean and SD of the item fit
+  residuals: the convention reads that SD against 1, and it is nowhere near 1
+  until the sample runs to a few thousand.
+* `adjust_N` is removed from `rasch()`, `rasch_mfrm()`, `rasch_efrm()` and
+  `rasch_explanatory()`, and from the application's run settings. Rescaling
+  every item's chi-square to a reference sample size applies one constant
+  across items, so it can move how many items are flagged but not which: at
+  2,000 persons its power on a planted 2.5-slope item equalled its error rate
+  on the fitting items beside it at every reference value tried, and at a
+  reference of 500 it silenced that item in all 120 replicates. The
+  justification offered for it --- that a fitting item's chi-square is
+  unchanged by sample size while a misfitting item's grows --- does not hold:
+  under a model true by construction the mean chi-square runs 4.0, 7.9, 11.5,
+  18.2 and 30.7 for 250 to 4,000 persons on fixed degrees of freedom.
+  `chisq_detail()` loses `adjust_factor`, `chisq_unadjusted` and the
+  `chisq_adjusted` interval column with it; its intervals now sum to the
+  item's chi-square directly. Saved application projects carrying the setting
+  still open, the value being ignored.
+* The application's Summary panel renders after a comparative judgement fit.
+  Its headline tiles and test-of-fit table sat inside the panel shown only
+  for the other models, where their own show-for-comparative-judgement
+  condition contradicted the ancestor's and the panel stayed empty; the
+  override history moves out of that panel with them, matching the object
+  estimates it already reported.
+* The application's panels start closed. Twelve accordions opened a panel on
+  arrival --- ten naming one and two relying on the default, which opens the
+  first --- so every page presented a choice already made. `More` also loses
+  the only route to reopening a saved analysis: **Open saved analysis** now
+  sits beside **Upload data** on the welcome screen, since reopening one is a
+  way to start.
+* The workflow and comparative judgement vignettes demonstrate the
+  application over the analysis they set out in code, rather than a first
+  panel or two: the workflow vignette walks Data, Summary, Items, the
+  class-interval detail, Persons, Targeting, local dependence, DIF, the R code
+  disclosure and export, and the comparative judgement vignette gains the
+  section it never had, covering what changes when the roles are two objects
+  and an observed preference. The data structures vignette shows an
+  explanatory design at both levels with the same predictors, so the
+  difference between an item-level and a threshold-level file is visible as
+  the shape it is, with the number of rows a threshold design needs derived
+  from the data and the three errors that refuse one named.
+
 * `plot_pimap()` can restrict either side of the map: `group` takes one
   level of a fitted person factor, and `items` takes item names or one
   item-set name of an extended-frame fit, whose virtual item-by-group cells

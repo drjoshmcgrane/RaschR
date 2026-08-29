@@ -238,7 +238,7 @@
 # (number of class intervals contributing at least 2 responders to that
 # item) - 1, so items with missing data are tested on the intervals they
 # actually reach.
-.item_trait <- function(X, mo, ci, adjust_N = NA, ci_list = NULL) {
+.item_trait <- function(X, mo, ci, ci_list = NULL) {
   L <- ncol(X)
   chi <- setNames(numeric(L), colnames(X))
   used <- integer(L)
@@ -260,8 +260,6 @@
   # a manufactured df = 1 with a valid-looking p
   df_i <- ifelse(used >= 2L, used - 1L, NA_integer_)
   chi[is.na(df_i)] <- NA_real_
-  n_used <- sum(!is.na(ci))
-  if (!is.na(adjust_N)) chi <- chi * (adjust_N / n_used)
   p <- pchisq(chi, df_i, lower.tail = FALSE)
   usable <- is.finite(p)
   p_adj <- p_bonf <- rep(NA_real_, length(p))
@@ -312,6 +310,9 @@
 #'   \code{p}. Intervals with fewer than 2 responders are shown but carry no
 #'   chi-square contribution (\code{used = FALSE}), matching the item-trait
 #'   computation.
+#' @seealso \code{\link{fit_bootstrap}}, which refers the item's total, and
+#'   every other item fit statistic, to a bootstrap null rather than to its
+#'   asymptotic distribution.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-1.5, 1.5, length.out = 6)
@@ -366,22 +367,9 @@ chisq_detail <- function(fit, item) {
     }
   }
   it_row <- fit$item_trait[i, ]
-  # with adjust_N the reported chi-square is rescaled to a reference sample
-  # size, so the raw components cannot sum to it. The components stay
-  # standardised (chisq = residual^2) and the rescaled components are given
-  # beside them, so the detail and the item table reconcile.
-  adj_N <- (fit$refit_spec %||% list())$adjust_N %||% NA_real_
-  # the item-trait statistic scales by the GLOBAL classified count, not the
-  # item's own: using the item's would rescale by a different factor and the
-  # components would not sum to the statistic they are quoted beside
-  n_classified <- sum(!is.na(fit$person$class_interval))
-  adj <- if (!is.na(adj_N) && n_classified > 0) adj_N / n_classified else 1
-  iv$chisq_adjusted <- iv$chisq * adj
   list(item = fit$items$item[i], location = fit$items$location[i],
        intervals = iv, categories = cats, ave = mean(x, na.rm = TRUE),
-       chisq = it_row$chisq, df = it_row$df, p = it_row$p,
-       adjust_factor = adj,
-       chisq_unadjusted = sum(iv$chisq[iv$used], na.rm = TRUE))
+       chisq = it_row$chisq, df = it_row$df, p = it_row$p)
 }
 
 # Person separation index (separation reliability; Andrich 1982), with the

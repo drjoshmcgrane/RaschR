@@ -460,7 +460,7 @@ print.rasch_btl_explanatory <- function(x, ...) {
 }
 
 .explanatory_attach <- function(out, reference, design, formula, level,
-                                relaxations, n_groups_requested, adjust_N,
+                                relaxations, n_groups_requested,
                                 maxit, tol) {
   out$reference_fit <- reference
   out$mc <- reference$mc
@@ -472,7 +472,7 @@ print.rasch_btl_explanatory <- function(x, ...) {
     source_predictors = design$source_predictors,
     relaxations = relaxations)
   out$refit_spec <- list(model = "PCM", n_groups = n_groups_requested,
-    adjust_N = adjust_N, anchors = NULL,
+    anchors = NULL,
     na_codes = reference$refit_spec$na_codes %||% -1,
     key = reference$refit_spec$key,
     pc_components = NULL, maxit = maxit, tol = tol,
@@ -507,7 +507,7 @@ print.rasch_btl_explanatory <- function(x, ...) {
 #' on the object. \code{\link{explanatory_test}} applies the first-order Kent
 #' calibration required for the pairwise composite likelihood.
 #'
-#' @param data,items,id,factors,n_groups,adjust_N,na_codes,key,maxit,tol As in
+#' @param data,items,id,factors,n_groups,na_codes,key,maxit,tol As in
 #'   \code{\link{rasch}}.
 #' @param predictors Data frame containing an \code{item} column and the
 #'   predictors named in \code{formula}. With \code{level = "threshold"}, it
@@ -549,12 +549,12 @@ print.rasch_btl_explanatory <- function(x, ...) {
 #' @export
 rasch_explanatory <- function(data, predictors, formula, items = NULL,
                               level = c("item", "threshold"), id = NULL,
-                              factors = NULL, n_groups = NULL, adjust_N = NA,
+                              factors = NULL, n_groups = NULL,
                               na_codes = -1, key = NULL, maxit = 60,
                               tol = 1e-8) {
   level <- match.arg(level)
   reference <- rasch(data, model = "PCM", id = id, factors = factors,
-                     items = items, n_groups = n_groups, adjust_N = adjust_N,
+                     items = items, n_groups = n_groups,
                      na_codes = na_codes, key = key, maxit = maxit, tol = tol)
   design <- .explanatory_metadata(predictors, formula, reference$X, level)
   est <- .pcml_design(reference$X, design$B,
@@ -569,11 +569,11 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
                      paste(deparse(formula), collapse = " ")),
              est$notes)
   out <- .assemble_fit("PCM", reference$X, est, reference$person$id,
-                       reference$factors, n_groups, adjust_N, notes)
+                       reference$factors, n_groups, notes)
   out$explanatory_model <- kind
   .explanatory_attach(out, reference, design, formula, level,
                       relaxations = data.frame(),
-                      n_groups_requested = n_groups, adjust_N = adjust_N,
+                      n_groups_requested = n_groups,
                       maxit = maxit, tol = tol)
 }
 
@@ -845,7 +845,7 @@ relax_explanatory <- function(fit, item,
                     parameters_added = add, stringsAsFactors = FALSE)
   rel <- rbind(rel, new)
   out <- .assemble_fit("PCM", fit$X, est, fit$person$id, fit$factors,
-                       fit$n_groups, spec$adjust_N,
+                       fit$n_groups,
                        c(fit$notes, sprintf("fixed explanatory departure: %s, %s",
                          item, tolower(new$component))))
   out$explanatory_model <- fit$explanatory_model
@@ -857,8 +857,7 @@ relax_explanatory <- function(fit, item,
   out <- .explanatory_attach(out, fit$reference_fit, design,
                       fit$explanatory$formula, fit$explanatory$level, rel,
                       n_groups_requested = fit$n_groups,
-                      adjust_N = spec$adjust_N, maxit = spec$maxit,
-                      tol = spec$tol)
+                      maxit = spec$maxit, tol = spec$tol)
   out$mc <- fit$mc
   out
 }
@@ -936,8 +935,7 @@ relax_explanatory <- function(fit, item,
     id = fit$person$id[person_rows],
     factors = if (is.null(fit$factors)) NULL else
       fit$factors[person_rows, , drop = FALSE],
-    n_groups = spec$n_groups %||% fit$n_groups,
-    adjust_N = spec$adjust_N %||% NA_real_, maxit = spec$maxit %||% 60,
+    n_groups = spec$n_groups %||% fit$n_groups, maxit = spec$maxit %||% 60,
     tol = spec$tol %||% 1e-8)
 
   # Preserve prior analyst-approved departures on items that survive or are

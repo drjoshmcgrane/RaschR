@@ -12,7 +12,6 @@ rasch_efrm(
   factors = NULL,
   items = NULL,
   n_groups = NULL,
-  adjust_N = NA,
   na_codes = -1,
   maxit = 50,
   tol = 1e-07,
@@ -48,7 +47,7 @@ imprecise but identified units are retained with a warning.}
 EFRM data require one response row per person, so identifiers must be
 unique.}
 
-\item{factors, items, n_groups, adjust_N, na_codes}{As in \code{\link{rasch}}.}
+\item{factors, items, n_groups, na_codes}{As in \code{\link{rasch}}.}
 
 \item{maxit, tol}{Outer iteration cap and convergence tolerance of the
 bilinear pairwise stage.}
