@@ -57,7 +57,9 @@
   missingness sever any tie between who answers and what is missing: a
   linked-booklet design’s observed 1.29-logit group difference fell to
   0.12 in resampled replicates and is reproduced at 1.28 conditionally,
-  exactly, because the scores that carry it are held. The
+  exactly, because the scores that carry it are held; the recorded
+  booklet scenario holds the item-level rate at 1.9% and Holm familywise
+  error at 3% for the chi-square and 6% for the fit residual. The
   ability-sampling schemes remain by name. Review also tightened the
   arithmetic around the resolution floor — a two-sided bootstrap
   probability cannot fall below 2/(B + 1), so Holm across L items needs
