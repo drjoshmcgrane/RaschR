@@ -32,3 +32,6 @@ docs
 tests/testthat/_problems/
 figure/
 tmp/
+
+# local render output
+output/
