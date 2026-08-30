@@ -4075,13 +4075,6 @@ server <- function(input, output, session) {
   outputOptions(output, "has_interaction", suspendWhenHidden = FALSE)
   output$is_btl <- reactive(!is.null(btl_fit()))
   outputOptions(output, "is_btl", suspendWhenHidden = FALSE)
-  output$is_explanatory <- reactive({
-    inherits(tryCatch(fit(), error = function(e) NULL), "rasch_explanatory") ||
-      inherits(tryCatch({
-        s <- active_btl_step(); if (is.null(s)) btl_fit() else s$fit
-      }, error = function(e) NULL), "rasch_btl_explanatory")
-  })
-  outputOptions(output, "is_explanatory", suspendWhenHidden = FALSE)
   output$has_expl_relaxations <- reactive({
     f <- tryCatch({
       b <- btl_fit()
