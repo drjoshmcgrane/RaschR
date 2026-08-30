@@ -188,8 +188,9 @@ for (cond in list(list(n = 500L, s = 2.5, tag = 91L),
 # B past the resolution floor (2L/(B+1) two-sided) to be meaningful.
 # fifteen booklet items put the two-sided Holm floor at 30/(B + 1): the
 # study-wide B would make the fit-residual familywise rate structurally
-# zero, so this scenario runs at no less than 599 replicates
-B_BOOKLET <- max(B, 599L)
+# zero, and so would 599 exactly (30/600 = .05 cannot pass a strict test at
+# .05) -- the scenario needs B of at least 600
+B_BOOKLET <- max(B, 600L)
 booklet_one <- function(r) {
   set.seed(5e6 + r)
   n <- 400L
