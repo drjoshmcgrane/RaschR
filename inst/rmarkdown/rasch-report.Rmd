@@ -199,8 +199,20 @@ if (!is_btl) {
           "infit_z", "disc_1", "disc_2", "disc_ratio", "disc_boundary"))))
     }
   }
+  bs <- attr(fit, "report_bootstrap")
+  if (!is.null(bs)) {
+    cat("\n# Bootstrap fit statistics\n\n")
+    cat(sprintf("Parametric bootstrap null (%s scheme): %d of %d replicates.\n\n",
+                bs$theta, bs$B_used, bs$B))
+    print(show_table(report_columns(bs$items,
+      c("item", "chisq", "chisq_p_boot_adj", "fit_resid",
+        "fit_resid_p_boot_adj", "infit_z_p_boot_adj",
+        "outfit_z_p_boot_adj"))))
+  }
   if (!is.null(fit$factors) && length(names(fit$factors))) {
-    da <- tryCatch(dif_anova(fit), error = function(e) NULL)
+    da <- attr(fit, "report_dif")
+    if (is.null(da))
+      da <- tryCatch(dif_anova(fit), error = function(e) NULL)
     if (!is.null(da)) {
       cat("\n# Differential item functioning\n\n")
       print(show_table(report_columns(da$summary,

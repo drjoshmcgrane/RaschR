@@ -4,7 +4,14 @@
 \alias{report_html}
 \title{Write a self-contained HTML report of a Rasch analysis}
 \usage{
-report_html(fit, file, title = "Rasch measurement analysis", dpi = 150)
+report_html(
+  fit,
+  file,
+  title = "Rasch measurement analysis",
+  dpi = 150,
+  dif = NULL,
+  bootstrap = NULL
+)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
@@ -14,6 +21,10 @@ report_html(fit, file, title = "Rasch measurement analysis", dpi = 150)
 \item{title}{Report title.}
 
 \item{dpi}{Resolution of the embedded plots.}
+
+\item{dif, bootstrap}{Optional computed \code{\link{dif_anova}} and
+\code{\link{fit_bootstrap}} results, exported as run; the DIF table is
+otherwise recomputed at defaults when the fit carries person factors.}
 }
 \value{
 Invisibly, \code{file}.

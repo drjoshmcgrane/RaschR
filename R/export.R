@@ -288,6 +288,12 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #' @param formats Plot formats, any of \code{"png"} and \code{"pdf"}.
 #' @param width,height Plot size in inches.
 #' @param dpi PNG resolution.
+#' @param dif Optional \code{\link{dif_anova}} result to export as computed
+#'   --- an application analysis carries the DIF model the analyst chose,
+#'   which a default recomputation would silently replace. \code{NULL}
+#'   computes the default when the fit carries person factors.
+#' @param bootstrap Optional \code{\link{fit_bootstrap}} result; its item
+#'   table and whole-test readings join the exported tables.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
 #'   threshold curve, and frequency chart per item).
 #' @return Invisibly, the vector of files written.
@@ -300,8 +306,13 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #' save_outputs(rasch(X), out, formats = "png", item_plots = FALSE, dpi = 96)
 #' @export
 save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
-                         height = 6, dpi = 300, item_plots = TRUE) {
+                         height = 6, dpi = 300, item_plots = TRUE,
+                         dif = NULL, bootstrap = NULL) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
+  if (!is.null(dif) && !is.list(dif))
+    stop("`dif` must be a dif_anova() result")
+  if (!is.null(bootstrap) && !is.list(bootstrap))
+    stop("`bootstrap` must be a fit_bootstrap() result")
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
   # complete export but carries no plots
@@ -435,11 +446,20 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     wtab(fit$score_curves, "score_curves")
   }
   if (!is.null(fit$factors)) {
-    da <- tryCatch(dif_anova(fit), error = function(e) NULL)
+    # an analysis exported from the application carries the DIF model the
+    # analyst actually chose; recomputing at defaults would export a
+    # different analysis than the one on screen
+    da <- if (!is.null(dif)) dif
+          else tryCatch(dif_anova(fit), error = function(e) NULL)
     if (!is.null(da)) {
       wtab(da$summary, "dif_anova")
       wtab(da$terms, "dif_anova_terms")
     }
+  }
+  if (!is.null(bootstrap)) {
+    wtab(bootstrap$items, "bootstrap_fit")
+    wtab(data.frame(quantity = names(unlist(bootstrap$total)),
+                    value = unlist(bootstrap$total)), "bootstrap_total")
   }
   if (any(fit$person$extreme)) {
     pe <- tryCatch(person_extrapolated(fit), error = function(e) NULL)
@@ -634,6 +654,9 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' @param file Path of the HTML file to write.
 #' @param title Report title.
 #' @param dpi Resolution of the embedded plots.
+#' @param dif,bootstrap Optional computed \code{\link{dif_anova}} and
+#'   \code{\link{fit_bootstrap}} results, exported as run; the DIF table is
+#'   otherwise recomputed at defaults when the fit carries person factors.
 #' @return Invisibly, \code{file}.
 #' @examples
 #' set.seed(1)
@@ -644,7 +667,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' report_html(rasch(X), out)
 #' @export
 report_html <- function(fit, file, title = "Rasch measurement analysis",
-                        dpi = 150) {
+                        dpi = 150, dif = NULL, bootstrap = NULL) {
   # a vector title would be pasted into as many documents as it has entries,
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
@@ -821,8 +844,16 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
       sprintf("<p class='note'>Complete cases n = %d; raw mean %.2f, SD %.2f; alpha %.3f; classical SEM %.2f.</p>",
               ctt$n, ctt$mean, ctt$sd, ctt$alpha, ctt$sem),
       .html_table(ctt$table)) else "",
+    if (!is.null(bootstrap)) s("<h2>Bootstrap fit statistics</h2>",
+      sprintf("<p class='note'>Parametric bootstrap null (%s scheme): %d of %d replicates. Probabilities are Holm-adjusted over the items.</p>",
+              bootstrap$theta, bootstrap$B_used, bootstrap$B),
+      .html_table(bootstrap$items[, intersect(c("item", "chisq",
+                                     "chisq_p_boot_adj", "fit_resid",
+                                     "fit_resid_p_boot_adj"),
+                                   names(bootstrap$items))])) else "",
     if (!is.null(fit$factors)) {
-      da <- tryCatch(dif_anova(fit), error = function(e) NULL)
+      da <- if (!is.null(dif)) dif
+            else tryCatch(dif_anova(fit), error = function(e) NULL)
       if (!is.null(da)) s("<h2>Differential item functioning</h2>",
         .html_table(da$summary[, intersect(c("item", "term", "F_uniform",
                                      "p_uniform_adj", "eta2_uniform",
@@ -891,6 +922,9 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #'   \code{\link{rasch_efrm}}, \code{\link{btl}}, or \code{\link{btl_efrm}}.
 #' @param file Output path ending in \code{.html}, \code{.docx}, or \code{.pdf}.
 #' @param format Output format. By default it is inferred from \code{file}.
+#' @param dif,bootstrap Optional computed \code{\link{dif_anova}} and
+#'   \code{\link{fit_bootstrap}} results, rendered as run rather than
+#'   recomputed at defaults.
 #' @param title Report title.
 #' @return Invisibly, the output path.
 #' @details Word and HTML output require Pandoc, supplied with RStudio and
@@ -904,9 +938,14 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #' @export
 report_document <- function(fit, file,
                             format = c("auto", "html", "docx", "pdf"),
-                            title = "Rasch measurement analysis") {
+                            title = "Rasch measurement analysis",
+                            dif = NULL, bootstrap = NULL) {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
+  # computed results travel as attributes on the serialised fit, so the
+  # template renders the analysis as run rather than a default recomputation
+  if (!is.null(dif)) attr(fit, "report_dif") <- dif
+  if (!is.null(bootstrap)) attr(fit, "report_bootstrap") <- bootstrap
   .check_out_path(file, "file")
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")

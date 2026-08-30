@@ -638,7 +638,25 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
              fill = c(.rr$blue, .rr$amber), border = NA, cex = 0.76)
   if (isTRUE(information)) {
     grid <- seq(rng[1], rng[2], length.out = 241L)
-    ti <- test_information(fit, grid)
+    # the curve must describe the same design as the distributions below it:
+    # a set-restricted map carrying the full instrument's information, or a
+    # one-group EFRM map carrying every group's curves, would read as
+    # precision the selection does not have
+    info_idx <- if (is.null(items)) NULL else
+      unique(fit$thresholds$item[keep_i])
+    if (!is.null(group) && inherits(fit, "rasch_efrm") &&
+        !is.null(fit$virtual_map)) {
+      gname <- fit$frame_group[1]
+      glevel <- if (grepl(":", group, fixed = TRUE))
+        trimws(strsplit(as.character(group), ":", fixed = TRUE)[[1]])[2]
+      else as.character(group)
+      gcols <- which(as.character(fit$virtual_map$group) == glevel)
+      if (length(gcols)) {
+        info_idx <- if (is.null(info_idx)) gcols else intersect(info_idx, gcols)
+        if (!length(info_idx)) info_idx <- gcols
+      }
+    }
+    ti <- test_information(fit, grid, items = info_idx)
     des <- if ("design" %in% names(ti)) unique(ti$design) else "Test information"
     cols <- rep_len(c(.rr$teal, .rr$purple, .rr$red, .rr$soft), length(des))
     imax <- max(ti$info, na.rm = TRUE)
@@ -675,14 +693,31 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
   if (is.null(fac) || !ncol(fac))
     stop("the fit carries no person factors, so it has no groups to select",
          call. = FALSE)
-  hit <- vapply(fac, function(v) as.character(group) %in%
-                  as.character(unique(v)), TRUE)
+  group <- as.character(group)
+  # the qualified form names the factor as well as the level, and is the
+  # only unambiguous address when two factors share a level name
+  if (grepl(":", group, fixed = TRUE)) {
+    parts <- trimws(strsplit(group, ":", fixed = TRUE)[[1]])
+    if (length(parts) != 2L || !parts[1] %in% names(fac))
+      stop("`group` '", group, "' does not match 'factor: level'; fitted ",
+           "factors: ", paste(names(fac), collapse = ", "), call. = FALSE)
+    v <- as.character(fac[[parts[1]]])
+    if (!parts[2] %in% unique(v))
+      stop("'", parts[2], "' is not a level of factor '", parts[1], "'",
+           call. = FALSE)
+    return(v == parts[2])
+  }
+  hit <- vapply(fac, function(v) group %in% as.character(unique(v)), TRUE)
   if (!any(hit))
     stop("`group` value '", group, "' is not a level of any fitted person ",
          "factor; available: ",
          paste(unique(unlist(lapply(fac, function(v)
            as.character(unique(v))))), collapse = ", "), call. = FALSE)
-  as.character(fac[[which(hit)[1]]]) == as.character(group)
+  if (sum(hit) > 1L)
+    stop("level '", group, "' belongs to several factors; name it as one of: ",
+         paste(sprintf("'%s: %s'", names(fac)[hit], group), collapse = ", "),
+         call. = FALSE)
+  as.character(fac[[which(hit)]]) == group
 }
 
 # Restricting the item side: item names, or one item-set name of an EFRM fit.

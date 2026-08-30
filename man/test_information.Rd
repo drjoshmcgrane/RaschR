@@ -4,12 +4,16 @@
 \alias{test_information}
 \title{Test information function}
 \usage{
-test_information(fit, grid = seq(-6, 6, by = 0.1))
+test_information(fit, grid = seq(-6, 6, by = 0.1), items = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
 
 \item{grid}{Logit grid over which to evaluate the information.}
+
+\item{items}{Optional item selection: item names or indices. Every design
+block is restricted to the named items, so a restricted person-item map
+can carry the information of its own selection.}
 }
 \value{
 A data frame with \code{theta}, \code{info}, and \code{sem}. For

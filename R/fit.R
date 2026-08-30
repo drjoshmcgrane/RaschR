@@ -558,6 +558,9 @@ chisq_detail <- function(fit, item) {
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param grid Logit grid over which to evaluate the information.
+#' @param items Optional item selection: item names or indices. Every design
+#'   block is restricted to the named items, so a restricted person-item map
+#'   can carry the information of its own selection.
 #' @return A data frame with \code{theta}, \code{info}, and \code{sem}. For
 #'   EFRM and MFRM fits it also contains a \code{design} column identifying
 #'   the administrable frame or facet design.
@@ -572,13 +575,51 @@ chisq_detail <- function(fit, item) {
 #' colnames(X) <- paste0("I", 1:6)
 #' head(test_information(rasch(X)))
 #' @export
-test_information <- function(fit, grid = seq(-6, 6, by = 0.1)) {
+test_information <- function(fit, grid = seq(-6, 6, by = 0.1), items = NULL) {
   if (!inherits(fit, "rasch")) stop("test_information needs a rasch fit")
   if (!is.numeric(grid) || !length(grid) || any(!is.finite(grid)))
     stop("grid must contain finite numeric person locations")
   L <- length(fit$tau_list)
   disc <- if (is.null(fit$disc)) rep(1, L) else fit$disc
+  # an item subset restricts every design block to the named items, so a
+  # restricted person-item map can carry the information of its own
+  # selection rather than the whole instrument's
+  keep <- if (is.null(items)) seq_len(L)
+          else if (is.numeric(items)) {
+            if (any(!is.finite(items)) || any(items != floor(items)))
+              stop("`items` indices must be whole numbers")
+            ki <- as.integer(items)
+            if (any(ki < 1L) || any(ki > L))
+              stop("`items` indices must lie in 1..", L)
+            ki
+          } else {
+            nm <- as.character(items)
+            ki <- match(nm, fit$items$item)
+            # an EFRM calibrates virtual item-by-group cells; an underlying
+            # item name selects every cell it appears in
+            if (anyNA(ki) && !is.null(fit$virtual_map)) {
+              vm <- fit$virtual_map
+              ki <- lapply(nm, function(x) {
+                j <- match(x, fit$items$item)
+                if (!is.na(j)) return(j)
+                which(as.character(vm$item) == x)
+              })
+              bad <- vapply(ki, length, 0L) == 0L
+              if (any(bad))
+                stop("item(s) not in the fit: ",
+                     paste(nm[bad], collapse = ", "))
+              ki <- unique(unlist(ki))
+            } else if (anyNA(ki)) {
+              stop("item(s) not in the fit: ",
+                   paste(nm[is.na(ki)], collapse = ", "))
+            }
+            ki
+          }
   blocks <- .design_blocks(fit)
+  blocks <- lapply(blocks, function(ii) intersect(ii, keep))
+  blocks <- blocks[vapply(blocks, length, 0L) > 0L]
+  if (!length(blocks))
+    stop("the item selection leaves no items in any design block")
   ans <- lapply(seq_along(blocks), function(j) {
     ii <- blocks[[j]]
     info <- vapply(grid, function(th)

@@ -177,3 +177,51 @@ test_that("fit plots display standardised infit and outfit with the count note",
   expect_no_error(plot_item_map(f, statistic = "infit"))
   expect_no_error(plot_item_map(f, statistic = "outfit"))
 })
+
+test_that("a restricted person-item map carries its own information", {
+  d <- simulate_rasch(300, 10, seed = 31)
+  f <- rasch(d, id = "id")
+  grid <- seq(-2, 2, by = 0.5)
+  full <- test_information(f, grid)
+  sub <- test_information(f, grid, items = c("I01", "I02", "I03"))
+  expect_true(all(sub$info < full$info))
+  # the subset curve is exactly the sum of its own item variances
+  by_hand <- vapply(grid, function(t)
+    sum(vapply(1:3, function(i) item_moments(t, f$tau_list[[i]])$V, 0)), 0)
+  expect_equal(sub$info, by_hand, tolerance = 1e-10)
+  expect_error(test_information(f, grid, items = "NOPE"), "not in the fit")
+})
+
+test_that("an ambiguous group level is refused, and the qualified form works", {
+  d <- simulate_rasch(200, 6, seed = 32)
+  d$grp <- rep(c("a", "b"), 100)
+  d$site <- rep(c("a", "z"), each = 100)   # level "a" in both factors
+  f <- rasch(d, id = "id", factors = c("grp", "site"))
+  expect_error(.pimap_persons(f, "a"), "several factors")
+  expect_equal(sum(.pimap_persons(f, "grp: a")), 100)
+  expect_equal(sum(.pimap_persons(f, "site: a")), 100)
+  expect_false(identical(.pimap_persons(f, "grp: a"),
+                         .pimap_persons(f, "site: a")))
+  expect_error(.pimap_persons(f, "grp: q"), "not a level")
+  # an unambiguous bare level still works
+  expect_equal(sum(.pimap_persons(f, "z")), 100)
+})
+
+test_that("test_information refuses fractional indices and finds EFRM items", {
+  d <- simulate_rasch(200, 6, seed = 33)
+  f <- rasch(d, id = "id")
+  expect_error(test_information(f, items = 1.9), "whole numbers")
+  de <- simulate_efrm(n_per_group = 80, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 34)
+  fe <- rasch_efrm(de, item_sets = attr(de, "truth")$item_sets,
+                   groups = "group", boot_reps = 0)
+  base <- as.character(fe$virtual_map$item[1])
+  ti <- test_information(fe, seq(-1, 1, by = 0.5), items = base)
+  expect_true(nrow(ti) > 0)
+  # an EFRM map restricted to one group carries only that group's designs
+  grid <- seq(-1, 1, by = 0.5)
+  g1 <- levels(factor(fe$factors[[fe$frame_group[1]]]))[1]
+  gcols <- which(as.character(fe$virtual_map$group) == g1)
+  ti_g <- test_information(fe, grid, items = gcols)
+  expect_true(all(grepl(paste0("group=", g1), unique(ti_g$design), fixed = TRUE)))
+})

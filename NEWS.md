@@ -1,5 +1,57 @@
 # rasch 1.12.1
 
+* Release review, second pass. `fit_bootstrap()` warns when the requested
+  replicates cannot reach Holm-adjusted significance at .05 for the item
+  count --- the floor is 2L/(B + 1) two-sided, so a run whose adjusted
+  probabilities could never flag anything says so before it spends the
+  time. A restricted person-item map carries the information of its own
+  selection: `test_information()` gains an `items` argument and
+  `plot_pimap()` passes its item subset through, where the curve previously
+  described the whole instrument over a subset's distributions. A person
+  group is addressed unambiguously: `plot_pimap()` accepts the qualified
+  `"factor: level"` form and refuses a bare level that two factors share,
+  naming the qualified candidates, where the first factor was silently
+  taken; the application's selector now offers the qualified form
+  throughout, and its generated code quotes names by `deparse()` so a level
+  carrying a quote still yields runnable code. A saved analysis carries its
+  bootstrap: the project stores and restores `fit_bootstrap()` results, and
+  reports and complete exports render the analysis as run --- the
+  application's configured DIF model and any bootstrap null --- rather than
+  recomputing defaults (`save_outputs()`, `report_html()` and
+  `report_document()` gain `dif` and `bootstrap` arguments), and every
+  bootstrap probability a report renders is the Holm-adjusted one. Bootstrap
+  covariance acceptance is dimension-aware: successes must also exceed the
+  covariance's column count, since a covariance cannot reach full rank on
+  fewer draws than columns; the alpha--phi cross-covariance meets the same
+  floor and is withheld with a warning below it. On an extended-frame map
+  restricted to one group, the information curves are that group's designs
+  alone, and `test_information()` refuses fractional indices and accepts an
+  extended-frame fit's underlying item names.
+* `fit_bootstrap()` generates its replicates conditionally by default:
+  each person's responses are drawn from the Rasch conditional distribution
+  given their observed raw score over their own observed items, with
+  sufficiency cancelling the person parameter. Release review caught two
+  defects in the ability-resampling default this replaces. Resampled
+  estimates carry their estimation error, and the standardised statistics
+  feel the inflated spread as the sample grows --- infit z rejected 14.4% of
+  correctly fitting items at 4,000 persons, against 2.1% conditionally, with
+  the chi-square at 5.2% and the fit residual at 3.7%. And abilities drawn
+  independently of each person's missingness sever any tie between who
+  answers and what is missing: a linked-booklet design's observed 1.29-logit
+  group difference fell to 0.12 in resampled replicates and is reproduced at
+  1.28 conditionally, exactly, because the scores that carry it are held.
+  The ability-sampling schemes remain by name. Review also tightened the
+  arithmetic around the resolution floor --- a two-sided bootstrap
+  probability cannot fall below 2/(B + 1), so Holm across L items needs
+  B of at least 40L to flag at .05, which the documentation, the
+  application's guidance and its adjusted fit-residual display now state
+  and follow --- and two operational faults: the shared bootstrap harness
+  now degrades to a serial run with a warning when its sockets cannot be
+  opened (every draw is made before dispatch, so the result is identical),
+  where it previously errored inside documented examples; and bootstrap
+  acceptance again honours the documented contract of at least 30
+  successful replicates and a majority of those requested, where a bare
+  majority --- 16 of 30 --- had been allowed to price a covariance.
 * `fit_bootstrap()` gives the item fit statistics a null distribution they can
   be referred to. Every one of them is computed at estimated person locations
   and referred to a distribution derived as though those locations were known,

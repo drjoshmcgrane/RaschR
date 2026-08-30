@@ -46,12 +46,9 @@
   setNames(rep("A", 15), sprintf("I%02d", 1:15))
 
 # paired-comparison demo: 8 essays compared pairwise by 10 judges, with
-# judge J09 answering at random (discoverable in the judge fit table).
-# Besides the winner column it carries a polytomous `preference` column (four
-# ordered categories) simulated from the same object locations, so the
-# polytomous-response role can be pointed at it, and a `margin` column ("a
-# little" < "much") derived from the preference for the winner + margin
-# entry path.
+# judge J09 answering at random (discoverable in the judge fit table). The
+# recorded response is the winner alone -- the design is dichotomous by
+# intent (see the note inside), so there is no preference or margin column.
 .demo_btl <- function(seed = 47, reps = 26) {
   set.seed(seed)
   # a moderate object spread: extreme objects have near-zero residual variance

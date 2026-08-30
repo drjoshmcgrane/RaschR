@@ -995,8 +995,11 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
                           "chi-square and fit-residual probabilities in the",
                           "table, the tile, and the CSV until the next",
                           "estimation. The smallest familywise-adjusted",
-                          "probability is items/(B + 1), so flagging at .05",
-                          "needs at least 20 replicates per item."))),
+                          "probability is items/(B + 1) for the chi-square",
+                          "and twice that for the two-sided statistics, so",
+                          "flagging at .05 needs at least 20 replicates per",
+                          "item for the chi-square and 40 for the fit",
+                          "residual."))),
         uiOutput("boot_state", inline = TRUE))),
     conditionalPanel("output.anchor_download_available == true",
       div(class = "mb-2 d-flex justify-content-end",
@@ -4630,6 +4633,7 @@ server <- function(input, output, session) {
     p_adj = "Adj. p", p_bonf = "Bonf. p", p_anova = "ANOVA p",
     chisq_p_boot = "Boot p", chisq_p_boot_adj = "Boot adj. p",
     fit_resid_p_boot = "Fit resid boot p",
+    fit_resid_p_boot_adj = "Fit resid boot adj. p",
     p_anova_adj = "ANOVA adj. p", p_anova_bonf = "ANOVA Bonf. p",
     F_anova = "ANOVA F", F_uniform = "Uniform F",
     F_nonuniform = "Non-uniform F", p_uniform = "Uniform p",
@@ -5259,7 +5263,9 @@ server <- function(input, output, session) {
     })
   # ---- bootstrap null for the fit statistics (post-estimation, on request)
   boot_val <- reactiveVal(NULL)
-  observeEvent(fit(), boot_val(NULL), ignoreInit = TRUE)
+  observeEvent(fit(), {
+    if (!isTRUE(restoring_project())) boot_val(NULL)
+  }, ignoreInit = TRUE)
   output$can_boot <- reactive({
     f <- fit_or_null()
     !is.null(f) && inherits(f, "rasch") &&
@@ -5270,12 +5276,13 @@ server <- function(input, output, session) {
   outputOptions(output, "can_boot", suspendWhenHidden = FALSE)
   observeEvent(input$boot_run, {
     f <- fit()
-    B <- suppressWarnings(as.integer(input$boot_B))
-    if (is.na(B) || B < 99 || B > 9999) {
+    B_raw <- suppressWarnings(as.numeric(input$boot_B))
+    if (is.na(B_raw) || B_raw != floor(B_raw) || B_raw < 99 || B_raw > 9999) {
       showNotification("Replicates must be a whole number from 99 to 9999",
                        type = "warning")
       return(invisible(NULL))
     }
+    B <- as.integer(B_raw)
     seed <- suppressWarnings(as.integer(round(input$boot_seed %||% 1)))
     if (is.na(seed)) seed <- 1L
     bs <- withProgress(
@@ -5312,6 +5319,7 @@ server <- function(input, output, session) {
     d$chisq_p_boot <- b$chisq_p_boot[idx]
     d$chisq_p_boot_adj <- b$chisq_p_boot_adj[idx]
     d$fit_resid_p_boot <- b$fit_resid_p_boot[idx]
+    d$fit_resid_p_boot_adj <- b$fit_resid_p_boot_adj[idx]
     d
   }
 
@@ -5371,13 +5379,14 @@ server <- function(input, output, session) {
     # with a bootstrap null active the asymptotic probabilities give way to
     # the calibrated ones, in the display and in the CSV alike
     extra <- if (is.null(bv)) NULL
-             else c("chisq_p_boot_adj", "fit_resid_p_boot")
+             else c("chisq_p_boot_adj", "fit_resid_p_boot_adj")
     d <- curate(items_with_boot(), "items", full = isTRUE(input$items_full),
                 extra = extra)
     if (!is.null(bv) && !isTRUE(input$items_full))
       d$p_adj <- NULL
     dt <- num_dt(d, page_len = 25, selection = "single",
-                 p_bold = c("p_adj", "p_anova_adj", "chisq_p_boot_adj"))
+                 p_bold = c("p_adj", "p_anova_adj", "chisq_p_boot_adj",
+                            "fit_resid_p_boot_adj"))
     # fit residual, infit and outfit are flagged by num_dt; the operative
     # chi-square probability turns red at .05 as well (no single flag column)
     for (j in which(names(d) %in% c("p_adj", "chisq_p_boot_adj")))
@@ -5389,7 +5398,7 @@ server <- function(input, output, session) {
     if (is.null(bv)) return("fit$items")
     paste(sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
           "merge(fit$items, bs$items[c(\"item\", \"chisq_p_boot\",",
-          "  \"chisq_p_boot_adj\", \"fit_resid_p_boot\")], by = \"item\")",
+          "  \"chisq_p_boot_adj\", \"fit_resid_p_boot_adj\")], by = \"item\")",
           sep = "\n")
   })
 
@@ -5757,18 +5766,24 @@ server <- function(input, output, session) {
     r <- tg_rng() %||% c(-5, 5)
     info_arg <- if (isTRUE(information) && isTRUE(input$tg_information))
       ", information = TRUE" else ""
+    # deparse() rather than a quoted %s: a level or set name carrying a
+    # quote or backslash must still yield runnable code
     sel <- paste0(
-      if (!is.null(tg_group())) sprintf(", group = \"%s\"", tg_group()) else "",
-      if (!is.null(tg_items())) sprintf(", items = \"%s\"", tg_items()) else "")
+      if (!is.null(tg_group())) paste0(", group = ", deparse(tg_group())) else "",
+      if (!is.null(tg_items())) paste0(", items = ", deparse(tg_items())) else "")
     sprintf("%s(fit, bins = %d, xlim = c(%g, %g)%s%s)",
             fun, tg_bins(), r[1], r[2], info_arg, sel)
   }
   # the person groups a fit actually carries, and its item sets if any
   observeEvent(fit(), {
     f <- fit()
+    # every choice is the qualified 'factor: level' address, which is what
+    # plot_pimap() disambiguates on -- two factors may share a level name,
+    # and a bare level would silently take the first
     lev <- if (!is.null(f$factors) && ncol(f$factors))
-      sort(unique(unlist(lapply(f$factors, function(v)
-        as.character(unique(v)))))) else character(0)
+      sort(unique(unlist(lapply(names(f$factors), function(nm)
+        sprintf("%s: %s", nm,
+                sort(as.character(unique(f$factors[[nm]])))))))) else character(0)
     updateSelectInput(session, "tg_group",
                       choices = c("All persons" = "", stats::setNames(lev, lev)),
                       selected = "")
@@ -8230,7 +8245,21 @@ server <- function(input, output, session) {
       contrasts = contr_res(), btl_dif = bdif_res(), btl_frames = btlef_res(),
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
       dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
-      person_weights = person_weight_state()))
+      person_weights = person_weight_state(),
+      bootstrap = boot_val()))
+
+  # exports carry the analysis as run in this session: the DIF model the
+  # analyst configured and any bootstrap null, not default recomputations
+  app_dif_res <- function() {
+    f <- fit_or_null()
+    if (is.null(f) || inherits(f, "rasch_btl") || is.null(f$factors))
+      return(NULL)
+    tryCatch(dif_res(), error = function(e) NULL)
+  }
+  app_boot_res <- function() {
+    bv <- boot_val()
+    if (is.null(bv)) NULL else bv$bs
+  }
 
   output$dl_project <- downloadHandler(
     filename = function()
@@ -8293,6 +8322,7 @@ server <- function(input, output, session) {
       dep_res(rr$dependence %||% NULL); spread_res(rr$spread %||% NULL)
       guess_res(rr$guessing %||% NULL)
       person_weight_state(rr$person_weights %||% NULL)
+      boot_val(rr$bootstrap %||% NULL)
     })
     # raw_data() first refreshes the choices available to every role control;
     # applying the stored selections after that flush prevents the automatic
@@ -8320,8 +8350,9 @@ server <- function(input, output, session) {
     withProgress(message = paste("Building the", toupper(format), "report…"),
                  value = 0.4, {
       if (identical(format, "html") && !inherits(f, "rasch_btl"))
-        report_html(f, file)
-      else report_document(f, file, format = format)
+        report_html(f, file, dif = app_dif_res(), bootstrap = app_boot_res())
+      else report_document(f, file, format = format,
+                           dif = app_dif_res(), bootstrap = app_boot_res())
     })
   }
   output$dl_report <- downloadHandler(
@@ -8339,7 +8370,8 @@ server <- function(input, output, session) {
       withProgress(message = "Writing all tables and plots…", value = 0.4, {
         save_outputs(f, tmp,
                      formats = if (length(input$exp_formats)) input$exp_formats else "png",
-                     item_plots = isTRUE(input$exp_items))
+                     item_plots = isTRUE(input$exp_items),
+                     dif = app_dif_res(), bootstrap = app_boot_res())
       })
       owd <- setwd(tmp); on.exit(setwd(owd), add = TRUE)
       utils::zip(zipfile = file, files = list.files(".", recursive = TRUE),

@@ -11,7 +11,9 @@ save_outputs(
   width = 9,
   height = 6,
   dpi = 300,
-  item_plots = TRUE
+  item_plots = TRUE,
+  dif = NULL,
+  bootstrap = NULL
 )
 }
 \arguments{
@@ -27,6 +29,14 @@ save_outputs(
 
 \item{item_plots}{Also write the per-item plot set (one ICC, category curve,
 threshold curve, and frequency chart per item).}
+
+\item{dif}{Optional \code{\link{dif_anova}} result to export as computed
+--- an application analysis carries the DIF model the analyst chose,
+which a default recomputation would silently replace. \code{NULL}
+computes the default when the fit carries person factors.}
+
+\item{bootstrap}{Optional \code{\link{fit_bootstrap}} result; its item
+table and whole-test readings join the exported tables.}
 }
 \value{
 Invisibly, the vector of files written.

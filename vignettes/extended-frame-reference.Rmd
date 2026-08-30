@@ -149,8 +149,12 @@ analysis. R scripts can supply `progress` and `cancel` callbacks for the same
 controls.
 
 The fit records the requested, usable and failed bootstrap counts. The linking
-covariance is withheld unless at least 30 and more than half of the requested
-replicates are usable. A requested full bootstrap also records its attempted,
+covariance is withheld unless at least 30 replicates are usable, more than
+half of those requested, and more than the covariance has columns --- a
+covariance cannot reach full rank on fewer draws than columns, so a
+high-dimensional design raises its own floor. The alpha--phi
+cross-covariance meets the same rule, and is withheld with a warning below
+it. A requested full bootstrap also records its attempted,
 usable and failed counts in `full_boot_reps_*`. These remain available if too
 few full refits succeed and the fit returns hybrid standard errors instead.
 

@@ -531,11 +531,17 @@
 # 30, so a majority is at least 16 draws. An additional absolute floor of 30
 # would demand that every replicate succeed at the smallest permitted
 # bootstrap, leaving no usable setting at the documented minimum.
-.rasch_min_boot_success <- function(boot_reps) {
-  as.integer(floor(boot_reps / 2) + 1L)
+.rasch_min_boot_success <- function(boot_reps, n_quantities = 0L) {
+  # the documented contract (rasch_btl_efrm, rasch_efrm): inference needs at
+  # least 30 successful replicates AND more than half of those requested. A
+  # bare majority of 30 would let 16 draws price a covariance, and a
+  # standard deviation from 16 draws is noise wearing a number. A covariance
+  # additionally needs more draws than it has columns, or it cannot even
+  # reach full rank -- so the floor also clears the quantity count.
+  as.integer(max(30L, floor(boot_reps / 2) + 1L, n_quantities + 1L))
 }
-.efrm_min_boot_success <- function(boot_reps) {
-  .rasch_min_boot_success(boot_reps)
+.efrm_min_boot_success <- function(boot_reps, n_quantities = 0L) {
+  .rasch_min_boot_success(boot_reps, n_quantities)
 }
 
 # Apply deterministic bootstrap jobs either serially or on a persistent
@@ -596,9 +602,19 @@
 
   cl <- tryCatch(parallel::makePSOCKcluster(workers),
                  error = function(e) e)
-  if (inherits(cl, "error"))
-    stop("could not start ", label, " workers: ", conditionMessage(cl),
-         "; use workers = 1")
+  if (inherits(cl, "error")) {
+    # a machine that cannot open sockets (some sandboxes, some checks) can
+    # still do the work; every random draw was made before dispatch, so the
+    # serial result is identical to the parallel one
+    warning("could not start ", label, " workers (",
+            conditionMessage(cl), "); running serially", call. = FALSE)
+    for (ids in batches) {
+      if (is.function(cancel) && isTRUE(cancel())) .rasch_cancelled(label)
+      out[ids] <- lapply(ids, fun)
+      if (is.function(progress)) progress(max(ids), n)
+    }
+    return(out)
+  }
   on.exit(try(parallel::stopCluster(cl), silent = TRUE), add = TRUE)
   package_dir <- system.file(package = "rasch")
   paths <- unique(c(dirname(package_dir), .libPaths()))
@@ -802,7 +818,7 @@
     }
     complete <- stats::complete.cases(reps)
     reps_ok <- reps[complete, , drop = FALSE]
-    min_success <- .efrm_min_boot_success(boot_reps)
+    min_success <- .efrm_min_boot_success(boot_reps, ncol(reps))
     if (nrow(reps_ok) < min_success)
       stop("too few unit-linking bootstrap replicates were usable for a ",
            "stable alpha covariance (", nrow(reps_ok), " of ", boot_reps,
@@ -814,12 +830,22 @@
       dtilde_reps <- dtilde_reps[complete, , drop = FALSE]
     if (!is.null(phi_reps)) {
       joint_ok <- complete & stats::complete.cases(phi_reps)
-      if (sum(joint_ok) >= 2L) {
+      # the cross-covariance feeds frame-unit standard errors, so it meets
+      # the same floor as any other bootstrap covariance: at least 30 joint
+      # draws, a majority of those requested, and more draws than columns
+      joint_min <- .rasch_min_boot_success(boot_reps,
+                                           S + ncol(phi_reps))
+      if (sum(joint_ok) >= joint_min) {
         C <- stats::cov(cbind(reps[joint_ok, seq_len(S), drop = FALSE],
                               phi_reps[joint_ok, , drop = FALSE]))
         cov_alpha_phi <- C[seq_len(S), S + seq_len(ncol(phi_reps)),
                            drop = FALSE]
         dimnames(cov_alpha_phi) <- list(sets_u, colnames(phi_reps))
+      } else if (sum(joint_ok) >= 2L) {
+        warning("only ", sum(joint_ok), " joint alpha-phi bootstrap draws ",
+                "were usable (", joint_min, " required); the alpha-phi ",
+                "cross-covariance is withheld and frame-unit standard ",
+                "errors omit it", call. = FALSE)
       }
     }
   }
@@ -987,6 +1013,10 @@
 #'   uncertainty; otherwise at least 30 are required. A bootstrap covariance
 #'   is reported only when more than half of the requested replicates are
 #'   usable.
+#'   Inference is returned only when at least 30 replicates succeed, a
+#'   majority of those requested, and more than the bootstrap covariance
+#'   has columns; below that the affected covariance is withheld with a
+#'   warning.
 #' @param progress Optional function called as \code{progress(stage, current,
 #'   total)} during long uncertainty calculations. It is intended for
 #'   interfaces and batch logging and does not alter estimation.
@@ -1693,7 +1723,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     collect <- collect[stats::complete.cases(collect), , drop = FALSE]
     full_boot_reps_used <- nrow(collect)
     full_boot_reps_failed <- boot_reps - full_boot_reps_used
-    min_success <- .rasch_min_boot_success(boot_reps)
+    min_success <- .rasch_min_boot_success(boot_reps, ncol(collect))
     if (full_boot_reps_used < min_success) {
       fallback_note <- sprintf(
         paste0("full person bootstrap: %d of %d replicates were usable; ",

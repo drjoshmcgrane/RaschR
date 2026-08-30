@@ -102,6 +102,71 @@
   min(1, 2 * min(up, lo))
 }
 
+# One replicate conditional on the observed scores: for each person, a
+# response pattern drawn from the Rasch conditional distribution given their
+# raw score over their own observed items. Sufficiency cancels the person
+# parameter, so no ability has to be drawn at all -- which is what makes
+# this the default. Generating at sampled abilities either inflates the
+# person variance (resampled estimates carry their error variance, and the
+# standardised fit statistics feel it as the sample grows) or breaks the tie
+# between who a person is and what they answered (a booklet design's
+# missingness is informative, and an independently drawn ability severs it).
+# Conditioning keeps each person's score and missingness glued together and
+# reproduces the observed score margins exactly.
+#
+# Sampling is sequential with suffix elementary-symmetric functions: for
+# items j = 1..k and remaining score r, P(x_j = x) is proportional to
+# w_j(x) G_{j+1}(r - x), where w_j(x) = exp(-cumulative tau_j(x)) and
+# G_{j+1} is the ESF of the items after j. Persons sharing a missingness
+# pattern share the suffix tables, so booklets cost one recursion each.
+.fit_gen_conditional <- function(X, tau_list, na_mask) {
+  N <- nrow(X); L <- length(tau_list)
+  obs_mask <- if (is.null(na_mask)) matrix(TRUE, N, L) else !na_mask
+  # per-item category weights, scaled per item (constants cancel in the
+  # conditional distribution; scaling guards the exp against extreme taus)
+  W <- lapply(tau_list, function(tau) {
+    w <- exp(-c(0, cumsum(tau)))
+    w / max(w)
+  })
+  out <- matrix(NA_integer_, N, L, dimnames = dimnames(X))
+  key <- apply(obs_mask, 1, function(z) paste(which(z), collapse = ","))
+  for (kk in unique(key)) {
+    rows <- which(key == kk)
+    items <- as.integer(strsplit(kk, ",", fixed = TRUE)[[1]])
+    k <- length(items)
+    if (!k) next
+    m <- vapply(items, function(j) length(W[[j]]) - 1L, 0L)
+    # suffix ESFs: G[[t]][s + 1] carries items t..k at score s, scaled at
+    # each step so long tests cannot underflow
+    G <- vector("list", k + 1L)
+    G[[k + 1L]] <- 1
+    for (t in k:1) {
+      prev <- G[[t + 1L]]
+      cur <- numeric(m[t] + length(prev))
+      w <- W[[items[t]]]
+      for (x in 0:m[t])
+        cur[(x + 1):(x + length(prev))] <-
+          cur[(x + 1):(x + length(prev))] + w[x + 1] * prev
+      G[[t]] <- cur / max(cur)
+    }
+    for (i in rows) {
+      r <- sum(X[i, items])
+      for (t in seq_len(k)) {
+        w <- W[[items[t]]]
+        xs <- 0:m[t]
+        rest <- G[[t + 1L]]
+        ok <- (r - xs) >= 0 & (r - xs) <= (length(rest) - 1L)
+        pr <- numeric(length(xs))
+        pr[ok] <- w[xs[ok] + 1] * rest[r - xs[ok] + 1L]
+        x <- if (t == k) r else sample.int(length(xs), 1L, prob = pr) - 1L
+        out[i, items[t]] <- x
+        r <- r - x
+      }
+    }
+  }
+  out
+}
+
 # One replicate of the fitted model: responses for the given locations under
 # the estimated thresholds, carrying the observed missing-data pattern so
 # that items are tested on the same number of responders they were fitted
@@ -116,20 +181,19 @@
   X
 }
 
-# Person locations for a replicate. The estimates are more widely spread than
-# the locations they estimate -- their variance is the true variance plus the
-# mean error variance -- so generating from a normal with that error-
-# corrected variance is the person distribution the fitted model implies, and
-# was the first default here. It is not the one to ship. Narrowing the spread
-# leaves the extreme categories of easy and hard items unvisited in a
-# noticeable share of replicates, and an item that never scores its bottom
-# category cannot be estimated: on a four-category rating scale at 400
-# persons that lost a third of the replicates, against a twentieth for the
-# schemes that generate at the observed spread. Replicates are not lost at
-# random -- it is the narrower ones that go -- so a thinned null is a biased
-# null. The default resamples the estimates, which generates at the spread
-# the data actually showed; the three schemes calibrate the test within
-# Monte Carlo error of each other, so robustness decides between them.
+# Person locations for the non-default, ability-sampling schemes. Each has a
+# documented cost, which is why the score-conditional generator above is the
+# default. "resample" generates at the spread of the ESTIMATES -- the true
+# variance plus their error variance -- and the standardised fit statistics
+# feel that inflation as the sample grows (infit z reached 14% at 4,000
+# persons); it also draws abilities independently of each person's
+# missingness pattern, which severs a linked-booklet design's informative
+# missingness. "normal" corrects the variance but leaves the extreme
+# categories of easy and hard items unvisited often enough to lose a
+# non-random share of replicates (a third, on a four-category rating scale
+# at 400 persons). "fixed" keeps each person's own estimate and mask paired,
+# at the estimates' inflated spread. All three remain for comparison and for
+# designs where conditioning is not wanted.
 .fit_theta <- function(scheme, theta, psi) {
   n <- length(theta)
   switch(scheme,
@@ -170,10 +234,13 @@
 #' for an item flatter than the model predicts, below for a steeper one --
 #' and both are misfit, so their p-values are equal-tailed. A bootstrap
 #' p-value is \code{(1 + r) / (1 + B)}, so it is never zero and its
-#' resolution is \code{1 / (1 + B)}, halved again for the two-sided
-#' statistics: \code{B = 200} cannot distinguish anything below about .01
-#' two-sided, and testing at .01 or with a familywise adjustment across many
-#' items wants more.
+#' resolution is \code{1 / (1 + B)} one-sided and \code{2 / (1 + B)}
+#' two-sided. Familywise flagging multiplies that floor by the item count:
+#' Holm across L items cannot reach .05 below \code{B = 20 L - 1} for the
+#' chi-square and \code{B = 40 L - 1} for the two-sided statistics, so the
+#' default \code{B = 200} resolves adjusted two-sided tests only to five
+#' items and serious familywise use wants \code{B} in the hundreds to
+#' thousands.
 #'
 #' Calibration is not power. A flatter-than-Rasch item carries less of the
 #' class-interval selection bias than a fitting item does, so its chi-square
@@ -187,15 +254,19 @@
 #' @param fit A fitted object from \code{\link{rasch}}. Extended-frame,
 #'   many-facet and explanatory fits are not supported.
 #' @param B Number of bootstrap replicates.
-#' @param theta How to generate person locations for a replicate:
-#'   \code{"resample"} (the default) resamples the person estimates,
+#' @param theta How each replicate is generated. \code{"conditional"} (the
+#'   default) draws each person's responses from the Rasch conditional
+#'   distribution given their observed raw score over their own observed
+#'   items: sufficiency cancels the person parameter, so no ability is drawn
+#'   at all, the observed score margins are reproduced exactly, and any tie
+#'   between who answers and what is missing (a linked-booklet design,
+#'   informative missingness) is preserved. The ability-sampling schemes
+#'   remain: \code{"resample"} resamples the person estimates --- whose
+#'   spread carries their estimation error, which the standardised fit
+#'   statistics feel as anticonservatism at several thousand persons ---
 #'   \code{"fixed"} reuses them as they stand, and \code{"normal"} draws
-#'   from a normal with the error-corrected variance the fitted model
-#'   implies. The three calibrate the tests within Monte Carlo error of each
-#'   other. The first two generate at the spread the data showed;
-#'   \code{"normal"} generates at a narrower one, which leaves an extreme
-#'   category unvisited often enough on polytomous items to lose a
-#'   substantial share of replicates, so it is not the default.
+#'   from a normal with the error-corrected variance, at the price of losing
+#'   replicates whose extreme categories go unvisited.
 #' @param workers Number of parallel bootstrap workers. The default is four,
 #'   reduced when fewer physical cores are available or the R process has a
 #'   lower system limit. Starting them costs about half a second, which even
@@ -222,10 +293,13 @@
 #' d <- seq(-1.5, 1.5, length.out = 6)
 #' X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300), d, "-"))), 300, 6)
 #' colnames(X) <- paste0("I", 1:6)
-#' bs <- fit_bootstrap(rasch(X), B = 49, seed = 1)
+#' # an exploratory run, kept small for speed: raw probabilities are usable,
+#' # and the warning says what Holm-adjusted flagging at .05 would need
+#' bs <- suppressWarnings(fit_bootstrap(rasch(X), B = 49, seed = 1))
 #' bs$items[c("item", "chisq", "chisq_p_boot", "fit_resid", "fit_resid_p_boot")]
 #' @export
-fit_bootstrap <- function(fit, B = 200, theta = c("resample", "fixed", "normal"),
+fit_bootstrap <- function(fit, B = 200,
+                          theta = c("conditional", "resample", "fixed", "normal"),
                           workers = 4L, seed = NULL) {
   if (!inherits(fit, "rasch"))
     stop("`fit` must be a fitted model from rasch()")
@@ -261,6 +335,16 @@ fit_bootstrap <- function(fit, B = 200, theta = c("resample", "fixed", "normal")
 
   X <- fit$X
   L <- ncol(X)
+  # the resolution floor: a two-sided bootstrap probability cannot fall
+  # below 2/(B + 1), so Holm across the items cannot reach .05 unless
+  # B is at least 40 times the item count (20 times for the one-sided
+  # chi-square). Warn now rather than let a whole run produce probabilities
+  # that could never have flagged anything.
+  if (2 * L >= 0.05 * (B + 1))
+    warning("B = ", B, " cannot reach Holm-adjusted significance at .05 ",
+            "for ", L, " two-sided tests (floor 2L/(B+1) = ",
+            signif(2 * L / (B + 1), 2), "); use B >= ", 40 * L,
+            " for adjusted two-sided inference", call. = FALSE)
   spec <- fit$refit_spec %||% list()
   obs <- list(chisq = fit$items$chisq, fit_resid = fit$items$fit_resid,
               infit_ms = fit$items$infit_ms, outfit_ms = fit$items$outfit_ms,
@@ -277,10 +361,12 @@ fit_bootstrap <- function(fit, B = 200, theta = c("resample", "fixed", "normal")
   if (length(th) < nrow(X)) th <- sample(th, nrow(X), replace = TRUE)
 
   # every random draw a replicate depends on is made here, in the parent:
-  # its person locations, and the seed its responses are generated under. A
-  # worker therefore reproduces its replicate from what it is handed, and the
-  # worker count cannot move the result.
-  th_b <- lapply(seq_len(B), function(b) .fit_theta(theta, th, fit$psi))
+  # its person locations (for the ability-sampling schemes), and the seed its
+  # responses are generated under. A worker therefore reproduces its
+  # replicate from what it is handed, and the worker count cannot move the
+  # result.
+  th_b <- if (theta == "conditional") NULL
+          else lapply(seq_len(B), function(b) .fit_theta(theta, th, fit$psi))
   seeds <- sample.int(.Machine$integer.max, B)
   tau_list <- fit$tau_list; item_names <- colnames(X)
   model <- fit$model; ng <- fit$n_groups; anchors <- spec$anchors
@@ -289,8 +375,9 @@ fit_bootstrap <- function(fit, B = 200, theta = c("resample", "fixed", "normal")
     old_stream <- .sim_seed_capture()
     on.exit(.sim_seed_restore(old_stream), add = TRUE)
     set.seed(seeds[b])
-    .fit_refit(.fit_gen(th_b[[b]], tau_list, na_mask, item_names),
-               model, ng, anchors, maxit, tol)
+    Xb <- if (is.null(th_b)) .fit_gen_conditional(X, tau_list, na_mask)
+          else .fit_gen(th_b[[b]], tau_list, na_mask, item_names)
+    .fit_refit(Xb, model, ng, anchors, maxit, tol)
   }
   reps <- .rasch_boot_apply(B, one, workers = workers,
                             label = "item fit bootstrap")

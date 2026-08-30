@@ -1166,7 +1166,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     good_draw <- !(refit_error | nonconverged)
     boot_fail <- sum(!good_draw)
     draws <- ans[good_draw]
-    min_success <- .rasch_min_boot_success(boot_reps)
+    min_success <- .rasch_min_boot_success(
+      boot_reps, if (length(draws)) length(draws[[1L]]) else 0L)
     if (length(draws) < min_success) {
       detail <- if (any(refit_error)) {
         msg <- unique(vapply(ans[refit_error], `[[`, "", ".refit_error"))
@@ -1242,7 +1243,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                                        fb$bhat, fb$v)
     }
     report("parametric bootstrap", boot_reps, boot_reps)
-    min_success <- .rasch_min_boot_success(boot_reps)
+    min_success <- .rasch_min_boot_success(
+      boot_reps, if (length(draws)) length(draws[[1L]]) else 0L)
     if (length(draws) < min_success)
       stop("parametric bootstrap produced only ", length(draws),
            " usable fits of ", boot_reps, "; at least ", min_success,

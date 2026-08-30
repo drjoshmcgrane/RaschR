@@ -8,7 +8,9 @@ report_document(
   fit,
   file,
   format = c("auto", "html", "docx", "pdf"),
-  title = "Rasch measurement analysis"
+  title = "Rasch measurement analysis",
+  dif = NULL,
+  bootstrap = NULL
 )
 }
 \arguments{
@@ -20,6 +22,10 @@ report_document(
 \item{format}{Output format. By default it is inferred from \code{file}.}
 
 \item{title}{Report title.}
+
+\item{dif, bootstrap}{Optional computed \code{\link{dif_anova}} and
+\code{\link{fit_bootstrap}} results, rendered as run rather than
+recomputed at defaults.}
 }
 \value{
 Invisibly, the output path.
