@@ -277,11 +277,15 @@ completed batches, or cancel the process without replacing the current
 analysis. R scripts can supply <code>progress</code> and
 <code>cancel</code> callbacks for the same controls.</p>
 <p>The fit records the requested, usable and failed bootstrap counts.
-The linking covariance is withheld unless at least 30 and more than half
-of the requested replicates are usable. A requested full bootstrap also
-records its attempted, usable and failed counts in
-<code>full_boot_reps_*</code>. These remain available if too few full
-refits succeed and the fit returns hybrid standard errors instead.</p>
+The linking covariance is withheld unless at least 30 replicates are
+usable, more than half of those requested, and more than the covariance
+has columns — a covariance cannot reach full rank on fewer draws than
+columns, so a high-dimensional design raises its own floor. The
+alpha–phi cross-covariance meets the same rule, and is withheld with a
+warning below it. A requested full bootstrap also records its attempted,
+usable and failed counts in <code>full_boot_reps_*</code>. These remain
+available if too few full refits succeed and the fit returns hybrid
+standard errors instead.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span><span class="op">$</span><span class="va">unit_omnibus</span></span>
 <span><span class="co">#&gt;               term df   wald       p   p_adj significant</span></span>

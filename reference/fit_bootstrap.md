@@ -19,7 +19,7 @@ once.
 fit_bootstrap(
   fit,
   B = 200,
-  theta = c("resample", "fixed", "normal"),
+  theta = c("conditional", "resample", "fixed", "normal"),
   workers = 4L,
   seed = NULL
 )
@@ -39,14 +39,19 @@ fit_bootstrap(
 
 - theta:
 
-  How to generate person locations for a replicate: `"resample"` (the
-  default) resamples the person estimates, `"fixed"` reuses them as they
-  stand, and `"normal"` draws from a normal with the error-corrected
-  variance the fitted model implies. The three calibrate the tests
-  within Monte Carlo error of each other. The first two generate at the
-  spread the data showed; `"normal"` generates at a narrower one, which
-  leaves an extreme category unvisited often enough on polytomous items
-  to lose a substantial share of replicates, so it is not the default.
+  How each replicate is generated. `"conditional"` (the default) draws
+  each person's responses from the Rasch conditional distribution given
+  their observed raw score over their own observed items: sufficiency
+  cancels the person parameter, so no ability is drawn at all, the
+  observed score margins are reproduced exactly, and any tie between who
+  answers and what is missing (a linked-booklet design, informative
+  missingness) is preserved. The ability-sampling schemes remain:
+  `"resample"` resamples the person estimates — whose spread carries
+  their estimation error, which the standardised fit statistics feel as
+  anticonservatism at several thousand persons — `"fixed"` reuses them
+  as they stand, and `"normal"` draws from a normal with the
+  error-corrected variance, at the price of losing replicates whose
+  extreme categories go unvisited.
 
 - workers:
 
@@ -89,10 +94,12 @@ mean squares and the standardised statistics depart in both directions –
 above for an item flatter than the model predicts, below for a steeper
 one – and both are misfit, so their p-values are equal-tailed. A
 bootstrap p-value is `(1 + r) / (1 + B)`, so it is never zero and its
-resolution is `1 / (1 + B)`, halved again for the two-sided statistics:
-`B = 200` cannot distinguish anything below about .01 two-sided, and
-testing at .01 or with a familywise adjustment across many items wants
-more.
+resolution is `1 / (1 + B)` one-sided and `2 / (1 + B)` two-sided.
+Familywise flagging multiplies that floor by the item count: Holm across
+L items cannot reach .05 below `B = 20 L - 1` for the chi-square and
+`B = 40 L - 1` for the two-sided statistics, so the default `B = 200`
+resolves adjusted two-sided tests only to five items and serious
+familywise use wants `B` in the hundreds to thousands.
 
 Calibration is not power. A flatter-than-Rasch item carries less of the
 class-interval selection bias than a fitting item does, so its
@@ -120,13 +127,15 @@ set.seed(1)
 d <- seq(-1.5, 1.5, length.out = 6)
 X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300), d, "-"))), 300, 6)
 colnames(X) <- paste0("I", 1:6)
-bs <- fit_bootstrap(rasch(X), B = 49, seed = 1)
+# an exploratory run, kept small for speed: raw probabilities are usable,
+# and the warning says what Holm-adjusted flagging at .05 would need
+bs <- suppressWarnings(fit_bootstrap(rasch(X), B = 49, seed = 1))
 bs$items[c("item", "chisq", "chisq_p_boot", "fit_resid", "fit_resid_p_boot")]
 #>  item chisq chisq_p_boot fit_resid fit_resid_p_boot
-#>    I1 2.839        0.860    -0.090            0.840
-#>    I2 3.867        0.660     0.679            0.440
-#>    I3 5.085        0.720     0.313            1.000
-#>    I4 6.088        0.500     1.172            0.400
-#>    I5 3.258        0.900     0.023            0.880
-#>    I6 7.682        0.180    -0.200            0.680
+#>    I1 2.839        0.920    -0.090            0.800
+#>    I2 3.867        0.680     0.679            0.640
+#>    I3 5.085        0.660     0.313            0.760
+#>    I4 6.088        0.500     1.172            0.520
+#>    I5 3.258        0.820     0.023            0.800
+#>    I6 7.682        0.160    -0.200            0.920
 ```

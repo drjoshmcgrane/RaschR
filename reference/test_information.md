@@ -13,7 +13,7 @@ mutually exclusive designs remain separate.
 ## Usage
 
 ``` r
-test_information(fit, grid = seq(-6, 6, by = 0.1))
+test_information(fit, grid = seq(-6, 6, by = 0.1), items = NULL)
 ```
 
 ## Arguments
@@ -26,6 +26,12 @@ test_information(fit, grid = seq(-6, 6, by = 0.1))
 - grid:
 
   Logit grid over which to evaluate the information.
+
+- items:
+
+  Optional item selection: item names or indices. Every design block is
+  restricted to the named items, so a restricted person-item map can
+  carry the information of its own selection.
 
 ## Value
 

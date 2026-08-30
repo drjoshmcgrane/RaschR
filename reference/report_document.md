@@ -14,7 +14,9 @@ report_document(
   fit,
   file,
   format = c("auto", "html", "docx", "pdf"),
-  title = "Rasch measurement analysis"
+  title = "Rasch measurement analysis",
+  dif = NULL,
+  bootstrap = NULL
 )
 ```
 
@@ -40,6 +42,14 @@ report_document(
 - title:
 
   Report title.
+
+- dif, bootstrap:
+
+  Optional computed
+  [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
+  and
+  [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+  results, rendered as run rather than recomputed at defaults.
 
 ## Value
 

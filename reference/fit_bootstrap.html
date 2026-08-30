@@ -81,7 +81,7 @@ replaces the reference distribution for all of them at once.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fit_bootstrap</span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  B <span class="op">=</span> <span class="fl">200</span>,</span>
-<span>  theta <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"resample"</span>, <span class="st">"fixed"</span>, <span class="st">"normal"</span><span class="op">)</span>,</span>
+<span>  theta <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"conditional"</span>, <span class="st">"resample"</span>, <span class="st">"fixed"</span>, <span class="st">"normal"</span><span class="op">)</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">4L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -101,15 +101,19 @@ many-facet and explanatory fits are not supported.</p></dd>
 
 
 <dt id="arg-theta">theta<a class="anchor" aria-label="anchor" href="#arg-theta"></a></dt>
-<dd><p>How to generate person locations for a replicate:
-<code>"resample"</code> (the default) resamples the person estimates,
+<dd><p>How each replicate is generated. <code>"conditional"</code> (the
+default) draws each person's responses from the Rasch conditional
+distribution given their observed raw score over their own observed
+items: sufficiency cancels the person parameter, so no ability is drawn
+at all, the observed score margins are reproduced exactly, and any tie
+between who answers and what is missing (a linked-booklet design,
+informative missingness) is preserved. The ability-sampling schemes
+remain: <code>"resample"</code> resamples the person estimates — whose
+spread carries their estimation error, which the standardised fit
+statistics feel as anticonservatism at several thousand persons —
 <code>"fixed"</code> reuses them as they stand, and <code>"normal"</code> draws
-from a normal with the error-corrected variance the fitted model
-implies. The three calibrate the tests within Monte Carlo error of each
-other. The first two generate at the spread the data showed;
-<code>"normal"</code> generates at a narrower one, which leaves an extreme
-category unvisited often enough on polytomous items to lose a
-substantial share of replicates, so it is not the default.</p></dd>
+from a normal with the error-corrected variance, at the price of losing
+replicates whose extreme categories go unvisited.</p></dd>
 
 
 <dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
@@ -153,10 +157,13 @@ squares and the standardised statistics depart in both directions – above
 for an item flatter than the model predicts, below for a steeper one –
 and both are misfit, so their p-values are equal-tailed. A bootstrap
 p-value is <code>(1 + r) / (1 + B)</code>, so it is never zero and its
-resolution is <code>1 / (1 + B)</code>, halved again for the two-sided
-statistics: <code>B = 200</code> cannot distinguish anything below about .01
-two-sided, and testing at .01 or with a familywise adjustment across many
-items wants more.</p>
+resolution is <code>1 / (1 + B)</code> one-sided and <code>2 / (1 + B)</code>
+two-sided. Familywise flagging multiplies that floor by the item count:
+Holm across L items cannot reach .05 below <code>B = 20 L - 1</code> for the
+chi-square and <code>B = 40 L - 1</code> for the two-sided statistics, so the
+default <code>B = 200</code> resolves adjusted two-sided tests only to five
+items and serious familywise use wants <code>B</code> in the hundreds to
+thousands.</p>
 <p>Calibration is not power. A flatter-than-Rasch item carries less of the
 class-interval selection bias than a fitting item does, so its chi-square
 comes out <em>smaller</em> than a fitting item's and no reference
@@ -183,15 +190,17 @@ above nominal.</p>
 <span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span>, length.out <span class="op">=</span> <span class="fl">6</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">X</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">300</span> <span class="op">*</span> <span class="fl">6</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">300</span><span class="op">)</span>, <span class="va">d</span>, <span class="st">"-"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="fl">300</span>, <span class="fl">6</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">bs</span> <span class="op">&lt;-</span> <span class="fu">fit_bootstrap</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, B <span class="op">=</span> <span class="fl">49</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># an exploratory run, kept small for speed: raw probabilities are usable,</span></span></span>
+<span class="r-in"><span><span class="co"># and the warning says what Holm-adjusted flagging at .05 would need</span></span></span>
+<span class="r-in"><span><span class="va">bs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span><span class="fu">fit_bootstrap</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, B <span class="op">=</span> <span class="fl">49</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">bs</span><span class="op">$</span><span class="va">items</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"chisq"</span>, <span class="st">"chisq_p_boot"</span>, <span class="st">"fit_resid"</span>, <span class="st">"fit_resid_p_boot"</span><span class="op">)</span><span class="op">]</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  item chisq chisq_p_boot fit_resid fit_resid_p_boot</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I1 2.839        0.860    -0.090            0.840</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I2 3.867        0.660     0.679            0.440</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I3 5.085        0.720     0.313            1.000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I4 6.088        0.500     1.172            0.400</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I5 3.258        0.900     0.023            0.880</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I6 7.682        0.180    -0.200            0.680</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I1 2.839        0.920    -0.090            0.800</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I2 3.867        0.680     0.679            0.640</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I3 5.085        0.660     0.313            0.760</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I4 6.088        0.500     1.172            0.520</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I5 3.258        0.820     0.023            0.800</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I6 7.682        0.160    -0.200            0.920</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

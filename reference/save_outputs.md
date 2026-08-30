@@ -15,7 +15,9 @@ save_outputs(
   width = 9,
   height = 6,
   dpi = 300,
-  item_plots = TRUE
+  item_plots = TRUE,
+  dif = NULL,
+  bootstrap = NULL
 )
 ```
 
@@ -46,6 +48,22 @@ save_outputs(
 
   Also write the per-item plot set (one ICC, category curve, threshold
   curve, and frequency chart per item).
+
+- dif:
+
+  Optional
+  [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
+  result to export as computed — an application analysis carries the DIF
+  model the analyst chose, which a default recomputation would silently
+  replace. `NULL` computes the default when the fit carries person
+  factors.
+
+- bootstrap:
+
+  Optional
+  [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+  result; its item table and whole-test readings join the exported
+  tables.
 
 ## Value
 

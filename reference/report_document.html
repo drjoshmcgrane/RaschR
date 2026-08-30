@@ -67,7 +67,9 @@ from <code><a href="save_outputs.html">save_outputs</a></code>.</p>
 <span>  <span class="va">fit</span>,</span>
 <span>  <span class="va">file</span>,</span>
 <span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"html"</span>, <span class="st">"docx"</span>, <span class="st">"pdf"</span><span class="op">)</span>,</span>
-<span>  title <span class="op">=</span> <span class="st">"Rasch measurement analysis"</span></span>
+<span>  title <span class="op">=</span> <span class="st">"Rasch measurement analysis"</span>,</span>
+<span>  dif <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  bootstrap <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -90,6 +92,12 @@ from <code><a href="save_outputs.html">save_outputs</a></code>.</p>
 
 <dt id="arg-title">title<a class="anchor" aria-label="anchor" href="#arg-title"></a></dt>
 <dd><p>Report title.</p></dd>
+
+
+<dt id="arg-dif-bootstrap">dif, bootstrap<a class="anchor" aria-label="anchor" href="#arg-dif-bootstrap"></a></dt>
+<dd><p>Optional computed <code><a href="dif_anova.html">dif_anova</a></code> and
+<code><a href="fit_bootstrap.html">fit_bootstrap</a></code> results, rendered as run rather than
+recomputed at defaults.</p></dd>
 
 </dl></div>
     <div class="section level2">

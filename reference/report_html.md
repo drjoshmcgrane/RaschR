@@ -7,7 +7,14 @@ file.
 ## Usage
 
 ``` r
-report_html(fit, file, title = "Rasch measurement analysis", dpi = 150)
+report_html(
+  fit,
+  file,
+  title = "Rasch measurement analysis",
+  dpi = 150,
+  dif = NULL,
+  bootstrap = NULL
+)
 ```
 
 ## Arguments
@@ -28,6 +35,15 @@ report_html(fit, file, title = "Rasch measurement analysis", dpi = 150)
 - dpi:
 
   Resolution of the embedded plots.
+
+- dif, bootstrap:
+
+  Optional computed
+  [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
+  and
+  [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+  results, exported as run; the DIF table is otherwise recomputed at
+  defaults when the fit carries person factors.
 
 ## Value
 

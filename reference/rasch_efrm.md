@@ -90,6 +90,10 @@ rasch_efrm(
   200 for the full bootstrap. Use zero to omit unit uncertainty;
   otherwise at least 30 are required. A bootstrap covariance is reported
   only when more than half of the requested replicates are usable.
+  Inference is returned only when at least 30 replicates succeed, a
+  majority of those requested, and more than the bootstrap covariance
+  has columns; below that the affected covariance is withheld with a
+  warning.
 
 - progress:
 

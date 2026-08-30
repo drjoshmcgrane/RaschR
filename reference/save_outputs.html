@@ -67,7 +67,9 @@ item estimates and response-cell diagnostics are saved separately.</p>
 <span>  width <span class="op">=</span> <span class="fl">9</span>,</span>
 <span>  height <span class="op">=</span> <span class="fl">6</span>,</span>
 <span>  dpi <span class="op">=</span> <span class="fl">300</span>,</span>
-<span>  item_plots <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  item_plots <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  dif <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  bootstrap <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -98,6 +100,18 @@ item estimates and response-cell diagnostics are saved separately.</p>
 <dt id="arg-item-plots">item_plots<a class="anchor" aria-label="anchor" href="#arg-item-plots"></a></dt>
 <dd><p>Also write the per-item plot set (one ICC, category curve,
 threshold curve, and frequency chart per item).</p></dd>
+
+
+<dt id="arg-dif">dif<a class="anchor" aria-label="anchor" href="#arg-dif"></a></dt>
+<dd><p>Optional <code><a href="dif_anova.html">dif_anova</a></code> result to export as computed
+— an application analysis carries the DIF model the analyst chose,
+which a default recomputation would silently replace. <code>NULL</code>
+computes the default when the fit carries person factors.</p></dd>
+
+
+<dt id="arg-bootstrap">bootstrap<a class="anchor" aria-label="anchor" href="#arg-bootstrap"></a></dt>
+<dd><p>Optional <code><a href="fit_bootstrap.html">fit_bootstrap</a></code> result; its item
+table and whole-test readings join the exported tables.</p></dd>
 
 </dl></div>
     <div class="section level2">
