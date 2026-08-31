@@ -580,7 +580,8 @@
 #' @param boot_reps Number of replicates for \code{se_method = "bootstrap"}
 #'   or \code{"judge_bootstrap"}; at least 30 are required. Inference is
 #'   returned only when at least 30 and more than half of the requested
-#'   replicates are usable.
+#'   replicates are usable, and the requested count must exceed the number of
+#'   independent directions in the largest covariance block used by the fit.
 #' @param workers Number of judge-bootstrap workers. The default is four,
 #'   reduced when the system limit is lower. The parametric bootstrap remains
 #'   serial because its refits are inexpensive.
@@ -846,6 +847,19 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
          paste(objs_all[is.na(set_of)], collapse = ", "))
   sets_u <- sort(unique(set_of)); S <- length(sets_u)
   panels_u <- sort(unique(pan)); G <- length(panels_u)
+  # Bootstrap draws carry several parameter families in one row, but no
+  # covariance is formed over that concatenated row.  The blocks used below
+  # are log(phi), (log(alpha), kappa), and the common-scale object values.
+  # Size the rank guard to the largest of those actual blocks.
+  # log(phi) and the common-scale object values each carry one identification
+  # constraint; the alpha-origin block has 2(S - 1) free directions.
+  bootstrap_cov_dim <- max(G - 1L, 2L * max(S - 1L, 0L),
+                           length(objs_all) - 1L)
+  if (se_method %in% c("bootstrap", "judge_bootstrap") &&
+      boot_reps <= bootstrap_cov_dim)
+    stop("BTL-EFRM bootstrap inference for this design needs at least ",
+         bootstrap_cov_dim + 1L, " replicates to span the free directions in ",
+         "its largest covariance block; increase `boot_reps`")
   sa <- set_of[a]; sb <- set_of[b]
   within <- sa == sb
 
@@ -1166,8 +1180,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     good_draw <- !(refit_error | nonconverged)
     boot_fail <- sum(!good_draw)
     draws <- ans[good_draw]
-    min_success <- .rasch_min_boot_success(
-      boot_reps, if (length(draws)) length(draws[[1L]]) else 0L)
+    min_success <- .rasch_min_boot_success(boot_reps, bootstrap_cov_dim)
     if (length(draws) < min_success) {
       detail <- if (any(refit_error)) {
         msg <- unique(vapply(ans[refit_error], `[[`, "", ".refit_error"))
@@ -1243,8 +1256,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                                        fb$bhat, fb$v)
     }
     report("parametric bootstrap", boot_reps, boot_reps)
-    min_success <- .rasch_min_boot_success(
-      boot_reps, if (length(draws)) length(draws[[1L]]) else 0L)
+    min_success <- .rasch_min_boot_success(boot_reps, bootstrap_cov_dim)
     if (length(draws) < min_success)
       stop("parametric bootstrap produced only ", length(draws),
            " usable fits of ", boot_reps, "; at least ", min_success,

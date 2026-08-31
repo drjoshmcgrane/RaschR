@@ -1456,11 +1456,19 @@ plot_btl <- function(fit, band = 2.5) {
               object_offset = if (is.null(object_design)) NULL else beta0,
               object_coefficients = object_coefficients,
               sensitivity = H, cov_parameters = covth,
+              fitted_prob = mo$P,
+              refit_spec = list(
+                thresholds = thr, anchors = anch,
+                maxit = maxit, tol = tol,
+                has_order = !is.null(ord),
+                position = !is.null(Zfull) && "position" %in% colnames(Zfull),
+                object_design = object_design),
               comparisons = {
                 cmp <- data.frame(object_a = a, object_b = b,
                                   response = x, weight = w,
                                   judge = if (is.null(jd))
                                     NA_character_ else jd)
+                if (!is.null(ord)) cmp$order <- ord
                 # row-aligned history covariates, so downstream analyses
                 # (btl_dif) can hold the fitted dependence effects fixed
                 if (!is.null(Zfull))
@@ -1585,7 +1593,6 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
              "; each judge may carry one value")
       observed <- unique(cm$judge[!is.na(cm$judge)])
       absent <- setdiff(observed, names(group))
-      extra <- setdiff(names(group), observed)
       if (length(absent))
         stop("judge(s) missing from the group map: ",
              paste(utils::head(absent, 5L), collapse = ", "))
