@@ -133,6 +133,31 @@ faster). The timing is machine-specific. The study is
 `results/btl-efrm-parallel-parity.csv`; the row carries script hash
 `db8d37e3a52d75b7a342fa6e43d7f8f8` and R-tree hash `eba5f653300c`.
 
+`results/item-fit-bootstrap.csv` records the 2026-08-30 execution of the
+item-fit study. Its performance rows are conditional on analysed replicates,
+but that execution combined refusals and other failures in the
+`n_nonconv` field and did not retain inner-bootstrap counts. The current
+`studies/item-fit-bootstrap.R` distinguishes refusals, non-convergence and
+other errors, carries `B`, `B_used`, `B_nonconverged` and `B_errors`, and
+treats an entirely unavailable adjusted family as unavailable rather than as
+no rejection. The existing CSV retains its original script hash and is not
+presented as a rerun of that accounting revision.
+
+The score-conditional person-fit and fitted-design comparative-judgement
+bootstraps are checked in `studies/person-cj-fit-bootstrap.R`. The supported
+four-category follow-ups are `studies/person-fit-bootstrap-pcm-topup.R` and
+`studies/cj-fit-bootstrap-polytomous-topup.R`; their result files have the
+same stems under `results/`. Dichotomous person-fit familywise error was 5.0%.
+The 500-person PCM top-up gave 4.25% marginal error and 7.07% familywise error
+(MCSE 1.9 points) among 184/200 analysed fits. Fourteen datasets had fewer than
+half of their refits estimable, one observed calibration was singular, and one
+complete adjusted family was unavailable. None of 39,601 inner refits failed
+to converge; 5,952 otherwise failed. The 200-dataset polytomous CJ top-up gave 3.0% total-test,
+2.0% pair-family, 7.0% object-family and 4.5% judge-family error, with no
+refusals; all 39,800 inner refits were usable. All three studies carry R-tree
+hash `ed5c283cbe90`; their script hashes are recorded in the result rows and
+match the study files.
+
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the
 package git SHA (`+dirty` when the R code differs from HEAD), and the run

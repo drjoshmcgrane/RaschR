@@ -139,6 +139,47 @@ test_that("report_html writes a complete self-contained report", {
   expect_equal(enc("foobar"), "Zm9vYmFy")
 })
 
+test_that("exports accept only a compatible fit-bootstrap result", {
+  fit <- rasch(simd2(160, seq(-1, 1, length.out = 5), seed = 24))
+  other <- rasch(simd2(160, seq(-1, 1, length.out = 5), seed = 25))
+  bs <- suppressWarnings(fit_bootstrap(fit, B = 5, workers = 1, seed = 2))
+  saved <- tempfile(fileext = ".rds")
+  on.exit(unlink(saved), add = TRUE)
+  saveRDS(list(fit = fit, bootstrap = bs), saved)
+  restored <- readRDS(saved)
+  expect_no_error(.validate_fit_bootstrap(restored$bootstrap, restored$fit))
+
+  bad_dir <- tempfile("bad-bootstrap-")
+  expect_error(save_outputs(fit, bad_dir, formats = "png",
+                            item_plots = FALSE, bootstrap = list()),
+               "current fit_bootstrap")
+  expect_false(dir.exists(bad_dir))
+
+  wrong_dir <- tempfile("wrong-bootstrap-")
+  expect_error(save_outputs(other, wrong_dir, formats = "png",
+                            item_plots = FALSE, bootstrap = bs),
+               "different fitted model")
+  expect_false(dir.exists(wrong_dir))
+
+  reordered <- fit
+  reordered$X <- reordered$X[nrow(reordered$X):1L, , drop = FALSE]
+  expect_error(.validate_fit_bootstrap(bs, reordered),
+               "different fitted model")
+
+  bd <- simulate_btl(5, 12, reps_per_pair = 3, seed = 26)
+  bt <- btl(bd, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_error(save_outputs(bt, tempfile("wrong-family-"),
+                            formats = "png", item_plots = FALSE,
+                            bootstrap = bs), "different model family")
+
+  html <- tempfile(fileext = ".html")
+  expect_error(report_html(fit, html, bootstrap = list()),
+               "current fit_bootstrap")
+  expect_false(file.exists(html))
+  expect_error(report_document(fit, html, bootstrap = list()),
+               "current fit_bootstrap")
+})
+
 test_that("report_document writes a self-contained HTML report", {
   skip_if_not_installed("rmarkdown")
   skip_if_not(rmarkdown::pandoc_available())
@@ -174,7 +215,8 @@ test_that("the fit and targeting summaries are complete tidy tables", {
   expect_false(anyNA(ft$value))
   # spot-check against the fit object
   expect_equal(ft$value[ft$statistic == "Model"], f$model)
-  expect_lt(abs(as.numeric(ft$value[ft$statistic == "Total item-trait chi-square"]) -
+  expect_lt(abs(as.numeric(ft$value[
+    ft$statistic == "Approximate asymptotic total item-trait chi-square"]) -
                 f$total_chisq), 5e-4)
   expect_lt(abs(as.numeric(tt$value[tt$statistic == "PSI"]) - f$psi$PSI), 5e-4)
   expect_lt(abs(as.numeric(tt$value[tt$statistic == "Coefficient alpha"]) -
@@ -186,6 +228,13 @@ test_that("the fit and targeting summaries are complete tidy tables", {
   expect_true("NA" %in% ttm$value[ttm$statistic == "Coefficient alpha"] ||
               is.finite(as.numeric(ttm$value[ttm$statistic == "Coefficient alpha"])))
   expect_no_error(fit_summary_table(fm))
+
+  unavailable <- f
+  unavailable$items$p_adj <- NA_real_
+  fu <- fit_summary_table(unavailable)
+  expect_identical(fu$value[grepl("Holm p", fu$statistic)], "unavailable")
+  expect_match(paste(capture.output(summary(unavailable)), collapse = "\n"),
+               "Holm p < 0.05: unavailable", fixed = TRUE)
 })
 
 test_that("structural summaries name response cells and withhold alpha", {
@@ -194,9 +243,10 @@ test_that("structural summaries name response cells and withhold alpha", {
                   facets = "rater")
   fs <- fit_summary_table(f)
   ts <- targeting_table(f)
-  expect_true(any(fs$statistic == "Total response-cell-trait chi-square"))
   expect_true(any(fs$statistic ==
-                    "Response cells with Holm-adjusted chi-square p < .05"))
+                    "Approximate asymptotic total response-cell-trait chi-square"))
+  expect_true(any(fs$statistic ==
+                    "Response cells with approximate asymptotic Holm p < .05"))
   expect_true(any(ts$statistic == "Response-cell location SD"))
   expect_true(any(ts$statistic == "Calibration threshold minimum"))
   expect_identical(ts$value[ts$statistic == "Coefficient alpha"],

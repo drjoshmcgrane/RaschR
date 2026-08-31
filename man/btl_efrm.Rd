@@ -70,7 +70,8 @@ probabilities and omnibus tests are therefore withheld.}
 \item{boot_reps}{Number of replicates for \code{se_method = "bootstrap"}
 or \code{"judge_bootstrap"}; at least 30 are required. Inference is
 returned only when at least 30 and more than half of the requested
-replicates are usable.}
+replicates are usable, and the requested count must exceed the number of
+independent directions in the largest covariance block used by the fit.}
 
 \item{workers}{Number of judge-bootstrap workers. The default is four,
 reduced when the system limit is lower. The parametric bootstrap remains
@@ -135,7 +136,9 @@ With one set, the model contains panel units only. With one set and one
 panel, it reduces to \code{\link{btl}}. Omnibus Wald probabilities are
 Holm-adjusted across the panel-unit, set-unit and set-origin families.
 Individual contrasts form a separate Holm-adjusted follow-up family across
-all three parameter types.
+all three parameter types. An unavailable unit remains in its predeclared
+family; an omnibus is withheld rather than reduced when one of its
+requested coordinates is unavailable.
 Judge-bootstrap probabilities require at least six judges and 5.5 effective
 judges in every contributing panel, and eight of each on a set link. The
 support is returned in \code{unit_support}; estimates remain descriptive

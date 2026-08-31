@@ -138,7 +138,8 @@
 #'   \code{attr(bank, "m")} matching the number of fitted score steps.
 #' @param alpha Significance level for the (multiplicity-adjusted) drift tests.
 #' @param p_adjust Adjustment for the common-object tests, passed to
-#'   \code{stats::p.adjust}. The default is \code{"holm"}.
+#'   \code{stats::p.adjust}. The default is \code{"holm"}. A common object
+#'   remains in the family when its drift probability is unavailable.
 #' @param independent Whether the calibrations have independent judges and
 #'   comparisons. For two fitted objects the default \code{NULL} withholds
 #'   drift tests until independence is stated explicitly. Bank tables are
@@ -321,7 +322,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     dfs <- ifelse(den > 0, (v1 + v2)^2 / den, Inf)
     df[usable] <- dfs
     p[usable] <- 2 * stats::pt(-abs(t[usable]), df = dfs)
-    p_adj[usable] <- p.adjust(p[usable], method = p_adjust)
+    p_adj[usable] <- p.adjust(
+      p[usable], method = p_adjust, n = length(common))
     drifting[usable] <- p_adj[usable] < alpha
   }
   tab <- data.frame(object = common,

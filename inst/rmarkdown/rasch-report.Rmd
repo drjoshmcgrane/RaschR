@@ -27,7 +27,7 @@ show_table <- function(x, n = 250L, digits = 3L) {
     ifelse(is.finite(v) & v < lim, paste0("< ", format(lim, scientific = FALSE)),
            ifelse(is.finite(v), sprintf(paste0("%.", d, "f"), v), ""))
   }
-  pcols <- grep("^p$|^p_|_p$|^p\\.", names(x), value = TRUE)
+  pcols <- grep("^p$|^p_|_p$|_p_|^p\\.", names(x), value = TRUE)
   for (cn in pcols)
     if (is.numeric(x[[cn]])) x[[cn]] <- fmt_p(x[[cn]])
   labels <- c(
@@ -99,6 +99,8 @@ if (!is_btl) {
   cat("\n# Item estimates\n\n")
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
     if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
+  if ("p_adj" %in% names(item_tab))
+    cat("The `p_adj` column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.\n\n")
   print(show_table(report_columns(item_tab,
     c("item", "max", "location", "se", "fit_resid", "infit_ms",
       "outfit_ms", "p_adj"))))
@@ -202,12 +204,23 @@ if (!is_btl) {
   bs <- attr(fit, "report_bootstrap")
   if (!is.null(bs)) {
     cat("\n# Bootstrap fit statistics\n\n")
-    cat(sprintf("Parametric bootstrap null (%s scheme): %d of %d replicates.\n\n",
-                bs$theta, bs$B_used, bs$B))
+    cat(sprintf(paste0("Parametric bootstrap null (%s scheme): %d of %d ",
+                       "replicates; %d did not converge and %d otherwise ",
+                       "failed. Adjustment is separate for each statistic ",
+                       "and refers to the fitted global null.\n\n"),
+                bs$theta, bs$B_used, bs$B,
+                bs$B_nonconverged, bs$B_errors))
     print(show_table(report_columns(bs$items,
-      c("item", "chisq", "chisq_p_boot_adj", "fit_resid",
-        "fit_resid_p_boot_adj", "infit_z_p_boot_adj",
-        "outfit_z_p_boot_adj"))))
+      c("item", "chisq", "chisq_p_boot_adj", "n_boot_chisq",
+        "fit_resid", "fit_resid_p_boot_adj", "n_boot_fit_resid",
+        "infit_z_p_boot_adj", "n_boot_infit_z",
+        "outfit_z_p_boot_adj", "n_boot_outfit_z"))))
+    if (!is.null(bs$persons)) {
+      cat("\n## Person fit\n\n")
+      print(show_table(report_columns(bs$persons,
+        c("id", "raw", "theta", "fit_resid", "fit_resid_p_boot_adj",
+          "n_boot_fit_resid", "infit_ms_p_boot_adj", "outfit_ms_p_boot_adj"))))
+    }
   }
   if (!is.null(fit$factors) && length(names(fit$factors))) {
     da <- attr(fit, "report_dif")
@@ -245,12 +258,37 @@ if (is_btl) {
     c("object", "location", "se", "fit_resid", "infit_ms", "outfit_ms"))))
   cat("\n# Pair fit\n\n")
   print(show_table(report_columns(fit$pairs,
-    c("object_1", "object_2", "n", "fit_resid", "infit_ms",
-      "outfit_ms"))))
+    c("object_a", "object_b", "n", "obs_prop", "exp_prop",
+      "obs_mean", "exp_mean", "residual", "chisq"))))
   if (!is.null(fit$judges)) {
     cat("\n# Judge fit\n\n")
     print(show_table(report_columns(fit$judges,
       c("judge", "n", "fit_resid", "infit_ms", "outfit_ms"))))
+  }
+  bs <- attr(fit, "report_bootstrap")
+  if (!is.null(bs)) {
+    cat("\n# Bootstrap fit statistics\n\n")
+    cat(sprintf(paste0("Fitted-design bootstrap: %d of %d replicates; %d did ",
+                       "not converge and %d otherwise failed. Adjustment is ",
+                       "separate for each statistic and refers to the fitted ",
+                       "global null.\n\n"),
+                bs$B_used, bs$B, bs$B_nonconverged, bs$B_errors))
+    cat("\n## Whole model\n\n")
+    print(show_table(as.data.frame(bs$total)))
+    cat("\n## Object fit\n\n")
+    print(show_table(report_columns(bs$objects,
+      c("object", "fit_resid", "fit_resid_p_boot_adj", "n_boot_fit_resid",
+        "infit_ms_p_boot_adj", "outfit_ms_p_boot_adj"))))
+    cat("\n## Pair fit\n\n")
+    print(show_table(report_columns(bs$pairs,
+      c("object_a", "object_b", "n", "residual", "chisq",
+        "chisq_p_boot_adj", "n_boot_chisq"))))
+    if (!is.null(bs$judges)) {
+      cat("\n## Judge fit\n\n")
+      print(show_table(report_columns(bs$judges,
+        c("judge", "n", "fit_resid", "fit_resid_p_boot_adj",
+          "n_boot_fit_resid", "infit_ms_p_boot_adj", "outfit_ms_p_boot_adj"))))
+    }
   }
   if (inherits(fit, "rasch_btl_efrm")) {
     cat("\n# Frame-dependent units\n\n")

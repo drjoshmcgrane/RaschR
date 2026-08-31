@@ -108,8 +108,8 @@
   }
   usable <- is.finite(out$p)
   out$p_adj <- out$p_bonf <- rep(NA_real_, nrow(out))
-  out$p_adj[usable] <- p.adjust(out$p[usable], method = "holm")
-  out$p_bonf[usable] <- p.adjust(out$p[usable], method = "bonferroni")
+  out$p_adj[usable] <- p.adjust(out$p[usable], method = "holm", n = L)
+  out$p_bonf[usable] <- p.adjust(out$p[usable], method = "bonferroni", n = L)
   out
 }
 
@@ -263,8 +263,8 @@
   p <- pchisq(chi, df_i, lower.tail = FALSE)
   usable <- is.finite(p)
   p_adj <- p_bonf <- rep(NA_real_, length(p))
-  p_adj[usable] <- p.adjust(p[usable], method = "holm")
-  p_bonf[usable] <- p.adjust(p[usable], method = "bonferroni")
+  p_adj[usable] <- p.adjust(p[usable], method = "holm", n = L)
+  p_bonf[usable] <- p.adjust(p[usable], method = "bonferroni", n = L)
   data.frame(item = colnames(X), chisq = chi, df = df_i, p = p,
              p_adj = p_adj, p_bonf = p_bonf)
 }

@@ -202,7 +202,7 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 }
 
 .save_btl_outputs <- function(fit, dir, formats, width, height, dpi,
-                              object_plots) {
+                              object_plots, bootstrap = NULL) {
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   odir <- file.path(pdir, "objects")
@@ -220,6 +220,13 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
   wtab(fit$pairs, "pair_fit")
   wtab(fit$judges, "judge_fit")
   wtab(fit$comparisons, "comparisons")
+  if (!is.null(bootstrap)) {
+    wtab(bootstrap$objects, "bootstrap_object_fit")
+    wtab(bootstrap$pairs, "bootstrap_pair_fit")
+    wtab(bootstrap$judges, "bootstrap_judge_fit")
+    wtab(data.frame(quantity = names(unlist(bootstrap$total)),
+                    value = unlist(bootstrap$total)), "bootstrap_total")
+  }
   if (inherits(fit, "rasch_btl_explanatory")) {
     wtab(explanatory_test(fit), "explanatory_model_comparison")
     wtab(fit$object_coefficients, "explanatory_predictor_effects")
@@ -292,8 +299,9 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #'   --- an application analysis carries the DIF model the analyst chose,
 #'   which a default recomputation would silently replace. \code{NULL}
 #'   computes the default when the fit carries person factors.
-#' @param bootstrap Optional \code{\link{fit_bootstrap}} result; its item
-#'   table and whole-test readings join the exported tables.
+#' @param bootstrap Optional \code{\link{fit_bootstrap}} result from this fit. Its item and
+#'   person tables, or pair, object and judge tables for paired comparisons,
+#'   join the export with the whole-test readings.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
 #'   threshold curve, and frequency chart per item).
 #' @return Invisibly, the vector of files written.
@@ -311,8 +319,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
   if (!is.null(dif) && !is.list(dif))
     stop("`dif` must be a dif_anova() result")
-  if (!is.null(bootstrap) && !is.list(bootstrap))
-    stop("`bootstrap` must be a fit_bootstrap() result")
+  .validate_fit_bootstrap(bootstrap, fit)
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
   # complete export but carries no plots
@@ -321,7 +328,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   .check_flag(item_plots, "item_plots")
   if (inherits(fit, "rasch_btl"))
     return(.save_btl_outputs(fit, dir, formats, width, height, dpi,
-                             object_plots = item_plots))
+                             object_plots = item_plots,
+                             bootstrap = bootstrap))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
@@ -458,6 +466,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   }
   if (!is.null(bootstrap)) {
     wtab(bootstrap$items, "bootstrap_fit")
+    if (!is.null(bootstrap$persons))
+      wtab(bootstrap$persons, "bootstrap_person_fit")
     wtab(data.frame(quantity = names(unlist(bootstrap$total)),
                     value = unlist(bootstrap$total)), "bootstrap_total")
   }
@@ -655,7 +665,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' @param title Report title.
 #' @param dpi Resolution of the embedded plots.
 #' @param dif,bootstrap Optional computed \code{\link{dif_anova}} and
-#'   \code{\link{fit_bootstrap}} results, exported as run; the DIF table is
+#'   \code{\link{fit_bootstrap}} results from this fit, exported as run; the DIF table is
 #'   otherwise recomputed at defaults when the fit carries person factors.
 #' @return Invisibly, \code{file}.
 #' @examples
@@ -672,6 +682,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
   .check_out_path(file, "file")
+  .validate_fit_bootstrap(bootstrap, fit)
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")
   .check_pos_num(dpi, "dpi")
@@ -723,7 +734,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
             .html_escape(.estimation_label(fit)),
             if (isTRUE(fit$est$converged)) "converged" else "did <b>not</b> converge",
             fit$est$iterations),
-    sprintf("Total %s-trait chi-square %.2f on %d df (p = %s). ",
+    sprintf("Approximate asymptotic total %s-trait chi-square %.2f on %d df (p = %s). ",
             calibration_unit, fit$total_chisq, fit$total_df,
             .fmt_p(fit$total_chisq_p)),
     sprintf("%s fit residual mean %.2f, SD %.2f; person fit residual mean %.2f, SD %.2f. ",
@@ -800,6 +811,9 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     shot(function() plot_wright(fit), "wright_map"),
     "<h2>", if (structural) "Common-scale item estimates" else
       "Item statistics", "</h2>",
+    if ("p_adj" %in% item_cols)
+      "<p class='note'>The p_adj column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.</p>"
+    else "",
     if (structural)
       "<p class='note'>Item estimates on the common measurement scale.</p>"
     else "",
@@ -809,7 +823,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
       "Thresholds", "</h2>",
     .html_table(common_thresholds),
     if (structural) s("<h2>Response-cell fit</h2>",
-      "<p class='note'>Observed item-by-frame or item-by-facet cells used in estimation.</p>",
+      "<p class='note'>Observed item-by-frame or item-by-facet cells used in estimation. The p_adj column is an approximate asymptotic Holm probability.</p>",
       .html_table(fit$items[, intersect(
         c("item", "max", "location", "se", "fit_resid", "infit_ms",
           "outfit_ms", "chisq", "df", "p_adj"), names(fit$items)),
@@ -845,12 +859,21 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
               ctt$n, ctt$mean, ctt$sd, ctt$alpha, ctt$sem),
       .html_table(ctt$table)) else "",
     if (!is.null(bootstrap)) s("<h2>Bootstrap fit statistics</h2>",
-      sprintf("<p class='note'>Parametric bootstrap null (%s scheme): %d of %d replicates. Probabilities are Holm-adjusted over the items.</p>",
-              bootstrap$theta, bootstrap$B_used, bootstrap$B),
+      sprintf(paste0("<p class='note'>Parametric bootstrap null (%s scheme): ",
+                     "%d of %d replicates; %d did not converge and %d otherwise ",
+                     "failed. Adjustment is separate for each statistic and ",
+                     "refers to the fitted global null.</p>"),
+              bootstrap$theta, bootstrap$B_used, bootstrap$B,
+              bootstrap$B_nonconverged, bootstrap$B_errors),
       .html_table(bootstrap$items[, intersect(c("item", "chisq",
-                                     "chisq_p_boot_adj", "fit_resid",
-                                     "fit_resid_p_boot_adj"),
-                                   names(bootstrap$items))])) else "",
+                                     "chisq_p_boot_adj", "n_boot_chisq",
+                                     "fit_resid", "fit_resid_p_boot_adj",
+                                     "n_boot_fit_resid"),
+                                   names(bootstrap$items))]),
+      if (!is.null(bootstrap$persons))
+        .html_table(bootstrap$persons[, intersect(c("id", "raw", "theta",
+          "fit_resid", "fit_resid_p_boot_adj", "n_boot_fit_resid"),
+          names(bootstrap$persons)), drop = FALSE]) else "") else "",
     if (!is.null(fit$factors)) {
       da <- if (!is.null(dif)) dif
             else tryCatch(dif_anova(fit), error = function(e) NULL)
@@ -923,7 +946,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #' @param file Output path ending in \code{.html}, \code{.docx}, or \code{.pdf}.
 #' @param format Output format. By default it is inferred from \code{file}.
 #' @param dif,bootstrap Optional computed \code{\link{dif_anova}} and
-#'   \code{\link{fit_bootstrap}} results, rendered as run rather than
+#'   \code{\link{fit_bootstrap}} results from this fit, rendered as run rather than
 #'   recomputed at defaults.
 #' @param title Report title.
 #' @return Invisibly, the output path.
@@ -942,6 +965,7 @@ report_document <- function(fit, file,
                             dif = NULL, bootstrap = NULL) {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
+  .validate_fit_bootstrap(bootstrap, fit)
   # computed results travel as attributes on the serialised fit, so the
   # template renders the analysis as run rather than a default recomputation
   if (!is.null(dif)) attr(fit, "report_dif") <- dif

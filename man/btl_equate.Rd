@@ -27,7 +27,8 @@ fit the bank must carry
 \item{alpha}{Significance level for the (multiplicity-adjusted) drift tests.}
 
 \item{p_adjust}{Adjustment for the common-object tests, passed to
-\code{stats::p.adjust}. The default is \code{"holm"}.}
+\code{stats::p.adjust}. The default is \code{"holm"}. A common object
+remains in the family when its drift probability is unavailable.}
 
 \item{independent}{Whether the calibrations have independent judges and
 comparisons. For two fitted objects the default \code{NULL} withholds

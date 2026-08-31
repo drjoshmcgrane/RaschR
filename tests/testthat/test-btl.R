@@ -700,6 +700,10 @@ test_that("graded free-threshold fits with dependence estimate correctly (C1)", 
   expect_lt(abs(dep[["exposure"]] - 0.4), 3 * f$dependence$se[1])
   expect_lt(abs(dep[["carry_over"]] - 0.8), 3 * f$dependence$se[2])
   expect_true(is.na(f$dependence$p[f$dependence$effect == "carry_over"]))
+  use <- is.finite(f$dependence$p)
+  expect_equal(f$dependence$p_adj[use],
+               p.adjust(f$dependence$p[use], "holm",
+                        n = nrow(f$dependence)))
   expect_match(paste(f$notes, collapse = " "), "fewer than 30 judges")
   # thresholds recovered too (the corrupted block used to distort them)
   expect_lt(max(abs(f$thresholds$tau - tau)), 0.25)

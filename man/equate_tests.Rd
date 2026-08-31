@@ -40,6 +40,8 @@ A list with the comparison \code{table} (locations, standard
   number with usable standard errors \code{n}, and whether drift inference
   was available (\code{inferential}). The \code{note} component records
   exclusions and the reason inference was withheld, where applicable.
+  Common items with unavailable drift probabilities remain in the
+  multiplicity family.
 }
 \description{
 Places two calibrations on a common origin using their shared items, then

@@ -23,4 +23,5 @@ Fits each available item-location, polytomous threshold-structure or
 comparative-judgement object departure separately from the active model.
 Probabilities use Kent calibration and Holm adjustment over the complete
 candidate family.
+A candidate with a withheld probability remains in that family.
 }

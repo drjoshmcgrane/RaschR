@@ -88,8 +88,11 @@ fits the selected model, and displays the resulting tables and plots. An
 analysis can be saved as a `.rasch` project and reopened with its data roles
 and estimation settings. Tables, figures and HTML, Word or PDF reports can be
 downloaded. The R code for each result is shown in the interface. Its
-simulation page generates each supported data
-structure, with controls for its principal parameters and planted departures.
+fit bootstrap calibrates item and person fit, or pair, object and judge fit
+for comparative judgement, in a cancellable background process. Its adjusted
+probabilities refer to the fitted global null, separately for each statistic.
+The simulation page generates each supported data structure, with controls for
+its principal parameters and planted departures.
 Simulated data can be downloaded as a CSV or together with the generating call,
 true values and explanatory metadata.
 
@@ -132,6 +135,11 @@ targeting_table(fit)
 dif_anova(fit)
 residual_correlations(fit)
 dimensionality_test(fit)
+
+# Calibrated item and person fit (use more replicates for a final analysis)
+boot <- fit_bootstrap(fit, B = 199, seed = 1)
+boot$items
+boot$persons
 
 plot_pimap(fit)
 plot_icc(fit, "I05", group = "group")

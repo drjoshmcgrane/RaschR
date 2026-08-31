@@ -34,7 +34,9 @@ no fitted factor carries is an error.}
 distribution: item names, or one item-set name of an extended-frame
 fit, whose virtual item-by-group cells match through their underlying
 items. The selection is named in the legend, so a restricted map
-cannot be read as the whole instrument.}
+cannot be read as the whole instrument. The information curve follows
+the same item selection; for an extended-frame fit it also follows the
+response cells occupied by the selected person group.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.

@@ -33,9 +33,9 @@ APP_HELP <- c(
     "frame or facet response cells."
   ),
   metric_item_trait = paste(
-    "Adjusted probability for the overall item- or response-cell-trait",
-    "chi-square. Small values indicate that at least one ordering changes",
-    "more over class intervals than expected under the model."
+    "Approximate asymptotic probability for the overall item- or",
+    "response-cell-trait chi-square. It treats estimated person locations as",
+    "known and can be miscalibrated; use the item-fit bootstrap where available."
   ),
   metric_power = paste(
     "Qualitative power of the item-trait test at the observed sample size and",
@@ -53,12 +53,16 @@ APP_HELP <- c(
     "more reproducible object ordering."
   ),
   metric_pair_fit = paste(
-    "Probability for the overall pairwise fit statistic. Small values indicate",
-    "that observed responses differ from the fitted object-pair expectations."
+    "Probability for the overall pairwise fit statistic. After a fit bootstrap,",
+    "this uses the fitted-design bootstrap null. Small values indicate that",
+    "observed responses differ from the fitted object-pair expectations. The",
+    "bootstrap reference is the fitted global null."
   ),
   metric_item_misfit = paste(
-    "Number of items with an adjusted item chi-square probability below .05.",
-    "Inspect the complete fit statistics and plots before acting on a flag."
+    "Before bootstrapping, this is the number of items with an approximate",
+    "asymptotic Holm probability below .05. After bootstrapping, it uses the",
+    "calibrated bootstrap probability. Adjustment is within that statistic",
+    "under the fitted global null."
   ),
   metric_disordered = paste(
     "Number of polytomous items whose estimated thresholds are not ordered.",
@@ -69,8 +73,9 @@ APP_HELP <- c(
     "Their finite locations require an extrapolated scoring method."
   ),
   metric_person_misfit = paste(
-    "Number of persons with an absolute fit residual above the working value of",
-    "2.5. This is a screening count rather than a classification rule."
+    "Before bootstrapping, the number of persons with an absolute fit residual",
+    "above the working value of 2.5. After bootstrapping, it counts adjusted",
+    "fit-residual probabilities below .05 under the fitted global null."
   ),
   metric_expl_model = paste(
     "LLTM denotes a dichotomous explanatory model; LPCM denotes its",

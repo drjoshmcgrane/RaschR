@@ -586,9 +586,30 @@
 }
 .efrm_available_workers <- function() .rasch_available_workers()
 
+.rasch_namespace_is_installed <- function() {
+  # A sourced copy can coexist with an older installed release. In that case
+  # socket workers must not load the installed namespace and run different
+  # code from their coordinator.
+  if (!identical(environmentName(environment(.rasch_boot_apply)),
+                 "namespace:rasch")) return(FALSE)
+  package_dir <- system.file(package = "rasch")
+  nzchar(package_dir) && file.exists(file.path(package_dir, "DESCRIPTION"))
+}
+
 .rasch_boot_apply <- function(n, fun, workers = 1L, progress = NULL,
                               cancel = NULL, label = "Bootstrap estimation") {
   out <- vector("list", n)
+  package_dir <- system.file(package = "rasch")
+  if (workers > 1L && !.rasch_namespace_is_installed()) {
+    # Under pkgload::load_all(), system.file() points at source/inst rather
+    # than an installed package root. A socket worker cannot load that source
+    # namespace and would otherwise find any older installed rasch version on
+    # .libPaths(), making the coordinator and workers run different code.
+    warning(label, " is running serially because the current rasch namespace ",
+            "was loaded from a source tree; install this tree to validate ",
+            "parallel execution", call. = FALSE)
+    workers <- 1L
+  }
   # Two jobs per worker reduces coordination overhead for cheap refits while
   # keeping the batches small enough that an unusually slow resample does not
   # leave the other workers idle for long. It also retains frequent progress
@@ -620,7 +641,6 @@
     return(out)
   }
   on.exit(try(parallel::stopCluster(cl), silent = TRUE), add = TRUE)
-  package_dir <- system.file(package = "rasch")
   paths <- unique(c(dirname(package_dir), .libPaths()))
   setup_worker <- function(paths) {
     .libPaths(paths)
@@ -934,6 +954,25 @@
              weighted_score = W, theta = theta, se = se, extreme = extreme)
 }
 
+.efrm_wald_zero <- function(est, Sigma, term) {
+  if (length(est) < 2L) return(NULL)
+  unavailable <- function() data.frame(
+    term = term, df = NA_integer_, wald = NA_real_, p = NA_real_)
+  if (is.null(Sigma) || !is.matrix(Sigma) ||
+      nrow(Sigma) != length(est) || ncol(Sigma) != length(est) ||
+      any(!is.finite(est)) || any(!is.finite(Sigma)))
+    return(unavailable())
+  ee <- eigen((Sigma + t(Sigma)) / 2, symmetric = TRUE)
+  cut <- max(abs(ee$values)) * 1e-8
+  use <- ee$values > cut
+  if (!any(use)) return(unavailable())
+  Sinv <- ee$vectors[, use, drop = FALSE] %*%
+    (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
+  W <- drop(t(est) %*% Sinv %*% est)
+  data.frame(term = term, df = sum(use), wald = W,
+             p = stats::pchisq(W, sum(use), lower.tail = FALSE))
+}
+
 #' Fit the extended frame of reference model
 #'
 #' Fits Humphry's extended frame of reference model, in which the unit can
@@ -984,7 +1023,8 @@
 #' which are identified at the linking stage. The accompanying Wald omnibus
 #' tests provide inference for the group- and set-unit families. Their
 #' probabilities are Holm-adjusted as one omnibus family; the individual
-#' unit contrasts form a second Holm-adjusted follow-up family. Unit estimates
+#' unit contrasts form a second Holm-adjusted follow-up family. An unavailable
+#' probability remains in its declared family. Unit estimates
 #' are retained for sparse designs, but probabilities require at least 50
 #' persons or effective persons in every group and at least 50 common persons
 #' on every set-link edge.
@@ -1969,7 +2009,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
         fit$phi_factorial_tests$p_adj <- NA_real_
         usable <- is.finite(fit$phi_factorial_tests$p)
         fit$phi_factorial_tests$p_adj[usable] <- stats::p.adjust(
-          fit$phi_factorial_tests$p[usable], method = "holm")
+          fit$phi_factorial_tests$p[usable], method = "holm",
+          n = nrow(fit$phi_factorial_tests))
         fit$phi_factorial_tests$significant <- ifelse(
           is.finite(fit$phi_factorial_tests$p_adj),
           fit$phi_factorial_tests$p_adj < 0.05, NA)
@@ -2051,19 +2092,6 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   # informative about the group units (phi): the within-frame likelihood is
   # invariant to the set units (alpha), which are identified person-side, so
   # their evidence is the Wald test on log alpha.
-  wald_zero <- function(est, Sigma, term) {
-    if (length(est) < 2L || is.null(Sigma) || any(!is.finite(Sigma)))
-      return(NULL)
-    ee <- eigen((Sigma + t(Sigma)) / 2, symmetric = TRUE)
-    cut <- max(abs(ee$values)) * 1e-8
-    use <- ee$values > cut
-    if (!any(use)) return(NULL)
-    Sinv <- ee$vectors[, use, drop = FALSE] %*%
-      (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
-    W <- drop(t(est) %*% Sinv %*% est)
-    data.frame(term = term, df = sum(use), wald = W,
-               p = stats::pchisq(W, sum(use), lower.tail = FALSE))
-  }
   Sig_phi <- if (!is.null(boot))
     stats::cov(boot[, seq_len(G), drop = FALSE]) else sol$cov_log_phi
   Sig_alpha <- if (S > 1L) {
@@ -2073,15 +2101,15 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     else NULL
   } else NULL
   unit_omnibus <- do.call(rbind, Filter(Negate(is.null), list(
-    if (G > 1L) wald_zero(log(phi), Sig_phi, "group units (phi)"),
-    if (S > 1L) wald_zero(log(alpha), Sig_alpha, "set units (alpha)"))))
+    if (G > 1L) .efrm_wald_zero(log(phi), Sig_phi, "group units (phi)"),
+    if (S > 1L) .efrm_wald_zero(log(alpha), Sig_alpha, "set units (alpha)"))))
   if (!is.null(unit_omnibus)) {
     unit_omnibus$p[unit_omnibus$term == "group units (phi)" & !phi_ok] <- NA_real_
     unit_omnibus$p[unit_omnibus$term == "set units (alpha)" & !alpha_ok] <- NA_real_
     unit_omnibus$p_adj <- NA_real_
     usable <- is.finite(unit_omnibus$p)
     unit_omnibus$p_adj[usable] <- stats::p.adjust(
-      unit_omnibus$p[usable], method = "holm")
+      unit_omnibus$p[usable], method = "holm", n = nrow(unit_omnibus))
     unit_omnibus$significant <- ifelse(
       is.finite(unit_omnibus$p_adj), unit_omnibus$p_adj < 0.05, NA)
   }
@@ -2102,7 +2130,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     ut$p[ut$family == "alpha" & !alpha_ok] <- NA_real_
     ut$p_adj <- NA_real_
     usable <- is.finite(ut$p)
-    ut$p_adj[usable] <- stats::p.adjust(ut$p[usable], method = "holm")
+    ut$p_adj[usable] <- stats::p.adjust(
+      ut$p[usable], method = "holm", n = nrow(ut))
     ut$significant <- ifelse(is.finite(ut$p_adj), ut$p_adj < 0.05, NA)
     ut$family <- NULL
     rownames(ut) <- NULL

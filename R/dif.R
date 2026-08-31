@@ -358,7 +358,8 @@
 #' factor-by-factor interactions. Type II sums of squares are used. The
 #' multiplicity adjustment covers all item-by-DIF-term tests, including both
 #' uniform and non-uniform DIF; the class-interval main effect is a nuisance
-#' term and is not included.
+#' term and is not included. A reported term remains in this family when its
+#' probability is unavailable.
 #'
 #' When identifiers repeat, the person is the unit of analysis. Between-person
 #' terms use person means and the between-person error stratum. Within-person
@@ -730,8 +731,10 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
   # non-uniform terms gave an approximately 10% all-null probability of at
   # least one flag at nominal 5% in the balanced MFRM validation design.
   terms$p_adj <- NA_real_
-  sel_test <- !terms$term %in% c("Residuals", "ci") & is.finite(terms$p)
-  terms$p_adj[sel_test] <- p.adjust(terms$p[sel_test], method = p_adjust)
+  family_member <- !terms$term %in% c("Residuals", "ci")
+  sel_test <- family_member & is.finite(terms$p)
+  terms$p_adj[sel_test] <- p.adjust(
+    terms$p[sel_test], method = p_adjust, n = sum(family_member))
   terms$significant <- !is.na(terms$p_adj) & terms$p_adj < alpha
 
   # a significant higher-order GROUP interaction supersedes the lower-order

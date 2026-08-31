@@ -413,6 +413,8 @@ test_that("weak-item explanatory diagnostics withhold their probabilities", {
   dg <- explanatory_diagnostics(few)
   expect_true(all(is.na(dg$p[dg$item == "I3"])))
   expect_true(any(is.finite(dg$p_adj[dg$item != "I3"])))
+  use <- is.finite(dg$p)
+  expect_equal(dg$p_adj[use], p.adjust(dg$p[use], "holm", n = nrow(dg)))
 })
 
 test_that("judge diagnostics report count-weighted comparisons", {

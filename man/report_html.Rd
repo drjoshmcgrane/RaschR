@@ -23,7 +23,7 @@ report_html(
 \item{dpi}{Resolution of the embedded plots.}
 
 \item{dif, bootstrap}{Optional computed \code{\link{dif_anova}} and
-\code{\link{fit_bootstrap}} results, exported as run; the DIF table is
+\code{\link{fit_bootstrap}} results from this fit, exported as run; the DIF table is
 otherwise recomputed at defaults when the fit carries person factors.}
 }
 \value{

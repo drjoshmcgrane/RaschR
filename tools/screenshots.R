@@ -11,10 +11,29 @@
 # the session, and it is the reason the images stay honest when the interface
 # moves under them.
 
-suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 for (p in c("chromote", "callr", "shiny", "jsonlite"))
   if (!requireNamespace(p, quietly = TRUE))
     stop("tools/screenshots.R needs the suggested package '", p, "'")
+
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
+# The app contains background processes of its own, so loading the source tree
+# only in this coordinator is not enough: a child can otherwise find an older
+# installed rasch on .libPaths(). Install the current tree into an isolated
+# library and launch that exact installation. A failed installation stops the
+# run before any existing screenshots can be overwritten.
+ROOT <- normalizePath(".", mustWork = TRUE)
+SHOT_LIB <- tempfile("rasch-screenshot-library-")
+dir.create(SHOT_LIB, recursive = TRUE)
+on.exit(unlink(SHOT_LIB, recursive = TRUE, force = TRUE), add = TRUE)
+message("installing the current source tree for the screenshot run")
+install_result <- callr::rcmd_safe(
+  "INSTALL",
+  c("--no-multiarch", "--with-keep.source", "-l", SHOT_LIB, ROOT),
+  wd = ROOT, stdout = "|", stderr = "|", fail_on_status = FALSE)
+if (!identical(install_result$status, 0L))
+  stop("could not install the current source tree for screenshots:\n",
+       paste(c(install_result$stdout, install_result$stderr), collapse = "\n"))
 
 PORT   <- 7841L
 WIDTH  <- 1440L
@@ -29,21 +48,29 @@ SHOTS <- list(
        dir = "vignettes/figures",
        alt = "The Data panel: the sidebar assigns the person identifier, person factors and item columns, and the main area previews the responses."),
   list(name = "app-summary", demo = "dich", panel = "p_summary", height = 1150L,
+       open = "test_tcc", expect_selector = "#tcc img",
        dir = "vignettes/figures"),
   list(name = "app-items", demo = "dich", panel = "p_items", height = 1150L,
-       row = "I07", dir = c("vignettes/figures", "man/figures")),
+       table = "items_tbl", row = "I07", expect = c("#sel_item_title" = "I07"),
+       dir = c("vignettes/figures", "man/figures")),
   list(name = "app-items-chisq", demo = "dich", panel = "p_items",
-       tab = "Chi-square", row = "I07", dir = "vignettes/figures"),
+       tab = "Chi-square", table = "items_tbl", row = "I07",
+       expect = c("#chisq_caption" = "I07"), dir = "vignettes/figures"),
   list(name = "app-persons", demo = "dich", panel = "p_persons",
        open = "persons_pfit", dir = "vignettes/figures"),
   list(name = "app-targeting", demo = "dich", panel = "p_targeting",
+       height = 1350L,
+       before = "var e=document.getElementById('tg_information'); if(e && !e.checked) e.click();",
+       expect_checked = "tg_information",
        dir = "vignettes/figures"),
   list(name = "app-dif", demo = "dich", panel = "p_dif",
-       open = "dif_anova", row = "I05", dir = "vignettes/figures"),
+       open = "dif_anova", table = "dif_tbl", row = "I05",
+       expect = c("#dif_icc_code" = "I05"), dir = "vignettes/figures"),
   list(name = "app-local", demo = "dich", panel = "p_ld",
-       open = "ld_cormat", dir = "vignettes/figures"),
-  list(name = "app-rcode", demo = "dich", panel = "p_summary",
-       open = "rcode_acc", dir = "vignettes/figures"),
+       open = "ld_cormat", height = 1150L, dir = "vignettes/figures"),
+  list(name = "app-rcode", demo = "dich", panel = "p_data",
+       open = "rcode_acc", focus = "#rcode_acc", height = 700L,
+       expect = c("#rcode_fit" = "fit <-"), dir = "vignettes/figures"),
   list(name = "app-export", demo = "dich", panel = "p_export",
        dir = "vignettes/figures"),
   # comparative judgement
@@ -89,8 +116,7 @@ settle <- function(b, timeout = 600) {
     if (quiet >= 8L) return(invisible(TRUE))
     Sys.sleep(0.25)
   }
-  warning("still busy after ", timeout, "s", call. = FALSE)
-  invisible(FALSE)
+  stop("the application was still busy after ", timeout, "s", call. = FALSE)
 }
 
 # Estimate is an input_task_button: the fit runs in an ExtendedTask, which does
@@ -107,9 +133,8 @@ rendered <- function(b, what, timeout = 600, chars = 600) {
     n <- js(b, "document.body.innerText.trim().length")
     if (isTRUE(n >= chars)) return(invisible(TRUE))
     if (Sys.time() > deadline) {
-      warning(what, ": the page still holds only ", n, " characters after ",
-              timeout, "s", call. = FALSE)
-      return(invisible(FALSE))
+      stop(what, ": the page still holds only ", n, " characters after ",
+           timeout, "s", call. = FALSE)
     }
     Sys.sleep(0.5)
   }
@@ -126,6 +151,28 @@ wait_for <- function(b, selector, timeout = 60) {
 }
 
 current_demo <- NULL
+
+assert_clean <- function(b, shot) {
+  errors <- js(b, "Array.from(document.querySelectorAll('.shiny-output-error'))
+    .filter(function(e){return e.offsetParent !== null})
+    .map(function(e){return e.innerText.trim()}).filter(Boolean)")
+  if (length(errors))
+    stop(shot$name, ": visible Shiny error: ", paste(errors, collapse = " | "))
+  busy <- js(b, "document.body.classList.contains('shiny-busy') ||
+    Array.from(document.querySelectorAll('.recalculating'))
+      .some(function(e){return e.offsetParent !== null})")
+  if (isTRUE(busy)) stop(shot$name, ": capture attempted while outputs were busy")
+  invisible(TRUE)
+}
+
+assert_text <- function(b, selector, expected, shot) {
+  got <- js(b, sprintf(
+    "(function(){var e=document.querySelector(%s); return e ? e.innerText.trim() : null})()",
+    shQuote(selector, type = "cmd")))
+  if (is.null(got) || !grepl(expected, got, fixed = TRUE))
+    stop(shot$name, ": expected ", shQuote(expected), " in ", selector,
+         "; found ", shQuote(got %||% "<missing>"))
+}
 
 take <- function(b, shot) {
   message("  ", shot$name)
@@ -147,8 +194,12 @@ take <- function(b, shot) {
         Sys.sleep(0.5)
       settle(b)
     }
-    js(b, sprintf("Shiny.setInputValue('demo_choice', '%s', {priority: 'event'})",
-                  shot$demo))
+    changed <- js(b, sprintf(
+      "(function(){var e=document.getElementById('demo_choice'); if(!e) return false;
+        if(e.selectize) e.selectize.setValue('%s');
+        else {e.value='%s'; e.dispatchEvent(new Event('change',{bubbles:true}));}
+        return true})()", shot$demo, shot$demo))
+    if (!isTRUE(changed)) stop(shot$name, ": the example selector was not found")
     settle(b)
     # the example selects its model; wait for that to arrive before estimating
     deadline <- Sys.time() + 30
@@ -173,6 +224,10 @@ take <- function(b, shot) {
   if (!identical(got, want))
     stop(shot$name, ": the application is showing the ", got, " model, not ",
          want, " -- the example did not take")
+  shown_demo <- js(b, "(function(){var e=document.getElementById('demo_choice');
+    if(!e) return null; return e.selectize ? e.selectize.getValue() : e.value})()")
+  if (!identical(shown_demo, shot$demo))
+    stop(shot$name, ": the visible example selector did not retain ", shot$demo)
   js(b, sprintf(
     "var l = document.querySelector('a[data-value=\"%s\"]'); if (l) l.click();",
     shot$panel))
@@ -196,15 +251,39 @@ take <- function(b, shot) {
       "var p = document.querySelector('#%s') || document.querySelector('[data-value=\"%s\"]');
        if (p) { var btn = p.querySelector('.accordion-button.collapsed'); if (btn) btn.click(); }",
       shot$open, shot$open))
+  if (!is.null(shot$before)) js(b, shot$before)
   # a table that drives a plot beside it needs the interesting row selected,
   # or the figure shows whichever row the panel opened on
   if (!is.null(shot$row)) {
-    js(b, sprintf(
-      "var r = Array.from(document.querySelectorAll('table tbody tr')).find(function(t){ var c = t.querySelector('td'); return c && c.textContent.trim() === %s; });
-       if (r) r.click();", shQuote(shot$row, type = "cmd")))
+    selected <- js(b, sprintf(
+      "(function(){var root=document.getElementById(%s); if(!root) return false;
+       var r=Array.from(root.querySelectorAll('table tbody tr')).find(function(t){
+         return Array.from(t.querySelectorAll('td')).some(function(c){return c.textContent.trim() === %s;});
+       }); if(!r) return false; var c=r.querySelector('td'); if(!c) return false;
+       c.dispatchEvent(new MouseEvent('click',{bubbles:true})); return true})()",
+      shQuote(shot$table, type = "cmd"), shQuote(shot$row, type = "cmd")))
+    if (!isTRUE(selected))
+      stop(shot$name, ": could not select ", shot$row, " in ", shot$table)
     settle(b)
   }
   settle(b)
+  if (!is.null(shot$expect))
+    for (selector in names(shot$expect))
+      assert_text(b, selector, unname(shot$expect[[selector]]), shot)
+  if (!is.null(shot$expect_selector)) {
+    present <- js(b, sprintf("document.querySelector(%s) !== null",
+                             shQuote(shot$expect_selector, type = "cmd")))
+    if (!isTRUE(present))
+      stop(shot$name, ": expected selector ", shot$expect_selector)
+  }
+  if (!is.null(shot$expect_checked)) {
+    checked <- js(b, sprintf(
+      "(function(){var e=document.getElementById(%s); return !!(e && e.checked)})()",
+      shQuote(shot$expect_checked, type = "cmd")))
+    if (!isTRUE(checked))
+      stop(shot$name, ": expected checked input ", shot$expect_checked)
+  }
+  assert_clean(b, shot)
   # a fit raises toast notifications ("15 item(s) scored 0/1 against the key")
   # that float over the panel and would sit in the middle of the figure
   js(b, "var n = document.getElementById('shiny-notification-panel'); if (n) n.remove();")
@@ -214,9 +293,12 @@ take <- function(b, shot) {
   # panel alone runs to nearly 6,000 pixels. Capture what a reader sees: the
   # viewport, or the taller frame a shot asks for.
   h <- shot$height %||% HEIGHT
+  y <- if (is.null(shot$focus)) 0 else js(b, sprintf(
+    "(function(){var e=document.querySelector(%s); return e ? Math.max(0, e.getBoundingClientRect().top + window.scrollY - 80) : 0})()",
+    shQuote(shot$focus, type = "cmd")))
   raw <- b$Page$captureScreenshot(
     format = "png", captureBeyondViewport = TRUE,
-    clip = list(x = 0, y = 0, width = WIDTH, height = h, scale = SCALE))$data
+    clip = list(x = 0, y = y, width = WIDTH, height = h, scale = SCALE))$data
   bin <- jsonlite::base64_dec(raw)
   for (d in shot$dir) {
     dir.create(d, showWarnings = FALSE, recursive = TRUE)
@@ -230,11 +312,15 @@ args <- commandArgs(TRUE)
 shots <- if (length(args)) Filter(function(s) s$name %in% args, SHOTS) else SHOTS
 if (!length(shots)) stop("no shot matched: ", paste(args, collapse = ", "))
 
-app <- callr::r_bg(function(dir, port) {
+app <- callr::r_bg(function(lib, port) {
+  .libPaths(c(lib, .libPaths()))
+  library(rasch, lib.loc = lib)
+  dir <- system.file("shiny", package = "rasch", lib.loc = lib)
+  if (!nzchar(dir)) stop("the installed package does not contain the Shiny app")
   options(shiny.port = port, shiny.host = "127.0.0.1",
           shiny.launch.browser = FALSE, shiny.maxRequestSize = 100 * 1024^2)
   shiny::runApp(dir)
-}, args = list(dir = normalizePath("inst/shiny"), port = PORT),
+}, args = list(lib = SHOT_LIB, port = PORT),
   supervise = TRUE, stdout = "|", stderr = "|")
 on.exit({ try(app$kill(), silent = TRUE) }, add = TRUE)
 

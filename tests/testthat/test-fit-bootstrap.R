@@ -22,6 +22,8 @@ STATS <- c("chisq", "fit_resid", "infit_ms", "outfit_ms", "infit_z", "outfit_z")
 test_that("every fit statistic is carried with a probability in range", {
   fit <- rasch(simb(300, seq(-1.5, 1.5, length.out = 6), seed = 3))
   bs <- fbq(fit, B = 29, seed = 1)
+  expect_s3_class(bs, "rasch_fit_bootstrap")
+  expect_identical(bs$model_kind, "rasch")
   expect_equal(nrow(bs$items), 6L)
   expect_identical(bs$items$item, fit$items$item)
   for (st in STATS) {
@@ -36,6 +38,16 @@ test_that("every fit statistic is carried with a probability in range", {
   expect_identical(bs$theta, "conditional")
   expect_setequal(names(bs$replicates), STATS)
   expect_true(all(vapply(bs$replicates, nrow, 0L) == bs$B_used))
+  expect_equal(nrow(bs$persons), nrow(fit$person))
+  expect_identical(bs$persons$id, fit$person$id)
+  for (st in c("fit_resid", "infit_ms", "outfit_ms", "infit_z", "outfit_z")) {
+    p <- bs$persons[[paste0(st, "_p_boot")]]
+    adj <- bs$persons[[paste0(st, "_p_boot_adj")]]
+    expect_true(all(p > 0 & p <= 1, na.rm = TRUE), info = st)
+    expect_true(all(adj >= p, na.rm = TRUE), info = st)
+  }
+  expect_identical(bs$person_adjustment$method,
+                   "single-step maximum-statistic bootstrap")
 })
 
 test_that("the chi-square is read in one tail and the others in two", {
@@ -97,7 +109,58 @@ test_that("the schemes for person locations all run and stay in range", {
     bs <- suppressWarnings(fit_bootstrap(fit, B = 19, theta = s, seed = 2))
     expect_identical(bs$theta, s)
     expect_true(all(bs$items$chisq_p_boot > 0 & bs$items$chisq_p_boot <= 1))
+    if (s == "conditional") expect_s3_class(bs$persons, "data.frame")
+    else expect_null(bs$persons)
   }
+})
+
+test_that("fixed locations remain paired with their response rows", {
+  X <- rbind(c(NA, NA), c(0, 1), c(1, 0))
+  th <- c(NA_real_, -1, 1)
+  prepared <- .fit_theta_source(th, X, "fixed")
+  expect_equal(prepared, c(0, -1, 1))
+  expect_identical(.fit_theta("fixed", prepared, list(), n = nrow(X)),
+                   prepared)
+  X[1, 1] <- 0
+  expect_error(.fit_theta_source(th, X, "fixed"),
+               "finite person location", class = "rasch_refusal")
+  expect_equal(.fit_theta_source(th, X, "resample"), c(-1, 1))
+})
+
+test_that("source-tree bootstrap workers do not load another installation", {
+  expect_warning(out <- with_mocked_bindings(
+    .rasch_boot_apply(3L, identity, workers = 2L, label = "test bootstrap"),
+    .rasch_namespace_is_installed = function() FALSE,
+    .package = "rasch"), "source tree")
+  expect_equal(out, as.list(1:3))
+})
+
+test_that("the maxT reference uses the joint null and never lowers raw p", {
+  null <- cbind(a = 1:40, b = 40:1, c = c(1:20, 20:1))
+  z <- .boot_maxt(c(40, 40, 20), null, "upper", min_success = 30L)
+  expect_equal(z$family_n, 3L)
+  expect_equal(z$family_boot, 40L)
+  expect_true(all(z$p_adj >= z$p, na.rm = TRUE))
+  expect_true(all(z$p_adj <= 1, na.rm = TRUE))
+  expect_true(all(is.finite(z$p_adj)))
+
+  # A testable member with no null variation invalidates the joint maximum,
+  # rather than quietly reducing the family for the other members.
+  constant <- null; constant[, 3] <- 20
+  zc <- .boot_maxt(c(40, 40, 20), constant, "upper", min_success = 30L)
+  expect_true(all(is.na(zc$p_adj)))
+  expect_equal(zc$family_n, 3L)
+  expect_equal(zc$adjusted_n, 0L)
+  expect_true(all(is.na(.boot_maxt(c(40, 40, 20), constant, "upper",
+    min_success = 30L, mode = "centred")$p_adj)))
+  expect_true(all(is.na(.boot_maxt(c(40, 40, 20), constant, "upper",
+    min_success = 30L, mode = "raw")$p_adj)))
+
+  null[1:20, 3] <- NA
+  z2 <- .boot_maxt(c(40, 40, 20), null, "upper", min_success = 30L)
+  expect_true(is.na(z2$p[3]))
+  expect_equal(z2$family_n, 3L)
+  expect_true(all(is.na(z2$p_adj)))
 })
 
 test_that("the bootstrap statistic carries the bias the asymptotic df ignores", {
@@ -149,8 +212,24 @@ test_that("the bootstrap validates its own controls", {
   expect_error(fbq(fit, B = c(10, 20)), "whole positive number of replicates")
   expect_error(fbq(fit, B = 2.5), "whole positive number of replicates")
   expect_error(fbq(fit, B = 5, workers = 0), "whole positive number of workers")
-  expect_error(fbq(fit, B = 5, seed = c(1, 2)), "one finite number")
+  expect_error(fbq(fit, B = 5, seed = c(1, 2)), "non-negative whole")
+  expect_error(fbq(fit, B = 5, seed = 1.5), "non-negative whole")
+  expect_error(fbq(fit, B = 5, seed = -1), "non-negative whole")
+  expect_error(fbq(fit, B = 5, seed = .Machine$integer.max + 1),
+               "integer range")
   expect_error(fbq(fit, B = 5, theta = "wishful"), "should be one of")
+
+  failed <- fit; failed$est$converged <- FALSE
+  expect_error(fbq(failed, B = 5), "observed Rasch fit did not converge",
+               class = "rasch_refusal")
+})
+
+test_that("a non-converged replicate is not admitted to the null", {
+  d <- simulate_rasch(250, 8, model = "PCM", n_categories = 4, seed = 1)
+  f <- suppressWarnings(rasch(d, id = "id", model = "PCM"))
+  z <- suppressWarnings(.fit_refit(
+    f$X, f$model, f$n_groups, anchors = NULL, maxit = 1L, tol = 1e-12))
+  expect_identical(.fit_boot_status(z), "nonconverged")
 })
 
 
@@ -191,7 +270,93 @@ test_that("a thinned null is reported rather than left to be inferred", {
     warning = function(cnd) {
       w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
     })
-  expect_true(any(grepl("could not be estimated", w)))
+  expect_true(any(grepl("were unusable", w)))
+})
+
+test_that("a depleted or statistic-specific null is withheld", {
+  fit <- rasch(simb(200, seq(-1, 1, length.out = 5), seed = 18))
+  good <- lapply(STATS, function(st) fit$items[[st]])
+  names(good) <- STATS
+  good$persons <- lapply(c("fit_resid", "infit_ms", "outfit_ms",
+                           "infit_z", "outfit_z"), function(st)
+    fit$person[[st]])
+  names(good$persons) <- c("fit_resid", "infit_ms", "outfit_ms",
+                           "infit_z", "outfit_z")
+
+  expect_error(
+    suppressWarnings(with_mocked_bindings(
+      fit_bootstrap(fit, B = 40, seed = 1),
+      .rasch_boot_apply = function(n, fun, ...) c(
+        rep(list(good), 29L), rep(list(NULL), n - 29L)),
+      .package = "rasch")),
+    "at least 30", class = "rasch_refusal")
+
+  refused <- tryCatch(suppressWarnings(with_mocked_bindings(
+    fit_bootstrap(fit, B = 40, seed = 1),
+    .rasch_boot_apply = function(n, fun, ...) c(
+      rep(list(good), 29L),
+      rep(list(.fit_boot_failure("nonconverged")), 6L),
+      rep(list(.fit_boot_failure("error")), 5L)),
+    .package = "rasch")), error = identity)
+  expect_s3_class(refused, "rasch_fit_bootstrap_refusal")
+  expect_equal(refused$B_used, 29L)
+  expect_equal(refused$B_nonconverged, 6L)
+  expect_equal(refused$B_errors, 5L)
+
+  w <- character(0)
+  bs <- withCallingHandlers(with_mocked_bindings(
+    fit_bootstrap(fit, B = 40, seed = 1),
+    .rasch_boot_apply = function(n, fun, ...) c(
+      rep(list(good), 30L), rep(list(NULL), n - 30L)),
+    .package = "rasch"), warning = function(cnd) {
+      w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
+    })
+  expect_equal(bs$B_used, 30L)
+  expect_equal(bs$B_failed, 10L)
+  expect_equal(bs$B_nonconverged, 0L)
+  expect_equal(bs$B_errors, 10L)
+  expect_equal(bs$minimum_usable, 30L)
+  expect_true(any(grepl("were unusable", w)))
+  expect_true(all(bs$items$n_boot_chisq == 30L))
+
+  bad_stat <- good
+  bad_stat$outfit_z[1L] <- NA_real_
+  w <- character(0)
+  bs2 <- withCallingHandlers(with_mocked_bindings(
+    fit_bootstrap(fit, B = 40, seed = 1),
+    .rasch_boot_apply = function(n, fun, ...) rep(list(bad_stat), n),
+    .package = "rasch"), warning = function(cnd) {
+      w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
+    })
+  expect_equal(bs2$items$n_boot_outfit_z[1L], 0L)
+  expect_true(is.na(bs2$items$outfit_z_p_boot[1L]))
+  ok <- is.finite(bs2$items$outfit_z_p_boot)
+  expect_equal(bs2$items$outfit_z_p_boot_adj[ok],
+               p.adjust(bs2$items$outfit_z_p_boot[ok], method = "holm",
+                        n = nrow(bs2$items)))
+  expect_true(any(grepl("too few usable replicated statistics for outfit_z", w)))
+
+  bad_fr <- good
+  bad_fr$fit_resid[1L] <- NA_real_
+  bs_fr <- suppressWarnings(with_mocked_bindings(
+    fit_bootstrap(fit, B = 40, seed = 1),
+    .rasch_boot_apply = function(n, fun, ...) rep(list(bad_fr), n),
+    .package = "rasch"))
+  expect_equal(bs_fr$total$n_boot_fit_resid_mean, 0L)
+  expect_equal(bs_fr$total$n_boot_fit_resid_sd, 0L)
+  expect_true(is.na(bs_fr$total$fit_resid_mean_p_boot))
+  expect_true(is.na(bs_fr$total$fit_resid_sd_p_boot))
+
+  bs3 <- suppressWarnings(with_mocked_bindings(
+    fit_bootstrap(fit, B = 40, seed = 1),
+    .rasch_boot_apply = function(n, fun, ...) c(
+      rep(list(good), 30L),
+      rep(list(.fit_boot_failure("nonconverged")), 6L),
+      rep(list(.fit_boot_failure("error")), 4L)),
+    .package = "rasch"))
+  expect_equal(bs3$B_used, 30L)
+  expect_equal(bs3$B_nonconverged, 6L)
+  expect_equal(bs3$B_errors, 4L)
 })
 
 test_that("the conditional generator preserves scores, masks, and theory", {
@@ -238,13 +403,17 @@ test_that("the conditional bootstrap preserves a booklet's missingness link", {
 })
 
 test_that("bootstrap acceptance needs thirty successes and a majority", {
+  expect_identical(.fit_min_boot_success(5), 3L)
+  expect_identical(.fit_min_boot_success(29), 15L)
+  expect_identical(.fit_min_boot_success(40), 30L)
+  expect_identical(.fit_min_boot_success(100), 51L)
   expect_identical(.rasch_min_boot_success(30), 30L)
   expect_identical(.rasch_min_boot_success(40), 30L)
   expect_identical(.rasch_min_boot_success(58), 30L)
   expect_identical(.rasch_min_boot_success(100), 51L)
   expect_identical(.rasch_min_boot_success(300), 151L)
-  # a covariance with more columns than draws cannot reach full rank, so
-  # the floor also clears the quantity count
+  # the covariance guard also clears the number of independently estimable
+  # directions supplied by its caller
   expect_identical(.rasch_min_boot_success(100, n_quantities = 80), 81L)
   expect_identical(.rasch_min_boot_success(40, n_quantities = 10), 30L)
 })
@@ -256,4 +425,102 @@ test_that("a B below the adjusted-inference floor warns, naming the remedy", {
   expect_no_warning(fbq(fit, B = 199, seed = 1))
   expect_silent(capture.output(suppressMessages(
     invisible(fit_bootstrap(fit, B = 200, seed = 1)))))
+})
+
+test_that("paired-comparison fit bootstrap follows the fitted design", {
+  d <- simulate_btl(5, 20, reps_per_pair = 8, seed = 41)
+  fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  bs <- suppressWarnings(fit_bootstrap(fit, B = 19, workers = 1, seed = 4))
+  expect_s3_class(bs, "rasch_fit_bootstrap")
+  expect_identical(bs$model_kind, "btl")
+  expect_identical(bs$model, "paired comparisons")
+  expect_equal(bs$B_used, 19L)
+  expect_identical(bs$objects$object, fit$objects$object)
+  expect_identical(bs$judges$judge, fit$judges$judge)
+  expect_equal(bs$pairs[, c("object_a", "object_b")],
+               fit$pairs[, c("object_a", "object_b")])
+  expect_true(bs$total$chisq_p_boot > 0 && bs$total$chisq_p_boot <= 1)
+  for (tab in c("pairs", "objects", "judges")) {
+    pcols <- grep("_p_boot$", names(bs[[tab]]), value = TRUE)
+    for (nm in pcols) {
+      adj <- bs[[tab]][[paste0(nm, "_adj")]]
+      expect_true(all(adj >= bs[[tab]][[nm]], na.rm = TRUE),
+                  info = paste(tab, nm))
+    }
+  }
+})
+
+test_that("non-converged observed paired-comparison fits are refused", {
+  d <- simulate_btl(5, 20, reps_per_pair = 4, seed = 47)
+  fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  fit$converged <- FALSE
+  expect_error(fit_bootstrap(fit, B = 5, seed = 1),
+               "observed paired-comparison fit did not converge",
+               class = "rasch_refusal")
+})
+
+test_that("paired-comparison fit bootstrap does not invent judges", {
+  d <- simulate_btl(5, 20, reps_per_pair = 6, seed = 45)
+  fit <- btl(d, "object_a", "object_b", winner = "winner")
+  bs <- suppressWarnings(fit_bootstrap(fit, B = 5, workers = 1, seed = 7))
+  expect_null(bs$judges)
+  expect_null(bs$adjustment$judges)
+  expect_null(bs$replicates$judges)
+})
+
+test_that("paired-comparison fit bootstrap retains explanatory restrictions", {
+  set.seed(46)
+  predictors <- data.frame(object = LETTERS[1:6], x = seq(-1, 1, length.out = 6))
+  pr <- t(combn(predictors$object, 2))
+  d <- data.frame(object_a = rep(pr[, 1], each = 20),
+                  object_b = rep(pr[, 2], each = 20))
+  bx <- setNames(predictors$x, predictors$object)
+  d$winner <- ifelse(runif(nrow(d)) <
+                       plogis(bx[d$object_a] - bx[d$object_b]),
+                     d$object_a, d$object_b)
+  fit <- btl_explanatory(d, predictors, ~ x,
+                         object_a = "object_a", object_b = "object_b",
+                         winner = "winner")
+  bs <- suppressWarnings(fit_bootstrap(fit, B = 5, workers = 1, seed = 8))
+  expect_identical(bs$objects$object, fit$objects$object)
+  expect_equal(bs$B_used, 5L)
+})
+
+test_that("paired-comparison bootstrap covers ordered categories and history", {
+  d <- simulate_btl(5, 24, reps_per_pair = 6, model = "polytomous",
+                    n_categories = 4, seed = 42)
+  fit <- btl(d, "object_a", "object_b", response = "response",
+             judge = "judge", thresholds = "pc")
+  generated <- .btl_boot_data(fit)
+  expect_true(is.ordered(generated$response))
+  expect_identical(levels(generated$response), as.character(0:fit$m))
+  expect_no_error(suppressWarnings(
+    fit_bootstrap(fit, B = 9, workers = 1, seed = 5)))
+
+  h <- simulate_btl(5, 30, reps_per_pair = 6,
+                    dependence = list(exposure = .2, carry_over = .1),
+                    seed = 43)
+  fh <- btl(h, "object_a", "object_b", winner = "winner",
+            judge = "judge", order = "order")
+  bh <- suppressWarnings(fit_bootstrap(fh, B = 9, workers = 1, seed = 6))
+  expect_gte(bh$B_used, bh$minimum_usable)
+  expect_true(all(vapply(bh$replicates$objects, nrow, 0L) == bh$B_used))
+
+  dropped <- fh
+  dropped$dependence <- dropped$dependence[-1L, , drop = FALSE]
+  expect_error(.btl_boot_data(dropped), "dropped.*effect",
+               class = "rasch_refusal")
+})
+
+test_that("paired-comparison bootstrap refuses designs it cannot regenerate", {
+  d <- simulate_btl(5, 20, reps_per_pair = 6, seed = 44)
+  d$winner[1:4] <- "tie"
+  half <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge",
+              ties = "half")
+  expect_error(fit_bootstrap(half, B = 5, seed = 1), "half-weighted ties",
+               class = "rasch_refusal")
+  expect_error(fit_bootstrap(btl(d[-(1:4), ], "object_a", "object_b",
+                                 winner = "winner", judge = "judge"),
+                             B = 5, theta = "fixed", seed = 1),
+               "theta.*not paired comparisons")
 })

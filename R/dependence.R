@@ -212,7 +212,8 @@ print.rasch_dependence <- function(x, ...) {
 #' @param maxit,tol Passed to the \code{\link{pcml_pc}} refit.
 #' @param alpha Significance level for the one-sided dependence screen.
 #' @param p_adjust Multiplicity adjustment across the eligible superitems;
-#'   one of \code{stats::p.adjust.methods}.
+#'   one of \code{stats::p.adjust.methods}. An eligible superitem remains in
+#'   the family if its probability is unavailable.
 #' @return A data frame with one row per recorded superitem: \code{item},
 #'   \code{m}, whether the binomial bound is \code{eligible}, the
 #'   \code{spread} estimate and its \code{se}, the bound \code{lub}
@@ -281,7 +282,8 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
   out$p <- ifelse(out$eligible & is.finite(out$z), stats::pnorm(out$z), NA_real_)
   out$p_adj <- NA_real_
   use <- out$eligible & is.finite(out$p)
-  out$p_adj[use] <- stats::p.adjust(out$p[use], method = p_adjust)
+  out$p_adj[use] <- stats::p.adjust(
+    out$p[use], method = p_adjust, n = sum(out$eligible))
   out$below_bound <- ifelse(out$eligible & is.finite(out$spread),
                             out$spread < out$lub, NA)
   out$dependent <- ifelse(use, out$p_adj < alpha, NA)

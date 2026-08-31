@@ -116,11 +116,11 @@
 #' the estimates.
 #'
 #' The fit residual is the log-of-mean-square statistic described by Andrich
-#' and Marais (2019, ch. 23). It is approximately standard normal under fit;
-#' positive values indicate under-discrimination and negative values indicate
-#' over-discrimination. The item-trait chi-square and class-interval F tests
-#' are large-sample diagnostic approximations and should be considered with
-#' the residual statistics, effect sizes, and item content.
+#' and Marais (2019, ch. 23). Positive values indicate under-discrimination and
+#' negative values indicate over-discrimination. Its standard-normal reading,
+#' the item-trait chi-square and the class-interval F test are asymptotic
+#' approximations. For ordinary Rasch, PCM and RSM fits,
+#' \code{\link{fit_bootstrap}} supplies calibrated probabilities.
 #'
 #' Multiple-choice responses may be scored from a named item-to-key vector,
 #' an item/key table, or an item/option/score table. A slash separates
@@ -174,17 +174,16 @@
 #' descriptive index, not a freely estimated parameter of the Rasch model,
 #' and no sampling standard error or hypothesis test is attached to it.
 #' @section Item-fit probabilities:
-#' The item-trait chi-square supplies the principal inferential test of
-#' invariance over class intervals. The class-interval ANOVA is a conventional
-#' residual diagnostic whose F reference is approximate. Its probability can
-#' be anti-conservative in short tests because each response contributes
-#' appreciably to the person grouping used to test that item. The same issue
-#' can affect the item-trait probability when fewer than about ten responses
-#' locate each person. In short administrations, read the statistics with the
-#' characteristic curve and residual fit rather than as stand-alone decisions.
-#' The item summary retains the raw ANOVA probability as \code{p_anova} and
-#' its Holm familywise adjustment as \code{p_anova_adj}; use the adjusted
-#' probability for inference across items.
+#' The item-trait chi-square assesses invariance over class intervals, but its
+#' asymptotic reference treats the estimated person locations used to form
+#' those intervals as known. Its calibration therefore changes with sample
+#' size and test length. The class-interval ANOVA and standardised residual
+#' readings are approximate for the same reason. The item table retains their
+#' raw and Holm-adjusted probabilities as descriptive diagnostics. Each
+#' adjustment retains the full item family when one probability is
+#' unavailable.
+#' \code{\link{fit_bootstrap}} re-estimates every replicate and should be used
+#' for item-level inference where it is available.
 #' @return An object of class \code{"rasch"}. Its principal components are
 #'   the item summary, threshold table, person table, score table, residuals,
 #'   reliability, targeting, item-trait statistics, threshold diagnostics,
@@ -713,7 +712,7 @@ print.rasch <- function(x, ...) {
               if (isFALSE(x$alpha$applicable))
                 sprintf(" [complete cases only, n = %d]", x$alpha$n) else "",
               x$power_of_fit))
-  cat(sprintf("Total item-trait chi-square %.3f on %d df, p = %s\n",
+  cat(sprintf("Approximate asymptotic total item-trait chi-square %.3f on %d df, p = %s\n",
               x$total_chisq, x$total_df, .fmt_p(x$total_chisq_p)))
   if (length(x$notes)) cat(sprintf("Notes: %s\n", paste(x$notes, collapse = "; ")))
   invisible(x)
@@ -741,9 +740,10 @@ summary.rasch <- function(object, ...) {
               x$summary_stats$cor_item_fit_location,
               x$summary_stats$cor_person_fit_location,
               x$summary_stats$df_factor))
-  cat(sprintf("%s with Holm-adjusted chi-square p < 0.05: %d of %d\n\n",
+  inference <- .inference_count(x$items$p_adj)
+  cat(sprintf("%s with approximate asymptotic Holm p < 0.05: %s\n\n",
               if (structural) "Response cells" else "Items",
-              sum(x$items$p_adj < 0.05, na.rm = TRUE), nrow(x$items)))
+              inference$text))
   core <- c("item", "max", "location", "se", "fit_resid", "infit_ms",
             "outfit_ms", "chisq", "df", "p_adj")
   print(.fmt_df(x$items[, intersect(core, names(x$items))]), row.names = FALSE)

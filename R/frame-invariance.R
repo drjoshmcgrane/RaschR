@@ -57,7 +57,8 @@
 #' Raw and Holm-adjusted probabilities are reported. With conditional
 #' uncertainty, Holm adjustment covers the location comparisons. With
 #' bootstrap uncertainty, it covers the combined family of location and
-#' discrimination comparisons.
+#' discrimination comparisons. An unavailable comparison remains in the
+#' applicable family.
 #' The summary gives the root mean squared location difference and root mean
 #' squared standard error for each set and frame pair. Items from different
 #' sets cannot be compared because the sets partition the items.
@@ -358,7 +359,9 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
   allp <- c(cmp$p, dsc$p)
   padj <- rep(NA_real_, length(allp))
   usable <- is.finite(allp)
-  padj[usable] <- stats::p.adjust(allp[usable], method = "holm")
+  family_n <- nrow(cmp) + if (se_method == "bootstrap") nrow(dsc) else 0L
+  padj[usable] <- stats::p.adjust(
+    allp[usable], method = "holm", n = family_n)
   cmp$p_adj <- padj[seq_len(nrow(cmp))]
   dsc$p_adj <- padj[nrow(cmp) + seq_len(nrow(dsc))]
   p_cmp <- if (adjust == "holm") cmp$p_adj else cmp$p

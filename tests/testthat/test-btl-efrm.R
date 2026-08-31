@@ -259,6 +259,25 @@ test_that("bootstrap SEs propagate linking uncertainty (estimates unchanged)", {
   expect_true(all(is.infinite(fp$alpha_table$df)))
 })
 
+test_that("BTL-EFRM omnibus families are not truncated by unavailable covariance", {
+  V <- diag(c(0.04, 0.09))
+  full <- .btlef_wald_unit(c(0.2, -0.3), V, "set units")
+  expect_equal(full$df, 2L)
+  expect_true(is.finite(full$p))
+
+  V[2, 2] <- NA_real_
+  unavailable <- .btlef_wald_unit(c(0.2, -0.3), V, "set units")
+  expect_identical(unavailable$term, "set units")
+  expect_true(is.na(unavailable$df))
+  expect_true(is.na(unavailable$wald))
+  expect_true(is.na(unavailable$p))
+
+  singular <- .btlef_wald_unit(c(0.2, -0.3),
+                               matrix(c(1, 1, 1, 1), 2), "set units")
+  expect_equal(singular$df, 1L)
+  expect_true(is.finite(singular$p))
+})
+
 test_that("judge-bootstrap unit tests respect panel-specific judge support", {
   skip_on_cran()
   d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 1, n_panels = 2,
@@ -459,4 +478,14 @@ test_that("parallel BTL-EFRM judge bootstraps are seed-identical", {
 
 test_that("BTL-EFRM defaults to four available workers", {
   expect_identical(formals(btl_efrm)$workers, 4L)
+})
+
+test_that("BTL-EFRM sizes bootstrap rank to its actual covariance blocks", {
+  d <- simulate_btl_efrm(n_objects_per_set = 16, n_sets = 2,
+                         n_panels = 2, n_judges_per_panel = 4,
+                         reps_within = 1, reps_cross = 1, seed = 707)
+  expect_error(
+    btl_efrm(d, "object_a", "object_b", "winner", "judge", "panel",
+             attr(d, "truth")$object_sets, boot_reps = 30, workers = 1),
+    "at least 32 replicates")
 })

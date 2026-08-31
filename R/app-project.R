@@ -38,6 +38,33 @@
                   "simulation", "results", "settings", "resources"))
     if (!is.null(project[[field]]) && !is.list(project[[field]]))
       fail(sprintf("the analysis file has an invalid %s field", field))
+
+  # Results belong to the active fit, which is the final structural change
+  # when a saved history is present. In particular, a bootstrap null from an
+  # earlier fit must not be restored beside later DIF splits, superitems or
+  # paired-comparison frame changes.
+  is_btl <- inherits(project$base_fit, "rasch_btl")
+  history <- if (is_btl) project$btl_steps else project$rasch_steps
+  active_fit <- project$base_fit
+  if (length(history)) {
+    last <- history[[length(history)]]
+    expected <- if (is_btl) "rasch_btl" else "rasch"
+    if (!is.list(last) || !inherits(last$fit, expected))
+      fail("the analysis file has an invalid fitted-model history")
+    active_fit <- last$fit
+  }
+  bootstrap <- project$results$bootstrap
+  if (!is.null(bootstrap)) {
+    if (!is.list(bootstrap) || is.null(bootstrap$bs))
+      fail("the analysis file has an invalid saved bootstrap result")
+    problem <- tryCatch({
+      .validate_fit_bootstrap(bootstrap$bs, active_fit)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (!is.null(problem))
+      fail(paste("the saved bootstrap result does not belong to the active fit:",
+                 problem))
+  }
   invisible(project)
 }
 

@@ -20,7 +20,7 @@ reports.
 }
 \details{
 The app's interface packages ('shiny', 'bslib', 'DT', 'bsicons', and
-'callr' for cancellable EFRM estimation) are suggested rather than
+'callr' for cancellable EFRM and fit-bootstrap estimation) are suggested rather than
 required by the package. If any are missing,
 \code{run_app} lists them all and, in an interactive session, offers to
 install them before launching.

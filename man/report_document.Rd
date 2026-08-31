@@ -24,7 +24,7 @@ report_document(
 \item{title}{Report title.}
 
 \item{dif, bootstrap}{Optional computed \code{\link{dif_anova}} and
-\code{\link{fit_bootstrap}} results, rendered as run rather than
+\code{\link{fit_bootstrap}} results from this fit, rendered as run rather than
 recomputed at defaults.}
 }
 \value{

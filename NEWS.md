@@ -1,5 +1,13 @@
 # rasch 1.12.1
 
+* Fit inference now retains its predeclared family when an item or frame-unit
+  probability is unavailable. BTL-EFRM omnibus tests are withheld rather than
+  reduced when a requested covariance coordinate is missing. Fixed-location
+  item bootstraps keep each location with its own response row, and whole-test
+  fit-residual nulls use one fixed item set. Saved application bootstraps are
+  checked against the active restored fit. Parallel bootstraps loaded from a
+  development source tree run serially instead of finding another installed
+  package on socket workers.
 * `fit_bootstrap()` now calibrates person fit under its default
   score-conditional null. It reports marginal probabilities and a
   maximum-statistic adjustment across persons for each fit

@@ -7,7 +7,7 @@
 #   (> 1 means the reported SE understates the sampling variability).
 # - Replicate accounting distinguishes n_attempted (replicates started),
 #   n_refused (identification/guard refusals), n_nonconv (fitted but not
-#   converged), and n_reps = the ANALYSED replicates every conditional
+#   converged), n_error (other failures), and n_reps = the ANALYSED replicates every conditional
 #   performance quantity (bias, SD, coverage, rates) is computed on.
 #   Rates carry Monte Carlo standard errors on their own denominators.
 
@@ -63,13 +63,18 @@ sv_row <- function(study, scenario, quantity, n_reps,
                    mc_override = list(),
                    effect = NA_real_,
                    n_attempted = NA_integer_, n_refused = NA_integer_,
-                   n_nonconv = NA_integer_,
+                   n_nonconv = NA_integer_, n_error = NA_integer_,
+                   n_boot_attempted = NA_integer_, n_boot_used = NA_integer_,
+                   n_boot_nonconv = NA_integer_, n_boot_errors = NA_integer_,
                    refusal_rate = if (is.finite(n_attempted) &&
                                       n_attempted > 0)
                      n_refused / n_attempted else NA_real_,
                    nonconv_rate = if (is.finite(n_attempted) &&
                                       n_attempted > 0)
                      n_nonconv / n_attempted else NA_real_,
+                   error_rate = if (is.finite(n_attempted) &&
+                                    n_attempted > 0)
+                     n_error / n_attempted else NA_real_,
                    notes = "") {
   rate <- c(type1 = type1, familywise = familywise, power = power,
             coverage95 = coverage95)
@@ -85,9 +90,16 @@ sv_row <- function(study, scenario, quantity, n_reps,
     mc_se_prop(refusal_rate, n_attempted) else NA_real_
   mc_nc <- if (is.finite(nonconv_rate) && is.finite(n_attempted))
     mc_se_prop(nonconv_rate, n_attempted) else NA_real_
+  mc_err <- if (is.finite(error_rate) && is.finite(n_attempted))
+    mc_se_prop(error_rate, n_attempted) else NA_real_
   data.frame(study = study, scenario = scenario, quantity = quantity,
              n_reps = n_reps, n_attempted = n_attempted,
              n_refused = n_refused, n_nonconv = n_nonconv,
+             n_error = n_error,
+             n_boot_attempted = n_boot_attempted,
+             n_boot_used = n_boot_used,
+             n_boot_nonconv = n_boot_nonconv,
+             n_boot_errors = n_boot_errors,
              effect = effect, bias = bias, emp_sd = emp_sd,
              mean_se = mean_se, se_ratio = se_ratio,
              coverage95 = coverage95, mc_se_coverage = mc[["coverage95"]],
@@ -96,6 +108,7 @@ sv_row <- function(study, scenario, quantity, n_reps,
              power = power, mc_se_power = mc[["power"]],
              refusal_rate = refusal_rate, mc_se_refusal = mc_ref,
              nonconv_rate = nonconv_rate, mc_se_nonconv = mc_nc,
+             error_rate = error_rate, mc_se_error = mc_err,
              script = .sv_prov$script, script_md5 = .sv_prov$hash,
              package_sha = .sv_prov$sha, r_tree_md5 = .sv_prov$rtree,
              executed = .sv_prov$date,

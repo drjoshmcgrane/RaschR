@@ -14,7 +14,8 @@ spread_test(fit, maxit = 60, tol = 1e-08, alpha = 0.05, p_adjust = "holm")
 \item{alpha}{Significance level for the one-sided dependence screen.}
 
 \item{p_adjust}{Multiplicity adjustment across the eligible superitems;
-one of \code{stats::p.adjust.methods}.}
+one of \code{stats::p.adjust.methods}. An eligible superitem remains in
+the family if its probability is unavailable.}
 }
 \value{
 A data frame with one row per recorded superitem: \code{item},

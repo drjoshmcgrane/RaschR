@@ -148,15 +148,15 @@ completed batches, or cancel the process without replacing the current
 analysis. R scripts can supply `progress` and `cancel` callbacks for the same
 controls.
 
-The fit records the requested, usable and failed bootstrap counts. The linking
-covariance is withheld unless at least 30 replicates are usable, more than
-half of those requested, and more than the covariance has columns --- a
-covariance cannot reach full rank on fewer draws than columns, so a
-high-dimensional design raises its own floor. The alpha--phi
-cross-covariance meets the same rule, and is withheld with a warning below
-it. A requested full bootstrap also records its attempted,
-usable and failed counts in `full_boot_reps_*`. These remain available if too
-few full refits succeed and the fit returns hybrid standard errors instead.
+The fit records the requested, usable and failed bootstrap counts. The requested
+number must exceed the free directions in the largest covariance block used by
+the fit. The stored bootstrap row contains several constrained blocks and is not
+treated as one covariance. Once estimation begins, the linking covariance needs
+at least 30 usable replicates and a majority of those requested; otherwise the
+fit stops. The alpha--phi cross-covariance has the same usable-draw rule and is
+withheld if it cannot be estimated. A full bootstrap that falls below its
+minimum returns hybrid standard errors instead, retaining its attempted, usable
+and failed counts in `full_boot_reps_*`.
 
 ```{r comparison}
 fit$efrm_vs_rasch$unit_omnibus

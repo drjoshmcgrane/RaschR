@@ -81,7 +81,11 @@ test_that("the app retains the agreed model labels and frame safeguards", {
                fixed = TRUE)
   expect_match(src, 'identical(r$shift_method, "unweighted")',
                fixed = TRUE)
-  expect_match(src, 'p_bold = c("p_adj", "p_anova_adj", "chisq_p_boot_adj",',
+  expect_match(src,
+               'operative_p <- if (is.null(bv)) character(0) else',
+               fixed = TRUE)
+  expect_match(src,
+               'c("chisq_p_boot_adj", "fit_resid_p_boot_adj")',
                fixed = TRUE)
   expect_false(grepl('p_bold = c("p", "p_adj")', src, fixed = TRUE))
   expect_match(src, ': judge-group DIF needs judge-constant factors',
@@ -95,6 +99,24 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src, 'spread_test(fit, alpha = %s, p_adjust = %s)',
                fixed = TRUE)
   expect_match(src, 'callr::r_bg', fixed = TRUE)
+  expect_match(src, 'input_task_button("boot_run", "Bootstrap the fit statistics"',
+               fixed = TRUE)
+  expect_match(src, 'input_task_button("btl_boot_run", "Bootstrap the fit statistics"',
+               fixed = TRUE)
+  expect_match(src, 'getExportedValue("rasch", "fit_bootstrap")',
+               fixed = TRUE)
+  expect_match(src, '.classical_design_applicable <-', fixed = TRUE)
+  expect_false(grepl('rasch:::.classical_design_applicable', src,
+                     fixed = TRUE))
+  expect_match(src, 'pkgload::load_all(dirname(source_dir), quiet = TRUE)',
+               fixed = TRUE)
+  expect_match(src, 'persons_with_boot <- function()', fixed = TRUE)
+  expect_match(src, 'btl_boot_table <- function(which)', fixed = TRUE)
+  expect_match(src, 'if (is.na(mis)) "Unavailable"', fixed = TRUE)
+  expect_match(src, 'j <- match(fit$items$item, b$item)', fixed = TRUE)
+  expect_false(grepl('merge(fit$items, bs$items', src, fixed = TRUE))
+  expect_match(src, 'bootstrap = boot_val()', fixed = TRUE)
+  expect_match(src, 'cancel_boot_job()', fixed = TRUE)
   expect_match(src, 'Cancel EFRM estimation', fixed = TRUE)
   expect_match(src, 'input$ef_workers', fixed = TRUE)
   expect_match(src, 'selected = max(.efrm_worker_values)', fixed = TRUE)

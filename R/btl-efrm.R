@@ -495,6 +495,47 @@
          stats::pchisq(total_chisq, total_df, lower.tail = FALSE) else NA_real_)
 }
 
+# Omnibus test of one predeclared unit family. A missing coordinate or
+# covariance entry makes that family unavailable; deleting it would silently
+# test a different, lower-dimensional hypothesis. A complete but singular
+# covariance is different: its positive-eigenvalue subspace is estimable and
+# supplies the Wald rank.
+.btlef_wald_unit <- function(est, V, term, n_units = Inf, available = TRUE) {
+  if (!length(est) || is.null(V)) return(NULL)
+  unavailable <- function() data.frame(
+    term = term, df = NA_integer_, df2 = NA_real_, wald = NA_real_,
+    f = NA_real_, p = NA_real_)
+  if (!is.matrix(V) || nrow(V) != length(est) || ncol(V) != length(est) ||
+      any(!is.finite(est)) || any(!is.finite(V)))
+    return(unavailable())
+  ee <- eigen((V + t(V)) / 2, symmetric = TRUE)
+  cutoff <- max(abs(ee$values)) * 1e-8
+  use <- ee$values > cutoff
+  if (!any(use)) return(unavailable())
+  Vinv <- ee$vectors[, use, drop = FALSE] %*%
+    (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
+  W <- drop(t(est) %*% Vinv %*% est)
+  q <- sum(use)
+  if (!available) {
+    data.frame(term = term, df = q, df2 = NA_real_, wald = W,
+               f = NA_real_, p = NA_real_)
+  } else if (is.infinite(n_units)) {
+    data.frame(term = term, df = q, df2 = Inf, wald = W, f = W / q,
+               p = stats::pchisq(W, q, lower.tail = FALSE))
+  } else if (!is.finite(n_units)) {
+    data.frame(term = term, df = q, df2 = NA_real_, wald = W,
+               f = NA_real_, p = NA_real_)
+  } else if (n_units > q) {
+    Fs <- W * (n_units - q) / (q * (n_units - 1))
+    data.frame(term = term, df = q, df2 = n_units - q, wald = W,
+               f = Fs, p = stats::pf(Fs, q, n_units - q,
+                                      lower.tail = FALSE))
+  } else {
+    data.frame(term = term, df = q, df2 = NA_real_, wald = W,
+               f = NA_real_, p = NA_real_)
+  }
+}
+
 #' Fit the extended frame of reference model for paired comparisons
 #'
 #' Fits paired comparisons when judges belong to panels and objects belong to
@@ -536,7 +577,9 @@
 #' panel, it reduces to \code{\link{btl}}. Omnibus Wald probabilities are
 #' Holm-adjusted across the panel-unit, set-unit and set-origin families.
 #' Individual contrasts form a separate Holm-adjusted follow-up family across
-#' all three parameter types.
+#' all three parameter types. An unavailable unit remains in its predeclared
+#' family; an omnibus is withheld rather than reduced when one of its
+#' requested coordinates is unavailable.
 #' Judge-bootstrap probabilities require at least six judges and 5.5 effective
 #' judges in every contributing panel, and eight of each on a set link. The
 #' support is returned in \code{unit_support}; estimates remain descriptive
@@ -1429,8 +1472,12 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   unit_tables <- list(phi_table, alpha_table, kappa_table)
   all_p <- unlist(lapply(unit_tables, `[[`, "p"), use.names = FALSE)
   all_adj <- rep(NA_real_, length(all_p))
-  usable <- is.finite(all_p)
-  all_adj[usable] <- stats::p.adjust(all_p[usable], method = "holm")
+  family_member <- c(rep(TRUE, nrow(phi_table)),
+                     alpha_table$set %in% free,
+                     kappa_table$set %in% free)
+  usable <- is.finite(all_p) & family_member
+  all_adj[usable] <- stats::p.adjust(
+    all_p[usable], method = "holm", n = sum(family_member))
   cursor_p <- 0L
   for (j in seq_along(unit_tables)) {
     nr <- nrow(unit_tables[[j]])
@@ -1469,38 +1516,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   # units rejects a true null at ~8.7% for the set origins in simulation
   # (550 replicates, 12 judges); W * (n - q) / (q (n - 1)) ~ F(q, n - q)
   # restores the nominal rate, exactly as for the MFRM interaction omnibus.
-  wald_unit <- function(est, V, term, n_units = Inf, available = TRUE) {
-    if (!length(est) || is.null(V)) return(NULL)
-    ok <- is.finite(est) & is.finite(diag(V))
-    if (!any(ok)) return(NULL)
-    est <- est[ok]; V <- V[ok, ok, drop = FALSE]
-    if (any(!is.finite(V))) return(NULL)
-    ee <- eigen((V + t(V)) / 2, symmetric = TRUE)
-    cutoff <- max(abs(ee$values)) * 1e-8
-    use <- ee$values > cutoff
-    if (!any(use)) return(NULL)
-    Vinv <- ee$vectors[, use, drop = FALSE] %*%
-      (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
-    W <- drop(t(est) %*% Vinv %*% est)
-    q <- sum(use)
-    if (!available) {
-      data.frame(term = term, df = q, df2 = NA_real_, wald = W,
-                 f = NA_real_, p = NA_real_)
-    } else if (is.infinite(n_units)) {
-      data.frame(term = term, df = q, df2 = Inf, wald = W,
-                 f = W / q,
-                 p = stats::pchisq(W, q, lower.tail = FALSE))
-    } else if (n_units > q) {
-      Fs <- W * (n_units - q) / (q * (n_units - 1))
-      data.frame(term = term, df = q, df2 = n_units - q, wald = W,
-                 f = Fs, p = stats::pf(Fs, q, n_units - q,
-                                       lower.tail = FALSE))
-    } else
-      data.frame(term = term, df = q, df2 = NA_real_, wald = W,
-                 f = NA_real_, p = NA_real_)
-  }
   omni_parts <- list()
-  if (G > 1L) omni_parts[[length(omni_parts) + 1L]] <- wald_unit(
+  if (G > 1L) omni_parts[[length(omni_parts) + 1L]] <- .btlef_wald_unit(
     log(phi), cov_log_phi, "panel units (phi)",
     n_units = if (se_method == "judge_bootstrap")
       floor(sum(panel_support$effective_judges)) else Inf,
@@ -1511,11 +1528,11 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
         match(free, set_support$set)])) else Inf
     set_available <- se_method != "judge_bootstrap" ||
       (all(panel_ok) && all(set_ok[match(free, set_support$set)]))
-    omni_parts[[length(omni_parts) + 1L]] <- wald_unit(
+    omni_parts[[length(omni_parts) + 1L]] <- .btlef_wald_unit(
       log(alpha[free]),
       cov2[seq_along(free), seq_along(free), drop = FALSE],
       "set units (alpha)", n_units = set_n, available = set_available)
-    omni_parts[[length(omni_parts) + 1L]] <- wald_unit(
+    omni_parts[[length(omni_parts) + 1L]] <- .btlef_wald_unit(
       kappa[free],
       cov2[length(free) + seq_along(free),
            length(free) + seq_along(free), drop = FALSE],
@@ -1531,7 +1548,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     unit_omnibus$p_adj <- NA_real_
     usable <- is.finite(unit_omnibus$p)
     unit_omnibus$p_adj[usable] <- stats::p.adjust(
-      unit_omnibus$p[usable], method = "holm")
+      unit_omnibus$p[usable], method = "holm", n = nrow(unit_omnibus))
     unit_omnibus$significant <- ifelse(
       is.finite(unit_omnibus$p_adj), unit_omnibus$p_adj < 0.05, NA)
   }

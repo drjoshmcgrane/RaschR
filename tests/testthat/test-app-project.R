@@ -71,6 +71,31 @@ test_that("invalid app analysis files are refused", {
   expect_error(.read_app_project(bad), "invalid settings")
 })
 
+test_that("saved bootstrap results must belong to the active saved fit", {
+  set.seed(83)
+  X1 <- matrix(rbinom(600, 1, 0.5), 120, 5,
+               dimnames = list(NULL, paste0("I", 1:5)))
+  X2 <- X1
+  X2[1:10, 1] <- 1L - X2[1:10, 1]
+  fit1 <- rasch(X1)
+  fit2 <- rasch(X2)
+  bs <- .new_fit_bootstrap(
+    list(items = fit1$items, total = list(), B = 1L, B_used = 1L),
+    fit1, "rasch")
+  project <- list(
+    format = "rasch-shiny-project", schema = 1L,
+    data = as.data.frame(X1), model_type = "rasch", base_fit = fit1,
+    rasch_steps = list(), btl_steps = list(), results = list(
+      bootstrap = list(bs = bs, B = 1L, seed = 1L, kind = "rasch")))
+  expect_no_error(.validate_app_project(project))
+
+  project$rasch_steps <- list(list(type = "test", fit = fit2))
+  expect_error(.validate_app_project(project),
+               "does not belong to the active fit")
+  project$results$bootstrap <- list(bs = list())
+  expect_error(.validate_app_project(project), "saved bootstrap result")
+})
+
 test_that("opening a project retains results tied to its active fit", {
   skip_on_cran()
   skip_if_not_installed("shiny")

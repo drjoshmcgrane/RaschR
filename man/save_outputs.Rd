@@ -35,8 +35,9 @@ threshold curve, and frequency chart per item).}
 which a default recomputation would silently replace. \code{NULL}
 computes the default when the fit carries person factors.}
 
-\item{bootstrap}{Optional \code{\link{fit_bootstrap}} result; its item
-table and whole-test readings join the exported tables.}
+\item{bootstrap}{Optional \code{\link{fit_bootstrap}} result from this fit. Its item and
+person tables, or pair, object and judge tables for paired comparisons,
+join the export with the whole-test readings.}
 }
 \value{
 Invisibly, the vector of files written.

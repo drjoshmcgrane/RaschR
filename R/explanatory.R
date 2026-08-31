@@ -708,6 +708,7 @@ explanatory_test <- function(fit) {
 #' comparative-judgement object departure separately from the active model.
 #' Probabilities use Kent calibration and Holm adjustment over the complete
 #' candidate family.
+#' A candidate with a withheld probability remains in that family.
 #'
 #' @param fit A fitted explanatory Rasch or comparative judgement model.
 #' @param p_adjust Multiplicity adjustment over the candidate departures.
@@ -798,7 +799,8 @@ explanatory_diagnostics <- function(fit, p_adjust = "holm") {
   out <- do.call(rbind, rows)
   usable <- is.finite(out$p)
   out$p_adj <- NA_real_
-  out$p_adj[usable] <- stats::p.adjust(out$p[usable], method = p_adjust)
+  out$p_adj[usable] <- stats::p.adjust(
+    out$p[usable], method = p_adjust, n = nrow(out))
   if (any(out$weak))
     attr(out, "note") <- paste("departure probabilities are withheld for",
       "item(s) with weak thresholds:",

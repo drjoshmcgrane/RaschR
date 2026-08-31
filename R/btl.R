@@ -1232,7 +1232,7 @@ plot_btl <- function(fit, band = 2.5) {
     dependence$p_adj <- NA_real_
     usable_p <- is.finite(dependence$p)
     dependence$p_adj[usable_p] <- stats::p.adjust(
-      dependence$p[usable_p], method = "holm")
+      dependence$p[usable_p], method = "holm", n = nrow(dependence))
     dependence$significant <- ifelse(
       is.finite(dependence$p_adj), dependence$p_adj < 0.05, NA)
     rownames(dependence) <- NULL
@@ -1856,7 +1856,8 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' not impose equal precision on judge means. Omnibus probabilities require
 #' at least eight judges and eight effective judges in every factor cell.
 #' Holm adjustment is the default; \code{"BH"} remains available for
-#' false-discovery-rate screening.
+#' false-discovery-rate screening. A reported object-by-term test remains in
+#' the adjustment family when its probability is unavailable.
 #'
 #' Objects are resolved one at a time against the common locations of the
 #' remaining objects. With DIF in several objects, this can induce compensating
@@ -2219,8 +2220,10 @@ btl_dif <- function(fit, factors, objects = NULL,
   # Uniform and non-uniform flags feed one reported DIF decision, so the
   # object-by-term tests form one multiplicity family.
   terms$p_adj <- NA_real_
-  sel_test <- terms$term != "band" & is.finite(terms$p)
-  terms$p_adj[sel_test] <- p.adjust(terms$p[sel_test], method = p_adjust)
+  family_member <- terms$term != "band"
+  sel_test <- family_member & is.finite(terms$p)
+  terms$p_adj[sel_test] <- p.adjust(
+    terms$p[sel_test], method = p_adjust, n = sum(family_member))
   terms$significant <- !is.na(terms$p_adj) & terms$p_adj < alpha
   # a significant higher-order GROUP term supersedes lower-order group terms
   # built from a subset of its factors, within the same object. Band-crossing

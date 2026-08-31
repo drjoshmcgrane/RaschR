@@ -432,6 +432,19 @@ test_that("unit Wald tests accompany the equal-unit comparison", {
   expect_true(all(ut2$p < 0.01))
 })
 
+test_that("EFRM omnibus families are retained when covariance is unavailable", {
+  full <- .efrm_wald_zero(c(-0.2, 0.2), diag(c(0.04, 0.04)),
+                          "group units")
+  expect_equal(full$df, 2L)
+  expect_true(is.finite(full$p))
+
+  V <- diag(c(0.04, 0.04)); V[2, 2] <- NA_real_
+  unavailable <- .efrm_wald_zero(c(-0.2, 0.2), V, "group units")
+  expect_identical(unavailable$term, "group units")
+  expect_true(is.na(unavailable$df))
+  expect_true(is.na(unavailable$p))
+})
+
 test_that("the joint stage-1 covariance is coherent and its draws honest", {
   d <- simulate_efrm(150, 6, n_sets = 2, n_groups = 2, set_unit_ratio = 1.2,
                      seed = 77)
@@ -471,6 +484,60 @@ test_that("the joint stage-1 covariance is coherent and its draws honest", {
   expect_lt(max(abs(cov(V) - uc$cov_joint)) /
               max(abs(uc$cov_joint)), 0.12)
   expect_lt(max(abs(rowSums(V[, K + seq_len(G), drop = FALSE]))), 1e-8)
+})
+
+test_that("an unusable alpha-phi cross-covariance is explicitly withheld", {
+  set.seed(902)
+  n <- 160L
+  z <- rnorm(n)
+  u <- cbind(A = z + rnorm(n, sd = 0.2),
+             B = 1.25 * z + rnorm(n, sd = 0.2))
+  w <- matrix(0.04, n, 2L)
+  g <- matrix(1, n, 2L)
+  # The set link remains usable in every draw, while the accompanying group
+  # units are deliberately unavailable. This isolates the cross-covariance
+  # guard from failure of the alpha covariance itself.
+  regen <- function()
+    list(u = u, w = w, g = g,
+         log_phi = c(A = NA_real_, B = NA_real_))
+  expect_warning(
+    link <- .efrm_link_sets(u, w, g, c("A", "B"), min_link_persons = 20L,
+                            boot_reps = 30L, regen = regen, workers = 1L),
+    "affected frame-unit standard errors are NA")
+  expect_equal(link$boot_reps_used, 30L)
+  expect_true(link$cross_cov_withheld)
+  expect_null(link$cov_alpha_phi)
+
+  expect_warning(
+    no_regen <- .efrm_link_sets(
+      u, w, g, c("A", "B"), min_link_persons = 20L,
+      boot_reps = 30L, regen = NULL, workers = 1L),
+    "calibration redraws were unavailable")
+  expect_true(no_regen$cross_cov_withheld)
+  expect_null(no_regen$cov_alpha_phi)
+
+  # Pin the public consequence separately. Supply a usable marginal alpha
+  # covariance but mark its alpha-phi cross-covariance as withheld; the fit
+  # must not turn that unknown term into zero when it constructs frame SEs.
+  d <- simulate_efrm(n_per_group = 80, items_per_set = 5, n_sets = 2,
+                     n_groups = 2, seed = 36)
+  tr <- attr(d, "truth")
+  real_link <- .efrm_link_sets
+  fit <- with_mocked_bindings(
+    rasch_efrm(d, item_sets = tr$item_sets, groups = "group", boot_reps = 0),
+    .efrm_link_sets = function(...) {
+      out <- real_link(...)
+      S <- length(out$alpha)
+      out$se_log_alpha[] <- 0.1
+      out$cov_link <- diag(0.01, 2L * S)
+      out$cross_cov_withheld <- TRUE
+      out$cov_alpha_phi <- NULL
+      out
+    },
+    .package = "rasch"
+  )
+  expect_true(all(is.finite(fit$alpha_table$se_log_alpha)))
+  expect_true(all(is.na(fit$frames$se_log_rho)))
 })
 
 test_that("rasch.efrm_link_draws is validated and blockdiag is simulation-only", {
@@ -711,4 +778,13 @@ test_that("an EFRM bootstrap seed does not take over the caller's RNG", {
   rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
              boot_reps = 40, seed = 919)
   expect_identical(.Random.seed, before)
+})
+
+test_that("EFRM sizes the full bootstrap to its largest covariance block", {
+  d <- simulate_efrm(n_per_group = 40, items_per_set = 6, n_sets = 2,
+                     n_groups = 2, n_categories = 4, seed = 920)
+  expect_error(
+    rasch_efrm(d, item_sets = attr(d, "truth")$item_sets, groups = "group",
+               se_method = "bootstrap", boot_reps = 30, workers = 1),
+    "at least 36 replicates")
 })

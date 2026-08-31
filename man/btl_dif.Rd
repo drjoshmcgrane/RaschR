@@ -94,7 +94,8 @@ Between-judge tests use HC3 covariance so unequal comparison workloads do
 not impose equal precision on judge means. Omnibus probabilities require
 at least eight judges and eight effective judges in every factor cell.
 Holm adjustment is the default; \code{"BH"} remains available for
-false-discovery-rate screening.
+false-discovery-rate screening. A reported object-by-term test remains in
+the adjustment family when its probability is unavailable.
 
 Objects are resolved one at a time against the common locations of the
 remaining objects. With DIF in several objects, this can induce compensating

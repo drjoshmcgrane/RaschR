@@ -18,6 +18,68 @@ CORES <- as.integer(Sys.getenv("SV_CORES", "8"))
 L     <- 8L
 TARGET <- 4L        # difficulty -0.29 with the spread below
 
+.attempt_failure <- function(e) {
+  refused <- inherits(e, c("rasch_refusal", "rasch_fit_bootstrap_refusal"))
+  get_count <- function(name) {
+    z <- e[[name]]
+    if (length(z) == 1L && is.finite(z)) as.integer(z) else 0L
+  }
+  list(status = if (refused) "refused" else "error", data = NULL,
+       message = conditionMessage(e),
+       n_boot_attempted = get_count("B"),
+       n_boot_used = get_count("B_used"),
+       n_boot_nonconv = get_count("B_nonconverged"),
+       n_boot_errors = get_count("B_errors"))
+}
+
+.fit_and_boot <- function(fit_fun, boot_fun) {
+  f <- tryCatch(fit_fun(), error = identity)
+  if (inherits(f, "condition")) return(.attempt_failure(f))
+  if (!isTRUE(f$est$converged))
+    return(list(status = "nonconverged", data = NULL,
+                message = "observed fit did not converge",
+                n_boot_attempted = 0L, n_boot_used = 0L,
+                n_boot_nonconv = 0L, n_boot_errors = 0L))
+  bs <- tryCatch(boot_fun(f), error = identity)
+  if (inherits(bs, "condition")) return(.attempt_failure(bs))
+  list(status = "ok", fit = f, bs = bs, data = NULL, message = "",
+       n_boot_attempted = bs$B, n_boot_used = bs$B_used,
+       n_boot_nonconv = bs$B_nonconverged,
+       n_boot_errors = bs$B_errors)
+}
+
+.collect_attempts <- function(attempts) {
+  status <- vapply(attempts, `[[`, "", "status")
+  good <- attempts[status == "ok"]
+  if (!length(good)) stop("no analysed replicates in this scenario")
+  d <- do.call(rbind, lapply(good, `[[`, "data"))
+  attr(d, "accounting") <- c(
+    n_reps = length(good), n_attempted = length(attempts),
+    n_refused = sum(status == "refused"),
+    n_nonconv = sum(status == "nonconverged"),
+    n_error = sum(status == "error"),
+    n_boot_attempted = sum(vapply(attempts, `[[`, 0L, "n_boot_attempted")),
+    n_boot_used = sum(vapply(attempts, `[[`, 0L, "n_boot_used")),
+    n_boot_nonconv = sum(vapply(attempts, `[[`, 0L, "n_boot_nonconv")),
+    n_boot_errors = sum(vapply(attempts, `[[`, 0L, "n_boot_errors")))
+  d
+}
+
+.study_row <- function(d, study, scenario, quantity, ...) {
+  ac <- as.list(attr(d, "accounting"))
+  do.call(sv_row, c(list(study = study, scenario = scenario,
+                        quantity = quantity), ac, list(...)))
+}
+
+.any_tested <- function(p, alpha = 0.05)
+  if (any(is.finite(p))) any(p[is.finite(p)] < alpha) else NA
+
+.mean_available <- function(x)
+  if (any(is.finite(x))) mean(x[is.finite(x)]) else NA_real_
+
+.any_flag <- function(x)
+  if (any(!is.na(x))) any(x[!is.na(x)]) else NA
+
 # Placement decides what a power scenario measures. With difficulty spread
 # over (-2, 2) the first item is the easiest on the test, and a departure
 # planted there sits where almost nobody's responses can discriminate it: it
@@ -27,18 +89,18 @@ one <- function(r, n, slope, tag) {
   disc <- rep(1, L); disc[TARGET] <- slope
   d <- simulate_rasch(n, L, difficulty = c(-2, 2), discrimination = disc,
                       seed = 1e6 + 1e4 * tag + r)
-  f <- tryCatch(rasch(d, id = "id"), error = function(e) NULL)
-  if (is.null(f)) return(NULL)
-  bs <- tryCatch(suppressWarnings(
-    fit_bootstrap(f, B = B, seed = 2e6 + 1e4 * tag + r, workers = 1L)),
-    error = function(e) NULL)
-  if (is.null(bs)) return(NULL)
-  data.frame(rep = r, n = n, effect = slope,
+  a <- .fit_and_boot(
+    function() rasch(d, id = "id"),
+    function(f) suppressWarnings(fit_bootstrap(
+      f, B = B, seed = 2e6 + 1e4 * tag + r, workers = 1L)))
+  if (a$status != "ok") return(a)
+  f <- a$fit; bs <- a$bs
+  a$data <- data.frame(rep = r, n = n, effect = slope,
              item = seq_len(L), planted = seq_len(L) == TARGET,
              # familywise readings over the Holm-adjusted probabilities
-             fw_a = any(f$items$p_adj < .05, na.rm = TRUE),
-             fw_b = any(bs$items$chisq_p_boot_adj < .05, na.rm = TRUE),
-             fw_b_fr = any(bs$items$fit_resid_p_boot_adj < .05, na.rm = TRUE),
+             fw_a = .any_tested(f$items$p_adj),
+             fw_b = .any_tested(bs$items$chisq_p_boot_adj),
+             fw_b_fr = .any_tested(bs$items$fit_resid_p_boot_adj),
              adj_b_chisq = bs$items$chisq_p_boot_adj < .05,
              adj_b_fitres = bs$items$fit_resid_p_boot_adj < .05,
              # asymptotic readings, each at its nominal 5%
@@ -58,12 +120,13 @@ one <- function(r, n, slope, tag) {
              b_total = bs$total$chisq_p_boot < .05,
              fr_sd = bs$total$fit_resid_sd,
              b_fr_sd = bs$total$fit_resid_sd_p_boot < .05)
+  a
 }
 
 run <- function(n, slope, tag) {
   reps <- parallel::mclapply(seq_len(NREP), one, n = n, slope = slope,
                              tag = tag, mc.cores = CORES)
-  do.call(rbind, reps[!vapply(reps, is.null, TRUE)])
+  .collect_attempts(reps)
 }
 
 # Rates pool L correlated items per replicate: the Monte Carlo SE is the
@@ -84,21 +147,19 @@ for (n in c(250L, 500L, 1000L, 2000L, 4000L)) {
   scen <- sprintf("null, %d persons x %d items", n, L)
   for (st in names(LABEL)) for (m in c("a", "b")) {
     col <- paste0(m, "_", st)
-    rows[[length(rows) + 1L]] <- sv_row(
+    rows[[length(rows) + 1L]] <- .study_row(d,
       "item fit bootstrap", scen,
       sprintf("%s Type I error (%s)", LABEL[[st]],
               if (m == "a") "asymptotic" else "parametric bootstrap"),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-      type1 = mean(d[[col]], na.rm = TRUE),
+      type1 = .mean_available(d[[col]]),
       mc_override = list(type1 = cluster_se(d, col)),
       notes = sprintf("B = %d", B))
   }
   # the conventional fit-residual cut, reported so its drift is on the record
-  rows[[length(rows) + 1L]] <- sv_row(
+  rows[[length(rows) + 1L]] <- .study_row(d,
     "item fit bootstrap", scen,
     "fit residual beyond the conventional 2.5 (asymptotic)",
-    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-    type1 = mean(d$a_fitres_conv, na.rm = TRUE),
+    type1 = .mean_available(d$a_fitres_conv),
     mc_override = list(type1 = cluster_se(d, "a_fitres_conv")),
     notes = sprintf("fit residual mean %.3f SD %.3f; mean chisq %.1f on df %d",
                     mean(d$fit_resid, na.rm = TRUE),
@@ -107,30 +168,26 @@ for (n in c(250L, 500L, 1000L, 2000L, 4000L)) {
                     stats::median(d$df, na.rm = TRUE)))
   tot <- d[!duplicated(d$rep), ]
   for (m in c("a", "b"))
-    rows[[length(rows) + 1L]] <- sv_row(
+    rows[[length(rows) + 1L]] <- .study_row(d,
       "item fit bootstrap", scen,
       sprintf("total item-trait Type I error (%s)",
               if (m == "a") "asymptotic" else "parametric bootstrap"),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-      type1 = mean(tot[[paste0(m, "_total")]], na.rm = TRUE),
+      type1 = .mean_available(tot[[paste0(m, "_total")]]),
       notes = sprintf("B = %d", B))
-  rows[[length(rows) + 1L]] <- sv_row(
+  rows[[length(rows) + 1L]] <- .study_row(d,
     "item fit bootstrap", scen,
     "familywise error, Holm over items (bootstrap chi-square)",
-    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-    familywise = mean(tot$fw_b, na.rm = TRUE),
+    familywise = .mean_available(tot$fw_b),
     notes = sprintf("B = %d", B))
-  rows[[length(rows) + 1L]] <- sv_row(
+  rows[[length(rows) + 1L]] <- .study_row(d,
     "item fit bootstrap", scen,
     "familywise error, Holm over items (bootstrap fit residual)",
-    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-    familywise = mean(tot$fw_b_fr, na.rm = TRUE),
+    familywise = .mean_available(tot$fw_b_fr),
     notes = sprintf("B = %d", B))
-  rows[[length(rows) + 1L]] <- sv_row(
+  rows[[length(rows) + 1L]] <- .study_row(d,
     "item fit bootstrap", scen,
     "item fit residual SD Type I error (parametric bootstrap)",
-    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-    type1 = mean(tot$b_fr_sd, na.rm = TRUE),
+    type1 = .mean_available(tot$b_fr_sd),
     notes = sprintf("B = %d; observed fit residual SD %.3f (the convention reads it against 1)",
                     B, mean(tot$fr_sd, na.rm = TRUE)))
 }
@@ -155,36 +212,32 @@ for (cond in list(list(n = 500L, s = 2.5, tag = 91L),
     col <- paste0(m, "_", st)
     lab <- sprintf("%s (%s)", LABEL[[st]],
                    if (m == "a") "asymptotic" else "parametric bootstrap")
-    rows[[length(rows) + 1L]] <- sv_row(
+    rows[[length(rows) + 1L]] <- .study_row(d,
       "item fit bootstrap", scen, sprintf("power on the planted item, %s", lab),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-      effect = cond$s, power = mean(pl[[col]], na.rm = TRUE),
+      effect = cond$s, power = .mean_available(pl[[col]]),
       notes = sprintf("B = %d", B))
-    rows[[length(rows) + 1L]] <- sv_row(
+    rows[[length(rows) + 1L]] <- .study_row(d,
       "item fit bootstrap", scen,
       sprintf("Type I error on the clean items, %s", lab),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-      effect = cond$s, type1 = mean(cl[[col]], na.rm = TRUE),
+      effect = cond$s, type1 = .mean_available(cl[[col]]),
       mc_override = list(type1 = cluster_se(cl, col)),
       notes = sprintf("B = %d", B))
   }
   adj_lab <- c(chisq = "item-trait chi-square", fitres = "fit residual")
   for (st in names(adj_lab)) {
     col <- paste0("adj_b_", st)
-    rows[[length(rows) + 1L]] <- sv_row(
+    rows[[length(rows) + 1L]] <- .study_row(d,
       "item fit bootstrap", scen,
       sprintf("Holm-adjusted power on the planted item, %s (parametric bootstrap)",
               adj_lab[[st]]),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-      effect = cond$s, power = mean(pl[[col]], na.rm = TRUE),
+      effect = cond$s, power = .mean_available(pl[[col]]),
       notes = sprintf("B = %d", B))
-    rows[[length(rows) + 1L]] <- sv_row(
+    rows[[length(rows) + 1L]] <- .study_row(d,
       "item fit bootstrap", scen,
       sprintf("familywise error over the clean items, %s (parametric bootstrap)",
               adj_lab[[st]]),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
       effect = cond$s,
-      familywise = mean(tapply(cl[[col]], cl$rep, any), na.rm = TRUE),
+      familywise = .mean_available(tapply(cl[[col]], cl$rep, .any_flag)),
       notes = sprintf("B = %d", B))
   }
 }
@@ -198,7 +251,11 @@ for (cond in list(list(n = 500L, s = 2.5, tag = 91L),
 # study-wide B would make the fit-residual familywise rate structurally
 # zero, and so would 599 exactly (30/600 = .05 cannot pass a strict test at
 # .05) -- the scenario needs B of at least 600
-B_BOOKLET <- max(B, 600L)
+booklet_override <- suppressWarnings(as.integer(
+  Sys.getenv("SV_BOOKLET_B", unset = NA_character_)))
+B_BOOKLET <- if (length(booklet_override) == 1L &&
+                 is.finite(booklet_override) && booklet_override >= 1L)
+  booklet_override else max(B, 600L)
 booklet_one <- function(r) {
   set.seed(5e6 + r)
   n <- 400L
@@ -209,76 +266,75 @@ booklet_one <- function(r) {
   colnames(Xb) <- sprintf("I%02d", 1:15)
   Xb[grp == "low", 11:15] <- NA
   Xb[grp == "high", 1:5] <- NA
-  f <- tryCatch(rasch(Xb), error = function(e) NULL)
-  if (is.null(f)) return(NULL)
-  bs <- tryCatch(suppressWarnings(
-    fit_bootstrap(f, B = B_BOOKLET, seed = 6e6 + r, workers = 1L)),
-    error = function(e) NULL)
-  if (is.null(bs)) return(NULL)
-  data.frame(rep = r, item = f$items$item,
+  a <- .fit_and_boot(
+    function() rasch(Xb),
+    function(f) suppressWarnings(fit_bootstrap(
+      f, B = B_BOOKLET, seed = 6e6 + r, workers = 1L)))
+  if (a$status != "ok") return(a)
+  f <- a$fit; bs <- a$bs
+  a$data <- data.frame(rep = r, item = f$items$item,
              p_boot = bs$items$chisq_p_boot,
-             fw = any(bs$items$chisq_p_boot_adj < .05, na.rm = TRUE),
-             fw_fr = any(bs$items$fit_resid_p_boot_adj < .05, na.rm = TRUE))
+             fw = .any_tested(bs$items$chisq_p_boot_adj),
+             fw_fr = .any_tested(bs$items$fit_resid_p_boot_adj))
+  a
 }
-d <- do.call(rbind, parallel::mclapply(seq_len(NREP), booklet_one,
-                                       mc.cores = CORES))
+d <- .collect_attempts(parallel::mclapply(seq_len(NREP), booklet_one,
+                                          mc.cores = CORES))
 nrep <- length(unique(d$rep))
 tot <- d[!duplicated(d$rep), ]
 bk_note <- sprintf("B = %d; conditional on the %d of %d replicates whose fit and bootstrap both succeeded",
                    B_BOOKLET, nrep, NREP)
 rows2 <- list(
-  sv_row("item fit bootstrap",
+  .study_row(d, "item fit bootstrap",
          "linked booklets, informative missingness, 400 persons x 15 items",
-         "item-trait Type I error (parametric bootstrap)", n_reps = nrep,
-         n_attempted = NREP, n_nonconv = NREP - nrep,
-         type1 = mean(d$p_boot < .05, na.rm = TRUE),
+         "item-trait Type I error (parametric bootstrap)",
+         type1 = .mean_available(d$p_boot < .05),
          mc_override = list(type1 = cluster_se(within(d, val <- p_boot < .05), "val")),
          notes = bk_note),
-  sv_row("item fit bootstrap",
+  .study_row(d, "item fit bootstrap",
          "linked booklets, informative missingness, 400 persons x 15 items",
-         "familywise error, Holm over items (chi-square)", n_reps = nrep,
-         n_attempted = NREP, n_nonconv = NREP - nrep,
-         familywise = mean(tot$fw, na.rm = TRUE), notes = bk_note),
-  sv_row("item fit bootstrap",
+         "familywise error, Holm over items (chi-square)",
+         familywise = .mean_available(tot$fw), notes = bk_note),
+  .study_row(d, "item fit bootstrap",
          "linked booklets, informative missingness, 400 persons x 15 items",
-         "familywise error, Holm over items (fit residual)", n_reps = nrep,
-         n_attempted = NREP, n_nonconv = NREP - nrep,
-         familywise = mean(tot$fw_fr, na.rm = TRUE), notes = bk_note))
+         "familywise error, Holm over items (fit residual)",
+         familywise = .mean_available(tot$fw_fr), notes = bk_note))
 
 pcm_one <- function(r, model = "PCM") {
   dd <- simulate_rasch(1000L, 8L, model = model, n_categories = 4,
                        difficulty = c(-2, 2), seed = 7e6 + r)
-  f <- tryCatch(rasch(dd, id = "id",
-                      model = if (model == "RSM") "RSM" else "PCM"),
-                error = function(e) NULL)
-  if (is.null(f)) return(NULL)
-  bs <- tryCatch(suppressWarnings(
-    fit_bootstrap(f, B = B, seed = 8e6 + r, workers = 1L)),
-    error = function(e) NULL)
-  if (is.null(bs)) return(NULL)
-  data.frame(rep = r, item = f$items$item,
+  a <- .fit_and_boot(
+    function() rasch(dd, id = "id",
+                     model = if (model == "RSM") "RSM" else "PCM"),
+    function(f) suppressWarnings(fit_bootstrap(
+      f, B = B, seed = 8e6 + r, workers = 1L)))
+  if (a$status != "ok") return(a)
+  f <- a$fit; bs <- a$bs
+  a$data <- data.frame(rep = r, item = f$items$item,
              chisq = bs$items$chisq_p_boot < .05,
              fitres = bs$items$fit_resid_p_boot < .05,
              infit_z = bs$items$infit_z_p_boot < .05)
+  a
 }
 for (mdl in c("PCM", "RSM")) {
-  d <- do.call(rbind, parallel::mclapply(seq_len(NREP), pcm_one, model = mdl,
-                                         mc.cores = CORES))
+  d <- .collect_attempts(parallel::mclapply(
+    seq_len(NREP), pcm_one, model = mdl, mc.cores = CORES))
   nrep <- length(unique(d$rep))
   for (st in c("chisq", "fitres", "infit_z"))
-    rows2[[length(rows2) + 1L]] <- sv_row(
+    rows2[[length(rows2) + 1L]] <- .study_row(d,
       "item fit bootstrap",
       sprintf("null %s, 4 categories, 1000 persons x 8 items", mdl),
       sprintf("%s Type I error (parametric bootstrap)",
               c(chisq = "item-trait chi-square", fitres = "fit residual",
                 infit_z = "infit z")[[st]]),
-      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
-      type1 = mean(d[[st]], na.rm = TRUE),
+      type1 = .mean_available(d[[st]]),
       mc_override = list(type1 = cluster_se(d, st)),
       notes = sprintf("B = %d", B))
 }
 
 out <- do.call(rbind, c(rows, rows2))
 # a smoke run must never overwrite the recorded battery it cannot support
-sv_write(out, if (NREP < 30L) "item-fit-bootstrap-smoke" else "item-fit-bootstrap")
-cat(sprintf("%d rows written\n", nrow(out)))
+if (!identical(Sys.getenv("SV_WRITE", unset = "1"), "0"))
+  sv_write(out, if (NREP < 30L) "item-fit-bootstrap-smoke" else
+    "item-fit-bootstrap")
+cat(sprintf("%d result rows produced\n", nrow(out)))

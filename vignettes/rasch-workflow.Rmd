@@ -129,6 +129,29 @@ head(fit$items[item_order, c(
 plot_item_map(fit)
 ```
 
+The asymptotic item--trait probabilities treat estimated person locations as
+known. `fit_bootstrap()` instead generates data under the fitted model and
+repeats the calibration. The default conditions on each observed raw score
+and missingness pattern. Use the adjusted bootstrap probabilities for item
+decisions; 999 replicates is a reasonable minimum for a final analysis, and a
+larger value may be needed when there are many items.
+Report `B_used`, `B_nonconverged`, and `B_errors`. A sparse polytomous
+calibration may be refused when too few replicated datasets can be fitted with
+the same model. A maxT adjustment is unavailable for the complete family if
+one testable member lacks a usable joint null.
+The adjustment applies separately to each statistic under the fitted global
+null. It does not guarantee familywise error among fitting items when another
+item misfits. Nominate a primary statistic, or adjust again if either statistic
+will be used to make the same confirmatory decision.
+
+```{r item-fit-bootstrap, eval = FALSE}
+boot <- fit_bootstrap(fit, B = 999, seed = 2026)
+head(boot$items[order(boot$items$chisq_p_boot_adj), c(
+  "item", "chisq", "chisq_p_boot_adj",
+  "fit_resid", "fit_resid_p_boot_adj"
+)], 6)
+```
+
 For a polytomous item, successive thresholds should normally increase on the
 latent scale. The threshold map shows their order directly. Item I04 has an
 intervening category without its own region on the scale; the category curves
@@ -163,6 +186,18 @@ head(fit$person[person_order, c(
 
 ```{r person-fit-plot, fig.alt = "Person locations plotted against person fit residuals."}
 plot_person_fit(fit)
+```
+
+The same score-conditional replicates calibrate person fit without assuming a
+person distribution. Each person is compared with response patterns having
+the same raw score and observed items; resampling people would mix different
+scores and response opportunities. A maximum-statistic reference adjusts the
+probabilities jointly across persons for each statistic.
+
+```{r person-fit-bootstrap, eval = FALSE}
+head(boot$persons[order(boot$persons$fit_resid_p_boot_adj), c(
+  "id", "raw", "theta", "fit_resid", "fit_resid_p_boot_adj"
+)], 6)
 ```
 
 An unexpected response pattern may reflect coding or data-entry errors,
@@ -361,7 +396,10 @@ Selecting a row draws that item on the right, with tabs for the
 characteristic curve, the category probabilities, the thresholds, the
 category frequencies, and the class-interval chi-square. The panels beneath
 hold the threshold map, the item fit map, the fit residual distribution and
-the traditional statistics; they open on demand rather than by default.
+the traditional statistics; they open on demand rather than by default. The
+fit-bootstrap button runs the item and person calibration in the background.
+Its adjusted probabilities then replace the asymptotic screening probability
+in the item display and appear in the person table. The run can be cancelled.
 
 ```{r app-items, echo = FALSE, out.width = "100%", fig.alt = "The Items panel: the item statistics table on the left with one misfitting item in red, and its item characteristic curve on the right."}
 knitr::include_graphics("figures/app-items.png")
@@ -396,7 +434,7 @@ assumption they examine. **Independence** holds local dependence and trait
 dimensionality --- the residual correlations and principal components of this
 vignette's dependence section.
 
-```{r app-local, echo = FALSE, out.width = "100%", fig.alt = "The Local dependence panel, showing the residual correlation matrix with the flagged pairs above the nominated threshold."}
+```{r app-local, echo = FALSE, out.width = "100%", fig.alt = "The Local dependence panel, showing the residual correlation matrix and its nominated screening threshold."}
 knitr::include_graphics("figures/app-local.png")
 ```
 
@@ -441,6 +479,9 @@ correlations. *Applied Psychological Measurement*, 41(3), 178--194.
 Holm, S. (1979). A simple sequentially rejective multiple test procedure.
 *Scandinavian Journal of Statistics*, 6(2), 65--70.
 
+Molenaar, I. W., and Hoijtink, H. (1996). Person-fit test statistics for the
+Rasch model. *Applied Measurement in Education*, 9(1), 87--106.
+
 Rasch, G. (1960). *Probabilistic Models for Some Intelligence and Attainment
 Tests*. Copenhagen: Danish Institute for Educational Research. (Expanded
 edition, 1980, Chicago: University of Chicago Press.)
@@ -454,6 +495,9 @@ with ConQuest integration*. R package version 1.5.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427--450.
+
+Westfall, P. H., and Young, S. S. (1993). *Resampling-Based Multiple
+Testing*. Wiley.
 
 Yen, W. M. (1984). Effects of local item dependence on the fit and equating
 performance of the three-parameter logistic model. *Applied Psychological

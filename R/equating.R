@@ -143,6 +143,8 @@
 #'   number with usable standard errors \code{n}, and whether drift inference
 #'   was available (\code{inferential}). The \code{note} component records
 #'   exclusions and the reason inference was withheld, where applicable.
+#'   Common items with unavailable drift probabilities remain in the
+#'   multiplicity family.
 #' @examples
 #' set.seed(1); d <- seq(-1.5, 1.5, length.out = 8)
 #' mk <- function() {
@@ -295,7 +297,8 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   p <- 2 * pnorm(-abs(t))
   n <- sum(usable)
   p_adj <- rep(NA_real_, length(p))
-  if (inferential) p_adj[usable] <- p.adjust(p[usable], method = "holm")
+  if (inferential) p_adj[usable] <- p.adjust(
+    p[usable], method = "holm", n = length(common))
   tab <- data.frame(item = common,
                     location_1 = a$location, se_1 = a$se,
                     location_2 = b$location, se_2 = b$se,

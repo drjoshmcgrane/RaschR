@@ -17,10 +17,12 @@ A data frame with columns \code{statistic} and \code{value}.
 }
 \description{
 Returns the model, estimation method, trait chi-square, calibration and
-person fit-residual moments, fit-location correlations, chi-square flag
-count, and disordered-threshold count as a two-column table. MFRM and EFRM
+person fit-residual moments, fit-location correlations, the approximate
+asymptotic chi-square flag count, and disordered-threshold count as a
+two-column table. MFRM and EFRM
 summaries label their fitted item-by-facet or item-by-frame columns as
-response cells.
+response cells. A wholly unavailable probability family is labelled as
+unavailable; a partial family reports the tested and unavailable counts.
 }
 \examples{
 set.seed(1)

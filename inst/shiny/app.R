@@ -14,13 +14,26 @@ suppressPackageStartupMessages({
   library(bsicons)
 })
 
-if (requireNamespace("rasch", quietly = TRUE)) {
+# Prefer the source tree only when this is genuinely the in-tree app. An
+# installed app has a package/R directory too, but not the original rasch.R
+# source file. This distinction prevents shiny::runApp("inst/shiny") from
+# silently loading an older installed release while a newer tree is being
+# developed.
+.source_candidates <- c(file.path("..", "..", "R"), "R")
+.source_hits <- .source_candidates[
+  file.exists(file.path(.source_candidates, "rasch.R"))]
+.rasch_source_dir <- if (length(.source_hits))
+  normalizePath(.source_hits[1], mustWork = TRUE) else NULL
+
+if (!is.null(.rasch_source_dir)) {
+  if (!requireNamespace("pkgload", quietly = TRUE))
+    stop("Running the app from a source tree requires pkgload; install rasch ",
+         "first, or install pkgload for development use")
+  suppressWarnings(pkgload::load_all(dirname(.rasch_source_dir), quiet = TRUE))
+} else if (requireNamespace("rasch", quietly = TRUE)) {
   library(rasch)
 } else {
-  rdir <- normalizePath(file.path("..", "..", "R"), mustWork = FALSE)
-  if (dir.exists(rdir)) {
-    for (f in list.files(rdir, "\\.R$", full.names = TRUE)) source(f)
-  } else stop("Install rasch, or run the app from inst/shiny in the source tree")
+  stop("Install rasch, or run the app from inst/shiny in the source tree")
 }
 
 # Canonical, succinct explainers shared by every result-card helper.  Locate
@@ -65,6 +78,8 @@ NONE_CH <- c(None = "(none)")
 }
 .read_app_project <- .rasch_internal(".read_app_project")
 .save_app_project <- .rasch_internal(".save_app_project")
+.classical_design_applicable <-
+  .rasch_internal(".classical_design_applicable")
 
 # Controls that determine the fitted analysis. Project files retain these
 # separately from display-only choices so reopening an analysis also restores
@@ -196,6 +211,18 @@ fmt_p <- function(p)
 # value-box guard: NULL, NA, NaN, and Inf must never reach a conditional or
 # a sprintf; such values display as an em dash on a neutral theme
 finite1 <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x)
+
+inference_count <- function(p, alpha = 0.05) {
+  tested <- sum(is.finite(p)); total <- length(p)
+  flagged <- if (tested) sum(p[is.finite(p)] < alpha) else NA_integer_
+  unavailable <- total - tested
+  text <- if (!tested) "Unavailable"
+    else if (!unavailable) sprintf("%d of %d", flagged, tested)
+    else sprintf("%d of %d tested (%d unavailable)",
+                 flagged, tested, unavailable)
+  list(flagged = flagged, tested = tested, unavailable = unavailable,
+       total = total, text = text)
+}
 
 # p-values phrased for prose ("p = 0.018" / "p < 0.001"), matching fmt_p's
 # thresholds; used by the curated stat rows
@@ -954,7 +981,24 @@ panel_summary <- nav_panel("Summary", value = "p_summary", icon = bs_icon("clipb
       layout_columns(col_widths = breakpoints(sm = 12, xl = 6),
         div(statCard("btl_fitsum_tbl", "Test of fit",
           info = "The pairwise chi-square compares observed and expected responses for each object pair. The object separation index estimates the proportion of observed location variance not attributable to error.",
-          footer = uiOutput("btl_fitsum_notes"))))),
+          footer = uiOutput("btl_fitsum_notes")))),
+      conditionalPanel("output.can_btl_boot == true",
+        div(class = "d-flex align-items-end gap-2 flex-wrap mb-3",
+          input_task_button("btl_boot_run", "Bootstrap the fit statistics",
+                            icon = bs_icon("arrow-repeat"),
+                            class = "btn-outline-primary"),
+          div(style = "width: 110px;",
+              numericInput("btl_boot_B", "Replicates", value = 999,
+                           min = 99, max = 9999, step = 100)),
+          div(style = "width: 90px;",
+              numericInput("btl_boot_seed", "Seed", value = 1, step = 1)),
+          span(class = "pb-2",
+            info_icon(paste("Generates outcomes on the fitted comparison design",
+                            "and refits the model. It calibrates whole-model,",
+                            "pair, object and judge fit. Use at least 999",
+                            "replicates for a final analysis."))),
+          uiOutput("btl_boot_state", inline = TRUE),
+          uiOutput("btl_boot_job_controls", inline = TRUE)))),
     conditionalPanel("output.has_override == true",
       accordion(id = "change_acc", open = FALSE,
         accordion_panel("Changes from the original fit",
@@ -987,20 +1031,16 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
         div(style = "width: 90px;",
             numericInput("boot_seed", "Seed", value = 1, step = 1)),
         span(class = "pb-2",
-          info_icon(paste("Generates data from the fitted model, refits each",
-                          "replicate, and refers every fit statistic to its",
-                          "own replicated null. The asymptotic references",
-                          "reject too readily as the sample grows; the",
-                          "bootstrap is calibrated at any size. Replaces the",
-                          "chi-square and fit-residual probabilities in the",
-                          "table, the tile, and the CSV until the next",
-                          "estimation. The smallest familywise-adjusted",
-                          "probability is items/(B + 1) for the chi-square",
-                          "and twice that for the two-sided statistics, so",
-                          "flagging at .05 needs at least 20 replicates per",
-                          "item for the chi-square and 40 for the fit",
-                          "residual."))),
-        uiOutput("boot_state", inline = TRUE))),
+          info_icon(paste("Refits data generated under the fitted model. It",
+                          "calibrates item fit and score-conditional person fit;",
+                          "adjusted probabilities appear in both tables. They",
+                          "control each statistic family under the fitted global",
+                          "null, not invariant items or persons when other parts",
+                          "of the model misfit. Use at",
+                          "least 999 replicates for a final analysis and more",
+                          "when the test has many items."))),
+        uiOutput("boot_state", inline = TRUE),
+        uiOutput("boot_job_controls", inline = TRUE))),
     conditionalPanel("output.anchor_download_available == true",
       div(class = "mb-2 d-flex justify-content-end",
           downloadButton("dl_anchors", "Save anchors (CSV: item,k,tau)",
@@ -1167,8 +1207,11 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
       layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
         tableCard("btl_obj_tbl", "Object locations and fit",
           controls = cols_switch("btl_full"),
-                  "Click a row to plot that object on the right. Conditional (person-free) estimation with sum-zero identification and sandwich standard errors; infit and outfit are the information-weighted and unweighted mean squares over each object's comparisons, and the fit residual is the log mean square (Andrich & Marais 2019).",
-          info = "Cells are flagged where a statistic indicates misfit: outfit mean square outside 0.7-1.3, infit outside the tighter 0.8-1.2, and |fit residual| > 2.5."),
+          info = paste("Object locations and standard errors, with fit pooled",
+                       "over each object's comparisons. After a fit bootstrap,",
+                       "the adjusted probabilities refer each statistic to its",
+                       "fitted global null across objects. Click a row to plot",
+                       "the object.")),
         plotCard("btl_occ", "Object characteristic curve",
           info = "Expected response for the selected object over opponent location, with observed means for sufficiently observed opponents.",
           extra = downloadButton("btl_occ_all_pdf", "All (PDF)",
@@ -1190,7 +1233,10 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
               info = "The probability of each polytomous response category as a function of the location difference between the two objects; the paired-comparison counterpart of a polytomous item's category curves."))),
         accordion_panel("Pairwise fit", value = "btl_pairs",
           tableCard("btl_pairs_tbl",
-                    note = "Observed against expected win proportions (mean polytomous responses for a polytomous fit) for every pair; the total chi-square tests the pairwise comparison structure."))))
+                    info = paste("Observed and expected win proportions, or mean",
+                                 "ordered responses, for every object pair.",
+                                 "The fit bootstrap adds fitted-null adjusted",
+                                 "probabilities for the pair chi-squares.")))))
   )
 
 # --------------------------------------------------------- EXPLANATORY --
@@ -1248,7 +1294,11 @@ panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("peopl
     layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
       tableCard("person_tbl", "Person estimates",
           controls = cols_switch("persons_full"),
-                "Warm WLE location and SE per person, with raw score, fit statistics, and your ID and factor columns. Click a row to draw that person's kidmap on the right."),
+          info = paste("Warm WLE location and standard error, raw score and fit",
+                       "statistics for each person. After a fit bootstrap, the",
+                       "table also gives score-conditional probabilities with",
+                       "fitted-null adjustment across persons. Click a row to draw",
+                       "that person's kidmap.")),
       plotCard("kidmap", "Kidmap",
         info = "The person diagnostic map (Wright, Mead & Ludlow 1980): thresholds the person achieved print to the right of the logit axis, thresholds not achieved to the left; the dashed line inside its confidence band is the person location. Achieved thresholds above the band and unachieved thresholds below it are unexpected responses.",
         controls = div(class = "d-flex align-items-center gap-1 me-1",
@@ -1297,8 +1347,10 @@ panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("peopl
             "The fit residual, infit, and outfit are calculated over each judge's comparisons."),
           layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
             tableCard("btl_judges_tbl",
-                      note = "Click a row to map that judge's unexpected judgements.",
-                      controls = cols_switch("btl_judges_full")),
+              controls = cols_switch("btl_judges_full"),
+              info = paste("Fit statistics pooled over each judge's comparisons.",
+                           "A fit bootstrap adds fitted-null adjusted probabilities.",
+                           "Click a row to map unexpected judgements.")),
             plotCard("btl_judge_map", title = "Unexpected judgements",
                      height = "460px", hover = TRUE))),
         accordion_panel(
@@ -1923,11 +1975,11 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
                              "screening value rather than a test.")),
                      value = 0.2, min = 0.05, max = 0.9, step = 0.05,
                      width = "420px"),
-        layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
+        layout_columns(col_widths = 12,
           tableCard("cormat_q3_tbl", title = "Q3 correlations",
                     info = "The residual correlation of every item or response-cell pair, with 1.00 on the diagonal (Yen 1984). Pairs with |Q3| at or above the threshold are red (Yen 1993)."),
           plotCard("rcor_q3", height = "auto", hover = TRUE)),
-        layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
+        layout_columns(col_widths = 12,
           tableCard("cormat_q3s_tbl", title = "Adjusted Q3 (Q3*)",
                     info = "Each item or response-cell Q3 less the average off-diagonal Q3: 0 marks local independence. Pairs with Q3* at or above the threshold are red (Christensen, Makransky & Horton 2017)."),
           plotCard("rcor_q3s", height = "auto", hover = TRUE))),
@@ -3611,6 +3663,11 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$run, {
+    if (!is.null(boot_job())) {
+      showNotification("A fit bootstrap is already running. Cancel it before starting another analysis.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
     if (!is.null(efrm_job())) {
       showNotification("An EFRM estimation is already running. Cancel it before starting another analysis.",
                        type = "warning", duration = 7)
@@ -3673,7 +3730,12 @@ server <- function(input, output, session) {
       progress_bar$set(message = "Estimating Extended Frames",
                        detail = "conditional calibration", value = 0.02)
       worker <- tryCatch(callr::r_bg(
-        function(args, progress_path) {
+        function(args, progress_path, source_dir) {
+          if (!is.null(source_dir)) {
+            if (!requireNamespace("pkgload", quietly = TRUE))
+              stop("pkgload is needed for a source-tree background analysis")
+            pkgload::load_all(dirname(source_dir), quiet = TRUE)
+          }
           progress_fun <- function(stage, current, total) {
             writeLines(paste(stage, current, total, sep = "\t"),
                        progress_path)
@@ -3681,14 +3743,17 @@ server <- function(input, output, session) {
           args$progress <- progress_fun
           warnings <- character(0)
           value <- withCallingHandlers(
-            do.call(rasch::rasch_efrm, args),
+            do.call(if (exists("rasch_efrm", inherits = TRUE))
+              get("rasch_efrm", inherits = TRUE) else
+                getExportedValue("rasch", "rasch_efrm"), args),
             warning = function(w) {
               warnings <<- c(warnings, conditionMessage(w))
               invokeRestart("muffleWarning")
             })
           list(value = value, warnings = unique(warnings))
         },
-        args = list(args = fit_args, progress_path = progress_file),
+        args = list(args = fit_args, progress_path = progress_file,
+                    source_dir = .rasch_source_dir),
         libpath = .libPaths(), stdout = log_file, stderr = log_file,
         supervise = TRUE), error = function(e) e)
       if (inherits(worker, "error")) {
@@ -4632,8 +4697,10 @@ server <- function(input, output, session) {
     n_items = "Items", chisq = "Chi-sq", df_fit = "Fit df", p = "p",
     p_adj = "Adj. p", p_bonf = "Bonf. p", p_anova = "ANOVA p",
     chisq_p_boot = "Boot p", chisq_p_boot_adj = "Boot adj. p",
+    n_boot_chisq = "Chi-sq boot n",
     fit_resid_p_boot = "Fit resid boot p",
     fit_resid_p_boot_adj = "Fit resid boot adj. p",
+    n_boot_fit_resid = "Fit resid boot n",
     p_anova_adj = "ANOVA adj. p", p_anova_bonf = "ANOVA Bonf. p",
     F_anova = "ANOVA F", F_uniform = "Uniform F",
     F_nonuniform = "Non-uniform F", p_uniform = "Uniform p",
@@ -4799,7 +4866,7 @@ server <- function(input, output, session) {
     else ncol(f$X)
   }
   alpha_design_applicable <- function(f)
-    rasch:::.classical_design_applicable(f)
+    .classical_design_applicable(f)
   output$nav_status <- renderUI({
     sep <- span(class = "rasch-nav-sep", "·")
     b <- tryCatch(bfit(), error = function(e) NULL)
@@ -4853,8 +4920,8 @@ server <- function(input, output, session) {
                     sprintf("%.3f without extremes", f$psi_noext$PSI)
                   else "Without extremes —",
                   icon = "separation",
-                  status = if (finite1(f$psi$PSI) && f$psi$PSI >= 0.7)
-                    "good" else "bad"),
+                  status = if (!finite1(f$psi$PSI)) "neutral"
+                    else if (f$psi$PSI >= 0.7) "good" else "bad"),
       metric_tile("metric_alpha", "Alpha",
                   if (!alpha_design_applicable(f)) "—"
                   else if (finite1(f$alpha$alpha)) sprintf("%.3f", f$alpha$alpha)
@@ -4865,17 +4932,16 @@ server <- function(input, output, session) {
                     sprintf("Complete cases only · n = %d", f$alpha$n)
                   else sprintf("Complete cases · n = %d", f$alpha$n),
                   icon = "alpha",
-                  status = if (!alpha_design_applicable(f))
-                    "neutral" else if (finite1(f$alpha$alpha) &&
-                                             f$alpha$alpha >= 0.7)
+                  status = if (!alpha_design_applicable(f) ||
+                               !finite1(f$alpha$alpha))
+                    "neutral" else if (f$alpha$alpha >= 0.7)
                     "good" else "bad"),
       metric_tile("metric_item_trait",
                   if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
-                    "Response-cell-trait p" else "Item-trait p",
+                    "Approx. response-cell-trait p" else
+                      "Approx. item-trait p",
                   if (finite1(f$total_chisq_p)) fmt_p(f$total_chisq_p) else "—",
-                  icon = "chisq",
-                  status = if (finite1(f$total_chisq_p) &&
-                              f$total_chisq_p >= 0.05) "good" else "bad"),
+                  icon = "chisq", status = "neutral"),
       metric_tile("metric_power", "Power of fit", f$power_of_fit,
                   icon = "power", status = "neutral")
     )
@@ -4918,14 +4984,15 @@ server <- function(input, output, session) {
                     length(unique(f$set_of)) > 1L)
         "pairwise conditional calibration + semiparametric set linking"
       else "pairwise conditional ML"
+      item_inference <- inference_count(f$items$p_adj)
       tagList(
         div(class = "stat-head",
             if (inherits(f, "rasch_explanatory")) f$explanatory_model else f$model,
             " · ", method, " · ", conv),
         stat_rows(
           stat_row(if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
-                     "Response-cell-trait chi-square" else
-                       "Item-trait chi-square",
+                     "Approx. response-cell-trait chi-square" else
+                       "Approx. item-trait chi-square",
                    sprintf("%.2f on %d df, %s", f$total_chisq, f$total_df,
                            p_lab(f$total_chisq_p))),
           stat_row(if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
@@ -4944,11 +5011,9 @@ server <- function(input, output, session) {
                    { v <- f$summary_stats$cor_person_fit_location
                      if (finite1(v)) sprintf("%.3f", v) else "NA" }),
           stat_row(if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
-                     "Response cells with adj. chi-square p < .05" else
-                       "Items with adj. chi-square p < .05",
-                   sprintf("%d of %d",
-                           sum(f$items$p_adj < 0.05, na.rm = TRUE),
-                           nrow(f$items))),
+                     "Response cells with approx. Holm p < .05" else
+                       "Items with approx. Holm p < .05",
+                   item_inference$text),
           stat_row(if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
                      "Disordered response-cell thresholds" else
                        "Disordered thresholds",
@@ -5122,7 +5187,8 @@ server <- function(input, output, session) {
                   icon = "graph-up"),
       metric_tile("metric_expl_test", "Against free calibration", p_lab(p),
                   icon = "chisq",
-                  status = if (is.finite(p) && p < .05) "bad" else "good"))
+                  status = if (!is.finite(p)) "neutral"
+                    else if (p < .05) "bad" else "good"))
   })
   expl_object_name <- reactive(if (expl_is_cj()) "bt" else "fit")
   register_code("expl_boxes", function() sprintf(
@@ -5266,6 +5332,9 @@ server <- function(input, output, session) {
   observeEvent(fit(), {
     if (!isTRUE(restoring_project())) boot_val(NULL)
   }, ignoreInit = TRUE)
+  observeEvent(list(btl_fit(), active_btl_step()), {
+    if (!isTRUE(restoring_project())) boot_val(NULL)
+  }, ignoreInit = TRUE)
   output$can_boot <- reactive({
     f <- fit_or_null()
     !is.null(f) && inherits(f, "rasch") &&
@@ -5274,60 +5343,216 @@ server <- function(input, output, session) {
       (is.null(f$disc) || length(unique(f$disc)) == 1L)
   })
   outputOptions(output, "can_boot", suspendWhenHidden = FALSE)
-  observeEvent(input$boot_run, {
-    f <- fit()
-    B_raw <- suppressWarnings(as.numeric(input$boot_B))
-    if (is.na(B_raw) || B_raw != floor(B_raw) || B_raw < 99 || B_raw > 9999) {
+  output$can_btl_boot <- reactive({
+    f <- tryCatch(bfit(), error = function(e) NULL)
+    !is.null(f) && inherits(f, "rasch_btl") &&
+      !inherits(f, "rasch_btl_efrm") && !is.null(f$refit_spec)
+  })
+  outputOptions(output, "can_btl_boot", suspendWhenHidden = FALSE)
+
+  boot_job <- reactiveVal(NULL)
+  close_boot_job <- function(st) {
+    if (!is.null(st$progress)) try(st$progress$close(), silent = TRUE)
+    unlink(st$log_file, force = TRUE)
+    invisible(NULL)
+  }
+  cancel_boot_job <- function() {
+    st <- isolate(boot_job())
+    if (is.null(st)) return(invisible(FALSE))
+    if (st$process$is_alive()) stop_efrm_process(st$process)
+    close_boot_job(st); boot_job(NULL)
+    invisible(TRUE)
+  }
+  output$boot_job_controls <- renderUI({
+    st <- boot_job()
+    if (is.null(st) || !identical(st$kind, "rasch")) return(NULL)
+    actionButton("cancel_boot", "Cancel", icon = bs_icon("x-circle"),
+                 class = "btn-outline-danger btn-sm mb-2")
+  })
+  output$btl_boot_job_controls <- renderUI({
+    st <- boot_job()
+    if (is.null(st) || !identical(st$kind, "btl")) return(NULL)
+    actionButton("cancel_btl_boot", "Cancel", icon = bs_icon("x-circle"),
+                 class = "btn-outline-danger btn-sm mb-2")
+  })
+  outputOptions(output, "boot_job_controls", suspendWhenHidden = FALSE)
+  outputOptions(output, "btl_boot_job_controls", suspendWhenHidden = FALSE)
+  observeEvent(input$cancel_boot, {
+    if (cancel_boot_job())
+      showNotification("Fit bootstrap cancelled.", type = "message", duration = 5)
+  })
+  observeEvent(input$cancel_btl_boot, {
+    if (cancel_boot_job())
+      showNotification("Fit bootstrap cancelled.", type = "message", duration = 5)
+  })
+  session$onSessionEnded(function() {
+    st <- isolate(boot_job())
+    if (!is.null(st) && st$process$is_alive()) stop_efrm_process(st$process)
+    if (!is.null(st)) close_boot_job(st)
+  })
+
+  start_bootstrap <- function(f, B_raw, seed_raw, kind) {
+    if (!is.null(efrm_job()) || !is.null(btlef_job())) {
+      showNotification("Another background analysis is running. Cancel it before starting a fit bootstrap.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    if (!is.null(boot_job())) {
+      showNotification("A fit bootstrap is already running. Cancel it before starting another.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    B_raw <- suppressWarnings(as.numeric(B_raw))
+    if (length(B_raw) != 1L || !is.finite(B_raw) || B_raw != floor(B_raw) ||
+        B_raw < 99 || B_raw > 9999) {
       showNotification("Replicates must be a whole number from 99 to 9999",
                        type = "warning")
       return(invisible(NULL))
     }
     B <- as.integer(B_raw)
-    seed <- suppressWarnings(as.integer(round(input$boot_seed %||% 1)))
-    if (is.na(seed)) seed <- 1L
-    bs <- withProgress(
-      message = sprintf("Bootstrapping the fit statistics (B = %d)", B),
-      value = NULL,
-      tryCatch(fit_bootstrap(f, B = B, seed = seed),
-               rasch_refusal = function(e) e, error = function(e) e))
-    if (inherits(bs, "rasch_refusal")) {
-      showNotification(conditionMessage(bs), type = "warning", duration = 10)
+    seed_raw <- suppressWarnings(as.numeric(seed_raw))
+    if (length(seed_raw) != 1L || !is.finite(seed_raw) || seed_raw < 0 ||
+        seed_raw != floor(seed_raw) || seed_raw > .Machine$integer.max) {
+      showNotification("Seed must be one non-negative whole number within the integer range",
+                       type = "warning")
       return(invisible(NULL))
     }
-    if (inherits(bs, "error")) {
-      showNotification(paste("Bootstrap failed:", conditionMessage(bs)),
+    seed <- as.integer(seed_raw)
+    log_file <- tempfile("rasch-fit-bootstrap-", fileext = ".log")
+    progress <- shiny::Progress$new(session, min = 0, max = 1)
+    progress$set(message = sprintf("Bootstrapping fit (B = %d)", B),
+                 detail = "Refitting the simulated datasets", value = .5)
+    process <- tryCatch(callr::r_bg(
+      function(fit, B, seed, source_dir) {
+        if (!is.null(source_dir)) {
+          if (!requireNamespace("pkgload", quietly = TRUE))
+            stop("pkgload is needed for a source-tree background analysis")
+          pkgload::load_all(dirname(source_dir), quiet = TRUE)
+        }
+        warnings <- character(0)
+        value <- tryCatch(withCallingHandlers(
+          do.call(if (exists("fit_bootstrap", inherits = TRUE))
+            get("fit_bootstrap", inherits = TRUE) else
+              getExportedValue("rasch", "fit_bootstrap"),
+            list(fit = fit, B = B, workers = 4L, seed = seed)),
+          warning = function(w) {
+            warnings <<- c(warnings, conditionMessage(w))
+            invokeRestart("muffleWarning")
+          }), error = function(e) list(.error = conditionMessage(e),
+                                       .refusal = inherits(e, "rasch_refusal")))
+        list(value = value, warnings = unique(warnings))
+      }, args = list(fit = f, B = B, seed = seed,
+                     source_dir = .rasch_source_dir),
+      libpath = .libPaths(), stdout = log_file, stderr = log_file,
+      supervise = TRUE), error = function(e) e)
+    if (inherits(process, "error")) {
+      progress$close(); unlink(log_file, force = TRUE)
+      showNotification(paste("Bootstrap failed:", conditionMessage(process)),
                        type = "error", duration = 10)
       return(invisible(NULL))
     }
-    boot_val(list(bs = bs, B = B, seed = seed))
+    boot_job(list(process = process, progress = progress, log_file = log_file,
+                  kind = kind, base_fit = f,
+                  context = isolate(analysis_context()), B = B, seed = seed))
+    invisible(NULL)
+  }
+  observeEvent(input$boot_run,
+    start_bootstrap(fit(), input$boot_B, input$boot_seed, "rasch"))
+  observeEvent(input$btl_boot_run,
+    start_bootstrap(bfit(), input$btl_boot_B, input$btl_boot_seed, "btl"))
+
+  observe({
+    st <- boot_job()
+    if (is.null(st)) return()
+    invalidateLater(250, session)
+    if (st$process$is_alive()) return()
+    result <- tryCatch(st$process$get_result(), error = function(e) e)
+    close_boot_job(st); boot_job(NULL)
+    current <- if (identical(st$kind, "btl"))
+      tryCatch(bfit(), error = function(e) NULL) else fit_or_null()
+    if (!identical(st$context, isolate(analysis_context())) ||
+        !identical(current, st$base_fit)) {
+      showNotification("The completed bootstrap was not used because the active analysis changed while it was running.",
+                       type = "warning", duration = 8)
+      return()
+    }
+    if (inherits(result, "error")) {
+      showNotification(paste("Bootstrap failed:", conditionMessage(result)),
+                       type = "error", duration = 10)
+      return()
+    }
+    if (length(result$warnings))
+      showNotification(tags$ul(class = "mb-0 ps-3",
+        lapply(result$warnings, function(w) tags$li(w))),
+        type = "warning", duration = 10)
+    if (!is.null(result$value$.error)) {
+      showNotification(result$value$.error,
+        type = if (isTRUE(result$value$.refusal)) "warning" else "error",
+        duration = 10)
+      return()
+    }
+    boot_val(list(bs = result$value, B = st$B, seed = st$seed,
+                  kind = st$kind))
   })
   output$boot_state <- renderUI({
     bv <- boot_val()
-    if (is.null(bv)) return(NULL)
+    if (is.null(bv) || identical(bv$kind %||% "rasch", "btl")) return(NULL)
     span(class = "badge bg-primary-subtle text-primary-emphasis pb-2 mb-2",
-         sprintf("Bootstrap null active: %d of %d replicates, seed %d",
-                 bv$bs$B_used, bv$B, bv$seed))
+         sprintf(paste0("Bootstrap null active: %d of %d used; %d did not ",
+                        "converge; %d otherwise failed; seed %d"),
+                 bv$bs$B_used, bv$B,
+                 bv$bs$B_nonconverged %||% NA_integer_,
+                 bv$bs$B_errors %||% NA_integer_, bv$seed))
   })
+  output$btl_boot_state <- renderUI({
+    bv <- boot_val()
+    kind <- bv$kind %||% if (!is.null(bv$bs$model) &&
+                              identical(bv$bs$model, "paired comparisons"))
+      "btl" else "rasch"
+    if (is.null(bv) || !identical(kind, "btl")) return(NULL)
+    span(class = "badge bg-primary-subtle text-primary-emphasis pb-2 mb-2",
+         sprintf(paste0("Bootstrap null active: %d of %d used; %d did not ",
+                        "converge; %d otherwise failed; seed %d"),
+                 bv$bs$B_used, bv$B,
+                 bv$bs$B_nonconverged %||% NA_integer_,
+                 bv$bs$B_errors %||% NA_integer_, bv$seed))
+  })
+  boot_kind <- function(bv) {
+    if (is.null(bv)) return(NULL)
+    bv$kind %||% if (identical(bv$bs$model %||% "", "paired comparisons"))
+      "btl" else "rasch"
+  }
+  rasch_boot_val <- function() {
+    bv <- boot_val()
+    if (identical(boot_kind(bv), "rasch")) bv else NULL
+  }
+  btl_boot_val <- function() {
+    bv <- boot_val()
+    if (identical(boot_kind(bv), "btl")) bv else NULL
+  }
   # fit$items with the bootstrap probabilities alongside, for the table and
   # its CSV; a NULL boot leaves the asymptotic table untouched
   items_with_boot <- function() {
     d <- fit()$items
-    bv <- boot_val()
+    bv <- rasch_boot_val()
     if (is.null(bv)) return(d)
     b <- bv$bs$items
     idx <- match(d$item, b$item)
     d$chisq_p_boot <- b$chisq_p_boot[idx]
     d$chisq_p_boot_adj <- b$chisq_p_boot_adj[idx]
+    d$n_boot_chisq <- b$n_boot_chisq[idx]
     d$fit_resid_p_boot <- b$fit_resid_p_boot[idx]
     d$fit_resid_p_boot_adj <- b$fit_resid_p_boot_adj[idx]
+    d$n_boot_fit_resid <- b$n_boot_fit_resid[idx]
     d
   }
 
   output$items_vboxes <- renderUI({
     f <- fit()
-    bv <- boot_val()
-    mis <- if (is.null(bv)) sum(f$items$p_adj < 0.05, na.rm = TRUE)
-           else sum(bv$bs$items$chisq_p_boot_adj < 0.05, na.rm = TRUE)
+    bv <- rasch_boot_val()
+    bp <- if (is.null(bv)) NULL else bv$bs$items$chisq_p_boot_adj
+    inf <- inference_count(if (is.null(bp)) f$items$p_adj else bp)
+    mis <- inf$flagged
     dis <- sum(vapply(f$thresholds_diag, function(d)
       !d$ordered && length(d$thresholds) > 1, TRUE))
     cell_fit <- inherits(f, c("rasch_mfrm", "rasch_efrm"))
@@ -5335,17 +5560,23 @@ server <- function(input, output, session) {
       metric_tile("metric_cells", if (cell_fit) "Response cells" else "Items",
                   nrow(f$items), icon = "ruler", status = "item"),
       metric_tile("metric_item_misfit",
-                  if (is.null(bv)) "Adjusted p < .05" else "Bootstrap p < .05",
-                  mis, icon = "chisq", status = if (mis > 0) "bad" else "good"),
+                  if (is.null(bv)) "Approx. Holm p < .05" else
+                    "Bootstrap Holm p < .05",
+                  if (is.na(mis)) "Unavailable" else mis, icon = "chisq",
+                  status = if (is.na(mis) || is.null(bv)) "neutral"
+                    else if (mis > 0) "bad" else "good"),
       metric_tile("metric_disordered", "Disordered thresholds", dis,
                   icon = "disorder", status = if (dis > 0) "bad" else "good"))
   })
   register_code("items_vboxes", function() {
-    bv <- boot_val()
+    bv <- rasch_boot_val()
     flag <- if (is.null(bv))
-      "  adjusted_p_below_05 = sum(fit$items$p_adj < .05, na.rm = TRUE),"
+      paste0("  adjusted_p_below_05 = if (any(is.finite(fit$items$p_adj))) ",
+             "sum(fit$items$p_adj < .05, na.rm = TRUE) else NA_integer_,")
     else
-      "  bootstrap_p_below_05 = sum(bs$items$chisq_p_boot_adj < .05, na.rm = TRUE),"
+      paste0("  bootstrap_p_below_05 = if (any(is.finite(",
+             "bs$items$chisq_p_boot_adj))) sum(",
+             "bs$items$chisq_p_boot_adj < .05, na.rm = TRUE) else NA_integer_,")
     paste(c(
       if (!is.null(bv))
         sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
@@ -5362,43 +5593,52 @@ server <- function(input, output, session) {
       !x$ordered && length(x$thresholds) > 1, TRUE)))
     unit <- if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
       "response cells" else "items"
-    bv <- boot_val()
-    chi <- if (is.null(bv))
-      sprintf("%d with adjusted chi-square p < .05",
-              sum(d$p_adj < 0.05, na.rm = TRUE))
-    else
-      sprintf("%d with bootstrap chi-square p < .05 (B = %d)",
-              sum(bv$bs$items$chisq_p_boot_adj < 0.05, na.rm = TRUE), bv$B)
+    bv <- rasch_boot_val()
+    chi <- if (is.null(bv)) {
+      z <- inference_count(d$p_adj)
+      if (!z$tested) "approximate asymptotic Holm inference unavailable"
+      else paste(z$text, "with approximate asymptotic Holm p < .05")
+    } else {
+      z <- inference_count(bv$bs$items$chisq_p_boot_adj)
+      if (!z$tested) "bootstrap chi-square inference unavailable"
+      else sprintf("%s with bootstrap chi-square p < .05 (B = %d)",
+                   z$text, bv$B)
+    }
     sprintf("Note. %d of %d %s beyond |fit residual| 2.5; %s; disordered thresholds: %s.",
             sum(abs(d$fit_resid) > 2.5, na.rm = TRUE), nrow(d),
             unit, chi,
             if (length(dis)) paste(dis, collapse = ", ") else "none")
   })
   register_table("items_tbl", items_with_boot, function() {
-    bv <- boot_val()
+    bv <- rasch_boot_val()
     # with a bootstrap null active the asymptotic probabilities give way to
     # the calibrated ones, in the display and in the CSV alike
     extra <- if (is.null(bv)) NULL
-             else c("chisq_p_boot_adj", "fit_resid_p_boot_adj")
+             else c("chisq_p_boot_adj", "n_boot_chisq",
+                    "fit_resid_p_boot_adj", "n_boot_fit_resid")
     d <- curate(items_with_boot(), "items", full = isTRUE(input$items_full),
                 extra = extra)
     if (!is.null(bv) && !isTRUE(input$items_full))
       d$p_adj <- NULL
+    operative_p <- if (is.null(bv)) character(0) else
+      c("chisq_p_boot_adj", "fit_resid_p_boot_adj")
     dt <- num_dt(d, page_len = 25, selection = "single",
-                 p_bold = c("p_adj", "p_anova_adj", "chisq_p_boot_adj",
-                            "fit_resid_p_boot_adj"))
+                 p_bold = operative_p)
     # fit residual, infit and outfit are flagged by num_dt; the operative
     # chi-square probability turns red at .05 as well (no single flag column)
-    for (j in which(names(d) %in% c("p_adj", "chisq_p_boot_adj")))
+    for (j in which(names(d) %in% "chisq_p_boot_adj"))
       dt <- formatStyle(dt, j, color = styleInterval(
         0.05, c("var(--bs-danger)", "inherit")))
     dt
   }, code = function() {
-    bv <- boot_val()
+    bv <- rasch_boot_val()
     if (is.null(bv)) return("fit$items")
     paste(sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
-          "merge(fit$items, bs$items[c(\"item\", \"chisq_p_boot\",",
-          "  \"chisq_p_boot_adj\", \"fit_resid_p_boot_adj\")], by = \"item\")",
+          "b <- bs$items[c(\"item\", \"chisq_p_boot\",",
+          "  \"chisq_p_boot_adj\", \"n_boot_chisq\",",
+          "  \"fit_resid_p_boot_adj\", \"n_boot_fit_resid\")]",
+          "j <- match(fit$items$item, b$item)",
+          "cbind(fit$items, b[j, setdiff(names(b), \"item\"), drop = FALSE])",
           sep = "\n")
   })
 
@@ -5582,28 +5822,60 @@ server <- function(input, output, session) {
     })
 
   # -------------------------------------------------------------- persons --
+  persons_with_boot <- function() {
+    d <- fit()$person
+    bv <- rasch_boot_val()
+    if (is.null(bv) || is.null(bv$bs$persons)) return(d)
+    b <- bv$bs$persons
+    idx <- if (nrow(d) == nrow(b)) seq_len(nrow(d)) else match(d$id, b$id)
+    add <- grep("(_p_boot(_adj)?$|^n_boot_)", names(b), value = TRUE)
+    for (nm in add) d[[nm]] <- b[[nm]][idx]
+    d
+  }
   output$persons_vboxes <- renderUI({
-    f <- fit(); d <- f$person
-    mis <- sum(abs(d$fit_resid) > 2.5, na.rm = TRUE)
+    f <- fit(); d <- persons_with_boot(); bv <- rasch_boot_val()
+    has_person_boot <- !is.null(bv) && !is.null(bv$bs$persons)
+    pp <- if (has_person_boot) d$fit_resid_p_boot_adj else NULL
+    n_testable <- if (is.null(pp)) NA_integer_ else sum(is.finite(pp))
+    mis <- if (!has_person_boot)
+      sum(abs(d$fit_resid) > 2.5, na.rm = TRUE) else
+      if (n_testable) sum(pp < .05, na.rm = TRUE) else NA_integer_
     metric_grid(
       metric_tile("metric_persons", "Persons", nrow(d), icon = "distribution",
                   status = "person"),
       metric_tile("metric_extreme", "Extreme scores",
                   sum(d$extreme, na.rm = TRUE), icon = "range",
                   status = "person"),
-      metric_tile("metric_person_misfit", "Misfitting persons", mis,
-                  icon = "outlier", status = if (mis > 0) "bad" else "good"))
+      metric_tile("metric_person_misfit",
+                  if (!has_person_boot) "|Fit residual| > 2.5" else
+                    "Bootstrap adjusted p < .05",
+                  if (is.na(mis)) "Unavailable" else mis,
+                  icon = "outlier", status = if (is.na(mis)) "neutral" else
+                    if (mis > 0) "bad" else "good"))
   })
-  register_code("persons_vboxes", function() paste(
-    "list(",
-    "  persons = nrow(fit$person),",
-    "  extreme_scores = sum(fit$person$extreme, na.rm = TRUE),",
-    "  misfitting_persons = sum(abs(fit$person$fit_resid) > 2.5, na.rm = TRUE)",
-    ")", sep = "\n"))
-  register_table("person_tbl", function() fit()$person, function() {
+  register_code("persons_vboxes", function() {
+    bv <- rasch_boot_val()
+    has_person_boot <- !is.null(bv) && !is.null(bv$bs$persons)
+    paste(c(
+      if (has_person_boot)
+        sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
+      "list(",
+      "  persons = nrow(fit$person),",
+      "  extreme_scores = sum(fit$person$extreme, na.rm = TRUE),",
+      if (!has_person_boot)
+        "  misfitting_persons = sum(abs(fit$person$fit_resid) > 2.5, na.rm = TRUE)" else
+        paste0("  misfitting_persons = if (any(is.finite(",
+               "bs$persons$fit_resid_p_boot_adj))) sum(",
+               "bs$persons$fit_resid_p_boot_adj < .05, na.rm = TRUE) else NA_integer_"),
+      ")"), collapse = "\n")
+  })
+  register_table("person_tbl", persons_with_boot, function() {
     fac <- names(fit()$factors)
-    d <- curate(fit()$person, "person", full = isTRUE(input$persons_full),
-                extra = fac)
+    bv <- rasch_boot_val()
+    extra <- c(fac, if (!is.null(bv) && !is.null(bv$bs$persons))
+      c("fit_resid_p_boot_adj", "n_boot_fit_resid"))
+    d <- curate(persons_with_boot(), "person",
+                full = isTRUE(input$persons_full), extra = extra)
     dt <- datatable(d, rownames = FALSE, filter = "top", selection = "single",
                     style = "bootstrap5",
                     class = "table-sm compact hover order-column",
@@ -5613,8 +5885,16 @@ server <- function(input, output, session) {
     # the same fit flags as every other table (fit residual, and the infit /
     # outfit mean squares revealed by the detailed-columns switch)
     dt <- flag_fit_cols(dt, names(d))
+    if (!is.null(bv) && !is.null(bv$bs$persons))
+      dt <- style_lo_red(dt, d, "fit_resid_p_boot_adj", .05)
     dt
-  }, code = function() "fit$person")
+  }, code = function() {
+    bv <- rasch_boot_val()
+    if (is.null(bv) || is.null(bv$bs$persons)) return("fit$person")
+    paste(sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
+          "cbind(fit$person, bs$persons[setdiff(names(bs$persons), c('id', 'raw', 'theta', 'se'))])",
+          sep = "\n")
+  })
 
   observeEvent(input$person_weights_go, {
     f <- fit()
@@ -6347,8 +6627,14 @@ server <- function(input, output, session) {
                    'd$change <- d$active - d$original',
                    'd[, c("row", "id", "original", "active", "change", "original_se", "active_se")]',
                    sep = "\n"))
+  btl_boot_table <- function(which) {
+    bv <- btl_boot_val()
+    if (is.null(bv) || is.null(bv$bs[[which]])) bfit()[[which]]
+    else bv$bs[[which]]
+  }
   output$btl_boxes <- renderUI({
-    f <- bfit()
+    f <- bfit(); bv <- btl_boot_val()
+    pair_p <- if (is.null(bv)) f$total_p else bv$bs$total$chisq_p_boot
     metric_grid(
       metric_tile("metric_objects", "Objects", nrow(f$objects), icon = "podium"),
       metric_tile("metric_comparisons", "Comparisons",
@@ -6358,28 +6644,42 @@ server <- function(input, output, session) {
       metric_tile("metric_osi", "Object separation",
                   if (finite1(f$osi$PSI)) sprintf("%.3f", f$osi$PSI) else "—",
                   icon = "separation",
-                  status = if (finite1(f$osi$PSI) && f$osi$PSI >= 0.7)
-                    "good" else "bad"),
+                  status = if (!finite1(f$osi$PSI)) "neutral"
+                    else if (f$osi$PSI >= 0.7) "good" else "bad"),
       metric_tile("metric_pair_fit", "Pairwise fit p",
-                  if (finite1(f$total_p)) fmt_p(f$total_p) else "—",
+                  if (finite1(pair_p)) fmt_p(pair_p) else "—",
                   icon = "chisq",
-                  status = if (finite1(f$total_p) && f$total_p >= 0.05)
-                    "good" else "bad"))
+                  status = if (!finite1(pair_p)) "neutral" else
+                    if (pair_p >= 0.05) "good" else "bad"))
   })
-  register_code("btl_boxes", function() paste(
-    "list(",
-    "  objects = nrow(bt$objects), comparisons = bt$n_comparisons,",
-    "  judges = if (is.null(bt$judges)) NULL else nrow(bt$judges),",
-    "  object_separation = bt$osi$PSI, pairwise_fit_p = bt$total_p",
-    ")", sep = "\n"))
+  register_code("btl_boxes", function() {
+    bv <- btl_boot_val()
+    paste(c(
+      if (!is.null(bv))
+        sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
+      "list(",
+      "  objects = nrow(bt$objects), comparisons = bt$n_comparisons,",
+      "  judges = if (is.null(bt$judges)) NULL else nrow(bt$judges),",
+      if (is.null(bv))
+        "  object_separation = bt$osi$PSI, pairwise_fit_p = bt$total_p" else
+        "  object_separation = bt$osi$PSI, pairwise_fit_p = bs$total$chisq_p_boot",
+      ")"), collapse = "\n")
+  })
   # test-of-fit stat box (Summary page): the paired-comparison headline set
   # read off the fit; the CSV chip downloads the COMPLETE table from
   # fit_summary_table()'s rasch_btl method
   register_stat_box("btl_fitsum_tbl",
-    csv_fun = function() fit_summary_table(bfit()),
+    csv_fun = function() {
+      d <- fit_summary_table(bfit())
+      bv <- btl_boot_val()
+      if (is.null(bv)) return(d)
+      rbind(d, data.frame(
+        statistic = "Bootstrap pairwise chi-square probability",
+        value = fmt_p(bv$bs$total$chisq_p_boot)))
+    },
     csv_name = "fit_summary.csv",
     ui_fun = function() {
-      f <- bfit()
+      f <- bfit(); bv <- btl_boot_val()
       polytomous <- !is.null(f$m) && f$m > 1L
       model_lab <- if (inherits(f, "rasch_btl_efrm"))
         "Comparative Judgement with frame-dependent units"
@@ -6415,7 +6715,8 @@ server <- function(input, output, session) {
         stat_rows(
           stat_row("Pairwise chi-square",
                    sprintf("%.2f on %d df, %s", f$total_chisq, f$total_df,
-                           p_lab(f$total_p))),
+                           p_lab(if (is.null(bv)) f$total_p else
+                             bv$bs$total$chisq_p_boot))),
           stat_row("Design", design),
           stat_row("Object separation index",
                    if (finite1(f$osi$PSI)) sprintf("%.3f", f$osi$PSI)
@@ -6427,41 +6728,75 @@ server <- function(input, output, session) {
                      else "free symmetric"),
           dep_rows))
     },
-    code = function() "fit_summary_table(bt)")
+    code = function() {
+      bv <- btl_boot_val()
+      if (is.null(bv)) "fit_summary_table(bt)" else
+        paste(sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
+              "fit_summary_table(bt)",
+              "bs$total  # bootstrap pairwise fit probability", sep = "\n")
+    })
   # routine handling notes (the old text panel printed bt$notes)
   output$btl_fitsum_notes <- renderUI({
     f <- bfit()
     if (!length(f$notes)) return(NULL)
     sprintf("Note. %s.", paste(f$notes, collapse = "; "))
   })
-  register_table("btl_obj_tbl", function() bfit()$objects,
+  register_table("btl_obj_tbl", function() btl_boot_table("objects"),
                  function() {
-    d <- curate(bfit()$objects, "btl_obj", full = isTRUE(input$btl_full))
+    bv <- btl_boot_val()
+    d <- curate(btl_boot_table("objects"), "btl_obj",
+                full = isTRUE(input$btl_full),
+                extra = if (!is.null(bv))
+                  c("fit_resid_p_boot_adj", "n_boot_fit_resid"))
     # fit residual, infit and outfit are flagged by num_dt, as on every table
-    num_dt(d, selection = "single")
-  }, code = function() "# bt from the Data page\nbt$objects")
+    dt <- num_dt(d, selection = "single")
+    if (!is.null(bv)) dt <- style_lo_red(dt, d, "fit_resid_p_boot_adj", .05)
+    dt
+  }, code = function() {
+    bv <- btl_boot_val()
+    if (is.null(bv)) return("# bt from the Data page\nbt$objects")
+    paste(sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
+          "bs$objects", sep = "\n")
+  })
   # the object selected by clicking a row of the table drives the object
   # characteristic curve on the right (master-detail, as the item table does)
   sel_object <- reactive({
     b <- bfit(); i <- input$btl_obj_tbl_rows_selected
     if (length(i)) b$objects$object[i] else b$objects$object[1]
   })
-  register_table("btl_pairs_tbl", function() bfit()$pairs,
+  register_table("btl_pairs_tbl", function() btl_boot_table("pairs"),
                  function() {
-    d <- bfit()$pairs
+    d <- btl_boot_table("pairs")
     d$chisq <- NULL   # residual^2; redundant on screen, kept in the CSV
-    num_dt(d)
-  }, code = function() "bt$pairs")
+    num_dt(d, p_bold = if (!is.null(btl_boot_val())) "chisq_p_boot_adj")
+  }, code = function() {
+    bv <- btl_boot_val()
+    if (is.null(bv)) "bt$pairs" else
+      paste(sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
+            "bs$pairs", sep = "\n")
+  })
   register_table("btl_judges_tbl", function() {
     validate(need(!is.null(bfit()$judges), "No judge column was nominated."))
-    bfit()$judges
+    btl_boot_table("judges")
   }, function() {
     validate(need(!is.null(bfit()$judges), "No judge column was nominated."))
-    d <- bfit()$judges
-    d$misfit <- ifelse(!is.na(d$fit_resid) & abs(d$fit_resid) > 2.5, "*", "")
-    num_dt(curate(d, "btl_judge", full = isTRUE(input$btl_judges_full)),
-           selection = "single")
-  }, code = function() "bt$judges")
+    bv <- btl_boot_val(); d <- btl_boot_table("judges")
+    d$misfit <- if (!is.null(bv))
+      ifelse(!is.na(d$fit_resid_p_boot_adj) &
+               d$fit_resid_p_boot_adj < .05, "*", "") else
+      ifelse(!is.na(d$fit_resid) & abs(d$fit_resid) > 2.5, "*", "")
+    d <- curate(d, "btl_judge", full = isTRUE(input$btl_judges_full),
+                extra = if (!is.null(bv))
+                  c("fit_resid_p_boot_adj", "n_boot_fit_resid"))
+    dt <- num_dt(d, selection = "single")
+    if (!is.null(bv)) dt <- style_lo_red(dt, d, "fit_resid_p_boot_adj", .05)
+    dt
+  }, code = function() {
+    bv <- btl_boot_val()
+    if (is.null(bv)) "bt$judges" else
+      paste(sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
+            "bs$judges", sep = "\n")
+  })
   # the judge whose surprise map is drawn: the selected row, defaulting to 1
   # (master-detail, exactly as the person table drives the kidmap)
   sel_judge <- reactive({
@@ -7456,6 +7791,11 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$btlef_run, {
+    if (!is.null(boot_job())) {
+      showNotification("A fit bootstrap is already running. Cancel it before estimating frames.",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
     if (!is.null(efrm_job())) {
       showNotification("An EFRM estimation is already running. Cancel it before estimating frames.",
                        type = "warning", duration = 7)
@@ -7573,21 +7913,29 @@ server <- function(input, output, session) {
     progress_bar$set(message = "Estimating paired-comparison frames",
                      detail = "two-stage fit", value = 0.02)
     process <- tryCatch(callr::r_bg(
-      function(args, progress_path) {
+      function(args, progress_path, source_dir) {
+        if (!is.null(source_dir)) {
+          if (!requireNamespace("pkgload", quietly = TRUE))
+            stop("pkgload is needed for a source-tree background analysis")
+          pkgload::load_all(dirname(source_dir), quiet = TRUE)
+        }
         progress_fun <- function(stage, current, total) {
           writeLines(paste(stage, current, total, sep = "\t"), progress_path)
         }
         args$progress <- progress_fun
         warnings <- character(0)
         value <- withCallingHandlers(
-          do.call(rasch::btl_efrm, args),
+          do.call(if (exists("btl_efrm", inherits = TRUE))
+            get("btl_efrm", inherits = TRUE) else
+              getExportedValue("rasch", "btl_efrm"), args),
           warning = function(w) {
             warnings <<- c(warnings, conditionMessage(w))
             invokeRestart("muffleWarning")
           })
         list(value = value, warnings = unique(warnings))
       },
-      args = list(args = fit_args, progress_path = progress_file),
+      args = list(args = fit_args, progress_path = progress_file,
+                  source_dir = .rasch_source_dir),
       libpath = .libPaths(), stdout = log_file, stderr = log_file,
       supervise = TRUE), error = function(e) e)
     if (inherits(process, "error")) {
@@ -8275,11 +8623,12 @@ server <- function(input, output, session) {
                        type = "error", duration = 10)
       return()
     }
-    cancelled_job <- cancel_efrm_job() | cancel_btlef_job()
+    cancelled_job <- cancel_efrm_job() | cancel_btlef_job() |
+      cancel_boot_job()
     advance_analysis_context()
     if (cancelled_job)
       showNotification(paste(
-        "The running background estimation was cancelled before the saved",
+        "The running background analysis was cancelled before the saved",
         "analysis was opened."), type = "message", duration = 7)
     restoring_project(TRUE)
     withProgress(message = "Opening saved analysis…", value = 0.5, {

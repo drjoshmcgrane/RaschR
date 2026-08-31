@@ -5,6 +5,19 @@
 # reported rather than read off a text panel.
 # ===========================================================================
 
+.inference_count <- function(p, alpha = 0.05) {
+  total <- length(p)
+  tested <- sum(is.finite(p))
+  flagged <- if (tested) sum(p[is.finite(p)] < alpha) else NA_integer_
+  unavailable <- total - tested
+  text <- if (!tested) "unavailable"
+    else if (!unavailable) sprintf("%d of %d", flagged, tested)
+    else sprintf("%d of %d tested (%d unavailable)",
+                 flagged, tested, unavailable)
+  list(flagged = flagged, tested = tested, unavailable = unavailable,
+       total = total, text = text)
+}
+
 # The estimator is a property of the fit, not a constant: a structural or
 # explanatory model does not use the ordinary pairwise conditional routine,
 # and naming the wrong one in an exported table contradicts the panel the
@@ -20,10 +33,12 @@
 #' Test-of-fit summary as a table
 #'
 #' Returns the model, estimation method, trait chi-square, calibration and
-#' person fit-residual moments, fit-location correlations, chi-square flag
-#' count, and disordered-threshold count as a two-column table. MFRM and EFRM
+#' person fit-residual moments, fit-location correlations, the approximate
+#' asymptotic chi-square flag count, and disordered-threshold count as a
+#' two-column table. MFRM and EFRM
 #' summaries label their fitted item-by-facet or item-by-frame columns as
-#' response cells.
+#' response cells. A wholly unavailable probability family is labelled as
+#' unavailable; a partial family reports the tested and unavailable counts.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}, or a
 #'   paired-comparison fit from \code{\link{btl}} (which reports its own
@@ -46,12 +61,15 @@ fit_summary_table <- function(fit) {
   trait_unit <- if (structural) "response-cell" else "item"
   dis <- names(which(vapply(fit$thresholds_diag, function(d)
     !d$ordered && length(d$thresholds) > 1, TRUE)))
+  item_inference <- .inference_count(fit$items$p_adj)
   num <- function(x, d = 3) formatC(x, digits = d, format = "f")
   out <- data.frame(statistic = c(
     "Model", "Estimation", "Converged", "Iterations",
-    paste("Total", paste0(trait_unit, "-trait chi-square")),
+    paste("Approximate asymptotic total",
+          paste0(trait_unit, "-trait chi-square")),
     "Degrees of freedom",
-    paste0(if (structural) "Response-cell" else "Item",
+    paste0("Approximate asymptotic ",
+           if (structural) "response-cell" else "item",
            "-trait probability"), "Class intervals",
     paste(unit, "fit residual mean"), paste(unit, "fit residual SD"),
     paste(unit, "fit residual skewness"),
@@ -60,7 +78,7 @@ fit_summary_table <- function(fit) {
     "Person fit residual skewness", "Person fit residual kurtosis",
     paste0("Fit-location correlation (", tolower(units), ")"),
     "Fit-location correlation (persons)",
-    paste(units, "with Holm-adjusted chi-square p < .05"),
+    paste(units, "with approximate asymptotic Holm p < .05"),
     if (structural) "Disordered response-cell thresholds" else
       "Disordered thresholds"),
     value = c(
@@ -77,8 +95,7 @@ fit_summary_table <- function(fit) {
       num(fit$person_fit_summary$skewness, 2),
       num(fit$person_fit_summary$kurtosis, 2),
       num(ss$cor_item_fit_location), num(ss$cor_person_fit_location),
-      sprintf("%d of %d", sum(fit$items$p_adj < 0.05, na.rm = TRUE),
-              nrow(fit$items)),
+      item_inference$text,
       if (length(dis)) paste(dis, collapse = ", ") else "none"))
   rownames(out) <- NULL
   out
