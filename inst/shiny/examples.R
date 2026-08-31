@@ -2,23 +2,22 @@
 # source file so the exact datasets can also be reconstructed by the R-code
 # disclosures without starting the app.
 
-# --- demo data: 10 polytomous items, one disordered, DIF on Q05 -------------
-.demo_data <- function(seed = 11, Np = 1200) {
-  set.seed(seed)
-  simP <- function(theta, tau) { x <- 0:length(tau); p <- exp(x * theta - c(0, cumsum(tau))); p / sum(p) }
-  mvec <- rep(c(2, 3), length.out = 10)
-  tau_true <- lapply(mvec, function(m) sort(rnorm(m, 0, 0.9)))
-  tau_true[[2]] <- c(1.2, -1.3, 0.6)                       # disordered item
-  th <- rnorm(Np, 0, 1.4)
-  grp <- rep(c("reference", "focal"), each = Np / 2)
-  sex <- sample(c("female", "male"), Np, replace = TRUE)
-  X <- sapply(seq_along(mvec), function(i) {
-    sft <- if (i == 5) ifelse(grp == "focal", 0.9, 0) else numeric(Np)  # uniform DIF
-    sapply(seq_len(Np), function(n) sample(0:mvec[i], 1, prob = simP(th[n] - sft[n], tau_true[[i]])))
-  })
-  colnames(X) <- sprintf("Q%02d", seq_along(mvec))
-  data.frame(person_id = sprintf("P%04d", seq_len(Np)), X,
-             group = grp, sex = sex, check.names = FALSE)
+# Polytomous workflow example. These defaults are the simulation printed in
+# the Rasch workflow vignette, so its code and application walkthrough analyse
+# the same observations.
+.demo_data <- function(seed = 17, Np = 600) {
+  simulate_rasch(
+    n_persons = Np,
+    n_items = 12,
+    model = "PCM",
+    n_categories = 4,
+    difficulty = c(-1.5, 1.5),
+    disordered = "I04",
+    dependence = list(pairs = list(c("I10", "I11")), strength = 1.3),
+    dif = list(items = "I08", uniform = 0.8),
+    n_groups = 3,
+    seed = seed
+  )
 }
 
 # dichotomous demo: 15 multiple-choice items (raw A-D responses), DIF planted
@@ -45,75 +44,24 @@
 .demo_dich_key <- function()
   setNames(rep("A", 15), sprintf("I%02d", 1:15))
 
-# paired-comparison demo: 8 essays compared pairwise by 10 judges, with
-# judge J09 answering at random (discoverable in the judge fit table). The
-# recorded response is the winner alone -- the design is dichotomous by
-# intent (see the note inside), so there is no preference or margin column.
-.demo_btl <- function(seed = 47, reps = 26) {
-  set.seed(seed)
-  # a moderate object spread: extreme objects have near-zero residual variance
-  # in paired comparisons, which would manufacture spurious DIF, so the range
-  # is kept modest and the planted DIF is put on the central objects
-  beta <- setNames(seq(-1.0, 1.0, length.out = 8), sprintf("E%02d", 1:8))
-  pr <- t(utils::combn(names(beta), 2))
-  d <- data.frame(object_a = rep(pr[, 1], each = reps),
-                  object_b = rep(pr[, 2], each = reps),
-                  stringsAsFactors = FALSE)
-  d$judge <- sprintf("J%02d", sample(1:10, nrow(d), replace = TRUE))
-  # two judge factors (each constant within judge) so DIF can be modelled by
-  # one factor or several jointly: panel splits judges 1-5 / 6-10, experience
-  # splits the odd / even judges independently
-  d$panel <- ifelse(d$judge %in% sprintf("J%02d", 1:5), "panel A", "panel B")
-  d$experience <- ifelse(d$judge %in% sprintf("J%02d", c(1, 3, 5, 7, 9)),
-                         "expert", "novice")
-  # judgment order: process each judge's comparisons in sequence so the
-  # within-judge history (exposure) is well defined
-  d <- d[sample(nrow(d)), ]
-  d$t <- ave(seq_len(nrow(d)), d$judge, FUN = seq_along)
-  d <- d[order(d$judge, d$t), ]
-  rownames(d) <- NULL
-
-  # Several signals are built in so the diagnostics have something to find.
-  # (1) Exposure: an object already met by the judge gains `expo` logits (a
-  # seen-before advantage). (2) Panel DIF: panel A over-rewards E04, so its
-  # location differs by panel. (3) Experience DIF: experts over-reward E05, a
-  # second, independent judge factor. The two factors point at different
-  # objects so each is cleanly attributable. Judge J09 answers at random (a
-  # misfitting judge), as before.
-  expo <- 0.7
-  dif_panel <- "E04"; dif_exp_obj <- "E05"
-  dif <- 1.2         # panel effect
-  # larger than the panel effect: expert J09 answers at random (diluting it),
-  # and the dependence-adjusted DIF screen absorbs the share of a sequential
-  # effect that the carry-over covariate can carry
-  dif_exp <- 1.8
-  # A dichotomous example: the judges record which object won, and nothing
-  # else. It carried an ordered preference and a margin as well, which
-  # invited a polytomous fit on ten judges -- and a polytomous fit with the
-  # judging-order covariates estimates as many parameters as there are
-  # judge clusters, so the clustered covariance is rank-deficient and the
-  # example's own inference is withheld. Demonstrate the ordered response
-  # on a design that can carry it.
-  seen <- new.env(parent = emptyenv())
-  winner <- character(nrow(d))
-  for (r in seq_len(nrow(d))) {
-    j <- d$judge[r]; a <- d$object_a[r]; b <- d$object_b[r]
-    ba <- beta[[a]]; bb <- beta[[b]]
-    if (d$panel[r] == "panel A") {
-      ba <- ba + dif * (a == dif_panel); bb <- bb + dif * (b == dif_panel)
-    }
-    if (d$experience[r] == "expert") {
-      ba <- ba + dif_exp * (a == dif_exp_obj); bb <- bb + dif_exp * (b == dif_exp_obj)
-    }
-    ba <- ba + expo * isTRUE(get0(paste(j, a), seen, ifnotfound = FALSE))
-    bb <- bb + expo * isTRUE(get0(paste(j, b), seen, ifnotfound = FALSE))
-    p <- if (j == "J09") 0.5 else plogis(ba - bb)
-    winner[r] <- if (runif(1) < p) a else b
-    assign(paste(j, a), TRUE, seen); assign(paste(j, b), TRUE, seen)
-  }
-  d$winner <- winner
-  d <- d[sample(nrow(d)), ]   # present in random row order (t keeps the order)
-  rownames(d) <- NULL
+# Comparative judgement workflow example. Exposure and erratic judging are
+# planted; the two crossed judge factors are null and remain above the
+# inference boundary. Keeping residual dimensionality out of this dataset
+# prevents it from being mistaken for a history effect.
+.demo_btl <- function(seed = 1, reps = 84) {
+  d <- simulate_btl(
+    n_objects = 8,
+    n_judges = 48,
+    reps_per_pair = reps,
+    erratic_judges = 2 / 48,
+    dependence = list(exposure = 0.7, carry_over = 0),
+    seed = seed
+  )
+  judge_number <- as.integer(sub("^J", "", d$judge))
+  d$panel <- factor(ifelse(judge_number %% 2L,
+                           "panel A", "panel B"))
+  d$experience <- factor(ifelse(judge_number <= 24,
+                                "experienced", "novice"))
   d
 }
 

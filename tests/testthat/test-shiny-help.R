@@ -225,9 +225,39 @@ test_that("bundled app examples are exactly reconstructible", {
   e <- new.env(parent = asNamespace("rasch"))
   sys.source(examples, envir = e)
   expect_identical(.app_example_data("pcm"), e$.demo_data())
+  workflow_data <- simulate_rasch(
+    n_persons = 600, n_items = 12, model = "PCM", n_categories = 4,
+    difficulty = c(-1.5, 1.5), disordered = "I04",
+    dependence = list(pairs = list(c("I10", "I11")), strength = 1.3),
+    dif = list(items = "I08", uniform = 0.8), n_groups = 3, seed = 17)
+  expect_identical(e$.demo_data(), workflow_data)
   expect_identical(.app_example_data("dich"), e$.demo_dich())
   expect_identical(.app_example_data("rsm"), e$.demo_rsm())
   expect_identical(.app_example_data("mfrm"), e$.demo_mfrm())
   expect_identical(.app_example_data("efrm"), e$.demo_efrm())
   expect_identical(.app_example_data("btl"), e$.demo_btl())
+  cj_data <- simulate_btl(
+    n_objects = 8, n_judges = 48, reps_per_pair = 84,
+    erratic_judges = 2 / 48,
+    dependence = list(exposure = 0.7, carry_over = 0), seed = 1)
+  cj_number <- as.integer(sub("^J", "", cj_data$judge))
+  cj_data$panel <- factor(ifelse(cj_number %% 2L,
+                                 "panel A", "panel B"))
+  cj_data$experience <- factor(ifelse(cj_number <= 24,
+                                      "experienced", "novice"))
+  expect_identical(e$.demo_btl(), cj_data)
+
+  expect_equal(as.vector(table(cj_data$panel, cj_data$experience)),
+               rep(588, 4))
+  cj_fit <- btl(cj_data, "object_a", "object_b", winner = "winner",
+                judge = "judge", order = "order")
+  dep <- setNames(seq_len(nrow(cj_fit$dependence)),
+                  cj_fit$dependence$effect)
+  expect_gt(cj_fit$dependence$estimate[dep["exposure"]], 0.4)
+  expect_lt(cj_fit$dependence$p_adj[dep["exposure"]], 0.05)
+  expect_lt(abs(cj_fit$dependence$estimate[dep["carry_over"]]), 0.2)
+  expect_gt(cj_fit$dependence$p_adj[dep["carry_over"]], 0.05)
+  cj_dif <- btl_dif(cj_fit, cj_data[c("panel", "experience")])
+  expect_false(any(cj_dif$summary$uniform_DIF, na.rm = TRUE))
+  expect_false(any(cj_dif$summary$nonuniform_DIF, na.rm = TRUE))
 })

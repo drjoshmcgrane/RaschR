@@ -874,7 +874,8 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
               factor_names = fnames,
               between_covariance = "HC3 for uniform factor terms",
               effects = effects, alpha = alpha, p_adjust = p_adjust,
-              notes = notes)
+              notes = notes,
+              fit_signature = .fit_boot_signature(fit))
   if (isTRUE(sizes)) {
     out$sizes <- size_tab
     out$posthoc <- posthoc_tab
@@ -882,6 +883,20 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
   out <- .tag_tables(out)
   class(out) <- "rasch_dif"
   out
+}
+
+.validate_dif_result <- function(dif, fit) {
+  if (is.null(dif)) return(invisible(NULL))
+  if (!inherits(dif, "rasch_dif") || !is.data.frame(dif$summary) ||
+      !is.data.frame(dif$terms))
+    stop("`dif` must be a current dif_anova() result")
+  if (inherits(fit, "rasch_btl"))
+    stop("`dif` cannot be exported with a paired-comparison fit")
+  if (is.null(dif$fit_signature))
+    stop("`dif` predates fitted-model provenance; recompute it from this fit")
+  if (!identical(dif$fit_signature, .fit_boot_signature(fit)))
+    stop("`dif` was computed from a different fitted model")
+  invisible(NULL)
 }
 
 #' @export
@@ -923,7 +938,8 @@ print.rasch_dif <- function(x, ...) {
 #' \sqrt{\mathbf{c}_{ab}^{\mathsf T}\mathbf{V}_i
 #' \mathbf{c}_{ab}},}
 #' where \eqn{\mathbf{V}_i} is the full covariance of the resolved
-#' locations. Wald probabilities are adjusted over the pairwise family.
+#' locations. Wald probabilities are adjusted over the pairwise family. A
+#' comparison with withheld inference remains in that declared family.
 #'
 #' With repeated person identifiers, the row-level calibration covariance does
 #' not represent within-person sampling dependence. Logit differences and
@@ -1158,7 +1174,7 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
   if (repeated_person) pairs$se[] <- NA_real_
   pairs$z <- pairs$difference / pairs$se
   pairs$p <- 2 * pnorm(-abs(pairs$z))
-  pairs$p_adj <- p.adjust(pairs$p, method = p_adjust)
+  pairs$p_adj <- .p_adjust_family(pairs$p, method = p_adjust)
   pairs$lower <- pairs$difference - qnorm(0.975) * pairs$se
   pairs$upper <- pairs$difference + qnorm(0.975) * pairs$se
   pairs$significant <- ifelse(pair_invalid | repeated_person, NA,
@@ -1167,8 +1183,8 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
                             abs(pairs$difference) >= flag_logits)
   if (!polytomous) {
     pairs$p_beyond_A <- .ets_p_beyond(pairs$difference, pairs$se)
-    pairs$p_beyond_A_adj <- stats::p.adjust(pairs$p_beyond_A,
-                                             method = p_adjust)
+    pairs$p_beyond_A_adj <- .p_adjust_family(
+      pairs$p_beyond_A, method = p_adjust)
     pairs$ets <- .ets_category(pairs$difference, pairs$se, pairs$p_adj,
                                alpha, pairs$p_beyond_A_adj)
   } else {
@@ -1655,6 +1671,8 @@ print.rasch_dif_size <- function(x, ...) {
 #' address the same marginal contrast. The sign of each residual test is
 #' aligned with the resolved logit contrast. Contrasts require a converged
 #' calibration.
+#' A contrast with withheld inference remains in the adjustment family formed
+#' by every requested item and contrast.
 #' For an MFRM fit, underlying items are pooled over their facet cells by
 #' default. EFRM fits are excluded because the required split refit would
 #' discard the frame units.
@@ -1880,7 +1898,7 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
     }
   }
   tab <- do.call(rbind, rows)
-  tab$p_adj <- stats::p.adjust(tab$p, method = p_adjust)
+  tab$p_adj <- .p_adjust_family(tab$p, method = p_adjust)
   tab$lower <- tab$estimate - stats::qnorm(0.975) * tab$se
   tab$upper <- tab$estimate + stats::qnorm(0.975) * tab$se
   tab$significant <- !is.na(tab$p_adj) & tab$p_adj < alpha

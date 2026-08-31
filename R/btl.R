@@ -1366,8 +1366,8 @@ plot_btl <- function(fit, band = 2.5) {
     object_coefficients <- data.frame(
       term = object_parameter_names, estimate = bhat, se = bse,
       t = stat, df = ref_df, p = prob, stringsAsFactors = FALSE)
-    object_coefficients$p_adj <- stats::p.adjust(object_coefficients$p,
-                                                 method = "holm")
+    object_coefficients$p_adj <- .p_adjust_family(
+      object_coefficients$p, method = "holm")
     rownames(object_coefficients) <- object_coefficients$term
   }
 
@@ -2444,7 +2444,7 @@ btl_dif <- function(fit, factors, objects = NULL,
   if (!is.null(sizes)) {
     sizes$t <- sizes$difference / sizes$se
     sizes$p <- 2 * stats::pt(-abs(sizes$t), df = sizes$df)
-    sizes$p_adj <- p.adjust(sizes$p, method = p_adjust)
+    sizes$p_adj <- .p_adjust_family(sizes$p, method = p_adjust)
     sizes$significant <- ifelse(is.finite(sizes$p_adj),
                                 sizes$p_adj < alpha, NA)
     sizes$practical <- abs(sizes$difference) >= flag_logits

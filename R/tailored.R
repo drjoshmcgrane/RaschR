@@ -223,7 +223,7 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
       2 * min((sum(B[, j] <= 0) + 1) / (nrow(B) + 1),
               (sum(B[, j] >= 0) + 1) / (nrow(B) + 1), 0.5)
     }, 0)
-    tab$p_adj <- stats::p.adjust(tab$p, method = "holm")
+    tab$p_adj <- .p_adjust_family(tab$p, method = "holm")
     tab$significant <- tab$p_adj < 0.05
     # the sign-count bootstrap p has resolution floor 2/(B+1); after the
     # Holm step the smallest achievable adjusted p is 2m/(B+1). If that

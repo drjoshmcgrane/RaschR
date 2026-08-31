@@ -167,7 +167,7 @@
   coef <- data.frame(term = parameter_names, estimate = sol$beta, se = se,
                      z = z, p = 2 * stats::pnorm(abs(z), lower.tail = FALSE),
                      stringsAsFactors = FALSE)
-  coef$p_adj <- stats::p.adjust(coef$p, method = "holm")
+  coef$p_adj <- .p_adjust_family(coef$p, method = "holm")
   rownames(coef) <- coef$term
   list(model = "explanatory", thr = thr, cov_tau = sol$cov_tau,
        loglik = sol$loglik, iterations = sol$iterations,
@@ -753,7 +753,7 @@ explanatory_diagnostics <- function(fit, p_adjust = "holm") {
       deviance_reduction = numeric(0), df = integer(0), p = numeric(0),
       p_adj = numeric(0))))
     out <- do.call(rbind, rows)
-    out$p_adj <- stats::p.adjust(out$p, method = p_adjust)
+    out$p_adj <- .p_adjust_family(out$p, method = p_adjust)
     out <- out[order(out$p_adj, -out$deviance_reduction), , drop = FALSE]
     rownames(out) <- NULL
     attr(out, "p_adjust") <- p_adjust

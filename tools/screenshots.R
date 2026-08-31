@@ -38,52 +38,73 @@ if (!identical(install_result$status, 0L))
 PORT   <- 7841L
 WIDTH  <- 1440L
 HEIGHT <- 900L
-SCALE  <- 2                     # retina: the images are read at 90-100% width
+SCALE  <- 1                     # 1440 px remains sharp at vignette display width
 
 # --- the shots -------------------------------------------------------------
 # panel is the nav value; open names accordion panels to expand before the
 # capture, now that they all start closed; before is any extra JS to run.
 SHOTS <- list(
-  list(name = "app-data", demo = "dich", panel = "p_data", fit = FALSE,
+  list(name = "app-data", demo = "pcm", panel = "p_data", fit = FALSE,
        dir = "vignettes/figures",
        alt = "The Data panel: the sidebar assigns the person identifier, person factors and item columns, and the main area previews the responses."),
-  list(name = "app-summary", demo = "dich", panel = "p_summary", height = 1150L,
-       open = "test_tcc", expect_selector = "#tcc img",
+  list(name = "app-summary", demo = "pcm", panel = "p_summary", height = 1400L,
+       open = "test_tcc", before = "document.getElementById('run_lr').click();",
+       expect = c("#lr_txt" = "Adjusted chi-square"),
+       expect_selector = "#tcc img",
        dir = "vignettes/figures"),
-  list(name = "app-items", demo = "dich", panel = "p_items", height = 1150L,
-       table = "items_tbl", row = "I07", expect = c("#sel_item_title" = "I07"),
-       dir = c("vignettes/figures", "man/figures")),
-  list(name = "app-items-chisq", demo = "dich", panel = "p_items",
-       tab = "Chi-square", table = "items_tbl", row = "I07",
-       expect = c("#chisq_caption" = "I07"), dir = "vignettes/figures"),
-  list(name = "app-persons", demo = "dich", panel = "p_persons",
+  list(name = "app-items", demo = "pcm", panel = "p_items", height = 1150L,
+       table = "items_tbl", row = "I02", expect = c("#sel_item_title" = "I02"),
+       dir = "vignettes/figures"),
+  list(name = "app-items-chisq", demo = "pcm", panel = "p_items",
+       tab = "Chi-square", table = "items_tbl", row = "I02",
+       expect = c("#chisq_caption" = "I02"), dir = "vignettes/figures"),
+  list(name = "app-persons", demo = "pcm", panel = "p_persons",
        open = "persons_pfit", dir = "vignettes/figures"),
-  list(name = "app-targeting", demo = "dich", panel = "p_targeting",
-       height = 1350L,
+  list(name = "app-targeting", demo = "pcm", panel = "p_targeting",
+       height = 1600L,
        before = "var e=document.getElementById('tg_information'); if(e && !e.checked) e.click();",
        expect_checked = "tg_information",
+       expect_selector = c("#pim_p img", "#wright img"),
        dir = "vignettes/figures"),
-  list(name = "app-dif", demo = "dich", panel = "p_dif",
-       open = "dif_anova", table = "dif_tbl", row = "I05",
-       expect = c("#dif_icc_code" = "I05"), dir = "vignettes/figures"),
-  list(name = "app-local", demo = "dich", panel = "p_ld",
-       open = "ld_cormat", height = 1150L, dir = "vignettes/figures"),
-  list(name = "app-rcode", demo = "dich", panel = "p_data",
-       open = "rcode_acc", focus = "#rcode_acc", height = 700L,
+  list(name = "app-dif", demo = "pcm", panel = "p_dif",
+       open = "dif_anova", table = "dif_tbl", row = "I08",
+       expect = c("#dif_tbl table tbody tr.selected" = "I08"),
+       expect_selector = "#dif_icc img", dir = "vignettes/figures"),
+  list(name = "app-local", demo = "pcm", panel = "p_ld",
+       open = "ld_cormat", height = 950L, dir = "vignettes/figures"),
+  list(name = "app-rcode", demo = "pcm", panel = "p_data",
+       open = "rcode_acc", focus = "#rcode_acc", focus_pad = 10L, height = 640L,
        expect = c("#rcode_fit" = "fit <-"), dir = "vignettes/figures"),
-  list(name = "app-export", demo = "dich", panel = "p_export",
+  list(name = "app-export", demo = "pcm", panel = "p_export",
        dir = "vignettes/figures"),
+  # The README introduces the multiple-choice workflow separately. Keep its
+  # discoverable miskey and ICC out of the polytomous vignette walkthrough.
+  list(name = "readme-items", file = "app-items", demo = "dich",
+       panel = "p_items", height = 1150L, table = "items_tbl", row = "I07",
+       expect = c("#sel_item_title" = "I07"), dir = "man/figures"),
   # comparative judgement
   list(name = "app-cj-data", demo = "btl", panel = "p_data", fit = FALSE,
        dir = "vignettes/figures"),
   list(name = "app-cj-summary", demo = "btl", panel = "p_summary",
        dir = "vignettes/figures"),
   list(name = "app-cj-items", demo = "btl", panel = "p_items",
-       open = "btl_caterpillar", dir = "vignettes/figures"),
+       open = "btl_caterpillar", focus = "[data-value='btl_caterpillar']",
+       focus_pad = 15L, height = 950L, dir = "vignettes/figures"),
   list(name = "app-cj-judges", demo = "btl", panel = "p_persons",
-       open = "btl_judge_fit", dir = "vignettes/figures"),
+       open = "btl_judge_fit",
+       before = "var t=$('#btl_judges_tbl table').DataTable(); t.search('J36').draw();",
+       wait_text = c("#btl_judges_tbl table tbody" = "J36"),
+       table = "btl_judges_tbl", row = "J36",
+       expect = c("#btl_judges_tbl table tbody tr.selected" = "J36"),
+       expect_selector = "#btl_judge_map img", dir = "vignettes/figures"),
   list(name = "app-cj-dif", demo = "btl", panel = "p_dif",
-       open = "bdif_anova", dir = "vignettes/figures"))
+       open = "bdif_anova",
+       before = "document.getElementById('bdif_run').click();",
+       wait_selector = "#bdif_anova_tbl table tbody tr",
+       table = "bdif_anova_tbl", row = "O1",
+       expect = c("#bdif_anova_tbl table tbody tr.selected" = "panel"),
+       expect_selector = "#bdif_occ img", height = 1150L,
+       dir = "vignettes/figures"))
 
 # The model each example implies. A shot asserts this before capturing:
 # switching example while an analysis is on screen swaps the data under a
@@ -150,7 +171,20 @@ wait_for <- function(b, selector, timeout = 60) {
   stop("timed out waiting for ", selector)
 }
 
+wait_for_text <- function(b, selector, expected, timeout = 60) {
+  deadline <- Sys.time() + timeout
+  while (Sys.time() < deadline) {
+    got <- js(b, sprintf(
+      "(function(){var e=document.querySelector(%s); return e ? e.innerText : ''})()",
+      shQuote(selector, type = "cmd")))
+    if (is.character(got) && grepl(expected, got, fixed = TRUE)) return(TRUE)
+    Sys.sleep(0.25)
+  }
+  stop("timed out waiting for ", shQuote(expected), " in ", selector)
+}
+
 current_demo <- NULL
+current_fit_demo <- NULL
 
 assert_clean <- function(b, shot) {
   errors <- js(b, "Array.from(document.querySelectorAll('.shiny-output-error'))
@@ -183,6 +217,7 @@ take <- function(b, shot) {
   if (!identical(current_demo, shot$demo)) {
     if (!is.null(current_demo)) {
       js(b, "location.reload()", wait = FALSE)
+      current_fit_demo <<- NULL
       Sys.sleep(2)
       wait_for(b, "#demo_choice", timeout = 90)
       # the input exists before the websocket does; wait for Shiny itself
@@ -210,15 +245,17 @@ take <- function(b, shot) {
     }
     current_demo <<- shot$demo
   }
-  if (!identical(shot$fit, FALSE)) {
+  if (!identical(shot$fit, FALSE) &&
+      !identical(current_fit_demo, shot$demo)) {
     js(b, "document.getElementById('run').click()")
     Sys.sleep(1)
     # Estimate is an input_task_button: the fit runs in an ExtendedTask, which
     # does NOT raise Shiny's busy flag, so waiting on that alone returns to an
     # apparently idle page and captures an empty panel under a header that
     # already looks right. Wait for the analysis itself to appear.
-    rendered(b, "the fit")
+    wait_for(b, "#nav_status .rasch-nav-summary", timeout = 600)
     settle(b)
+    current_fit_demo <<- shot$demo
   }
   got <- js(b, "(function(){var e = document.querySelector('input[name=model_type]:checked'); return e ? e.value : ''})()")
   if (!identical(got, want))
@@ -236,34 +273,59 @@ take <- function(b, shot) {
   js(b, "document.querySelectorAll('.dropdown-menu.show').forEach(function(m){ m.classList.remove('show'); });
          document.querySelectorAll('.dropdown-toggle.show, [aria-expanded=\"true\"].dropdown-toggle').forEach(function(t){ t.classList.remove('show'); t.setAttribute('aria-expanded', 'false'); });")
   settle(b)
-  if (!is.null(shot$tab))
-    js(b, sprintf(
-      "var t = Array.from(document.querySelectorAll('.nav-link')).find(function(e){return e.textContent.trim() === %s}); if (t) t.click();",
-      shQuote(shot$tab, type = "cmd")))
   # `open` names either an accordion (by id) or one of its panels (by the
   # data-value bslib puts on the item) -- resolve both, and expand the first
   # collapsed button found inside
   # the panel just navigated to must have rendered before anything is opened
   # inside it or captured from it
-  rendered(b, shot$panel)
-  if (!is.null(shot$open))
+  # Plot-led panels contain little text even when fully drawn. Output activity
+  # is handled by settle(); panel-specific image assertions below verify the
+  # plots that must be present in the captured state.
+  rendered(b, shot$panel, chars = 200)
+  if (!is.null(shot$open)) {
     js(b, sprintf(
       "var p = document.querySelector('#%s') || document.querySelector('[data-value=\"%s\"]');
        if (p) { var btn = p.querySelector('.accordion-button.collapsed'); if (btn) btn.click(); }",
       shot$open, shot$open))
+    settle(b)
+  }
   if (!is.null(shot$before)) js(b, shot$before)
+  if (!is.null(shot$wait_text))
+    for (selector in names(shot$wait_text))
+      wait_for_text(b, selector, unname(shot$wait_text[[selector]]),
+                    timeout = 600)
+  if (!is.null(shot$wait_selector)) {
+    wait_for(b, shot$wait_selector, timeout = 600)
+    settle(b)
+  }
   # a table that drives a plot beside it needs the interesting row selected,
   # or the figure shows whichever row the panel opened on
   if (!is.null(shot$row)) {
-    selected <- js(b, sprintf(
+    target <- js(b, sprintf(
       "(function(){var root=document.getElementById(%s); if(!root) return false;
        var r=Array.from(root.querySelectorAll('table tbody tr')).find(function(t){
          return Array.from(t.querySelectorAll('td')).some(function(c){return c.textContent.trim() === %s;});
-       }); if(!r) return false; var c=r.querySelector('td'); if(!c) return false;
-       c.dispatchEvent(new MouseEvent('click',{bubbles:true})); return true})()",
+       }); if(!r) return null; r.scrollIntoView({block:'center'});
+       var q=r.getBoundingClientRect();
+       return {selected:r.classList.contains('selected'),
+               x:q.left + Math.min(20, q.width/2), y:q.top + q.height/2}})()",
       shQuote(shot$table, type = "cmd"), shQuote(shot$row, type = "cmd")))
-    if (!isTRUE(selected))
+    if (is.null(target) || !is.finite(target$x) || !is.finite(target$y))
       stop(shot$name, ": could not select ", shot$row, " in ", shot$table)
+    if (!isTRUE(target$selected)) {
+      b$Input$dispatchMouseEvent(type = "mousePressed", x = target$x,
+                                 y = target$y, button = "left", clickCount = 1)
+      b$Input$dispatchMouseEvent(type = "mouseReleased", x = target$x,
+                                 y = target$y, button = "left", clickCount = 1)
+    }
+    settle(b)
+  }
+  # Select the item before changing the detail tab: switching tabs can move
+  # the table while a coordinate-based browser click is in flight.
+  if (!is.null(shot$tab)) {
+    js(b, sprintf(
+      "var t = Array.from(document.querySelectorAll('.nav-link')).find(function(e){return e.textContent.trim() === %s}); if (t) t.click();",
+      shQuote(shot$tab, type = "cmd")))
     settle(b)
   }
   settle(b)
@@ -271,10 +333,12 @@ take <- function(b, shot) {
     for (selector in names(shot$expect))
       assert_text(b, selector, unname(shot$expect[[selector]]), shot)
   if (!is.null(shot$expect_selector)) {
-    present <- js(b, sprintf("document.querySelector(%s) !== null",
-                             shQuote(shot$expect_selector, type = "cmd")))
-    if (!isTRUE(present))
-      stop(shot$name, ": expected selector ", shot$expect_selector)
+    for (selector in shot$expect_selector) {
+      present <- js(b, sprintf("document.querySelector(%s) !== null",
+                               shQuote(selector, type = "cmd")))
+      if (!isTRUE(present))
+        stop(shot$name, ": expected selector ", selector)
+    }
   }
   if (!is.null(shot$expect_checked)) {
     checked <- js(b, sprintf(
@@ -293,16 +357,17 @@ take <- function(b, shot) {
   # panel alone runs to nearly 6,000 pixels. Capture what a reader sees: the
   # viewport, or the taller frame a shot asks for.
   h <- shot$height %||% HEIGHT
+  focus_pad <- shot$focus_pad %||% 80L
   y <- if (is.null(shot$focus)) 0 else js(b, sprintf(
-    "(function(){var e=document.querySelector(%s); return e ? Math.max(0, e.getBoundingClientRect().top + window.scrollY - 80) : 0})()",
-    shQuote(shot$focus, type = "cmd")))
+    "(function(){var e=document.querySelector(%s); return e ? Math.max(0, e.getBoundingClientRect().top + window.scrollY - %d) : 0})()",
+    shQuote(shot$focus, type = "cmd"), focus_pad))
   raw <- b$Page$captureScreenshot(
     format = "png", captureBeyondViewport = TRUE,
     clip = list(x = 0, y = y, width = WIDTH, height = h, scale = SCALE))$data
   bin <- jsonlite::base64_dec(raw)
   for (d in shot$dir) {
     dir.create(d, showWarnings = FALSE, recursive = TRUE)
-    writeBin(bin, file.path(d, paste0(shot$name, ".png")))
+    writeBin(bin, file.path(d, paste0(shot$file %||% shot$name, ".png")))
   }
   invisible(TRUE)
 }

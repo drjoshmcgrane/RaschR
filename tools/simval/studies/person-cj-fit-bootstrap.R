@@ -129,23 +129,32 @@ run_outer <- function(fun, ...) {
 analysed <- function(d) d[d$status == "analysed", , drop = FALSE]
 accounting <- function(d) list(
   attempted = nrow(d), refused = sum(d$status == "refused"),
-  nonconv = sum(d$status == "nonconv"))
+  nonconv = sum(d$status == "nonconv"), error = sum(d$status == "error"))
 
 cluster_mcse <- function(d, name) {
   z <- d[[name]]
   stats::sd(z, na.rm = TRUE) / sqrt(sum(is.finite(z)))
 }
 
-inner_accounting <- function(d) sprintf(
-  "%d of %d bootstrap refits did not converge; %d otherwise failed",
-  sum(d$B_nonconverged, na.rm = TRUE),
-  sum(d$B_used + d$B_nonconverged + d$B_errors, na.rm = TRUE),
-  sum(d$B_errors, na.rm = TRUE))
+inner_counts <- function(d) {
+  used <- sum(d$B_used, na.rm = TRUE)
+  nonconv <- sum(d$B_nonconverged, na.rm = TRUE)
+  errors <- sum(d$B_errors, na.rm = TRUE)
+  list(attempted = used + nonconv + errors, used = used,
+       nonconv = nonconv, errors = errors)
+}
+
+inner_accounting <- function(d) {
+  z <- inner_counts(d)
+  sprintf("%d of %d bootstrap refits did not converge; %d otherwise failed",
+          z$nonconv, z$attempted, z$errors)
+}
 
 rows <- list()
 for (model in c("dichotomous", "PCM")) {
   attempts <- run_outer(person_one, model = model, careless = 0)
-  ac <- accounting(attempts); d <- analysed(attempts)
+  ac <- accounting(attempts); ic <- inner_counts(attempts)
+  d <- analysed(attempts)
   nr <- nrow(d)
   for (metric in c("marginal_clean", "familywise_clean"))
     rows[[length(rows) + 1L]] <- sv_row(
@@ -155,6 +164,9 @@ for (model in c("dichotomous", "PCM")) {
         "person fit-residual joint-adjusted familywise error",
       n_reps = nr, n_attempted = ac$attempted,
       n_refused = ac$refused, n_nonconv = ac$nonconv,
+      n_error = ac$error, n_boot_attempted = ic$attempted,
+      n_boot_used = ic$used, n_boot_nonconv = ic$nonconv,
+      n_boot_errors = ic$errors,
       type1 = if (metric == "marginal_clean") mean(d[[metric]]) else NA_real_,
       familywise = if (metric == "familywise_clean") mean(d[[metric]]) else NA_real_,
       mc_override = if (metric == "marginal_clean")
@@ -164,7 +176,8 @@ for (model in c("dichotomous", "PCM")) {
 }
 
 attempts <- run_outer(person_one, model = "dichotomous", careless = .10)
-ac <- accounting(attempts); d <- analysed(attempts)
+ac <- accounting(attempts); ic <- inner_counts(attempts)
+d <- analysed(attempts)
 nr <- nrow(d)
 for (metric in c("familywise_clean", "power_raw", "power_adjusted"))
   rows[[length(rows) + 1L]] <- sv_row(
@@ -174,6 +187,9 @@ for (metric in c("familywise_clean", "power_raw", "power_adjusted"))
       power_adjusted = "careless-person joint-adjusted detection"),
     n_reps = nr, n_attempted = ac$attempted,
     n_refused = ac$refused, n_nonconv = ac$nonconv,
+    n_error = ac$error, n_boot_attempted = ic$attempted,
+    n_boot_used = ic$used, n_boot_nonconv = ic$nonconv,
+    n_boot_errors = ic$errors,
     familywise = if (metric == "familywise_clean") mean(d[[metric]]) else NA_real_,
     power = if (metric != "familywise_clean") mean(d[[metric]]) else NA_real_,
     mc_override = if (metric != "familywise_clean")
@@ -182,7 +198,8 @@ for (metric in c("familywise_clean", "power_raw", "power_adjusted"))
 
 for (model in c("dichotomous", "polytomous")) {
   attempts <- run_outer(cj_one, model = model, erratic = 0)
-  ac <- accounting(attempts); d <- analysed(attempts)
+  ac <- accounting(attempts); ic <- inner_counts(attempts)
+  d <- analysed(attempts)
   nr <- nrow(d)
   for (metric in c("total", "pair_familywise", "object_familywise",
                    "judge_familywise_clean", "judge_marginal_clean"))
@@ -196,6 +213,9 @@ for (model in c("dichotomous", "polytomous")) {
         judge_marginal_clean = "judge fit-residual marginal Type I error"),
       n_reps = nr, n_attempted = ac$attempted,
       n_refused = ac$refused, n_nonconv = ac$nonconv,
+      n_error = ac$error, n_boot_attempted = ic$attempted,
+      n_boot_used = ic$used, n_boot_nonconv = ic$nonconv,
+      n_boot_errors = ic$errors,
       type1 = if (metric %in% c("total", "judge_marginal_clean"))
         mean(d[[metric]]) else NA_real_,
       familywise = if (!metric %in% c("total", "judge_marginal_clean"))
@@ -206,7 +226,8 @@ for (model in c("dichotomous", "polytomous")) {
 }
 
 attempts <- run_outer(cj_one, model = "dichotomous", erratic = .20)
-ac <- accounting(attempts); d <- analysed(attempts)
+ac <- accounting(attempts); ic <- inner_counts(attempts)
+d <- analysed(attempts)
 nr <- nrow(d)
 for (metric in c("judge_familywise_clean", "judge_power_raw",
                  "judge_power_adjusted"))
@@ -217,6 +238,9 @@ for (metric in c("judge_familywise_clean", "judge_power_raw",
       judge_power_adjusted = "erratic-judge joint-adjusted detection"),
     n_reps = nr, n_attempted = ac$attempted,
     n_refused = ac$refused, n_nonconv = ac$nonconv,
+    n_error = ac$error, n_boot_attempted = ic$attempted,
+    n_boot_used = ic$used, n_boot_nonconv = ic$nonconv,
+    n_boot_errors = ic$errors,
     familywise = if (metric == "judge_familywise_clean") mean(d[[metric]]) else NA_real_,
     power = if (metric != "judge_familywise_clean") mean(d[[metric]]) else NA_real_,
     mc_override = if (metric != "judge_familywise_clean")

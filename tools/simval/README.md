@@ -148,15 +148,36 @@ bootstraps are checked in `studies/person-cj-fit-bootstrap.R`. The supported
 four-category follow-ups are `studies/person-fit-bootstrap-pcm-topup.R` and
 `studies/cj-fit-bootstrap-polytomous-topup.R`; their result files have the
 same stems under `results/`. Dichotomous person-fit familywise error was 5.0%.
-The 500-person PCM top-up gave 4.25% marginal error and 7.07% familywise error
-(MCSE 1.9 points) among 184/200 analysed fits. Fourteen datasets had fewer than
-half of their refits estimable, one observed calibration was singular, and one
-complete adjusted family was unavailable. None of 39,601 inner refits failed
-to converge; 5,952 otherwise failed. The 200-dataset polytomous CJ top-up gave 3.0% total-test,
+After the 90% usable-refit rule was introduced, the 500-person PCM top-up gave
+4.08% marginal error and 7.62% familywise error (MCSE 2.59 points) among
+105/200 analysed fits. Ninety-three datasets had fewer than 180 of 199 usable
+refits, one observed calibration was singular, and one complete adjusted
+family was unavailable. The refusal rate was 47.5% (MCSE 3.53 points). None of
+39,601 inner refits failed to converge; 5,952 otherwise failed. The result is
+conditional on analysed fits and shows that the broad default PCM design can
+produce categories too sparse for this bootstrap even when its observed fit
+is estimable. The 200-dataset polytomous CJ top-up gave 3.0% total-test,
 2.0% pair-family, 7.0% object-family and 4.5% judge-family error, with no
-refusals; all 39,800 inner refits were usable. All three studies carry R-tree
-hash `ed5c283cbe90`; their script hashes are recorded in the result rows and
-match the study files.
+refusals; all 39,800 inner refits were usable. All three studies were rerun
+against their recorded release trees. Their exact package, R-tree and
+study-script hashes are recorded in the result rows; the PCM policy rerun uses
+R-tree hash `1276623a1f23`.
+Outer errors and inner-bootstrap attempts, usable refits, non-convergence and
+other failures are recorded in separate columns; the inner counts reconcile
+to the attempted total in every row.
+
+History-dependent paired-comparison fit bootstrap is checked in
+`studies/cj-fit-bootstrap-history.R`, with the fresh-seed dichotomous top-up in
+`studies/cj-fit-bootstrap-history-dich-topup.R`. Exposure 0.5 and carry-over
+0.4 were fitted jointly at 30 judges. Across 1,000 dichotomous datasets, total,
+pair-family, object-family and judge-family error was 4.8%, 3.9%, 4.8% and
+5.5%; marginal judge error was 4.28%. Across 200 four-category datasets the
+corresponding rates were 3.0%, 3.5%, 6.0%, 6.0% and 3.65%. All 238,800 inner
+refits were usable, with no outer refusal, non-convergence or other error. The
+first 200 dichotomous datasets put judge-family error at 9.0%; the 800 fresh
+seeds gave 4.625%, leaving 5.5% over the predeclared 1,000-dataset program.
+The result files use the study names under `results/`; both carry R-tree hash
+`daddaa5c5222` and their script hashes match the files.
 
 Second-round rows carry exact provenance automatically: `sv_row()` stamps
 each row with the study script (`options(simval.script = ...)`), the

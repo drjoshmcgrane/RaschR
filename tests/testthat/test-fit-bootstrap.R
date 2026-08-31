@@ -48,6 +48,11 @@ test_that("every fit statistic is carried with a probability in range", {
   }
   expect_identical(bs$person_adjustment$method,
                    "single-step maximum-statistic bootstrap")
+  shown <- capture.output(returned <- print(bs))
+  expect_identical(returned, bs)
+  expect_lte(length(shown), 5L)
+  expect_true(any(grepl("Usable replicates", shown)))
+  expect_false(any(grepl("replicates\\$|fit_signature", shown)))
 })
 
 test_that("the chi-square is read in one tail and the others in two", {
@@ -289,7 +294,7 @@ test_that("a depleted or statistic-specific null is withheld", {
       .rasch_boot_apply = function(n, fun, ...) c(
         rep(list(good), 29L), rep(list(NULL), n - 29L)),
       .package = "rasch")),
-    "at least 30", class = "rasch_refusal")
+    "at least 36", class = "rasch_refusal")
 
   refused <- tryCatch(suppressWarnings(with_mocked_bindings(
     fit_bootstrap(fit, B = 40, seed = 1),
@@ -303,21 +308,23 @@ test_that("a depleted or statistic-specific null is withheld", {
   expect_equal(refused$B_nonconverged, 6L)
   expect_equal(refused$B_errors, 5L)
 
-  w <- character(0)
-  bs <- withCallingHandlers(with_mocked_bindings(
+  expect_error(suppressWarnings(with_mocked_bindings(
     fit_bootstrap(fit, B = 40, seed = 1),
     .rasch_boot_apply = function(n, fun, ...) c(
-      rep(list(good), 30L), rep(list(NULL), n - 30L)),
-    .package = "rasch"), warning = function(cnd) {
-      w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
-    })
-  expect_equal(bs$B_used, 30L)
-  expect_equal(bs$B_failed, 10L)
+      rep(list(good), 35L), rep(list(NULL), n - 35L)),
+    .package = "rasch")), "at least 36", class = "rasch_refusal")
+
+  bs <- suppressWarnings(with_mocked_bindings(
+    fit_bootstrap(fit, B = 40, seed = 1),
+    .rasch_boot_apply = function(n, fun, ...) c(
+      rep(list(good), 36L), rep(list(NULL), n - 36L)),
+    .package = "rasch"))
+  expect_equal(bs$B_used, 36L)
+  expect_equal(bs$B_failed, 4L)
   expect_equal(bs$B_nonconverged, 0L)
-  expect_equal(bs$B_errors, 10L)
-  expect_equal(bs$minimum_usable, 30L)
-  expect_true(any(grepl("were unusable", w)))
-  expect_true(all(bs$items$n_boot_chisq == 30L))
+  expect_equal(bs$B_errors, 4L)
+  expect_equal(bs$minimum_usable, 36L)
+  expect_true(all(bs$items$n_boot_chisq == 36L))
 
   bad_stat <- good
   bad_stat$outfit_z[1L] <- NA_real_
@@ -350,13 +357,13 @@ test_that("a depleted or statistic-specific null is withheld", {
   bs3 <- suppressWarnings(with_mocked_bindings(
     fit_bootstrap(fit, B = 40, seed = 1),
     .rasch_boot_apply = function(n, fun, ...) c(
-      rep(list(good), 30L),
-      rep(list(.fit_boot_failure("nonconverged")), 6L),
-      rep(list(.fit_boot_failure("error")), 4L)),
+      rep(list(good), 36L),
+      rep(list(.fit_boot_failure("nonconverged")), 2L),
+      rep(list(.fit_boot_failure("error")), 2L)),
     .package = "rasch"))
-  expect_equal(bs3$B_used, 30L)
-  expect_equal(bs3$B_nonconverged, 6L)
-  expect_equal(bs3$B_errors, 4L)
+  expect_equal(bs3$B_used, 36L)
+  expect_equal(bs3$B_nonconverged, 2L)
+  expect_equal(bs3$B_errors, 2L)
 })
 
 test_that("the conditional generator preserves scores, masks, and theory", {
@@ -377,6 +384,19 @@ test_that("the conditional generator preserves scores, masks, and theory", {
   Xg <- .fit_gen_conditional(Xs, tau3, NULL)
   w <- exp(-c(-1, 0, 1))
   expect_lt(max(abs(colMeans(Xg) - w / sum(w))), 0.03)
+
+  # Finite extreme thresholds remain finite on the log scale and still
+  # preserve the conditioning score exactly.
+  Xe <- matrix(c(1L, 0L, 0L,
+                 0L, 1L, 0L,
+                 0L, 0L, 1L), 3, 3, byrow = TRUE)
+  set.seed(4)
+  Xext <- .fit_gen_conditional(Xe, list(-1000, 0, 1000), NULL)
+  expect_true(all(is.finite(Xext)))
+  expect_equal(rowSums(Xext), rowSums(Xe))
+  Xm <- rbind(Xe, c(NA_integer_, NA_integer_, NA_integer_))
+  Xmiss <- .fit_gen_conditional(Xm, list(-1000, 0, 1000), is.na(Xm))
+  expect_true(all(is.na(Xmiss[4L, ])))
 })
 
 test_that("the conditional bootstrap preserves a booklet's missingness link", {
@@ -402,11 +422,12 @@ test_that("the conditional bootstrap preserves a booklet's missingness link", {
   expect_lt(abs(rep_diff - obs), 0.4)
 })
 
-test_that("bootstrap acceptance needs thirty successes and a majority", {
+test_that("bootstrap acceptance needs 90 percent for inferential runs", {
   expect_identical(.fit_min_boot_success(5), 3L)
   expect_identical(.fit_min_boot_success(29), 15L)
-  expect_identical(.fit_min_boot_success(40), 30L)
-  expect_identical(.fit_min_boot_success(100), 51L)
+  expect_identical(.fit_min_boot_success(30), 30L)
+  expect_identical(.fit_min_boot_success(40), 36L)
+  expect_identical(.fit_min_boot_success(100), 90L)
   expect_identical(.rasch_min_boot_success(30), 30L)
   expect_identical(.rasch_min_boot_success(40), 30L)
   expect_identical(.rasch_min_boot_success(58), 30L)
@@ -496,6 +517,14 @@ test_that("paired-comparison bootstrap covers ordered categories and history", {
   expect_identical(levels(generated$response), as.character(0:fit$m))
   expect_no_error(suppressWarnings(
     fit_bootstrap(fit, B = 9, workers = 1, seed = 5)))
+  stamped <- .new_fit_bootstrap(
+    list(pairs = fit$pairs, objects = fit$objects, total = list(),
+         B = 1L, B_used = 1L), fit, "btl")
+  changed_threshold <- fit
+  changed_threshold$thresholds$tau[1L] <-
+    changed_threshold$thresholds$tau[1L] + 0.5
+  expect_error(.validate_fit_bootstrap(stamped, changed_threshold),
+               "different fitted model")
 
   h <- simulate_btl(5, 30, reps_per_pair = 6,
                     dependence = list(exposure = .2, carry_over = .1),
@@ -505,6 +534,11 @@ test_that("paired-comparison bootstrap covers ordered categories and history", {
   bh <- suppressWarnings(fit_bootstrap(fh, B = 9, workers = 1, seed = 6))
   expect_gte(bh$B_used, bh$minimum_usable)
   expect_true(all(vapply(bh$replicates$objects, nrow, 0L) == bh$B_used))
+  changed_history <- fh
+  changed_history$dependence$estimate[1L] <-
+    changed_history$dependence$estimate[1L] + 0.5
+  expect_error(.validate_fit_bootstrap(bh, changed_history),
+               "different fitted model")
 
   dropped <- fh
   dropped$dependence <- dropped$dependence[-1L, , drop = FALSE]

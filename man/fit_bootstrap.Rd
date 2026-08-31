@@ -42,6 +42,8 @@ An object of class \code{rasch_fit_bootstrap}. For a person-by-item
   replicate counts, including separate non-convergence and other-failure
   counts. For a paired-comparison fit, the corresponding tables are
   \code{pairs}, \code{objects}, \code{judges} and \code{total}.
+  Runs requesting at least 30 replicates are withheld unless at least 30
+  and 90 percent of the requested refits are usable.
 }
 \description{
 Refers fit statistics to replicated datasets fitted in the same way as the
@@ -78,6 +80,9 @@ is therefore \eqn{1/(1+B)} and their equal-tailed resolution is
 \eqn{2/(1+B)}. For \eqn{L} items, Holm-adjusted inference at .05 requires
 at least \eqn{20L} replicates for the chi-square and \eqn{40L} for the
 two-sided statistics.
+Runs of at least 30 replicates also require at least 30 and 90 percent of
+the requested refits to be usable. Otherwise inference is withheld because
+failed refits can select a non-random subset of the bootstrap null.
 }
 \examples{
 set.seed(1)

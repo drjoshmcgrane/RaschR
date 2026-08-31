@@ -26,10 +26,26 @@ suppressPackageStartupMessages({
   normalizePath(.source_hits[1], mustWork = TRUE) else NULL
 
 if (!is.null(.rasch_source_dir)) {
-  if (!requireNamespace("pkgload", quietly = TRUE))
-    stop("Running the app from a source tree requires pkgload; install rasch ",
-         "first, or install pkgload for development use")
-  suppressWarnings(pkgload::load_all(dirname(.rasch_source_dir), quiet = TRUE))
+  .rasch_source_root <- normalizePath(dirname(.rasch_source_dir),
+                                      mustWork = TRUE)
+  .rasch_loaded_root <- if ("rasch" %in% loadedNamespaces()) {
+    normalizePath(getNamespaceInfo(asNamespace("rasch"), "path"),
+                  mustWork = FALSE)
+  } else {
+    ""
+  }
+  # Re-sourcing app.R during tests or development must not reload an already
+  # active namespace: doing so invalidates mocked bindings and any objects
+  # created from that namespace. A direct source-tree launch still loads the
+  # tree, including its compiled code, through pkgload.
+  if (!identical(.rasch_loaded_root, .rasch_source_root)) {
+    if (!requireNamespace("pkgload", quietly = TRUE))
+      stop("Running the app from a source tree requires pkgload; install rasch ",
+           "first, or install pkgload for development use")
+    suppressWarnings(pkgload::load_all(.rasch_source_root, quiet = TRUE))
+  } else if (!"package:rasch" %in% search()) {
+    suppressPackageStartupMessages(library(rasch))
+  }
 } else if (requireNamespace("rasch", quietly = TRUE)) {
   library(rasch)
 } else {
@@ -78,6 +94,7 @@ NONE_CH <- c(None = "(none)")
 }
 .read_app_project <- .rasch_internal(".read_app_project")
 .save_app_project <- .rasch_internal(".save_app_project")
+.seal_app_project <- .rasch_internal(".seal_app_project")
 .classical_design_applicable <-
   .rasch_internal(".classical_design_applicable")
 
@@ -996,7 +1013,8 @@ panel_summary <- nav_panel("Summary", value = "p_summary", icon = bs_icon("clipb
             info_icon(paste("Generates outcomes on the fitted comparison design",
                             "and refits the model. It calibrates whole-model,",
                             "pair, object and judge fit. Use at least 999",
-                            "replicates for a final analysis."))),
+                            "replicates for a final analysis. Inference is",
+                            "withheld if fewer than 90% of refits are usable."))),
           uiOutput("btl_boot_state", inline = TRUE),
           uiOutput("btl_boot_job_controls", inline = TRUE)))),
     conditionalPanel("output.has_override == true",
@@ -1038,7 +1056,9 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
                           "null, not invariant items or persons when other parts",
                           "of the model misfit. Use at",
                           "least 999 replicates for a final analysis and more",
-                          "when the test has many items."))),
+                          "when the test has many items. Inference is withheld",
+                          "if fewer than 90% of refits are usable; sparse",
+                          "polytomous categories can cause this."))),
         uiOutput("boot_state", inline = TRUE),
         uiOutput("boot_job_controls", inline = TRUE))),
     conditionalPanel("output.anchor_download_available == true",
@@ -3488,6 +3508,36 @@ server <- function(input, output, session) {
     if (!is.null(sim_data()) && nzchar(restored_project_name() %||% ""))
       return(paste0("project <- readRDS(", qstr(restored_project_name()),
                     ")\ndat <- project$data"))
+    if (identical(input$demo_choice %||% "none", "pcm"))
+      return(paste(
+        "dat <- simulate_rasch(",
+        "  n_persons = 600,",
+        "  n_items = 12,",
+        "  model = \"PCM\",",
+        "  n_categories = 4,",
+        "  difficulty = c(-1.5, 1.5),",
+        "  disordered = \"I04\",",
+        "  dependence = list(pairs = list(c(\"I10\", \"I11\")), strength = 1.3),",
+        "  dif = list(items = \"I08\", uniform = 0.8),",
+        "  n_groups = 3,",
+        "  seed = 17",
+        ")", sep = "\n"))
+    if (identical(input$demo_choice %||% "none", "btl"))
+      return(paste(
+        "dat <- simulate_btl(",
+        "  n_objects = 8,",
+        "  n_judges = 48,",
+        "  reps_per_pair = 84,",
+        "  erratic_judges = 2 / 48,",
+        "  dependence = list(exposure = 0.7, carry_over = 0),",
+        "  seed = 1",
+        ")",
+        "judge_number <- as.integer(sub(\"^J\", \"\", dat$judge))",
+        "dat$panel <- factor(ifelse(judge_number %% 2L,",
+        "                           \"panel A\", \"panel B\"))",
+        "dat$experience <- factor(ifelse(judge_number <= 24,",
+        "                                \"experienced\", \"novice\"))",
+        sep = "\n"))
     if (!identical(input$demo_choice %||% "none", "none"))
       return(sprintf("dat <- rasch:::.app_example_data(%s)",
                      qstr(input$demo_choice)))
@@ -8569,8 +8619,8 @@ server <- function(input, output, session) {
                  error = function(e) NULL) else NULL)
   }
 
-  project_state <- function() list(
-    format = "rasch-shiny-project", schema = 1L,
+  project_state <- function() .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
     package_version = tryCatch(as.character(utils::packageVersion("rasch")),
                                error = function(e) NA_character_),
     created = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
@@ -8594,7 +8644,7 @@ server <- function(input, output, session) {
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
       dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
       person_weights = person_weight_state(),
-      bootstrap = boot_val()))
+      bootstrap = boot_val())))
 
   # exports carry the analysis as run in this session: the DIF model the
   # analyst configured and any bootstrap null, not default recomputations
@@ -8619,10 +8669,16 @@ server <- function(input, output, session) {
     p <- tryCatch(.read_app_project(input$project_file$datapath),
                   error = function(e) e)
     if (inherits(p, "error")) {
-      showNotification("This is not a valid rasch analysis file.",
+      showNotification(paste("The analysis could not be opened:",
+                             conditionMessage(p)),
                        type = "error", duration = 10)
       return()
     }
+    if (isTRUE(attr(p, "rasch_project_legacy")))
+      showNotification(paste(
+        "This analysis was saved in the earlier project format.",
+        "It passed structural checks; save it again to use the current format."),
+        type = "warning", duration = 10)
     cancelled_job <- cancel_efrm_job() | cancel_btlef_job() |
       cancel_boot_job()
     advance_analysis_context()

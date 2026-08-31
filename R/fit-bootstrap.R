@@ -85,18 +85,25 @@
       locations = unname(as.numeric(fit$objects$location)),
       pairs = .btl_pair_key(fit$pairs$object_a, fit$pairs$object_b),
       total_chisq = unname(as.numeric(fit$total_chisq)),
-      fingerprint = .fit_boot_md5(list(
-        comparisons = fit$comparisons, refit_spec = fit$refit_spec,
-        objects = fit$objects, total_chisq = fit$total_chisq))))
+      # The result is tied to the complete fitted object, not only to its
+      # displayed locations. In particular, fitted probabilities generate
+      # an unordered bootstrap and thresholds plus history coefficients
+      # generate an ordered one; omitting either accepted a bootstrap from a
+      # different null model when its object locations happened to agree.
+      fingerprint = .fit_boot_md5(fit)))
   }
   list(
     kind = "rasch", model = fit$model, dimensions = dim(fit$X),
     items = as.character(fit$items$item),
     item_chisq = unname(as.numeric(fit$items$chisq)),
     raw_scores = unname(as.numeric(fit$person$raw)),
-    fingerprint = .fit_boot_md5(list(
-      X = fit$X, model = fit$model, thresholds = fit$thresholds,
-      n_groups = fit$n_groups, refit_spec = fit$refit_spec)))
+    person_ids = as.character(fit$person$id),
+    # DIF and fitted-model bootstraps use more than the response matrix and
+    # threshold table: person identities determine repeated-person strata,
+    # while frame maps, virtual items, discriminations and refit designs can
+    # all change the analysis without changing those two objects. Hash the
+    # fitted model as a whole so no active part is silently omitted again.
+    fingerprint = .fit_boot_md5(fit))
 }
 
 .new_fit_bootstrap <- function(x, fit, kind) {
@@ -193,11 +200,14 @@
 }
 
 # A requested exploratory run below 30 draws may still be useful at its very
-# coarse Monte Carlo resolution, but it must retain a majority.  At 30 or
-# above, use the package-wide floor of 30 successful draws as well as a
-# majority.  This is a p-value null, not a covariance-rank condition.
+# coarse Monte Carlo resolution, but it must retain a majority. At 30 or
+# above, at least 30 and 90% of the requested refits must succeed. Failed
+# refits need not be a random subset of the null, particularly when a sparse
+# polytomous replicate loses an interior category, so a more depleted null is
+# withheld rather than interpreted conditionally on being estimable.
 .fit_min_boot_success <- function(B) {
-  as.integer(max(if (B >= 30L) 30L else 1L, floor(B / 2) + 1L))
+  if (B < 30L) return(as.integer(floor(B / 2) + 1L))
+  as.integer(max(30L, ceiling(0.9 * B)))
 }
 
 # Single-step maximum-statistic adjustment from the joint bootstrap null. The
@@ -573,42 +583,56 @@
 .fit_gen_conditional <- function(X, tau_list, na_mask) {
   N <- nrow(X); L <- length(tau_list)
   obs_mask <- if (is.null(na_mask)) matrix(TRUE, N, L) else !na_mask
-  # per-item category weights, scaled per item (constants cancel in the
-  # conditional distribution; scaling guards the exp against extreme taus)
-  W <- lapply(tau_list, function(tau) {
-    w <- exp(-c(0, cumsum(tau)))
-    w / max(w)
+  # Work throughout on the log scale. Merely scaling exp(-cumsum(tau)) after
+  # exponentiation still produces Inf/Inf for a finite but extreme threshold.
+  logW <- lapply(tau_list, function(tau) {
+    z <- -c(0, cumsum(tau))
+    z - max(z)
   })
+  log_add <- function(a, b) {
+    use <- is.finite(a) | is.finite(b)
+    out <- rep(-Inf, length(a))
+    hi <- pmax(a[use], b[use])
+    out[use] <- hi + log1p(exp(-abs(a[use] - b[use])))
+    out
+  }
   out <- matrix(NA_integer_, N, L, dimnames = dimnames(X))
   key <- apply(obs_mask, 1, function(z) paste(which(z), collapse = ","))
   for (kk in unique(key)) {
     rows <- which(key == kk)
-    items <- as.integer(strsplit(kk, ",", fixed = TRUE)[[1]])
+    items <- if (nzchar(kk))
+      as.integer(strsplit(kk, ",", fixed = TRUE)[[1]]) else integer(0)
     k <- length(items)
     if (!k) next
-    m <- vapply(items, function(j) length(W[[j]]) - 1L, 0L)
-    # suffix ESFs: G[[t]][s + 1] carries items t..k at score s, scaled at
-    # each step so long tests cannot underflow
+    m <- vapply(items, function(j) length(logW[[j]]) - 1L, 0L)
+    # suffix log-ESFs: G[[t]][s + 1] carries items t..k at score s. A scalar
+    # shift at each recursion cancels from the subsequent conditional draw.
     G <- vector("list", k + 1L)
-    G[[k + 1L]] <- 1
+    G[[k + 1L]] <- 0
     for (t in k:1) {
       prev <- G[[t + 1L]]
-      cur <- numeric(m[t] + length(prev))
-      w <- W[[items[t]]]
-      for (x in 0:m[t])
-        cur[(x + 1):(x + length(prev))] <-
-          cur[(x + 1):(x + length(prev))] + w[x + 1] * prev
-      G[[t]] <- cur / max(cur)
+      cur <- rep(-Inf, m[t] + length(prev))
+      w <- logW[[items[t]]]
+      for (x in 0:m[t]) {
+        at <- (x + 1):(x + length(prev))
+        cur[at] <- log_add(cur[at], w[x + 1L] + prev)
+      }
+      finite <- is.finite(cur)
+      if (any(finite)) cur[finite] <- cur[finite] - max(cur[finite])
+      G[[t]] <- cur
     }
     for (i in rows) {
       r <- sum(X[i, items])
       for (t in seq_len(k)) {
-        w <- W[[items[t]]]
+        w <- logW[[items[t]]]
         xs <- 0:m[t]
         rest <- G[[t + 1L]]
         ok <- (r - xs) >= 0 & (r - xs) <= (length(rest) - 1L)
-        pr <- numeric(length(xs))
-        pr[ok] <- w[xs[ok] + 1] * rest[r - xs[ok] + 1L]
+        lp <- rep(-Inf, length(xs))
+        lp[ok] <- w[xs[ok] + 1L] + rest[r - xs[ok] + 1L]
+        if (!any(is.finite(lp)))
+          stop("internal conditional-bootstrap score has no feasible pattern")
+        pr <- exp(lp - max(lp))
         x <- if (t == k) r else sample.int(length(xs), 1L, prob = pr) - 1L
         out[i, items[t]] <- x
         r <- r - x
@@ -716,6 +740,9 @@
 #' \eqn{2/(1+B)}. For \eqn{L} items, Holm-adjusted inference at .05 requires
 #' at least \eqn{20L} replicates for the chi-square and \eqn{40L} for the
 #' two-sided statistics.
+#' Runs of at least 30 replicates also require at least 30 and 90 percent of
+#' the requested refits to be usable. Otherwise inference is withheld because
+#' failed refits can select a non-random subset of the bootstrap null.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} or \code{\link{btl}}.
 #'   Extended-frame, many-facet and explanatory person-by-item fits are not
@@ -740,6 +767,8 @@
 #'   replicate counts, including separate non-convergence and other-failure
 #'   counts. For a paired-comparison fit, the corresponding tables are
 #'   \code{pairs}, \code{objects}, \code{judges} and \code{total}.
+#'   Runs requesting at least 30 replicates are withheld unless at least 30
+#'   and 90 percent of the requested refits are usable.
 #' @references Andrich, D. and Marais, I. (2019) \emph{A Course in Rasch
 #'   Measurement Theory}. Springer.
 #' Molenaar, I. W. and Hoijtink, H. (1996). Person-fit test statistics for the
@@ -1024,4 +1053,28 @@ fit_bootstrap <- function(fit, B = 200,
     B_nonconverged = sum(status == "nonconverged"),
     B_errors = sum(status == "error"),
     minimum_usable = min_success, theta = theta), fit, "rasch")
+}
+
+#' @export
+print.rasch_fit_bootstrap <- function(x, ...) {
+  kind <- if (identical(x$model_kind, "btl"))
+    "Paired-comparison" else "Person-by-item"
+  cat(kind, "fit bootstrap\n", sep = " ")
+  cat("Usable replicates: ", x$B_used, " of ", x$B,
+      if (isTRUE(x$B_failed > 0L))
+        sprintf(" (%d failed)", x$B_failed) else "", "\n", sep = "")
+  if (identical(x$model_kind, "btl")) {
+    cat("Results: ", nrow(x$pairs), " pairs, ", nrow(x$objects), " objects",
+        if (!is.null(x$judges)) sprintf(", %d judges", nrow(x$judges)) else "",
+        "\n", sep = "")
+  } else {
+    cat("Results: ", nrow(x$items), " items",
+        if (!is.null(x$persons)) sprintf(", %d persons", nrow(x$persons)) else "",
+        "\n", sep = "")
+  }
+  p <- x$total$chisq_p_boot
+  cat("Whole-test bootstrap p: ",
+      if (length(p) == 1L && is.finite(p)) .fmt_p(p) else "unavailable",
+      "\n", sep = "")
+  invisible(x)
 }

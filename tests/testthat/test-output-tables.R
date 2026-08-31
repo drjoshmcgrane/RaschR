@@ -180,6 +180,44 @@ test_that("exports accept only a compatible fit-bootstrap result", {
                "current fit_bootstrap")
 })
 
+test_that("exports accept DIF only from the fitted model being reported", {
+  X <- simd2(160, seq(-1, 1, length.out = 5), seed = 27)
+  g1 <- rep(c("A", "B"), each = 80)
+  g2 <- rep(c("A", "B"), times = 80)
+  fit1 <- rasch(data.frame(X, group = g1), factors = "group")
+  fit2 <- rasch(data.frame(X, group = g2), factors = "group")
+  da <- dif_anova(fit1)
+  expect_no_error(.validate_dif_result(da, fit1))
+  expect_error(.validate_dif_result(da, fit2), "different fitted model")
+
+  out <- tempfile("wrong-dif-")
+  expect_error(save_outputs(fit2, out, formats = "png",
+                            item_plots = FALSE, dif = da),
+               "different fitted model")
+  expect_false(dir.exists(out))
+  html <- tempfile(fileext = ".html")
+  expect_error(report_html(fit2, html, dif = da), "different fitted model")
+  expect_false(file.exists(html))
+  expect_error(report_document(fit2, html, dif = da),
+               "different fitted model")
+
+  # Person identity is part of the statistical design: the same response
+  # rows and factors are a repeated-person analysis under one identifier and
+  # a between-person analysis under another.
+  Xr <- simd2(160, seq(-1, 1, length.out = 5), seed = 28)
+  occasion <- rep(c("pre", "post"), each = 80)
+  repeated <- rasch(data.frame(id = rep(sprintf("P%03d", 1:80), 2),
+                               occasion, Xr),
+                    id = "id", factors = "occasion")
+  independent <- rasch(data.frame(id = sprintf("R%03d", 1:160),
+                                  occasion, Xr),
+                       id = "id", factors = "occasion")
+  repeated_dif <- dif_anova(repeated)
+  expect_identical(repeated_dif$within, "occasion")
+  expect_error(.validate_dif_result(repeated_dif, independent),
+               "different fitted model")
+})
+
 test_that("report_document writes a self-contained HTML report", {
   skip_if_not_installed("rmarkdown")
   skip_if_not(rmarkdown::pandoc_available())

@@ -849,6 +849,30 @@ test_that("dif_size withholds magnitude and significance on a weak category", {
   expect_true(any(grepl("weakly identified|withheld", ds$notes)))
 })
 
+test_that("withheld DIF probabilities remain in their declared families", {
+  d <- simulate_rasch(900, 6, model = "PCM", n_categories = 3,
+                      n_groups = 3, seed = 912)
+  thin <- which(d$group == "g3")
+  d$I02[thin] <- pmin(d$I02[thin], 1L)
+  d$I02[thin[1L]] <- 2L
+  fit <- rasch(d, model = "PCM", factors = "group", id = "id")
+
+  sizes <- dif_size(fit, "I02", by = "group")$pairs
+  usable <- is.finite(sizes$p)
+  expect_equal(sum(usable), 1L)
+  expect_equal(sizes$p_adj[usable],
+               p.adjust(sizes$p[usable], "holm", n = nrow(sizes)))
+  expect_true(all(is.na(sizes$p_adj[!usable])))
+
+  contrasts <- dif_contrasts(fit, factors = "group")$table
+  usable <- is.finite(contrasts$p)
+  expect_lt(sum(usable), nrow(contrasts))
+  expect_equal(contrasts$p_adj[usable],
+               p.adjust(contrasts$p[usable], "holm",
+                        n = nrow(contrasts)))
+  expect_true(all(is.na(contrasts$p_adj[!usable])))
+})
+
 test_that("resolve_dif does not split a uniform flag driven by a thin cell", {
   set.seed(102)
   N <- 600; L <- 6

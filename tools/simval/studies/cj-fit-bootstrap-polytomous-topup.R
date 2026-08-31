@@ -57,11 +57,15 @@ if (any(d$status != "analysed"))
 a <- d[d$status == "analysed", , drop = FALSE]
 nr <- nrow(a)
 acct <- list(attempted = nrow(d), refused = sum(d$status == "refused"),
-             nonconv = sum(d$status == "nonconv"))
+             nonconv = sum(d$status == "nonconv"),
+             error = sum(d$status == "error"))
+inner <- list(
+  used = sum(d$B_used, na.rm = TRUE),
+  nonconv = sum(d$B_nonconverged, na.rm = TRUE),
+  errors = sum(d$B_errors, na.rm = TRUE))
+inner$attempted <- inner$used + inner$nonconv + inner$errors
 inner_note <- sprintf("%d of %d bootstrap refits did not converge; %d otherwise failed",
-  sum(d$B_nonconverged, na.rm = TRUE),
-  sum(d$B_used + d$B_nonconverged + d$B_errors, na.rm = TRUE),
-  sum(d$B_errors, na.rm = TRUE))
+  inner$nonconv, inner$attempted, inner$errors)
 
 make_row <- function(metric) sv_row(
   "paired-comparison fit bootstrap",
@@ -73,7 +77,9 @@ make_row <- function(metric) sv_row(
     judge_familywise = "judge fit-residual joint-adjusted familywise error",
     judge_marginal = "judge fit-residual marginal Type I error"),
   n_reps = nr, n_attempted = acct$attempted, n_refused = acct$refused,
-  n_nonconv = acct$nonconv,
+  n_nonconv = acct$nonconv, n_error = acct$error,
+  n_boot_attempted = inner$attempted, n_boot_used = inner$used,
+  n_boot_nonconv = inner$nonconv, n_boot_errors = inner$errors,
   type1 = if (metric %in% c("total", "judge_marginal"))
     mean(a[[metric]]) else NA_real_,
   familywise = if (!metric %in% c("total", "judge_marginal"))

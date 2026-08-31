@@ -2027,9 +2027,9 @@ test_that("ties, keys, identifiers and project files are read faithfully", {
   expect_error(btl(db2, "object_a", "object_b", response = "resp"),
                "no usable comparisons")
 
-  mk <- function(mt) list(format = "rasch-shiny-project", schema = 1L,
-                          data = as.data.frame(X), base_fit = f,
-                          model_type = mt)
+  mk <- function(mt) .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), base_fit = f, model_type = mt))
   expect_error(.validate_app_project(mk(c("rasch", "efrm"))),
                "unsupported model type")
   expect_error(.validate_app_project(mk(NA_character_)),
@@ -2076,9 +2076,9 @@ test_that("unknown identifiers and blank key items do not stand in for data", {
 
   # a declared model type is a character scalar, not a factor code
   f0 <- rasch(X)
-  mk <- function(mt) list(format = "rasch-shiny-project", schema = 1L,
-                          data = as.data.frame(X), base_fit = f0,
-                          model_type = mt)
+  mk <- function(mt) .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), base_fit = f0, model_type = mt))
   expect_error(.validate_app_project(mk(factor("rasch"))),
                "unsupported model type")
   expect_no_error(.validate_app_project(mk("rasch")))
@@ -2156,10 +2156,11 @@ test_that("one outcome, one column per role, one item name per key entry", {
   mk <- function(sc) list(format = "rasch-shiny-project", schema = sc,
                           data = as.data.frame(X), base_fit = f0,
                           model_type = "rasch")
-  for (bad in list(factor("future"), 1.5, TRUE, "1", 2L))
+  for (bad in list(factor("future"), 1.5, TRUE, "2", 1L, 3L))
     expect_error(.validate_app_project(mk(bad)), "schema")
-  expect_no_error(.validate_app_project(mk(1L)))
-  expect_no_error(.validate_app_project(mk(1)))
+  good <- .seal_app_project(mk(2L))
+  expect_no_error(.validate_app_project(good))
+  expect_no_error(.validate_app_project(.seal_app_project(mk(2))))
 })
 
 test_that("banks, sequences and margins are read as the values they hold", {

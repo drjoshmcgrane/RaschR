@@ -8,6 +8,20 @@ test_that("the Shiny application resolves in source and installed layouts", {
   expect_true(file.exists(.app_test_path()))
 })
 
+test_that("sourcing the in-tree app reuses the active source namespace", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+  before <- get(".rasch_boot_apply", envir = asNamespace("rasch"),
+                inherits = FALSE)
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  after <- get(".rasch_boot_apply", envir = asNamespace("rasch"),
+               inherits = FALSE)
+  expect_identical(after, before)
+})
+
 test_that("saved app analyses make a validated round trip", {
   set.seed(81)
   theta <- rnorm(120)
@@ -15,9 +29,9 @@ test_that("saved app analyses make a validated round trip", {
     rbinom(length(theta), 1, plogis(theta - d)))
   colnames(X) <- paste0("I", seq_len(ncol(X)))
   fit <- rasch(X)
-  project <- list(
+  project <- .seal_app_project(list(
     format = "rasch-shiny-project",
-    schema = 1L,
+    schema = 2L,
     package_version = "test",
     created = "2026-08-16T00:00:00+1000",
     data = as.data.frame(X),
@@ -34,7 +48,7 @@ test_that("saved app analyses make a validated round trip", {
     resources = list(key = NULL),
     simulation = list(),
     results = list()
-  )
+  ))
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path))
 
@@ -59,16 +73,45 @@ test_that("invalid app analysis files are refused", {
   X <- matrix(rbinom(300, 1, .5), 60, 5,
               dimnames = list(NULL, paste0("I", 1:5)))
   fit <- rasch(X)
-  future <- list(format = "rasch-shiny-project", schema = 2L,
+  future <- list(format = "rasch-shiny-project", schema = 3L,
                  data = as.data.frame(X), base_fit = fit)
   saveRDS(future, bad)
   expect_error(.read_app_project(bad), "unsupported")
 
-  malformed <- list(format = "rasch-shiny-project", schema = 1L,
-                    data = as.data.frame(X), base_fit = fit,
-                    settings = "not a list")
+  malformed <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), base_fit = fit, settings = "not a list"))
   saveRDS(malformed, bad)
   expect_error(.read_app_project(bad), "invalid settings")
+
+  legacy <- list(format = "rasch-shiny-project", schema = 1L,
+                 data = as.data.frame(X), model_type = "rasch",
+                 base_fit = fit, rasch_steps = list(), btl_steps = list(),
+                 results = list())
+  saveRDS(legacy, bad)
+  expect_warning(upgraded <- .read_app_project(bad), "schema-1")
+  expect_identical(upgraded$schema, 2L)
+  expect_true(isTRUE(attr(upgraded, "rasch_project_legacy")))
+  expect_no_error(.validate_app_project(upgraded))
+
+  empty_fit <- structure(list(), class = "rasch")
+  malformed_fit <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = empty_fit,
+    rasch_steps = list(), btl_steps = list(), results = list()))
+  expect_error(.validate_app_project(malformed_fit), "saved base fit")
+
+  bound <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), results = list()))
+  expect_no_error(.validate_app_project(bound))
+  matrix_bound <- bound
+  matrix_bound$data <- X
+  matrix_bound <- .seal_app_project(matrix_bound)
+  expect_no_error(.validate_app_project(matrix_bound))
+  bound$data <- data.frame(unrelated = seq_len(nrow(X)))
+  expect_error(.validate_app_project(bound), "changed since they were saved")
 })
 
 test_that("saved bootstrap results must belong to the active saved fit", {
@@ -82,18 +125,34 @@ test_that("saved bootstrap results must belong to the active saved fit", {
   bs <- .new_fit_bootstrap(
     list(items = fit1$items, total = list(), B = 1L, B_used = 1L),
     fit1, "rasch")
-  project <- list(
-    format = "rasch-shiny-project", schema = 1L,
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
     data = as.data.frame(X1), model_type = "rasch", base_fit = fit1,
     rasch_steps = list(), btl_steps = list(), results = list(
-      bootstrap = list(bs = bs, B = 1L, seed = 1L, kind = "rasch")))
+      bootstrap = list(bs = bs, B = 1L, seed = 1L, kind = "rasch"))))
   expect_no_error(.validate_app_project(project))
 
-  project$rasch_steps <- list(list(type = "test", fit = fit2))
+  history_entry <- function(type, fit) list(
+    type = type, label = type, fit = fit, details = list(), code = NULL,
+    created = "2026-08-16T00:00:00+1000")
+  project$rasch_steps <- list(history_entry("test", fit2))
   expect_error(.validate_app_project(project),
                "does not belong to the active fit")
+  project$rasch_steps <- list(
+    history_entry("corrupt", "not a fitted model"),
+    history_entry("test", fit1))
+  expect_error(.validate_app_project(project), "fitted-model history")
+  wrong_family <- fit1
+  class(wrong_family) <- c("rasch_efrm", class(wrong_family))
+  project$rasch_steps <- list(history_entry("wrong", wrong_family))
+  expect_error(.validate_app_project(project), "fitted-model history")
+  project$rasch_steps <- list()
   project$results$bootstrap <- list(bs = list())
   expect_error(.validate_app_project(project), "saved bootstrap result")
+
+  project$results <- list()
+  project$base_fit <- wrong_family
+  expect_error(.validate_app_project(project), "declares model type")
 })
 
 test_that("opening a project retains results tied to its active fit", {
@@ -110,8 +169,8 @@ test_that("opening a project retains results tied to its active fit", {
   X <- matrix(rbinom(500, 1, .5), 100, 5,
               dimnames = list(NULL, paste0("I", 1:5)))
   fit <- rasch(X)
-  project <- list(
-    format = "rasch-shiny-project", schema = 1L,
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
     data = as.data.frame(X), model_type = "rasch", base_fit = fit,
     rasch_steps = list(), btl_steps = list(), rcode = "fit <- rasch(dat)",
     kept_fits = list(), kept_fit_code = list(),
@@ -120,7 +179,7 @@ test_that("opening a project retains results tied to its active fit", {
                     thr_structure = "pcm", ng_auto = FALSE, ng = "6",
                     maxit = 75, tol = 1e-7),
     resources = list(anchors = NULL, key = NULL), simulation = list(),
-    results = list(lr = list(marker = 17L)))
+    results = list(lr = list(marker = 17L))))
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path), add = TRUE)
   .save_app_project(project, path)
@@ -167,8 +226,8 @@ test_that("CJ results and background work remain tied to their launching fit", {
   d2 <- simulate_btl(5, 8, 2, seed = 92)
   bt1 <- btl(d1, "object_a", "object_b", "winner", judge = "judge")
   bt2 <- btl(d2, "object_a", "object_b", "winner", judge = "judge")
-  project <- list(
-    format = "rasch-shiny-project", schema = 1L,
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
     data = as.data.frame(d1), model_type = "btl", base_fit = bt1,
     rasch_steps = list(), btl_steps = list(), rcode = "bt <- btl(dat)",
     kept_fits = list(), kept_fit_code = list(),
@@ -176,7 +235,7 @@ test_that("CJ results and background work remain tied to their launching fit", {
                     bt_b = "object_b", bt_win = "winner",
                     bt_judge = "judge"),
     resources = list(), simulation = list(),
-    results = list(btl_dif = list(marker = 23L)))
+    results = list(btl_dif = list(marker = 23L))))
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path), add = TRUE)
   .save_app_project(project, path)

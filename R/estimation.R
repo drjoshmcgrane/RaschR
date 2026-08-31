@@ -18,6 +18,23 @@
 # ===========================================================================
 
 
+# Adjust the finite probabilities while retaining every member of the
+# declared family. stats::p.adjust() otherwise reduces n when p contains NA,
+# which makes an incomplete family less stringent than the question asked.
+.p_adjust_family <- function(p, method = "holm", n = length(p)) {
+  if (length(n) != 1L || is.na(n) || !is.finite(n) || n < length(p) ||
+      n != as.integer(n))
+    stop("`n` must be one whole number at least as large as `p`",
+         call. = FALSE)
+  out <- rep(NA_real_, length(p))
+  usable <- is.finite(p)
+  if (any(usable))
+    out[usable] <- stats::p.adjust(p[usable], method = method,
+                                   n = as.integer(n))
+  out
+}
+
+
 # The columns the person table generates for itself. A factor sharing one of
 # these names would be bound into the same table and silently replace the
 # calculated column -- a factor called class_interval would stand in for the

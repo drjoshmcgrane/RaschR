@@ -317,8 +317,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE,
                          dif = NULL, bootstrap = NULL) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
-  if (!is.null(dif) && !is.list(dif))
-    stop("`dif` must be a dif_anova() result")
+  .validate_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
@@ -682,6 +681,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
   .check_out_path(file, "file")
+  .validate_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")
@@ -965,6 +965,7 @@ report_document <- function(fit, file,
                             dif = NULL, bootstrap = NULL) {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
+  .validate_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   # computed results travel as attributes on the serialised fit, so the
   # template renders the analysis as run rather than a default recomputation

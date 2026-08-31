@@ -649,7 +649,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     fit$interaction_effects$p <- if (support_ok)
       2 * stats::pt(-abs(fit$interaction_effects$z),
                     df = max(n_units - 1L, 1L)) else NA_real_
-    fit$interaction_effects$p_adj <- stats::p.adjust(
+    fit$interaction_effects$p_adj <- .p_adjust_family(
       fit$interaction_effects$p, method = "holm")
     fit$interaction_effects$significant <-
       fit$interaction_effects$p_adj < 0.05

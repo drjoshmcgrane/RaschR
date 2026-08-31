@@ -55,26 +55,39 @@ if (any(d$status != "analysed"))
 a <- d[d$status == "analysed", , drop = FALSE]
 nr <- nrow(a)
 acct <- list(attempted = nrow(d), refused = sum(d$status == "refused"),
-             nonconv = sum(d$status == "nonconv"))
+             nonconv = sum(d$status == "nonconv"),
+             error = sum(d$status == "error"))
+inner <- list(
+  used = sum(d$B_used, na.rm = TRUE),
+  nonconv = sum(d$B_nonconverged, na.rm = TRUE),
+  errors = sum(d$B_errors, na.rm = TRUE))
+inner$attempted <- inner$used + inner$nonconv + inner$errors
 inner_note <- sprintf("%d of %d bootstrap refits did not converge; %d otherwise failed",
-  sum(d$B_nonconverged, na.rm = TRUE),
-  sum(d$B_used + d$B_nonconverged + d$B_errors, na.rm = TRUE),
-  sum(d$B_errors, na.rm = TRUE))
+  inner$nonconv, inner$attempted, inner$errors)
 
 rows <- rbind(
   sv_row("person fit bootstrap", "PCM, 500 persons x 12 four-category items",
     "person fit-residual marginal Type I error", n_reps = nr,
     n_attempted = acct$attempted, n_refused = acct$refused,
-    n_nonconv = acct$nonconv, type1 = mean(a$marginal),
+    n_nonconv = acct$nonconv, n_error = acct$error,
+    n_boot_attempted = inner$attempted, n_boot_used = inner$used,
+    n_boot_nonconv = inner$nonconv, n_boot_errors = inner$errors,
+    type1 = mean(a$marginal),
     mc_override = list(type1 = stats::sd(a$marginal) / sqrt(nr)),
-    notes = paste(sprintf("B = %d; score-conditional null", B), inner_note,
+    notes = paste(sprintf(paste0("B = %d; score-conditional null; ",
+      "at least 90%% usable required when B >= 30"), B), inner_note,
                   sep = "; ")),
   sv_row("person fit bootstrap", "PCM, 500 persons x 12 four-category items",
     "person fit-residual joint-adjusted familywise error", n_reps = nr,
     n_attempted = acct$attempted, n_refused = acct$refused,
-    n_nonconv = acct$nonconv, familywise = mean(a$familywise),
-    notes = paste(sprintf("B = %d; maximum-statistic adjustment", B),
+    n_nonconv = acct$nonconv, n_error = acct$error,
+    n_boot_attempted = inner$attempted, n_boot_used = inner$used,
+    n_boot_nonconv = inner$nonconv, n_boot_errors = inner$errors,
+    familywise = mean(a$familywise),
+    notes = paste(sprintf(paste0("B = %d; maximum-statistic adjustment; ",
+      "at least 90%% usable required when B >= 30"), B),
                   inner_note, sep = "; ")))
 
-sv_write(rows, if (NREP < 30L)
-  "person-fit-bootstrap-pcm-topup-smoke" else "person-fit-bootstrap-pcm-topup")
+primary <- NREP == 200L && B == 199L
+sv_write(rows, if (primary) "person-fit-bootstrap-pcm-topup" else
+  "person-fit-bootstrap-pcm-topup-screen")
