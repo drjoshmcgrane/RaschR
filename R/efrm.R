@@ -525,19 +525,23 @@
 }
 .efrm_cancelled <- function() .rasch_cancelled("EFRM estimation")
 
-# A covariance estimate needs a majority of the requested draws to succeed,
-# so a badly failing design cannot look adequately sampled. The rule is a
-# majority and nothing further: boot_reps is already required to be at least
-# 30, so a majority is at least 16 draws. An additional absolute floor of 30
-# would demand that every replicate succeed at the smallest permitted
-# bootstrap, leaving no usable setting at the documented minimum.
+# A covariance estimate needs three things at once: at least 30 usable
+# draws (the documented contract -- at the permitted minimum of boot_reps =
+# 30 that means every replicate, which is what "at least 30 are required"
+# promises), a majority of the draws requested (a badly failing design must
+# not look adequately sampled by asking for more), and more draws than the
+# covariance has independent directions (fewer cannot span its effective
+# rank). An earlier reading
+# argued the 30-floor away as too strict at the minimum; 16 draws pricing a
+# covariance is what that reasoning permitted.
 .rasch_min_boot_success <- function(boot_reps, n_quantities = 0L) {
   # the documented contract (rasch_btl_efrm, rasch_efrm): inference needs at
   # least 30 successful replicates AND more than half of those requested. A
   # bare majority of 30 would let 16 draws price a covariance, and a
   # standard deviation from 16 draws is noise wearing a number. A covariance
-  # additionally needs more draws than it has columns, or it cannot even
-  # reach full rank -- so the floor also clears the quantity count.
+  # additionally needs more draws than its effective rank, or the sample
+  # covariance cannot span its free directions -- so the floor also clears
+  # that count.
   as.integer(max(30L, floor(boot_reps / 2) + 1L, n_quantities + 1L))
 }
 .efrm_min_boot_success <- function(boot_reps, n_quantities = 0L) {
@@ -757,6 +761,7 @@
   # instead of 5%.
   cov_link <- NULL
   cov_alpha_phi <- NULL
+  cross_withheld <- FALSE
   link_reps <- dtilde_reps <- NULL
   if (boot_reps > 0 && point_converged) {
     # a pool of parameter draws cycled across the person resamples: each
@@ -818,7 +823,10 @@
     }
     complete <- stats::complete.cases(reps)
     reps_ok <- reps[complete, , drop = FALSE]
-    min_success <- .efrm_min_boot_success(boot_reps, ncol(reps))
+    # log(alpha) and mu each obey a sum-zero identification constraint, so
+    # their joint covariance has 2(S - 1) independent directions rather than
+    # the 2S columns used to store it.
+    min_success <- .efrm_min_boot_success(boot_reps, 2L * (S - 1L))
     if (nrow(reps_ok) < min_success)
       stop("too few unit-linking bootstrap replicates were usable for a ",
            "stable alpha covariance (", nrow(reps_ok), " of ", boot_reps,
@@ -830,23 +838,34 @@
       dtilde_reps <- dtilde_reps[complete, , drop = FALSE]
     if (!is.null(phi_reps)) {
       joint_ok <- complete & stats::complete.cases(phi_reps)
-      # the cross-covariance feeds frame-unit standard errors, so it meets
-      # the same floor as any other bootstrap covariance: at least 30 joint
-      # draws, a majority of those requested, and more draws than columns
-      joint_min <- .rasch_min_boot_success(boot_reps,
-                                           S + ncol(phi_reps))
+      # The cross-covariance feeds frame-unit standard errors, so it meets the
+      # same absolute/majority floor as the other bootstrap quantities.
+      # Only the alpha-by-phi cross block is retained here; no joint
+      # (S + G)-dimensional covariance is inverted.  Its sampling guard is
+      # therefore the absolute/majority rule, while the alpha covariance above
+      # is guarded against the 2(S - 1) free directions in its own block.
+      joint_min <- .rasch_min_boot_success(boot_reps)
       if (sum(joint_ok) >= joint_min) {
         C <- stats::cov(cbind(reps[joint_ok, seq_len(S), drop = FALSE],
                               phi_reps[joint_ok, , drop = FALSE]))
         cov_alpha_phi <- C[seq_len(S), S + seq_len(ncol(phi_reps)),
                            drop = FALSE]
         dimnames(cov_alpha_phi) <- list(sets_u, colnames(phi_reps))
-      } else if (sum(joint_ok) >= 2L) {
+      } else {
+        cross_withheld <- TRUE
         warning("only ", sum(joint_ok), " joint alpha-phi bootstrap draws ",
                 "were usable (", joint_min, " required); the alpha-phi ",
-                "cross-covariance is withheld and frame-unit standard ",
-                "errors omit it", call. = FALSE)
+                "cross-covariance is withheld and the affected frame-unit ",
+                "standard errors are NA", call. = FALSE)
       }
+    } else {
+      # A person-only link can estimate alpha, but it contains no joint draw
+      # with log(phi).  That missing cross-stage covariance is unknown, not
+      # evidence that it is zero.
+      cross_withheld <- TRUE
+      warning("calibration redraws were unavailable, so the alpha-phi ",
+              "cross-covariance is withheld and the affected frame-unit ",
+              "standard errors are NA", call. = FALSE)
     }
   }
 
@@ -856,6 +875,7 @@
        mu = setNames(point$mu, sets_u),
        cov_link = cov_link,
        cov_alpha_phi = cov_alpha_phi,
+       cross_cov_withheld = cross_withheld,
        link_reps = link_reps,
        dtilde_reps = dtilde_reps,
        boot_reps_requested = as.integer(boot_reps),
@@ -1014,9 +1034,11 @@
 #'   is reported only when more than half of the requested replicates are
 #'   usable.
 #'   Inference is returned only when at least 30 replicates succeed, a
-#'   majority of those requested, and more than the bootstrap covariance
-#'   has columns; below that the affected covariance is withheld with a
-#'   warning.
+#'   majority of those requested, and the requested count exceeds the number
+#'   of independent directions in the largest covariance block used by the
+#'   fit. The fit stops if the linking covariance cannot meet that rule; an
+#'   unsuccessful full bootstrap falls back to hybrid standard errors with a
+#'   warning and retains its replicate accounting.
 #' @param progress Optional function called as \code{progress(stage, current,
 #'   total)} during long uncertainty calculations. It is intended for
 #'   interfaces and batch logging and does not alter estimation.
@@ -1485,6 +1507,20 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   items_o <- colnames(X)[iord]
   thr_items <- threshold_index(m_item[items_o])
   Md <- nrow(thr_items)
+  # The bootstrap output concatenates several parameter families for storage,
+  # but inference uses separate covariance blocks. Their rank is determined by
+  # the free directions after the set, group and origin constraints, not by the
+  # total stored row. Requiring more draws than that row made ordinary designs
+  # impossible even when every refit succeeded.
+  link_cov_rank <- 2L * max(S - 1L, 0L)
+  full_cov_rank <- max(Md - 1L, G - 1L, S - 1L, 0L)
+  bootstrap_cov_dim <- if (se_method == "bootstrap")
+    max(link_cov_rank, full_cov_rank) else link_cov_rank
+  if (boot_reps > 0L && boot_reps <= bootstrap_cov_dim)
+    stop("EFRM uncertainty for this design needs at least ",
+         bootstrap_cov_dim + 1L, " replicates to span the free directions in ",
+         "its largest covariance block; increase `boot_reps`, or use zero to ",
+         "omit unit uncertainty")
   # map each virtual threshold row to its delta row
   drow <- vapply(seq_len(nrow(thr_v)), function(r) {
     it <- vmap$item[thr_v$item[r]]
@@ -1671,6 +1707,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     alpha <- setNames(1, sets_u); mu <- setNames(0, sets_u)
     link <- list(alpha = alpha, se_log_alpha = setNames(0, sets_u), mu = mu,
                  cov_link = NULL, cov_alpha_phi = NULL,
+                 cross_cov_withheld = FALSE,
                  boot_reps_requested = 0L, boot_reps_used = 0L,
                  boot_reps_failed = 0L, edges = data.frame())
   }
@@ -1723,7 +1760,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     collect <- collect[stats::complete.cases(collect), , drop = FALSE]
     full_boot_reps_used <- nrow(collect)
     full_boot_reps_failed <- boot_reps - full_boot_reps_used
-    min_success <- .rasch_min_boot_success(boot_reps, ncol(collect))
+    min_success <- .rasch_min_boot_success(boot_reps, full_cov_rank)
     if (full_boot_reps_used < min_success) {
       fallback_note <- sprintf(
         paste0("full person bootstrap: %d of %d replicates were usable; ",
@@ -1993,10 +2030,16 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                else {
                  is <- match(fr$set[j], sets_u)
                  ig <- match(fr$group[j], glevs)
-                 cross <- if (is.null(link$cov_alpha_phi)) 0 else
-                   link$cov_alpha_phi[is, ig]
-                 sqrt(pmax(fit$alpha_table$se_log_alpha[is]^2 +
-                             fit$phi_table$se_log_phi[ig]^2 + 2 * cross, 0))
+                 # a cross-covariance withheld for too few joint draws is
+                 # unknown, not zero: adding the marginal variances as
+                 # though it were zero is not necessarily conservative,
+                 # so the standard error is NA rather than a guess
+                 if (isTRUE(link$cross_cov_withheld)) NA_real_ else {
+                   cross <- if (is.null(link$cov_alpha_phi)) 0 else
+                     link$cov_alpha_phi[is, ig]
+                   sqrt(pmax(fit$alpha_table$se_log_alpha[is]^2 +
+                               fit$phi_table$se_log_phi[ig]^2 + 2 * cross, 0))
+                 }
                },
                origin = unname(mu[fr$set[j]]),
                infit_ms = gf$infit_ms, outfit_ms = gf$outfit_ms,

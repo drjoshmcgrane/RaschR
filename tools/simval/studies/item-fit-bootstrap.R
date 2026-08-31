@@ -97,7 +97,8 @@ for (n in c(250L, 500L, 1000L, 2000L, 4000L)) {
   rows[[length(rows) + 1L]] <- sv_row(
     "item fit bootstrap", scen,
     "fit residual beyond the conventional 2.5 (asymptotic)",
-    n_reps = nrep, type1 = mean(d$a_fitres_conv, na.rm = TRUE),
+    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
+    type1 = mean(d$a_fitres_conv, na.rm = TRUE),
     mc_override = list(type1 = cluster_se(d, "a_fitres_conv")),
     notes = sprintf("fit residual mean %.3f SD %.3f; mean chisq %.1f on df %d",
                     mean(d$fit_resid, na.rm = TRUE),
@@ -110,21 +111,28 @@ for (n in c(250L, 500L, 1000L, 2000L, 4000L)) {
       "item fit bootstrap", scen,
       sprintf("total item-trait Type I error (%s)",
               if (m == "a") "asymptotic" else "parametric bootstrap"),
-      n_reps = nrep, type1 = mean(tot[[paste0(m, "_total")]], na.rm = TRUE))
+      n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
+      type1 = mean(tot[[paste0(m, "_total")]], na.rm = TRUE),
+      notes = sprintf("B = %d", B))
   rows[[length(rows) + 1L]] <- sv_row(
     "item fit bootstrap", scen,
     "familywise error, Holm over items (bootstrap chi-square)",
-    n_reps = nrep, familywise = mean(tot$fw_b, na.rm = TRUE))
+    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
+    familywise = mean(tot$fw_b, na.rm = TRUE),
+    notes = sprintf("B = %d", B))
   rows[[length(rows) + 1L]] <- sv_row(
     "item fit bootstrap", scen,
     "familywise error, Holm over items (bootstrap fit residual)",
-    n_reps = nrep, familywise = mean(tot$fw_b_fr, na.rm = TRUE))
+    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
+    familywise = mean(tot$fw_b_fr, na.rm = TRUE),
+    notes = sprintf("B = %d", B))
   rows[[length(rows) + 1L]] <- sv_row(
     "item fit bootstrap", scen,
     "item fit residual SD Type I error (parametric bootstrap)",
-    n_reps = nrep, type1 = mean(tot$b_fr_sd, na.rm = TRUE),
-    notes = sprintf("observed fit residual SD %.3f (the convention reads it against 1)",
-                    mean(tot$fr_sd, na.rm = TRUE)))
+    n_reps = nrep, n_attempted = NREP, n_nonconv = NREP - nrep,
+    type1 = mean(tot$b_fr_sd, na.rm = TRUE),
+    notes = sprintf("B = %d; observed fit residual SD %.3f (the convention reads it against 1)",
+                    B, mean(tot$fr_sd, na.rm = TRUE)))
 }
 
 # Over-discrimination is the departure the class-interval statistic is built

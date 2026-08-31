@@ -225,3 +225,48 @@ test_that("test_information refuses fractional indices and finds EFRM items", {
   ti_g <- test_information(fe, grid, items = gcols)
   expect_true(all(grepl(paste0("group=", g1), unique(ti_g$design), fixed = TRUE)))
 })
+
+test_that("qualified group names split on the factor name, not any colon", {
+  d <- simulate_rasch(200, 6, seed = 35)
+  d$group <- rep(c("a", "b"), 100)
+  d$cohort <- rep(c("2024: spring", "2024: autumn"), 100)   # colons in levels
+  f <- rasch(d, id = "id", factors = c("group", "cohort"))
+  k <- .pimap_persons(f, "cohort: 2024: spring")
+  expect_equal(sum(k), 100)
+  expect_error(.pimap_persons(f, "cohort: 2024: winter"), "not a level")
+  # a bare qualified-looking string that is actually a plain level
+  expect_error(.pimap_persons(f, "nofactor: x"), "does not match")
+})
+
+test_that("a crossed-frame EFRM map keeps only the selected group designs", {
+  de <- simulate_efrm(n_per_group = 80, items_per_set = 5, n_sets = 2,
+                      n_groups = 2, seed = 36)
+  tr <- attr(de, "truth")
+  de$grp <- tr$groups
+  de$region <- rep(c("N", "S"), length.out = nrow(de))
+  fe <- rasch_efrm(de, item_sets = tr$item_sets,
+                   groups = c("grp", "region"), boot_reps = 0)
+  keep_p <- .pimap_persons(fe, "grp: g1")
+  frames_of <- as.character(fe$factors[[fe$frame_group[1]]])
+  glev <- unique(frames_of[keep_p])
+  gcols <- which(as.character(fe$virtual_map$group) %in% glev)
+  ti <- test_information(fe, seq(-1, 1, by = 0.5), items = gcols)
+  expect_setequal(glev, c("g1:N", "g1:S"))
+  expect_true(all(startsWith(unique(ti$design), "group=g1:")))
+  expect_equal(length(unique(ti$design)), 2L)
+  expect_equal(length(unique(test_information(
+    fe, seq(-1, 1, by = 0.5))$design)), 4L)
+  # The crossed factor and its level both contain colons; the qualified
+  # selector still addresses that one cell exactly.
+  cell <- sprintf("%s: %s", fe$frame_group[1], glev[1])
+  expect_equal(sum(.pimap_persons(fe, cell)), sum(frames_of == glev[1]))
+
+  exact_g1 <- as.character(fe$virtual_map$vkey[
+    which(as.character(fe$virtual_map$group) == "g1:N")[1L]])
+  expect_error(
+    plot_pimap(fe, information = TRUE, group = "grp: g2", items = exact_g1),
+    "select no common EFRM response cells")
+  expect_no_error(plot_pimap(
+    fe, information = TRUE, group = "grp: g2",
+    items = as.character(fe$virtual_map$item[1L])))
+})

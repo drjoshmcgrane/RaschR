@@ -567,7 +567,9 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #'   distribution: item names, or one item-set name of an extended-frame
 #'   fit, whose virtual item-by-group cells match through their underlying
 #'   items. The selection is named in the legend, so a restricted map
-#'   cannot be read as the whole instrument.
+#'   cannot be read as the whole instrument. The information curve follows
+#'   the same item selection; for an extended-frame fit it also follows the
+#'   response cells occupied by the selected person group.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -588,6 +590,31 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
   # the full one.
   keep_p <- .pimap_persons(fit, group)
   keep_i <- .pimap_items(fit, items)
+  info_idx <- NULL
+  if (isTRUE(information)) {
+    info_idx <- if (is.null(items)) NULL else
+      unique(fit$thresholds$item[keep_i])
+    if (!is.null(group) && inherits(fit, "rasch_efrm") &&
+        !is.null(fit$virtual_map) &&
+        fit$frame_group[1] %in% names(fit$factors)) {
+      # Read the actual frames occupied by the selected persons.  A requested
+      # item-by-frame cell from another group is contradictory, not a request
+      # to substitute every response cell in the selected group.
+      frames_of <- as.character(fit$factors[[fit$frame_group[1]]])
+      glev <- unique(frames_of[keep_p])
+      gcols <- which(as.character(fit$virtual_map$group) %in% glev)
+      if (length(gcols)) {
+        if (is.null(info_idx)) info_idx <- gcols
+        else {
+          info_idx <- intersect(info_idx, gcols)
+          if (!length(info_idx))
+            stop("`items` and `group` select no common EFRM response cells; ",
+                 "select an underlying item or a response cell in the chosen ",
+                 "person group", call. = FALSE)
+        }
+      }
+    }
+  }
   th <- fit$person$theta[keep_p]
   th <- th[!is.na(th)]
   tau <- fit$thresholds$tau[keep_i]
@@ -642,20 +669,6 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
     # a set-restricted map carrying the full instrument's information, or a
     # one-group EFRM map carrying every group's curves, would read as
     # precision the selection does not have
-    info_idx <- if (is.null(items)) NULL else
-      unique(fit$thresholds$item[keep_i])
-    if (!is.null(group) && inherits(fit, "rasch_efrm") &&
-        !is.null(fit$virtual_map)) {
-      gname <- fit$frame_group[1]
-      glevel <- if (grepl(":", group, fixed = TRUE))
-        trimws(strsplit(as.character(group), ":", fixed = TRUE)[[1]])[2]
-      else as.character(group)
-      gcols <- which(as.character(fit$virtual_map$group) == glevel)
-      if (length(gcols)) {
-        info_idx <- if (is.null(info_idx)) gcols else intersect(info_idx, gcols)
-        if (!length(info_idx)) info_idx <- gcols
-      }
-    }
     ti <- test_information(fit, grid, items = info_idx)
     des <- if ("design" %in% names(ti)) unique(ti$design) else "Test information"
     cols <- rep_len(c(.rr$teal, .rr$purple, .rr$red, .rr$soft), length(des))
@@ -695,18 +708,24 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
          call. = FALSE)
   group <- as.character(group)
   # the qualified form names the factor as well as the level, and is the
-  # only unambiguous address when two factors share a level name
-  if (grepl(":", group, fixed = TRUE)) {
-    parts <- trimws(strsplit(group, ":", fixed = TRUE)[[1]])
-    if (length(parts) != 2L || !parts[1] %in% names(fac))
-      stop("`group` '", group, "' does not match 'factor: level'; fitted ",
-           "factors: ", paste(names(fac), collapse = ", "), call. = FALSE)
-    v <- as.character(fac[[parts[1]]])
-    if (!parts[2] %in% unique(v))
-      stop("'", parts[2], "' is not a level of factor '", parts[1], "'",
+  # only unambiguous address when two factors share a level name. The split
+  # is on a fitted factor's NAME followed by a colon -- not on any colon --
+  # so a level (or factor) whose own name carries one still resolves; the
+  # longest matching factor name wins when one name prefixes another.
+  pref <- names(fac)[startsWith(group, paste0(names(fac), ":"))]
+  if (length(pref)) {
+    fname <- pref[which.max(nchar(pref))]
+    level <- trimws(substring(group, nchar(fname) + 2L))
+    v <- as.character(fac[[fname]])
+    if (!level %in% unique(v))
+      stop("'", level, "' is not a level of factor '", fname, "'",
            call. = FALSE)
-    return(v == parts[2])
+    return(v == level)
   }
+  if (grepl(":", group, fixed = TRUE) &&
+      !group %in% unlist(lapply(fac, function(v) as.character(unique(v)))))
+    stop("`group` '", group, "' does not match 'factor: level'; fitted ",
+         "factors: ", paste(names(fac), collapse = ", "), call. = FALSE)
   hit <- vapply(fac, function(v) group %in% as.character(unique(v)), TRUE)
   if (!any(hit))
     stop("`group` value '", group, "' is not a level of any fitted person ",

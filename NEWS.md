@@ -1,5 +1,39 @@
 # rasch 1.12.1
 
+* `fit_bootstrap()` now calibrates person fit under its default
+  score-conditional null. It reports marginal probabilities and a
+  maximum-statistic adjustment across persons for each fit
+  statistic. Paired-comparison fits are also supported: outcomes are generated
+  on the fitted comparison design, the model is refitted, and bootstrap
+  probabilities are returned for the total pairwise chi-square and pair,
+  object and judge fit. Ordered thresholds and sequential history effects are
+  reproduced. The application runs either fit bootstrap in a cancellable
+  background process and carries the result into its tables, saved analyses
+  and reports.
+* Fit bootstraps now refuse a non-converged observed fit, reject non-converged
+  refits, and report non-convergence separately from other failed replicates.
+  A maximum-statistic adjustment is withheld for the complete predeclared
+  family when any member lacks a usable joint null. Bootstrap results carry
+  their model identity and can only be exported with the fit that produced
+  them. The application shows unavailable inference neutrally. Documentation
+  now states that adjustment is within each statistic under the fitted global
+  null; it is not strong familywise control for otherwise fitting members when
+  another member misfits.
+* Bootstrap accounting now follows the quantities actually used. EFRM and
+  BTL-EFRM size their rank requirement from the free directions in the largest
+  covariance block, rather than the concatenated row retained from each
+  replicate. Item-fit bootstrap probabilities are withheld when too few refits
+  or too few values of a particular statistic remain; the item table records
+  the usable count for every statistic, and Holm adjustment retains the full
+  family when one result is unavailable. Seeds must be non-negative whole
+  numbers. The asymptotic item-fit probabilities remain available as
+  descriptive diagnostics but are labelled as approximate in summaries,
+  reports and the application. A calibrated bootstrap probability is the
+  operative result
+  after `fit_bootstrap()` is run.
+* A person-item map now refuses an EFRM item-by-frame cell and person-group
+  selection with no common response cell. It no longer replaces the requested
+  item silently with all items from the selected group.
 * Release review, second pass. `fit_bootstrap()` warns when the requested
   replicates cannot reach Holm-adjusted significance at .05 for the item
   count --- the floor is 2L/(B + 1) two-sided, so a run whose adjusted
@@ -21,9 +55,11 @@
   `report_document()` gain `dif` and `bootstrap` arguments), and every
   bootstrap probability a report renders is the Holm-adjusted one. Bootstrap
   covariance acceptance is dimension-aware: successes must also exceed the
-  covariance's column count, since a covariance cannot reach full rank on
-  fewer draws than columns; the alpha--phi cross-covariance meets the same
-  floor and is withheld with a warning below it. On an extended-frame map
+  free directions in the largest covariance block used by the fit, since the
+  stored row contains several separate constrained blocks. The alpha--phi
+  cross-covariance requires 30 joint
+  draws and a majority, and is withheld with a warning below that. On an
+  extended-frame map
   restricted to one group, the information curves are that group's designs
   alone, and `test_information()` refuses fractional indices and accepts an
   extended-frame fit's underlying item names.
@@ -70,10 +106,11 @@
   something different at each sample size. Infit z beyond 1.96 flags 11.5% at
   250 persons and 68.4% at 4,000. The bootstrap generates from the fitted
   model and sends every replicate down the same road as the observed data, so
-  the same bias enters the null and cancels: item-level error is 0.031-0.048
-  for the chi-square across all five sample sizes, 0.034-0.059 for the fit
-  residual and 0.040-0.071 for outfit z, and the whole-test total holds at
-  0.020-0.050. Power is retained in full --- an item generated at
+  the same bias enters the null and cancels: under the score-conditional
+  default, item-level error across all five sample sizes is 0.039-0.051 for
+  the chi-square, 0.039-0.054 for the fit residual, 0.033-0.050 for infit z
+  and 0.037-0.055 for outfit z, and the whole-test total holds at
+  0.020-0.080. Power is retained in full --- an item generated at
   discrimination 2.5 is detected 1.000 of the time at 2,000 persons while the
   clean items beside it come back from 0.723 to 0.037. One set of replicates
   serves every statistic, since a replicate must refit the whole model in any
@@ -176,12 +213,10 @@
   in the notes rather than refused, in `btl_dif()` and `plot_btl_icc()`
   alike; every fitted judge must still carry an entry, which is what
   catches a mistyped judge name.
-* The bootstrap success rule is a majority of the requested replicates.
-  An additional absolute floor of 30 demanded that every replicate succeed
-  at `boot_reps = 30`, the smallest value the fitter accepts, so designs
-  that bootstrap perfectly well at 60 replicates could not be fitted at
-  the documented minimum. The message when too few succeed no longer
-  reports a design as too weak on the strength of one failed replicate.
+* Bootstrap covariance estimation requires at least 30 usable replicates and
+  a majority of those requested. The absolute floor prevents a covariance
+  from being reported from 16 draws when `boot_reps = 30`; the rank rule may
+  raise the minimum for a larger covariance block.
 
 * `pcml_pc()` now labels unnamed response matrices consistently, and direct
   `pcml()` calls reject an empty anchor table. Available-case item-rest
