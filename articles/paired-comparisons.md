@@ -27,33 +27,51 @@ with thresholds symmetric under reversal of presentation order (Tutz
 
 ``` r
 
-d <- simulate_btl(n_objects = 7, n_judges = 12,
-                  reps_per_pair = 20, seed = 5)
+d <- simulate_btl(
+  n_objects = 8,
+  n_judges = 48,
+  reps_per_pair = 84,
+  erratic_judges = 2 / 48,
+  dependence = list(exposure = 0.7, carry_over = 0),
+  seed = 1
+)
+truth <- attr(d, "truth")
+judge_number <- as.integer(sub("^J", "", d$judge))
+d$panel <- factor(ifelse(judge_number %% 2L,
+                         "panel A", "panel B"))
+d$experience <- factor(ifelse(judge_number <= 24,
+                              "experienced", "novice"))
+
 fit <- btl(d, object_a = "object_a", object_b = "object_b",
-           winner = "winner", judge = "judge")
+           winner = "winner", judge = "judge", order = "order")
 fit
-#> Bradley-Terry-Luce analysis: 7 objects, 420 comparisons, 12 judges
-#> Conditional ML: converged in 5 iterations; sandwich SEs clustered by judge
-#> Object separation index 0.957; pairwise chi-square 16.84 on 15 df, p = 0.328
+#> Bradley-Terry-Luce analysis: 8 objects, 2352 comparisons, 48 judges
+#> Conditional ML: converged in 6 iterations; sandwich SEs clustered by judge
+#> Object separation index 0.990; pairwise chi-square 27.25 on 19 df, p = 0.099
+#> Within-judge exposure: 0.730 logits (SE 0.177, t = 4.12, Holm p = < 0.001)
+#> Within-judge carry-over: 0.042 logits (SE 0.065, t = 0.65, Holm p = 0.519)
 #>  object location    se comparisons wins fit_resid extreme
-#>      O1   -0.945 0.158         120   33    -0.419        
-#>      O2   -0.907 0.188         120   34     0.706        
-#>      O3   -0.515 0.149         120   45    -0.043        
-#>      O4   -0.277 0.219         120   52     0.354        
-#>      O5    0.498 0.158         120   75     0.178        
-#>      O6    1.013 0.221         120   89    -0.250        
-#>      O7    1.133 0.169         120   92     0.409        
-#> Judges beyond |fit residual| 2.5: 0
+#>      O1   -1.290 0.119         588  154    -0.092        
+#>      O2   -1.012 0.107         588  160     2.478        
+#>      O3   -0.573 0.083         588  209    -0.933        
+#>      O4   -0.180 0.088         588  262     0.521        
+#>      O5    0.081 0.066         588  300    -0.939        
+#>      O6    0.454 0.092         588  354    -2.406        
+#>      O7    1.088 0.113         588  437     0.988        
+#>      O8    1.432 0.101         588  476     1.256        
+#> Judges beyond |fit residual| 2.5: 2 (J10, J19)
 fit$objects
 #>  object location    se comparisons wins infit_ms outfit_ms fit_resid  df_fit
-#>      O1   -0.945 0.158         120   33    0.988     0.942    -0.419 118.286
-#>      O2   -0.907 0.188         120   34    1.075     1.104     0.706 118.286
-#>      O3   -0.515 0.149         120   45    0.964     0.996    -0.043 118.286
-#>      O4   -0.277 0.219         120   52    1.028     1.033     0.354 118.286
-#>      O5    0.498 0.158         120   75    0.994     1.018     0.178 118.286
-#>      O6    1.013 0.221         120   89    0.997     0.964    -0.250 118.286
-#>      O7    1.133 0.169         120   92    1.047     1.068     0.409 118.286
+#>      O1   -1.290 0.119         588  154    0.976     0.993    -0.092 585.750
+#>      O2   -1.012 0.107         588  160    1.097     1.195     2.478 585.750
+#>      O3   -0.573 0.083         588  209    0.975     0.951    -0.933 585.750
+#>      O4   -0.180 0.088         588  262    1.021     1.023     0.521 585.750
+#>      O5    0.081 0.066         588  300    0.970     0.963    -0.939 585.750
+#>      O6    0.454 0.092         588  354    0.911     0.896    -2.406 585.750
+#>      O7    1.088 0.113         588  437    1.022     1.072     0.988 585.750
+#>      O8    1.432 0.101         588  476    1.041     1.118     1.256 585.750
 #>  extreme
+#>         
 #>         
 #>         
 #>         
@@ -63,6 +81,13 @@ fit$objects
 #> 
 ```
 
+Panel and experience are crossed judge factors with no planted object
+difference. Two judges answer at random, an exposure effect is added in
+judgment order, and carry-over remains zero. Residual dimensionality is
+examined separately below because combining a second attribute with this
+history model would make the carry-over estimate conditional on a
+deliberately misspecified common scale.
+
 Judge residuals describe agreement with the common object scale; they
 are not person measures. Object fit, judge fit, targeting, and
 comparison information address different parts of the design and should
@@ -70,35 +95,38 @@ be considered together.
 
 ``` r
 
-fit$judges
+judge_order <- order(abs(fit$judges$fit_resid), decreasing = TRUE)
+head(fit$judges[judge_order, ], 6)
 #>  judge  n infit_ms outfit_ms fit_resid df_fit
-#>     J1 35    1.033     1.141     0.569 34.500
-#>    J10 35    0.855     0.870    -0.526 34.500
-#>    J11 35    0.810     0.747    -1.208 34.500
-#>    J12 35    1.140     1.174     0.634 34.500
-#>     J2 35    0.705     0.607    -2.066 34.500
-#>     J3 35    1.071     1.101     0.412 34.500
-#>     J4 35    1.107     1.030     0.117 34.500
-#>     J5 35    1.255     1.326     1.294 34.500
-#>     J6 35    1.252     1.337     1.462 34.500
-#>     J7 35    0.815     0.801    -0.853 34.500
-#>     J8 35    0.915     0.863    -0.636 34.500
-#>     J9 35    1.148     1.214     0.783 34.500
-judge_surprise(fit, "J1")
-#> Judge J1: 35 comparisons over 7 objects
+#>    J19 49    1.675     1.907     3.157 48.812
+#>    J10 49    1.581     1.880     2.799 48.812
+#>    J13 49    1.143     1.405     1.734 48.812
+#>     J6 49    0.782     0.706    -1.728 48.812
+#>    J34 49    0.790     0.703    -1.640 48.812
+#>    J27 49    0.807     0.710    -1.610 48.812
+erratic_fit <- fit$judges[match(truth$erratic, fit$judges$judge), ]
+erratic_judge <- erratic_fit$judge[
+  which.max(abs(erratic_fit$fit_resid))
+]
+judge_surprise(fit, erratic_judge)
+#> Judge J19: 49 comparisons over 8 objects
 #> Unexpected judgements:
-#>   O2     (loc -0.91): z = +1.98  [weak object over-rated]
+#>   O2     (loc -1.01): z = +2.46  [weak object over-rated]
+#>   O7     (loc +1.09): z = -2.46  [strong object under-rated]
+#>   O6     (loc +0.45): z = -2.32  [strong object under-rated]
+#>   O1     (loc -1.29): z = +2.05  [weak object over-rated]
 btl_information(fit)
-#> Paired-comparison design information: 7 objects, total 77.80
+#> Paired-comparison design information: 8 objects, total 418.83
 #> One-comparison Fisher information about the location gap (dichotomous: P(1 - P))
 #>  object location    se n_comparisons information se_naive
-#>      O1   -0.945 0.158           120      21.495    0.216
-#>      O2   -0.907 0.188           120      21.777    0.214
-#>      O3   -0.515 0.149           120      24.066    0.204
-#>      O4   -0.277 0.219           120      24.805    0.201
-#>      O5    0.498 0.158           120      23.696    0.205
-#>      O6    1.013 0.221           120      20.380    0.222
-#>      O7    1.133 0.169           120      19.383    0.227
+#>      O1   -1.290 0.119           588      90.370    0.105
+#>      O2   -1.012 0.107           588     101.309    0.099
+#>      O3   -0.573 0.083           588     114.005    0.094
+#>      O4   -0.180 0.088           588     119.331    0.092
+#>      O5    0.081 0.066           588     119.382    0.092
+#>      O6    0.454 0.092           588     114.766    0.093
+#>      O7    1.088 0.113           588      96.233    0.102
+#>      O8    1.432 0.101           588      82.270    0.110
 #> Note: se is the judge-clustered Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it
 ```
 
@@ -117,6 +145,12 @@ member lacks a usable joint null. Each statistic is adjusted under the
 fitted global null. The adjustment does not guarantee familywise error
 among fitting pairs, objects or judges when another member departs from
 the model.
+
+With exposure and carry-over fitted jointly at 30 judges, a
+1,000-dataset dichotomous study gave 4.8% total error and 3.9%, 4.8% and
+5.5% adjusted familywise error for pairs, objects and judges. A
+200-dataset four-category study gave 3.0%, 3.5%, 6.0% and 6.0%. All
+238,800 refits were usable.
 
 ``` r
 
@@ -143,22 +177,29 @@ primary scale is fitted.
 When a judgment-order column is supplied, `fit$dependence` reports the
 exposure and carry-over effects; adding `position = TRUE` reports the
 position effect alongside them. Use `p_adj`, which applies Holm’s
-correction across the effects with available inference; `p` is retained
-as the raw probability.
+correction across the declared effects even when one probability is
+withheld; `p` is retained as the raw probability.
 
 ``` r
 
 tr <- btl_transitivity(fit)
 tr
-#> Paired-comparison transitivity: 7 objects, 35 complete triples
+#> Paired-comparison transitivity: 8 objects, 56 complete triples
 #> Circular triads: 0 (0.0% of triples; random-tournament benchmark 25%) -> consistency 1.00
 #> Kendall coefficient of consistency (complete design): 1.000
-#> Per-judge consistency reported for 11 judge(s); least consistent -0.14
+#> Per-judge consistency reported for 48 judge(s); least consistent -0.87
 #> Note: the 0.25 chance rate is a random-tournament benchmark, not the fitted BTL expected circular rate; transitivity is descriptive
-dimensions <- btl_dimensionality(fit, reps = 20)
+
+dim_data <- simulate_btl(
+  n_objects = 8, n_judges = 48, reps_per_pair = 84,
+  second_attribute = list(rho = 0.3), seed = 47
+)
+dim_fit <- btl(dim_data, object_a = "object_a", object_b = "object_b",
+               winner = "winner", judge = "judge")
+dimensions <- btl_dimensionality(dim_fit, reps = 20)
 dimensions
-#> Paired-comparison residual dimensionality: 3 bimension(s)
-#> Leading bimension strength 2.054 (88% of residual; reference 95%: 2.698) -> within the conditional reference
+#> Paired-comparison residual dimensionality: 4 bimension(s)
+#> Leading bimension strength 1.060 (68% of residual; reference 95%: 1.403) -> within the conditional reference
 ```
 
 ``` r
@@ -189,15 +230,33 @@ significant term is resolved into factor-specific object locations and
 pairwise logit differences. HC3 covariance allows the precision of judge
 means to vary with their comparison workloads. Omnibus and pairwise
 inference require at least eight judges and eight effective judges in
-each factor level; estimates remain descriptive below that boundary. The
-tables report both counts.
+every relevant factor cell; estimates remain descriptive below that
+boundary. The tables report both counts. Panel and experience are null
+in this example, so an adjusted flag would be a false positive rather
+than a planted result.
 
 ``` r
 
-judge_group <- setNames(panel_data$discipline, panel_data$judge)
-bd <- btl_dif(fit, judge_group)
-bd$summary
-bd$sizes
+bd <- btl_dif(fit, d[c("panel", "experience")])
+bd_order <- order(bd$summary$p_uniform_adj)
+head(bd$summary[bd_order, c(
+  "object", "term", "F_uniform", "p_uniform_adj", "eta2_uniform",
+  "min_judges", "min_effective_judges"
+)], 6)
+#>  object       term F_uniform p_uniform_adj eta2_uniform min_judges
+#>      O1 experience     5.230         0.863        0.110         24
+#>      O1      panel     0.626         1.000        0.015         24
+#>      O2      panel     0.260         1.000        0.006         24
+#>      O2 experience     1.982         1.000        0.045         24
+#>      O3      panel     0.008         1.000        0.000         24
+#>      O3 experience     0.254         1.000        0.006         24
+#>  min_effective_judges
+#>                22.506
+#>                22.439
+#>                22.592
+#>                22.693
+#>                21.707
+#>                22.237
 ```
 
 ## Equate panels through common objects
@@ -358,9 +417,9 @@ Under **Invariance**, the DIF panel runs
 over the nominated judge factors. It reports the omnibus test with
 judges as the independent units, the factor-specific object locations
 and their pairwise differences in logits, and the raw and effective
-judge counts in each level — so a design below the eight-judge boundary
-shows why its inference is withheld rather than simply returning
-nothing.
+judge counts in the least-supported cells — so a design below the
+eight-judge boundary shows why its inference is withheld rather than
+simply returning nothing.
 
 ![The DIF panel for a comparative judgement fit, showing the omnibus
 test across judge groups with the judge counts per

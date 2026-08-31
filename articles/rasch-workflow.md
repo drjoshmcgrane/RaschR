@@ -142,12 +142,14 @@ decisions; 999 replicates is a reasonable minimum for a final analysis,
 and a larger value may be needed when there are many items. Report
 `B_used`, `B_nonconverged`, and `B_errors`. A sparse polytomous
 calibration may be refused when too few replicated datasets can be
-fitted with the same model. A maxT adjustment is unavailable for the
-complete family if one testable member lacks a usable joint null. The
-adjustment applies separately to each statistic under the fitted global
-null. It does not guarantee familywise error among fitting items when
-another item misfits. Nominate a primary statistic, or adjust again if
-either statistic will be used to make the same confirmatory decision.
+fitted with the same model. For 30 or more requested replicates,
+inference is withheld unless at least 30 and 90% of the refits are
+usable. A maxT adjustment is unavailable for the complete family if one
+testable member lacks a usable joint null. The adjustment applies
+separately to each statistic under the fitted global null. It does not
+guarantee familywise error among fitting items when another item
+misfits. Nominate a primary statistic, or adjust again if either
+statistic will be used to make the same confirmatory decision.
 
 ``` r
 
@@ -504,9 +506,9 @@ calibration in the background. Its adjusted probabilities then replace
 the asymptotic screening probability in the item display and appear in
 the person table. The run can be cancelled.
 
-![The Items panel: the item statistics table on the left with one
-misfitting item in red, and its item characteristic curve on the
-right.](figures/app-items.png)
+![The Items panel: the item statistics table on the left with the item
+having the largest absolute fit residual selected, and its item
+characteristic curve on the right.](figures/app-items.png)
 
 The **Chi-square** tab is the class-interval breakdown
 [`chisq_detail()`](https://drjoshmcgrane.github.io/rasch/reference/chisq_detail.md)

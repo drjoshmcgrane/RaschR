@@ -2,6 +2,44 @@
 
 ## rasch 1.12.1
 
+- Fitted-model provenance now includes the complete fit, including
+  person identities, comparative-judgement thresholds and
+  sequential-dependence estimates. Application project files use a
+  sealed schema that detects a changed dataset, fit, history or saved
+  result before restoration, and structurally validates every stored fit
+  and history entry. Schema-1 files are structurally checked and
+  upgraded when opened; saving them again records the new integrity
+  information.
+
+- Fit bootstraps now withhold inference when fewer than 90% of 30 or
+  more requested refits are usable. This prevents sparse polytomous
+  analyses from reporting a null distribution selectively thinned by
+  failed category structures. Conditional generation is evaluated on the
+  log scale, so finite extreme thresholds no longer overflow. Printed
+  bootstrap objects give a short summary rather than dumping the stored
+  replicate matrices.
+
+- DIF results carry the identity of their fitted model and cannot be
+  exported or reported with a different calibration. Saved application
+  projects now validate every fitted-model history entry, not only the
+  active one.
+
+- Adjusted probabilities for DIF magnitudes and contrasts,
+  paired-comparison DIF magnitudes, explanatory coefficients and
+  diagnostics, MFRM interaction follow-ups, and tailored analysis now
+  retain the complete declared family when one probability is
+  unavailable.
+
+- The paired-comparison application example separates sequential
+  dependence from residual dimensionality. Its main dataset has planted
+  exposure, null carry-over and null judge factors; a second dataset
+  supplies the dimensionality example.
+
+- Paired-comparison fitted-design bootstraps with exposure and
+  carry-over have been calibrated for dichotomous and four-category
+  responses at 30 judges. Total and adjusted pair, object and judge
+  error remained near 5%; all 238,800 refits were usable.
+
 - Fit inference now retains its predeclared family when an item or
   frame-unit probability is unavailable. BTL-EFRM omnibus tests are
   withheld rather than reduced when a requested covariance coordinate is

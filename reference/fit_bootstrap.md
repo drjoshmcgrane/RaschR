@@ -60,7 +60,9 @@ An object of class `rasch_fit_bootstrap`. For a person-by-item fit, it
 contains `items`, `persons`, `total`, `replicates`, adjustment metadata
 and replicate counts, including separate non-convergence and
 other-failure counts. For a paired-comparison fit, the corresponding
-tables are `pairs`, `objects`, `judges` and `total`.
+tables are `pairs`, `objects`, `judges` and `total`. Runs requesting at
+least 30 replicates are withheld unless at least 30 and 90 percent of
+the requested refits are usable.
 
 ## Details
 
@@ -93,7 +95,10 @@ Bootstrap probabilities use \\(1+r)/(1+B)\\. Their one-sided resolution
 is therefore \\1/(1+B)\\ and their equal-tailed resolution is
 \\2/(1+B)\\. For \\L\\ items, Holm-adjusted inference at .05 requires at
 least \\20L\\ replicates for the chi-square and \\40L\\ for the
-two-sided statistics.
+two-sided statistics. Runs of at least 30 replicates also require at
+least 30 and 90 percent of the requested refits to be usable. Otherwise
+inference is withheld because failed refits can select a non-random
+subset of the bootstrap null.
 
 ## References
 

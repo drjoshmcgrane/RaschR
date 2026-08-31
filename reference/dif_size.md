@@ -75,7 +75,8 @@ elsewhere. The reported difference and its standard error are
 \$\$\operatorname{SE}(\Delta\_{i,ab})= \sqrt{\mathbf{c}\_{ab}^{\mathsf
 T}\mathbf{V}\_i \mathbf{c}\_{ab}},\$\$ where \\\mathbf{V}\_i\\ is the
 full covariance of the resolved locations. Wald probabilities are
-adjusted over the pairwise family.
+adjusted over the pairwise family. A comparison with withheld inference
+remains in that declared family.
 
 With repeated person identifiers, the row-level calibration covariance
 does not represent within-person sampling dependence. Logit differences
