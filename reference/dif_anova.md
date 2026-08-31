@@ -134,7 +134,8 @@ DIF. With several factors, `effects = "main"` fits
 factor-by-factor interactions. Type II sums of squares are used. The
 multiplicity adjustment covers all item-by-DIF-term tests, including
 both uniform and non-uniform DIF; the class-interval main effect is a
-nuisance term and is not included.
+nuisance term and is not included. A reported term remains in this
+family when its probability is unavailable.
 
 When identifiers repeat, the person is the unit of analysis.
 Between-person terms use person means and the between-person error

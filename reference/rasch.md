@@ -122,12 +122,13 @@ designs and ignorable missingness; informative missingness can still
 bias the estimates.
 
 The fit residual is the log-of-mean-square statistic described by
-Andrich and Marais (2019, ch. 23). It is approximately standard normal
-under fit; positive values indicate under-discrimination and negative
-values indicate over-discrimination. The item-trait chi-square and
-class-interval F tests are large-sample diagnostic approximations and
-should be considered with the residual statistics, effect sizes, and
-item content.
+Andrich and Marais (2019, ch. 23). Positive values indicate
+under-discrimination and negative values indicate over-discrimination.
+Its standard-normal reading, the item-trait chi-square and the
+class-interval F test are asymptotic approximations. For ordinary Rasch,
+PCM and RSM fits,
+[`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+supplies calibrated probabilities.
 
 Multiple-choice responses may be scored from a named item-to-key vector,
 an item/key table, or an item/option/score table. A slash separates
@@ -149,18 +150,17 @@ sampling standard error or hypothesis test is attached to it.
 
 ## Item-fit probabilities
 
-The item-trait chi-square supplies the principal inferential test of
-invariance over class intervals. The class-interval ANOVA is a
-conventional residual diagnostic whose F reference is approximate. Its
-probability can be anti-conservative in short tests because each
-response contributes appreciably to the person grouping used to test
-that item. The same issue can affect the item-trait probability when
-fewer than about ten responses locate each person. In short
-administrations, read the statistics with the characteristic curve and
-residual fit rather than as stand-alone decisions. The item summary
-retains the raw ANOVA probability as `p_anova` and its Holm familywise
-adjustment as `p_anova_adj`; use the adjusted probability for inference
-across items.
+The item-trait chi-square assesses invariance over class intervals, but
+its asymptotic reference treats the estimated person locations used to
+form those intervals as known. Its calibration therefore changes with
+sample size and test length. The class-interval ANOVA and standardised
+residual readings are approximate for the same reason. The item table
+retains their raw and Holm-adjusted probabilities as descriptive
+diagnostics. Each adjustment retains the full item family when one
+probability is unavailable.
+[`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+re-estimates every replicate and should be used for item-level inference
+where it is available.
 
 ## References
 

@@ -102,6 +102,37 @@ btl_information(fit)
 #> Note: se is the judge-clustered Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it
 ```
 
+## Bootstrap goodness of fit
+
+The pairwise chi-square and the object and judge residuals use
+approximate references.
+[`fit_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+generates outcomes on the observed comparison design and refits the
+model. It reports the whole-model probability and joint adjusted
+probabilities for pairs, objects and judges. Ordered thresholds and
+history effects are retained; history-dependent outcomes are generated
+in sequence. Report the usable, non-converged, and other-failure counts.
+A maxT adjustment is unavailable for the complete family if one testable
+member lacks a usable joint null. Each statistic is adjusted under the
+fitted global null. The adjustment does not guarantee familywise error
+among fitting pairs, objects or judges when another member departs from
+the model.
+
+``` r
+
+boot <- fit_bootstrap(fit, B = 999, seed = 2026)
+boot$total
+head(boot$pairs[order(boot$pairs$chisq_p_boot_adj), c(
+  "object_a", "object_b", "chisq", "chisq_p_boot_adj"
+)])
+head(boot$objects[order(boot$objects$fit_resid_p_boot_adj), c(
+  "object", "fit_resid", "fit_resid_p_boot_adj"
+)])
+head(boot$judges[order(boot$judges$fit_resid_p_boot_adj), c(
+  "judge", "fit_resid", "fit_resid_p_boot_adj"
+)])
+```
+
 ## Check transitivity and residual structure
 
 Circular triads (Kendall and Babington Smith 1940) identify local
@@ -294,7 +325,9 @@ when a judgment-order column was assigned — with inference withheld on
 designs too small to support it, stated as a note rather than silently.
 A design whose comparison graph does not connect is refused for the same
 reason it is refused in the code — the relative locations are not
-identified.
+identified. The fit-bootstrap button runs the fitted-design bootstrap in
+the background and adds adjusted probabilities to the pair, object and
+judge tables. It can be cancelled without losing the fitted model.
 
 ![The Summary panel for a comparative judgement fit: the design counts,
 object separation and pairwise fit tiles, and the test-of-fit

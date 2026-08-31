@@ -1,17 +1,10 @@
-# Bootstrap null distribution for the item fit statistics
+# Bootstrap fit statistics
 
-Every item fit statistic
-[`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-reports is computed at estimated person locations and referred to a
-distribution derived as though those locations were known, and each is
-miscalibrated by an amount that grows with the sample. The item-trait
-chi-square, whose class intervals are formed by selecting on the
-estimates, grows about linearly in N against a fixed reference. The fit
-residual's null SD runs from about 0.71 at 250 persons to 1.00 at 4,000,
-so the conventional \\\pm\\2.5 cut means different things at different
-sizes; infit z beyond 1.96 flags 12 of correctly fitting items at 250
-persons and 69 replaces the reference distribution for all of them at
-once.
+Refers fit statistics to replicated datasets fitted in the same way as
+the observed data. For a person-by-item Rasch model, the default
+generator conditions on each person's observed raw score and missingness
+pattern. The person parameter then cancels by sufficiency. Item
+parameters and person locations are re-estimated in every replicate.
 
 ## Usage
 
@@ -30,95 +23,92 @@ fit_bootstrap(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
-  Extended-frame, many-facet and explanatory fits are not supported.
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md) or
+  [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md).
+  Extended-frame, many-facet and explanatory person-by-item fits are not
+  supported. Explanatory paired-comparison fits are supported.
 
 - B:
 
-  Number of bootstrap replicates.
+  Positive whole number of bootstrap replicates.
 
 - theta:
 
-  How each replicate is generated. `"conditional"` (the default) draws
-  each person's responses from the Rasch conditional distribution given
-  their observed raw score over their own observed items: sufficiency
-  cancels the person parameter, so no ability is drawn at all, the
-  observed score margins are reproduced exactly, and any tie between who
-  answers and what is missing (a linked-booklet design, informative
-  missingness) is preserved. The ability-sampling schemes remain:
-  `"resample"` resamples the person estimates — whose spread carries
-  their estimation error, which the standardised fit statistics feel as
-  anticonservatism at several thousand persons — `"fixed"` reuses them
-  as they stand, and `"normal"` draws from a normal with the
-  error-corrected variance, at the price of losing replicates whose
-  extreme categories go unvisited.
+  Generator for a person-by-item fit. `"conditional"` retains each
+  observed raw score and missingness pattern. `"resample"` resamples
+  estimated person locations, `"fixed"` reuses each location with the
+  same response row and missingness pattern, and `"normal"` draws from a
+  normal distribution with error-corrected variance. Fixed generation
+  requires a finite location for each row with an observed response.
+  This argument does not apply to paired comparisons.
 
 - workers:
 
   Number of parallel bootstrap workers. The default is four, reduced
   when fewer physical cores are available or the R process has a lower
-  system limit. Starting them costs about half a second, which even the
-  smallest useful run earns back; a larger count pays at large samples
-  or large `B`, where eight workers run about five times faster than
-  one. Person locations and the per-replicate seeds are drawn before
-  distribution, so a fixed seed gives the same result for any worker
-  count.
+  system limit. Per-replicate seeds are fixed before distribution, so
+  results do not depend on the worker count.
 
 - seed:
 
-  Optional seed. The caller's random stream is restored on exit.
+  Optional non-negative whole-number seed within the integer range. The
+  caller's random stream is restored on exit.
 
 ## Value
 
-A list with `items`, one row per item carrying each observed statistic
-beside its bootstrap probability and that probability's Holm adjustment
-across items; `total` for the whole-test chi-square and for the mean and
-SD of the item fit residuals, each against its own bootstrap null;
-`replicates`, the raw replicated statistics as one matrix per statistic;
-`B` requested and `B_used` (replicates that estimated); and the `theta`
-scheme.
+An object of class `rasch_fit_bootstrap`. For a person-by-item fit, it
+contains `items`, `persons`, `total`, `replicates`, adjustment metadata
+and replicate counts, including separate non-convergence and
+other-failure counts. For a paired-comparison fit, the corresponding
+tables are `pairs`, `objects`, `judges` and `total`.
 
 ## Details
 
-Each replicate generates responses from the fitted thresholds at person
-locations drawn under `theta`, then re-estimates the item side,
-re-estimates person locations, re-forms class intervals and re-takes
-residuals exactly as the observed fit did, so the same bias enters the
-null as entered the observed statistics. One set of replicates serves
-every statistic, since a replicate must refit the whole model in any
-case. The class-interval count is held at the fitted value, and observed
-missing data are carried into every replicate.
+Item chi-squares use the upper tail. Fit residuals, infit and outfit use
+equal-tailed probabilities. Holm adjustment is applied separately to
+each predeclared item-statistic family; an unavailable item remains in
+the multiplicity count. Under the conditional generator, the same
+replicates also give person-specific null distributions. Person
+probabilities are adjusted with a single-step maximum-statistic
+distribution across persons for each statistic. A maximum-statistic
+adjustment is withheld for the complete family if any testable member
+lacks a usable joint null.
 
-The chi-square is read in its upper tail alone. The fit residual, the
-mean squares and the standardised statistics depart in both directions –
-above for an item flatter than the model predicts, below for a steeper
-one – and both are misfit, so their p-values are equal-tailed. A
-bootstrap p-value is `(1 + r) / (1 + B)`, so it is never zero and its
-resolution is `1 / (1 + B)` one-sided and `2 / (1 + B)` two-sided.
-Familywise flagging multiplies that floor by the item count: Holm across
-L items cannot reach .05 below `B = 20 L - 1` for the chi-square and
-`B = 40 L - 1` for the two-sided statistics, so the default `B = 200`
-resolves adjusted two-sided tests only to five items and serious
-familywise use wants `B` in the hundreds to thousands.
+The adjustments describe the fitted global null. They do not guarantee
+familywise error control among otherwise fitting items, persons, objects
+or judges when another member departs from the model. Each fit statistic
+is a separate family. The marginal probabilities are retained.
 
-Calibration is not power. A flatter-than-Rasch item carries less of the
-class-interval selection bias than a fitting item does, so its
-chi-square comes out *smaller* than a fitting item's and no reference
-distribution can make it significant; the fit residual detects that
-departure readily. Calibrating both is what covers the two blind spots.
-A null estimated from data that contain a misfitting item is also mildly
-contaminated by it, which leaves the remaining items flagging somewhat
-above nominal.
+For a [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
+fit, outcomes are generated on the fitted comparison design and the
+model is refitted. The result covers the total pairwise chi-square and
+pair, object and judge fit. Ordered response thresholds, judge
+allocation, counts, anchors, position effects and explanatory object
+restrictions are retained. History-dependent effects are generated in
+sequence. Half-weighted ties and frame-dependent paired-comparison fits
+are refused because the present generator does not reproduce those
+models.
+
+Bootstrap probabilities use \\(1+r)/(1+B)\\. Their one-sided resolution
+is therefore \\1/(1+B)\\ and their equal-tailed resolution is
+\\2/(1+B)\\. For \\L\\ items, Holm-adjusted inference at .05 requires at
+least \\20L\\ replicates for the chi-square and \\40L\\ for the
+two-sided statistics.
 
 ## References
 
 Andrich, D. and Marais, I. (2019) *A Course in Rasch Measurement
-Theory*. Springer.
+Theory*. Springer. Molenaar, I. W. and Hoijtink, H. (1996). Person-fit
+test statistics for the Rasch model. Applied Measurement in Education,
+9, 87–106.
+
+Westfall, P. H. and Young, S. S. (1993). *Resampling-Based Multiple
+Testing*. Wiley.
 
 ## See also
 
 [`chisq_detail`](https://drjoshmcgrane.github.io/rasch/reference/chisq_detail.md)
-for the class-interval breakdown behind one item's chi-square.
+and [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md).
 
 ## Examples
 

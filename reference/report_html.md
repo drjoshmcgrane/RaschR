@@ -42,8 +42,8 @@ report_html(
   [`dif_anova`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
   and
   [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
-  results, exported as run; the DIF table is otherwise recomputed at
-  defaults when the fit carries person factors.
+  results from this fit, exported as run; the DIF table is otherwise
+  recomputed at defaults when the fit carries person factors.
 
 ## Value
 

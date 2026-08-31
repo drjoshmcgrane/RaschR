@@ -43,7 +43,8 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
 
   Adjustment for the common-object tests, passed to
   [`stats::p.adjust`](https://rdrr.io/r/stats/p.adjust.html). The
-  default is `"holm"`.
+  default is `"holm"`. A common object remains in the family when its
+  drift probability is unavailable.
 
 - independent:
 

@@ -47,7 +47,9 @@ spread_test(fit, maxit = 60, tol = 1e-08, alpha = 0.05, p_adjust = "holm")
 - p_adjust:
 
   Multiplicity adjustment across the eligible superitems; one of
-  [`stats::p.adjust.methods`](https://rdrr.io/r/stats/p.adjust.html).
+  [`stats::p.adjust.methods`](https://rdrr.io/r/stats/p.adjust.html). An
+  eligible superitem remains in the family if its probability is
+  unavailable.
 
 ## Value
 

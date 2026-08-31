@@ -56,7 +56,8 @@ mean square difference after shifting (`rmsd`), the number of common
 items `n_common`, the number with usable standard errors `n`, and
 whether drift inference was available (`inferential`). The `note`
 component records exclusions and the reason inference was withheld,
-where applicable.
+where applicable. Common items with unavailable drift probabilities
+remain in the multiplicity family.
 
 ## Details
 

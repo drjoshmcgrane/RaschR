@@ -87,10 +87,11 @@ computationally demanding.
 Raw and Holm-adjusted probabilities are reported. With conditional
 uncertainty, Holm adjustment covers the location comparisons. With
 bootstrap uncertainty, it covers the combined family of location and
-discrimination comparisons. The summary gives the root mean squared
-location difference and root mean squared standard error for each set
-and frame pair. Items from different sets cannot be compared because the
-sets partition the items. Location differences are relative to the mean
+discrimination comparisons. An unavailable comparison remains in the
+applicable family. The summary gives the root mean squared location
+difference and root mean squared standard error for each set and frame
+pair. Items from different sets cannot be compared because the sets
+partition the items. Location differences are relative to the mean
 difference of the common items. Concentrated DIF can therefore produce
 non-zero centred contrasts for items that were not themselves shifted.
 The table identifies the pattern of relative departures; item content or

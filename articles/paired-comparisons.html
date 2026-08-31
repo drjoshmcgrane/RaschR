@@ -177,6 +177,33 @@ be considered together.</p>
 <span><span class="co">#&gt; Note: se is the judge-clustered Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="bootstrap-goodness-of-fit">Bootstrap goodness of fit<a class="anchor" aria-label="anchor" href="#bootstrap-goodness-of-fit"></a>
+</h2>
+<p>The pairwise chi-square and the object and judge residuals use
+approximate references. <code><a href="../reference/fit_bootstrap.html">fit_bootstrap()</a></code> generates outcomes
+on the observed comparison design and refits the model. It reports the
+whole-model probability and joint adjusted probabilities for pairs,
+objects and judges. Ordered thresholds and history effects are retained;
+history-dependent outcomes are generated in sequence. Report the usable,
+non-converged, and other-failure counts. A maxT adjustment is
+unavailable for the complete family if one testable member lacks a
+usable joint null. Each statistic is adjusted under the fitted global
+null. The adjustment does not guarantee familywise error among fitting
+pairs, objects or judges when another member departs from the model.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bootstrap.html">fit_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, B <span class="op">=</span> <span class="fl">999</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">boot</span><span class="op">$</span><span class="va">total</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">pairs</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">pairs</span><span class="op">$</span><span class="va">chisq_p_boot_adj</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"object_a"</span>, <span class="st">"object_b"</span>, <span class="st">"chisq"</span>, <span class="st">"chisq_p_boot_adj"</span></span>
+<span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">objects</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">objects</span><span class="op">$</span><span class="va">fit_resid_p_boot_adj</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"object"</span>, <span class="st">"fit_resid"</span>, <span class="st">"fit_resid_p_boot_adj"</span></span>
+<span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">judges</span><span class="op">$</span><span class="va">fit_resid_p_boot_adj</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"judge"</span>, <span class="st">"fit_resid"</span>, <span class="st">"fit_resid_p_boot_adj"</span></span>
+<span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="check-transitivity-and-residual-structure">Check transitivity and residual structure<a class="anchor" aria-label="anchor" href="#check-transitivity-and-residual-structure"></a>
 </h2>
 <p>Circular triads (Kendall and Babington Smith 1940) identify local
@@ -189,7 +216,7 @@ reports the exposure and carry-over effects; adding
 Use <code>p_adj</code>, which applies Holm’s correction across the
 effects with available inference; <code>p</code> is retained as the raw
 probability.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_transitivity.html">btl_transitivity</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">tr</span></span>
 <span><span class="co">#&gt; Paired-comparison transitivity: 7 objects, 35 complete triples</span></span>
@@ -201,10 +228,10 @@ probability.</p>
 <span><span class="va">dimensions</span></span>
 <span><span class="co">#&gt; Paired-comparison residual dimensionality: 3 bimension(s)</span></span>
 <span><span class="co">#&gt; Leading bimension strength 2.054 (88% of residual; reference 95%: 2.698) -&gt; within the conditional reference</span></span></code></pre></div>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_btl_transitivity.html">plot_btl_transitivity</a></span><span class="op">(</span><span class="va">tr</span><span class="op">)</span></span></code></pre></div>
 <p><img src="paired-comparisons_files/figure-html/plot-transitivity-1.png" class="r-plt" alt="Per-judge consistency of the paired comparisons." width="672"></p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_btl_scree.html">plot_btl_scree</a></span><span class="op">(</span><span class="va">dimensions</span><span class="op">)</span></span></code></pre></div>
 <p><img src="paired-comparisons_files/figure-html/plot-scree-1.png" class="r-plt" alt="Residual bimension strengths against the simulated noise reference." width="672"></p>
 <p>The simulation reference for dimensionality uses twenty replicates
@@ -222,7 +249,7 @@ the precision of judge means to vary with their comparison workloads.
 Omnibus and pairwise inference require at least eight judges and eight
 effective judges in each factor level; estimates remain descriptive
 below that boundary. The tables report both counts.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">judge_group</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">panel_data</span><span class="op">$</span><span class="va">discipline</span>, <span class="va">panel_data</span><span class="op">$</span><span class="va">judge</span><span class="op">)</span></span>
 <span><span class="va">bd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_dif.html">btl_dif</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">judge_group</span><span class="op">)</span></span>
 <span><span class="va">bd</span><span class="op">$</span><span class="va">summary</span></span>
@@ -240,7 +267,7 @@ The shift is precision-weighted when at least two common objects have
 usable variances. If they do not, the function uses the unweighted mean
 location difference, labels it in <code>shift_method</code>, and keeps
 the link descriptive.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_equate.html">btl_equate</a></span><span class="op">(</span><span class="va">current_panel</span>, <span class="va">reference_panel</span>, independent <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">equated</span>                 <span class="co"># reference panel on the current panel's origin</span></span></code></pre></div>
@@ -271,7 +298,7 @@ within-set locations and panel units fixed. It estimates the set
 transformations directly from the comparison outcomes and does not use
 the finite-grid person-distribution link in
 <code><a href="../reference/rasch_efrm.html">rasch_efrm()</a></code>.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">de</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl_efrm.html">simulate_btl_efrm</a></span><span class="op">(</span></span>
 <span>  n_objects_per_set <span class="op">=</span> <span class="fl">5</span>, n_sets <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  n_judges_per_panel <span class="op">=</span> <span class="fl">6</span>, n_panels <span class="op">=</span> <span class="fl">2</span>,</span>
@@ -343,7 +370,10 @@ the within-judge exposure and carry-over effects when a judgment-order
 column was assigned — with inference withheld on designs too small to
 support it, stated as a note rather than silently. A design whose
 comparison graph does not connect is refused for the same reason it is
-refused in the code — the relative locations are not identified.</p>
+refused in the code — the relative locations are not identified. The
+fit-bootstrap button runs the fitted-design bootstrap in the background
+and adds adjusted probabilities to the pair, object and judge tables. It
+can be cancelled without losing the fitted model.</p>
 <p><img src="figures/app-cj-summary.png" class="r-plt" alt="The Summary panel for a comparative judgement fit: the design counts, object separation and pairwise fit tiles, and the test-of-fit table." width="100%"></p>
 <p><strong>Items</strong> becomes the object panel. The caterpillar plot
 orders the objects by location with their confidence intervals, which is

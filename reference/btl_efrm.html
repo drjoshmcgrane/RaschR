@@ -151,7 +151,8 @@ probabilities and omnibus tests are therefore withheld.</p></dd>
 <dd><p>Number of replicates for <code>se_method = "bootstrap"</code>
 or <code>"judge_bootstrap"</code>; at least 30 are required. Inference is
 returned only when at least 30 and more than half of the requested
-replicates are usable.</p></dd>
+replicates are usable, and the requested count must exceed the number of
+independent directions in the largest covariance block used by the fit.</p></dd>
 
 
 <dt id="arg-workers">workers<a class="anchor" aria-label="anchor" href="#arg-workers"></a></dt>
@@ -220,7 +221,9 @@ failures and boundary estimates are reported in <code>notes</code>.</p>
 panel, it reduces to <code><a href="btl.html">btl</a></code>. Omnibus Wald probabilities are
 Holm-adjusted across the panel-unit, set-unit and set-origin families.
 Individual contrasts form a separate Holm-adjusted follow-up family across
-all three parameter types.
+all three parameter types. An unavailable unit remains in its predeclared
+family; an omnibus is withheld rather than reduced when one of its
+requested coordinates is unavailable.
 Judge-bootstrap probabilities require at least six judges and 5.5 effective
 judges in every contributing panel, and eight of each on a set link. The
 support is returned in <code>unit_support</code>; estimates remain descriptive

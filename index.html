@@ -141,7 +141,7 @@
 <p>The package includes a graphical interface for analysts who do not normally work in R. Launch it after installation with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">rasch</span><span class="fu">::</span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. An analysis can be saved as a <code>.rasch</code> project and reopened with its data roles and estimation settings. Tables, figures and HTML, Word or PDF reports can be downloaded. The R code for each result is shown in the interface. Its simulation page generates each supported data structure, with controls for its principal parameters and planted departures. Simulated data can be downloaded as a CSV or together with the generating call, true values and explanatory metadata.</p>
+<p>The application imports data, assigns variables to their measurement roles, fits the selected model, and displays the resulting tables and plots. An analysis can be saved as a <code>.rasch</code> project and reopened with its data roles and estimation settings. Tables, figures and HTML, Word or PDF reports can be downloaded. The R code for each result is shown in the interface. Its fit bootstrap calibrates item and person fit, or pair, object and judge fit for comparative judgement, in a cancellable background process. Its adjusted probabilities refer to the fitted global null, separately for each statistic. The simulation page generates each supported data structure, with controls for its principal parameters and planted departures. Simulated data can be downloaded as a CSV or together with the generating call, true values and explanatory metadata.</p>
 <p align="center">
 <img src="reference/figures/app-items.png" alt="Item statistics and an item characteristic curve in the rasch Shiny application" width="90%"></p>
 </div>
@@ -177,6 +177,11 @@
 <span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Calibrated item and person fit (use more replicates for a final analysis)</span></span>
+<span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fit_bootstrap.html">fit_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, B <span class="op">=</span> <span class="fl">199</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">boot</span><span class="op">$</span><span class="va">items</span></span>
+<span><span class="va">boot</span><span class="op">$</span><span class="va">persons</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/plot_pimap.html">plot_pimap</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I05"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>

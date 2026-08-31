@@ -44,7 +44,7 @@ Examine fit, targeting and reliability, or compare fitted models.
 - [`chisq_detail()`](https://drjoshmcgrane.github.io/rasch/reference/chisq_detail.md)
   : Class-interval detail for one item's chi-square test of fit
 - [`fit_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
-  : Bootstrap null distribution for the item fit statistics
+  : Bootstrap fit statistics
 - [`test_information()`](https://drjoshmcgrane.github.io/rasch/reference/test_information.md)
   : Test information function
 - [`lr_test()`](https://drjoshmcgrane.github.io/rasch/reference/lr_test.md)

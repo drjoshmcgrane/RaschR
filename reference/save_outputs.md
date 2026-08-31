@@ -62,8 +62,9 @@ save_outputs(
 
   Optional
   [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
-  result; its item table and whole-test readings join the exported
-  tables.
+  result from this fit. Its item and person tables, or pair, object and
+  judge tables for paired comparisons, join the export with the
+  whole-test readings.
 
 ## Value
 

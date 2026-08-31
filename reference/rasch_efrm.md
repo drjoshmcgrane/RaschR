@@ -91,9 +91,11 @@ rasch_efrm(
   otherwise at least 30 are required. A bootstrap covariance is reported
   only when more than half of the requested replicates are usable.
   Inference is returned only when at least 30 replicates succeed, a
-  majority of those requested, and more than the bootstrap covariance
-  has columns; below that the affected covariance is withheld with a
-  warning.
+  majority of those requested, and the requested count exceeds the
+  number of independent directions in the largest covariance block used
+  by the fit. The fit stops if the linking covariance cannot meet that
+  rule; an unsuccessful full bootstrap falls back to hybrid standard
+  errors with a warning and retains its replicate accounting.
 
 - progress:
 
@@ -176,9 +178,10 @@ units, which are identified at the linking stage. The accompanying Wald
 omnibus tests provide inference for the group- and set-unit families.
 Their probabilities are Holm-adjusted as one omnibus family; the
 individual unit contrasts form a second Holm-adjusted follow-up family.
-Unit estimates are retained for sparse designs, but probabilities
-require at least 50 persons or effective persons in every group and at
-least 50 common persons on every set-link edge.
+An unavailable probability remains in its declared family. Unit
+estimates are retained for sparse designs, but probabilities require at
+least 50 persons or effective persons in every group and at least 50
+common persons on every set-link edge.
 
 The model assumes that an item retains its location and discrimination
 across the frames in which it appears, apart from the frame unit.

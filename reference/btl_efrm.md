@@ -95,7 +95,9 @@ btl_efrm(
   Number of replicates for `se_method = "bootstrap"` or
   `"judge_bootstrap"`; at least 30 are required. Inference is returned
   only when at least 30 and more than half of the requested replicates
-  are usable.
+  are usable, and the requested count must exceed the number of
+  independent directions in the largest covariance block used by the
+  fit.
 
 - workers:
 
@@ -162,16 +164,18 @@ panel, it reduces to
 [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md). Omnibus
 Wald probabilities are Holm-adjusted across the panel-unit, set-unit and
 set-origin families. Individual contrasts form a separate Holm-adjusted
-follow-up family across all three parameter types. Judge-bootstrap
-probabilities require at least six judges and 5.5 effective judges in
-every contributing panel, and eight of each on a set link. The support
-is returned in `unit_support`; estimates remain descriptive when a
-probability is withheld. Fits with fewer than eight effective judges per
-panel or 9.5 per set link retain probabilities but report a caution.
-Set-unit estimates can also be attenuated when each object pair has
-little comparison information. In simulation, log-unit bias declined
-from about -0.11 with 10 repetitions per pair to less than -0.01 with
-100 repetitions.
+follow-up family across all three parameter types. An unavailable unit
+remains in its predeclared family; an omnibus is withheld rather than
+reduced when one of its requested coordinates is unavailable.
+Judge-bootstrap probabilities require at least six judges and 5.5
+effective judges in every contributing panel, and eight of each on a set
+link. The support is returned in `unit_support`; estimates remain
+descriptive when a probability is withheld. Fits with fewer than eight
+effective judges per panel or 9.5 per set link retain probabilities but
+report a caution. Set-unit estimates can also be attenuated when each
+object pair has little comparison information. In simulation, log-unit
+bias declined from about -0.11 with 10 repetitions per pair to less than
+-0.01 with 100 repetitions.
 
 ## References
 
