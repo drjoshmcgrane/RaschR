@@ -220,7 +220,11 @@ reference.](paired-comparisons_files/figure-html/plot-scree-1.png)
 
 The simulation reference for dimensionality uses twenty replicates here
 to keep the vignette quick. A final analysis should use enough
-replicates to stabilise the reference distribution.
+replicates to stabilise the reference distribution. An ordered analysis
+needs one row per comparison: a replication count does not retain the
+sequence needed to construct exposure and carry-over histories, so
+[`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
+refuses that combination.
 
 ## Examine DIF across judge groups
 
@@ -308,10 +312,14 @@ set \\s\\,
 
 A same-set comparison in panel \\g\\ has logit
 \\\phi_g(\beta_A-\beta_B)\\; a cross-set comparison has logit
-\\\phi_g(v_A-v_B)\\. Cross-set comparisons identify the set units and
-origins. The cross-set likelihood holds the within-set locations and
-panel units fixed. It estimates the set transformations directly from
-the comparison outcomes and does not use the finite-grid
+\\\phi_g(v_A-v_B)\\. As in Humphry and Andrich (2008, eq. 15),
+\\\phi_g\\ and \\\alpha_s\\ are unit ratios — the reference unit over
+the frame’s own, each against a reference fixed at one, a value above
+one meaning the finer unit and steeper comparisons — and “unit” names
+that ratio for short throughout. Cross-set comparisons identify the set
+units and origins. The cross-set likelihood holds the within-set
+locations and panel units fixed. It estimates the set transformations
+directly from the comparison outcomes and does not use the finite-grid
 person-distribution link in
 [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
 

@@ -275,7 +275,10 @@ is retained as the raw probability.</p>
 <p><img src="paired-comparisons_files/figure-html/plot-scree-1.png" class="r-plt" alt="Residual bimension strengths against the simulated noise reference." width="672"></p>
 <p>The simulation reference for dimensionality uses twenty replicates
 here to keep the vignette quick. A final analysis should use enough
-replicates to stabilise the reference distribution.</p>
+replicates to stabilise the reference distribution. An ordered analysis
+needs one row per comparison: a replication count does not retain the
+sequence needed to construct exposure and carry-over histories, so
+<code><a href="../reference/btl.html">btl()</a></code> refuses that combination.</p>
 </div>
 <div class="section level2">
 <h2 id="examine-dif-across-judge-groups">Examine DIF across judge groups<a class="anchor" aria-label="anchor" href="#examine-dif-across-judge-groups"></a>
@@ -356,7 +359,12 @@ v_k=\alpha_s\beta_k+\kappa_s.
 \]</span></p>
 <p>A same-set comparison in panel <span class="math inline">\(g\)</span>
 has logit <span class="math inline">\(\phi_g(\beta_A-\beta_B)\)</span>;
-a cross-set comparison has logit <span class="math inline">\(\phi_g(v_A-v_B)\)</span>. Cross-set comparisons
+a cross-set comparison has logit <span class="math inline">\(\phi_g(v_A-v_B)\)</span>. As in Humphry and
+Andrich (2008, eq. 15), <span class="math inline">\(\phi_g\)</span> and
+<span class="math inline">\(\alpha_s\)</span> are unit ratios — the
+reference unit over the frame’s own, each against a reference fixed at
+one, a value above one meaning the finer unit and steeper comparisons —
+and “unit” names that ratio for short throughout. Cross-set comparisons
 identify the set units and origins. The cross-set likelihood holds the
 within-set locations and panel units fixed. It estimates the set
 transformations directly from the comparison outcomes and does not use

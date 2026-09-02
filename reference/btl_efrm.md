@@ -136,11 +136,13 @@ and analysis notes. `boot_reps_requested`, `boot_reps_used` and
 
 For object \\k\\ in set \\s\\, let \$\$v_k=\alpha_s\beta_k+\kappa_s,\$\$
 where \\\beta_k\\ is its within-set location, \\\alpha_s\>0\\ is the set
-unit, and \\\kappa_s\\ is the set origin. A comparison in panel \\g\\
-has logit \$\$\phi_g(\beta_a-\beta_b)\$\$ for objects in the same set,
-and \$\$\phi_g(v_a-v_b)\$\$ for objects in different sets. Cross-set
-comparisons identify the common scale. The first set fixes \\\alpha=1\\
-and \\\kappa=0\\; panel units have geometric mean one.
+unit — in Humphry and Andrich's (2008) sense a unit *ratio*, the
+reference unit over the set's own, so a value above one means the finer
+natural unit — and \\\kappa_s\\ is the set origin. A comparison in panel
+\\g\\ has logit \$\$\phi_g(\beta_a-\beta_b)\$\$ for objects in the same
+set, and \$\$\phi_g(v_a-v_b)\$\$ for objects in different sets.
+Cross-set comparisons identify the common scale. The first set fixes
+\\\alpha=1\\ and \\\kappa=0\\; panel units have geometric mean one.
 
 Estimation has two stages. Within-set comparisons estimate object
 locations and panel-unit ratios. Weighted least squares reconciles the
