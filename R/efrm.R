@@ -1,8 +1,12 @@
 # rasch :: extended frame of reference model
 # ===========================================================================
 # Humphry's extended frame of reference model (Humphry 2005; Humphry &
-# Andrich 2008). A frame F_sg is one item-set by person-group cell, with
-# unit rho_sg = alpha_s * phi_g:
+# Andrich 2008). A frame of reference is a class of persons responding to a
+# class of items in a well-defined response context (Humphry & Andrich 2008);
+# here a frame F_sg is one item-set by person-group cell, with scale
+# parameter rho_sg = alpha_s * phi_g -- in the paper's terms (eq. 15) the
+# RATIO of the reference unit to the frame's own unit, so a frame with
+# rho > 1 has the smaller natural unit and the steeper curves:
 #
 #   P(X_ni = x) prop exp( rho_sg * ( x*theta_n - sum_{h<=x} delta_ih ) )
 #
@@ -986,9 +990,14 @@
 #'
 #' @details
 #' The partial credit model holds within each frame in its natural unit.
-#' Person-group units \eqn{\phi_g} are identified from common item thresholds
-#' across groups. Item sets partition the items, so set units \eqn{\alpha_s}
-#' are identified instead from persons observed in more than one set. The
+#' \eqn{\phi_g} and \eqn{\alpha_s} are unit \emph{ratios} in the sense of
+#' Humphry and Andrich (2008, eq. 15) --- each is the reference unit over the
+#' frame's own unit, against a reference level fixed at one, so a value above
+#' one means a finer natural unit and steeper curves on the common scale.
+#' Person-group ratios \eqn{\phi_g} are identified from common item
+#' thresholds across groups. Item sets partition the items, so set ratios
+#' \eqn{\alpha_s} are identified instead from persons observed in more than
+#' one set. The
 #' set-linking graph and the group-by-set frame graph must each connect to a
 #' common scale.
 #'
@@ -1872,7 +1881,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   names(fac_all) <- grp_name
   if (!is.null(grp_components)) {
     gc_chr <- as.data.frame(lapply(grp_components, as.character),
-                            stringsAsFactors = FALSE)
+                            stringsAsFactors = FALSE, check.names = FALSE)
+    names(gc_chr) <- names(grp_components)
     fac_all <- cbind(fac_all, gc_chr)
   }
   if (!is.null(fac_df)) fac_all <- cbind(fac_all, fac_df)
@@ -1960,17 +1970,36 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     # the composite label. Component levels may themselves contain colons.
     first <- match(glevs, as.character(grp))
     dd <- as.data.frame(lapply(grp_components, function(x)
-      as.character(x[first])), stringsAsFactors = FALSE)
+      as.character(x[first])), stringsAsFactors = FALSE, check.names = FALSE)
+    names(dd) <- names(grp_components)
     for (cn in names(dd)) dd[[cn]] <- factor(dd[[cn]])
     estimable <- all(vapply(dd, nlevels, 1L) >= 2L) &&
       nrow(dd) > sum(vapply(dd, nlevels, 1L) - 1L) &&
       !anyNA(fit$phi_table$phi)
     if (estimable) {
-      ctr <- stats::setNames(rep(list("contr.sum"), ncol(dd)), names(dd))
+      original_names <- names(dd)
+      safe_names <- sprintf("efrm_factor_%04d", seq_along(original_names))
+      names(dd) <- safe_names
+      ctr <- stats::setNames(rep(list("contr.sum"), ncol(dd)), safe_names)
       full <- nrow(dd) >= prod(vapply(dd, nlevels, 1L))
-      fml <- stats::as.formula(paste("~", paste(names(dd), collapse =
+      fml <- stats::as.formula(paste("~", paste(safe_names, collapse =
         if (full && ncol(dd) > 1L) " * " else " + ")))
       Xf <- stats::model.matrix(fml, dd, contrasts.arg = ctr)
+      display_names <- vapply(original_names, function(x) {
+        if (grepl("[:`]", x))
+          paste0("`", gsub("`", "``", x, fixed = TRUE), "`") else x
+      }, "")
+      relabel_factorial <- function(x) {
+        vapply(strsplit(x, ":", fixed = TRUE), function(parts) {
+          parts <- vapply(parts, function(part) {
+            hit <- which(startsWith(part, safe_names))
+            if (length(hit) != 1L) return(part)
+            paste0(display_names[hit],
+                   substring(part, nchar(safe_names[hit]) + 1L))
+          }, "")
+          paste(parts, collapse = ":")
+        }, "")
+      }
       # the centring constraint (sum log phi = 0) makes the intercept
       # inestimable -- and it lies in the null space of the centred
       # covariance, so keeping it would make the GLS cross-product
@@ -1990,7 +2019,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
       if (!is.null(V)) {
         cf <- drop(V %*% (XtS %*% log(fit$phi_table$phi)))
         fit$phi_factorial <- data.frame(
-          term = colnames(Xf), log_unit = cf,
+          term = relabel_factorial(colnames(Xf)), log_unit = cf,
           se = sqrt(pmax(diag(V), 0)), stringsAsFactors = FALSE)
         tls <- attr(stats::terms(fml), "term.labels")
         tests <- list()
@@ -2001,7 +2030,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
           W <- tryCatch(drop(t(cf[ii]) %*% solve(Vt) %*% cf[ii]),
                         error = function(e) NA_real_)
           tests[[length(tests) + 1L]] <- data.frame(
-            term = tls[tno], df = length(ii), wald = W,
+            term = relabel_factorial(tls[tno]), df = length(ii), wald = W,
             p = stats::pchisq(W, length(ii), lower.tail = FALSE),
             stringsAsFactors = FALSE)
         }
