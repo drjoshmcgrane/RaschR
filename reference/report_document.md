@@ -17,7 +17,9 @@ report_document(
   title = "Rasch measurement analysis",
   dif = NULL,
   bootstrap = NULL,
-  dif_bootstrap = NULL
+  dif_bootstrap = NULL,
+  dimensionality = NULL,
+  invariance = NULL
 )
 ```
 
@@ -58,6 +60,20 @@ report_document(
   Optional
   [`dif_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/dif_bootstrap.md)
   sensitivity analysis from this fit and DIF specification.
+
+- dimensionality:
+
+  Optional computed
+  [`plot_scree`](https://drjoshmcgrane.github.io/rasch/reference/plot_scree.md)
+  or
+  [`btl_dimensionality`](https://drjoshmcgrane.github.io/rasch/reference/btl_dimensionality.md)
+  result from this fit.
+
+- invariance:
+
+  Optional computed
+  [`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+  result from an EFRM fit.
 
 ## Value
 

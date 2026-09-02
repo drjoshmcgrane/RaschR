@@ -196,10 +196,10 @@ dim_data <- simulate_btl(
 )
 dim_fit <- btl(dim_data, object_a = "object_a", object_b = "object_b",
                winner = "winner", judge = "judge")
-dimensions <- btl_dimensionality(dim_fit, reps = 20)
+dimensions <- btl_dimensionality(dim_fit, reps = 20, seed = 2026)
 dimensions
 #> Paired-comparison residual dimensionality: 4 bimension(s)
-#> Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.526; p = 0.619) -> within the conditional reference
+#> Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.385; p = 0.476) -> within the conditional reference
 ```
 
 ``` r

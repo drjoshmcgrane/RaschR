@@ -102,7 +102,14 @@ produces.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_scree</span><span class="op">(</span><span class="va">fit</span>, n_components <span class="op">=</span> <span class="fl">10</span>, parallel <span class="op">=</span> <span class="cn">TRUE</span>, reps <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_scree</span><span class="op">(</span></span>
+<span>  <span class="va">fit</span>,</span>
+<span>  n_components <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  reps <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  result <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -127,13 +134,24 @@ adjustment covers these components.</p></dd>
 <code>parallel = TRUE</code>. Larger values give a more stable upper-tail
 reference.</p></dd>
 
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>Optional non-negative whole-number seed. The caller's random-
+number state is restored when the calculation finishes.</p></dd>
+
+
+<dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
+<dd><p>Optional result returned by an earlier call. Supplying it
+redraws that analysis without repeating the simulations.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Called for its plotting side effect; invisibly the eigen table. With
   parallel analysis it also contains <code>reference_mean</code>,
   <code>reference_critical</code>, <code>parallel_p</code>, <code>parallel_p_adj</code>,
-  <code>parallel_significant</code>, and <code>n_reference</code>. The adjustment is
+  <code>parallel_significant</code>, and requested, usable, non-converged and
+  other-failure reference counts. The adjustment is
   recorded in the table's <code>parallel_adjustment</code> attribute.</p>
     </div>
     <div class="section level2">

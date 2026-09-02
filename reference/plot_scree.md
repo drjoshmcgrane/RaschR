@@ -21,7 +21,14 @@ has a familywise-adjusted simulated upper-tail probability at or below
 ## Usage
 
 ``` r
-plot_scree(fit, n_components = 10, parallel = TRUE, reps = 50)
+plot_scree(
+  fit,
+  n_components = 10,
+  parallel = TRUE,
+  reps = 50,
+  seed = NULL,
+  result = NULL
+)
 ```
 
 ## Arguments
@@ -46,13 +53,24 @@ plot_scree(fit, n_components = 10, parallel = TRUE, reps = 50)
   `parallel = TRUE`. Larger values give a more stable upper-tail
   reference.
 
+- seed:
+
+  Optional non-negative whole-number seed. The caller's random- number
+  state is restored when the calculation finishes.
+
+- result:
+
+  Optional result returned by an earlier call. Supplying it redraws that
+  analysis without repeating the simulations.
+
 ## Value
 
 Called for its plotting side effect; invisibly the eigen table. With
 parallel analysis it also contains `reference_mean`,
 `reference_critical`, `parallel_p`, `parallel_p_adj`,
-`parallel_significant`, and `n_reference`. The adjustment is recorded in
-the table's `parallel_adjustment` attribute.
+`parallel_significant`, and requested, usable, non-converged and
+other-failure reference counts. The adjustment is recorded in the
+table's `parallel_adjustment` attribute.
 
 ## References
 

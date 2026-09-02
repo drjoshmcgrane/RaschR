@@ -63,7 +63,7 @@ model using the observed comparison counts.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">btl_dimensionality</span><span class="op">(</span><span class="va">fit</span>, reps <span class="op">=</span> <span class="fl">200L</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">btl_dimensionality</span><span class="op">(</span><span class="va">fit</span>, reps <span class="op">=</span> <span class="fl">200L</span>, seed <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -77,6 +77,11 @@ model using the observed comparison counts.</p>
 <dt id="arg-reps">reps<a class="anchor" aria-label="anchor" href="#arg-reps"></a></dt>
 <dd><p>Model-simulated replicates for the noise reference; at least 20.
 Larger values give a more stable upper-tail reference.</p></dd>
+
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>Optional non-negative whole-number seed. The caller's random-
+number state is restored when the calculation finishes.</p></dd>
 
 </dl></div>
     <div class="section level2">

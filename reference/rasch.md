@@ -65,7 +65,8 @@ rasch(
 - anchors:
 
   Optional anchor table for equating: a data frame with columns `item`,
-  `k`, and `tau`; see
+  `k`, and `tau`, and optionally `average = TRUE` for average item
+  anchoring; see
   [`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md).
   Column names must be unique. Anchors determine the scale origin.
 

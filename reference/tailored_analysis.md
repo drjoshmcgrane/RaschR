@@ -6,8 +6,12 @@ Runs the four-step tailored procedure of Andrich, Marais and Humphry
 probability of success, at the step-1 person and item estimates, is
 below `chance`, and re-estimates items and persons. Step 3
 (origin-equated) re-analyses the *original* data with the mean location
-of the anchor items fixed at their tailored values by average anchoring,
-so the two calibrations share an origin. Step 4 (all-anchored) fixes
+of the anchor items fixed at its tailored value by average item
+anchoring (see
+[`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)):
+every item keeps its initial position relative to the others and the
+calibration as a whole moves onto the tailored origin, so the two
+calibrations can be compared item by item. Step 4 (all-anchored) fixes
 every item at its tailored difficulty and re-estimates persons on the
 original data. Guessing is indicated when difficult items are estimated
 harder in the tailored analysis than in the origin-equated one; the
@@ -71,8 +75,8 @@ A list of class `"rasch_tailored"`: `tailored`, `origin_equated`, and
 `anchored` fits, the comparison `table` (initial, tailored,
 origin-equated locations, the tailored-minus-equated `shift`; bootstrap
 uncertainty columns when requested), the number of responses removed,
-the anchor items used, `se_method`, and the number of usable bootstrap
-replicates `boot_reps_used`.
+the anchor items used, `se_method`, and bootstrap accounting: requested,
+usable, non-converged, other failures, and the minimum usable count.
 
 ## References
 
@@ -94,17 +98,17 @@ X <- matrix(rbinom(N * 10, 1, P), N, 10)
 colnames(X) <- paste0("I", 1:10)
 ta <- tailored_analysis(rasch(X), chance = 0.25)
 ta$table
-#>  item initial tailored origin_equated removed shift se ci_low ci_high p p_adj
-#>    I1  -1.673   -1.770         -1.770       0 0.000                          
-#>    I2  -1.221   -1.360         -1.360       0 0.000                          
-#>    I3  -0.751   -0.826         -0.826       7 0.000                          
-#>    I4  -0.340   -0.405         -0.405      33 0.000                          
-#>    I5   0.112    0.048          0.023      33 0.025                          
-#>    I6   0.272    0.265          0.183      90 0.082                          
-#>    I7   0.542    0.513          0.454      90 0.059                          
-#>    I8   0.901    0.883          0.812     206 0.071                          
-#>    I9   1.037    1.284          0.949     206 0.335                          
-#>   I10   1.120    1.369          1.032     206 0.337                          
+#>  item initial tailored origin_equated removed  shift se ci_low ci_high p p_adj
+#>    I1  -1.673   -1.770         -1.767       0 -0.003                          
+#>    I2  -1.221   -1.360         -1.315       0 -0.044                          
+#>    I3  -0.751   -0.826         -0.845       7  0.019                          
+#>    I4  -0.340   -0.405         -0.434      33  0.029                          
+#>    I5   0.112    0.048          0.018      33  0.031                          
+#>    I6   0.272    0.265          0.177      90  0.088                          
+#>    I7   0.542    0.513          0.448      90  0.065                          
+#>    I8   0.901    0.883          0.806     206  0.077                          
+#>    I9   1.037    1.284          0.943     206  0.341                          
+#>   I10   1.120    1.369          1.026     206  0.343                          
 #>  significant
 #>             
 #>             

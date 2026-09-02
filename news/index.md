@@ -2,6 +2,86 @@
 
 ## rasch 1.12.1
 
+- [`dimensionality_test()`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md)
+  documents that its default split, chosen from the residuals, inflates
+  the proportion of significant person comparisons under
+  unidimensionality: in the package’s own simulation the
+  residual-component split left 6 to 7% of persons significant where a
+  split fixed in advance held 5%, and the binomial verdict flagged
+  between a sixth and a half of unidimensional samples, depending on the
+  design. The earlier documentation claimed the procedure held an exact
+  null. A new `B` argument calibrates the split by a parametric
+  bootstrap under the fitted model (score-conditional replicates, each
+  refitted and split afresh from its own residuals), giving `p_boot`,
+  the mean replicate proportion `prop_null`, and a verdict at the 5%
+  level. Refactored
+  [`residual_pca()`](https://drjoshmcgrane.github.io/rasch/reference/residual_pca.md)
+  and the fit-bootstrap refit so the replicates travel the observed
+  computation. The application, summary export and report note the
+  inflation where the default split is used.
+
+- A category observed only in extreme response patterns (every answered
+  item at its floor, or every one at its ceiling) carries no pairwise
+  conditional information, and its partial-credit threshold diverged
+  during estimation until the projected information matrix was reported
+  singular.
+  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  now merges such a category with its neighbour during data preparation,
+  with a note, and drops an item with no conditional information at all.
+  An item with a free threshold in that position is refused when it is
+  anchored; an item whose every threshold is anchored keeps its coding,
+  since nothing is estimated for it.
+  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)
+  names the item and category instead of reporting the singular matrix.
+
+- Tailored analysis step 3 now uses average item anchoring (RUMM2030’s
+  convention): the retained items are constrained to the mean location
+  of the step-2 calibration rather than each being fixed individually,
+  so the step-3 standard errors reflect the uncertainty of the
+  re-estimated locations.
+  [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  and
+  [`pcml()`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md)
+  accept `anchors` with `average = TRUE`, and the application offers the
+  option.
+
+- [`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md),
+  [`report_document()`](https://drjoshmcgrane.github.io/rasch/reference/report_document.md)
+  and
+  [`save_outputs()`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md)
+  now say why a scree plot is absent: a residual-PCA refusal or a
+  reference that could not be completed is warned about and, in the
+  reports, noted in place of the plot, where the precomputed-scree
+  change had dropped it without a word. The document template wraps a
+  long refusal so it stays inside the figure.
+  [`spread_test()`](https://drjoshmcgrane.github.io/rasch/reference/spread_test.md)
+  documents that Andrich’s tabulated bounds are exact for two- and
+  three-item subtests and conservative for larger ones.
+  [`distractor_analysis()`](https://drjoshmcgrane.github.io/rasch/reference/distractor_analysis.md)
+  no longer warns when nobody chose the keyed option.
+
+- Bootstrap maximum-statistic probabilities now standardise each
+  simulated row against the other rows. This gives the simulated and
+  observed statistics the same external standardisation and removes the
+  anti-conservative shrinkage caused by using a null row in its own mean
+  and standard deviation. Constant statistics remain in the declared
+  family. Saved projects omit fit-bootstrap results made with the
+  earlier adjustment and ask the analyst to recompute them.
+
+- Residual scree references and tailored-analysis bootstraps now require
+  the same usable-refit proportion as the fitted-model bootstrap: at
+  least 90% for 30 or more requested refits. Their results report
+  requested, usable, non-converged and other-failure counts. Scree and
+  paired-comparison dimensionality functions accept a seed and restore
+  the caller’s random- number state.
+
+- The application keeps the computed dimensionality and EFRM invariance
+  analyses with the saved project and passes them to reports and
+  complete exports. The selected EFRM uncertainty method is therefore
+  not replaced by a conditional rerun. Complete exports and editable
+  reports now include the dimensionality tables and figures for Rasch
+  and Comparative Judgement analyses.
+
 - Simulated response styles now preserve declared local dependence by
   rebuilding dependent responses from the styled source responses, and
   their log-probability tilt remains stable at large finite strengths.

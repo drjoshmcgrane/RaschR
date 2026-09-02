@@ -151,11 +151,14 @@ calibration may be refused when too few replicated datasets can be
 fitted with the same model. For 30 or more requested replicates,
 inference is withheld unless at least 30 and 90% of the refits are
 usable. A maxT adjustment is unavailable for the complete family if one
-testable member lacks a usable joint null. The adjustment applies
-separately to each statistic under the fitted global null. It does not
-guarantee familywise error among fitting items when another item
-misfits. Nominate a primary statistic, or adjust again if either
-statistic will be used to make the same confirmatory decision.
+testable member lacks a usable joint null. Each simulated statistic is
+standardised against the other bootstrap rows; using a row in its own
+reference mean and standard deviation would make the adjusted
+probabilities too small. The adjustment applies separately to each
+statistic under the fitted global null. It does not guarantee familywise
+error among fitting items when another item misfits. Nominate a primary
+statistic, or adjust again if either statistic will be used to make the
+same confirmatory decision.
 
 ``` r
 
@@ -391,7 +394,7 @@ dimensionality <- dimensionality_test(fit)
 
 ``` r
 
-plot_scree(fit)
+scree <- plot_scree(fit, seed = 2026)
 ```
 
 ![Residual eigenvalues against the score-conditional model-reference

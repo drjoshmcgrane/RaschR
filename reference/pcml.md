@@ -29,11 +29,17 @@ pcml(X, model = c("PCM", "RSM"), anchors = NULL, maxit = 60, tol = 1e-08)
 - anchors:
 
   Optional anchor table for equating: a data frame with columns `item`
-  (name or column index), `k`, and `tau` (the fixed value). A numeric
+  (name or column index), `k`, and `tau` (the anchor value). A numeric
   `k` fixes that single threshold (individual anchoring); `k = NA` fixes
   the item's mean location at `tau` while its thresholds remain free
-  (average anchoring). The remaining parameters are estimated on the
-  anchored scale and no recentring is applied. Column names must be
+  (location anchoring). The remaining parameters are estimated on the
+  anchored scale and no recentring is applied. An optional logical
+  column `average`, `TRUE` on every row, selects RUMM2030's average item
+  anchoring instead: every parameter is estimated free, and the
+  calibration is shifted so that the mean location of the anchor items
+  equals the mean of their `tau` values (one row per item, `k = NA`).
+  Only the origin changes, so every item, the anchors included, keeps
+  its estimated position relative to the others. Column names must be
   unique. PCM only.
 
 - maxit, tol:

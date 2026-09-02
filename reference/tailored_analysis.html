@@ -12,9 +12,12 @@ observed response whose modelled probability of success, at the step-1
 person and item estimates, is below chance, and re-estimates
 items and persons. Step 3 (origin-equated) re-analyses the
 original data with the mean location of the anchor items fixed at
-their tailored values by average anchoring, so the two calibrations
-share an origin. Step 4 (all-anchored) fixes every item at its tailored
-difficulty and re-estimates persons on the original data. Guessing is
+its tailored value by average item anchoring (see pcml):
+every item keeps its initial position relative to the others and the
+calibration as a whole moves onto the tailored origin, so the two
+calibrations can be compared item by item. Step 4 (all-anchored) fixes
+every item at its tailored difficulty and re-estimates persons on the
+original data. Guessing is
 indicated when difficult items are estimated harder in the tailored
 analysis than in the origin-equated one; the comparison table and
 plot_equate on the two calibrations show it directly."><meta property="og:description" content="Runs the four-step tailored procedure of Andrich, Marais and Humphry
@@ -24,9 +27,12 @@ observed response whose modelled probability of success, at the step-1
 person and item estimates, is below chance, and re-estimates
 items and persons. Step 3 (origin-equated) re-analyses the
 original data with the mean location of the anchor items fixed at
-their tailored values by average anchoring, so the two calibrations
-share an origin. Step 4 (all-anchored) fixes every item at its tailored
-difficulty and re-estimates persons on the original data. Guessing is
+its tailored value by average item anchoring (see pcml):
+every item keeps its initial position relative to the others and the
+calibration as a whole moves onto the tailored origin, so the two
+calibrations can be compared item by item. Step 4 (all-anchored) fixes
+every item at its tailored difficulty and re-estimates persons on the
+original data. Guessing is
 indicated when difficult items are estimated harder in the tailored
 analysis than in the origin-equated one; the comparison table and
 plot_equate on the two calibrations show it directly."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
@@ -77,9 +83,12 @@ observed response whose modelled probability of success, at the step-1
 person and item estimates, is below <code>chance</code>, and re-estimates
 items and persons. Step 3 (origin-equated) re-analyses the
 <em>original</em> data with the mean location of the anchor items fixed at
-their tailored values by average anchoring, so the two calibrations
-share an origin. Step 4 (all-anchored) fixes every item at its tailored
-difficulty and re-estimates persons on the original data. Guessing is
+its tailored value by average item anchoring (see <code><a href="pcml.html">pcml</a></code>):
+every item keeps its initial position relative to the others and the
+calibration as a whole moves onto the tailored origin, so the two
+calibrations can be compared item by item. Step 4 (all-anchored) fixes
+every item at its tailored difficulty and re-estimates persons on the
+original data. Guessing is
 indicated when difficult items are estimated harder in the tailored
 analysis than in the origin-equated one; the comparison table and
 <code><a href="plot_equate.html">plot_equate</a></code> on the two calibrations show it directly.</p>
@@ -143,8 +152,9 @@ when that floor exceeds 0.05 (detection would be impossible).</p></dd>
   <code>table</code> (initial, tailored, origin-equated locations, the
   tailored-minus-equated <code>shift</code>; bootstrap uncertainty columns when
   requested), the number of
-  responses removed, the anchor items used, <code>se_method</code>, and the
-  number of usable bootstrap replicates <code>boot_reps_used</code>.</p>
+  responses removed, the anchor items used, <code>se_method</code>, and bootstrap
+  accounting: requested, usable, non-converged, other failures, and the
+  minimum usable count.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -166,17 +176,17 @@ when that floor exceeds 0.05 (detection would be impossible).</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">ta</span> <span class="op">&lt;-</span> <span class="fu">tailored_analysis</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, chance <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">ta</span><span class="op">$</span><span class="va">table</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  item initial tailored origin_equated removed shift se ci_low ci_high p p_adj</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I1  -1.673   -1.770         -1.770       0 0.000                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I2  -1.221   -1.360         -1.360       0 0.000                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I3  -0.751   -0.826         -0.826       7 0.000                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I4  -0.340   -0.405         -0.405      33 0.000                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I5   0.112    0.048          0.023      33 0.025                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I6   0.272    0.265          0.183      90 0.082                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I7   0.542    0.513          0.454      90 0.059                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I8   0.901    0.883          0.812     206 0.071                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    I9   1.037    1.284          0.949     206 0.335                          </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   I10   1.120    1.369          1.032     206 0.337                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  item initial tailored origin_equated removed  shift se ci_low ci_high p p_adj</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I1  -1.673   -1.770         -1.767       0 -0.003                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I2  -1.221   -1.360         -1.315       0 -0.044                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I3  -0.751   -0.826         -0.845       7  0.019                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I4  -0.340   -0.405         -0.434      33  0.029                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I5   0.112    0.048          0.018      33  0.031                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I6   0.272    0.265          0.177      90  0.088                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I7   0.542    0.513          0.448      90  0.065                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I8   0.901    0.883          0.806     206  0.077                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    I9   1.037    1.284          0.943     206  0.341                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   I10   1.120    1.369          1.026     206  0.343                          </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  significant</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>             </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>             </span>

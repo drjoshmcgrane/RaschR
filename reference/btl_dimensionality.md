@@ -9,7 +9,7 @@ one-dimensional model using the observed comparison counts.
 ## Usage
 
 ``` r
-btl_dimensionality(fit, reps = 200L)
+btl_dimensionality(fit, reps = 200L, seed = NULL)
 ```
 
 ## Arguments
@@ -23,6 +23,11 @@ btl_dimensionality(fit, reps = 200L)
 
   Model-simulated replicates for the noise reference; at least 20.
   Larger values give a more stable upper-tail reference.
+
+- seed:
+
+  Optional non-negative whole-number seed. The caller's random- number
+  state is restored when the calculation finishes.
 
 ## Value
 
