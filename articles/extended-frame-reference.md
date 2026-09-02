@@ -38,6 +38,7 @@ d <- simulate_efrm(
   seed = 25
 )
 truth <- attr(d, "truth")
+d$site <- rep(c("A", "B"), length.out = nrow(d))
 d
 #> Simulated efrm data: 300 persons, 2 sets x 2 groups, 16 items (2 categories)
 #> Planted departures:
@@ -55,6 +56,7 @@ fit <- rasch_efrm(
   item_sets = truth$item_sets,
   groups = "group",
   id = "id",
+  factors = "site",
   boot_reps = 50,
   workers = 1,
   seed = 25
@@ -145,6 +147,20 @@ fit$linking         # set-linking design
 #> $alpha_grid
 #>  lower  upper points 
 #>     -8      8     61
+```
+
+The frame-defining group is part of the model and is not retested as
+DIF. Other person factors can be examined with
+[`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md).
+Its bootstrap conditions on each person’s subtotal within each observed
+item set, then repeats the Extended Frames fit and the complete DIF
+analysis. Its familywise probabilities refer to the fitted global
+invariant null.
+
+``` r
+
+dif <- dif_anova(fit)
+dif_bootstrap(fit, dif, B = 999, seed = 2026)$summary
 ```
 
 Person-group units are estimated from common threshold patterns across

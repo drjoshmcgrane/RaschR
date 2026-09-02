@@ -16,7 +16,8 @@ report_document(
   format = c("auto", "html", "docx", "pdf"),
   title = "Rasch measurement analysis",
   dif = NULL,
-  bootstrap = NULL
+  bootstrap = NULL,
+  dif_bootstrap = NULL
 )
 ```
 
@@ -51,6 +52,12 @@ report_document(
   [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
   results from this fit, rendered as run rather than recomputed at
   defaults.
+
+- dif_bootstrap:
+
+  Optional
+  [`dif_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/dif_bootstrap.md)
+  sensitivity analysis from this fit and DIF specification.
 
 ## Value
 

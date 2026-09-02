@@ -71,6 +71,8 @@ Examine DIF across groups or occasions and equate calibrations.
 
 - [`dif_anova()`](https://drjoshmcgrane.github.io/rasch/reference/dif_anova.md)
   : Differential item functioning by residual analysis of variance
+- [`dif_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/dif_bootstrap.md)
+  : Bootstrap sensitivity analysis for DIF
 - [`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
   : Planned DIF contrasts
 - [`dif_posthoc()`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)

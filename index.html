@@ -174,9 +174,12 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/fit_summary_table.html">fit_summary_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/targeting_table.html">targeting_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/dimensionality_test.html">dimensionality_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Optional sensitivity analysis for the DIF reference distribution</span></span>
+<span><span class="fu"><a href="reference/dif_bootstrap.html">dif_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">dif</span>, B <span class="op">=</span> <span class="fl">999</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Calibrated item and person fit (use more replicates for a final analysis)</span></span>
 <span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fit_bootstrap.html">fit_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, B <span class="op">=</span> <span class="fl">199</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
@@ -188,6 +191,7 @@
 <span></span>
 <span><span class="co"># WrightMap is an optional dependency</span></span>
 <span><span class="fu"><a href="reference/wright_map.html">wright_map</a></span><span class="op">(</span><span class="va">fit</span>, person_panels <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
+<p>The DIF bootstrap is a sensitivity analysis under the fitted global invariant null. The adjusted residual analysis remains primary.</p>
 <p>The <a href="https://drjoshmcgrane.github.io/rasch/reference/index.html">function reference</a> documents the data requirements and returned values for each analysis. The <a href="https://drjoshmcgrane.github.io/rasch/articles/">vignettes</a> begin with the data structures required by each model and cover the Rasch workflow, many-facet and extended-frame models, comparative judgement, explanatory modelling, repeated-measures DIF and validation.</p>
 </div>
 <div class="section level2">

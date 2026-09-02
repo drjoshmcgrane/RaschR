@@ -13,7 +13,8 @@ report_html(
   title = "Rasch measurement analysis",
   dpi = 150,
   dif = NULL,
-  bootstrap = NULL
+  bootstrap = NULL,
+  dif_bootstrap = NULL
 )
 ```
 
@@ -44,6 +45,12 @@ report_html(
   [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
   results from this fit, exported as run; the DIF table is otherwise
   recomputed at defaults when the fit carries person factors.
+
+- dif_bootstrap:
+
+  Optional
+  [`dif_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/dif_bootstrap.md)
+  sensitivity analysis from this fit and DIF specification.
 
 ## Value
 

@@ -439,6 +439,23 @@ for significant interactions.</p>
 <span><span class="co">#&gt;   I08  g2 - g1   -0.039 0.139   0.777 -0.312 0.233          </span></span>
 <span><span class="co">#&gt;   I08  g3 - g1    0.705 0.148 &lt; 0.001  0.415 0.995         *</span></span>
 <span><span class="co">#&gt;   I08  g3 - g2    0.745 0.147 &lt; 0.001  0.457 1.032         *</span></span></code></pre></div>
+<p>The residual ANOVA is the primary DIF analysis. A bootstrap
+sensitivity analysis repeats the calibration and complete DIF analysis
+under the fitted invariant model. Here it conditions on each person’s
+score and observed-item pattern; Multiple Ratings and explanatory models
+use the same sufficient-score principle, Extended Frames conditions
+within item sets, and Comparative Judgement draws from its fitted
+outcome model. Its minimum-p probabilities calibrate the same item- or
+object-by-term family under the fitted global invariant null. They do
+not guarantee strong familywise control after one member departs. The
+bootstrap is not a way to purify a scale after DIF has already
+contaminated the person scores, so disagreement calls for closer review
+rather than an automatic split.</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dif_boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_bootstrap.html">dif_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">dif</span>, B <span class="op">=</span> <span class="fl">999</span>, workers <span class="op">=</span> <span class="fl">4</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">dif_boot</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"p_uniform_boot_adj"</span>, <span class="st">"p_nonuniform_boot_adj"</span></span>
+<span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 <p>Statistical significance and practical magnitude answer different
 questions. Any split must be supported by the response process and
 should be applied with <code><a href="../reference/resolve_dif.html">resolve_dif()</a></code>, which refits the
@@ -505,7 +522,9 @@ equating, guessing, facets and extended frames. The DIF panel runs
 <code><a href="../reference/dif_anova.html">dif_anova()</a></code> over the nominated person factors, reports the
 uniform and non-uniform tests with their Holm adjustment and effect
 sizes, and draws the observed and expected curves by group for a
-selected item.</p>
+selected item. Its bootstrap panel runs the optional sensitivity
+analysis in the background and keeps it with saved analyses and
+reports.</p>
 <p><img src="figures/app-dif.png" class="r-plt" alt="The DIF panel, showing the analysis of variance table by item and term with the flagged items and the characteristic curves by person group." width="100%"></p>
 <p>Every result carries an <strong>R code</strong> disclosure beneath
 it. Opening it shows the call that produced that table or figure, so an

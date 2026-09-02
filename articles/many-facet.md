@@ -29,8 +29,11 @@ facet sum to zero.
 
 d <- simulate_mfrm(n_persons = 60, n_items = 4, n_raters = 5,
                    rater_severity_sd = 0.7, seed = 8)
+person_group <- setNames(rep(c("A", "B"), length.out = 60),
+                         unique(d$person))
+d$group <- person_group[d$person]
 fit <- rasch_mfrm(d, person = "person", item = "item", score = "score",
-                  facets = "rater")
+                  facets = "rater", factors = "group")
 fit
 #> rasch multiple ratings analysis: 4 items x 5 rater level(s) = 20 response cells, 60 persons
 #> Pairwise conditional ML: converged in 7 iterations
@@ -142,6 +145,18 @@ functions remain available. MFRM margin tables additionally report an
 equal-cell fit residual and a response-weighted pooled residual. Their
 weighting differs, so both the design and the location of any misfit
 should guide interpretation.
+
+Person factors are tested with the ordinary DIF analysis. The optional
+bootstrap conditions on each person’s total over the observed
+item-by-facet cells and repeats both the facet calibration and the
+complete DIF family. Its familywise probabilities refer to the fitted
+global invariant null.
+
+``` r
+
+dif <- dif_anova(fit)
+dif_bootstrap(fit, dif, B = 999, seed = 2026)$summary
+```
 
 ## References
 

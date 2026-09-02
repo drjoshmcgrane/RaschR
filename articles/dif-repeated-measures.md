@@ -171,6 +171,33 @@ but the `superseded` flag records that the interaction absorbs it, and
 the follow-ups report the interaction rather than its components. Read
 adjusted probabilities with effect sizes before changing an item.
 
+[`dif_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/dif_bootstrap.md)
+repeats this design under the fitted invariant model. Ordinary and
+explanatory Rasch models and Multiple Ratings condition on each person’s
+score. Extended Frames conditions within each item set, where the frame
+unit is common. Comparative Judgement instead draws outcomes from its
+fitted model while retaining judges and the comparison design. Every
+replicate repeats the calibration and the full DIF family. The result is
+a sensitivity analysis; the adjusted residual ANOVA remains primary. Its
+familywise probabilities describe the fitted global invariant null, not
+otherwise invariant items when another item has DIF.
+
+``` r
+
+db <- dif_bootstrap(fit, da, B = 999, workers = 4, seed = 2026)
+db$summary[, c("item", "term", "p_uniform_boot_adj",
+               "p_nonuniform_boot_adj")]
+```
+
+In a four-occasion validation study, familywise error under the balanced
+Rasch null was 6.9% for the primary analysis and 4.9% for the bootstrap
+over 350 datasets. The corresponding rates were 4.6% and 4.0% with
+unequal groups and group-dependent panel loss. For uniform occasion DIF
+the bootstrap was slightly less powerful than the primary analysis.
+Adjusted non-uniform power was weak for both procedures in this
+seven-item, 180-person design. The bootstrap therefore remains a
+sensitivity analysis rather than the default test.
+
 ## Quantify the departure
 
 ANOVA identifies evidence against invariance; it does not state the size

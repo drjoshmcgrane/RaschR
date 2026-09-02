@@ -108,8 +108,11 @@ facet sum to zero.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_mfrm.html">simulate_mfrm</a></span><span class="op">(</span>n_persons <span class="op">=</span> <span class="fl">60</span>, n_items <span class="op">=</span> <span class="fl">4</span>, n_raters <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>                   rater_severity_sd <span class="op">=</span> <span class="fl">0.7</span>, seed <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
+<span><span class="va">person_group</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, length.out <span class="op">=</span> <span class="fl">60</span><span class="op">)</span>,</span>
+<span>                         <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">person</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">group</span> <span class="op">&lt;-</span> <span class="va">person_group</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">person</span><span class="op">]</span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span><span class="va">d</span>, person <span class="op">=</span> <span class="st">"person"</span>, item <span class="op">=</span> <span class="st">"item"</span>, score <span class="op">=</span> <span class="st">"score"</span>,</span>
-<span>                  facets <span class="op">=</span> <span class="st">"rater"</span><span class="op">)</span></span>
+<span>                  facets <span class="op">=</span> <span class="st">"rater"</span>, factors <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; rasch multiple ratings analysis: 4 items x 5 rater level(s) = 20 response cells, 60 persons</span></span>
 <span><span class="co">#&gt; Pairwise conditional ML: converged in 7 iterations</span></span>
@@ -210,6 +213,14 @@ dimensionality, and plotting functions remain available. MFRM margin
 tables additionally report an equal-cell fit residual and a
 response-weighted pooled residual. Their weighting differs, so both the
 design and the location of any misfit should guide interpretation.</p>
+<p>Person factors are tested with the ordinary DIF analysis. The
+optional bootstrap conditions on each person’s total over the observed
+item-by-facet cells and repeats both the facet calibration and the
+complete DIF family. Its familywise probabilities refer to the fitted
+global invariant null.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/dif_bootstrap.html">dif_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">dif</span>, B <span class="op">=</span> <span class="fl">999</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>

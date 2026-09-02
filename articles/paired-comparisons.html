@@ -311,6 +311,13 @@ false positive rather than a planted result.</p>
 <span><span class="co">#&gt;                22.693</span></span>
 <span><span class="co">#&gt;                21.707</span></span>
 <span><span class="co">#&gt;                22.237</span></span></code></pre></div>
+<p>An optional fitted-outcome bootstrap repeats the comparison fit and
+the complete object-by-term family. It is a sensitivity analysis beside
+the primary HC3 residual analysis. Its familywise probabilities refer to
+the fitted global invariant null.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bd_boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_bootstrap.html">dif_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">bd</span>, B <span class="op">=</span> <span class="fl">999</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">bd_boot</span><span class="op">$</span><span class="va">summary</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="equate-panels-through-common-objects">Equate panels through common objects<a class="anchor" aria-label="anchor" href="#equate-panels-through-common-objects"></a>
@@ -324,7 +331,7 @@ The shift is precision-weighted when at least two common objects have
 usable variances. If they do not, the function uses the unweighted mean
 location difference, labels it in <code>shift_method</code>, and keeps
 the link descriptive.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_equate.html">btl_equate</a></span><span class="op">(</span><span class="va">current_panel</span>, <span class="va">reference_panel</span>, independent <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">equated</span>                 <span class="co"># reference panel on the current panel's origin</span></span></code></pre></div>
@@ -355,7 +362,7 @@ within-set locations and panel units fixed. It estimates the set
 transformations directly from the comparison outcomes and does not use
 the finite-grid person-distribution link in
 <code><a href="../reference/rasch_efrm.html">rasch_efrm()</a></code>.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">de</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl_efrm.html">simulate_btl_efrm</a></span><span class="op">(</span></span>
 <span>  n_objects_per_set <span class="op">=</span> <span class="fl">5</span>, n_sets <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  n_judges_per_panel <span class="op">=</span> <span class="fl">6</span>, n_panels <span class="op">=</span> <span class="fl">2</span>,</span>

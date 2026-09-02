@@ -118,6 +118,7 @@ frame-dependent unit.</p>
 <span>  seed <span class="op">=</span> <span class="fl">25</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, length.out <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span></span>
 <span><span class="co">#&gt; Simulated efrm data: 300 persons, 2 sets x 2 groups, 16 items (2 categories)</span></span>
 <span><span class="co">#&gt; Planted departures:</span></span>
@@ -131,6 +132,7 @@ set-unit ratio of 1.30 and a group-unit ratio of 1.10.</p>
 <span>  item_sets <span class="op">=</span> <span class="va">truth</span><span class="op">$</span><span class="va">item_sets</span>,</span>
 <span>  groups <span class="op">=</span> <span class="st">"group"</span>,</span>
 <span>  id <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  factors <span class="op">=</span> <span class="st">"site"</span>,</span>
 <span>  boot_reps <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>  workers <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">25</span></span>
@@ -217,6 +219,15 @@ set-unit ratio of 1.30 and a group-unit ratio of 1.10.</p>
 <span><span class="co">#&gt; $alpha_grid</span></span>
 <span><span class="co">#&gt;  lower  upper points </span></span>
 <span><span class="co">#&gt;     -8      8     61</span></span></code></pre></div>
+<p>The frame-defining group is part of the model and is not retested as
+DIF. Other person factors can be examined with <code><a href="../reference/dif_anova.html">dif_anova()</a></code>.
+Its bootstrap conditions on each person’s subtotal within each observed
+item set, then repeats the Extended Frames fit and the complete DIF
+analysis. Its familywise probabilities refer to the fitted global
+invariant null.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dif</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_anova.html">dif_anova</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/dif_bootstrap.html">dif_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">dif</span>, B <span class="op">=</span> <span class="fl">999</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span></span></code></pre></div>
 <p>Person-group units are estimated from common threshold patterns
 across groups. Set units are estimated from persons observed in more
 than one set. For a linked pair, the natural coordinates satisfy <span class="math inline">\(u_b=r u_a+c\)</span>. The package estimates <span class="math inline">\(r\)</span>, <span class="math inline">\(c\)</span>, and masses for the nuisance person
@@ -243,7 +254,7 @@ connect to a common scale. A linking response pattern must span a score
 range of at least four within a set. Overlapping item sets are not
 permitted.</p>
 <p>Several group factors may define crossed frames:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_crossed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
 <span>  item_sets <span class="op">=</span> <span class="va">item_sets</span>,</span>
@@ -287,7 +298,7 @@ withheld if it cannot be estimated. A full bootstrap that falls below
 its minimum returns hybrid standard errors instead, retaining its
 attempted, usable and failed counts in
 <code>full_boot_reps_*</code>.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">efrm_vs_rasch</span><span class="op">$</span><span class="va">unit_omnibus</span></span>
 <span><span class="co">#&gt;               term df   wald       p   p_adj significant</span></span>
 <span><span class="co">#&gt;  group units (phi)  1  7.442   0.006   0.006           *</span></span>
@@ -342,14 +353,14 @@ conditions on the fitted frame units:</p>
 C\{V_1/\hat\rho_1^2+V_2/\hat\rho_2^2\}C^{\mathsf T},
 \qquad C=I-\mathbf 1\mathbf w^{\mathsf T} .
 \]</span></p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">inv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frame_invariance.html">frame_invariance</a></span><span class="op">(</span><span class="va">fit</span>, se_method <span class="op">=</span> <span class="st">"conditional"</span><span class="op">)</span></span>
 <span><span class="va">inv</span><span class="op">$</span><span class="va">summary</span></span>
 <span><span class="va">inv</span><span class="op">$</span><span class="va">locations</span></span>
 <span><span class="va">inv</span><span class="op">$</span><span class="va">discrimination</span></span></code></pre></div>
 <p>A person-within-frame bootstrap includes uncertainty in the fitted
 units:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">inv_boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frame_invariance.html">frame_invariance</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
 <span>  se_method <span class="op">=</span> <span class="st">"bootstrap"</span>,</span>
@@ -385,7 +396,7 @@ each frame. The item continues to contribute to person measurement but
 no longer links those frames. <code><a href="../reference/drop_items.html">drop_items()</a></code> removes it. Both
 functions refit the model and update the frame, item and person
 estimates.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">resolved</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/resolve_frames.html">resolve_frames</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"S1I02"</span><span class="op">)</span></span>
 <span><span class="va">removed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/drop_items.html">drop_items</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"S1I02"</span><span class="op">)</span></span></code></pre></div>
 <p>The remaining common items and linked sets must still identify the

@@ -245,6 +245,28 @@ but the <code>superseded</code> flag records that the interaction
 absorbs it, and the follow-ups report the interaction rather than its
 components. Read adjusted probabilities with effect sizes before
 changing an item.</p>
+<p><code><a href="../reference/dif_bootstrap.html">dif_bootstrap()</a></code> repeats this design under the fitted
+invariant model. Ordinary and explanatory Rasch models and Multiple
+Ratings condition on each person’s score. Extended Frames conditions
+within each item set, where the frame unit is common. Comparative
+Judgement instead draws outcomes from its fitted model while retaining
+judges and the comparison design. Every replicate repeats the
+calibration and the full DIF family. The result is a sensitivity
+analysis; the adjusted residual ANOVA remains primary. Its familywise
+probabilities describe the fitted global invariant null, not otherwise
+invariant items when another item has DIF.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">db</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_bootstrap.html">dif_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">da</span>, B <span class="op">=</span> <span class="fl">999</span>, workers <span class="op">=</span> <span class="fl">4</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">db</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"term"</span>, <span class="st">"p_uniform_boot_adj"</span>,</span>
+<span>               <span class="st">"p_nonuniform_boot_adj"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<p>In a four-occasion validation study, familywise error under the
+balanced Rasch null was 6.9% for the primary analysis and 4.9% for the
+bootstrap over 350 datasets. The corresponding rates were 4.6% and 4.0%
+with unequal groups and group-dependent panel loss. For uniform occasion
+DIF the bootstrap was slightly less powerful than the primary analysis.
+Adjusted non-uniform power was weak for both procedures in this
+seven-item, 180-person design. The bootstrap therefore remains a
+sensitivity analysis rather than the default test.</p>
 </div>
 <div class="section level2">
 <h2 id="quantify-the-departure">Quantify the departure<a class="anchor" aria-label="anchor" href="#quantify-the-departure"></a>
@@ -254,7 +276,7 @@ size of the departure in logits. <code>dif_size</code> resolves an item
 by a between-person factor. <code>dif_contrasts</code> provides planned
 contrasts and uses person-level differencing for within-person
 questions.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/dif_size.html">dif_size</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I03"</span>, by <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; DIF size for I03 by group (resolved locations, logits)</span></span>
 <span><span class="co">#&gt;  level location se weak   n</span></span>

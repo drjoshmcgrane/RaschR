@@ -35,7 +35,8 @@ item_design <- data.frame(
 
 difficulty <- 0.8 * (item_design$operation == "inference") +
   0.4 * (item_design$format == "constructed")
-theta <- rnorm(500)
+group <- factor(rep(c("A", "B"), each = 250))
+theta <- rnorm(500) + ifelse(group == "B", 0.3, 0)
 X <- sapply(difficulty, function(delta)
   rbinom(length(theta), 1, plogis(theta - delta)))
 colnames(X) <- item_design$item
@@ -44,12 +45,13 @@ fit <- rasch_explanatory(
   X,
   predictors = item_design,
   formula = ~ operation + format,
-  level = "item"
+  level = "item",
+  factors = data.frame(group = group)
 )
 fit$est$coefficients
 #>             term estimate    se       z       p   p_adj
-#>  operationrecall   -0.825 0.072 -11.414 < 0.001 < 0.001
-#>   formatselected   -0.350 0.073  -4.797 < 0.001 < 0.001
+#>  operationrecall   -0.851 0.069 -12.294 < 0.001 < 0.001
+#>   formatselected   -0.327 0.071  -4.606 < 0.001 < 0.001
 ```
 
 Predictors may be continuous, categorical or ordinal. Numeric vectors
@@ -113,9 +115,9 @@ corresponding free object calibration.
 
 explanatory_test(fit)
 #>  model parameters free_parameters r_squared r_squared_adj              r2_basis
-#>   LLTM          2               7     0.967         0.954 threshold calibration
+#>   LLTM          2               7     0.974         0.964 threshold calibration
 #>   chisq df p_naive chisq_kent     p p_kent
-#>  19.917  5   0.001      5.191 0.393  0.393
+#>  16.526  5   0.005      4.245 0.515  0.515
 ```
 
 A non-significant result does not establish that the explanatory
@@ -140,12 +142,12 @@ of probabilities by Holm’s method.
 departures <- explanatory_diagnostics(fit)
 head(departures)
 #>  item     component parameters_added departure deviance_reduction df     p weak
-#>    I6 Item location                1     0.205              9.201  1 0.128     
-#>    I8 Item location                1    -0.195              8.582  1 0.138     
-#>    I1 Item location                1     0.141              4.645  1 0.257     
-#>    I3 Item location                1    -0.135              4.272  1 0.283     
-#>    I5 Item location                1    -0.097              2.247  1 0.455     
-#>    I7 Item location                1     0.093              2.056  1 0.465     
+#>    I1 Item location                1     0.184              8.142  1 0.144     
+#>    I3 Item location                1    -0.163              6.318  1 0.200     
+#>    I6 Item location                1     0.167              6.248  1 0.200     
+#>    I8 Item location                1    -0.141              4.539  1 0.283     
+#>    I5 Item location                1    -0.041              0.422  1 0.746     
+#>    I2 Item location                1    -0.037              0.353  1 0.767     
 #>  p_adj
 #>  1.000
 #>  1.000
@@ -174,6 +176,19 @@ explanatory structure and add the required fixed departures for changed
 items. Response-dependence resolution does the same for its resolved
 item copies. With keyed multiple-choice data, unchanged and split items
 retain their raw responses for distractor analysis.
+
+When person factors are supplied to
+[`rasch_explanatory()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_explanatory.md),
+DIF is tested in the usual way. The optional bootstrap conditions on
+each person’s score and refits the active explanatory model, including
+accepted fixed departures. Its familywise probabilities refer to the
+fitted global invariant null.
+
+``` r
+
+dif <- dif_anova(fit)
+dif_bootstrap(fit, dif, B = 999, seed = 2026)$summary
+```
 
 The same workflow is available under **Explanatory** in the Shiny
 application. Predictor type is selected explicitly in the application;

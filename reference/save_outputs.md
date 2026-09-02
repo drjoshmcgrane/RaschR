@@ -17,7 +17,8 @@ save_outputs(
   dpi = 300,
   item_plots = TRUE,
   dif = NULL,
-  bootstrap = NULL
+  bootstrap = NULL,
+  dif_bootstrap = NULL
 )
 ```
 
@@ -65,6 +66,12 @@ save_outputs(
   result from this fit. Its item and person tables, or pair, object and
   judge tables for paired comparisons, join the export with the
   whole-test readings.
+
+- dif_bootstrap:
+
+  Optional
+  [`dif_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/dif_bootstrap.md)
+  sensitivity analysis from this fit and DIF specification.
 
 ## Value
 
