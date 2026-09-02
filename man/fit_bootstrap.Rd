@@ -123,8 +123,9 @@ Wolfe, E. W. (2013). A bootstrap approach to evaluating person and item
 
 Wu, M. and Adams, R. J. (2013). Properties of Rasch residual fit
   statistics. \emph{Journal of Applied Measurement}, 14(4), 339--355.
+
 Molenaar, I. W. and Hoijtink, H. (1996). Person-fit test statistics for the
-  Rasch model. Applied Measurement in Education, 9, 87--106.
+  Rasch model. \emph{Applied Measurement in Education}, 9(1), 87--106.
 
 Westfall, P. H. and Young, S. S. (1993). \emph{Resampling-Based Multiple
   Testing}. Wiley.

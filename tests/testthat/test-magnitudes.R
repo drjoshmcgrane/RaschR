@@ -185,7 +185,11 @@ test_that("tailored_analysis bootstrap repeats the complete procedure", {
                             se_method = "bootstrap", boot_reps = 50),
     "smallest achievable")
   expect_identical(ta$se_method, "bootstrap")
-  expect_gte(ta$boot_reps_used, 30L)
+  expect_gte(ta$boot_reps_used, 45L)
+  expect_identical(ta$boot_minimum_usable, 45L)
+  expect_identical(ta$boot_reps,
+                   ta$boot_reps_used + ta$boot_reps_nonconverged +
+                     ta$boot_reps_errors)
   expect_true(all(is.finite(ta$table$se)))
   expect_true(all(is.finite(ta$table$ci_low)))
   expect_true(all(is.finite(ta$table$ci_high)))

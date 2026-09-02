@@ -20,11 +20,18 @@ item in every block, the disjoint-form equating case.}
 
 \item{anchors}{Optional anchor table for equating: a data frame with
 columns \code{item} (name or column index), \code{k}, and \code{tau}
-(the fixed value). A numeric \code{k} fixes that single threshold
+(the anchor value). A numeric \code{k} fixes that single threshold
 (individual anchoring); \code{k = NA} fixes the item's mean location at
-\code{tau} while its thresholds remain free (average anchoring). The
+\code{tau} while its thresholds remain free (location anchoring). The
 remaining parameters are estimated on the anchored scale and no
-recentring is applied. Column names must be unique. PCM only.}
+recentring is applied. An optional logical column \code{average},
+\code{TRUE} on every row, selects RUMM2030's average item anchoring
+instead: every parameter is estimated free, and the calibration is
+shifted so that the mean location of the anchor items equals the mean
+of their \code{tau} values (one row per item, \code{k = NA}). Only the
+origin changes, so every item, the anchors included, keeps its
+estimated position relative to the others. Column names must be unique.
+PCM only.}
 
 \item{maxit, tol}{Newton-Raphson iteration cap and convergence tolerance.}
 }

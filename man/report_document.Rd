@@ -11,7 +11,9 @@ report_document(
   title = "Rasch measurement analysis",
   dif = NULL,
   bootstrap = NULL,
-  dif_bootstrap = NULL
+  dif_bootstrap = NULL,
+  dimensionality = NULL,
+  invariance = NULL
 )
 }
 \arguments{
@@ -30,6 +32,12 @@ recomputed at defaults.}
 
 \item{dif_bootstrap}{Optional \code{\link{dif_bootstrap}} sensitivity
 analysis from this fit and DIF specification.}
+
+\item{dimensionality}{Optional computed \code{\link{plot_scree}} or
+\code{\link{btl_dimensionality}} result from this fit.}
+
+\item{invariance}{Optional computed \code{\link{frame_invariance}} result
+from an EFRM fit.}
 }
 \value{
 Invisibly, the output path.

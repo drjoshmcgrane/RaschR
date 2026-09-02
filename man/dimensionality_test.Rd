@@ -10,7 +10,10 @@ dimensionality_test(
   items_positive = NULL,
   items_negative = NULL,
   component = 1,
-  min_score_points = 15L
+  min_score_points = 15L,
+  B = 0,
+  workers = 4L,
+  seed = NULL
 )
 }
 \arguments{
@@ -32,12 +35,19 @@ roughly 15 score points for stable subtest estimates; shorter subsets
 (the norm for ordinary dichotomous tests) still receive a verdict, with
 a \code{caution} field noting the reduced stability. A quiet verdict
 under caution is inconclusive, not clean: with a four-item subtest the
-test lacks power where nonparametric alternatives still flag. The
-procedure is deliberately conservative -- in cross-package comparison
-it held an exact null (no false flags) while flagging a balanced
-planted second dimension in about two-thirds of replicates where the
-DETECT index flagged all; quasi-exact matrix-sampling tests showed
-elevated null rates on the same data.}
+test lacks power where nonparametric alternatives still flag.}
+
+\item{B}{Number of parametric-bootstrap replicates that calibrate the
+proportion of significant tests under the fitted model (see Details).
+The default \code{0} reports the binomial reading alone. Each replicate
+refits the calibration, so \code{B = 200} costs about two hundred
+fits; the bootstrap is available for single-facet fits with a common
+unit whose thresholds were estimated directly.}
+
+\item{workers}{Number of parallel workers for the bootstrap refits.}
+
+\item{seed}{Optional integer seed for the bootstrap; the replicates are
+reproducible for a given seed whatever the worker count.}
 }
 \value{
 A list with the proportion of significant tests, its exact
@@ -47,9 +57,15 @@ A list with the proportion of significant tests, its exact
   subtests fall short of \code{min_score_points}, and \code{paired_t},
   the paired t-test of the two subset means (the group-level comparison,
   which requires pairing because both estimates come from the same
-  persons). When the comparison itself is unavailable (undefined split,
-  degenerate subsets, too few persons) the list carries a \code{note}
-  explaining why and \code{multidimensional = NA}.
+  persons). With \code{B > 0} the list also carries \code{p_boot}, the
+  bootstrap probability of a proportion at least as large as the observed
+  one under the fitted unidimensional model; \code{prop_null}, the mean
+  replicate proportion (the rate the split produces when nothing is
+  there); and \code{bootstrap}, the replicate proportions with the
+  counts requested, used, non-converged and failed. When the comparison
+  itself is unavailable (undefined split, degenerate subsets, too few
+  persons) the list carries a \code{note} explaining why and
+  \code{multidimensional = NA}.
 }
 \description{
 Estimates each person separately on two item subsets and compares the two
@@ -68,15 +84,45 @@ proportion of significant tests is reported with an exact
 \code{alpha} signals multidimensionality. The test requires a converged
 calibration.
 }
+\details{
+The binomial reading holds for a split fixed in advance. A split chosen
+from the residuals is chosen to make the two subsets disagree, so its
+proportion runs above \code{alpha} under unidimensionality. In the
+package's own simulation of unidimensional data (400 persons; 20
+four-category items, or 30 dichotomous items) the residual-component split
+left 6 to 7 per cent of persons significant and the binomial verdict
+flagged between a sixth and a half of the samples, depending on the
+design, while a split fixed in advance on the same data held the nominal
+rate and flagged none. With \code{B = 99} the bootstrap verdict flagged
+2 to 8 per cent of the same samples and 97 per cent of samples from a
+two-dimensional design that the binomial verdict flagged in 87 per cent.
+Two remedies are available. A content-based split, named through \code{items_positive}
+and \code{items_negative}, keeps the binomial reading exact. Otherwise
+\code{B > 0} calibrates the data-driven split by a parametric bootstrap:
+each replicate draws responses from the fitted model conditional on every
+person's raw score and missingness pattern, refits the calibration,
+repeats the residual-component split on its own residuals and recomputes
+the proportion, so the bootstrap probability \code{p_boot} carries the
+same selection the observed proportion carries. With \code{B > 0} the
+verdict is \code{p_boot <= .05}; the binomial interval is still reported,
+as a description of the observed proportion rather than a test of it.
+}
 \examples{
 set.seed(1)
 d <- seq(-2, 2, length.out = 8)
 X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 colnames(X) <- paste0("I", 1:8)
 dimensionality_test(rasch(X))$multidimensional
+\donttest{
+# calibrate the data-driven split under the fitted model
+dimensionality_test(rasch(X), B = 99, workers = 1, seed = 1)$p_boot
+}
 }
 \references{
 Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
 multidimensionality using item fit statistics and principal component
 analysis of residuals. Journal of Applied Measurement, 3(2), 205--231.
+
+Tennant, A., & Pallant, J. F. (2006). Unidimensionality matters! (A tale
+of two Smiths?). Rasch Measurement Transactions, 20(1), 1048--1051.
 }

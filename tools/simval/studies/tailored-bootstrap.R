@@ -75,9 +75,9 @@
 # A replicate that errors during simulation/fit/tailoring is a REFUSAL; one
 # whose initial fit does not converge is a NONCONV; both are excluded from
 # n_reps and reported via n_attempted/n_refused/n_nonconv. Bootstrap-
-# internal degeneracy (inner resample draws that themselves fail, silently
-# dropped by tailored_analysis() itself when < half fail) is tracked
-# separately as its own rate.
+# internal non-convergence and other errors are tracked separately. For 30
+# or more requested draws, tailored_analysis() refuses inference unless at
+# least 90% (and at least 30) are usable.
 #
 # "2 low items" (the task's planted-guessing items) are read as the 2
 # HARDEST items (highest difficulty; last two of the increasing-difficulty
@@ -132,6 +132,9 @@ run_one <- function(N, diff, guess_vec, theta_mean, theta_sd, chance,
     return(list(status = "refused", stage = "tailored", msg = conditionMessage(ta)))
   list(status = "ok", table = ta$table, boot_used = ta$boot_reps_used,
        boot_reps = boot_reps, floor_warned = floor_warned,
+       boot_nonconv = ta$boot_reps_nonconverged,
+       boot_errors = ta$boot_reps_errors,
+       boot_minimum = ta$boot_minimum_usable,
        n_removed = ta$n_removed, n_anchor = length(ta$anchor_items))
 }
 
@@ -144,6 +147,7 @@ run_family_a <- function() {
   MAX_REPS <- 60
   n_attempted <- 0L; n_refused <- 0L; n_nonconv <- 0L
   tabs <- list(); boot_used_v <- integer(0); boot_reqd_v <- integer(0)
+  boot_nonconv_v <- integer(0); boot_errors_v <- integer(0)
   floor_warned_any <- logical(0)
   first_ok_seed <- NA_integer_
   cat("[a] FWER principal: N=300, I=8, chance=0.25, no guessing, boot_reps=399\n")
@@ -160,6 +164,8 @@ run_family_a <- function() {
     tabs[[length(tabs) + 1L]] <- out$table
     boot_used_v <- c(boot_used_v, out$boot_used)
     boot_reqd_v <- c(boot_reqd_v, out$boot_reps)
+    boot_nonconv_v <- c(boot_nonconv_v, out$boot_nonconv)
+    boot_errors_v <- c(boot_errors_v, out$boot_errors)
     floor_warned_any <- c(floor_warned_any, out$floor_warned)
   }
   elapsed <- as.numeric(Sys.time() - t0, units = "secs")
@@ -192,6 +198,8 @@ run_family_a <- function() {
     n_reps = n_reps, bias = if (n_reps) mean(degen_loss) else NA_real_,
     emp_sd = if (n_reps > 1) stats::sd(degen_loss) else NA_real_,
     n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
+    n_boot_attempted = sum(boot_reqd_v), n_boot_used = sum(boot_used_v),
+    n_boot_nonconv = sum(boot_nonconv_v), n_boot_errors = sum(boot_errors_v),
     notes = if (n_reps) sprintf("mean fraction lost = %.4f; %d/%d replicates lost >=1 inner draw",
                     mean(degen_loss), sum(degen_any), n_reps) else "no successful replicates")
   rows[[4]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",

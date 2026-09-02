@@ -625,6 +625,13 @@ test_that("conditional frame invariance reports discrimination descriptively", {
   expect_true(all(c("infit_1", "infit_2", "infit_z", "p_adj",
                     "disc_1", "disc_2", "disc_ratio") %in%
                     names(inv$discrimination)))
+  expect_identical(inv$boot_reps, 0L)
+  expect_identical(inv$boot_reps_used, 0L)
+  expect_no_error(.validate_frame_invariance(inv, f))
+  changed <- inv
+  changed$locations$difference[1] <- changed$locations$difference[1] + 1
+  expect_error(.validate_frame_invariance(changed, f),
+               "frame_invariance")
   expect_false("statistic" %in% names(inv$discrimination))
   expect_true(all(is.na(inv$discrimination$p)))
   expect_true(all(is.na(inv$discrimination$p_adj)))

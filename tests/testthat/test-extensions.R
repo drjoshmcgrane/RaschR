@@ -21,6 +21,63 @@ test_that("anchored estimation holds anchors and recovers the uncentred scale", 
   expect_error(rasch(X, anchors = data.frame(item = "NOPE", k = 1, tau = 0)))
 })
 
+test_that("average item anchoring shifts the free calibration onto the anchor origin", {
+  set.seed(4); N <- 500
+  dtrue <- seq(-1.6, 1.6, length.out = 8) + 0.7
+  X <- matrix(rbinom(N * 8, 1, plogis(outer(rnorm(N), dtrue, "-"))), N, 8)
+  colnames(X) <- sprintf("I%02d", 1:8)
+  free <- rasch(X)
+  anc <- data.frame(item = c("I01", "I02", "I03"), k = NA,
+                    tau = dtrue[1:3] + c(0.1, -0.1, 0), average = TRUE)
+  fit <- rasch(X, anchors = anc)
+  # RUMM's average item anchoring: the anchor items' mean location sits at
+  # the mean anchor value, and every item keeps its free relative position
+  expect_equal(mean(fit$items$location[1:3]), mean(anc$tau), tolerance = 1e-9)
+  shift <- mean(anc$tau) - mean(free$items$location[1:3])
+  expect_equal(fit$thresholds$tau, free$thresholds$tau + shift, tolerance = 1e-9)
+  expect_equal(fit$person$theta, free$person$theta + shift, tolerance = 1e-8)
+  # no item is fixed: the anchors keep a sampling variance on the new origin
+  expect_true(all(fit$items$se[1:3] > 0))
+  expect_false(any(fit$thresholds$anchored))
+  expect_match(paste(fit$notes, collapse = " "), "average location of 3 anchor")
+  # the covariance follows the re-identification, so the anchor mean has
+  # (numerically) no variance while the other items keep theirs
+  a <- rep(0, 8); a[1:3] <- 1 / 3
+  expect_lt(abs(drop(t(a) %*% fit$est$cov_tau %*% a)), 1e-12)
+  expect_gt(fit$est$cov_tau[8, 8], 0)
+  # an average = FALSE column is the ordinary table
+  expect_equal(rasch(X, anchors = transform(anc[1, ], average = FALSE))$items$se[1], 0)
+  expect_error(rasch(X, anchors = transform(anc, average = c(TRUE, TRUE, FALSE))),
+               "whole anchor set")
+  expect_error(rasch(X, anchors = transform(anc, k = c(1, NA, NA))),
+               "k = NA")
+  expect_error(rasch(X, anchors = transform(anc, average = c(TRUE, NA, TRUE))),
+               "TRUE or FALSE")
+  # the anchor set survives an item drop and a bootstrap refit
+  fd <- drop_items(fit, "I08")
+  expect_equal(mean(fd$items$location[1:3]), mean(anc$tau), tolerance = 1e-9)
+})
+
+test_that("tailored step 3 equates the origin by average item anchoring", {
+  set.seed(5); N <- 600
+  d0 <- seq(-2, 2.5, length.out = 10); th <- rnorm(N)
+  X <- matrix(rbinom(N * 10, 1, 0.25 + 0.75 * plogis(outer(th, d0, "-"))), N, 10)
+  colnames(X) <- paste0("I", 1:10)
+  fit <- rasch(X)
+  ta <- tailored_analysis(fit, chance = 0.25)
+  tab <- ta$table
+  anc <- tab$item %in% ta$anchor_items
+  # the origin-equated calibration is the initial one moved onto the
+  # tailored origin: the anchor items themselves are not held fixed
+  shift <- mean(tab$tailored[anc]) - mean(tab$initial[anc])
+  expect_equal(tab$origin_equated, tab$initial + shift, tolerance = 1e-9)
+  expect_equal(mean(tab$origin_equated[anc]), mean(tab$tailored[anc]),
+               tolerance = 1e-9)
+  expect_false(all(tab$shift[anc] == 0))
+  expect_equal(sum(tab$shift[anc]), 0, tolerance = 1e-9)
+  expect_true(all(ta$origin_equated$items$se > 0))
+})
+
 test_that("MFRM recovers facet severities and item locations", {
   set.seed(1); Np <- 250
   persons <- sprintf("P%03d", seq_len(Np)); raters <- paste0("R", 1:5)

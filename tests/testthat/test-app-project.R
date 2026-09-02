@@ -97,6 +97,53 @@ test_that("saved app analyses make a validated round trip", {
   expect_no_error(.validate_app_project(legacy))
 })
 
+test_that("saved dimensionality results are authenticated against the active fit", {
+  set.seed(811)
+  X <- matrix(rbinom(600, 1, .5), 120, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  fit <- rasch(X)
+  dimensionality <- .scree_analysis(fit, n_components = 3,
+                                    parallel = FALSE)
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), settings = list(),
+    results = list(dimensionality = dimensionality)))
+  expect_no_error(.validate_app_project(project))
+
+  project$results$dimensionality$eigenvalue[1] <-
+    project$results$dimensionality$eigenvalue[1] + 1
+  expect_error(.validate_app_project(project),
+               "saved dimensionality analysis")
+})
+
+test_that("schema-2 projects drop results made with the earlier maxT adjustment", {
+  set.seed(812)
+  X <- matrix(rbinom(600, 1, .5), 120, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  fit <- rasch(X)
+  old_bs <- suppressWarnings(fit_bootstrap(fit, B = 3, workers = 1,
+                                            seed = 812))
+  old_bs$algorithm <- NULL
+  unsigned <- old_bs
+  unsigned$result_signature <- NULL
+  old_bs$result_signature <- .fit_boot_md5(unsigned)
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), settings = list(),
+    results = list(bootstrap = list(bs = old_bs, B = 3L, seed = 812L,
+                                    kind = "rasch"))))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+  saveRDS(project, path)
+  expect_warning(restored <- .read_app_project(path), "earlier maxT")
+  expect_null(restored$results$bootstrap)
+  expect_match(attr(restored, "rasch_project_legacy_dropped"),
+               "superseded maxT")
+  expect_no_error(.validate_app_project(restored))
+})
+
 test_that("invalid app analysis files are refused", {
   bad <- tempfile(fileext = ".rasch")
   on.exit(unlink(bad))

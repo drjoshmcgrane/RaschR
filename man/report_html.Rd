@@ -11,7 +11,9 @@ report_html(
   dpi = 150,
   dif = NULL,
   bootstrap = NULL,
-  dif_bootstrap = NULL
+  dif_bootstrap = NULL,
+  dimensionality = NULL,
+  invariance = NULL
 )
 }
 \arguments{
@@ -29,6 +31,13 @@ otherwise recomputed at defaults when the fit carries person factors.}
 
 \item{dif_bootstrap}{Optional \code{\link{dif_bootstrap}} sensitivity
 analysis from this fit and DIF specification.}
+
+\item{dimensionality}{Optional computed \code{\link{plot_scree}} result
+from this fit. Supplying it keeps the table and figure identical to the
+analysis already run.}
+
+\item{invariance}{Optional computed \code{\link{frame_invariance}} result
+from an EFRM fit.}
 }
 \value{
 Invisibly, \code{file}.

@@ -272,6 +272,28 @@
                  problem))
   }
 
+  dimensionality <- project$results$dimensionality
+  if (!is.null(dimensionality)) {
+    problem <- tryCatch({
+      if (is_btl) .validate_btl_dimensionality(dimensionality, active_fit)
+      else .validate_scree_result(dimensionality, active_fit)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (!is.null(problem))
+      fail(paste("the saved dimensionality analysis does not belong to the active fit:",
+                 problem))
+  }
+  invariance <- project$results$frame_invariance
+  if (!is.null(invariance)) {
+    problem <- tryCatch({
+      .validate_frame_invariance(invariance, active_fit)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (!is.null(problem))
+      fail(paste("the saved frame-invariance analysis does not belong to the active fit:",
+                 problem))
+  }
+
   if (!.app_scalar_text(project$binding))
     fail("the analysis file has no valid data-to-fit integrity information")
   unsigned_project <- project
@@ -297,6 +319,25 @@
     length(project$schema) == 1L && is.numeric(project$schema) &&
     !is.na(project$schema) && project$schema == 1L
   dropped <- character(0)
+  # Early schema-2 projects contain valid signed bootstrap arrays but predate
+  # external (leave-one-out) maxT standardisation. Their adjusted
+  # probabilities must not be displayed under the corrected algorithm. The
+  # original project seal is checked before the derived result is removed.
+  old_maxt <- !legacy && is.list(project) &&
+    length(project$schema) == 1L && is.numeric(project$schema) &&
+    !is.na(project$schema) && project$schema == 2L &&
+    is.list(project$results$bootstrap) &&
+    is.list(project$results$bootstrap$bs) &&
+    is.null(project$results$bootstrap$bs$algorithm)
+  if (isTRUE(old_maxt)) {
+    if (!.app_scalar_text(project$binding) ||
+        !identical(project$binding, .app_project_binding(project)))
+      stop(paste("the analysis file's source data, fitted models or results have",
+                 "changed since they were saved"), call. = FALSE)
+    project$results$bootstrap <- NULL
+    project <- .seal_app_project(project)
+    dropped <- c(dropped, "fit bootstrap (superseded maxT adjustment)")
+  }
   if (legacy) {
     # Schema 1 did not record an integrity binding. It can be checked
     # structurally and upgraded, but its original data-to-fit relationship
@@ -344,6 +385,13 @@
                   if (length(dropped)) paste0("; unverifiable saved results ",
                     "were omitted: ", paste(unique(dropped), collapse = ", "))
                   else ""),
+            call. = FALSE)
+  }
+  if (isTRUE(old_maxt)) {
+    attr(project, "rasch_project_legacy_dropped") <- unique(dropped)
+    warning(paste("the saved fit bootstrap used the earlier maxT",
+                  "standardisation and was omitted; recompute it before",
+                  "reporting adjusted bootstrap probabilities"),
             call. = FALSE)
   }
   project

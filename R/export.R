@@ -203,7 +203,7 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 
 .save_btl_outputs <- function(fit, dir, formats, width, height, dpi,
                               object_plots, bootstrap = NULL, dif = NULL,
-                              dif_bootstrap = NULL) {
+                              dif_bootstrap = NULL, dimensionality = NULL) {
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   odir <- file.path(pdir, "objects")
@@ -262,6 +262,22 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
     wtab(tr$objects, "transitivity_objects")
     wtab(tr$judges, "transitivity_judges")
   }
+  bd <- if (!is.null(dimensionality)) dimensionality else
+    tryCatch(btl_dimensionality(fit, seed = 1L), error = function(e) e)
+  if (inherits(bd, "error")) {
+    wtab(data.frame(note = paste("Dimensionality was not available:",
+                                 conditionMessage(bd))),
+         "residual_dimensionality")
+  } else {
+    wtab(bd$bimensions, "residual_bimensions")
+    wtab(bd$coords, "residual_bimension_coordinates")
+    ref <- bd$reference
+    wtab(data.frame(
+      mean = ref$mean, upper_5_percent = ref$p95, p = ref$p,
+      p_adj = ref$p_adj, requested = ref$reps, used = ref$n_used,
+      alpha = ref$alpha, seed = ref$seed %||% NA_integer_,
+      method = ref$method), "residual_dimensionality_reference")
+  }
   if (inherits(fit, "rasch_btl_efrm")) {
     wtab(fit$phi_table, "panel_units_phi")
     wtab(fit$alpha_table, "set_units_alpha")
@@ -286,6 +302,10 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
   sp(function() plot_btl_targeting(fit), "design_information")
   if (!is.null(tr))
     sp(function() plot_btl_transitivity(tr), "transitivity")
+  if (!inherits(bd, "error")) {
+    sp(function() plot_btl_scree(bd), "residual_bimensions")
+    sp(function() plot_btl_dim_map(bd), "residual_bimension_map")
+  }
   if (inherits(fit, "rasch_btl_efrm"))
     sp(function() plot_btl_units(fit), "frame_units")
   if (object_plots) {
@@ -322,6 +342,11 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #'   join the export with the whole-test readings.
 #' @param dif_bootstrap Optional \code{\link{dif_bootstrap}} sensitivity
 #'   analysis from this fit and DIF specification.
+#' @param dimensionality Optional computed \code{\link{plot_scree}} or
+#'   \code{\link{btl_dimensionality}} result from this fit. Supplying it keeps
+#'   the exported table and figure identical to the analysis already run.
+#' @param invariance Optional computed \code{\link{frame_invariance}} result
+#'   from an EFRM fit.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
 #'   threshold curve, and frequency chart per item).
 #' @return Invisibly, the vector of files written.
@@ -336,13 +361,18 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE,
                          dif = NULL, bootstrap = NULL,
-                         dif_bootstrap = NULL) {
+                         dif_bootstrap = NULL, dimensionality = NULL,
+                         invariance = NULL) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   if (!is.null(dif_bootstrap) && is.null(dif))
     stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
   .validate_dif_bootstrap(dif_bootstrap, fit, dif)
+  if (inherits(fit, "rasch_btl"))
+    .validate_btl_dimensionality(dimensionality, fit)
+  else .validate_scree_result(dimensionality, fit)
+  .validate_frame_invariance(invariance, fit)
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
   # complete export but carries no plots
@@ -353,7 +383,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     return(.save_btl_outputs(fit, dir, formats, width, height, dpi,
                              object_plots = item_plots,
                              bootstrap = bootstrap, dif = dif,
-                             dif_bootstrap = dif_bootstrap))
+                             dif_bootstrap = dif_bootstrap,
+                             dimensionality = dimensionality))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
@@ -419,7 +450,19 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     wtab(data.frame(note = pc$msg), "pca_loadings")
   } else {
     wtab(pc$loadings_matrix, "pca_loadings")
-    wtab(pc$eigen_table, "residual_eigenvalues")
+    # a reference that cannot be completed leaves the observed eigenvalues
+    # in the table and the scree plot out of the export; an omitted display
+    # must not pass silently for an export the user will treat as complete
+    scree <- if (!is.null(dimensionality)) dimensionality else
+      tryCatch(.scree_analysis(fit, parallel = !structural, seed = 1L),
+               error = function(e) {
+                 warning("plot 'scree' could not be drawn: ",
+                         conditionMessage(e), call. = FALSE)
+                 structure(list(msg = conditionMessage(e)),
+                           class = "rr_pca_refusal")
+               })
+    wtab(if (inherits(scree, "rr_pca_refusal")) pc$eigen_table else scree,
+         "residual_eigenvalues")
   }
   cf <- do.call(rbind, lapply(fit$thresholds_diag, function(d)
     data.frame(item = d$item, category = seq_along(d$category_counts) - 1L,
@@ -458,7 +501,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     wtab(x$unit_tests, "unit_contrasts")
     # the fit holds each item at one location across frames, so the units are
     # only as good as that assumption; save the test of it beside them
-    inv <- tryCatch(frame_invariance(fit), error = function(e) e)
+    inv <- if (!is.null(invariance)) invariance else
+      tryCatch(frame_invariance(fit), error = function(e) e)
     if (inherits(inv, "error")) {
       wtab(data.frame(note = paste("Frame invariance was not available:",
                                    conditionMessage(inv))),
@@ -522,6 +566,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
                 if (dt$multidimensional) "MULTIDIMENSIONAL" else "consistent with one dimension"))
     if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
+    cat("Note: the item split was chosen from the residuals, which inflates the proportion",
+        "under unidimensionality; see ?dimensionality_test for a content split or a bootstrap calibration\n")
   } else cat("\nUnidimensionality t-test:", dt$note, "\n")
   cat(sprintf("Average residual correlation: %.3f; binary Q3 flags withheld (no universal critical value)\n",
               rc$average))
@@ -550,7 +596,9 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   # overlap, but no valid full-refit parallel reference over the mutually
   # exclusive virtual design. Export the observed scree deliberately instead
   # of attempting the unavailable reference and warning from a normal export.
-  sp(function() plot_scree(fit, parallel = !structural), "scree")
+  if (exists("scree", inherits = FALSE) &&
+      !inherits(scree, "rr_pca_refusal"))
+    sp(function() plot_scree(fit, result = scree), "scree")
   if (whole_item_design && all(fit$m == 1L))
     sp(function() plot_guttman(fit), "guttman_scalogram")
   sp(function() plot_resid_dist(fit, "items"), if (structural)
@@ -704,6 +752,11 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #'   otherwise recomputed at defaults when the fit carries person factors.
 #' @param dif_bootstrap Optional \code{\link{dif_bootstrap}} sensitivity
 #'   analysis from this fit and DIF specification.
+#' @param dimensionality Optional computed \code{\link{plot_scree}} result
+#'   from this fit. Supplying it keeps the table and figure identical to the
+#'   analysis already run.
+#' @param invariance Optional computed \code{\link{frame_invariance}} result
+#'   from an EFRM fit.
 #' @return Invisibly, \code{file}.
 #' @examples
 #' set.seed(1)
@@ -715,7 +768,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' @export
 report_html <- function(fit, file, title = "Rasch measurement analysis",
                         dpi = 150, dif = NULL, bootstrap = NULL,
-                        dif_bootstrap = NULL) {
+                        dif_bootstrap = NULL, dimensionality = NULL,
+                        invariance = NULL) {
   # a vector title would be pasted into as many documents as it has entries,
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
@@ -725,6 +779,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   if (!is.null(dif_bootstrap) && is.null(dif))
     stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
   .validate_dif_bootstrap(dif_bootstrap, fit, dif)
+  .validate_scree_result(dimensionality, fit)
+  .validate_frame_invariance(invariance, fit)
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")
   .check_pos_num(dpi, "dpi")
@@ -753,6 +809,18 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
                           gsub("&", "&amp;", as.character(x))))
   title <- esc(title)
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
+  # a refusal (structurally disjoint columns) or a failed reference leaves
+  # the scree out of the report; say why, in the document and as a warning,
+  # rather than drop the section without a word
+  scree_refusal <- NULL
+  scree <- if (!is.null(dimensionality)) dimensionality else
+    tryCatch(.scree_analysis(fit, parallel = !structural, seed = 1L),
+             error = function(e) {
+               scree_refusal <<- conditionMessage(e)
+               warning("report plot 'scree' could not be drawn: ",
+                       conditionMessage(e), call. = FALSE)
+               NULL
+             })
   alpha_design <- .classical_design_applicable(fit)
   item_count <- if (inherits(fit, "rasch_mfrm")) nrow(fit$item_effects)
     else if (inherits(fit, "rasch_efrm")) nrow(fit$item_arbitrary)
@@ -796,7 +864,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
             if (dt$multidimensional) "<span class='flag'>evidence of multidimensionality</span>"
             else "consistent with one dimension"),
            if (!is.null(dt$caution))
-             sprintf("<p class='note'>%s</p>", esc(dt$caution)) else "")
+             sprintf("<p class='note'>%s</p>", esc(dt$caution)) else "",
+           "<p class='note'>The item split was chosen from the residuals, which inflates the proportion under unidimensionality; see ?dimensionality_test for a content split or a bootstrap calibration.</p>")
   else sprintf("<p class='note'>%s</p>", esc(dt$note))
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
@@ -889,7 +958,12 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     shot(function() plot_resid_dist(fit, "items"), "resid_items"),
     shot(function() plot_resid_dist(fit, "persons"), "resid_persons"),
     "<h2>Dimensionality</h2>", dim_html,
-    shot(function() plot_scree(fit, parallel = !structural), "scree"),
+    if (!is.null(scree_refusal))
+      sprintf("<p class='note'>Scree plot unavailable: %s</p>",
+              esc(scree_refusal)) else "",
+    if (!is.null(scree)) .html_table(scree) else "",
+    if (!is.null(scree))
+      shot(function() plot_scree(fit, result = scree), "scree") else "",
     "<h2>Local dependence</h2>",
     sprintf(paste0("<p>Average residual correlation %.3f; binary Q3 flags ",
                    "withheld because there is no universal critical value.</p>"),
@@ -987,7 +1061,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
         "<h3>Item-set units</h3>", .html_table(fit$alpha_table),
         "<h3>Item-set locations</h3>", .html_table(fit$set_table))
     } else "",
-    if (inherits(fit, "rasch_efrm")) .html_frame_invariance(fit) else "",
+    if (inherits(fit, "rasch_efrm"))
+      .html_frame_invariance(fit, invariance) else "",
     "<h2>Person estimates</h2>",
     .html_table(fit$person[, intersect(c("id", names(fit$factors), "raw",
                                          "max_raw", "theta", "se", "extreme",
@@ -1015,6 +1090,10 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #'   recomputed at defaults.
 #' @param dif_bootstrap Optional \code{\link{dif_bootstrap}} sensitivity
 #'   analysis from this fit and DIF specification.
+#' @param dimensionality Optional computed \code{\link{plot_scree}} or
+#'   \code{\link{btl_dimensionality}} result from this fit.
+#' @param invariance Optional computed \code{\link{frame_invariance}} result
+#'   from an EFRM fit.
 #' @param title Report title.
 #' @return Invisibly, the output path.
 #' @details Word and HTML output require Pandoc, supplied with RStudio and
@@ -1030,7 +1109,8 @@ report_document <- function(fit, file,
                             format = c("auto", "html", "docx", "pdf"),
                             title = "Rasch measurement analysis",
                             dif = NULL, bootstrap = NULL,
-                            dif_bootstrap = NULL) {
+                            dif_bootstrap = NULL, dimensionality = NULL,
+                            invariance = NULL) {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
   .validate_boot_dif_result(dif, fit)
@@ -1038,12 +1118,19 @@ report_document <- function(fit, file,
   if (!is.null(dif_bootstrap) && is.null(dif))
     stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
   .validate_dif_bootstrap(dif_bootstrap, fit, dif)
+  if (inherits(fit, "rasch_btl"))
+    .validate_btl_dimensionality(dimensionality, fit)
+  else .validate_scree_result(dimensionality, fit)
+  .validate_frame_invariance(invariance, fit)
   # computed results travel as attributes on the serialised fit, so the
   # template renders the analysis as run rather than a default recomputation
   if (!is.null(dif)) attr(fit, "report_dif") <- dif
   if (!is.null(bootstrap)) attr(fit, "report_bootstrap") <- bootstrap
   if (!is.null(dif_bootstrap))
     attr(fit, "report_dif_bootstrap") <- dif_bootstrap
+  if (!is.null(dimensionality))
+    attr(fit, "report_dimensionality") <- dimensionality
+  if (!is.null(invariance)) attr(fit, "report_invariance") <- invariance
   .check_out_path(file, "file")
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")
@@ -1097,8 +1184,9 @@ report_document <- function(fit, file,
 # by the frame unit, so it cannot test that assumption from its own fit. A
 # report that shows the units without the test invites the reader to trust
 # them further than the analysis warrants, so the test travels with them.
-.html_frame_invariance <- function(fit) {
-  inv <- tryCatch(frame_invariance(fit), error = function(e) e)
+.html_frame_invariance <- function(fit, invariance = NULL) {
+  inv <- if (!is.null(invariance)) invariance else
+    tryCatch(frame_invariance(fit), error = function(e) e)
   if (inherits(inv, "error"))
     return(paste0("<h2>Item invariance across frames</h2>",
       "<p class='note'>Frame invariance was not available: ",

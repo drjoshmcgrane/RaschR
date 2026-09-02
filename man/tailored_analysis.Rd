@@ -45,8 +45,9 @@ A list of class \code{"rasch_tailored"}: \code{tailored},
   \code{table} (initial, tailored, origin-equated locations, the
   tailored-minus-equated \code{shift}; bootstrap uncertainty columns when
   requested), the number of
-  responses removed, the anchor items used, \code{se_method}, and the
-  number of usable bootstrap replicates \code{boot_reps_used}.
+  responses removed, the anchor items used, \code{se_method}, and bootstrap
+  accounting: requested, usable, non-converged, other failures, and the
+  minimum usable count.
 }
 \description{
 Runs the four-step tailored procedure of Andrich, Marais and Humphry
@@ -56,9 +57,12 @@ observed response whose modelled probability of success, at the step-1
 person and item estimates, is below \code{chance}, and re-estimates
 items and persons. Step 3 (origin-equated) re-analyses the
 \emph{original} data with the mean location of the anchor items fixed at
-their tailored values by average anchoring, so the two calibrations
-share an origin. Step 4 (all-anchored) fixes every item at its tailored
-difficulty and re-estimates persons on the original data. Guessing is
+its tailored value by average item anchoring (see \code{\link{pcml}}):
+every item keeps its initial position relative to the others and the
+calibration as a whole moves onto the tailored origin, so the two
+calibrations can be compared item by item. Step 4 (all-anchored) fixes
+every item at its tailored difficulty and re-estimates persons on the
+original data. Guessing is
 indicated when difficult items are estimated harder in the tailored
 analysis than in the origin-equated one; the comparison table and
 \code{\link{plot_equate}} on the two calibrations show it directly.

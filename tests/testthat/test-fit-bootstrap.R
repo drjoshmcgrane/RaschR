@@ -187,16 +187,16 @@ test_that("the maxT reference uses the joint null and never lowers raw p", {
   expect_true(all(z$p_adj <= 1, na.rm = TRUE))
   expect_true(all(is.finite(z$p_adj)))
 
-  # A testable member with no null variation invalidates the joint maximum,
-  # rather than quietly reducing the family for the other members.
+  # A constant member remains in the declared family. Degenerate null
+  # columns are compared exactly rather than silently dropping that test.
   constant <- null; constant[, 3] <- 20
   zc <- .boot_maxt(c(40, 40, 20), constant, "upper", min_success = 30L)
-  expect_true(all(is.na(zc$p_adj)))
+  expect_true(all(is.finite(zc$p_adj)))
   expect_equal(zc$family_n, 3L)
-  expect_equal(zc$adjusted_n, 0L)
-  expect_true(all(is.na(.boot_maxt(c(40, 40, 20), constant, "upper",
+  expect_equal(zc$adjusted_n, 3L)
+  expect_true(all(is.finite(.boot_maxt(c(40, 40, 20), constant, "upper",
     min_success = 30L, mode = "centred")$p_adj)))
-  expect_true(all(is.na(.boot_maxt(c(40, 40, 20), constant, "upper",
+  expect_true(all(is.finite(.boot_maxt(c(40, 40, 20), constant, "upper",
     min_success = 30L, mode = "raw")$p_adj)))
 
   null[1:20, 3] <- NA
@@ -204,6 +204,44 @@ test_that("the maxT reference uses the joint null and never lowers raw p", {
   expect_true(is.na(z2$p[3]))
   expect_equal(z2$family_n, 3L)
   expect_true(all(is.na(z2$p_adj)))
+})
+
+test_that("studentised maxT externally standardises every null row", {
+  set.seed(914)
+  B <- 40L; K <- 5L
+  null <- matrix(rnorm(B * K), B, K)
+  observed <- rnorm(K)
+  got <- .boot_maxt(observed, null, "two", min_success = 36L)
+
+  Z <- matrix(NA_real_, B, K)
+  for (i in seq_len(B)) {
+    training <- null[-i, , drop = FALSE]
+    Z[i, ] <- (null[i, ] - colMeans(training)) /
+      apply(training, 2L, sd)
+  }
+  z_obs <- abs((observed - colMeans(null)) / apply(null, 2L, sd))
+  max_null <- apply(abs(Z), 1L, max)
+  expected <- vapply(z_obs, function(z)
+    (1 + sum(max_null >= z)) / (B + 1), numeric(1))
+  expect_equal(got$p_adj, pmax(got$p, expected), tolerance = 1e-14)
+})
+
+test_that("tiny maxT runs return marginal probabilities without invalid studentisation", {
+  z1 <- .boot_maxt(1, matrix(0, 1, 1), "upper", min_success = 1L)
+  z2 <- .boot_maxt(c(1, 2), matrix(c(0, 1, 1, 0), 2, 2), "upper",
+                   min_success = 2L)
+  expect_true(all(is.finite(z1$p)))
+  expect_true(all(is.na(z1$p_adj)))
+  expect_true(all(is.finite(z2$p)))
+  expect_true(all(is.na(z2$p_adj)))
+})
+
+test_that("report transport attributes do not change fitted-model identity", {
+  fit <- rasch(simb(100, seq(-1, 1, length.out = 5), seed = 915))
+  signature <- .fit_boot_signature(fit)
+  attr(fit, "report_dimensionality") <- list(marker = 1L)
+  attr(fit, "report_invariance") <- list(marker = 2L)
+  expect_true(.fit_boot_signature_matches(signature, fit))
 })
 
 test_that("the bootstrap statistic carries the bias the asymptotic df ignores", {

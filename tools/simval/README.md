@@ -238,6 +238,18 @@ Outer errors and inner-bootstrap attempts, usable refits, non-convergence and
 other failures are recorded in separate columns; the inner counts reconcile
 to the attempted total in every row.
 
+The familywise person, object and judge rows in those files predate the
+leave-one-out maxT correction and are retained only as provenance for the
+superseded implementation. Marginal probabilities and the raw total and pair
+families do not use estimated maxT standardisation and are unaffected. The
+corrected algorithm is checked directly in `studies/maxt-exchangeability.R`;
+the model-specific scripts above are the rerun specification. With 20,000
+iid global-null experiments, 99 reference rows and a family of ten, the
+leave-one-out familywise rates were 4.955% and 5.105% for centred upper- and
+two-sided statistics, and 4.895% and 5.110% for their studentised counterparts
+(Monte Carlo standard errors 0.153--0.156 percentage points). The structured
+rows are in `results/maxt-exchangeability.csv`.
+
 History-dependent paired-comparison fit bootstrap is checked in
 `studies/cj-fit-bootstrap-history.R`, with the fresh-seed dichotomous top-up in
 `studies/cj-fit-bootstrap-history-dich-topup.R`. Exposure 0.5 and carry-over
@@ -248,6 +260,8 @@ corresponding rates were 3.0%, 3.5%, 6.0%, 6.0% and 3.65%. All 238,800 inner
 refits were usable, with no outer refusal, non-convergence or other error. The
 first 200 dichotomous datasets put judge-family error at 9.0%; the 800 fresh
 seeds gave 4.625%, leaving 5.5% over the predeclared 1,000-dataset program.
+The object- and judge-family rows use the superseded standardisation; the
+total, pair-family and marginal-judge rows are unaffected.
 The result files use the study names under `results/`; both carry R-tree hash
 `daddaa5c5222` and their script hashes match the files.
 

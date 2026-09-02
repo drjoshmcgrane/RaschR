@@ -394,12 +394,35 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
     rmse = numeric(), ratio = numeric(), n_location = integer(),
     n_discrimination = integer())
   rownames(smry) <- NULL
-  structure(.tag_tables(list(locations = cmp, discrimination = dsc,
-                             summary = smry, excluded = ans$excluded,
-                             alpha = alpha, adjust = adjust,
-                             se_method = se_method,
-                             boot_reps_used = reps_used)),
-            class = "rasch_frame_invariance")
+  out <- .tag_tables(list(locations = cmp, discrimination = dsc,
+                          summary = smry, excluded = ans$excluded,
+                          alpha = alpha, adjust = adjust,
+                          se_method = se_method,
+                          boot_reps = if (se_method == "bootstrap")
+                            as.integer(boot_reps) else 0L,
+                          boot_reps_used = reps_used, seed = seed,
+                          fit_signature = .fit_boot_signature(fit)))
+  out$result_signature <- .fit_boot_md5(out)
+  class(out) <- c("rasch_frame_invariance", "list")
+  out
+}
+
+.validate_frame_invariance <- function(invariance, fit) {
+  if (is.null(invariance)) return(invisible(NULL))
+  if (!inherits(fit, "rasch_efrm"))
+    stop("`invariance` is only available for an EFRM fit")
+  signature <- invariance$result_signature
+  unsigned <- unclass(invariance)
+  unsigned$result_signature <- NULL
+  if (!inherits(invariance, "rasch_frame_invariance") ||
+      !is.data.frame(invariance$summary) ||
+      !is.data.frame(invariance$locations) ||
+      !is.data.frame(invariance$discrimination) ||
+      !is.character(signature) || length(signature) != 1L || is.na(signature) ||
+      !.fit_boot_hash_matches(signature, unsigned) ||
+      !.fit_boot_signature_matches(invariance$fit_signature, fit))
+    stop("`invariance` must be a frame_invariance() result from this fitted model")
+  invisible(invariance)
 }
 
 #' @export

@@ -180,6 +180,28 @@ test_that("exports accept only a compatible fit-bootstrap result", {
                "current fit_bootstrap")
 })
 
+test_that("exports accept dimensionality only from the fitted model being reported", {
+  fit <- rasch(simd2(160, seq(-1, 1, length.out = 5), seed = 241))
+  other <- rasch(simd2(160, seq(-1, 1, length.out = 5), seed = 242))
+  dimensionality <- .scree_analysis(fit, n_components = 3,
+                                    parallel = FALSE)
+  expect_no_error(.validate_scree_result(dimensionality, fit))
+  expect_error(.validate_scree_result(dimensionality, other),
+               "this fitted model")
+
+  out <- tempfile("wrong-dimensionality-")
+  expect_error(save_outputs(other, out, formats = "png", item_plots = FALSE,
+                            dimensionality = dimensionality),
+               "this fitted model")
+  expect_false(dir.exists(out))
+
+  changed <- dimensionality
+  changed$eigenvalue[1] <- changed$eigenvalue[1] + 1
+  expect_error(report_html(fit, tempfile(fileext = ".html"),
+                           dimensionality = changed),
+               "plot_scree")
+})
+
 test_that("exports accept DIF only from the fitted model being reported", {
   X <- simd2(160, seq(-1, 1, length.out = 5), seed = 27)
   g1 <- rep(c("A", "B"), each = 80)

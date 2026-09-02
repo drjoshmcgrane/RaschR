@@ -386,6 +386,34 @@ threshold_index <- function(m) {
   crossprod(S)
 }
 
+# A PCM threshold next to a category that no informative response pattern
+# observes has no finite pairwise conditional estimate: the solver runs it
+# towards infinity and the projected information goes singular, which the
+# rank check then reports as a connectivity problem. Name the category
+# instead. A threshold fixed by an anchor needs no data, so an item whose
+# thresholds are all fixed passes.
+.pcml_check_uninformative <- function(X, m, inames, fixed = integer(0),
+                                      thr) {
+  cc <- .conditional_categories(X)
+  bad <- character(0)
+  for (i in seq_along(m)) {
+    if (all(thr$id[thr$item == i] %in% fixed)) next
+    lost <- setdiff(seq.int(0L, m[i]), cc[[i]])
+    if (length(lost))
+      bad <- c(bad, sprintf("%s (categor%s %s)", inames[i],
+                            if (length(lost) > 1L) "ies" else "y",
+                            paste(lost, collapse = ", ")))
+  }
+  if (length(bad))
+    stop("categories observed only in extreme response patterns (every ",
+         "answered item at its minimum or at its maximum) carry no pairwise ",
+         "conditional information, so their thresholds cannot be estimated: ",
+         paste(bad, collapse = "; "),
+         "; collapse those categories before calling pcml() -- rasch() ",
+         "does so automatically", call. = FALSE)
+  invisible(NULL)
+}
+
 # Newton-Raphson on tau = offset + B beta, where B removes the location
 # indeterminacy, imposes the rating scale or facet structure, or restricts
 # estimation to the unanchored thresholds (offset carrying the anchors).
@@ -475,11 +503,18 @@ threshold_index <- function(m) {
 #' @param model \code{"PCM"} or \code{"RSM"}.
 #' @param anchors Optional anchor table for equating: a data frame with
 #'   columns \code{item} (name or column index), \code{k}, and \code{tau}
-#'   (the fixed value). A numeric \code{k} fixes that single threshold
+#'   (the anchor value). A numeric \code{k} fixes that single threshold
 #'   (individual anchoring); \code{k = NA} fixes the item's mean location at
-#'   \code{tau} while its thresholds remain free (average anchoring). The
+#'   \code{tau} while its thresholds remain free (location anchoring). The
 #'   remaining parameters are estimated on the anchored scale and no
-#'   recentring is applied. Column names must be unique. PCM only.
+#'   recentring is applied. An optional logical column \code{average},
+#'   \code{TRUE} on every row, selects RUMM2030's average item anchoring
+#'   instead: every parameter is estimated free, and the calibration is
+#'   shifted so that the mean location of the anchor items equals the mean
+#'   of their \code{tau} values (one row per item, \code{k = NA}). Only the
+#'   origin changes, so every item, the anchors included, keeps its
+#'   estimated position relative to the others. Column names must be unique.
+#'   PCM only.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
 #' @return A list containing the threshold table \code{thr}, covariance matrix
 #'   \code{cov_tau}, pairwise conditional log-likelihood, iteration count,
@@ -516,6 +551,7 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
   pairs <- .pair_counts(X, m)
   weak <- .pcml_weak_thresholds(X, m, thr, inames)
 
+  average <- FALSE
   if (!is.null(anchors)) {
     if (!is.data.frame(anchors))
       stop("anchors must be a data frame with columns item, k, tau")
@@ -540,7 +576,29 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
       stop("anchor tau value(s) must be finite: ",
            paste(colnames(X)[a_item[!is.finite(anchors$tau)]], collapse = ", "))
 
-    # k = NA anchors the item's mean location (average anchoring) with its
+    # average = TRUE selects RUMM's average item anchoring: the calibration
+    # is estimated free and then shifted so the mean location of the anchor
+    # items equals the mean of their anchor values. No item is fixed, so it
+    # is handled by the free branches below with a different origin
+    if ("average" %in% names(anchors)) {
+      avg <- anchors$average
+      if (!is.logical(avg) || anyNA(avg))
+        stop("the anchors `average` column must be TRUE or FALSE on every row")
+      if (any(avg) && !all(avg))
+        stop("average anchoring applies to the whole anchor set: `average` ",
+             "must be TRUE on every row, or absent")
+      average <- all(avg)
+    }
+    if (average) {
+      if (!all(is.na(anchors$k)))
+        stop("average anchoring shifts the calibration by item locations: ",
+             "give one row per anchor item with k = NA")
+      if (anyDuplicated(a_item))
+        stop("duplicate average anchor(s) for an item")
+    }
+  }
+  if (!is.null(anchors) && !average) {
+    # k = NA anchors the item's mean location (location anchoring) with its
     # thresholds free; a numeric k fixes that single threshold. For a
     # dichotomous item the two coincide.
     is_mean <- is.na(anchors$k)
@@ -553,9 +611,9 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     if (anyNA(a_id)) stop("anchor threshold number(s) out of range for the item")
     if (anyDuplicated(a_id)) stop("duplicate anchor threshold(s)")
     mean_items <- a_item[is_mean]; mean_tau <- anchors$tau[is_mean]
-    if (anyDuplicated(mean_items)) stop("duplicate average anchor(s) for an item")
+    if (anyDuplicated(mean_items)) stop("duplicate location anchor(s) for an item")
     if (length(intersect(mean_items, ft_item)))
-      stop("an item cannot carry both an average anchor and threshold anchors")
+      stop("an item cannot carry both a location anchor and threshold anchors")
 
     offset <- numeric(M)
     offset[a_id] <- anchors$tau[!is_mean]
@@ -570,7 +628,7 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     st <- st + mean(shifts)
 
     # design: identity columns for plain free thresholds; a sum-zero spread
-    # block for each average-anchored item; nothing for fixed thresholds
+    # block for each location-anchored item; nothing for fixed thresholds
     plain <- which(!(seq_len(M) %in% a_id) & !(thr$item %in% mean_items))
     blocks <- list()
     if (length(plain)) blocks$plain <- list(B = diag(M)[, plain, drop = FALSE],
@@ -586,16 +644,17 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     B <- do.call(cbind, lapply(blocks, `[[`, "B"))
     beta0 <- unlist(lapply(blocks, `[[`, "beta0"), use.names = FALSE)
 
+    .pcml_check_uninformative(X, m, inames, fixed = a_id, thr = thr)
     .pcml_check_connected(pairs, L, inames,
                           anchored = unique(c(ft_item, mean_items)))
     sol <- .pcml_solve(X, thr, m, B, beta0, offset = offset,
                        maxit = maxit, tol = tol, pairs = pairs)
     thr$tau <- sol$tau; thr$se <- sol$se_tau; thr$se[a_id] <- 0
     thr$anchored <- seq_len(M) %in% a_id | thr$item %in% mean_items
-    # average anchoring (k = NA) fixes only an item's MEAN location; its
+    # location anchoring (k = NA) fixes only an item's MEAN location; its
     # individual thresholds stay free and estimated. Only genuinely fixed
     # thresholds (a_id) may suppress the weak-category flag -- a
-    # mean-anchored item's free threshold sitting on a near-empty category
+    # location-anchored item's free threshold sitting on a near-empty category
     # is still a boundary artefact and must keep weak = TRUE / se = NA
     thr$weak <- weak$flag & !(seq_len(M) %in% a_id)
     thr$se[thr$weak] <- NA_real_
@@ -633,22 +692,30 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     beta0 <- st[-M] - mean(st)
   }
 
+  if (model == "PCM") .pcml_check_uninformative(X, m, inames, thr = thr)
   .pcml_check_connected(pairs, L, inames)
   sol <- .pcml_solve(X, thr, m, B, beta0, maxit = maxit, tol = tol,
                      pairs = pairs)
-  # recentre so the mean item location is zero -- and move the covariance to
-  # the recentred parameterisation with it. The recentring constant is the
-  # linear functional c = a'tau with a = 1/(L m_i) on item i's thresholds;
-  # tau_new = (I - 1 a') tau, so cov_new = (I - 1 a') cov (I - a 1').
-  # Under equal max scores c is identically zero on the estimation
-  # constraint (sum of all thresholds zero) and the transform is a no-op,
-  # which is why equal-m calibration checks could not see its absence; with
-  # MIXED max scores the untransformed covariance mis-states every
-  # threshold and item-location SE (verified by simulation: per-item
-  # empSD/SE 0.90-1.21 before, 0.96-1.09 after).
-  loc <- vapply(seq_len(L), function(i) mean(sol$tau[thr$item == i]), 0)
-  sol$tau <- sol$tau - mean(loc)
-  a_c <- 1 / (L * m[thr$item])
+  # fix the origin -- mean item location zero, or under average anchoring
+  # the mean location of the anchor items at the mean of their anchor
+  # values -- and move the covariance to that parameterisation with it. The
+  # origin is the linear functional c = a'tau with a = 1/(L m_i) on item i's
+  # thresholds (1/(A m_i) over the A anchor items); tau_new = (I - 1 a') tau
+  # + target, so cov_new = (I - 1 a') cov (I - a 1'). Under equal max scores
+  # the recentring constant is identically zero on the estimation constraint
+  # (sum of all thresholds zero) and the transform is a no-op, which is why
+  # equal-m calibration checks could not see its absence; with MIXED max
+  # scores the untransformed covariance mis-states every threshold and
+  # item-location SE (verified by simulation: per-item empSD/SE 0.90-1.21
+  # before, 0.96-1.09 after).
+  if (average) {
+    a_c <- numeric(M); in_anchor <- thr$item %in% a_item
+    a_c[in_anchor] <- 1 / (length(a_item) * m[thr$item[in_anchor]])
+    target <- mean(anchors$tau)
+  } else {
+    a_c <- 1 / (L * m[thr$item]); target <- 0
+  }
+  sol$tau <- sol$tau - sum(a_c * sol$tau) + target
   A_c <- diag(M) - matrix(1, M, 1) %*% t(a_c)
   sol$cov_tau <- A_c %*% sol$cov_tau %*% t(A_c)
   sol$se_tau <- sqrt(pmax(diag(sol$cov_tau), 0))
@@ -658,7 +725,8 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 
   list(model = model, thr = thr, cov_tau = sol$cov_tau,
        loglik = sol$loglik, iterations = sol$iterations,
-       converged = sol$converged, m = m, anchors = NULL,
+       converged = sol$converged, m = m,
+       anchors = if (average) anchors else NULL,
        n_parameters = ncol(B), B = B, cov_beta = sol$cov_beta,
        H_beta = sol$H_beta, notes = weak$notes)
 }

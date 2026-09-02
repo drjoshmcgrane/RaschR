@@ -18,7 +18,10 @@
 
 # Prepare the item matrix: integer scores from 0, consecutive observed
 # categories, no constant items. Returns the matrix plus human-readable notes.
-.prepare_X <- function(X, na_codes = -1) {
+# `anchors`, with item names already resolved, exempts the items whose every
+# threshold is fixed from the PCM category merge: nothing is estimated for
+# them, so they need no conditional information.
+.prepare_X <- function(X, na_codes = -1, model = "PCM", anchors = NULL) {
   notes <- character(0)
   X <- as.matrix(X)
   if (is.complex(X))
@@ -89,6 +92,106 @@
                                 length(obs) - 1L))
     }
   }
+  if (model == "PCM") {
+    merged <- .merge_uninformative_categories(X, keep = .fully_anchored(X, anchors))
+    X <- merged$X; notes <- c(notes, merged$notes)
+    if (ncol(X) < 2) stop("need at least two non-constant items")
+  }
+  list(X = X, notes = notes)
+}
+
+# The items whose every threshold `anchors` fixes: a numeric k on each of
+# 1..m_i, or a location anchor (k = NA) on a dichotomous item, which pcml()
+# converts to its single threshold. Average anchoring fixes nothing, and a
+# location anchor on a polytomous item leaves its thresholds free, so
+# neither exempts an item. Anchor items are matched by name.
+.fully_anchored <- function(X, anchors) {
+  if (is.null(anchors) || !is.data.frame(anchors) ||
+      !all(c("item", "k") %in% names(anchors)) ||
+      ("average" %in% names(anchors) && any(anchors$average %in% TRUE)))
+    return(character(0))
+  a_item <- as.character(anchors$item)
+  present <- intersect(unique(a_item), colnames(X))
+  if (!length(present)) return(character(0))
+  fixed <- vapply(present, function(nm) {
+    mi <- max(X[, nm], na.rm = TRUE)
+    k <- anchors$k[a_item == nm]
+    if (all(is.na(k))) mi == 1L
+    else !anyNA(k) && setequal(k, seq_len(mi))
+  }, TRUE)
+  present[fixed]
+}
+
+# The categories of each item that at least one informative response pattern
+# observes: a person with two or more observed items whose raw score lies
+# strictly between zero and the maximum. Only those patterns enter the
+# pairwise conditional likelihood, so only those categories carry
+# conditional information about the item's thresholds.
+.conditional_categories <- function(X) {
+  obs_mask <- !is.na(X)
+  mx <- apply(X, 2, max, na.rm = TRUE)
+  raw <- rowSums(X, na.rm = TRUE)
+  max_raw <- as.numeric(obs_mask %*% mx)
+  informative <- rowSums(obs_mask) >= 2L & raw > 0 & raw < max_raw
+  lapply(seq_len(ncol(X)), function(i) {
+    v <- X[, i]
+    sort(unique(v[!is.na(v) & informative]))
+  })
+}
+
+# A category observed only in extreme response patterns -- every observed
+# item at its minimum, or every one at its maximum -- or only by persons who
+# answered a single item carries no pairwise conditional information, exactly
+# as an unobserved category does: its PCM threshold diverges and the projected
+# information matrix goes singular. Merge such a category into its neighbour
+# and say so. A merge can lower a maximum score, and with it change which
+# persons are extreme, so repeat until the coding is stable. Under the RSM the
+# thresholds are shared across items and the category stays identified, so
+# the caller skips this step. Items named in `keep` -- every threshold fixed
+# by an anchor -- are left as coded: their thresholds are not estimated, so
+# an uninformative category costs them nothing, and pcml() exempts them
+# from its own uninformative-category check for the same reason.
+.merge_uninformative_categories <- function(X, keep = character(0)) {
+  notes <- character(0)
+  repeat {
+    changed <- FALSE
+    mx <- apply(X, 2, max, na.rm = TRUE)
+    cc <- .conditional_categories(X)
+    drop <- logical(ncol(X))
+    for (i in seq_len(ncol(X))) {
+      if (colnames(X)[i] %in% keep) next
+      v <- X[, i]
+      cond <- cc[[i]]
+      full <- seq(0L, mx[i])
+      if (identical(cond, full)) next
+      changed <- TRUE
+      if (length(cond) < 2L) { drop[i] <- TRUE; next }
+      # each uninformative category joins the nearest informative category
+      # below it (above it at the bottom of the scale)
+      target <- vapply(full, function(k) {
+        lower <- cond[cond <= k]
+        if (length(lower)) max(lower) else min(cond)
+      }, 0L)
+      X[, i] <- (match(target, cond) - 1L)[v + 1L]
+      lost <- setdiff(full, cond)
+      notes <- c(notes, sprintf(paste0(
+        "item %s rescored: categor%s %s observed only in extreme response ",
+        "patterns (no conditional information) merged with the adjacent ",
+        "categor%s; categories mapped to 0:%d"),
+        colnames(X)[i], if (length(lost) > 1L) "ies" else "y",
+        paste(lost, collapse = ","), if (length(lost) > 1L) "ies" else "y",
+        length(cond) - 1L))
+    }
+    if (any(drop)) {
+      notes <- c(notes, paste0(
+        "dropped item(s) with no conditional information (every response ",
+        "outside one category comes from an extreme response pattern): ",
+        paste(colnames(X)[drop], collapse = ", ")))
+      X <- X[, !drop, drop = FALSE]
+      if (ncol(X) < 2) break
+    }
+    if (!changed) break
+  }
   list(X = X, notes = notes)
 }
 
@@ -149,8 +252,10 @@
 #'   at most 10, at least 2. The resolved value is stored in
 #'   \code{fit$n_groups}.
 #' @param anchors Optional anchor table for equating: a data frame with
-#'   columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
-#'   Column names must be unique. Anchors determine the scale origin.
+#'   columns \code{item}, \code{k}, and \code{tau}, and optionally
+#'   \code{average = TRUE} for average item anchoring; see
+#'   \code{\link{pcml}}. Column names must be unique. Anchors determine the
+#'   scale origin.
 #' @param na_codes Values to read as missing. Defaults to \code{-1}, the
 #'   conventional missing-response code; any negative score is also treated as
 #'   missing, since valid category scores start at zero.
@@ -464,19 +569,12 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   }
 
   items_before_prep <- colnames(X)
-  prep <- .prepare_X(X, na_codes = na_codes); X <- prep$X
-  if (!is.null(mc)) {
-    prep$notes <- c(prep$notes,
-                    sprintf("%d item(s) scored 0/1 against the key", ncol(mc$raw)))
-    gone <- setdiff(colnames(mc$raw), colnames(X))
-    if (length(gone)) mc$raw <- mc$raw[, setdiff(colnames(mc$raw), gone), drop = FALSE]
-  }
-
   if (!is.null(anchors)) {
     # a numeric anchor index means the caller's column, so it must resolve
     # against the data as supplied: preparation can drop a constant item,
     # and resolving against the surviving columns would silently anchor a
-    # different item
+    # different item. The names are resolved before preparation so that
+    # the category merge can leave a fully anchored item alone
     a_names <- if (is.character(anchors$item) || is.factor(anchors$item))
       as.character(anchors$item)
     else {
@@ -492,18 +590,35 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
            paste(unique(a_names[duplicated(paste(a_names, anchors$k))]),
                  collapse = ", "))
     anchors$item <- a_names
+  }
+  prep <- .prepare_X(X, na_codes = na_codes, model = model, anchors = anchors)
+  X <- prep$X
+  if (!is.null(mc)) {
+    prep$notes <- c(prep$notes,
+                    sprintf("%d item(s) scored 0/1 against the key", ncol(mc$raw)))
+    gone <- setdiff(colnames(mc$raw), colnames(X))
+    if (length(gone)) mc$raw <- mc$raw[, setdiff(colnames(mc$raw), gone), drop = FALSE]
+  }
+
+  if (!is.null(anchors)) {
     gone <- setdiff(a_names, colnames(X))
     if (length(gone))
       stop("anchored item(s) not present after data preparation: ",
            paste(gone, collapse = ", "))
-    resc <- grepl("rescored", prep$notes) &
-      vapply(prep$notes, function(n) any(vapply(a_names, grepl, TRUE, x = n)), TRUE)
+    # match the note's own "item <name> rescored" prefix: a bare name search
+    # would let anchor I1 trip over a note about I10
+    resc <- vapply(prep$notes, function(n)
+      any(vapply(paste0("item ", a_names, " rescored"), grepl, TRUE,
+                 x = n, fixed = TRUE)), TRUE)
     if (any(resc))
       stop("anchored item(s) were rescored during data preparation; ",
            "anchor values would no longer match the threshold numbering")
     prep$notes <- c(prep$notes,
-                    sprintf("%d threshold(s) anchored; scale origin from anchors",
-                            nrow(anchors)))
+                    if ("average" %in% names(anchors) && all(anchors$average %in% TRUE))
+                      sprintf("scale origin from the average location of %d anchor item(s)",
+                              nrow(anchors))
+                    else sprintf("%d threshold(s) anchored; scale origin from anchors",
+                                 nrow(anchors)))
   }
 
   # --- item estimation ----------------------------------------------------

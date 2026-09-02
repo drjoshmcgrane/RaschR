@@ -30,6 +30,112 @@ test_that("dimensionality gives short subtests a verdict with a caution", {
   expect_true(all(dt$score_points < 15))
 })
 
+test_that("the dimensionality bootstrap calibrates the split it is given", {
+  set.seed(21); N <- 300; L <- 12
+  d <- seq(-1.5, 1.5, length.out = L)
+  X <- matrix(rbinom(N * L, 1, plogis(outer(rnorm(N), d, "-"))), N, L,
+              dimnames = list(NULL, sprintf("I%02d", 1:L)))
+  fit <- rasch(X)
+  dt <- dimensionality_test(fit, min_score_points = 2)
+  expect_null(dt$p_boot)
+  expect_null(dt$bootstrap)
+  b1 <- dimensionality_test(fit, min_score_points = 2, B = 19, seed = 3)
+  # the observed reading is what it was; the bootstrap adds its own
+  expect_equal(b1$prop_significant, dt$prop_significant)
+  expect_equal(b1$ci, dt$ci)
+  expect_equal(b1$items_positive, dt$items_positive)
+  expect_true(b1$p_boot > 0 && b1$p_boot <= 1)
+  expect_identical(b1$multidimensional, b1$p_boot <= 0.05)
+  expect_equal(b1$bootstrap$B, 19L)
+  expect_length(b1$bootstrap$null, b1$bootstrap$B_used)
+  expect_true(all(b1$bootstrap$null >= 0 & b1$bootstrap$null <= 1))
+  expect_equal(b1$prop_null, mean(b1$bootstrap$null))
+  expect_equal(b1$bootstrap$minimum_usable, 10L)
+  # a seed reproduces the replicates
+  b2 <- dimensionality_test(fit, min_score_points = 2, B = 19, seed = 3)
+  expect_equal(b1$bootstrap$null, b2$bootstrap$null)
+  # a split fixed in advance is kept in every replicate
+  m <- dimensionality_test(fit, items_positive = colnames(X)[1:6],
+                           items_negative = colnames(X)[7:12],
+                           min_score_points = 2, B = 19, seed = 3)
+  expect_identical(m$split, "manual")
+  expect_true(m$p_boot > 0 && m$p_boot <= 1)
+  expect_length(m$bootstrap$null, m$bootstrap$B_used)
+
+  expect_error(dimensionality_test(fit, B = -1), "`B`")
+  expect_error(dimensionality_test(fit, B = 2.5), "`B`")
+  expect_error(dimensionality_test(fit, B = 5, workers = 0), "`workers`")
+  expect_error(dimensionality_test(fit, B = 5, seed = -1), "`seed`")
+  for (cl in c("rasch_efrm", "rasch_mfrm", "rasch_explanatory")) {
+    f2 <- fit; class(f2) <- c(cl, "rasch")
+    expect_error(dimensionality_test(f2, B = 5), "generating structure",
+                 class = "rasch_refusal")
+  }
+  f3 <- fit; f3$disc <- c(rep(1, L - 1), 2)
+  expect_error(dimensionality_test(f3, B = 5), "frame units",
+               class = "rasch_refusal")
+  f4 <- fit; f4$refit_spec$pc_components <- 2L
+  expect_error(dimensionality_test(f4, B = 5), "principal components",
+               class = "rasch_refusal")
+})
+
+test_that("a residual-component split runs above a fixed split under the model", {
+  skip_on_cran()
+  # well-populated four-category items, so the replicates lose no category
+  set.seed(41); N <- 300; L <- 12
+  th <- rnorm(N, 0, 1.5); loc <- seq(-1, 1, length.out = L)
+  X <- sapply(seq_len(L), function(i) {
+    tau <- loc[i] + c(-1, 0, 1)
+    vapply(th, function(t) sample(0:3, 1, prob = simP(t, tau)), 0L)
+  })
+  colnames(X) <- sprintf("P%02d", seq_len(L))
+  fit <- rasch(X, model = "PCM")
+  auto <- dimensionality_test(fit, B = 19, seed = 3)
+  fixed <- dimensionality_test(fit, items_positive = colnames(X)[1:6],
+                               items_negative = colnames(X)[7:12],
+                               B = 19, seed = 3)
+  expect_equal(auto$bootstrap$B_used, 19L)
+  expect_equal(fixed$bootstrap$B_used, 19L)
+  # the same seed generates the same replicates, so the two nulls differ
+  # only in how each replicate is split: the split chosen from the
+  # replicate's own residuals is chosen to disagree, and its proportion
+  # runs higher than the fixed split's on the same data
+  expect_gt(auto$prop_null, fixed$prop_null)
+  expect_true(auto$p_boot > 0 && auto$p_boot <= 1)
+})
+
+test_that("the dimensionality bootstrap withholds a depleted null", {
+  set.seed(22); N <- 200; L <- 10
+  X <- matrix(rbinom(N * L, 1, plogis(outer(rnorm(N), seq(-1, 1, length.out = L), "-"))),
+              N, L, dimnames = list(NULL, sprintf("I%02d", 1:L)))
+  fit <- rasch(X)
+  fake <- function(n_ok, n_nonconv, n_err) function(n, fun, ...) c(
+    as.list(rep(0.05, n_ok)),
+    rep(list(.fit_boot_failure("nonconverged")), n_nonconv),
+    rep(list(.fit_boot_failure("error")), n_err))
+  refused <- tryCatch(with_mocked_bindings(
+    dimensionality_test(fit, min_score_points = 2, B = 40, seed = 1),
+    .rasch_boot_apply = fake(29L, 6L, 5L), .package = "rasch"),
+    error = identity)
+  expect_s3_class(refused, "rasch_fit_bootstrap_refusal")
+  expect_match(conditionMessage(refused), "at least 36")
+  expect_equal(refused$B_used, 29L)
+  expect_equal(refused$B_nonconverged, 6L)
+  expect_equal(refused$B_errors, 5L)
+  # enough to form the null, but thinned: said out loud
+  expect_warning(
+    thinned <- with_mocked_bindings(
+      dimensionality_test(fit, min_score_points = 2, B = 20, seed = 1),
+      .rasch_boot_apply = fake(12L, 5L, 3L), .package = "rasch"),
+    "not lost at random")
+  expect_equal(thinned$bootstrap$B_used, 12L)
+  expect_equal(thinned$bootstrap$B_nonconverged, 5L)
+  expect_equal(thinned$bootstrap$B_errors, 3L)
+  expect_equal(thinned$prop_null, 0.05)
+  expect_equal(thinned$p_boot,
+               .boot_p(thinned$prop_significant, rep(0.05, 12), "upper"))
+})
+
 test_that("Q3 binary flags require an explicit heuristic", {
   set.seed(12)
   X <- matrix(rbinom(500 * 8, 1, 0.5), 500, 8,
@@ -112,6 +218,62 @@ test_that("data preparation collapses gaps and drops constants with notes", {
   expect_true(any(grepl("constant", fit$notes)))
 })
 
+test_that("a category seen only in extreme response patterns is merged", {
+  # a PCM category that only all-minimum (or all-maximum) persons use enters
+  # no pairwise conditional contribution: its threshold has no finite
+  # estimate, and before the merge the solver ran it to -34 and then
+  # reported a singular information matrix
+  sim <- simulate_rasch(n_persons = 400, n_items = 20, model = "PCM",
+                        n_categories = 4, seed = 5)
+  X <- as.matrix(sim[, grep("^I", names(sim))])
+  who <- which(X[, "I01"] == 0)
+  expect_length(who, 1L)
+  expect_equal(sum(X[who, ]), 0)                    # an all-zero person
+  fit <- rasch(X)
+  expect_true(fit$est$converged)
+  expect_equal(unname(fit$m[1]), 2L)
+  expect_true(any(grepl("item I01 rescored: category 0 observed only in extreme",
+                        fit$notes, fixed = TRUE)))
+  # identical to collapsing the category by hand
+  XA <- X; XA[, "I01"] <- pmax(XA[, "I01"] - 1L, 0L)
+  expect_equal(fit$thresholds$tau, rasch(XA)$thresholds$tau)
+  # the mirror image at the top of the scale
+  ft <- rasch(3L - X)
+  expect_equal(unname(ft$m[1]), 2L)
+  expect_true(any(grepl("category 3 observed only in extreme", ft$notes)))
+  # the RSM shares its thresholds across items, so nothing is merged
+  fr <- rasch(X, model = "RSM")
+  expect_true(fr$est$converged)
+  expect_false(any(grepl("extreme response patterns", fr$notes)))
+  # pcml() names the category instead of reporting a singular matrix
+  expect_error(pcml(X), "I01 \\(category 0\\)")
+  # an item with no conditional information at all is dropped
+  Xd <- X
+  Xd[, "I01"] <- 0L
+  Xd[who, ] <- 3L; Xd[who, "I01"] <- 1L            # its one 1 is all-maximum
+  fd <- rasch(Xd)
+  expect_false("I01" %in% fd$items$item)
+  expect_true(any(grepl("dropped item(s) with no conditional information",
+                        fd$notes, fixed = TRUE)))
+  # an anchored item cannot be merged silently
+  expect_error(rasch(X, anchors = data.frame(item = "I01", k = 1, tau = -2)),
+               "rescored during data preparation")
+  # an item whose every threshold is fixed estimates nothing, so it keeps
+  # its coding: the merge exempts it exactly as pcml() exempts it from the
+  # uninformative-category check. A numeric index resolves to the same item
+  full <- data.frame(item = "I01", k = 1:3, tau = c(-2, 0, 2))
+  ff <- rasch(X, anchors = full)
+  expect_equal(unname(ff$m[1]), 3L)
+  expect_false(any(grepl("I01 rescored", ff$notes)))
+  expect_true(all(ff$thresholds$anchored[ff$thresholds$item == 1]))
+  full$item <- 1
+  expect_equal(rasch(X, anchors = full)$thresholds$tau, ff$thresholds$tau)
+  # a location anchor on a polytomous item leaves its thresholds free, so
+  # the category is merged and the anchor refused as before
+  expect_error(rasch(X, anchors = data.frame(item = "I01", k = NA, tau = 0)),
+               "rescored during data preparation")
+})
+
 test_that("reliability and fit summaries are coherent", {
   set.seed(9); Np <- 1000; L <- 15
   d <- scale(seq(-2, 2, length.out = L), scale = FALSE)[, 1]
@@ -134,13 +296,17 @@ test_that("save_outputs writes the full set of tables and plots", {
   fit <- rasch(data.frame(X, g = rep(c("x", "y"), Np / 2)), factors = "g")
   bs <- suppressWarnings(fit_bootstrap(fit, B = 19, seed = 1))
   out <- file.path(tempdir(), paste0("rr-test-", as.integer(runif(1, 1, 1e6))))
+  scree_result <- plot_scree(fit, reps = 20, seed = 1)
   files <- save_outputs(fit, out, formats = "png", item_plots = TRUE,
-                        bootstrap = bs)
+                        bootstrap = bs, dimensionality = scree_result)
   expect_true(file.exists(file.path(out, "tables", "item_statistics.csv")))
   expect_true(file.exists(file.path(out, "tables", "person_estimates.csv")))
   expect_true(file.exists(file.path(out, "tables", "dif_anova.csv")))
   expect_true(file.exists(file.path(out, "tables", "bootstrap_fit.csv")))
   expect_true(file.exists(file.path(out, "tables", "bootstrap_person_fit.csv")))
+  scree <- utils::read.csv(file.path(out, "tables", "residual_eigenvalues.csv"))
+  expect_true(all(c("reference_critical", "parallel_p_adj",
+                    "n_reference_requested") %in% names(scree)))
   expect_true(file.exists(file.path(out, "summary.txt")))
   expect_true(file.exists(file.path(out, "plots", "test_information.png")))
   expect_true(file.exists(file.path(out, "plots", "items", "I01_icc.png")))
@@ -158,13 +324,16 @@ test_that("save_outputs writes comparative judgement results", {
   out <- tempfile("rasch-btl-output-")
   on.exit(unlink(out, recursive = TRUE), add = TRUE)
 
+  bd <- btl_dimensionality(fit, reps = 20, seed = 1)
   files <- save_outputs(fit, out, formats = "png", item_plots = TRUE,
-                        bootstrap = bs)
+                        bootstrap = bs, dimensionality = bd)
   expect_true(file.exists(file.path(out, "tables", "object_estimates.csv")))
   expect_true(file.exists(file.path(out, "tables", "pair_fit.csv")))
   expect_true(file.exists(file.path(out, "tables", "bootstrap_object_fit.csv")))
   expect_true(file.exists(file.path(out, "tables", "bootstrap_pair_fit.csv")))
   expect_true(file.exists(file.path(out, "tables", "bootstrap_judge_fit.csv")))
+  expect_true(file.exists(file.path(out, "tables", "residual_bimensions.csv")))
+  expect_true(file.exists(file.path(out, "plots", "residual_bimensions.png")))
   expect_true(file.exists(file.path(out, "plots", "object_locations.png")))
   expect_true(file.exists(file.path(out, "summary.txt")))
   expect_gt(length(files), 6)
@@ -198,6 +367,9 @@ test_that("the scree reference is model-simulated and calibrated", {
                   attr(ref1, "mean")[1] - 1), 0.10)
   expect_identical(dim(attr(ref1, "draws")), c(20L, 10L))
   expect_identical(attr(ref1, "n_used"), 20L)
+  expect_identical(attr(ref1, "n_requested"), 20L)
+  expect_identical(attr(ref1, "n_nonconverged"), 0L)
+  expect_identical(attr(ref1, "n_errors"), 0L)
   expect_identical(attr(ref1, "alpha"), 0.05)
   expect_equal(as.numeric(ref1), as.numeric(attr(ref1, "mean")))
   inf1 <- rasch:::.sim_upper_family(
@@ -224,10 +396,18 @@ test_that("the scree reference is model-simulated and calibrated", {
     pc2$eigen_table$eigenvalue, attr(ref2, "draws"), 0.05)
   expect_gt(pc2$eigen_table$eigenvalue[1], inf2$critical[1])
   pdf(NULL); on.exit(dev.off())
-  expect_no_error(et <- plot_scree(f2, reps = 20))
+  expect_no_error(et <- plot_scree(f2, reps = 20, seed = 72))
   expect_true(all(c("reference_mean", "reference_critical", "parallel_p",
                     "parallel_p_adj", "parallel_significant",
-                    "n_reference") %in% names(et)))
+                    "n_reference", "n_reference_requested",
+                    "n_reference_nonconverged", "n_reference_errors",
+                    "reference_seed") %in% names(et)))
+  expect_s3_class(et, "rasch_scree")
+  expect_identical(et$reference_seed, rep(72L, nrow(et)))
+  state <- .Random.seed
+  invisible(plot_scree(f2, reps = 20, seed = 72))
+  expect_identical(.Random.seed, state)
+  expect_equal(plot_scree(f2, result = et), et)
   expect_true(all(et$parallel_p > 0 & et$parallel_p <= 1))
   expect_true(all(et$parallel_p_adj >= et$parallel_p))
   expect_identical(et$parallel_significant, et$parallel_p_adj <= 0.05)

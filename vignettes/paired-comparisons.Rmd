@@ -142,7 +142,7 @@ dim_data <- simulate_btl(
 )
 dim_fit <- btl(dim_data, object_a = "object_a", object_b = "object_b",
                winner = "winner", judge = "judge")
-dimensions <- btl_dimensionality(dim_fit, reps = 20)
+dimensions <- btl_dimensionality(dim_fit, reps = 20, seed = 2026)
 dimensions
 ```
 

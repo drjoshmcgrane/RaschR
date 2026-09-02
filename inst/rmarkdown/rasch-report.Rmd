@@ -14,6 +14,21 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
                       dpi = 150, out.width = "100%")
 fit <- readRDS(params$fit_file)
 is_btl <- inherits(fit, "rasch_btl")
+reported_dimensionality <- attr(fit, "report_dimensionality")
+# a refusal is kept so the document says why the dimensionality analysis is
+# absent, rather than dropping it without a word
+dimensionality_refusal <- NULL
+if (is.null(reported_dimensionality)) {
+  reported_dimensionality <- tryCatch(
+    if (is_btl) btl_dimensionality(fit, seed = 1L)
+    else .scree_analysis(
+      fit, parallel = !inherits(fit, c("rasch_efrm", "rasch_mfrm")),
+      seed = 1L), error = function(e) {
+        dimensionality_refusal <<- conditionMessage(e)
+        NULL
+      })
+}
+reported_invariance <- attr(fit, "report_invariance")
 show_table <- function(x, n = 250L, digits = 3L) {
   if (is.null(x) || !NROW(x)) return(invisible(NULL))
   x <- as.data.frame(x)
@@ -51,10 +66,14 @@ report_columns <- function(x, columns) {
   if (is.null(x)) return(NULL)
   x[, intersect(columns, names(x)), drop = FALSE]
 }
-safe_plot <- function(expr) {
+# `what` names the missing display: knitr drops a figure identical to the
+# one before it, so two refusals with the same message need distinct text
+# to both appear. The message is wrapped to stay inside the figure
+safe_plot <- function(expr, what = "Plot") {
   tryCatch(force(expr), error = function(e) {
     plot.new()
-    text(.5, .5, paste("Plot unavailable:", conditionMessage(e)), cex = .9)
+    msg <- paste0(what, " unavailable: ", conditionMessage(e))
+    text(.5, .5, paste(strwrap(msg, width = 90), collapse = "\n"), cex = .8)
   })
 }
 ```
@@ -177,7 +196,8 @@ if (!is_btl) {
     cat("\n## Item-set units\n\n")
     print(show_table(report_columns(fit$alpha_table,
       c("set", "alpha", "se_log_alpha", "p_adj", "significant"))))
-    inv <- tryCatch(frame_invariance(fit), error = function(e) e)
+    inv <- if (!is.null(reported_invariance)) reported_invariance else
+      tryCatch(frame_invariance(fit), error = function(e) e)
     cat("\n## Item invariance across frames\n\n")
     if (inherits(inv, "error")) {
       cat("Frame invariance was unavailable: ", conditionMessage(inv), "\n",
@@ -380,6 +400,18 @@ if (is_btl) {
     print(show_table(report_columns(fit$frames,
       c("set", "panel", "rho", "kappa", "fit_resid", "n"))))
   }
+  tr <- tryCatch(btl_transitivity(fit), error = function(e) NULL)
+  if (!is.null(tr)) {
+    cat("\n# Transitivity\n\n")
+    print(show_table(tr$summary))
+  }
+  if (!is.null(reported_dimensionality)) {
+    cat("\n# Residual dimensionality\n\n")
+    print(show_table(reported_dimensionality$bimensions))
+  } else if (!is.null(dimensionality_refusal)) {
+    cat("\n# Residual dimensionality\n\n")
+    cat("Not available: ", dimensionality_refusal, "\n\n", sep = "")
+  }
 }
 ```
 
@@ -391,6 +423,12 @@ if (!is_btl) {
   safe_plot(plot_tif(fit))
   safe_plot(plot_item_map(fit))
   safe_plot(plot_person_fit(fit))
+  safe_plot(plot_resid_cor(fit))
+  safe_plot(plot_pca(fit))
+  if (!is.null(reported_dimensionality))
+    safe_plot(plot_scree(fit, result = reported_dimensionality))
+  else if (!is.null(dimensionality_refusal))
+    safe_plot(stop(dimensionality_refusal), what = "Scree plot")
   if (inherits(fit, "rasch_efrm")) {
     safe_plot(plot_icc_frames(fit, unique(fit$virtual_map$item)[1]))
     safe_plot(plot_frames(fit))
@@ -407,6 +445,14 @@ if (is_btl) {
   safe_plot(plot_btl(fit))
   safe_plot(plot_btl_targeting(fit))
   safe_plot(plot_btl_icc(fit, fit$objects$object[1]))
+  tr <- tryCatch(btl_transitivity(fit), error = function(e) NULL)
+  if (!is.null(tr)) safe_plot(plot_btl_transitivity(tr, by = "object"))
+  if (!is.null(reported_dimensionality)) {
+    safe_plot(plot_btl_scree(reported_dimensionality))
+    safe_plot(plot_btl_dim_map(reported_dimensionality))
+  } else if (!is.null(dimensionality_refusal)) {
+    safe_plot(stop(dimensionality_refusal), what = "Dimensionality plots")
+  }
   if (inherits(fit, "rasch_btl_efrm")) safe_plot(plot_btl_units(fit))
 }
 ```

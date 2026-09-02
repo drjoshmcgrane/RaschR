@@ -7,11 +7,12 @@
 # four options), a correct response carries more guessing than information;
 # tailoring converts those responses to missing and re-estimates. The
 # four-step procedure compares the initial analysis with the tailored one
-# on a common origin: (3) the initial data re-analysed with the mean of the
-# anchor items fixed at their tailored values (average anchoring aligns the
-# origins), and (4) the initial data with every item anchored at its
-# tailored difficulty, re-estimating only the persons. Guessing shows as
-# difficult items becoming harder in the tailored analysis.
+# on a common origin: (3) the initial data re-analysed with the mean
+# location of the anchor items fixed at its tailored value (average item
+# anchoring shifts the free calibration onto the tailored origin), and (4)
+# the initial data with every item anchored at its tailored difficulty,
+# re-estimating only the persons. Guessing shows as difficult items
+# becoming harder in the tailored analysis.
 # ===========================================================================
 
 .tailored_boot_rows <- function(id) {
@@ -36,9 +37,12 @@
 #' person and item estimates, is below \code{chance}, and re-estimates
 #' items and persons. Step 3 (origin-equated) re-analyses the
 #' \emph{original} data with the mean location of the anchor items fixed at
-#' their tailored values by average anchoring, so the two calibrations
-#' share an origin. Step 4 (all-anchored) fixes every item at its tailored
-#' difficulty and re-estimates persons on the original data. Guessing is
+#' its tailored value by average item anchoring (see \code{\link{pcml}}):
+#' every item keeps its initial position relative to the others and the
+#' calibration as a whole moves onto the tailored origin, so the two
+#' calibrations can be compared item by item. Step 4 (all-anchored) fixes
+#' every item at its tailored difficulty and re-estimates persons on the
+#' original data. Guessing is
 #' indicated when difficult items are estimated harder in the tailored
 #' analysis than in the origin-equated one; the comparison table and
 #' \code{\link{plot_equate}} on the two calibrations show it directly.
@@ -69,8 +73,9 @@
 #'   \code{table} (initial, tailored, origin-equated locations, the
 #'   tailored-minus-equated \code{shift}; bootstrap uncertainty columns when
 #'   requested), the number of
-#'   responses removed, the anchor items used, \code{se_method}, and the
-#'   number of usable bootstrap replicates \code{boot_reps_used}.
+#'   responses removed, the anchor items used, \code{se_method}, and bootstrap
+#'   accounting: requested, usable, non-converged, other failures, and the
+#'   minimum usable count.
 #' @references Waller, M. I. (1989). Modeling guessing behavior: A
 #'   comparison of two IRT models. Applied Psychological Measurement, 13,
 #'   233-243. Andrich, D., Marais, I. and Humphry, S. (2012). Using a
@@ -147,7 +152,12 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("need at least two anchor items for the common origin; ",
          "nominate easy items via anchor_items")
   ta_loc <- tailored$items$location[match(anchor_items, tailored$items$item)]
-  a3 <- data.frame(item = anchor_items, k = NA, tau = ta_loc)
+  # RUMM's average item anchoring: the initial calibration is estimated free
+  # and shifted so the anchor items' mean location equals their tailored
+  # mean. Fixing each anchor individually would instead hold the anchors at
+  # their tailored values (a zero shift by construction) and estimate the
+  # other items against them
+  a3 <- data.frame(item = anchor_items, k = NA, tau = ta_loc, average = TRUE)
   origin_equated <- rasch(fit$X, model = fit$model, id = fit$person$id,
                           factors = fit$factors, n_groups = fit$n_groups,
                           anchors = a3, maxit = spec$maxit %||% 60,
@@ -191,6 +201,8 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
       stop("boot_reps must be one whole number of at least 50 for tailored bootstrap inference")
     boot_reps <- as.integer(boot_reps)
     draws <- list()
+    boot_nonconverged <- 0L
+    boot_errors <- 0L
     # One identifier can occur on several rows in a stacked repeated design.
     # Those rows are one sampling unit: resampling them separately would
     # discard their within-person dependence and understate uncertainty.
@@ -204,17 +216,30 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
           fit$factors[take, , drop = FALSE], n_groups = fit$n_groups,
         maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
         error = function(e) NULL)
-      tb <- if (is.null(fb)) NULL else tryCatch(suppressWarnings(
+      if (is.null(fb)) {
+        boot_errors <- boot_errors + 1L
+        next
+      }
+      if (!isTRUE(fb$est$converged)) {
+        boot_nonconverged <- boot_nonconverged + 1L
+        next
+      }
+      tb <- tryCatch(suppressWarnings(
         tailored_analysis(fb, chance = chance,
                           anchor_items = anchor_requested,
                           se_method = "none")), error = function(e) NULL)
       if (!is.null(tb) && setequal(tb$table$item, tab$item))
         draws[[length(draws) + 1L]] <-
           tb$table$shift[match(tab$item, tb$table$item)]
+      else boot_errors <- boot_errors + 1L
     }
-    if (length(draws) < max(30L, ceiling(boot_reps / 2)))
-      stop("fewer than half the tailored bootstrap replicates were estimable; ",
-           "the tailoring or anchor design is too unstable for inference")
+    minimum_usable <- .fit_min_boot_success(boot_reps)
+    if (length(draws) < minimum_usable)
+      stop("only ", length(draws), " of ", boot_reps,
+           " tailored bootstrap replicates were estimable; at least ",
+           minimum_usable, " are required for inference (",
+           boot_nonconverged, " did not converge and ", boot_errors,
+           " otherwise failed)")
     B <- do.call(rbind, draws); boot_used <- nrow(B)
     tab$se <- apply(B, 2, stats::sd)
     tab$ci_low <- apply(B, 2, stats::quantile, probs = 0.025, names = FALSE)
@@ -242,7 +267,14 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
               anchored = anchored, table = tab,
               n_removed = sum(cut_cells), chance = chance,
               anchor_items = anchor_items, se_method = se_method,
-              boot_reps_used = boot_used)
+              boot_reps = if (se_method == "bootstrap") boot_reps else NA_integer_,
+              boot_reps_used = boot_used,
+              boot_reps_nonconverged = if (se_method == "bootstrap")
+                boot_nonconverged else NA_integer_,
+              boot_reps_errors = if (se_method == "bootstrap")
+                boot_errors else NA_integer_,
+              boot_minimum_usable = if (se_method == "bootstrap")
+                minimum_usable else NA_integer_)
   out <- .tag_tables(out)
   class(out) <- "rasch_tailored"
   out

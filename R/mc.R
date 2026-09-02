@@ -187,7 +187,10 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
       rows$point_biserial[j] <- if (var(ind) > 0)
         cor(ind, th[ok]) else NA_real_
     }
-    key_mean <- max(rows$mean_location[rows$keyed], na.rm = TRUE)
+    # nobody may have chosen the keyed option; max() then returns -Inf with
+    # a warning that says nothing the flag column does not already say
+    key_mean <- suppressWarnings(
+      max(rows$mean_location[rows$keyed], na.rm = TRUE))
     rows$flag <- if (is.finite(key_mean))
       !rows$keyed & rows$n >= min_n & rows$mean_location > key_mean
     else rep(FALSE, nrow(rows))

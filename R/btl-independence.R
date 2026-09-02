@@ -229,7 +229,7 @@ print.rasch_btl_transitivity <- function(x, ...) {
        coord = cbind(x = Re(v), y = Im(v)))
 }
 
-.btl_dimensionality_efrm <- function(fit, reps) {
+.btl_dimensionality_efrm <- function(fit, reps, seed = NULL) {
   objs <- fit$objects$object; K <- length(objs)
   if (K < 3L) stop("need at least three objects")
   cmp <- fit$comparisons
@@ -277,10 +277,26 @@ print.rasch_btl_transitivity <- function(x, ...) {
                      p_adj = inference$p_adjusted[1L], reps = reps,
                      n_used = inference$n_used, alpha = inference$alpha,
                      draws = lead_ref,
-                     method = inference$method),
+                     method = inference$method, seed = seed),
     residual_matrix = R, notes = notes)
+  attr(out, "fit_signature") <- .fit_boot_signature(fit)
   class(out) <- "rasch_btl_dim"
+  attr(out, "result_signature") <- .fit_boot_md5(out)
   out
+}
+
+.validate_btl_dimensionality <- function(result, fit) {
+  if (is.null(result)) return(invisible(NULL))
+  signature <- attr(result, "result_signature")
+  unsigned <- result
+  attr(unsigned, "result_signature") <- NULL
+  if (!inherits(result, "rasch_btl_dim") || !is.list(result) ||
+      !is.data.frame(result$bimensions) || !is.list(result$reference) ||
+      !is.character(signature) || length(signature) != 1L || is.na(signature) ||
+      !.fit_boot_hash_matches(signature, unsigned) ||
+      !.fit_boot_signature_matches(attr(result, "fit_signature"), fit))
+    stop("`dimensionality` must be a btl_dimensionality() result from this fitted model")
+  invisible(result)
 }
 
 #' Experimental residual dimensionality of paired comparisons
@@ -307,6 +323,8 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param reps Model-simulated replicates for the noise reference; at least 20.
 #'   Larger values give a more stable upper-tail reference.
+#' @param seed Optional non-negative whole-number seed. The caller's random-
+#'   number state is restored when the calculation finishes.
 #' @return A list of class \code{"rasch_btl_dim"}: \code{bimensions} (per
 #'   bimension: strength and share of residual size; the reference mean, 5%
 #'   upper critical value, and the clears-the-reference flag are reported for the
@@ -327,13 +345,19 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
 #' btl_dimensionality(btl(d, "a", "b", "win"), reps = 20)
 #' @export
-btl_dimensionality <- function(fit, reps = 200L) {
+btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; dimensionality inference is unavailable")
   reps <- .check_whole(reps, "reps", 20)
+  if (!is.null(seed)) {
+    seed <- .check_whole(seed, "seed", 0)
+    old_seed <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(old_seed), add = TRUE)
+    set.seed(seed)
+  }
   if (inherits(fit, "rasch_btl_efrm"))
-    return(.btl_dimensionality_efrm(fit, reps))
+    return(.btl_dimensionality_efrm(fit, reps, seed = seed))
   tab <- fit$objects
   if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
   objs <- tab$object; K <- length(objs); m <- fit$m
@@ -538,9 +562,11 @@ btl_dimensionality <- function(fit, reps = 200L) {
                 alpha = if (is.null(inference)) 0.05 else inference$alpha,
                 draws = lead_ref,
                 method = if (is.null(inference)) NA_character_ else
-                  inference$method),
+                  inference$method, seed = seed),
               residual_matrix = R, notes = notes)
+  attr(out, "fit_signature") <- .fit_boot_signature(fit)
   class(out) <- "rasch_btl_dim"
+  attr(out, "result_signature") <- .fit_boot_md5(out)
   out
 }
 

@@ -4,13 +4,16 @@
 \alias{btl_dimensionality}
 \title{Experimental residual dimensionality of paired comparisons}
 \usage{
-btl_dimensionality(fit, reps = 200L)
+btl_dimensionality(fit, reps = 200L, seed = NULL)
 }
 \arguments{
 \item{fit}{A paired-comparison fit from \code{\link{btl}}.}
 
 \item{reps}{Model-simulated replicates for the noise reference; at least 20.
 Larger values give a more stable upper-tail reference.}
+
+\item{seed}{Optional non-negative whole-number seed. The caller's random-
+number state is restored when the calculation finishes.}
 }
 \value{
 A list of class \code{"rasch_btl_dim"}: \code{bimensions} (per

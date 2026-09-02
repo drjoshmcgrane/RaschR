@@ -46,8 +46,10 @@ at most 10, at least 2. The resolved value is stored in
 \code{fit$n_groups}.}
 
 \item{anchors}{Optional anchor table for equating: a data frame with
-columns \code{item}, \code{k}, and \code{tau}; see \code{\link{pcml}}.
-Column names must be unique. Anchors determine the scale origin.}
+columns \code{item}, \code{k}, and \code{tau}, and optionally
+\code{average = TRUE} for average item anchoring; see
+\code{\link{pcml}}. Column names must be unique. Anchors determine the
+scale origin.}
 
 \item{na_codes}{Values to read as missing. Defaults to \code{-1}, the
 conventional missing-response code; any negative score is also treated as

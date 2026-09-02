@@ -40,7 +40,15 @@ The function therefore reports whether the point estimate is below the
 bound separately from a one-sided test of \eqn{H_0: \lambda \geq \lambda_0}
 against \eqn{H_1: \lambda < \lambda_0}. Evidence of dependence requires the
 adjusted one-sided probability to be below \code{alpha}; a point estimate
-below the bound alone is not treated as a verdict.
+below the bound alone is not treated as a verdict. The tabulated bounds
+are exact for subtests of two and three items. For larger subtests the
+binomial thresholds are no longer equally spaced, and the spread that
+\code{\link{pcml_pc}} recovers from independent, equally difficult
+components sits above the tabulated value (about 0.45, 0.41, 0.34, and
+0.27 for four, five, six, and eight items against 0.41, 0.35, 0.29, and
+0.22), so the screen is conservative there: a subtest of four or more
+items needs a spread well below the tabulated bound before the test
+reports dependence.
 Applied to the superitems recorded by \code{\link{combine_items}}. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict

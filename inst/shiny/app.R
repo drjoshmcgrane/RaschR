@@ -142,6 +142,12 @@ NONE_CH <- c(None = "(none)")
 .classical_design_applicable <-
   .rasch_internal(".classical_design_applicable")
 .validate_dif_bootstrap <- .rasch_internal(".validate_dif_bootstrap")
+.scree_analysis <- .rasch_internal(".scree_analysis")
+.validate_scree_result <- .rasch_internal(".validate_scree_result")
+.validate_btl_dimensionality <-
+  .rasch_internal(".validate_btl_dimensionality")
+.validate_frame_invariance <-
+  .rasch_internal(".validate_frame_invariance")
 
 # Controls that determine the fitted analysis. Project files retain these
 # separately from display-only choices so reopening an analysis also restores
@@ -151,7 +157,7 @@ NONE_CH <- c(None = "(none)")
 .project_radio_inputs <- c(
   "model_type", "lp_layout", "lp_structure", "rasch_calibration",
   "thr_structure", "thr_mode", "exp_level", "bt_thr", "bt_ties",
-  "anchor_type", "btlef_se", "dif_effects", "bdif_effects")
+  "anchor_type", "btlef_se", "dif_effects", "bdif_effects", "inv_se")
 .project_select_inputs <- c(
   "id_col", "ef_id", "ef_group", "lp_person", "lp_item", "lp_score",
   "lp_interaction", "bt_a", "bt_b", "bt_win", "bt_judge", "bt_count",
@@ -165,7 +171,7 @@ NONE_CH <- c(None = "(none)")
 .project_numeric_inputs <- c(
   "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
   "btlef_seed", "dif_alpha", "dif_boot_B", "dif_boot_seed",
-  "bdif_alpha", "bdif_boot_B", "bdif_boot_seed")
+  "bdif_alpha", "bdif_boot_B", "bdif_boot_seed", "inv_boot", "inv_seed")
 
 .collect_app_settings <- function(input) {
   ids <- unique(c(.project_radio_inputs, .project_select_inputs,
@@ -969,12 +975,16 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
               conditionalPanel("input.rasch_calibration != 'explanatory'",
                 fileInput("anchor_file", info_label("Anchors for equating (CSV: item,k,tau)",
                           paste("Every named item must be present. Individual anchoring fixes",
-                                "each threshold; average anchoring fixes each item's mean",
-                                "while its thresholds remain free.")),
+                                "each threshold; location anchoring fixes each item's mean",
+                                "while its thresholds remain free; average anchoring (RUMM's",
+                                "average item anchoring) estimates every item free and shifts",
+                                "the calibration so the anchor items' mean location equals the",
+                                "mean anchor value.")),
                           accept = ".csv", placeholder = "optional"),
                 radioButtons("anchor_type", "Anchor as",
                              c("Individual thresholds" = "individual",
-                             "Average item locations" = "average"),
+                               "Item locations" = "average",
+                               "Average of the anchor set" = "set_average"),
                              inline = TRUE))))
         ),
         input_task_button("run", "Estimate", icon = bs_icon("play-fill"),
@@ -2524,6 +2534,8 @@ server <- function(input, output, session) {
   restored_project_settings <- reactiveVal(list())
   restored_project_resources <- reactiveVal(list())
   person_weight_state <- reactiveVal(NULL)
+  restored_dimensionality <- reactiveVal(NULL)
+  restored_invariance <- reactiveVal(NULL)
   # generation stamps: which simulation is loaded, and which one the current
   # fit was estimated on (recovery only renders when they agree)
   sim_gen <- reactiveVal(0L)
@@ -4129,10 +4141,13 @@ server <- function(input, output, session) {
               stop("anchor item(s) are not in the selected analysis: ",
                    paste(unique(as.character(anc$item[!present])),
                          collapse = ", "))
-            # average anchoring: collapse to one mean-location anchor per item
-            if (!is.null(anc) && identical(input$anchor_type, "average")) {
+            # location anchoring: collapse to one mean-location anchor per
+            # item; average anchoring of the set adds the flag pcml() reads
+            anchor_type <- input$anchor_type %||% "individual"
+            if (!is.null(anc) && anchor_type %in% c("average", "set_average")) {
               mu <- tapply(anc$tau, as.character(anc$item), mean)
               anc <- data.frame(item = names(mu), k = NA, tau = as.numeric(mu))
+              if (anchor_type == "set_average") anc$average <- TRUE
             }
           }
           # threshold structure: partial credit (item-specific) or rating
@@ -4153,9 +4168,11 @@ server <- function(input, output, session) {
             else "anchors <- project$resources$anchors",
             paste0("anchors <- anchors[as.character(anchors$item) %in% ",
                    qvec(cand), ", , drop = FALSE]"),
-            if (identical(input$anchor_type, "average")) c(
+            if (anchor_type %in% c("average", "set_average")) c(
               "anchor_mean <- tapply(anchors$tau, as.character(anchors$item), mean)",
-              "anchors <- data.frame(item = names(anchor_mean), k = NA, tau = as.numeric(anchor_mean))"))
+              "anchors <- data.frame(item = names(anchor_mean), k = NA, tau = as.numeric(anchor_mean))"),
+            if (anchor_type == "set_average")
+              "anchors$average <- TRUE")
           else character(0)
           code_call <- paste0("fit <- rasch(dat,\n  ", paste(c(
             paste0("model = ", qstr(if (rsm_on) "RSM" else "PCM")),
@@ -4451,6 +4468,7 @@ server <- function(input, output, session) {
       lr_res(NULL); dep_res(NULL); spread_res(NULL); dm_res(NULL)
       guess_res(NULL); contr_res(NULL); rescore_res(NULL)
       person_weight_state(NULL)
+      restored_dimensionality(NULL); restored_invariance(NULL)
       # An automatic resolution sets the override fit itself, so its trace
       # must survive its own refit; a fresh run or another override clears it.
       if (!identical(active_step_type(), "dif_auto")) resolve_res(NULL)
@@ -7144,7 +7162,10 @@ server <- function(input, output, session) {
     # Results computed on request belong to the fit they came from. A project
     # restore is the exception: those results were saved with this exact fit
     # and are reinstated later in the same flush cycle.
-    if (!isTRUE(restoring_project())) clear_btl_fit_results()
+    if (!isTRUE(restoring_project())) {
+      clear_btl_fit_results()
+      restored_dimensionality(NULL)
+    }
   }, ignoreNULL = FALSE)
   register_plot("btl_occ", function() {
     o <- sel_object(); req(o %in% bfit()$objects$object)
@@ -7244,16 +7265,23 @@ server <- function(input, output, session) {
   # the pair-structure analogues of transitivity (one order?) and residual
   # PCA (a second attribute steering contests?); both cached per fit
   btl_trans <- reactive({ b <- bfit(); req(!is.null(b)); btl_transitivity(b) })
-  btl_dim   <- reactive({ b <- bfit(); req(!is.null(b)); btl_dimensionality(b) })
+  btl_dim <- reactive({
+    b <- bfit(); req(!is.null(b))
+    saved <- restored_dimensionality()
+    if (!is.null(saved) &&
+        !inherits(tryCatch(.validate_btl_dimensionality(saved, b),
+                           error = function(e) e), "error")) return(saved)
+    btl_dimensionality(b, seed = 1L)
+  })
   register_plot("btl_scree", function() plot_btl_scree(btl_dim()),
                 w = 7, h = 5, code = function()
-                  "plot_btl_scree(btl_dimensionality(bt))")
+                  "plot_btl_scree(btl_dimensionality(bt, seed = 1))")
   register_plot("btl_dim_map", function() plot_btl_dim_map(btl_dim()),
                 w = 7, h = 5.5, code = function()
-                  "plot_btl_dim_map(btl_dimensionality(bt))")
+                  "plot_btl_dim_map(btl_dimensionality(bt, seed = 1))")
   register_table("btl_bimensions_tbl", function() btl_dim()$bimensions,
                  function() num_dt(btl_dim()$bimensions),
-                 code = function() "btl_dimensionality(bt)$bimensions")
+                 code = function() "btl_dimensionality(bt, seed = 1)$bimensions")
   register_table("btl_trans_tbl", function() btl_trans()$summary,
                  function() num_dt(btl_trans()$summary),
                  code = function() "btl_transitivity(bt)$summary")
@@ -7867,11 +7895,20 @@ server <- function(input, output, session) {
     if (!is.finite(x)) 1L else max(1L, x)
   })
   efrm_invariance_base <- reactive({
+    f <- efrm_fit()
+    saved <- restored_invariance()
+    if (!is.null(saved) &&
+        !inherits(tryCatch(.validate_frame_invariance(saved, f),
+                           error = function(e) e), "error") &&
+        identical(saved$se_method, inv_se()) &&
+        (inv_se() != "bootstrap" ||
+          (identical(saved$boot_reps, inv_reps()) &&
+           identical(saved$seed, inv_seed())))) return(saved)
     tryCatch(withProgress(
       message = if (inv_se() == "bootstrap")
         "Resampling persons within frames..." else "Calibrating frames...",
       value = 0.5,
-      frame_invariance(efrm_fit(), adjust = "holm",
+      frame_invariance(f, adjust = "holm",
                        se_method = inv_se(), boot_reps = inv_reps(),
                        seed = inv_seed())),
              error = function(e) conditionMessage(e))
@@ -8495,6 +8532,13 @@ server <- function(input, output, session) {
       "lower CI exceeds 5% - unidimensionality is questionable"
       else "consistent with unidimensionality"))
     if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
+    # a split chosen from the residuals is chosen to disagree: the binomial
+    # reading is exact only for a split fixed in advance
+    if (dt$split != "manual")
+      cat("Note: the split was chosen from the residuals, which inflates the",
+          "proportion under unidimensionality (about 7% rather than 5% in the",
+          "package's simulations); name the subsets by content for an exact",
+          "reading, or calibrate the split with dimensionality_test(fit, B = ...)\n")
     if (!is.null(dt$paired_t))
       cat(sprintf("Paired t-test of subset means: mean difference %.3f, t = %.2f (df %.0f), p = %s\n",
                   dt$paired_t$mean_difference, dt$paired_t$t,
@@ -8565,14 +8609,22 @@ server <- function(input, output, session) {
     sprintf("dimensionality_magnitude(fit, list(%s, %s))$table",
             qvec(r$run_subtests[[1]]), qvec(r$run_subtests[[2]]))
   })
-  register_plot("scree", function() {
+  scree_diag <- reactive({
     f <- fit()
-    plot_scree(f, parallel = !inherits(f, c("rasch_efrm", "rasch_mfrm")))
+    saved <- restored_dimensionality()
+    if (!is.null(saved) &&
+        !inherits(tryCatch(.validate_scree_result(saved, f),
+                           error = function(e) e), "error")) return(saved)
+    .scree_analysis(f,
+      parallel = !inherits(f, c("rasch_efrm", "rasch_mfrm")), seed = 1L)
+  })
+  register_plot("scree", function() {
+    plot_scree(fit(), result = scree_diag())
   }, code = function() {
     f <- fit()
     if (inherits(f, c("rasch_efrm", "rasch_mfrm")))
-      "plot_scree(fit, parallel = FALSE)"
-    else "plot_scree(fit)"
+      "plot_scree(fit, parallel = FALSE, seed = 1)"
+    else "plot_scree(fit, seed = 1)"
   })
   register_table("loadings_tbl", function() residual_pca(fit())$loadings_matrix,
                  function() {
@@ -8955,6 +9007,13 @@ server <- function(input, output, session) {
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
       dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
       person_weights = person_weight_state(),
+      dimensionality = tryCatch(if (!is.null(btl_fit())) btl_dim()
+        else scree_diag(), error = function(e) NULL),
+      frame_invariance = tryCatch({
+        z <- if (inherits(fit_or_null(), "rasch_efrm"))
+          efrm_invariance() else NULL
+        if (is.character(z)) NULL else z
+      }, error = function(e) NULL),
       bootstrap = boot_val(), dif_bootstrap = {
         bv <- dif_boot_val()
         if (is.null(bv)) NULL else {
@@ -8993,6 +9052,17 @@ server <- function(input, output, session) {
     .validate_dif_bootstrap(bv$db, f, d)
     bv$db
   }
+  app_dim_res <- function() {
+    tryCatch(if (!is.null(btl_fit())) btl_dim() else scree_diag(),
+             error = function(e) NULL)
+  }
+  app_inv_res <- function() {
+    f <- fit_or_null()
+    if (inherits(f, "rasch_efrm")) {
+      z <- efrm_invariance()
+      if (!is.character(z)) z else NULL
+    } else NULL
+  }
 
   output$dl_project <- downloadHandler(
     filename = function()
@@ -9017,6 +9087,12 @@ server <- function(input, output, session) {
         if (length(dropped)) paste0(
           "Results that could not be authenticated were omitted: ",
           paste(dropped, collapse = ", "), ".") else ""),
+        type = "warning", duration = 10)
+    } else if (length(attr(p, "rasch_project_legacy_dropped") %||%
+                      character(0))) {
+      showNotification(paste(
+        "A saved fit bootstrap used an earlier adjustment and was omitted.",
+        "Recompute it before reporting adjusted bootstrap probabilities."),
         type = "warning", duration = 10)
     }
     cancelled_job <- cancel_efrm_job() | cancel_btlef_job() |
@@ -9071,6 +9147,8 @@ server <- function(input, output, session) {
       person_weight_state(rr$person_weights %||% NULL)
       boot_val(rr$bootstrap %||% NULL)
       dif_boot_val(rr$dif_bootstrap %||% NULL)
+      restored_dimensionality(rr$dimensionality %||% NULL)
+      restored_invariance(rr$frame_invariance %||% NULL)
     })
     # raw_data() first refreshes the choices available to every role control;
     # applying the stored selections after that flush prevents the automatic
@@ -9099,10 +9177,13 @@ server <- function(input, output, session) {
                  value = 0.4, {
       if (identical(format, "html") && !inherits(f, "rasch_btl"))
         report_html(f, file, dif = app_dif_res(), bootstrap = app_boot_res(),
-                    dif_bootstrap = app_dif_boot_res())
+                    dif_bootstrap = app_dif_boot_res(),
+                    dimensionality = app_dim_res(), invariance = app_inv_res())
       else report_document(f, file, format = format,
                            dif = app_dif_res(), bootstrap = app_boot_res(),
-                           dif_bootstrap = app_dif_boot_res())
+                           dif_bootstrap = app_dif_boot_res(),
+                           dimensionality = app_dim_res(),
+                           invariance = app_inv_res())
     })
   }
   output$dl_report <- downloadHandler(
@@ -9122,7 +9203,9 @@ server <- function(input, output, session) {
                      formats = if (length(input$exp_formats)) input$exp_formats else "png",
                      item_plots = isTRUE(input$exp_items),
                      dif = app_dif_res(), bootstrap = app_boot_res(),
-                     dif_bootstrap = app_dif_boot_res())
+                     dif_bootstrap = app_dif_boot_res(),
+                     dimensionality = app_dim_res(),
+                     invariance = app_inv_res())
       })
       owd <- setwd(tmp); on.exit(setwd(owd), add = TRUE)
       utils::zip(zipfile = file, files = list.files(".", recursive = TRUE),

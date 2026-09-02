@@ -18,19 +18,32 @@ if (!is.finite(N_COMPONENTS) || N_COMPONENTS < 2L)
   stop("SV_COMPONENTS must be at least 2")
 
 scenarios <- expand.grid(
-  design = c("dichotomous", "PCM", "RSM", "booklet", "explanatory"),
+  design = c("dichotomous", "PCM", "RSM", "booklet", "explanatory",
+             "sparse PCM"),
   departure = c("null", "second dimension"),
   stringsAsFactors = FALSE)
+scenarios <- scenarios[scenarios$design != "sparse PCM" |
+                         scenarios$departure == "null", , drop = FALSE]
 
 make_fit <- function(design, departure, seed) {
-  sim_model <- if (design %in% c("PCM", "RSM")) design else "dichotomous"
+  sim_model <- if (design %in% c("PCM", "RSM", "sparse PCM")) "PCM" else
+    "dichotomous"
   fit_model <- if (sim_model == "dichotomous") "PCM" else sim_model
   second <- if (departure == "second dimension")
     list(items = sprintf("I%02d", 6:10), rho = 0.2) else NULL
+  sparse <- design == "sparse PCM"
   d <- simulate_rasch(
-    n_persons = 400, n_items = 10, model = sim_model, n_categories = 4,
-    difficulty = c(-1.8, 1.8), second_dim = second, seed = seed)
+    n_persons = if (sparse) 35 else 400, n_items = 10,
+    model = sim_model, n_categories = 4,
+    difficulty = if (sparse) c(-3, 3) else c(-1.8, 1.8),
+    second_dim = second, seed = seed)
   items <- sprintf("I%02d", 1:10)
+  if (sparse) {
+    set.seed(seed + 1L)
+    xd <- as.matrix(d[items])
+    xd[matrix(stats::runif(length(xd)) < .10, nrow(xd), ncol(xd))] <- NA
+    d[items] <- xd
+  }
   if (design == "booklet") {
     form <- (seq_len(nrow(d)) - 1L) %% 3L
     d[form == 1L, items[8:10]] <- NA
@@ -51,16 +64,20 @@ one <- function(r, design, departure, tag) {
   if (inherits(fit, "condition"))
     return(c(ratio_mean = NA_real_, ratio_critical = NA_real_, p_upper = NA_real_,
              p_adjusted = NA_real_, rejected_pc1 = NA_real_,
-             rejected_family = NA_real_, refused = 1, nonconv = 0, error = 0))
+             rejected_family = NA_real_, inner_requested = NA_real_,
+             inner_used = NA_real_, inner_nonconv = NA_real_,
+             inner_error = NA_real_, refused = 1, nonconv = 0, error = 0))
   if (!isTRUE(fit$est$converged))
     return(c(ratio_mean = NA_real_, ratio_critical = NA_real_, p_upper = NA_real_,
              p_adjusted = NA_real_, rejected_pc1 = NA_real_,
-             rejected_family = NA_real_, refused = 0, nonconv = 1, error = 0))
+             rejected_family = NA_real_, inner_requested = NA_real_,
+             inner_used = NA_real_, inner_nonconv = NA_real_,
+             inner_error = NA_real_, refused = 0, nonconv = 1, error = 0))
   observed <- tryCatch(
     residual_pca(fit, N_COMPONENTS)$eigen_table$eigenvalue,
     error = identity)
-  set.seed(810000L + tag * 1000L + r)
-  reference <- tryCatch(.scree_reference(fit, N_COMPONENTS, INNER),
+  reference <- tryCatch(.scree_reference(
+    fit, N_COMPONENTS, INNER, seed = 810000L + tag * 1000L + r),
                         error = identity)
   if (inherits(observed, "condition") || inherits(reference, "condition") ||
       length(observed) != N_COMPONENTS || any(!is.finite(observed)) ||
@@ -68,19 +85,27 @@ one <- function(r, design, departure, tag) {
       reference[1L] <= 0)
     return(c(ratio_mean = NA_real_, ratio_critical = NA_real_, p_upper = NA_real_,
              p_adjusted = NA_real_, rejected_pc1 = NA_real_,
-             rejected_family = NA_real_, refused = 0, nonconv = 0, error = 1))
+             rejected_family = NA_real_, inner_requested = NA_real_,
+             inner_used = NA_real_, inner_nonconv = NA_real_,
+             inner_error = NA_real_, refused = 0, nonconv = 0, error = 1))
   inference <- tryCatch(
     .sim_upper_family(observed, attr(reference, "draws"), 0.05),
     error = identity)
   if (inherits(inference, "condition"))
     return(c(ratio_mean = NA_real_, ratio_critical = NA_real_, p_upper = NA_real_,
              p_adjusted = NA_real_, rejected_pc1 = NA_real_,
-             rejected_family = NA_real_, refused = 0, nonconv = 0, error = 1))
+             rejected_family = NA_real_, inner_requested = NA_real_,
+             inner_used = NA_real_, inner_nonconv = NA_real_,
+             inner_error = NA_real_, refused = 0, nonconv = 0, error = 1))
   c(ratio_mean = observed[1L] / attr(reference, "mean")[1L],
     ratio_critical = observed[1L] / inference$critical[1L],
     p_upper = inference$p[1L], p_adjusted = inference$p_adjusted[1L],
     rejected_pc1 = as.numeric(inference$significant[1L]),
     rejected_family = as.numeric(any(inference$significant)),
+    inner_requested = attr(reference, "n_requested"),
+    inner_used = attr(reference, "n_used"),
+    inner_nonconv = attr(reference, "n_nonconverged"),
+    inner_error = attr(reference, "n_errors"),
     refused = 0, nonconv = 0, error = 0)
 }
 
@@ -121,10 +146,14 @@ for (s in seq_len(nrow(scenarios))) {
     notes = sprintf(
       paste("PC1 observed/null-mean ratio %.4f; PC1 observed/null-critical",
             "ratio %.4f; PC1 rejection %.3f; family rejection %.3f;",
-            "%d components and %d conditional draws per outer replicate;",
+            "%d components; %d/%d conditional draws used in total, with",
+            "%d non-converged and %d other failures;",
             "largest attainable level %.4f"),
       mean(ratio_mean[ok]), mean(ratio_critical[ok]), rate_pc1, rate_family,
-      N_COMPONENTS, INNER, floor(0.05 * (INNER + 1)) / (INNER + 1)))
+      N_COMPONENTS, sum(z[ok, "inner_used"]),
+      sum(z[ok, "inner_requested"]), sum(z[ok, "inner_nonconv"]),
+      sum(z[ok, "inner_error"]),
+      floor(0.05 * (INNER + 1)) / (INNER + 1)))
 }
 
 out <- do.call(rbind, rows)

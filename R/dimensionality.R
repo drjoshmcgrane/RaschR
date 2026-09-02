@@ -102,7 +102,14 @@ residual_pca <- function(fit, n_components = 10) {
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; residual PCA is unavailable")
   n_components <- .check_whole(n_components, "n_components", 1)
-  R <- cor(fit$residuals, use = "pairwise.complete.obs")
+  .residual_pca_matrix(fit$residuals, n_components)
+}
+
+# The decomposition itself, on a standardised residual matrix rather than a
+# fit object, so that a bootstrap replicate of dimensionality_test() can
+# decompose its own residuals by exactly the observed computation
+.residual_pca_matrix <- function(Z, n_components) {
+  R <- cor(Z, use = "pairwise.complete.obs")
   no_overlap <- is.na(R) & row(R) != col(R)
   if (any(no_overlap)) {
     ij <- which(no_overlap, arr.ind = TRUE)[1L, ]
@@ -130,7 +137,7 @@ residual_pca <- function(fit, n_components = 10) {
   ev <- eigen(R, symmetric = TRUE)
   k <- min(n_components, ncol(R))
   loadings <- ev$vectors[, 1] * sqrt(pmax(ev$values[1], 0))
-  ld <- data.frame(item = colnames(fit$residuals), pc1_loading = loadings)
+  ld <- data.frame(item = colnames(Z), pc1_loading = loadings)
   lm <- ev$vectors[, seq_len(k), drop = FALSE] %*%
     diag(sqrt(pmax(ev$values[seq_len(k)], 0)), k)
   colnames(lm) <- paste0("PC", seq_len(k))
@@ -144,7 +151,7 @@ residual_pca <- function(fit, n_components = 10) {
          "pairwise correlation matrix projected to a positive-semidefinite correlation matrix"
        else NULL,
        loadings = ld[order(-ld$pc1_loading), ],
-       loadings_matrix = data.frame(item = colnames(fit$residuals), lm),
+       loadings_matrix = data.frame(item = colnames(Z), lm),
        eigen_table = data.frame(component = seq_len(k),
                                 eigenvalue = ev$values[seq_len(k)],
                                 proportion = pmax(ev$values[seq_len(k)], 0) / tot,
@@ -244,11 +251,17 @@ residual_pca <- function(fit, n_components = 10) {
        method = "single-step leave-one-out maximum-standardised-statistic")
 }
 
-.scree_reference <- function(fit, k, reps) {
+.scree_reference <- function(fit, k, reps, seed = NULL) {
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     .refuse("parallel residual reference is not available for mutually exclusive ",
          "EFRM/MFRM virtual designs; fit and analyse an observable design block")
   reps <- .check_whole(reps, "reps", 20)
+  if (!is.null(seed)) {
+    seed <- .check_whole(seed, "seed", 0)
+    old_seed <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(old_seed), add = TRUE)
+    set.seed(seed)
+  }
   tau_list <- fit$tau_list; L <- length(tau_list)
   disc_v <- if (is.null(fit$disc)) rep(1, L) else fit$disc
   if (any(abs(disc_v - 1) > 1e-12))
@@ -259,6 +272,7 @@ residual_pca <- function(fit, n_components = 10) {
   spec <- fit$refit_spec
   if (is.null(spec)) spec <- list()
   first_error <- NULL
+  status <- rep("used", reps)
   draws <- lapply(seq_len(reps), function(r) {
     Xr <- .fit_gen_conditional(X, tau_list, !obs)
     # the reference distribution must be analysed under the model that was
@@ -273,16 +287,29 @@ residual_pca <- function(fit, n_components = 10) {
               maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
       error = function(e) {
         if (is.null(first_error)) first_error <<- conditionMessage(e)
+        status[r] <<- "error"
         NULL
       })
-    if (is.null(fr) || !isTRUE(fr$est$converged) || ncol(fr$X) != L)
+    if (is.null(fr)) return(rep(NA_real_, k))
+    if (!isTRUE(fr$est$converged)) {
+      status[r] <<- "nonconverged"
       return(rep(NA_real_, k))
+    }
+    if (ncol(fr$X) != L) {
+      status[r] <<- "error"
+      return(rep(NA_real_, k))
+    }
     tryCatch(residual_pca(fr, n_components = k)$eigenvalues[seq_len(k)],
-             error = function(e) rep(NA_real_, k))
+      error = function(e) {
+        if (is.null(first_error)) first_error <<- conditionMessage(e)
+        status[r] <<- "error"
+        rep(NA_real_, k)
+      })
   })
   sim <- do.call(rbind, draws)
   complete <- stats::complete.cases(sim)
-  minimum_usable <- max(20L, ceiling(reps / 2))
+  status[!complete & status == "used"] <- "error"
+  minimum_usable <- .fit_min_boot_success(reps)
   if (sum(complete) < minimum_usable)
     stop("only ", sum(complete), " of ", reps,
          " full-refit scree replicates were estimable; at least ",
@@ -298,7 +325,12 @@ residual_pca <- function(fit, n_components = 10) {
   attr(reference, "mean") <- colMeans(sim)
   attr(reference, "draws") <- sim
   attr(reference, "alpha") <- alpha
+  attr(reference, "n_requested") <- reps
   attr(reference, "n_used") <- nrow(sim)
+  attr(reference, "n_nonconverged") <- sum(status == "nonconverged")
+  attr(reference, "n_errors") <- sum(status == "error")
+  attr(reference, "minimum_usable") <- minimum_usable
+  attr(reference, "seed") <- seed
   reference
 }
 
@@ -330,10 +362,15 @@ residual_pca <- function(fit, n_components = 10) {
 #' @param reps Model-simulated replicates for the reference; at least 20 when
 #'   \code{parallel = TRUE}. Larger values give a more stable upper-tail
 #'   reference.
+#' @param seed Optional non-negative whole-number seed. The caller's random-
+#'   number state is restored when the calculation finishes.
+#' @param result Optional result returned by an earlier call. Supplying it
+#'   redraws that analysis without repeating the simulations.
 #' @return Called for its plotting side effect; invisibly the eigen table. With
 #'   parallel analysis it also contains \code{reference_mean},
 #'   \code{reference_critical}, \code{parallel_p}, \code{parallel_p_adj},
-#'   \code{parallel_significant}, and \code{n_reference}. The adjustment is
+#'   \code{parallel_significant}, and requested, usable, non-converged and
+#'   other-failure reference counts. The adjustment is
 #'   recorded in the table's \code{parallel_adjustment} attribute.
 #' @references Raiche, G. (2005). Critical eigenvalue sizes (variances) in
 #'   standardized residual principal components analysis. \emph{Rasch
@@ -352,19 +389,26 @@ residual_pca <- function(fit, n_components = 10) {
 #' X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 #' colnames(X) <- paste0("I", 1:8)
 #' plot_scree(rasch(X), reps = 20)
-#' @export
-plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
+#' @name plot_scree
+NULL
+
+.scree_analysis <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
+                            seed = NULL) {
   .check_flag(parallel, "parallel")
   n_components <- .check_whole(n_components, "n_components", 1)
   reps <- .check_whole(reps, "reps", if (parallel) 20 else 1)
   pc <- residual_pca(fit, n_components)
   k <- nrow(pc$eigen_table)
   obs <- pc$eigen_table$eigenvalue
-  pa <- if (parallel) .scree_reference(fit, k, reps) else NULL
+  pa <- if (parallel) .scree_reference(fit, k, reps, seed = seed) else NULL
   pa_mean <- NULL
   significant <- rep(FALSE, k)
   if (!is.null(pa)) {
     draws <- attr(pa, "draws")
+    n_requested <- attr(pa, "n_requested")
+    n_nonconverged <- attr(pa, "n_nonconverged")
+    n_errors <- attr(pa, "n_errors")
+    reference_seed <- attr(pa, "seed")
     inference <- .sim_upper_family(obs, draws, attr(pa, "alpha"))
     pa <- inference$critical
     pa_mean <- inference$mean
@@ -375,9 +419,50 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
     pc$eigen_table$parallel_p_adj <- inference$p_adjusted
     pc$eigen_table$parallel_significant <- inference$significant
     pc$eigen_table$n_reference <- inference$n_used
+    pc$eigen_table$n_reference_requested <- n_requested
+    pc$eigen_table$n_reference_nonconverged <- n_nonconverged
+    pc$eigen_table$n_reference_errors <- n_errors
+    pc$eigen_table$reference_seed <- reference_seed %||% NA_integer_
     attr(pc$eigen_table, "parallel_adjustment") <- inference$method
   }
-  ylim <- c(0, max(c(obs, pa, 1)) * 1.12)
+  out <- pc$eigen_table
+  class(out) <- c("rasch_scree", class(out))
+  attr(out, "fit_signature") <- .fit_boot_signature(fit)
+  attr(out, "parallel") <- parallel
+  attr(out, "result_signature") <- .fit_boot_md5(out)
+  out
+}
+
+.validate_scree_result <- function(result, fit) {
+  if (is.null(result)) return(invisible(NULL))
+  signature <- attr(result, "result_signature")
+  unsigned <- result
+  attr(unsigned, "result_signature") <- NULL
+  if (!inherits(result, "rasch_scree") || !is.data.frame(result) ||
+      !all(c("component", "eigenvalue") %in% names(result)) ||
+      !is.character(signature) || length(signature) != 1L || is.na(signature) ||
+      !.fit_boot_hash_matches(signature, unsigned) ||
+      !.fit_boot_signature_matches(attr(result, "fit_signature"), fit))
+    stop("`result` must be a plot_scree() result from this fitted model")
+  invisible(result)
+}
+
+#' @rdname plot_scree
+#' @export
+plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
+                       seed = NULL, result = NULL) {
+  if (is.null(result))
+    result <- .scree_analysis(fit, n_components, parallel, reps, seed)
+  else .validate_scree_result(result, fit)
+  k <- nrow(result)
+  obs <- result$eigenvalue
+  has_reference <- all(c("reference_mean", "reference_critical") %in%
+                         names(result))
+  pa_mean <- if (has_reference) result$reference_mean else NULL
+  pa <- if (has_reference) result$reference_critical else NULL
+  significant <- if ("parallel_significant" %in% names(result))
+    result$parallel_significant else rep(FALSE, k)
+  ylim <- c(0, max(c(obs, pa, 1), na.rm = TRUE) * 1.12)
   op <- .rr_canvas(c(0.5, k + 0.5), ylim, "Component", "Eigenvalue",
                    grid_x = FALSE, xaxis = FALSE)
   on.exit(par(op))
@@ -406,7 +491,7 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
       pt.cex = c(NA, 1.4, 1.2),
       col = c(.rr$blue, "#dc262666", "white"))
   }
-  invisible(pc$eigen_table)
+  invisible(result)
 }
 
 #' Residual-component test of unidimensionality
@@ -427,6 +512,28 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
 #' \code{alpha} signals multidimensionality. The test requires a converged
 #' calibration.
 #'
+#' The binomial reading holds for a split fixed in advance. A split chosen
+#' from the residuals is chosen to make the two subsets disagree, so its
+#' proportion runs above \code{alpha} under unidimensionality. In the
+#' package's own simulation of unidimensional data (400 persons; 20
+#' four-category items, or 30 dichotomous items) the residual-component split
+#' left 6 to 7 per cent of persons significant and the binomial verdict
+#' flagged between a sixth and a half of the samples, depending on the
+#' design, while a split fixed in advance on the same data held the nominal
+#' rate and flagged none. With \code{B = 99} the bootstrap verdict flagged
+#' 2 to 8 per cent of the same samples and 97 per cent of samples from a
+#' two-dimensional design that the binomial verdict flagged in 87 per cent.
+#' Two remedies are available. A content-based split, named through \code{items_positive}
+#' and \code{items_negative}, keeps the binomial reading exact. Otherwise
+#' \code{B > 0} calibrates the data-driven split by a parametric bootstrap:
+#' each replicate draws responses from the fitted model conditional on every
+#' person's raw score and missingness pattern, refits the calibration,
+#' repeats the residual-component split on its own residuals and recomputes
+#' the proportion, so the bootstrap probability \code{p_boot} carries the
+#' same selection the observed proportion carries. With \code{B > 0} the
+#' verdict is \code{p_boot <= .05}; the binomial interval is still reported,
+#' as a description of the observed proportion rather than a test of it.
+#'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param alpha Nominal significance level for the per-person t-tests.
 #' @param items_positive,items_negative Optional character vectors naming the
@@ -441,12 +548,16 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
 #'   (the norm for ordinary dichotomous tests) still receive a verdict, with
 #'   a \code{caution} field noting the reduced stability. A quiet verdict
 #'   under caution is inconclusive, not clean: with a four-item subtest the
-#'   test lacks power where nonparametric alternatives still flag. The
-#'   procedure is deliberately conservative -- in cross-package comparison
-#'   it held an exact null (no false flags) while flagging a balanced
-#'   planted second dimension in about two-thirds of replicates where the
-#'   DETECT index flagged all; quasi-exact matrix-sampling tests showed
-#'   elevated null rates on the same data.
+#'   test lacks power where nonparametric alternatives still flag.
+#' @param B Number of parametric-bootstrap replicates that calibrate the
+#'   proportion of significant tests under the fitted model (see Details).
+#'   The default \code{0} reports the binomial reading alone. Each replicate
+#'   refits the calibration, so \code{B = 200} costs about two hundred
+#'   fits; the bootstrap is available for single-facet fits with a common
+#'   unit whose thresholds were estimated directly.
+#' @param workers Number of parallel workers for the bootstrap refits.
+#' @param seed Optional integer seed for the bootstrap; the replicates are
+#'   reproducible for a given seed whatever the worker count.
 #' @return A list with the proportion of significant tests, its exact
 #'   confidence interval, the sample sizes (\code{n} used,
 #'   \code{n_excluded_extreme}), the item split and its source, a
@@ -454,23 +565,37 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
 #'   subtests fall short of \code{min_score_points}, and \code{paired_t},
 #'   the paired t-test of the two subset means (the group-level comparison,
 #'   which requires pairing because both estimates come from the same
-#'   persons). When the comparison itself is unavailable (undefined split,
-#'   degenerate subsets, too few persons) the list carries a \code{note}
-#'   explaining why and \code{multidimensional = NA}.
+#'   persons). With \code{B > 0} the list also carries \code{p_boot}, the
+#'   bootstrap probability of a proportion at least as large as the observed
+#'   one under the fitted unidimensional model; \code{prop_null}, the mean
+#'   replicate proportion (the rate the split produces when nothing is
+#'   there); and \code{bootstrap}, the replicate proportions with the
+#'   counts requested, used, non-converged and failed. When the comparison
+#'   itself is unavailable (undefined split, degenerate subsets, too few
+#'   persons) the list carries a \code{note} explaining why and
+#'   \code{multidimensional = NA}.
 #' @references
 #' Smith, E. V. Jr. (2002). Detecting and evaluating the impact of
 #' multidimensionality using item fit statistics and principal component
 #' analysis of residuals. Journal of Applied Measurement, 3(2), 205--231.
+#'
+#' Tennant, A., & Pallant, J. F. (2006). Unidimensionality matters! (A tale
+#' of two Smiths?). Rasch Measurement Transactions, 20(1), 1048--1051.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-2, 2, length.out = 8)
 #' X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 #' colnames(X) <- paste0("I", 1:8)
 #' dimensionality_test(rasch(X))$multidimensional
+#' \donttest{
+#' # calibrate the data-driven split under the fitted model
+#' dimensionality_test(rasch(X), B = 99, workers = 1, seed = 1)$p_boot
+#' }
 #' @export
 dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
                                 items_negative = NULL, component = 1,
-                                min_score_points = 15L) {
+                                min_score_points = 15L, B = 0,
+                                workers = 4L, seed = NULL) {
   for (side in list(items_positive, items_negative))
     if (!is.null(side) && anyDuplicated(side))
       stop("item(s) named more than once in a subset: ",
@@ -486,17 +611,12 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   .check_prob(alpha, "alpha")
   component <- .check_whole(component, "component", 1)
   min_score_points <- .check_whole(min_score_points, "min_score_points", 1)
+  B <- .check_whole(B, "B", 0)
+  workers <- .check_whole(workers, "workers", 1)
+  if (B > 0L) .dim_bootstrap_check(fit)
   X <- fit$X
+  disc <- if (is.null(fit$disc)) rep(1, ncol(X)) else fit$disc
   manual <- !is.null(items_positive) || !is.null(items_negative)
-  # the PCA is needed only to derive the automatic split; when it is
-  # undefined (structurally disjoint columns, sparse overlap) that is a
-  # reason to report, not an error to crash every downstream consumer
-  pca <- if (manual) NULL else
-    tryCatch(residual_pca(fit), error = function(e)
-      structure(list(msg = conditionMessage(e)), class = "rr_pca_refusal"))
-  if (inherits(pca, "rr_pca_refusal"))
-    return(list(note = paste0("dimensionality split unavailable: ", pca$msg),
-                multidimensional = NA))
   if (manual) {
     if (is.null(items_positive) || is.null(items_negative))
       stop("supply both item subsets, or neither")
@@ -509,14 +629,21 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
     if (length(intersect(pos, neg)))
       stop("the two subsets must be disjoint")
     split_source <- "manual"
+    first_eigen <- NA_real_
   } else {
-    cn <- paste0("PC", as.integer(component))
-    if (!cn %in% names(pca$loadings_matrix))
+    # the PCA is needed only to derive the automatic split; when it is
+    # undefined (structurally disjoint columns, sparse overlap) that is a
+    # reason to report, not an error to crash every downstream consumer
+    split <- tryCatch(.dim_split(fit$residuals, component), error = function(e)
+      structure(list(msg = conditionMessage(e)), class = "rr_pca_refusal"))
+    if (inherits(split, "rr_pca_refusal"))
+      return(list(note = paste0("dimensionality split unavailable: ", split$msg),
+                  multidimensional = NA))
+    if (is.null(split))
       stop("component ", component, " is not available")
-    ldg <- pca$loadings_matrix[[cn]][match(colnames(X), pca$loadings_matrix$item)]
-    pos <- which(ldg > 0)
-    neg <- setdiff(seq_len(ncol(X)), pos)
+    pos <- split$pos; neg <- split$neg
     split_source <- sprintf("residual component %d", as.integer(component))
+    first_eigen <- split$first_eigen
   }
   if (length(pos) < 2 || length(neg) < 2)
     return(list(note = "need >= 2 items in each subset"))
@@ -530,28 +657,16 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
            "recommended for stable subtest estimates); read the verdict ",
            "cautiously"),
     score_points[1], score_points[2], as.integer(min_score_points)) else NULL
-  est_sub <- function(cols) {
-    d <- if (is.null(fit$disc)) rep(1, ncol(X)) else fit$disc
-    if (length(unique(d[cols])) == 1L)
-      .person_estimates(X[, cols, drop = FALSE], fit$tau_list[cols],
-                        disc = d[cols][1])
-    else .efrm_person_estimates(X[, cols, drop = FALSE], fit$tau_list[cols],
-                                d[cols])
-  }
-  a <- est_sub(pos); b <- est_sub(neg)
-  usable <- !is.na(a$theta) & !is.na(b$theta) & !is.na(a$se) & !is.na(b$se)
-  ok <- usable & !a$extreme & !b$extreme
-  t <- (a$theta[ok] - b$theta[ok]) / sqrt(a$se[ok]^2 + b$se[ok]^2)
-  n <- sum(ok)
+  tt <- .dim_ttest(X, fit$tau_list, disc, pos, neg, alpha)
+  n <- tt$n
   if (n < 10) return(list(note = "fewer than 10 usable persons for the t-test"))
-  n_sig <- sum(abs(t) > qnorm(1 - alpha / 2))
-  bt <- stats::binom.test(n_sig, n, p = alpha)
+  bt <- stats::binom.test(tt$n_sig, n, p = alpha)
   # paired t-test of the two subset means (the group-level comparison: the
   # two estimates come from the same persons, so the means need pairing;
   # Andrich & Marais 2019, ch. 24). Degenerate subsets (e.g. two-item
   # manual subtests where every usable person has the same difference)
   # would crash t.test with a raw error: report the degeneracy instead
-  dd <- a$theta[ok] - b$theta[ok]
+  dd <- tt$difference
   if (!is.finite(stats::sd(dd)) || stats::sd(dd) < 1e-12)
     return(list(note = paste0(
       "dimensionality verdict withheld: the subset person estimates are ",
@@ -561,17 +676,177 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
       items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
       score_points = score_points))
   pt <- stats::t.test(dd)
-  list(prop_significant = n_sig / n, ci = as.numeric(bt$conf.int), n = n,
-       n_excluded_extreme = sum(usable) - n,
-       multidimensional = bt$conf.int[1] > alpha,
-       split = split_source,
-       score_points = score_points,
-       caution = caution,
-       items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
-       first_eigenvalue = if (is.null(pca)) NA_real_ else pca$first_eigen,
-       paired_t = list(mean_difference = mean(dd),
-                       t = unname(pt$statistic), df = unname(pt$parameter),
-                       p = pt$p.value))
+  out <- list(prop_significant = tt$n_sig / n, ci = as.numeric(bt$conf.int),
+              n = n, n_excluded_extreme = tt$n_excluded_extreme,
+              multidimensional = bt$conf.int[1] > alpha,
+              split = split_source,
+              score_points = score_points,
+              caution = caution,
+              items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
+              first_eigenvalue = first_eigen,
+              paired_t = list(mean_difference = mean(dd),
+                              t = unname(pt$statistic), df = unname(pt$parameter),
+                              p = pt$p.value))
+  if (B > 0L) {
+    boot <- .dim_bootstrap(fit, pos = pos, neg = neg, manual = manual,
+                           component = component, alpha = alpha, B = B,
+                           workers = workers, seed = seed)
+    out$p_boot <- .boot_p(out$prop_significant, boot$null, "upper")
+    out$prop_null <- mean(boot$null)
+    out$multidimensional <- out$p_boot <= 0.05
+    out$bootstrap <- boot
+  }
+  out
+}
+
+# The per-person comparison behind dimensionality_test(): each person
+# estimated on the two subsets, persons extreme or inestimable on either
+# subset set aside, and the standardised differences counted against the
+# nominal level. Taking the response matrix and calibration rather than a
+# fit object lets a bootstrap replicate compute exactly what the observed
+# data did.
+.dim_ttest <- function(X, tau_list, disc, pos, neg, alpha) {
+  est_sub <- function(cols) {
+    if (length(unique(disc[cols])) == 1L)
+      .person_estimates(X[, cols, drop = FALSE], tau_list[cols],
+                        disc = disc[cols][1])
+    else .efrm_person_estimates(X[, cols, drop = FALSE], tau_list[cols],
+                                disc[cols])
+  }
+  a <- est_sub(pos); b <- est_sub(neg)
+  usable <- !is.na(a$theta) & !is.na(b$theta) & !is.na(a$se) & !is.na(b$se)
+  ok <- usable & !a$extreme & !b$extreme
+  dd <- a$theta[ok] - b$theta[ok]
+  t <- dd / sqrt(a$se[ok]^2 + b$se[ok]^2)
+  list(t = t, difference = dd, n = sum(ok),
+       n_excluded_extreme = sum(usable) - sum(ok),
+       n_sig = sum(abs(t) > qnorm(1 - alpha / 2)))
+}
+
+# The data-driven split: items grouped by the sign of their loading on a
+# residual component. Computed from a residual matrix so that a bootstrap
+# replicate repeats the selection on its own residuals. NULL when the
+# component does not exist; a refusal from the decomposition propagates.
+.dim_split <- function(Z, component) {
+  pca <- .residual_pca_matrix(Z, n_components = component)
+  cn <- paste0("PC", as.integer(component))
+  if (!cn %in% names(pca$loadings_matrix)) return(NULL)
+  ldg <- pca$loadings_matrix[[cn]][match(colnames(Z), pca$loadings_matrix$item)]
+  pos <- which(ldg > 0)
+  list(pos = pos, neg = setdiff(seq_len(ncol(Z)), pos),
+       first_eigen = pca$first_eigen)
+}
+
+# The bootstrap generates from a single-facet Rasch model with a common
+# unit and thresholds estimated directly, the same conditions as the item
+# fit bootstrap, and for the same reasons.
+.dim_bootstrap_check <- function(fit) {
+  if (inherits(fit, c("rasch_efrm", "rasch_mfrm", "rasch_explanatory")))
+    .refuse("the dimensionality bootstrap generates from a single-facet ",
+            "Rasch model; an extended-frame, many-facet or explanatory fit ",
+            "has a generating structure this function does not reproduce")
+  if (!is.null(fit$disc) && length(unique(fit$disc)) > 1L)
+    .refuse("the dimensionality bootstrap generates under equal ",
+            "discriminations; this fit carries frame units that differ ",
+            "across items")
+  if (!is.null((fit$refit_spec %||% list())$pc_components))
+    .refuse("the dimensionality bootstrap re-estimates each replicate the ",
+            "way the fit was estimated; thresholds estimated through ",
+            "principal components are not reproduced")
+  invisible(TRUE)
+}
+
+# Whether a preparation note reports an anchored item rescored (the same
+# "item <name> rescored" match rasch() makes, so anchor I1 does not trip over
+# a note about I10)
+.dim_anchor_rescored <- function(notes, anchors) {
+  if (is.null(anchors) || !length(notes)) return(FALSE)
+  a_names <- unique(as.character(anchors$item))
+  any(vapply(notes, function(n)
+    any(vapply(paste0("item ", a_names, " rescored"), grepl, TRUE,
+               x = n, fixed = TRUE)), TRUE))
+}
+
+# Null distribution of the proportion of significant person comparisons
+# under the fitted model. Every replicate keeps each person's raw score and
+# missingness pattern (the score-conditional generator), refits the item
+# calibration, and then does what the observed analysis did: a manual split
+# is kept, a residual-component split is chosen afresh from the replicate's
+# own residuals. The selection that inflates the observed proportion is
+# thereby present in every replicate, and the comparison is like with like.
+.dim_bootstrap <- function(fit, pos, neg, manual, component, alpha, B,
+                           workers, seed) {
+  workers <- min(as.integer(workers), .rasch_available_workers())
+  if (!is.null(seed)) {
+    seed <- .check_whole(seed, "seed", 0)
+    old <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(old), add = TRUE)
+    set.seed(seed)
+  }
+  X <- fit$X
+  na_mask <- if (anyNA(X)) is.na(X) else NULL
+  spec <- fit$refit_spec %||% list()
+  tau_list <- fit$tau_list; model <- fit$model; anchors <- spec$anchors
+  maxit <- spec$maxit %||% 60L; tol <- spec$tol %||% 1e-8
+  disc <- rep(1, ncol(X))
+  # every random draw a replicate depends on is made here, in the parent,
+  # so a worker reproduces its replicate from the seed it is handed and the
+  # worker count cannot move the result
+  seeds <- sample.int(.Machine$integer.max, B)
+  one <- function(b) {
+    old_stream <- .sim_seed_capture()
+    on.exit(.sim_seed_restore(old_stream), add = TRUE)
+    set.seed(seeds[b])
+    Xb <- .fit_gen_conditional(X, tau_list, na_mask)
+    # a replicate can leave a rare category unvisited. It is then analysed
+    # as rasch() would analyse it, with the categories rescored, rather than
+    # discarded: the person comparison does not depend on the category
+    # count, and discarding would thin the null towards the more dispersed
+    # replicates. An item lost altogether, or a rescored anchored item,
+    # still fails the replicate.
+    prep <- tryCatch(.prepare_X(Xb, model = model, anchors = anchors),
+                     error = function(e) NULL)
+    if (is.null(prep) || ncol(prep$X) != ncol(X) ||
+        .dim_anchor_rescored(prep$notes, anchors))
+      return(.fit_boot_failure("error"))
+    Xb <- prep$X
+    r <- .fit_refit_residuals(Xb, model, anchors, maxit, tol)
+    if (inherits(r, "rasch_fit_boot_failure")) return(r)
+    split <- if (manual) list(pos = pos, neg = neg) else
+      tryCatch(.dim_split(r$Z, component), error = function(e) NULL)
+    if (is.null(split) || length(split$pos) < 2L || length(split$neg) < 2L)
+      return(.fit_boot_failure("error"))
+    tt <- .dim_ttest(Xb, r$tau_list, disc, split$pos, split$neg, alpha)
+    if (tt$n < 10L) return(.fit_boot_failure("error"))
+    tt$n_sig / tt$n
+  }
+  reps <- .rasch_boot_apply(B, one, workers = workers,
+                            label = "dimensionality bootstrap")
+  status <- vapply(reps, .fit_boot_status, "")
+  keep <- status == "ok"
+  B_used <- sum(keep)
+  min_success <- .fit_min_boot_success(B)
+  if (B_used < min_success)
+    .fit_boot_refuse(
+      "only ", B_used, " of ", B, " bootstrap replicates were usable (",
+      sum(status == "nonconverged"), " did not converge; ",
+      sum(status == "error"), " otherwise failed); at least ", min_success,
+      " are required for the bootstrap null. The fitted model generates ",
+      "data this estimator cannot fit reliably",
+      B = B, B_used = B_used,
+      B_nonconverged = sum(status == "nonconverged"),
+      B_errors = sum(status == "error"))
+  if (B_used < 0.9 * B)
+    warning(B - B_used, " of ", B, " bootstrap replicates were unusable (",
+            sum(status == "nonconverged"), " did not converge; ",
+            sum(status == "error"), " otherwise failed); the null is formed ",
+            "from the remaining ", B_used,
+            "; replicates are not lost at random, so read the result with ",
+            "that in mind", call. = FALSE)
+  list(null = unlist(reps[keep]), B = B, B_used = B_used,
+       B_nonconverged = sum(status == "nonconverged"),
+       B_errors = sum(status == "error"), minimum_usable = min_success,
+       seed = seed)
 }
 
 #' Magnitude of multidimensionality from a subtest analysis

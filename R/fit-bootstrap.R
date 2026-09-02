@@ -126,7 +126,18 @@
     stored %in% .fit_boot_md5_legacy_candidates(x)
 }
 
+.fit_signature_target <- function(fit) {
+  # report_document() carries already-validated results to its template as
+  # attributes. They do not change the fitted model and must not make those
+  # same results appear to belong to a different fit during rendering.
+  for (nm in c("report_dif", "report_bootstrap", "report_dif_bootstrap",
+               "report_dimensionality", "report_invariance"))
+    attr(fit, nm) <- NULL
+  fit
+}
+
 .fit_boot_signature <- function(fit) {
+  fit <- .fit_signature_target(fit)
   if (inherits(fit, "rasch_btl")) {
     return(list(
       kind = "btl", m = fit$m, n_comparisons = fit$n_comparisons,
@@ -156,6 +167,7 @@
 }
 
 .fit_boot_signature_matches <- function(signature, fit) {
+  fit <- .fit_signature_target(fit)
   current <- .fit_boot_signature(fit)
   if (!is.list(signature) || !identical(names(signature), names(current)) ||
       !is.character(signature$fingerprint) ||
@@ -169,6 +181,7 @@
 }
 
 .new_fit_bootstrap <- function(x, fit, kind) {
+  x$algorithm <- "loo-maxt-1"
   x$model_kind <- kind
   x$fit_signature <- .fit_boot_signature(fit)
   x <- .tag_tables(x)
@@ -200,12 +213,13 @@
   if (!.fit_boot_signature_matches(bootstrap$fit_signature, fit))
     stop("`bootstrap` was computed from a different fitted model")
 
-  required <- c("total", "replicates", "B", "B_used", "B_failed",
+  required <- c("algorithm", "total", "replicates", "B", "B_used", "B_failed",
                 "B_nonconverged", "B_errors", "minimum_usable", "theta")
   required <- c(required, if (expected == "btl")
     c("model", "pairs", "objects", "judges", "adjustment") else
     c("items", "persons", "person_adjustment"))
   if (!all(required %in% names(bootstrap)) ||
+      !identical(bootstrap$algorithm, "loo-maxt-1") ||
       !is.list(bootstrap$total) || !is.list(bootstrap$replicates)) fail()
 
   whole <- function(x, lower = 0L)
@@ -437,13 +451,10 @@
   invisible(NULL)
 }
 
-# Everything the item fit statistics need from a response matrix and nothing
-# else: the person tables, score curves and targeting that rasch() also builds
-# are not used here and would multiply the cost by the number of replicates.
-# The class-interval count is imposed rather than re-derived per replicate, so
-# every replicate computes the same statistic as the observed fit rather than
-# one on a neighbouring number of intervals.
-.fit_refit <- function(X, model, n_groups, anchors, maxit, tol) {
+# The estimation chain a replicate shares with the observed fit: the item
+# calibration, the person estimates, and the standardised residuals. A
+# failure object stands in for a replicate that could not be estimated.
+.fit_refit_residuals <- function(X, model, anchors, maxit, tol) {
   est <- tryCatch(pcml(X, model = model, anchors = anchors,
                        maxit = maxit, tol = tol),
                   error = function(e) .fit_boot_failure("error"))
@@ -458,6 +469,21 @@
   mo <- .moment_arrays(person$theta, tau_list, disc = rep(1, L))
   Z <- (X - mo$E) / sqrt(mo$V)
   colnames(Z) <- colnames(X)
+  list(est = est, tau_list = tau_list, person = person, moments = mo, Z = Z)
+}
+
+# Everything the item fit statistics need from a response matrix and nothing
+# else: the person tables, score curves and targeting that rasch() also builds
+# are not used here and would multiply the cost by the number of replicates.
+# The class-interval count is imposed rather than re-derived per replicate, so
+# every replicate computes the same statistic as the observed fit rather than
+# one on a neighbouring number of intervals.
+.fit_refit <- function(X, model, n_groups, anchors, maxit, tol) {
+  r <- .fit_refit_residuals(X, model, anchors, maxit, tol)
+  if (inherits(r, "rasch_fit_boot_failure")) return(r)
+  est <- r$est; tau_list <- r$tau_list; person <- r$person
+  mo <- r$moments; Z <- r$Z
+  L <- ncol(X)
   m_i <- vapply(tau_list, length, 1L)
   item_extreme <- vapply(seq_len(L), function(j) {
     col <- X[!person$extreme, j]
@@ -545,28 +571,68 @@
   # The family is declared by the finite observed statistics, not by which
   # null columns happen to survive. A partial maxT family would make every
   # remaining adjusted probability depend on an estimation failure.
+  # Studentisation needs at least two training degrees of freedom. Tiny
+  # exploratory runs still return marginal probabilities, but cannot support
+  # an adjusted family.
+  enough_for_mode <- mode != "studentised" || family_boot >= 3L
   if (all(is.finite(raw[family])) && all(is.finite(obs_e)) &&
-      family_boot >= min_success) {
+      family_boot >= min_success && enough_for_mode) {
     V <- V[complete, , drop = FALSE]
-    centre <- if (mode == "raw") rep(0, ncol(V)) else colMeans(V)
-    scale <- if (mode == "studentised") apply(V, 2L, stats::sd) else
-      rep(1, ncol(V))
+    B <- nrow(V); K <- ncol(V)
+    centre <- if (mode == "raw") rep(0, K) else colMeans(V)
     spread <- apply(V, 2L, stats::sd)
-    stable <- is.finite(spread) & spread > sqrt(.Machine$double.eps) &
-      is.finite(scale) & scale > sqrt(.Machine$double.eps)
-    if (all(stable)) {
-      Z <- sweep(sweep(V, 2L, centre, "-"), 2L, scale, "/")
-      z_obs <- (obs_e - centre) / scale
-      if (side == "two") {
-        Z <- abs(Z)
-        z_obs <- abs(z_obs)
+    scale <- if (mode == "studentised") spread else rep(1, K)
+    stable <- is.finite(scale) & scale > sqrt(.Machine$double.eps)
+
+    # An observed statistic is external to the bootstrap null. Each null row
+    # must therefore also be standardised externally: using that row in its
+    # own mean and SD shrinks its extremes and makes studentised maxT tests
+    # anti-conservative. Raw statistics need no estimated nuisance quantities;
+    # centred and studentised statistics use leave-one-out estimates.
+    Z <- matrix(0, B, K)
+    if (mode == "raw") {
+      Z <- V
+    } else {
+      for (i in seq_len(B)) {
+        training <- V[-i, , drop = FALSE]
+        centre_i <- colMeans(training)
+        if (mode == "centred") {
+          Z[i, ] <- V[i, ] - centre_i
+        } else {
+          scale_i <- apply(training, 2L, stats::sd)
+          stable_i <- is.finite(scale_i) &
+            scale_i > sqrt(.Machine$double.eps)
+          Z[i, stable_i] <- (V[i, stable_i] - centre_i[stable_i]) /
+            scale_i[stable_i]
+          if (any(!stable_i)) {
+            tol_i <- sqrt(.Machine$double.eps) *
+              pmax(1, abs(centre_i[!stable_i]))
+            delta_i <- V[i, !stable_i] - centre_i[!stable_i]
+            Z[i, !stable_i] <- ifelse(delta_i > tol_i, Inf,
+              ifelse(delta_i < -tol_i, -Inf, 0))
+          }
+        }
       }
-      max_null <- apply(Z, 1L, max)
-      a <- vapply(z_obs, function(z)
-        (1 + sum(max_null >= z)) / (1 + length(max_null)), 0)
-      pos <- which(family)
-      adj[pos] <- pmax(raw[pos], a)
     }
+    z_obs <- if (mode == "raw") obs_e else obs_e - centre
+    if (mode == "studentised") {
+      z_obs[stable] <- z_obs[stable] / scale[stable]
+      if (any(!stable)) {
+        tol <- sqrt(.Machine$double.eps) * pmax(1, abs(centre[!stable]))
+        delta <- obs_e[!stable] - centre[!stable]
+        z_obs[!stable] <- ifelse(delta > tol, Inf,
+          ifelse(delta < -tol, -Inf, 0))
+      }
+    }
+    if (side == "two") {
+      Z <- abs(Z)
+      z_obs <- abs(z_obs)
+    }
+    max_null <- apply(Z, 1L, max)
+    a <- vapply(z_obs, function(z)
+      (1 + sum(max_null >= z)) / (1 + length(max_null)), 0)
+    pos <- which(family)
+    adj[pos] <- pmax(raw[pos], a)
   }
   list(p = raw, p_adj = adj, n_boot = n_stat,
        family_n = family_n, family_boot = family_boot,
@@ -1103,8 +1169,9 @@
 #'
 #' Wu, M. and Adams, R. J. (2013). Properties of Rasch residual fit
 #'   statistics. \emph{Journal of Applied Measurement}, 14(4), 339--355.
+#'
 #' Molenaar, I. W. and Hoijtink, H. (1996). Person-fit test statistics for the
-#'   Rasch model. Applied Measurement in Education, 9, 87--106.
+#'   Rasch model. \emph{Applied Measurement in Education}, 9(1), 87--106.
 #'
 #' Westfall, P. H. and Young, S. S. (1993). \emph{Resampling-Based Multiple
 #'   Testing}. Wiley.

@@ -1,6 +1,6 @@
 simP <- function(theta, tau) { x <- 0:length(tau); p <- exp(x * theta - c(0, cumsum(tau))); p / sum(p) }
 
-test_that("average anchoring fixes item means with free thresholds", {
+test_that("location anchoring fixes item means with free thresholds", {
   set.seed(9); Np <- 1200
   loc_true <- seq(-1.6, 1.6, length.out = 8) + 0.5
   tt <- lapply(seq_len(8), function(i) loc_true[i] + c(-0.9, 0, 0.9))
@@ -24,7 +24,7 @@ test_that("average anchoring fixes item means with free thresholds", {
   expect_identical(fit2$tau_list[[8]][2], tt[[8]][2])
   expect_error(rasch(X, anchors = data.frame(item = "P1", k = c(NA, 1),
                                              tau = c(0, 0))),
-               "both an average anchor and threshold anchors")
+               "both a location anchor and threshold anchors")
 })
 
 test_that("split_items resolves planted uniform DIF", {

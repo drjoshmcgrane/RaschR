@@ -4,7 +4,14 @@
 \alias{plot_scree}
 \title{Scree plot of the residual components with parallel analysis}
 \usage{
-plot_scree(fit, n_components = 10, parallel = TRUE, reps = 50)
+plot_scree(
+  fit,
+  n_components = 10,
+  parallel = TRUE,
+  reps = 50,
+  seed = NULL,
+  result = NULL
+)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
@@ -17,12 +24,19 @@ adjustment covers these components.}
 \item{reps}{Model-simulated replicates for the reference; at least 20 when
 \code{parallel = TRUE}. Larger values give a more stable upper-tail
 reference.}
+
+\item{seed}{Optional non-negative whole-number seed. The caller's random-
+number state is restored when the calculation finishes.}
+
+\item{result}{Optional result returned by an earlier call. Supplying it
+redraws that analysis without repeating the simulations.}
 }
 \value{
 Called for its plotting side effect; invisibly the eigen table. With
   parallel analysis it also contains \code{reference_mean},
   \code{reference_critical}, \code{parallel_p}, \code{parallel_p_adj},
-  \code{parallel_significant}, and \code{n_reference}. The adjustment is
+  \code{parallel_significant}, and requested, usable, non-converged and
+  other-failure reference counts. The adjustment is
   recorded in the table's \code{parallel_adjustment} attribute.
 }
 \description{
