@@ -190,6 +190,29 @@ test_that("Rasch explanatory predictors may be continuous, categorical or ordina
   expect_true(is.ordered(fit$explanatory$metadata$ordinal))
 })
 
+test_that("ordinal contrast names remain unique when level labels collide", {
+  set.seed(4110)
+  lev <- c("a b", "a-b", "a.b", "c", "d")
+  ord <- ordered(lev, levels = lev)
+  X <- matrix(rbinom(1000, 1, .5), 200, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  p <- data.frame(item = colnames(X), ord = ord, check.names = FALSE)
+  rf <- rasch_explanatory(X, p, ~ ord)
+  expect_s3_class(rf, "rasch_explanatory")
+  expect_identical(anyDuplicated(rf$est$coefficients$term), 0L)
+  expect_true(all(grepl("adjacent_[1-4]", rf$est$coefficients$term)))
+
+  d <- simulate_btl(5, 20, reps_per_pair = 8, seed = 4111)
+  bp <- data.frame(object = paste0("O", 1:5), ord = ord,
+                   check.names = FALSE)
+  bf <- btl_explanatory(
+    d, bp, ~ ord, "object_a", "object_b", winner = "winner",
+    judge = "judge")
+  expect_s3_class(bf, "rasch_btl_explanatory")
+  expect_identical(anyDuplicated(bf$object_coefficients$term), 0L)
+  expect_true(all(grepl("adjacent_[1-4]", bf$object_coefficients$term)))
+})
+
 test_that("threshold metadata and unidentified formulae are checked", {
   d <- sim_lpcm_explanatory(n = 350)
   p <- merge(d$predictors,

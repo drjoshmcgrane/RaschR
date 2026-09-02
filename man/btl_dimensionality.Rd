@@ -35,10 +35,11 @@ the data and simulations. Fits with exposure or carry-over effects simulate
 those effects through each judge's observed sequence. The fitted model must
 have converged.
 
-A categorical result is withheld if any object pair is unobserved. It is
-also withheld when every judge receives essentially the same comparison
-sequence and an order effect is fitted, because order and residual structure
-are then confounded.
+A categorical result is withheld if any object pair is unobserved, or if an
+ordered analysis contains count-weighted rows whose within-row sequence is
+unavailable. It is also withheld when every judge receives essentially the
+same comparison sequence and an order effect is fitted, because order and
+residual structure are then confounded.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

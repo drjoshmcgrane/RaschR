@@ -8,6 +8,32 @@ test_that("the Shiny application resolves in source and installed layouts", {
   expect_true(file.exists(.app_test_path()))
 })
 
+test_that("app formula and code symbols preserve exact source names", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+
+  nms <- c("if", ".2x", "a b", "a:b", "x`y")
+  quoted <- e$.app_quote_name(nms)
+  expect_no_error(lapply(quoted, function(z)
+    parse(text = paste0("dat$", z))))
+
+  spec <- e$.app_explanatory_interactions(c("a:b", "if", "c"))
+  expect_length(unique(unname(spec$choices)), 3L)
+  expect_identical(spec$map[["interaction_0001"]], c("a:b", "if"))
+  f <- e$.app_explanatory_formula(
+    c("a:b", "if"), list(c("a:b", "if")))
+  d <- data.frame(row = seq_len(6L)); d$row <- NULL
+  d[["a:b"]] <- seq_len(6L)
+  d[["if"]] <- rep(0:1, 3L)
+  expect_no_error(mm <- model.matrix(f, d))
+  expect_setequal(colnames(mm),
+                  c("(Intercept)", "`a:b`", "`if`", "`a:b`:`if`"))
+})
+
 test_that("sourcing the in-tree app reuses the active source namespace", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
@@ -61,6 +87,14 @@ test_that("saved app analyses make a validated round trip", {
   expect_identical(restored$kept_fit_code, project$kept_fit_code)
   expect_identical(restored$settings, project$settings)
   expect_identical(restored$resources, project$resources)
+
+  # Schema-2 projects written with the earlier text signature remain valid
+  # across the LF/CRLF boundary.
+  legacy <- project
+  unsigned <- legacy
+  unsigned$binding <- NULL
+  legacy$binding <- .fit_boot_md5_legacy_candidates(unsigned)[2L]
+  expect_no_error(.validate_app_project(legacy))
 })
 
 test_that("invalid app analysis files are refused", {
@@ -122,9 +156,8 @@ test_that("saved bootstrap results must belong to the active saved fit", {
   X2[1:10, 1] <- 1L - X2[1:10, 1]
   fit1 <- rasch(X1)
   fit2 <- rasch(X2)
-  bs <- .new_fit_bootstrap(
-    list(items = fit1$items, total = list(), B = 1L, B_used = 1L),
-    fit1, "rasch")
+  bs <- suppressWarnings(fit_bootstrap(
+    fit1, B = 1L, workers = 1L, seed = 83L))
   project <- .seal_app_project(list(
     format = "rasch-shiny-project", schema = 2L,
     data = as.data.frame(X1), model_type = "rasch", base_fit = fit1,
@@ -222,10 +255,13 @@ test_that("CJ results and background work remain tied to their launching fit", {
 
   e <- new.env(parent = globalenv())
   suppressWarnings(sys.source(.app_test_path(), envir = e))
-  d1 <- simulate_btl(5, 8, 2, seed = 91)
-  d2 <- simulate_btl(5, 8, 2, seed = 92)
+  d1 <- simulate_btl(5, 12, 8, seed = 91)
+  d2 <- simulate_btl(5, 12, 8, seed = 92)
   bt1 <- btl(d1, "object_a", "object_b", "winner", judge = "judge")
   bt2 <- btl(d2, "object_a", "object_b", "winner", judge = "judge")
+  judges <- unique(bt1$comparisons$judge)
+  group <- setNames(rep(c("A", "B"), length.out = length(judges)), judges)
+  bdif1 <- btl_dif(bt1, group, objects = "O3", min_n = 2)
   project <- .seal_app_project(list(
     format = "rasch-shiny-project", schema = 2L,
     data = as.data.frame(d1), model_type = "btl", base_fit = bt1,
@@ -235,7 +271,8 @@ test_that("CJ results and background work remain tied to their launching fit", {
                     bt_b = "object_b", bt_win = "winner",
                     bt_judge = "judge"),
     resources = list(), simulation = list(),
-    results = list(btl_dif = list(marker = 23L))))
+    results = list(btl_dif = bdif1,
+                   btl_dif_meta = list(judge_col = "judge"))))
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path), add = TRUE)
   .save_app_project(project, path)
@@ -255,7 +292,10 @@ test_that("CJ results and background work remain tied to their launching fit", {
       datapath = path, name = "cj.rasch", size = file.info(path)$size,
       type = "application/octet-stream"))
     session$flushReact()
-    expect_identical(bdif_res()$marker, 23L)
+    expect_identical(bdif_res()$result_signature, bdif1$result_signature)
+    expect_identical(bdif_meta()$judge_col, "judge")
+    expect_no_error(rasch:::.validate_btl_dif_result(bdif_res(), bfit()))
+    expect_no_error(.validate_app_project(project_state()))
     expect_identical(btl_fit()$objects$object, bt1$objects$object)
 
     # Opening a project cancels either kind of worker before restoring state.
@@ -280,7 +320,8 @@ test_that("CJ results and background work remain tied to their launching fit", {
     expect_false(bp$alive)
     expect_null(efrm_job())
     expect_null(btlef_job())
-    expect_identical(bdif_res()$marker, 23L)
+    expect_identical(bdif_res()$result_signature, bdif1$result_signature)
+    expect_identical(bdif_meta()$judge_col, "judge")
 
     # A worker result is current only while its context, data and CJ base fit
     # are the same as at launch.

@@ -294,10 +294,11 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' those effects through each judge's observed sequence. The fitted model must
 #' have converged.
 #'
-#' A categorical result is withheld if any object pair is unobserved. It is
-#' also withheld when every judge receives essentially the same comparison
-#' sequence and an order effect is fitted, because order and residual structure
-#' are then confounded.
+#' A categorical result is withheld if any object pair is unobserved, or if an
+#' ordered analysis contains count-weighted rows whose within-row sequence is
+#' unavailable. It is also withheld when every judge receives essentially the
+#' same comparison sequence and an order effect is fitted, because order and
+#' residual structure are then confounded.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param reps Model-simulated replicates for the noise reference.
@@ -351,10 +352,21 @@ btl_dimensionality <- function(fit, reps = 200L) {
   tau <- if (m > 1L) fit$thresholds$tau else NULL
   dep <- fit$dependence
   seq_sim <- NULL
+  reference_unavailable <- FALSE
   if (!is.null(dep)) {
     dd <- fit$dependence_data                       # sorted by judge, order
     sa <- match(dd$object_a, objs); sb <- match(dd$object_b, objs)
     sw <- dd$weight; sjd <- dd$judge
+    weighted_rows <- any(abs(sw - 1) > sqrt(.Machine$double.eps))
+    fractional_rows <- any(abs(sw - round(sw)) > sqrt(.Machine$double.eps))
+    history_effects <- any(dep$effect %in% c("exposure", "carry_over"))
+    # An aggregated row does not contain the order of the comparisons it
+    # represents. One draw multiplied by its count has the wrong sampling
+    # variance, while expanding it would invent an unidentified history.
+    # Count rows remain usable for a position-only fit: their independent
+    # outcomes can be drawn binomially or multinomially without a history.
+    reference_unavailable <- weighted_rows &&
+      (history_effects || fractional_rows)
     coef_exp <- dep$estimate[match("exposure", dep$effect)]
     coef_cry <- dep$estimate[match("carry_over", dep$effect)]
     coef_pos <- dep$estimate[match("position", dep$effect)]
@@ -363,7 +375,7 @@ btl_dimensionality <- function(fit, reps = 200L) {
     if (is.na(coef_pos)) coef_pos <- 0
     # sequential simulation mirroring .btl_exposure's history rules, with
     # the FITTED coefficients: seen-before indicator and running mean verdict
-    seq_sim <- function() {
+    if (!reference_unavailable) seq_sim <- function() {
       cnt <- new.env(hash = TRUE, parent = emptyenv())
       tot <- new.env(hash = TRUE, parent = emptyenv())
       gets <- function(e, k) if (is.null(v <- e[[k]])) 0 else v
@@ -371,7 +383,7 @@ btl_dimensionality <- function(fit, reps = 200L) {
                                        stringsAsFactors = FALSE))
       key_b <- .factor_keys(data.frame(judge = sjd, object = sb,
                                        stringsAsFactors = FALSE))
-      resp <- integer(length(sa))
+      resp <- numeric(length(sa))
       for (r in seq_along(sa)) {
         ka <- key_a[r]; kb <- key_b[r]
         na_ <- gets(cnt, ka); nb_ <- gets(cnt, kb)
@@ -381,8 +393,13 @@ btl_dimensionality <- function(fit, reps = 200L) {
         # position is a constant +1 for every (object_a-first) row
         lp <- beta[sa[r]] - beta[sb[r]] + coef_exp * z_exp + coef_cry * z_cry +
               coef_pos
-        x <- if (m == 1L) as.integer(stats::runif(1) < stats::plogis(lp))
-             else sample.int(m + 1L, 1L, prob = item_moments(lp, tau)$P) - 1L
+        nr <- as.integer(round(sw[r]))
+        x <- if (m == 1L)
+          stats::rbinom(1L, nr, stats::plogis(lp)) / nr
+        else {
+          cc <- stats::rmultinom(1L, nr, item_moments(lp, tau)$P)
+          sum((0:m) * cc) / nr
+        }
         resp[r] <- x
         cnt[[ka]] <- na_ + sw[r]; cnt[[kb]] <- nb_ + sw[r]
         tot[[ka]] <- gets(tot, ka) + sw[r] * (2 * x / m - 1)
@@ -398,7 +415,7 @@ btl_dimensionality <- function(fit, reps = 200L) {
   # probabilities. Row-level simulation either overdispersed count weights
   # (one weighted Bernoulli, variance w^2 p(1-p)) or broke entirely on
   # fractional half-tie weights (as.integer(0.5) = 0).
-  if (is.null(seq_sim)) {
+  if (is.null(seq_sim) && !reference_unavailable) {
     pi_lo <- pmin(ia, ib); pi_hi <- pmax(ia, ib)
     pkey <- paste(pi_lo, pi_hi)
     n_pair <- round(tapply(w, pkey, sum))
@@ -436,7 +453,8 @@ btl_dimensionality <- function(fit, reps = 200L) {
     pv <- tapply(posfrac, pk, stats::var)
     shared_order <- isTRUE(mean(pv, na.rm = TRUE) < (1 / 12) * 0.25)
   }
-  lead_ref <- vapply(seq_len(reps), function(r) {
+  lead_ref <- if (reference_unavailable) numeric(0) else
+    vapply(seq_len(reps), function(r) {
     if (is.null(seq_sim)) {
       resp <- if (m == 1L)
         stats::rbinom(length(d_pair), n_pair, stats::plogis(d_pair)) / n_pair
@@ -454,13 +472,15 @@ btl_dimensionality <- function(fit, reps = 200L) {
     s <- .btl_bimensions(Rr)$strength
     if (length(s)) s[1] else 0
   }, 0)
-  ref_mean <- mean(lead_ref); ref_p95 <- stats::quantile(lead_ref, 0.95, names = FALSE)
+  ref_mean <- if (length(lead_ref)) mean(lead_ref) else NA_real_
+  ref_p95 <- if (length(lead_ref))
+    stats::quantile(lead_ref, 0.95, names = FALSE) else NA_real_
 
   nb <- length(bm$strength)
   prop <- 2 * bm$strength^2 / bm$total
   # under a shared fixed order the verdict is not identifiable: withhold it
   # (NA) rather than report a confounded flag
-  lead_flag <- if (shared_order || !complete_pairs) NA else
+  lead_flag <- if (reference_unavailable || shared_order || !complete_pairs) NA else
     bm$strength[1] > ref_p95
   bimensions <- data.frame(
     bimension = seq_len(nb), strength = bm$strength,
@@ -476,6 +496,16 @@ btl_dimensionality <- function(fit, reps = 200L) {
       "second-dimension verdict is withheld. Randomise the comparison ",
       "order across judges to test dimensionality with an order effect ",
       "present"))
+  if (reference_unavailable) {
+    why <- if (history_effects)
+      paste0("the ordered analysis contains aggregated or fractional rows; ",
+             "their within-row comparison sequence is unavailable") else
+      paste0("the effect-adjusted analysis contains fractional rows that do ",
+             "not identify a whole number of independent outcomes")
+    notes <- c(notes, paste0(
+      why, ", so a valid noise reference cannot be generated and the ",
+      "second-dimension verdict is withheld"))
+  }
 
   coords <- data.frame(object = objs, location = unname(beta),
                        x = bm$coord[, "x"], y = bm$coord[, "y"])
@@ -487,9 +517,10 @@ btl_dimensionality <- function(fit, reps = 200L) {
 
   out <- list(bimensions = bimensions, coords = coords,
               # keep the public verdict consistent with above_reference:
-              # TRUE/FALSE when identified, NA when shared order confounds it
+              # TRUE/FALSE when identified, NA when inference is withheld
               leading_structured = lead_flag,
-              reference = list(mean = ref_mean, p95 = ref_p95, reps = reps,
+              reference = list(mean = ref_mean, p95 = ref_p95,
+                               reps = if (reference_unavailable) 0L else reps,
                                draws = lead_ref),
               residual_matrix = R, notes = notes)
   class(out) <- "rasch_btl_dim"
@@ -505,9 +536,13 @@ print.rasch_btl_dim <- function(x, ...) {
   else "within the conditional reference"
   cat(sprintf("Paired-comparison residual dimensionality: %d bimension(s)\n",
               nrow(b)))
-  cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference 95%%: %.3f) -> %s\n",
-              b$strength[1], 100 * b$prop_residual[1], x$reference$p95,
-              verdict))
+  if (is.finite(x$reference$p95))
+    cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference 95%%: %.3f) -> %s\n",
+                b$strength[1], 100 * b$prop_residual[1], x$reference$p95,
+                verdict))
+  else
+    cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference unavailable) -> %s\n",
+                b$strength[1], 100 * b$prop_residual[1], verdict))
   for (n in x$notes) cat("Note:", n, "\n")
   invisible(x)
 }
@@ -574,8 +609,9 @@ plot_btl_transitivity <- function(x, by = c("auto", "judge", "object"), ...) {
 #' Scree of paired-comparison residual bimensions
 #'
 #' Bimension strengths against the model-simulated noise reference (its mean
-#' and 95th percentile band). A leading bar clearing the band is structured
-#' residual dependence -- a likely second attribute.
+#' and 95th percentile band), when that reference is available. A leading bar
+#' clearing the band is structured residual dependence -- a likely second
+#' attribute.
 #'
 #' @param x A \code{"rasch_btl_dim"} object.
 #' @param ... Unused.
@@ -592,7 +628,8 @@ plot_btl_scree <- function(x, ...) {
   stopifnot(inherits(x, "rasch_btl_dim"))
   b <- x$bimensions; k <- nrow(b)
   ref_m <- x$reference$mean; ref_p <- x$reference$p95
-  ymax <- max(c(b$strength, ref_p)) * 1.15
+  has_ref <- is.finite(ref_m) && is.finite(ref_p)
+  ymax <- max(c(b$strength, if (has_ref) ref_p), na.rm = TRUE) * 1.15
   op <- .rr_canvas(c(0.5, k + 0.5), c(0, ymax), "Bimension", "Strength",
                    grid_x = FALSE, xaxis = FALSE)
   on.exit(par(op))
@@ -600,11 +637,16 @@ plot_btl_scree <- function(x, ...) {
        col = ifelse(c(isTRUE(x$leading_structured), rep(FALSE, k - 1)),
                     .rr$blue, .rr$soft), border = NA)
   # noise reference: mean line with a shaded band up to the 95th percentile
-  rect(0.5, ref_m, k + 0.5, ref_p, col = "#dc262622", border = NA)
-  abline(h = ref_m, col = .rr$red, lty = 5, lwd = 1.6)
+  if (has_ref) {
+    rect(0.5, ref_m, k + 0.5, ref_p, col = "#dc262622", border = NA)
+    abline(h = ref_m, col = .rr$red, lty = 5, lwd = 1.6)
+  }
   axis(1, at = seq_len(k), col = .rr$grid, col.ticks = .rr$soft)
-  .rr_legend("topright", c("Observed", "Noise reference (mean, 95%)"),
-             fill = c(.rr$blue, "#dc262633"), border = NA)
+  .rr_legend("topright",
+             if (has_ref) c("Observed", "Noise reference (mean, 95%)") else
+               "Observed",
+             fill = if (has_ref) c(.rr$blue, "#dc262633") else .rr$blue,
+             border = NA)
 }
 
 #' Residual map of the leading paired-comparison bimension

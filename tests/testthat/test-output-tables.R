@@ -207,6 +207,12 @@ test_that("exports accept DIF only from the fitted model being reported", {
   da$sizes <- data.frame(
     item = "I1", term = "group", level_a = "A", level_b = "B",
     difference = .5, se = .2, df = 100, p_adj = .02, practical = TRUE)
+  # This fixture extends a valid result solely to exercise the report block.
+  # Re-seal it as an internal constructor would; an unsigned edited result is
+  # deliberately rejected by the public export path.
+  unsigned <- unclass(da)
+  unsigned$result_signature <- NULL
+  da$result_signature <- .fit_boot_md5(unsigned)
   magnitude_html <- tempfile(fileext = ".html")
   on.exit(unlink(magnitude_html), add = TRUE)
   expect_no_error(report_html(fit1, magnitude_html, dif = da))

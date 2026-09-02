@@ -53,6 +53,44 @@ test_that("every fit statistic is carried with a probability in range", {
   expect_lte(length(shown), 5L)
   expect_true(any(grepl("Usable replicates", shown)))
   expect_false(any(grepl("replicates\\$|fit_signature", shown)))
+
+  broken <- list(zero_used = bs, negative_p = bs,
+                 missing_accounting = bs, dropped_item = bs)
+  broken$zero_used$B_used <- 0L
+  broken$negative_p$items$chisq_p_boot_adj[1L] <- -4
+  broken$missing_accounting$B_nonconverged <- NULL
+  broken$dropped_item$items <- broken$dropped_item$items[-1L, , drop = FALSE]
+  for (nm in names(broken))
+    expect_error(.validate_fit_bootstrap(broken[[nm]], fit),
+                 "incomplete or internally inconsistent", info = nm)
+})
+
+test_that("integrity signatures are portable and retain legacy validation", {
+  x <- list(a = 1L, b = c(NA_real_, pi), label = "caf\u00e9")
+  current <- .fit_boot_md5(x)
+  expect_match(current, "^xdr3:[0-9a-f]{32}$")
+  expect_true(.fit_boot_hash_matches(current, x))
+  legacy <- .fit_boot_md5_legacy_candidates(x)
+  expect_length(legacy, 2L)
+  expect_true(all(vapply(legacy, .fit_boot_hash_matches, logical(1), x = x)))
+  expect_false(.fit_boot_hash_matches(current, within(x, a <- 2L)))
+  e <- new.env(parent = emptyenv())
+  e$a <- 1L
+  f <- ~ predictor
+  environment(f) <- e
+  formula_hash <- .fit_boot_md5(list(formula = f))
+  e$unrelated_mutation <- 2L
+  expect_identical(.fit_boot_md5(list(formula = f)), formula_hash)
+
+  fit <- rasch(simb(200, seq(-1, 1, length.out = 5), seed = 301))
+  bs <- fbq(fit, B = 9, seed = 302)
+  old <- bs
+  old$fit_signature$fingerprint <-
+    .fit_boot_md5_legacy_candidates(fit)[2L]
+  unsigned <- unclass(old)
+  unsigned$result_signature <- NULL
+  old$result_signature <- .fit_boot_md5_legacy_candidates(unsigned)[2L]
+  expect_no_error(.validate_fit_bootstrap(old, fit))
 })
 
 test_that("the chi-square is read in one tail and the others in two", {
@@ -469,6 +507,10 @@ test_that("paired-comparison fit bootstrap follows the fitted design", {
                   info = paste(tab, nm))
     }
   }
+  broken <- bs
+  broken$objects$fit_resid_p_boot_adj[1L] <- -2
+  expect_error(.validate_fit_bootstrap(broken, fit),
+               "incomplete or internally inconsistent")
 })
 
 test_that("non-converged observed paired-comparison fits are refused", {

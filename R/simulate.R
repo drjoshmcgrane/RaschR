@@ -440,6 +440,7 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
   # first (adds d*(x1 - E1) to its exponent, inducing residual correlation);
   # the regeneration keeps i2's own DIF / second-dimension structure
   dep_pairs <- list()
+  dep_pair_idx <- list()
   dep_shift <- vector("list", I)
   dep_sources <- integer(0)
   if (!is.null(dependence)) {
@@ -470,6 +471,7 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
       dep_shift[[i2]] <- (dep_shift[[i2]] %||% 0) + shift
       X[, i2] <- gen_item(i2, shift = dep_shift[[i2]])
       dep_pairs[[length(dep_pairs) + 1L]] <- inm[ij]
+      dep_pair_idx[[length(dep_pair_idx) + 1L]] <- ij
     }
   }
 
@@ -492,18 +494,40 @@ simulate_rasch <- function(n_persons = 500, n_items = 20,
     style_idx <- sample(N, .sim_planted_count(sprop, N))
     mid <- m / 2
     dev2 <- ((0:m - mid) / mid)^2
-    w <- if (stype == "extreme") exp(ss * dev2)
-         else exp(-ss * dev2)
-    for (p in style_idx) for (i in seq_len(I)) {
-      if (is.na(X[p, i])) next
+    # Apply the style on the log-probability scale. Constructing exp(ss *
+    # dev2) first overflows at perfectly finite strengths, even though the
+    # normalised categorical probabilities remain well defined.
+    log_w <- if (stype == "extreme") ss * dev2 else -ss * dev2
+    style_prob <- function(i, p, shift = 0) {
       th_p <- if (i %in% dim_items) theta2[p] else theta[p]
-      # the redraw must start from the probabilities the response was drawn
-      # under, dependence carry-over included, or a styled person's planted
-      # local dependence is erased
-      if (!is.null(dep_shift[[i]])) th_p <- th_p + dep_shift[[i]][p]
       pp <- item_pars(i, p)
-      pr <- .p_item(th_p, pp$tau, pp$disc) * w
-      X[p, i] <- sample.int(m + 1L, 1L, prob = pr) - 1L
+      eta <- pp$disc * ((0:m) * (th_p + shift) -
+        c(0, cumsum(pp$tau))) + log_w
+      eta <- eta - max(eta)
+      pr <- exp(eta)
+      pr / sum(pr)
+    }
+    for (p in style_idx) {
+      # Draw the styled marginal responses first. Dependence is then rebuilt
+      # in its declared order from these responses. Reusing dep_shift here
+      # would condition a target on the source response drawn before the
+      # source itself acquired its response style.
+      for (i in seq_len(I)) {
+        if (is.na(X[p, i])) next
+        X[p, i] <- sample.int(m + 1L, 1L,
+                              prob = style_prob(i, p)) - 1L
+      }
+      styled_shift <- numeric(I)
+      for (ij in dep_pair_idx) {
+        i1 <- ij[1L]; i2 <- ij[2L]
+        if (is.na(X[p, i1]) || is.na(X[p, i2])) next
+        source_prob <- style_prob(i1, p, styled_shift[i1])
+        source_mean <- sum((0:m) * source_prob)
+        styled_shift[i2] <- styled_shift[i2] +
+          d_str * (X[p, i1] - source_mean) / m
+        X[p, i2] <- sample.int(
+          m + 1L, 1L, prob = style_prob(i2, p, styled_shift[i2])) - 1L
+      }
     }
     }
   }

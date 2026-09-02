@@ -215,28 +215,25 @@
                  problem))
   }
 
-  dif_bootstrap <- project$results$dif_bootstrap
-  if (!is.null(dif_bootstrap)) {
-    if (!is.list(dif_bootstrap) || is.null(dif_bootstrap$db))
-      fail("the analysis file has an invalid saved DIF bootstrap result")
-    # Exact indexing matters here: `$dif` partially matches `dif_bootstrap`
-    # when the primary result is absent, which would then pass the wrong
-    # object to the provenance validator.
-    primary_dif <- if (is_btl) project$results[["btl_dif"]] else
-      project$results[["dif"]]
-    if (is.null(primary_dif))
-      fail(paste("the saved DIF bootstrap has no accompanying primary DIF",
-                 "analysis"))
+  # Exact indexing matters here: `$dif` partially matches `dif_bootstrap`
+  # when the primary result is absent. A primary result is tied to the active
+  # fit even when no bootstrap was requested; the project seal proves only
+  # that the bundle has not changed since it was written, not that two
+  # separately supplied fitted objects belong together.
+  primary_dif <- if (is_btl) project$results[["btl_dif"]] else
+    project$results[["dif"]]
+  if (!is.null(primary_dif)) {
     problem <- tryCatch({
-      .validate_dif_bootstrap(dif_bootstrap$db, active_fit, primary_dif)
+      if (is_btl) .validate_btl_dif_result(primary_dif, active_fit)
+      else .validate_dif_result(primary_dif, active_fit)
       NULL
     }, error = function(e) conditionMessage(e))
     if (!is.null(problem))
-      fail(paste("the saved DIF bootstrap result does not belong to the active fit and DIF analysis:",
+      fail(paste("the saved primary DIF analysis does not belong to the active fit:",
                  problem))
-    # Ordinary Rasch DIF is recomputed reactively after the saved controls are
-    # restored. Pin the stored analysis to those controls so a coherent DIF
-    # result and bootstrap cannot be reopened beside different live settings.
+    # Ordinary Rasch DIF is recomputed reactively after the controls are
+    # restored. Pin the stored analysis to those controls even when it has no
+    # bootstrap, so the displayed run is the one that was validated.
     if (!is_btl) {
       settings <- project$settings %||% list()
       effects <- settings$dif_effects %||% "main"
@@ -250,10 +247,36 @@
     }
   }
 
+  btl_dif_meta <- project$results[["btl_dif_meta"]]
+  if (!is.null(btl_dif_meta)) {
+    if (!is_btl || is.null(primary_dif) || !is.list(btl_dif_meta) ||
+        !.app_scalar_text(btl_dif_meta$judge_col) ||
+        !btl_dif_meta$judge_col %in% data_names)
+      fail("the analysis file has invalid saved Comparative Judgement DIF display metadata")
+  }
+
+  dif_bootstrap <- project$results$dif_bootstrap
+  if (!is.null(dif_bootstrap)) {
+    if (!is.list(dif_bootstrap) || is.null(dif_bootstrap$db))
+      fail("the analysis file has an invalid saved DIF bootstrap result")
+    if (is.null(primary_dif))
+      fail(paste("the saved DIF bootstrap has no accompanying primary DIF",
+                 "analysis"))
+    problem <- tryCatch({
+      .validate_dif_bootstrap(dif_bootstrap$db, active_fit, primary_dif)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (!is.null(problem))
+      fail(paste("the saved DIF bootstrap result does not belong to the active fit and DIF analysis:",
+                 problem))
+  }
+
   if (!.app_scalar_text(project$binding))
     fail("the analysis file has no valid data-to-fit integrity information")
-  expected <- .app_project_binding(project)
-  if (!identical(project$binding, expected))
+  unsigned_project <- project
+  attr(unsigned_project, "rasch_project_legacy") <- NULL
+  unsigned_project$binding <- NULL
+  if (!.fit_boot_hash_matches(project$binding, unsigned_project))
     fail(paste("the analysis file's source data, fitted models or results have",
                "changed since they were saved"))
   invisible(project)

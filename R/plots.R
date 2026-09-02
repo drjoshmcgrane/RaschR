@@ -658,10 +658,11 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
   rect(brk[-length(brk)], -pi, brk[-1], 0, col = .rr$amber, border = "white", lwd = 0.6)
   segments(mean(th), 0, mean(th), ymax * 0.95, col = .rr$blue, lty = 2)
   segments(mean(tau), ymin * 0.95, mean(tau), 0, col = .rr$amber, lty = 2)
-  .rr_legend("topleft", c(
+  map_labels <- c(
     if (is.null(group)) "Persons" else paste0("Persons: ", group),
     paste0(if (structural) "Calibration thresholds" else "Item thresholds",
-           if (!is.null(items)) paste0(": ", .pimap_item_label(items)) else "")),
+           if (!is.null(items)) paste0(": ", .pimap_item_label(items)) else ""))
+  .rr_legend("topleft", map_labels,
              fill = c(.rr$blue, .rr$amber), border = NA, cex = 0.76)
   if (isTRUE(information)) {
     grid <- seq(rng[1], rng[2], length.out = 241L)
@@ -686,9 +687,25 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
            col.ticks = .rr$soft, col.axis = .rr$teal, cex.axis = 0.8)
       mtext("Test information", side = 4, line = 2.7,
             col = .rr$teal, cex = 0.85, las = 0)
-      if (length(des) > 1L)
-        .rr_legend("topright", paste0("Information: ", des),
-                   lwd = 2.5, col = cols, cex = 0.68)
+      if (length(des) > 1L) {
+        # Long crossed-frame labels can meet the distribution legend in a
+        # narrow window. Use one title rather than repeating a prefix, scale
+        # only as far as remains legible, and stack the legends when they do
+        # not fit side by side.
+        usr <- par("usr"); span <- diff(usr[1:2])
+        info_cex <- 0.68
+        info_w <- max(strwidth(c("Test information", des), cex = info_cex,
+                               units = "user"))
+        if (info_w > 0.46 * span)
+          info_cex <- max(0.50, info_cex * 0.46 * span / info_w)
+        map_w <- max(strwidth(map_labels, cex = 0.76, units = "user"))
+        info_w <- max(strwidth(c("Test information", des), cex = info_cex,
+                               units = "user"))
+        down <- if (map_w + info_w > 0.82 * span) 0.17 else 0
+        .rr_legend("topright", des, title = "Test information",
+                   lwd = 2.5, col = cols, cex = info_cex,
+                   inset = c(0, down))
+      }
     }
   }
   invisible(NULL)

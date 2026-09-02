@@ -149,7 +149,9 @@
 #' @param anchors Optional named numeric vector of fixed object locations.
 #'   Anchored objects have standard error zero and must not be boundary objects.
 #' @param count Optional name of a column of replication counts (a row
-#'   standing for several identical comparisons).
+#'   standing for several identical comparisons). Counts greater than one
+#'   cannot be combined with \code{order}, because a compressed row does not
+#'   retain the sequence of the comparisons it represents.
 #' @param ties How to treat ties in the dichotomous analysis:
 #'   \code{"drop"} (default, removed with a note), \code{"half"} (half a
 #'   win each way, a common pragmatic device -- flagged in the notes
@@ -285,6 +287,12 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   ord <- if (is.null(order)) NULL else .num_col(data[[order]], order)
   if (!is.null(ord) && any(!is.finite(ord[!is.na(ord)])))
     stop("`", order, "` must hold finite sequence values")
+  check_order_counts <- function(ord, w) {
+    if (!is.null(ord) && any(w > 1, na.rm = TRUE))
+      stop("count-compressed rows cannot be combined with `order`: each ",
+           "ordered comparison must occupy its own row with a unique sequence ",
+           "value so exposure and carry-over histories are defined", call. = FALSE)
+  }
   notes <- character(0)
   if (!is.null(anchors)) {
     if (!is.numeric(anchors) || !length(anchors) || is.null(names(anchors)) ||
@@ -354,6 +362,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       if (!is.null(ord)) ord <- ord[keep]
     }
     if (!length(a)) stop("no usable comparisons")
+    check_order_counts(ord, w)
     Z <- if (is.null(ord)) NULL else
       .btl_exposure(a, b, x, length(cats) - 1L, jd, ord, w)
     Z <- add_pos(Z, length(a))
@@ -440,6 +449,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       if (!is.null(ord)) ord <- ord[keep]
     }
     if (!length(a)) stop("no usable comparisons")
+    check_order_counts(ord, w)
     base <- q - 1L + as.integer(ties_present)
     x <- ifelse(is_a, base + mgi, ifelse(is_b, q - mgi, q))
     cats <- c(paste0("worse by ", rev(lv)), if (ties_present) "tie",
@@ -507,6 +517,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   }
 
   if (!is.null(ord) || isTRUE(position)) {
+    check_order_counts(ord, w)
     # exposure/position covariates route through the polytomous engine, whose two-
     # category case reproduces the dichotomous analysis exactly
     Z <- if (is.null(ord)) NULL else
@@ -1952,8 +1963,9 @@ btl_dif <- function(fit, factors, objects = NULL,
     stop("btl_dif needs judge identifiers: judges are the independent units")
   if (!isTRUE(fit$cl$inference_available))
     stop("the base fit does not support cluster-robust inference; btl_dif ",
-         "requires at least 10 judges and more judges than fitted ",
-         "parameters")
+         "requires at least 10 judges, at least 8 effective judges, and ",
+         "more effective judges than fitted parameters; spread comparisons ",
+         "across judges or simplify the fitted model")
   # a single grouping is promoted to a one-factor list; several judge factors
   # are modelled jointly (main effects by default, interactions if asked)
   if (!is.list(factors)) factors <- list(group = factors)
@@ -2486,6 +2498,7 @@ btl_dif <- function(fit, factors, objects = NULL,
                 flag_logits = flag_logits, min_n = min_n,
                 maxit = maxit, tol = tol))
   out <- .tag_tables(out)
+  out$result_signature <- .fit_boot_md5(out)
   class(out) <- "rasch_btl_dif"
   out
 }

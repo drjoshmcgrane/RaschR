@@ -41,8 +41,10 @@ by the design-cell labels (factor levels joined by \code{":"}).
 Weights are rescaled so the positive and negative parts each sum to
 one.}
 
-\item{p_adjust}{Familywise adjustment across items and contrasts. The
-default is \code{"holm"}.}
+\item{p_adjust}{Adjustment across items and contrasts. The default
+\code{"holm"} controls familywise error; use \code{"BH"} only for
+false-discovery-rate screening. \code{"none"} leaves probabilities
+unadjusted.}
 
 \item{alpha}{Significance level for the adjusted probabilities.}
 

@@ -7,8 +7,8 @@
 # exact score-conditional Rasch generator and the public fitting and DIF paths
 # so all of those nuisance operations recur in every replicate.
 
-.dif_boot_signature <- function(dif) {
-  .fit_boot_md5(list(
+.dif_boot_binding <- function(dif) {
+  list(
     fit_signature = dif$fit_signature,
     design = dif$bootstrap_design,
     term_ids = dif$term_ids,
@@ -16,7 +16,11 @@
     terms = dif$terms[, intersect(
       c("item", "object", "term", "df", "df_denom", "gg_epsilon",
         "F_value", "p"),
-      names(dif$terms)), drop = FALSE]))
+      names(dif$terms)), drop = FALSE])
+}
+
+.dif_boot_signature <- function(dif) {
+  .fit_boot_md5(.dif_boot_binding(dif))
 }
 
 .validate_btl_dif_result <- function(dif, fit) {
@@ -29,8 +33,9 @@
     stop("a btl_dif() result needs its ordinary paired-comparison fit")
   if (is.null(dif$fit_signature))
     stop("`dif` predates fitted-model provenance; recompute it from this fit")
-  if (!identical(dif$fit_signature, .fit_boot_signature(fit)))
+  if (!.fit_boot_signature_matches(dif$fit_signature, fit))
     stop("`dif` was computed from a different fitted model")
+  .validate_primary_dif_tables(dif, "object", "band", ":band")
   invisible(NULL)
 }
 
@@ -48,13 +53,19 @@
     "summary", "terms", "replicates", "adjustment", "family_n", "B",
     "B_used", "B_failed", "B_nonconverged", "B_errors",
     "minimum_usable", "alpha", "null_method", "model_kind", "unit",
-    "fit_signature", "dif_signature")
+    "fit_signature", "dif_signature", "result_signature")
   if (!inherits(bootstrap, "rasch_dif_bootstrap") ||
       !all(required %in% names(bootstrap)) ||
       !is.data.frame(bootstrap$terms) ||
       !is.data.frame(bootstrap$summary) ||
-      !is.list(bootstrap$replicates))
+      !is.list(bootstrap$replicates) ||
+      !is.character(bootstrap$result_signature) ||
+      length(bootstrap$result_signature) != 1L ||
+      is.na(bootstrap$result_signature))
     fail()
+  unsigned <- unclass(bootstrap)
+  unsigned$result_signature <- NULL
+  if (!.fit_boot_hash_matches(bootstrap$result_signature, unsigned)) fail()
 
   is_whole <- function(x, lower = 0L)
     length(x) == 1L && is.numeric(x) && is.finite(x) &&
@@ -93,6 +104,11 @@
   if (!identical(bootstrap$model_kind, expected_kind) ||
       !identical(bootstrap$unit, expected_unit) ||
       !identical(bootstrap$null_method, expected_null)) fail()
+  expected_adjustment <- paste(
+    "single-step minimum-p over the complete",
+    paste0(expected_unit, "-by-DIF-term family, with the marginal"),
+    "bootstrap probability as a floor")
+  if (!identical(bootstrap$adjustment, expected_adjustment)) fail()
 
   reps <- bootstrap$replicates
   if (!all(c("F", "p", "min_p") %in% names(reps)) ||
@@ -111,12 +127,13 @@
                         tolerance = 64 * .Machine$double.eps,
                         check.attributes = FALSE))) fail()
 
-  if (!identical(bootstrap$fit_signature, .fit_boot_signature(fit)))
+  if (!.fit_boot_signature_matches(bootstrap$fit_signature, fit))
     stop("`dif_bootstrap` was computed from a different fitted model")
   if (!is.null(dif)) {
     .validate_boot_dif_result(dif, fit)
     if (is.null(bootstrap$dif_signature) ||
-        !identical(bootstrap$dif_signature, .dif_boot_signature(dif)))
+        !.fit_boot_hash_matches(bootstrap$dif_signature,
+                                .dif_boot_binding(dif)))
       stop("`dif_bootstrap` was computed from a different DIF analysis")
 
     # The observed tables and the bootstrap family must be the exact objects
@@ -167,12 +184,15 @@
         !same_num(bootstrap$terms$p_boot_adj[family], p_adj) ||
         !same_num(bootstrap$terms$n_boot[family],
                   rep(bootstrap$B_used, length(obs_key))) ||
-        !identical(as.logical(bootstrap$terms$significant_boot[family]),
+        !is.logical(bootstrap$terms$significant_boot) ||
+        anyNA(bootstrap$terms$significant_boot) ||
+        !identical(bootstrap$terms$significant_boot[family],
                    p_adj < bootstrap$alpha) ||
         any(!is.na(bootstrap$terms$p_boot[!family])) ||
         any(!is.na(bootstrap$terms$p_boot_adj[!family])) ||
         !same_num(bootstrap$terms$n_boot[!family], rep(0, sum(!family))) ||
-        any(bootstrap$terms$significant_boot[!family], na.rm = TRUE)) fail()
+        !identical(bootstrap$terms$significant_boot[!family],
+                   rep(FALSE, sum(!family)))) fail()
 
     sm <- bootstrap$summary
     exp_sm <- data.frame(
@@ -552,11 +572,11 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
               "because its judge factors have no default")
     dif <- dif_anova(fit)
   }
-  .validate_boot_dif_result(dif, fit)
   if (is.null(dif$bootstrap_design) || is.null(dif$term_ids) ||
       is.null(dif$summary_term_ids))
     .refuse("the DIF result predates conditional-bootstrap design ",
             "provenance; recompute it with dif_anova()")
+  .validate_boot_dif_result(dif, fit)
   if (length(dif$term_ids) != nrow(dif$terms) ||
       length(dif$summary_term_ids) != nrow(dif$summary))
     stop("the DIF result carries malformed bootstrap design provenance")
@@ -734,6 +754,7 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
     fit_signature = .fit_boot_signature(fit),
     dif_signature = .dif_boot_signature(dif))
   out <- .tag_tables(out)
+  out$result_signature <- .fit_boot_md5(out)
   class(out) <- c("rasch_dif_bootstrap", "list")
   out
 }

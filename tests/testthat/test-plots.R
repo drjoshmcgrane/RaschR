@@ -239,6 +239,8 @@ test_that("qualified group names split on the factor name, not any colon", {
 })
 
 test_that("a crossed-frame EFRM map keeps only the selected group designs", {
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
   de <- simulate_efrm(n_per_group = 80, items_per_set = 5, n_sets = 2,
                       n_groups = 2, seed = 36)
   tr <- attr(de, "truth")

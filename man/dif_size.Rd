@@ -25,8 +25,10 @@ split refit would discard their frame units.}
 names give interaction cells), or a grouping vector/data frame with
 one entry per person.}
 
-\item{p_adjust}{Familywise adjustment over the pairwise comparisons;
-default \code{"holm"}.}
+\item{p_adjust}{Adjustment over the pairwise comparisons. The default
+\code{"holm"} controls familywise error; use \code{"BH"} only for
+false-discovery-rate screening. \code{"none"} leaves probabilities
+unadjusted.}
 
 \item{alpha}{Significance level for the adjusted probabilities.}
 

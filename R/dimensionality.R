@@ -157,11 +157,12 @@ residual_pca <- function(fit, n_components = 10) {
 # location is a function of their own responses, which couples the residuals
 # within a person (off-diagonal correlations near -1/(L-1)), so a random
 # normal reference sits systematically BELOW the null first eigenvalue and
-# would call structure on model-true data. The reference therefore simulates
-# responses from the calibrated model at the estimated person locations and
-# observed missingness, then refits both item and person parameters before
-# recomputing the residual eigenvalues. This carries calibration variability
-# through the same estimation chain as the observed eigenvalues.
+# would call structure on model-true data. The reference therefore draws a
+# response pattern from the exact Rasch distribution conditional on each
+# person's observed score and missingness pattern, then refits both item and
+# person parameters before recomputing the residual eigenvalues. This avoids
+# treating estimated person locations as known while carrying calibration
+# variability through the same estimation chain as the observed eigenvalues.
 .scree_reference <- function(fit, k, reps) {
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     .refuse("parallel residual reference is not available for mutually exclusive ",
@@ -173,30 +174,12 @@ residual_pca <- function(fit, n_components = 10) {
     stop("full-refit scree reference currently requires a common Rasch unit")
   keep <- !is.na(fit$person$theta)
   X <- fit$X[keep, , drop = FALSE]
-  th0 <- fit$person$theta[keep]
-  obs <- !is.na(X); N <- nrow(X)
+  obs <- !is.na(X)
   spec <- fit$refit_spec
   if (is.null(spec)) spec <- list()
-  probs <- function(i) {
-    m <- length(tau_list[[i]]); xc <- 0:m
-    eta <- outer(th0, xc) -
-      matrix(rep(c(0, cumsum(tau_list[[i]])), each = N), N, m + 1L)
-    eta <- eta - apply(eta, 1, max)
-    P <- exp(eta); P / rowSums(P)
-  }
-  cumP <- lapply(seq_len(L), function(i) {
-    P <- probs(i); m <- ncol(P) - 1L
-    t(apply(P, 1, cumsum))[, seq_len(m), drop = FALSE]
-  })
   first_error <- NULL
   draws <- lapply(seq_len(reps), function(r) {
-    Xr <- X
-    for (i in seq_len(L)) {
-      u <- stats::runif(N)
-      Xr[, i] <- rowSums(u > cumP[[i]])
-    }
-    Xr[!obs] <- NA
-    colnames(Xr) <- colnames(X)
+    Xr <- .fit_gen_conditional(X, tau_list, !obs)
     # the reference distribution must be analysed under the model that was
     # fitted: refitting an explanatory calibration with an unrestricted
     # rasch() would compare observed eigenvalues against a freer model
@@ -227,9 +210,10 @@ residual_pca <- function(fit, n_components = 10) {
 #' Scree plot of the residual components with parallel analysis
 #'
 #' Eigenvalues of the residual correlation matrix for the leading components,
-#' with a model-simulated parallel-analysis reference: responses are simulated
-#' from the calibrated model (observed missingness kept), the item calibration
-#' and every person are re-estimated, and the residual eigenvalues recomputed.
+#' with a model-simulated parallel-analysis reference: response patterns are
+#' drawn conditional on each person's observed score and missingness pattern,
+#' the item calibration and every person are re-estimated, and the residual
+#' eigenvalues recomputed.
 #' Because estimating
 #' the person locations couples the residuals within a person, this reference
 #' sits above the classical random-normal one and is calibrated under the
@@ -239,7 +223,8 @@ residual_pca <- function(fit, n_components = 10) {
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param n_components Number of leading components to display.
 #' @param parallel Draw the parallel-analysis reference line.
-#' @param reps Model-simulated replicates for the reference.
+#' @param reps Model-simulated replicates for the reference; at least two when
+#'   \code{parallel = TRUE}.
 #' @return Called for its plotting side effect; invisibly the eigen table.
 #' @references Raiche, G. (2005). Critical eigenvalue sizes (variances) in
 #'   standardized residual principal components analysis. \emph{Rasch
@@ -259,7 +244,7 @@ residual_pca <- function(fit, n_components = 10) {
 plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
   .check_flag(parallel, "parallel")
   n_components <- .check_whole(n_components, "n_components", 1)
-  reps <- .check_whole(reps, "reps", 1)
+  reps <- .check_whole(reps, "reps", if (parallel) 2 else 1)
   pc <- residual_pca(fit, n_components)
   k <- nrow(pc$eigen_table)
   obs <- pc$eigen_table$eigenvalue

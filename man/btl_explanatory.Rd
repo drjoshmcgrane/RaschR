@@ -54,7 +54,9 @@ are ignored.}
 table and clusters the sandwich standard errors by judge.}
 
 \item{count}{Optional name of a column of replication counts (a row
-standing for several identical comparisons).}
+standing for several identical comparisons). Counts greater than one
+cannot be combined with \code{order}, because a compressed row does not
+retain the sequence of the comparisons it represents.}
 
 \item{order}{Optional column giving each judge's comparison sequence;
 requires \code{judge}. See Details. Incompatible with

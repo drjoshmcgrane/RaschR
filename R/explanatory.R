@@ -17,8 +17,13 @@
   k <- nlevels(x)
   if (k < 2L) stop("an ordinal predictor needs at least two observed levels")
   out <- outer(seq_len(k), seq_len(k - 1L), `>`) * 1
-  colnames(out) <- paste0(make.names(levels(x)[-1L]), "_vs_",
-                          make.names(levels(x)[-k]))
+  # make.names() is not one-to-one: levels such as "a b", "a-b" and "a.b"
+  # all collapse to the same token. The adjacent-contrast number is part of
+  # the parameter name so distinct ordered transitions remain distinct even
+  # when their readable labels have the same syntactic form.
+  colnames(out) <- paste0(
+    "adjacent_", seq_len(k - 1L), "_",
+    make.names(levels(x)[-1L]), "_vs_", make.names(levels(x)[-k]))
   out
 }
 

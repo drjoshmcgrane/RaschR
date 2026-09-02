@@ -191,15 +191,27 @@ test_that("Extended Frames DIF retains crossed frame cells", {
   d <- simulate_efrm(n_per_group = 140, items_per_set = 6, n_sets = 1,
                      n_groups = 2, seed = 5120)
   tr <- attr(d, "truth")
-  d$region <- rep(c("N", "S"), length.out = nrow(d))
+  names(d)[names(d) == "group"] <- "efrm_factor_0002"
+  d[["school year"]] <- rep(c("N", "S"), length.out = nrow(d))
   d$site <- rep(rep(c("A", "B"), each = 2L), length.out = nrow(d))
   fit <- rasch_efrm(
-    d, item_sets = tr$item_sets, groups = c("group", "region"), id = "id",
+    d, item_sets = tr$item_sets,
+    groups = c("efrm_factor_0002", "school year"), id = "id",
     factors = "site", boot_reps = 0, n_groups = 2)
   da <- dif_anova(fit, n_groups = 2)
   db <- suppressWarnings(dif_bootstrap(fit, da, B = 1, workers = 1,
                                        seed = 5121))
   expect_equal(nrow(fit$phi_table), 4L)
+  expect_true(all(c("efrm_factor_0002", "school year") %in%
+                    names(fit$factors)))
+  expect_false("school.year" %in% names(fit$factors))
+  expect_setequal(fit$frame_group,
+                  c("efrm_factor_0002:school year",
+                    "efrm_factor_0002", "school year"))
+  expect_identical(da$factor_names, "site")
+  expect_true(all(c("efrm_factor_0002", "school year",
+                    "efrm_factor_0002:school year") %in%
+                  fit$phi_factorial_tests$term))
   expect_equal(db$B_used, 1L)
 })
 
@@ -217,6 +229,10 @@ test_that("Comparative Judgement DIF uses the fitted-outcome null", {
   expect_true(all(c("object", "p_uniform_boot_adj",
                     "p_nonuniform_boot_adj") %in% names(db$summary)))
   expect_no_error(rasch:::.validate_dif_bootstrap(db, fit, da))
+  changed_da <- da
+  changed_da$summary$p_uniform_adj[1L] <- .777
+  expect_error(rasch:::.validate_btl_dif_result(changed_da, fit),
+               "incomplete or internally inconsistent")
   expect_error(dif_bootstrap(fit, B = 1), "explicit btl_dif")
 
   project <- .seal_app_project(list(
@@ -226,6 +242,20 @@ test_that("Comparative Judgement DIF uses the fitted-outcome null", {
     results = list(btl_dif = da,
       dif_bootstrap = list(db = db, B = 1L, seed = 5118L, kind = "bdif"))))
   expect_no_error(.validate_app_project(project))
+
+  d2 <- d
+  d2$winner[seq_len(20L)] <- ifelse(
+    d2$winner[seq_len(20L)] == d2$object_a[seq_len(20L)],
+    d2$object_b[seq_len(20L)], d2$object_a[seq_len(20L)])
+  fit2 <- btl(d2, "object_a", "object_b", winner = "winner",
+              judge = "judge")
+  primary_only <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = d2, model_type = "btl", base_fit = fit2,
+    rasch_steps = list(), btl_steps = list(), settings = list(),
+    results = list(btl_dif = da)))
+  expect_error(.validate_app_project(primary_only), "primary DIF analysis")
+
   project$results$btl_dif <- btl_dif(
     fit, group, objects = "O3", min_n = 10, alpha = .1)
   project <- .seal_app_project(project)
@@ -320,6 +350,12 @@ test_that("DIF bootstrap travels only with its DIF analysis and active fit", {
                "does not match the restored DIF settings")
 
   other <- make_dif_boot_fit(seed = 5106, N = 120)
+  primary_only <- project
+  primary_only$results$dif_bootstrap <- NULL
+  primary_only$base_fit <- other
+  primary_only <- .seal_app_project(primary_only)
+  expect_error(.validate_app_project(primary_only), "primary DIF analysis")
+
   project$base_fit <- other
   project <- .seal_app_project(project)
   expect_error(.validate_app_project(project),
@@ -331,6 +367,15 @@ test_that("DIF bootstrap integrity is checked before restore or export", {
   da <- dif_anova(fit, n_groups = 2)
   db <- suppressWarnings(dif_bootstrap(fit, da, B = 2, workers = 1,
                                        seed = 5131))
+
+  changed_da <- da
+  changed_da$terms$p_adj[1L] <- -1
+  expect_error(rasch:::.validate_dif_result(changed_da, fit),
+               "incomplete or internally inconsistent")
+  changed_da <- da
+  changed_da$summary$p_uniform_adj[1L] <- .777
+  expect_error(rasch:::.validate_dif_result(changed_da, fit),
+               "incomplete or internally inconsistent")
 
   broken <- list()
   broken$missing_accounting <- db
@@ -349,6 +394,11 @@ test_that("DIF bootstrap integrity is checked before restore or export", {
   broken$bad_summary$summary$p_uniform_boot_adj[1] <- .123
   broken$bad_kind <- db
   broken$bad_kind$model_kind <- "btl"
+  broken$bad_adjustment <- db
+  broken$bad_adjustment$adjustment <- "Holm"
+  broken$bad_excluded_flag <- db
+  excluded <- da$term_ids %in% c("Residuals", "ci")
+  broken$bad_excluded_flag$terms$significant_boot[which(excluded)[1L]] <- NA
 
   for (nm in names(broken)) {
     x <- broken[[nm]]

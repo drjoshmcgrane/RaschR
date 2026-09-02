@@ -69,12 +69,61 @@
   "ok"
 }
 
+.fit_boot_md5_raw <- function(x) {
+  path <- tempfile("rasch-fit-signature-", fileext = ".bin")
+  on.exit(unlink(path), add = TRUE)
+  writeBin(x, path)
+  unname(tools::md5sum(path))
+}
+
+# Current signatures hash R's platform-independent XDR serialisation. The
+# prefix identifies the encoding so the validator can continue to read the
+# text-dump signatures written before this format was introduced.
+.fit_boot_canonical <- function(x) {
+  # A formula's evaluation environment is not part of the fitted design, but
+  # serialising it would hash every mutable binding in the caller's frame.
+  # The formula expression and all model matrices remain in the object.
+  if (inherits(x, "formula")) {
+    environment(x) <- emptyenv()
+    return(x)
+  }
+  if (is.environment(x)) return("<environment>")
+  if (is.function(x)) return(list(formals = formals(x), body = body(x)))
+  if (is.list(x)) {
+    for (i in seq_along(x)) x[i] <- list(.fit_boot_canonical(x[[i]]))
+  }
+  x
+}
+
 .fit_boot_md5 <- function(x) {
+  paste0("xdr3:", .fit_boot_md5_raw(serialize(
+    .fit_boot_canonical(x), connection = NULL, ascii = FALSE,
+    xdr = TRUE, version = 3)))
+}
+
+.fit_boot_md5_legacy_candidates <- function(x) {
   path <- tempfile("rasch-fit-signature-", fileext = ".txt")
   on.exit(unlink(path), add = TRUE)
   dput(x, path, control = c("keepNA", "keepInteger", "showAttributes",
                             "hexNumeric"))
-  unname(tools::md5sum(path))
+  bytes <- readBin(path, "raw", n = file.info(path)$size)
+  z <- as.integer(bytes)
+  # Text connections use the host line ending. Reconstruct both historical
+  # byte streams so a legacy result saved on Windows validates on Unix and
+  # vice versa.
+  drop_cr <- z == 13L & c(z[-1L], -1L) == 10L
+  lf <- z[!drop_cr]
+  crlf <- unlist(lapply(lf, function(b)
+    if (b == 10L) c(13L, 10L) else b), use.names = FALSE)
+  unique(c(.fit_boot_md5_raw(as.raw(lf)),
+           .fit_boot_md5_raw(as.raw(crlf))))
+}
+
+.fit_boot_hash_matches <- function(stored, x) {
+  if (!is.character(stored) || length(stored) != 1L || is.na(stored))
+    return(FALSE)
+  if (startsWith(stored, "xdr3:")) identical(stored, .fit_boot_md5(x)) else
+    stored %in% .fit_boot_md5_legacy_candidates(x)
 }
 
 .fit_boot_signature <- function(fit) {
@@ -106,28 +155,285 @@
     fingerprint = .fit_boot_md5(fit))
 }
 
+.fit_boot_signature_matches <- function(signature, fit) {
+  current <- .fit_boot_signature(fit)
+  if (!is.list(signature) || !identical(names(signature), names(current)) ||
+      !is.character(signature$fingerprint) ||
+      length(signature$fingerprint) != 1L || is.na(signature$fingerprint))
+    return(FALSE)
+  stored_fingerprint <- signature$fingerprint
+  signature$fingerprint <- NULL
+  current$fingerprint <- NULL
+  identical(signature, current) &&
+    .fit_boot_hash_matches(stored_fingerprint, fit)
+}
+
 .new_fit_bootstrap <- function(x, fit, kind) {
   x$model_kind <- kind
   x$fit_signature <- .fit_boot_signature(fit)
   x <- .tag_tables(x)
+  # The fitted-model fingerprint prevents a result being paired with another
+  # calibration. This second fingerprint protects the result itself: reports
+  # and restored app projects must not accept edited tables or accounting as
+  # though they were the output of the retained replicate arrays.
+  x$result_signature <- .fit_boot_md5(x)
   class(x) <- c("rasch_fit_bootstrap", "list")
   x
 }
 
 .validate_fit_bootstrap <- function(bootstrap, fit) {
   if (is.null(bootstrap)) return(invisible(NULL))
+  fail <- function() stop(
+    "`bootstrap` is incomplete or internally inconsistent; recompute it with fit_bootstrap()",
+    call. = FALSE)
   if (!inherits(bootstrap, "rasch_fit_bootstrap"))
-    stop("`bootstrap` must be a current fit_bootstrap() result")
+    stop("`bootstrap` must be a current fit_bootstrap() result", call. = FALSE)
+  if (!is.character(bootstrap$result_signature) ||
+      length(bootstrap$result_signature) != 1L ||
+      is.na(bootstrap$result_signature)) fail()
+  unsigned <- unclass(bootstrap)
+  unsigned$result_signature <- NULL
+  if (!.fit_boot_hash_matches(bootstrap$result_signature, unsigned)) fail()
   expected <- if (inherits(fit, "rasch_btl")) "btl" else "rasch"
   if (!identical(bootstrap$model_kind, expected))
     stop("`bootstrap` was computed for a different model family")
-  required <- if (expected == "btl")
-    c("pairs", "objects", "total", "B", "B_used") else
-    c("items", "total", "B", "B_used")
-  if (!all(required %in% names(bootstrap)))
-    stop("`bootstrap` is incomplete and cannot be exported")
-  if (!identical(bootstrap$fit_signature, .fit_boot_signature(fit)))
+  if (!.fit_boot_signature_matches(bootstrap$fit_signature, fit))
     stop("`bootstrap` was computed from a different fitted model")
+
+  required <- c("total", "replicates", "B", "B_used", "B_failed",
+                "B_nonconverged", "B_errors", "minimum_usable", "theta")
+  required <- c(required, if (expected == "btl")
+    c("model", "pairs", "objects", "judges", "adjustment") else
+    c("items", "persons", "person_adjustment"))
+  if (!all(required %in% names(bootstrap)) ||
+      !is.list(bootstrap$total) || !is.list(bootstrap$replicates)) fail()
+
+  whole <- function(x, lower = 0L)
+    length(x) == 1L && is.numeric(x) && is.finite(x) && x == floor(x) &&
+      x >= lower && x <= .Machine$integer.max
+  count_names <- c("B", "B_used", "B_failed", "B_nonconverged",
+                   "B_errors", "minimum_usable")
+  count_lower <- c(B = 1L, B_used = 1L, B_failed = 0L,
+                   B_nonconverged = 0L, B_errors = 0L,
+                   minimum_usable = 1L)
+  if (any(!vapply(count_names, function(nm)
+    whole(bootstrap[[nm]], count_lower[[nm]]), logical(1))) ||
+      bootstrap$B_used + bootstrap$B_failed != bootstrap$B ||
+      bootstrap$B_nonconverged + bootstrap$B_errors != bootstrap$B_failed ||
+      bootstrap$minimum_usable != .fit_min_boot_success(bootstrap$B) ||
+      bootstrap$B_used < bootstrap$minimum_usable) fail()
+
+  same_num <- function(x, y) is.numeric(x) && length(x) == length(y) &&
+    !any(is.nan(x) | is.infinite(x)) &&
+    isTRUE(all.equal(as.numeric(x), as.numeric(y), tolerance = 0,
+                     check.attributes = FALSE))
+  same_frame <- function(x, y) is.data.frame(x) && nrow(x) == nrow(y) &&
+    all(names(y) %in% names(x)) && isTRUE(all.equal(
+      as.data.frame(x[names(y)]), as.data.frame(y), tolerance = 0,
+      check.attributes = FALSE))
+  valid_matrix <- function(x, nr, nc)
+    is.matrix(x) && is.numeric(x) && identical(dim(x), c(nr, nc)) &&
+      !any(is.nan(x) | is.infinite(x))
+  same_meta <- function(x, y) is.list(x) &&
+    identical(names(x), c("family_n", "adjusted_n", "joint_replicates")) &&
+    all(vapply(names(y), function(nm)
+      same_num(x[[nm]], y[[nm]]), logical(1)))
+  p_ok <- function(x) is.numeric(x) && !any(is.nan(x) | is.infinite(x)) &&
+    all(is.na(x) | (x >= 0 & x <= 1))
+  min_success <- as.integer(bootstrap$minimum_usable)
+  B_used <- as.integer(bootstrap$B_used)
+
+  validate_table <- function(tab, base, reps, stats, sides) {
+    if (!same_frame(tab, base) || !is.list(reps) ||
+        !identical(names(reps), stats)) fail()
+    meta <- list()
+    for (st in stats) {
+      if (!st %in% names(base) || !valid_matrix(reps[[st]], B_used,
+                                                nrow(base))) fail()
+      mode <- if (st == "chisq") "raw" else if (st == "fit_resid")
+        "centred" else "studentised"
+      trans <- if (st %in% c("infit_ms", "outfit_ms")) log else identity
+      z <- .boot_maxt(base[[st]], reps[[st]], sides[[st]], min_success,
+                      mode = mode, transform = trans)
+      fields <- c(paste0(st, "_p_boot"), paste0(st, "_p_boot_adj"),
+                  paste0("n_boot_", st))
+      if (!all(fields %in% names(tab)) ||
+          !same_num(tab[[fields[1L]]], z$p) ||
+          !same_num(tab[[fields[2L]]], z$p_adj) ||
+          !same_num(tab[[fields[3L]]], z$n_boot) ||
+          !p_ok(tab[[fields[1L]]]) || !p_ok(tab[[fields[2L]]])) fail()
+      meta[[st]] <- list(family_n = z$family_n,
+                         adjusted_n = z$adjusted_n,
+                         joint_replicates = z$family_boot)
+    }
+    meta
+  }
+
+  if (expected == "btl") {
+    if (!identical(bootstrap$model, "paired comparisons") ||
+        !is.null(bootstrap$theta) || !is.list(bootstrap$adjustment) ||
+        !all(c("total_chisq", "pairs", "objects", "judges") %in%
+             names(bootstrap$replicates))) fail()
+    pair_stats <- "chisq"
+    object_stats <- c("fit_resid", "infit_ms", "outfit_ms")
+    pair_meta <- validate_table(
+      bootstrap$pairs, fit$pairs, bootstrap$replicates$pairs, pair_stats,
+      c(chisq = "upper"))
+    object_meta <- validate_table(
+      bootstrap$objects, fit$objects, bootstrap$replicates$objects,
+      object_stats,
+      c(fit_resid = "two", infit_ms = "two", outfit_ms = "two"))
+    if (is.null(fit$judges)) {
+      if (!is.null(bootstrap$judges) ||
+          !is.null(bootstrap$replicates$judges) ||
+          !is.null(bootstrap$adjustment$judges)) fail()
+      judge_meta <- NULL
+    } else {
+      judge_meta <- validate_table(
+        bootstrap$judges, fit$judges, bootstrap$replicates$judges,
+        object_stats,
+        c(fit_resid = "two", infit_ms = "two", outfit_ms = "two"))
+    }
+    expected_method <- paste("single-step maximum-statistic bootstrap within each",
+                             "statistic and parameter family")
+    if (!identical(bootstrap$adjustment$method, expected_method) ||
+        !identical(names(bootstrap$adjustment),
+                   c("method", "pairs", "objects", "judges")) ||
+        !identical(names(bootstrap$adjustment$pairs), names(pair_meta)) ||
+        !identical(names(bootstrap$adjustment$objects), names(object_meta)) ||
+        !all(vapply(names(pair_meta), function(st)
+          same_meta(bootstrap$adjustment$pairs[[st]], pair_meta[[st]]),
+          logical(1))) ||
+        !all(vapply(names(object_meta), function(st)
+          same_meta(bootstrap$adjustment$objects[[st]], object_meta[[st]]),
+          logical(1))) ||
+        (!is.null(judge_meta) &&
+         (!identical(names(bootstrap$adjustment$judges), names(judge_meta)) ||
+          !all(vapply(names(judge_meta), function(st)
+            same_meta(bootstrap$adjustment$judges[[st]], judge_meta[[st]]),
+            logical(1)))))) fail()
+    tot <- bootstrap$replicates$total_chisq
+    if (!is.numeric(tot) || length(tot) != B_used ||
+        any(is.nan(tot) | is.infinite(tot))) fail()
+    n_tot <- sum(is.finite(tot))
+    p_tot <- if (n_tot >= min_success)
+      .boot_p(fit$total_chisq, tot, "upper") else NA_real_
+    expected_total <- list(chisq = fit$total_chisq, df = fit$total_df,
+                           p = fit$total_p, chisq_p_boot = p_tot,
+                           n_boot = n_tot)
+    if (!identical(names(bootstrap$total), names(expected_total)) ||
+        !all(vapply(names(expected_total), function(nm)
+          same_num(bootstrap$total[[nm]], expected_total[[nm]]),
+          logical(1))) || !p_ok(bootstrap$total$chisq_p_boot)) fail()
+    return(invisible(NULL))
+  }
+
+  if (!is.data.frame(bootstrap$items) || !is.list(bootstrap$replicates) ||
+      !identical(names(bootstrap$replicates), names(.FIT_STATS)) ||
+      nrow(bootstrap$items) != nrow(fit$items) ||
+      !identical(as.character(bootstrap$items$item),
+                 as.character(fit$items$item)) ||
+      !is.character(bootstrap$theta) || length(bootstrap$theta) != 1L ||
+      is.na(bootstrap$theta) ||
+      !bootstrap$theta %in% c("conditional", "resample", "fixed", "normal"))
+    fail()
+  L <- nrow(fit$items)
+  for (st in names(.FIT_STATS)) {
+    M <- bootstrap$replicates[[st]]
+    fields <- c(st, paste0(st, "_p_boot"), paste0(st, "_p_boot_adj"),
+                paste0("n_boot_", st))
+    if (!st %in% names(fit$items) || !all(fields %in% names(bootstrap$items)) ||
+        !valid_matrix(M, B_used, L) ||
+        !same_num(bootstrap$items[[st]], fit$items[[st]])) fail()
+    n_stat <- colSums(is.finite(M))
+    p <- vapply(seq_len(L), function(i) {
+      if (n_stat[i] < min_success) return(NA_real_)
+      .boot_p(fit$items[[st]][i], M[, i], .FIT_STATS[[st]])
+    }, numeric(1))
+    adj <- rep(NA_real_, L)
+    usable <- is.finite(p)
+    adj[usable] <- stats::p.adjust(p[usable], method = "holm", n = L)
+    if (!same_num(bootstrap$items[[fields[2L]]], p) ||
+        !same_num(bootstrap$items[[fields[3L]]], adj) ||
+        !same_num(bootstrap$items[[fields[4L]]], n_stat) ||
+        !p_ok(bootstrap$items[[fields[2L]]]) ||
+        !p_ok(bootstrap$items[[fields[3L]]])) fail()
+  }
+  if (!"n_boot" %in% names(bootstrap$items) ||
+      !same_num(bootstrap$items$n_boot, bootstrap$items$n_boot_chisq)) fail()
+
+  if (identical(bootstrap$theta, "conditional")) {
+    keep_cols <- intersect(c("id", "raw", "theta", "se"), names(fit$person))
+    if (!is.data.frame(bootstrap$persons) ||
+        !same_frame(bootstrap$persons, fit$person[, keep_cols, drop = FALSE]) ||
+        !is.list(bootstrap$person_adjustment) ||
+        !identical(bootstrap$person_adjustment$method,
+                   "single-step maximum-statistic bootstrap") ||
+        !is.list(bootstrap$person_adjustment$statistics) ||
+        !identical(names(bootstrap$person_adjustment$statistics),
+                   names(.PERSON_FIT_STATS))) fail()
+    for (st in names(.PERSON_FIT_STATS)) {
+      # Person nulls are not part of the item matrices. They are retained in
+      # the public result only through their derived tables. The result
+      # fingerprint protects their probabilities; these checks also pin the
+      # copied observations and the visible maxT accounting.
+      fields <- c(st, paste0(st, "_p_boot"), paste0(st, "_p_boot_adj"),
+                  paste0("n_boot_", st))
+      if (!all(fields %in% names(bootstrap$persons)) ||
+          !same_num(bootstrap$persons[[st]], fit$person[[st]]) ||
+          !p_ok(bootstrap$persons[[fields[2L]]]) ||
+          !p_ok(bootstrap$persons[[fields[3L]]]) ||
+          !is.numeric(bootstrap$persons[[fields[4L]]]) ||
+          any(bootstrap$persons[[fields[4L]]] < 0 |
+              bootstrap$persons[[fields[4L]]] > B_used)) fail()
+      meta <- bootstrap$person_adjustment$statistics[[st]]
+      if (!is.list(meta) ||
+          !all(c("family_n", "adjusted_n", "joint_replicates") %in%
+               names(meta)) ||
+          !same_num(meta$family_n, sum(is.finite(fit$person[[st]]))) ||
+          !same_num(meta$adjusted_n,
+                    sum(is.finite(bootstrap$persons[[fields[3L]]]))) ||
+          !whole(meta$joint_replicates, 0L) ||
+          meta$joint_replicates > B_used) fail()
+    }
+  } else if (!is.null(bootstrap$persons) ||
+             !is.null(bootstrap$person_adjustment)) fail()
+
+  M <- bootstrap$replicates
+  ok <- is.finite(fit$items$chisq)
+  tot_rep <- rep(NA_real_, B_used)
+  if (any(ok)) {
+    complete <- rowSums(is.finite(M$chisq[, ok, drop = FALSE])) == sum(ok)
+    tot_rep[complete] <- rowSums(M$chisq[complete, ok, drop = FALSE])
+  }
+  fr_ok <- is.finite(fit$items$fit_resid)
+  fr_mean <- fr_sd <- rep(NA_real_, B_used)
+  if (any(fr_ok)) {
+    complete <- rowSums(is.finite(M$fit_resid[, fr_ok, drop = FALSE])) ==
+      sum(fr_ok)
+    fr_mean[complete] <- rowMeans(M$fit_resid[complete, fr_ok, drop = FALSE])
+    if (sum(fr_ok) >= 2L)
+      fr_sd[complete] <- apply(M$fit_resid[complete, fr_ok, drop = FALSE],
+                               1L, stats::sd)
+  }
+  total_p <- function(obs, null, side) if (sum(is.finite(null)) >= min_success)
+    .boot_p(obs, null, side) else NA_real_
+  expected_total <- list(
+    chisq = fit$total_chisq, df = fit$total_df, p = fit$total_chisq_p,
+    chisq_p_boot = total_p(fit$total_chisq, tot_rep, "upper"),
+    fit_resid_mean = fit$item_fit_summary$mean,
+    fit_resid_mean_p_boot = total_p(fit$item_fit_summary$mean, fr_mean, "two"),
+    fit_resid_sd = fit$item_fit_summary$sd,
+    fit_resid_sd_p_boot = total_p(fit$item_fit_summary$sd, fr_sd, "two"),
+    n_boot = sum(is.finite(tot_rep)),
+    n_boot_fit_resid_mean = sum(is.finite(fr_mean)),
+    n_boot_fit_resid_sd = sum(is.finite(fr_sd)))
+  if (!identical(names(bootstrap$total), names(expected_total)) ||
+      !all(vapply(names(expected_total), function(nm)
+        same_num(bootstrap$total[[nm]], expected_total[[nm]]), logical(1))) ||
+      !all(vapply(c("chisq_p_boot", "fit_resid_mean_p_boot",
+                    "fit_resid_sd_p_boot"), function(nm)
+        p_ok(bootstrap$total[[nm]]), logical(1)))) fail()
   invisible(NULL)
 }
 

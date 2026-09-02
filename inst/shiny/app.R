@@ -81,6 +81,50 @@ NONE_CH <- c(None = "(none)")
 # base R version that introduced it (R >= 4.4)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+# A source column is a symbol, not text to be interpolated into an R formula
+# or code expression. deparse(as.name()) handles reserved words, leading
+# dot-digits, spaces, colons and embedded backticks without guessing which
+# names happen to be syntactic.
+.app_quote_name <- function(x) {
+  if (!is.character(x) || anyNA(x) || any(!nzchar(x)))
+    stop("column names must be non-empty character values", call. = FALSE)
+  vapply(x, function(z)
+    paste(deparse(as.name(z), backtick = TRUE), collapse = ""), "")
+}
+
+# Interaction controls use opaque values. A colon-joined value is ambiguous:
+# the literal predictor "a:b" paired with "c" otherwise collides with "a"
+# paired with "b:c". The displayed labels remain readable, while the map
+# retains the two exact source names.
+.app_explanatory_interactions <- function(main) {
+  if (!is.character(main) || anyNA(main) || any(!nzchar(main)) ||
+      anyDuplicated(main))
+    stop("explanatory main effects must have unique non-empty names",
+         call. = FALSE)
+  pairs <- if (length(main) >= 2L)
+    utils::combn(main, 2L, simplify = FALSE) else list()
+  ids <- sprintf("interaction_%04d", seq_along(pairs))
+  labels <- vapply(pairs, paste, "", collapse = " × ")
+  ambiguous <- duplicated(labels) | duplicated(labels, fromLast = TRUE)
+  labels[ambiguous] <- paste0(labels[ambiguous], " [", ids[ambiguous], "]")
+  list(map = stats::setNames(pairs, ids),
+       choices = stats::setNames(ids, labels))
+}
+
+.app_explanatory_formula <- function(main, interactions = list()) {
+  if (!is.character(main) || !length(main) || anyNA(main) ||
+      any(!nzchar(main)) || anyDuplicated(main))
+    stop("choose at least one explanatory main effect", call. = FALSE)
+  if (!is.list(interactions) || any(!vapply(interactions, function(z)
+    is.character(z) && length(z) == 2L && !anyNA(z) &&
+      all(nzchar(z)) && all(z %in% main) && z[1L] != z[2L], logical(1))))
+    stop("the explanatory interaction selection is invalid", call. = FALSE)
+  rhs <- c(lapply(main, as.name), lapply(interactions, function(z)
+    call(":", as.name(z[1L]), as.name(z[2L]))))
+  rhs <- Reduce(function(a, b) call("+", a, b), rhs)
+  stats::as.formula(call("~", rhs), env = parent.frame())
+}
+
 # Launchers differ in what the app's environment can see: a development
 # load resolves the package internals through the search path, while
 # shiny::runApp() on an installed copy resolves exports only. The two
@@ -912,7 +956,10 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
               numericInput("tol", "Convergence criterion", value = 1e-8,
                            min = 1e-12, step = 1e-8),
               conditionalPanel("input.model_type == 'btl'",
-                selectInput("bt_count", "Count column (optional)", NONE_CH)))),
+                selectInput("bt_count", info_label("Count column (optional)",
+                            paste("A row may represent several identical comparisons.",
+                                  "Counts greater than one cannot be used with judgment order,",
+                                  "which needs one row per comparison.")), NONE_CH)))),
           conditionalPanel("input.model_type == 'rasch'",
             accordion_panel("Scoring & anchors", icon = bs_icon("key"),
               fileInput("key_file",
@@ -1935,16 +1982,16 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
           title = "Residual dimensions",
           value = "btl_dim_swirl",
           accordion_info(
-            "The skew-symmetric matrix of pair residuals is decomposed into rotational planes, or bimensions (Gower 1977). The leading bimension is compared with simulations from the fitted model."),
+            "The skew-symmetric matrix of pair residuals is decomposed into rotational planes, or bimensions (Gower 1977). The leading bimension is compared with simulations from the fitted model when the comparison sequence supports them."),
           layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
             plotCard("btl_scree", title = "Bimension strengths",
-                     info = "Each bimension's strength against the mean and 95th-percentile band of data simulated from the fitted one-scale model. A bar that clears the band indicates structure the single scale does not explain.",
+                     info = "Each bimension's strength and, when available, the mean and 95th-percentile band from the fitted one-scale model. A bar that clears the band indicates structure the single scale does not explain.",
                      height = "460px"),
             plotCard("btl_dim_map", title = "Leading residual map",
                      info = "Objects in the leading bimension plane. A rotational arrangement is the second attribute; a formless cloud at the centre is noise. Point size grows with the object's location on the main scale.",
                      height = "460px")),
           tableCard("btl_bimensions_tbl", title = "Bimensions",
-                    note = "Strength, share of the total residual, and the noise reference (mean and 95th percentile) for the leading bimension.")),
+                    note = "Strength, share of the total residual, and, when available, the noise reference for the leading bimension.")),
         accordion_panel(
           title = "Preference loops",
           value = "btl_dim_loops",
@@ -3100,23 +3147,43 @@ server <- function(input, output, session) {
         choices = character(0), multiple = TRUE,
         options = list(placeholder = "none")))
   })
+  exp_interaction_map <- reactiveVal(list())
   observeEvent(input$exp_main, {
-    z <- input$exp_main
-    choices <- if (length(z) >= 2L)
-      apply(utils::combn(z, 2L), 2L, paste, collapse = ":") else character(0)
-    keep <- unique(c(intersect(input$exp_interactions %||% character(0), choices),
-                     intersect(restored_project_settings()$exp_interactions %||%
-                                 character(0), choices),
-                     intersect(sim_interactions_val(), choices)))
-    updateSelectizeInput(session, "exp_interactions", choices = choices,
-                         selected = keep, server = TRUE)
+    z <- input$exp_main %||% character(0)
+    spec <- .app_explanatory_interactions(z)
+    old_map <- exp_interaction_map()
+    requested <- unique(c(
+      input$exp_interactions %||% character(0),
+      restored_project_settings()$exp_interactions %||% character(0),
+      sim_interactions_val()))
+    wanted <- list()
+    for (value in requested) {
+      pair <- old_map[[value]] %||% spec$map[[value]]
+      # Schema-2 projects and bundled simulations created before opaque
+      # interaction ids stored the readable colon-joined label. Retain that
+      # unambiguous legacy case; new projects never rely on it.
+      if (is.null(pair)) {
+        hit <- which(vapply(spec$map, function(p)
+          identical(paste(p, collapse = ":"), value), logical(1)))
+        if (length(hit) == 1L) pair <- spec$map[[hit]]
+      }
+      if (!is.null(pair)) wanted[[length(wanted) + 1L]] <- pair
+    }
+    selected <- names(spec$map)[vapply(spec$map, function(pair)
+      any(vapply(wanted, identical, logical(1), y = pair)), logical(1))]
+    exp_interaction_map(spec$map)
+    updateSelectizeInput(session, "exp_interactions",
+                         choices = spec$choices, selected = selected,
+                         server = TRUE)
   }, ignoreNULL = FALSE)
 
   exp_formula <- reactive({
     main <- input$exp_main
-    if (!length(main)) stop("choose at least one explanatory main effect")
-    terms <- c(main, input$exp_interactions %||% character(0))
-    stats::reformulate(terms)
+    ids <- input$exp_interactions %||% character(0)
+    map <- exp_interaction_map()
+    if (length(ids) && any(!ids %in% names(map)))
+      stop("the explanatory interaction selection is stale; choose it again")
+    .app_explanatory_formula(main, unname(map[ids]))
   })
 
   # paired-comparison anchors: a two-column CSV (object, location) that places
@@ -3546,6 +3613,7 @@ server <- function(input, output, session) {
   btl_fit <- reactiveVal(NULL)
   clear_btl_fit_results <- function() {
     bdif_res(NULL)
+    bdif_meta(NULL)
     btlef_res(NULL)
     invisible(NULL)
   }
@@ -3896,6 +3964,8 @@ server <- function(input, output, session) {
           bt_ord <- if (!is.null(input$bt_order) && nzchar(input$bt_order) &&
                         !is.null(input$bt_judge) && input$bt_judge != NONE)
             input$bt_order else NULL
+          bt_count <- if (!is.null(input$bt_count) && input$bt_count != NONE)
+            input$bt_count else NULL
           # first-position advantage (object A is the first-presented of the
           # pair) and equating anchors (a named location per object) both feed
           # btl() directly; anchors come from a two-column CSV
@@ -3938,8 +4008,7 @@ server <- function(input, output, session) {
                      "), setNames(location, object))"),
             if (!is.null(bt_anchor_vec) && is.null(input$bt_anchor_file))
               "anchors = with(project$resources$bt_anchors, setNames(location, object))",
-            if (!is.null(input$bt_count) && input$bt_count != NONE)
-              paste0("count = ", qstr(input$bt_count)),
+            if (!is.null(bt_count)) paste0("count = ", qstr(bt_count)),
             if (!bt_graded && !bt_marg)
               paste0("ties = ", qstr(input$bt_ties %||% "drop")),
             if ((bt_graded || bt_marg) && identical(bt_thr, "pc"))
@@ -3955,8 +4024,7 @@ server <- function(input, output, session) {
                              input$bt_judge != NONE) input$bt_judge else NULL,
                  order = bt_ord,
                  position = bt_pos,
-                 count = if (!is.null(input$bt_count) &&
-                             input$bt_count != NONE) input$bt_count else NULL,
+                 count = bt_count,
                  maxit = eo$maxit, tol = eo$tol),
             if (!bt_exp) list(anchors = bt_anchor_vec) else list(),
             if (bt_graded)
@@ -7361,9 +7429,9 @@ server <- function(input, output, session) {
   # run time, so later sidebar edits cannot silently regroup the overlay)
   bdif_term_group <- function(term, row = NULL) {
     r <- bdif_res()
-    if (is.null(r) || is.null(r$run_maps))
+    maps <- if (!is.null(r)) r$bootstrap_design$factors else NULL
+    if (is.null(r) || !is.list(maps) || !length(maps))
       stop("run the DIF analysis first")
-    maps <- r$run_maps
     vars <- bdif_term_vars(term, maps, row)
     if (!length(vars))
       stop("the selected term no longer matches the run's factors; re-run")
@@ -7403,15 +7471,16 @@ server <- function(input, output, session) {
                 mean = as.numeric(om), group = lv, stringsAsFactors = FALSE)
     }))
   }
-  # backtick nonsyntactic column names in emitted code
-  bq <- function(s) ifelse(grepl("^[a-zA-Z.][a-zA-Z0-9._]*$", s),
-                           s, sprintf("`%s`", s))
+  # quote source columns as R symbols in emitted code
+  bq <- .app_quote_name
   # Reproducible code for the displayed run. It repeats the app's constancy
   # check instead of selecting whichever value happens to occur first.
   bdif_code_grp <- function() {
     r <- bdif_res()
     fcs <- if (!is.null(r)) r$factors else (input$bdif_factors %||% "factor")
-    jc <- (if (!is.null(r)) r$run_judge_col else input$bt_judge) %||% "judge"
+    meta <- bdif_meta()
+    jc <- (if (!is.null(r) && !is.null(meta)) meta$judge_col else
+      input$bt_judge) %||% "judge"
     one <- function(fc) sprintf("%s = judge_factor(dat$%s, %s)",
                                 bq(fc), bq(fc), qstr(fc))
     paste0(
@@ -7453,6 +7522,10 @@ server <- function(input, output, session) {
                          selected = if (length(keep)) keep else jf)
   }, ignoreNULL = FALSE)
   bdif_res <- reactiveVal(NULL)
+  # Display-only run state is kept outside the signed btl_dif() result. The
+  # judge-factor maps themselves already live in bootstrap_design; only the
+  # source judge-column name is additional app metadata.
+  bdif_meta <- reactiveVal(NULL)
   observeEvent(input$bdif_run, {
     dif_boot_val(NULL)
     active_bt <- tryCatch(bfit(), error = function(e) e)
@@ -7462,12 +7535,13 @@ server <- function(input, output, session) {
         "procedure and cannot be applied to the frame-adjusted fit. Undo the",
         "frame adjustment before running DIF."), type = "error", duration = 10)
       bdif_res(NULL)
+      bdif_meta(NULL)
       return()
     }
     maps <- tryCatch(bdif_factor_maps(), error = function(e) e)
     if (inherits(maps, "error")) {
       showNotification(conditionMessage(maps), type = "error", duration = 10)
-      bdif_res(NULL); return()
+      bdif_res(NULL); bdif_meta(NULL); return()
     }
     r <- withProgress(message = "Resolving objects by judge group…",
                       value = 0.4,
@@ -7476,18 +7550,15 @@ server <- function(input, output, session) {
                                        effects = bdif_effects(),
                                        alpha = bdif_alpha()),
                                error = function(e) e))
-    # freeze the run's configuration alongside its results, so the overlay
-    # grouping and the reproducible snippets keep describing THIS table even
-    # if the sidebar changes before the next run
-    if (!inherits(r, "error")) {
-      r$run_maps <- maps
-      r$run_judge_col <- input$bt_judge
-    }
     if (inherits(r, "error")) {
       showNotification(paste("DIF analysis failed:", conditionMessage(r)),
                        type = "error", duration = 10)
       bdif_res(NULL)
-    } else bdif_res(r)
+      bdif_meta(NULL)
+    } else {
+      bdif_res(r)
+      bdif_meta(list(judge_col = input$bt_judge))
+    }
   })
   observeEvent(input$bdif_boot_run, {
     f <- tryCatch(bfit(), error = function(e) e)
@@ -7610,8 +7681,9 @@ server <- function(input, output, session) {
     plot_btl_icc(b, sb$object, group = grp)
   }, w = 8, h = 5.5, code = function() {
     sb <- sel_bdif(); r <- bdif_res()
-    vars <- if (!is.null(r) && !is.null(r$run_maps))
-      bdif_term_vars(sb$term, r$run_maps, sb$row) else
+    maps <- if (!is.null(r)) r$bootstrap_design$factors else NULL
+    vars <- if (is.list(maps) && length(maps))
+      bdif_term_vars(sb$term, maps, sb$row) else
       strsplit(sb$term, ":", fixed = TRUE)[[1]]
     # setNames keeps the judge names, so the emitted grp is a judge -> cell map
     # (as bdif_term_group builds it) rather than an unnamed vector
@@ -8001,6 +8073,7 @@ server <- function(input, output, session) {
                      maxit = st$maxit, tol = st$tol),
       code = paste0(btlef_code_setup(), "\nbt <- frm"))
     bdif_res(NULL)
+    bdif_meta(NULL)
     invisible(r)
   }
 
@@ -8877,7 +8950,8 @@ server <- function(input, output, session) {
       resolve = resolve_res(), lr = lr_res(), rescore = rescore_res(),
       contrasts = contr_res(),
       dif = if (is.null(btl_fit())) app_dif_res() else NULL,
-      btl_dif = bdif_res(), btl_frames = btlef_res(),
+      btl_dif = bdif_res(), btl_dif_meta = bdif_meta(),
+      btl_frames = btlef_res(),
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
       dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
       person_weights = person_weight_state(),
@@ -8982,7 +9056,9 @@ server <- function(input, output, session) {
       rr <- p$results %||% list()
       resolve_res(rr$resolve %||% NULL); lr_res(rr$lr %||% NULL)
       rescore_res(rr$rescore %||% NULL); contr_res(rr$contrasts %||% NULL)
-      bdif_res(rr$btl_dif %||% NULL); btlef_res(rr$btl_frames %||% NULL)
+      bdif_res(rr$btl_dif %||% NULL)
+      bdif_meta(rr$btl_dif_meta %||% NULL)
+      btlef_res(rr$btl_frames %||% NULL)
       dim_subsets(rr$dimension_subsets %||% NULL)
       dm_res(rr$dimension_magnitude %||% NULL)
       dep_res(rr$dependence %||% NULL); spread_res(rr$spread %||% NULL)

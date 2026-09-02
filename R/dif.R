@@ -897,8 +897,157 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     out$posthoc <- posthoc_tab
   }
   out <- .tag_tables(out)
+  out$result_signature <- .fit_boot_md5(out)
   class(out) <- "rasch_dif"
   out
+}
+
+.validate_primary_dif_tables <- function(dif, unit, excluded, suffix) {
+  fail <- function() stop(
+    "`dif` is incomplete or internally inconsistent; recompute the DIF analysis",
+    call. = FALSE)
+  required <- c("summary", "terms", "term_ids", "summary_term_ids",
+                "summary_factors", "effects", "alpha", "p_adjust",
+                "bootstrap_design", "fit_signature", "result_signature")
+  if (!all(required %in% names(dif)) || !is.data.frame(dif$summary) ||
+      !is.data.frame(dif$terms) || !is.list(dif$bootstrap_design) ||
+      !is.character(dif$result_signature) ||
+      length(dif$result_signature) != 1L || is.na(dif$result_signature)) fail()
+  unsigned <- unclass(dif)
+  unsigned$result_signature <- NULL
+  if (!.fit_boot_hash_matches(dif$result_signature, unsigned)) fail()
+
+  if (!is.numeric(dif$alpha) || length(dif$alpha) != 1L ||
+      !is.finite(dif$alpha) || dif$alpha <= 0 || dif$alpha >= 1 ||
+      !is.character(dif$p_adjust) || length(dif$p_adjust) != 1L ||
+      is.na(dif$p_adjust) || !dif$p_adjust %in% stats::p.adjust.methods ||
+      !is.character(dif$effects) || length(dif$effects) != 1L ||
+      is.na(dif$effects) || !dif$effects %in% c("main", "factorial")) fail()
+  design <- dif$bootstrap_design
+  if (!all(c("factors", "effects", "p_adjust", "alpha") %in%
+           names(design)) ||
+      !identical(design$effects, dif$effects) ||
+      !identical(design$p_adjust, dif$p_adjust) ||
+      !isTRUE(all.equal(design$alpha, dif$alpha, tolerance = 0))) fail()
+  if (identical(unit, "item")) {
+    if (!is.character(dif$factor_names) || !length(dif$factor_names) ||
+        anyNA(dif$factor_names) || any(!nzchar(dif$factor_names)) ||
+        anyDuplicated(dif$factor_names) ||
+        !is.numeric(dif$n_groups) || length(dif$n_groups) != 1L ||
+        !is.finite(dif$n_groups) || dif$n_groups != floor(dif$n_groups) ||
+        dif$n_groups < 2L || !identical(design$n_groups, dif$n_groups) ||
+        !identical(design$within, if (length(dif$within)) dif$within else NULL))
+      fail()
+  } else {
+    if (!is.character(dif$factors) || !length(dif$factors) ||
+        anyNA(dif$factors) || any(!nzchar(dif$factors)) ||
+        anyDuplicated(dif$factors) || !is.list(design$factors) ||
+        !identical(names(design$factors), dif$factors)) fail()
+  }
+  term_required <- c(unit, "term", "F_value", "p", "p_adj",
+                     "eta2_partial", "significant", "superseded")
+  summary_required <- c(
+    unit, "term", "F_uniform", "p_uniform", "p_uniform_adj",
+    "eta2_uniform", "uniform_DIF", "F_nonuniform", "p_nonuniform",
+    "p_nonuniform_adj", "eta2_nonuniform", "nonuniform_DIF",
+    "superseded")
+  if (!all(term_required %in% names(dif$terms)) ||
+      !all(summary_required %in% names(dif$summary)) ||
+      !is.character(dif$term_ids) || length(dif$term_ids) != nrow(dif$terms) ||
+      anyNA(dif$term_ids) || any(!nzchar(dif$term_ids)) ||
+      !is.character(dif$summary_term_ids) ||
+      length(dif$summary_term_ids) != nrow(dif$summary) ||
+      anyNA(dif$summary_term_ids) || any(!nzchar(dif$summary_term_ids)) ||
+      !is.list(dif$summary_factors) ||
+      length(dif$summary_factors) != nrow(dif$summary) ||
+      any(!vapply(dif$summary_factors, function(x)
+        is.character(x) && length(x) && !anyNA(x) && all(nzchar(x)),
+        logical(1))) ||
+      !is.character(dif$terms[[unit]]) || anyNA(dif$terms[[unit]]) ||
+      any(!nzchar(dif$terms[[unit]])) ||
+      !is.character(dif$summary[[unit]]) || anyNA(dif$summary[[unit]]) ||
+      any(!nzchar(dif$summary[[unit]]))) fail()
+  term_key <- .factor_keys(data.frame(
+    unit = dif$terms[[unit]], term = dif$term_ids,
+    stringsAsFactors = FALSE))
+  summary_key <- .factor_keys(data.frame(
+    unit = dif$summary[[unit]], term = dif$summary_term_ids,
+    stringsAsFactors = FALSE))
+  if (anyDuplicated(term_key) || anyDuplicated(summary_key)) fail()
+
+  valid_num <- function(x) is.numeric(x) && !any(is.nan(x))
+  valid_p <- function(x) valid_num(x) &&
+    all(is.na(x) | (is.finite(x) & x >= 0 & x <= 1))
+  same_num <- function(x, y) valid_num(x) && length(x) == length(y) &&
+    isTRUE(all.equal(as.numeric(x), as.numeric(y), tolerance = 0,
+                     check.attributes = FALSE))
+  if (!valid_num(dif$terms$F_value) ||
+      any(!is.na(dif$terms$F_value) & dif$terms$F_value < 0) ||
+      !valid_p(dif$terms$p) || !valid_p(dif$terms$p_adj) ||
+      !valid_p(dif$terms$eta2_partial) ||
+      !is.logical(dif$terms$significant) || anyNA(dif$terms$significant) ||
+      !is.logical(dif$terms$superseded) || anyNA(dif$terms$superseded)) fail()
+  family <- !dif$term_ids %in% excluded
+  expected_adj <- rep(NA_real_, nrow(dif$terms))
+  usable <- family & is.finite(dif$terms$p)
+  expected_adj[usable] <- stats::p.adjust(
+    dif$terms$p[usable], method = dif$p_adjust, n = sum(family))
+  expected_sig <- !is.na(expected_adj) & expected_adj < dif$alpha
+  if (!same_num(dif$terms$p_adj, expected_adj) ||
+      !identical(dif$terms$significant, expected_sig)) fail()
+
+  # The compact table is a view of the two corresponding omnibus rows. Do
+  # not let reports or restored projects carry a summary whose decisions no
+  # longer agree with the term family that was actually adjusted.
+  map_num <- list(
+    F_uniform = "F_value", p_uniform = "p", p_uniform_adj = "p_adj",
+    eta2_uniform = "eta2_partial")
+  map_non <- list(
+    F_nonuniform = "F_value", p_nonuniform = "p",
+    p_nonuniform_adj = "p_adj", eta2_nonuniform = "eta2_partial")
+  if (identical(unit, "object")) {
+    extra <- c("min_judges", "min_effective_judges",
+               "inference_available")
+    if (!all(extra %in% names(dif$terms)) ||
+        !all(c("min_judges", "min_effective_judges", "uniform_inference",
+               "nonuniform_inference") %in% names(dif$summary))) fail()
+  }
+  for (j in seq_len(nrow(dif$summary))) {
+    u <- which(dif$terms[[unit]] == dif$summary[[unit]][j] &
+               dif$term_ids == dif$summary_term_ids[j])
+    nu <- which(dif$terms[[unit]] == dif$summary[[unit]][j] &
+                dif$term_ids == paste0(dif$summary_term_ids[j], suffix))
+    if (length(u) != 1L || length(nu) > 1L) fail()
+    for (nm in names(map_num))
+      if (!same_num(dif$summary[[nm]][j], dif$terms[[map_num[[nm]]]][u]))
+        fail()
+    if (!identical(dif$summary$uniform_DIF[j],
+                   dif$terms$significant[u]) ||
+        !identical(dif$summary$superseded[j],
+                   dif$terms$superseded[u])) fail()
+    if (length(nu)) {
+      for (nm in names(map_non))
+        if (!same_num(dif$summary[[nm]][j], dif$terms[[map_non[[nm]]]][nu]))
+          fail()
+      if (!identical(dif$summary$nonuniform_DIF[j],
+                     dif$terms$significant[nu])) fail()
+    } else {
+      for (nm in names(map_non))
+        if (!same_num(dif$summary[[nm]][j], NA_real_)) fail()
+      if (!identical(dif$summary$nonuniform_DIF[j], FALSE)) fail()
+    }
+    if (identical(unit, "object")) {
+      if (!same_num(dif$summary$min_judges[j],
+                    dif$terms$min_judges[u]) ||
+          !same_num(dif$summary$min_effective_judges[j],
+                    dif$terms$min_effective_judges[u]) ||
+          !identical(dif$summary$uniform_inference[j],
+                     dif$terms$inference_available[u]) ||
+          !identical(dif$summary$nonuniform_inference[j],
+            if (length(nu)) dif$terms$inference_available[nu] else NA)) fail()
+    }
+  }
+  invisible(NULL)
 }
 
 .validate_dif_result <- function(dif, fit) {
@@ -910,8 +1059,9 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
     stop("`dif` cannot be exported with a paired-comparison fit")
   if (is.null(dif$fit_signature))
     stop("`dif` predates fitted-model provenance; recompute it from this fit")
-  if (!identical(dif$fit_signature, .fit_boot_signature(fit)))
+  if (!.fit_boot_signature_matches(dif$fit_signature, fit))
     stop("`dif` was computed from a different fitted model")
+  .validate_primary_dif_tables(dif, "item", c("Residuals", "ci"), ":ci")
   invisible(NULL)
 }
 
@@ -970,8 +1120,10 @@ print.rasch_dif <- function(x, ...) {
 #' @param by One or more person-factor names nominated in the fit (several
 #'   names give interaction cells), or a grouping vector/data frame with
 #'   one entry per person.
-#' @param p_adjust Familywise adjustment over the pairwise comparisons;
-#'   default \code{"holm"}.
+#' @param p_adjust Adjustment over the pairwise comparisons. The default
+#'   \code{"holm"} controls familywise error; use \code{"BH"} only for
+#'   false-discovery-rate screening. \code{"none"} leaves probabilities
+#'   unadjusted.
 #' @param alpha Significance level for the adjusted probabilities.
 #' @param flag_logits Absolute difference flagged as practically
 #'   significant.
@@ -1710,8 +1862,10 @@ print.rasch_dif_size <- function(x, ...) {
 #'   by the design-cell labels (factor levels joined by \code{":"}).
 #'   Weights are rescaled so the positive and negative parts each sum to
 #'   one.
-#' @param p_adjust Familywise adjustment across items and contrasts. The
-#'   default is \code{"holm"}.
+#' @param p_adjust Adjustment across items and contrasts. The default
+#'   \code{"holm"} controls familywise error; use \code{"BH"} only for
+#'   false-discovery-rate screening. \code{"none"} leaves probabilities
+#'   unadjusted.
 #' @param alpha Significance level for the adjusted probabilities.
 #' @param flag_logits Absolute estimate flagged as practically significant.
 #' @param min_n Cells with fewer responders to an item are dropped from that
@@ -1973,8 +2127,10 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
 #'   \code{\link{dif_contrasts}}.
 #' @param id Person identifiers, specified as for
 #'   \code{\link{dif_contrasts}}.
-#' @param p_adjust Familywise adjustment over this post-hoc family; default
-#'   \code{"holm"}.
+#' @param p_adjust Adjustment over this post-hoc family. The default
+#'   \code{"holm"} controls familywise error; use \code{"BH"} only for
+#'   false-discovery-rate screening. \code{"none"} leaves probabilities
+#'   unadjusted.
 #' @param alpha Significance level for adjusted probabilities.
 #' @param flag_logits Absolute logit magnitude flagged as practically
 #'   important.

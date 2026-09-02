@@ -13,16 +13,18 @@ plot_scree(fit, n_components = 10, parallel = TRUE, reps = 50)
 
 \item{parallel}{Draw the parallel-analysis reference line.}
 
-\item{reps}{Model-simulated replicates for the reference.}
+\item{reps}{Model-simulated replicates for the reference; at least two when
+\code{parallel = TRUE}.}
 }
 \value{
 Called for its plotting side effect; invisibly the eigen table.
 }
 \description{
 Eigenvalues of the residual correlation matrix for the leading components,
-with a model-simulated parallel-analysis reference: responses are simulated
-from the calibrated model (observed missingness kept), the item calibration
-and every person are re-estimated, and the residual eigenvalues recomputed.
+with a model-simulated parallel-analysis reference: response patterns are
+drawn conditional on each person's observed score and missingness pattern,
+the item calibration and every person are re-estimated, and the residual
+eigenvalues recomputed.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the

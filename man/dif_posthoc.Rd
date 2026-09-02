@@ -38,8 +38,10 @@ marginal comparisons.}
 \item{id}{Person identifiers, specified as for
 \code{\link{dif_contrasts}}.}
 
-\item{p_adjust}{Familywise adjustment over this post-hoc family; default
-\code{"holm"}.}
+\item{p_adjust}{Adjustment over this post-hoc family. The default
+\code{"holm"} controls familywise error; use \code{"BH"} only for
+false-discovery-rate screening. \code{"none"} leaves probabilities
+unadjusted.}
 
 \item{alpha}{Significance level for adjusted probabilities.}
 

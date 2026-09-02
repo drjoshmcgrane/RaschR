@@ -36,6 +36,22 @@ test_that("simulate_rasch plants misfit the Rasch diagnostics detect", {
   expect_output(print(d), "careless")
 })
 
+test_that("response-style probabilities remain stable at large strengths", {
+  extreme <- simulate_rasch(
+    40, 5, model = "PCM", n_categories = 3,
+    response_style = list(type = "extreme", prop = 0.5, strength = 1000),
+    seed = 91)
+  sx <- attr(extreme, "truth")$style_idx
+  expect_true(all(as.matrix(extreme[sx, paste0("I0", 1:5)]) %in% c(0L, 2L)))
+
+  middle <- simulate_rasch(
+    40, 5, model = "PCM", n_categories = 3,
+    response_style = list(type = "middle", prop = 0.5, strength = 1000),
+    seed = 92)
+  sm <- attr(middle, "truth")$style_idx
+  expect_true(all(as.matrix(middle[sm, paste0("I0", 1:5)]) == 1L))
+})
+
 test_that("simulate_btl plants misfit the paired-comparison diagnostics detect", {
   # erratic judges carry large fit residuals and low consistency
   d <- simulate_btl(8, 12, erratic_judges = 0.17, seed = 1)
@@ -317,6 +333,21 @@ test_that("misfit layers compose: dependence and style respect DIF / 2nd dim", {
   tr <- attr(d, "truth"); g <- tr$groups
   sty <- seq_len(nrow(d)) %in% tr$style_idx
   expect_gt(mean(d$I02[sty & g != "g2"]) - mean(d$I02[sty & g == "g2"]), 0.8)
+
+  # Response style redraws the source response. The target must therefore be
+  # regenerated from that styled source, not from the response it replaced.
+  d <- simulate_rasch(
+    4000, 6, model = "PCM", n_categories = 4,
+    dependence = list(pairs = list(c("I01", "I02")), strength = 2),
+    response_style = list(type = "extreme", prop = 0.5, strength = 2),
+    seed = 771)
+  tr <- attr(d, "truth")
+  sty <- seq_len(nrow(d)) %in% tr$style_idx
+  dep_coef <- function(rows) unname(stats::coef(stats::lm(
+    d$I02[rows] ~ d$I01[rows] +
+      stats::poly(tr$theta[rows], 5, raw = TRUE)))[2L])
+  expect_gt(dep_coef(sty), 0.25)
+  expect_gt(dep_coef(!sty), 0.20)
 })
 
 test_that("btl_dimensionality reference honours fitted dependence effects", {

@@ -180,8 +180,20 @@ test_that("the scree reference is model-simulated and calibrated", {
   colnames(X) <- sprintf("I%02d", 1:L)
   f1 <- rasch(X)
   pc1 <- residual_pca(f1, 10)
+  n_conditional <- 0L
+  conditional <- .fit_gen_conditional
   set.seed(101)
-  ref1 <- rasch:::.scree_reference(f1, nrow(pc1$eigen_table), 20)
+  ref1 <- testthat::with_mocked_bindings(
+    rasch:::.scree_reference(f1, nrow(pc1$eigen_table), 20),
+    .fit_gen_conditional = function(X, tau_list, na_mask) {
+      n_conditional <<- n_conditional + 1L
+      out <- conditional(X, tau_list, na_mask)
+      expect_equal(rowSums(out, na.rm = TRUE), rowSums(X, na.rm = TRUE))
+      expect_identical(is.na(out), is.na(X))
+      out
+    },
+    .package = "rasch")
+  expect_identical(n_conditional, 20L)
   expect_lt(abs(pc1$eigen_table$eigenvalue[1] / ref1[1] - 1), 0.10)
 
   set.seed(2); thA <- rnorm(Np, 0, 1.4)
@@ -197,4 +209,6 @@ test_that("the scree reference is model-simulated and calibrated", {
   expect_gt(pc2$eigen_table$eigenvalue[1], 1.3 * ref2[1])
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_scree(f2, reps = 5))
+  expect_error(plot_scree(f2, reps = 1), "between 2")
+  expect_no_error(plot_scree(f2, parallel = FALSE, reps = 1))
 })

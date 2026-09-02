@@ -46,6 +46,15 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
 - `parse_check.R` — parses every script in the battery and fails loudly on
   any syntax error; run it (and a smoke subset) before trusting the
   reproducibility claim.
+- `results/scree-conditional-reference.csv` — the score-conditional scree
+  reference checked on dichotomous, PCM, RSM, linked-booklet and explanatory
+  fits. Across 20 null datasets per design, the mean observed/reference first-
+  eigenvalue ratio was 0.990--1.005. With a planted second dimension it was
+  1.165--1.953, and the observed value exceeded the mean reference in all 20
+  datasets for every design. Each outer dataset used 15 conditional reference
+  draws; all 200 fits were analysed. The script is
+  `studies/scree-conditional-reference.R`; the result carries script hash
+  `1cccd03c3acef215fef4816fbea5b35c` and R-tree hash `8856b9d9c95d`.
 
 ## Known limitations surfaced by the battery
 

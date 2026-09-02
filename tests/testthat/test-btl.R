@@ -937,6 +937,52 @@ test_that("btl_dimensionality is calibrated and powered on non-cyclic 2-D data",
   expect_false(d1$leading_structured)
 })
 
+test_that("ordered count rows are refused before fitting", {
+  d <- simulate_btl(5, 12, reps_per_pair = 3,
+                    dependence = list(exposure = 0.3, carry_over = 0.2),
+                    seed = 991)
+  d$count <- 1L
+  fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge",
+             order = "order", count = "count")
+  ignored <- d
+  ignored$count[1L] <- 5L
+  ignored$winner[1L] <- NA_character_
+  expect_no_error(btl(ignored, "object_a", "object_b", winner = "winner",
+                      judge = "judge", order = "order", count = "count"))
+  d$count <- 5L
+  expect_error(
+    btl(d, "object_a", "object_b", winner = "winner", judge = "judge",
+        order = "order", count = "count"),
+    "count-compressed rows cannot be combined")
+
+  # Keep the downstream guard for a fit saved by an earlier package version.
+  # Such a fit may still carry an ordered row with a replication weight.
+  fit$comparisons$weight <- 5
+  fit$dependence_data$weight <- 5
+  out <- btl_dimensionality(fit, reps = 20)
+  expect_true(is.finite(out$bimensions$strength[1L]))
+  expect_true(is.na(out$leading_structured))
+  expect_true(is.na(out$reference$mean))
+  expect_identical(out$reference$reps, 0L)
+  expect_length(out$reference$draws, 0L)
+  expect_true(any(grepl("within-row comparison sequence", out$notes,
+                        fixed = TRUE)))
+  printed <- capture.output(print(out))
+  expect_true(any(grepl("reference unavailable", printed, fixed = TRUE)))
+  expect_false(any(grepl("reference 95%: NA", printed, fixed = TRUE)))
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_error(plot_btl_scree(out))
+
+  # Whole count rows are estimable when position is the only fitted effect:
+  # no within-row response history has to be invented.
+  pos <- btl(d, "object_a", "object_b", winner = "winner",
+             position = TRUE, count = "count")
+  pos_out <- suppressWarnings(btl_dimensionality(pos, reps = 20))
+  expect_identical(pos_out$reference$reps, 20L)
+  expect_true(is.finite(pos_out$reference$mean))
+})
+
 test_that("the default (unanchored, no-position) path is unchanged", {
   # regression net: the sum-zero path must be bit-identical to the pre-anchor
   # engine. Locations and SEs are hard-coded from the code as it stood before
