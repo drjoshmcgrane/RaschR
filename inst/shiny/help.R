@@ -325,11 +325,11 @@ APP_HELP <- c(
     "calculated on the log-unit scale."
   ),
   alpha_tbl = paste(
-    "Reports each item set's unit ratio in an EFRM: the reference unit over the set's own, so a value above one means the finer unit and steeper curves.",
-    "The link uses persons observed in more than one set and estimates their",
-    "distribution on a finite grid within each person group rather than",
-    "assuming a normal shape or a common distribution across groups.",
-    "A value of one is the equal-unit reference; set origins are separate."
+    "Reports each item set's unit ratio: the reference unit over the set's",
+    "own, so a value above one means the finer unit and steeper curves.",
+    "The link uses persons observed in more than one set, estimating their",
+    "distribution on a finite grid within each person group.",
+    "One is the equal-unit reference; set origins are separate."
   ),
   frame_tbl = paste(
     "Reports the unit and fit for each observed item-set by person-group frame.",
