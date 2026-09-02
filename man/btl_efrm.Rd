@@ -106,7 +106,9 @@ structure.
 For object \eqn{k} in set \eqn{s}, let
 \deqn{v_k=\alpha_s\beta_k+\kappa_s,}
 where \eqn{\beta_k} is its within-set location, \eqn{\alpha_s>0} is the set
-unit, and \eqn{\kappa_s} is the set origin. A comparison in panel \eqn{g}
+unit --- in Humphry and Andrich's (2008) sense a unit \emph{ratio}, the
+reference unit over the set's own, so a value above one means the finer
+natural unit --- and \eqn{\kappa_s} is the set origin. A comparison in panel \eqn{g}
 has logit
 \deqn{\phi_g(\beta_a-\beta_b)}
 for objects in the same set, and

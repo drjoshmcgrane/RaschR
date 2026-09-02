@@ -325,7 +325,7 @@ APP_HELP <- c(
     "calculated on the log-unit scale."
   ),
   alpha_tbl = paste(
-    "Reports the relative measurement unit for each item set in an EFRM.",
+    "Reports each item set's unit ratio in an EFRM: the reference unit over the set's own, so a value above one means the finer unit and steeper curves.",
     "The link uses persons observed in more than one set and estimates their",
     "distribution on a finite grid within each person group rather than",
     "assuming a normal shape or a common distribution across groups.",
@@ -545,8 +545,8 @@ APP_HELP <- c(
     "dichotomous item matrix."
   ),
   scree = paste(
-    "Shows residual eigenvalues and, where available, their simulated reference",
-    "range. Components above the reference warrant substantive examination."
+    "Shows residual eigenvalues and, where available, their score-conditional",
+    "simulated reference. Components above it warrant substantive examination."
   ),
   pca_biplot = paste(
     "Displays items and persons in the selected residual-component space.",
@@ -617,7 +617,7 @@ APP_HELP <- c(
     "Agreement with the shifted identity line indicates stable common-object linking."
   ),
   btl_scree = paste(
-    "Shows residual bimension strengths against simulations from the fitted model.",
+    "Shows residual bimension strengths against simulations from the fitted model when the comparison sequence supports them.",
     "A leading value above the reference suggests structured preference cycles."
   ),
   btl_dim_map = paste(

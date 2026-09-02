@@ -14,8 +14,12 @@
 #     v_k = alpha_{s(k)} * beta_k + kappa_{s(k)},
 #
 # with beta_k the within-set (frame-unit) calibration location, alpha_s > 0
-# the set unit, and kappa_s the set origin. A comparison judged in panel g
-# carries the panel unit phi_g, and:
+# the set unit and kappa_s the set origin. In Humphry and Andrich's (2008,
+# eq. 15) terms alpha_s and phi_g are unit RATIOS -- the reference unit over
+# the frame's own -- against reference levels fixed at one, so a value above
+# one means the finer natural unit and the steeper comparisons on the common
+# scale; "unit" is the short name for that ratio throughout. A comparison
+# judged in panel g carries the panel unit phi_g, and:
 #
 #   * WITHIN a set s (both objects in s):
 #         logit P(a beats b) = phi_g * (beta_a - beta_b).
@@ -547,7 +551,9 @@
 #' For object \eqn{k} in set \eqn{s}, let
 #' \deqn{v_k=\alpha_s\beta_k+\kappa_s,}
 #' where \eqn{\beta_k} is its within-set location, \eqn{\alpha_s>0} is the set
-#' unit, and \eqn{\kappa_s} is the set origin. A comparison in panel \eqn{g}
+#' unit --- in Humphry and Andrich's (2008) sense a unit \emph{ratio}, the
+#' reference unit over the set's own, so a value above one means the finer
+#' natural unit --- and \eqn{\kappa_s} is the set origin. A comparison in panel \eqn{g}
 #' has logit
 #' \deqn{\phi_g(\beta_a-\beta_b)}
 #' for objects in the same set, and
