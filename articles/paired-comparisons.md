@@ -199,7 +199,7 @@ dim_fit <- btl(dim_data, object_a = "object_a", object_b = "object_b",
 dimensions <- btl_dimensionality(dim_fit, reps = 20)
 dimensions
 #> Paired-comparison residual dimensionality: 4 bimension(s)
-#> Leading bimension strength 1.060 (68% of residual; reference 95%: 1.403) -> within the conditional reference
+#> Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.526; p = 0.619) -> within the conditional reference
 ```
 
 ``` r
@@ -218,11 +218,12 @@ plot_btl_scree(dimensions)
 ![Residual bimension strengths against the simulated noise
 reference.](paired-comparisons_files/figure-html/plot-scree-1.png)
 
-The simulation reference for dimensionality uses twenty replicates here
-to keep the vignette quick. A final analysis should use enough
-replicates to stabilise the reference distribution. An ordered analysis
-needs one row per comparison: a replication count does not retain the
-sequence needed to construct exposure and carry-over histories, so
+The shaded area runs from the simulated mean to the finite-simulation 5%
+upper limit. The example uses twenty replicates to keep the vignette
+quick; a final analysis should use enough replicates to stabilise the
+reference distribution. An ordered analysis needs one row per
+comparison: a replication count does not retain the sequence needed to
+construct exposure and carry-over histories, so
 [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md)
 refuses that combination.
 

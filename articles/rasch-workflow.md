@@ -106,8 +106,14 @@ residuals and the Holm-adjusted item–trait probabilities. The table
 shows the six items with the largest absolute residuals; the complete
 results are in `fit$items`. A positive residual indicates more variation
 than expected and a negative residual indicates responses that are more
-predictable than expected. The conventional \\\pm2.5\\ band is a
-screening rule rather than a separate hypothesis test.
+predictable than expected — analytically, the mean squares behind these
+residuals compare each item’s empirical characteristic-curve slope with
+the average slope, so a negative residual reads as over-discrimination
+and a positive one as under-discrimination (Wu and Adams, 2013). The
+same source derives the mean squares’ null variance as roughly \\2/N\\,
+which is why no fixed acceptable range survives a change of sample size;
+the conventional \\\pm2.5\\ band is a screening rule rather than a
+separate hypothesis test, and its meaning moves with \\N\\.
 
 ``` r
 
@@ -385,6 +391,18 @@ dimensionality <- dimensionality_test(fit)
 
 ``` r
 
+plot_scree(fit)
+```
+
+![Residual eigenvalues against the score-conditional model-reference
+band.](rasch-workflow_files/figure-html/residual-scree-1.png)
+
+The band shows the residual eigenvalues expected under the fitted model.
+Red points clear its familywise 5% limit; the returned table contains
+both raw and adjusted simulation probabilities.
+
+``` r
+
 plot_pca(fit)
 ```
 
@@ -629,6 +647,9 @@ map with ConQuest integration*. R package version 1.5.
 
 Warm, T. A. (1989). Weighted likelihood estimation of ability in item
 response theory. *Psychometrika*, 54(3), 427–450.
+
+Wu, M., and Adams, R. J. (2013). Properties of Rasch residual fit
+statistics. *Journal of Applied Measurement*, 14(4), 339–355.
 
 Westfall, P. H., and Young, S. S. (1993). *Resampling-Based Multiple
 Testing*. Wiley.

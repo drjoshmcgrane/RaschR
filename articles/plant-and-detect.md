@@ -279,6 +279,22 @@ package for size, and are computationally intensive to re-run. The
 examples in this vignette use small runs and are intended as templates
 for design-specific studies.
 
+One placement in the literature is worth making explicit. Wu and Adams
+(2013) derive the fit mean squares’ null variance as approximately
+\\2/N\\ and show the mean square measures relative characteristic-curve
+slope — both confirmed empirically below — but conclude that the
+*standardised* statistics have a sample-size-independent null,
+attributing contrary reports to flawed simulation designs or to real
+data’s genuine misfit surfacing as samples grow. Wolfe (2013) reached
+for the same remedy this package ships — bootstrapped reference values,
+generated at the estimated parameters — and found it adequate at his
+single 1,000-person design. The item-fit rows below show a third
+mechanism neither account covers: with data generated from the model and
+eight items, infit z beyond 1.96 flags 11.5% of correctly fitting items
+at 250 persons and 68.4% at 4,000, because the statistics are computed
+at estimated parameters. The bootstrap rows alongside show the same
+statistics calibrated once each replicate repeats the estimation.
+
 The principal calibration results, each carried with its script and
 provenance in the result tables:
 
@@ -329,7 +345,6 @@ provenance in the result tables:
 | Paired-comparison effect tests | 8 objects, 14 judges | position/exposure nulls 5.8%/5.9%; carry-over 8.3% at 14 judges, 5.3% at 30; power 62/39/77% at 0.6 logits |
 | Paired-comparison effect multiplicity | 8 objects, 30 judges, position, exposure and carry-over fitted together | Holm familywise error 5.9% (1,000 null replicates); adjusted power at 0.3/0.6 logits was 42/97% for position, 10/44% for exposure and 23/85% for carry-over |
 | BTL second-attribute simulation | 3-15 objects, correlations -0.8 to 1; strong 15-object dimensionality design | maximum realised-correlation error 3.9e-16 over 1,200 draws; leading-structure power 87% over 100 datasets |
-| Score-conditional scree reference | 400 persons x 10 items; dichotomous, PCM, RSM, linked-booklet and explanatory fits; 20 datasets per condition with 15 reference draws | null mean observed/reference first-eigenvalue ratios were 0.990-1.005; with a planted second dimension they were 1.165-1.953, and all 20 datasets in every design exceeded the mean reference |
 | Cross-package agreement | sirt, eRm, TAM, BradleyTerry2, VGAM, lme4 | identical-likelihood comparators at solver precision; current EFRM set-unit bias +0.0036 vs TAM +0.0008 dichotomous and +0.0035 vs +0.0020 polytomous |
 | Cross-package diagnostics | eRm, TAM, psych, difR, PerFit, sirt | alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98; DIF detection 80-88% across methods; dimensionality conservative (exact null, 67% power) vs DETECT (100%) |
 | EFRM boundary conditions | 3-8 items/set; 80-1,000 persons; ratios to 3.5; targeting, missingness and non-normality | absolute bias at most 0.022 under the model; all three-item links refused; at 80 persons 11% refused and 2% did not converge; 41- and 101-point grids agreed |

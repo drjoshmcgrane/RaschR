@@ -327,6 +327,22 @@ result tables are under <code>tools/simval/</code>; they are excluded
 from the CRAN source package for size, and are computationally intensive
 to re-run. The examples in this vignette use small runs and are intended
 as templates for design-specific studies.</p>
+<p>One placement in the literature is worth making explicit. Wu and
+Adams (2013) derive the fit mean squares’ null variance as approximately
+<span class="math inline">\(2/N\)</span> and show the mean square
+measures relative characteristic-curve slope — both confirmed
+empirically below — but conclude that the <em>standardised</em>
+statistics have a sample-size-independent null, attributing contrary
+reports to flawed simulation designs or to real data’s genuine misfit
+surfacing as samples grow. Wolfe (2013) reached for the same remedy this
+package ships — bootstrapped reference values, generated at the
+estimated parameters — and found it adequate at his single 1,000-person
+design. The item-fit rows below show a third mechanism neither account
+covers: with data generated from the model and eight items, infit z
+beyond 1.96 flags 11.5% of correctly fitting items at 250 persons and
+68.4% at 4,000, because the statistics are computed at estimated
+parameters. The bootstrap rows alongside show the same statistics
+calibrated once each replicate repeats the estimation.</p>
 <p>The principal calibration results, each carried with its script and
 provenance in the result tables:</p>
 <table class="table">
@@ -710,28 +726,20 @@ dimensionality design</td>
 leading-structure power 87% over 100 datasets</td>
 </tr>
 <tr class="even">
-<td>Score-conditional scree reference</td>
-<td>400 persons x 10 items; dichotomous, PCM, RSM, linked-booklet and
-explanatory fits; 20 datasets per condition with 15 reference draws</td>
-<td>null mean observed/reference first-eigenvalue ratios were
-0.990-1.005; with a planted second dimension they were 1.165-1.953, and
-all 20 datasets in every design exceeded the mean reference</td>
-</tr>
-<tr class="odd">
 <td>Cross-package agreement</td>
 <td>sirt, eRm, TAM, BradleyTerry2, VGAM, lme4</td>
 <td>identical-likelihood comparators at solver precision; current EFRM
 set-unit bias +0.0036 vs TAM +0.0008 dichotomous and +0.0035 vs +0.0020
 polytomous</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Cross-package diagnostics</td>
 <td>eRm, TAM, psych, difR, PerFit, sirt</td>
 <td>alpha exact; item fit r 0.97-0.99 aligned; person fit rho 0.97-0.98;
 DIF detection 80-88% across methods; dimensionality conservative (exact
 null, 67% power) vs DETECT (100%)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>EFRM boundary conditions</td>
 <td>3-8 items/set; 80-1,000 persons; ratios to 3.5; targeting,
 missingness and non-normality</td>
@@ -739,7 +747,7 @@ missingness and non-normality</td>
 refused; at 80 persons 11% refused and 2% did not converge; 41- and
 101-point grids agreed</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>EFRM weak-unit regression</td>
 <td>500 persons, two groups, equal item difficulties</td>
 <td>the one-set group units were retained with log-unit SE 0.53; the
@@ -747,14 +755,14 @@ corresponding flat two-set link was refused when only 9 of 30 resamples
 were usable, separating imprecise group-unit estimation from unstable
 set linking</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>BTL-EFRM staged link</td>
 <td>6 objects/set, 12 judges</td>
 <td>after the reconciled-panel refit, log set-unit bias decreased from
 -0.106 at 10 repetitions per pair to -0.041 at 20, -0.016 at 50 and
 -0.006 at 100 (500 datasets per cell)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Explanatory Rasch models</td>
 <td>LLTM, LPCM, dichotomous and ordered CJ, with independent or
 judge-clustered comparisons</td>
@@ -764,7 +772,7 @@ judge-clustered comparisons</td>
 familywise error 4.3-4.7% and power 98.3-100% for a 0.8-logit departure
 (300 replicates per condition)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Explanatory edge cases</td>
 <td>300-2,000 persons; dichotomous, four-category and
 mixed-maximum-score items</td>
@@ -775,7 +783,7 @@ probability rejected 98.6-100% and is retained only as
 <code>p_naive</code>
 </td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Explanatory calibration R-squared</td>
 <td>uninformative and true designs, 12 and 24 items</td>
 <td>the raw coefficient averaged 0.170 and 0.085 for uninformative

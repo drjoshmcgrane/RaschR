@@ -9,21 +9,37 @@
 with a model-simulated parallel-analysis reference: response patterns are
 drawn conditional on each person's observed score and missingness pattern,
 the item calibration and every person are re-estimated, and the residual
-eigenvalues recomputed.
+eigenvalues recomputed. The plotted reference is a finite-simulation 5
+familywise upper critical curve, obtained from the maximum standardised
+departure across the displayed components. Each simulated maximum is
+standardised against the other simulated draws so that it is comparable
+with the externally standardised observed value. The returned table also gives
+the reference mean, marginal upper-tail probability and single-step
+adjusted probability.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the
-fitted model (Raiche 2005; Chou &amp;amp; Wang 2010). Observed eigenvalues above
-the reference suggest structure beyond what the model itself produces."><meta property="og:description" content="Eigenvalues of the residual correlation matrix for the leading components,
+fitted model (Raiche 2005; Chou &amp;amp; Wang 2010). An observed eigenvalue above
+the critical reference has a familywise-adjusted simulated upper-tail
+probability at or below .05 and suggests structure beyond what the fitted model
+produces."><meta property="og:description" content="Eigenvalues of the residual correlation matrix for the leading components,
 with a model-simulated parallel-analysis reference: response patterns are
 drawn conditional on each person's observed score and missingness pattern,
 the item calibration and every person are re-estimated, and the residual
-eigenvalues recomputed.
+eigenvalues recomputed. The plotted reference is a finite-simulation 5
+familywise upper critical curve, obtained from the maximum standardised
+departure across the displayed components. Each simulated maximum is
+standardised against the other simulated draws so that it is comparable
+with the externally standardised observed value. The returned table also gives
+the reference mean, marginal upper-tail probability and single-step
+adjusted probability.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the
-fitted model (Raiche 2005; Chou &amp;amp; Wang 2010). Observed eigenvalues above
-the reference suggest structure beyond what the model itself produces."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+fitted model (Raiche 2005; Chou &amp;amp; Wang 2010). An observed eigenvalue above
+the critical reference has a familywise-adjusted simulated upper-tail
+probability at or below .05 and suggests structure beyond what the fitted model
+produces."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -68,12 +84,20 @@ the reference suggest structure beyond what the model itself produces."><meta pr
 with a model-simulated parallel-analysis reference: response patterns are
 drawn conditional on each person's observed score and missingness pattern,
 the item calibration and every person are re-estimated, and the residual
-eigenvalues recomputed.
+eigenvalues recomputed. The plotted reference is a finite-simulation 5<!-- % -->
+familywise upper critical curve, obtained from the maximum standardised
+departure across the displayed components. Each simulated maximum is
+standardised against the other simulated draws so that it is comparable
+with the externally standardised observed value. The returned table also gives
+the reference mean, marginal upper-tail probability and single-step
+adjusted probability.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the
-fitted model (Raiche 2005; Chou &amp; Wang 2010). Observed eigenvalues above
-the reference suggest structure beyond what the model itself produces.</p>
+fitted model (Raiche 2005; Chou &amp; Wang 2010). An observed eigenvalue above
+the critical reference has a familywise-adjusted simulated upper-tail
+probability at or below .05 and suggests structure beyond what the fitted model
+produces.</p>
     </div>
 
     <div class="section level2">
@@ -90,21 +114,27 @@ the reference suggest structure beyond what the model itself produces.</p>
 
 
 <dt id="arg-n-components">n_components<a class="anchor" aria-label="anchor" href="#arg-n-components"></a></dt>
-<dd><p>Number of leading components to display.</p></dd>
+<dd><p>Number of leading components to display. The familywise
+adjustment covers these components.</p></dd>
 
 
 <dt id="arg-parallel">parallel<a class="anchor" aria-label="anchor" href="#arg-parallel"></a></dt>
-<dd><p>Draw the parallel-analysis reference line.</p></dd>
+<dd><p>Draw the parallel-analysis reference band.</p></dd>
 
 
 <dt id="arg-reps">reps<a class="anchor" aria-label="anchor" href="#arg-reps"></a></dt>
-<dd><p>Model-simulated replicates for the reference; at least two when
-<code>parallel = TRUE</code>.</p></dd>
+<dd><p>Model-simulated replicates for the reference; at least 20 when
+<code>parallel = TRUE</code>. Larger values give a more stable upper-tail
+reference.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Called for its plotting side effect; invisibly the eigen table.</p>
+    <p>Called for its plotting side effect; invisibly the eigen table. With
+  parallel analysis it also contains <code>reference_mean</code>,
+  <code>reference_critical</code>, <code>parallel_p</code>, <code>parallel_p_adj</code>,
+  <code>parallel_significant</code>, and <code>n_reference</code>. The adjustment is
+  recorded in the table's <code>parallel_adjustment</code> attribute.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -115,6 +145,8 @@ the reference suggest structure beyond what the model itself produces.</p>
   response models with principal component analysis on standardized
   residuals. <em>Educational and Psychological Measurement</em>, 70(5),
   717-731.</p>
+<p>Westfall, P. H., &amp; Young, S. S. (1993). <em>Resampling-Based Multiple
+  Testing: Examples and Methods for p-Value Adjustment</em>. Wiley.</p>
     </div>
 
     <div class="section level2">
@@ -123,7 +155,7 @@ the reference suggest structure beyond what the model itself produces.</p>
 <span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2</span>, <span class="fl">2</span>, length.out <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">X</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">300</span> <span class="op">*</span> <span class="fl">8</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">300</span><span class="op">)</span>, <span class="va">d</span>, <span class="st">"-"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="fl">300</span>, <span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">plot_scree</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, reps <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">plot_scree</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, reps <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></span>
 <span class="r-plt img"><img src="plot_scree-1.png" alt="" width="700" height="433"></span>
 </code></pre></div>
     </div>

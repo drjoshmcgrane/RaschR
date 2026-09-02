@@ -21,16 +21,19 @@ btl_dimensionality(fit, reps = 200L)
 
 - reps:
 
-  Model-simulated replicates for the noise reference.
+  Model-simulated replicates for the noise reference; at least 20.
+  Larger values give a more stable upper-tail reference.
 
 ## Value
 
 A list of class `"rasch_btl_dim"`: `bimensions` (per bimension: strength
-and share of residual size; the reference mean, 95th percentile, and the
-clears-the-reference flag are reported for the leading bimension and
-`NA` for the rest); `coords` (each object's position in the leading
+and share of residual size; the reference mean, 5 upper critical value,
+and the clears-the-reference flag are reported for the leading bimension
+and `NA` for the rest); `coords` (each object's position in the leading
 bimension plane, for the residual map); `leading_structured` (whether
-bimension 1 clears its reference); `residual_matrix`; and `notes`.
+bimension 1 clears its reference); `reference` (the simulated mean,
+finite-simulation 5 exceedance count divided by one plus `reps`);
+`residual_matrix`; and `notes`.
 
 ## Details
 
@@ -62,5 +65,5 @@ d <- data.frame(a = rep(pr[, 1], each = 30), b = rep(pr[, 2], each = 30))
 d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
 btl_dimensionality(btl(d, "a", "b", "win"), reps = 20)
 #> Paired-comparison residual dimensionality: 3 bimension(s)
-#> Leading bimension strength 1.370 (91% of residual; reference 95%: 2.440) -> within the conditional reference
+#> Leading bimension strength 1.370 (91% of residual; reference 5% upper limit: 2.737; p = 0.952) -> within the conditional reference
 ```

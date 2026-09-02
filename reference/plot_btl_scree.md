@@ -1,9 +1,8 @@
 # Scree of paired-comparison residual bimensions
 
 Bimension strengths against the model-simulated noise reference (its
-mean and 95th percentile band), when that reference is available. A
-leading bar clearing the band is structured residual dependence – a
-likely second attribute.
+mean and finite-simulation 5 available. A leading bar clearing the band
+is structured residual dependence – a likely second attribute.
 
 ## Usage
 
