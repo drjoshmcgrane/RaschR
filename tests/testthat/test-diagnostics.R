@@ -194,7 +194,21 @@ test_that("the scree reference is model-simulated and calibrated", {
     },
     .package = "rasch")
   expect_identical(n_conditional, 20L)
-  expect_lt(abs(pc1$eigen_table$eigenvalue[1] / ref1[1] - 1), 0.10)
+  expect_lt(abs(pc1$eigen_table$eigenvalue[1] /
+                  attr(ref1, "mean")[1] - 1), 0.10)
+  expect_identical(dim(attr(ref1, "draws")), c(20L, 10L))
+  expect_identical(attr(ref1, "n_used"), 20L)
+  expect_identical(attr(ref1, "alpha"), 0.05)
+  expect_equal(as.numeric(ref1), as.numeric(attr(ref1, "mean")))
+  inf1 <- rasch:::.sim_upper_family(
+    pc1$eigen_table$eigenvalue, attr(ref1, "draws"), 0.05)
+  expect_true(all(inf1$p_adjusted >= inf1$p))
+  expect_true(all(inf1$p > 0 & inf1$p <= 1))
+  expect_true(all(inf1$p_adjusted > 0 & inf1$p_adjusted <= 1))
+  expect_identical(inf1$significant, inf1$p_adjusted <= 0.05)
+  expect_identical(inf1$significant,
+                   pc1$eigen_table$eigenvalue > inf1$critical)
+  expect_true(all(inf1$critical >= inf1$mean))
 
   set.seed(2); thA <- rnorm(Np, 0, 1.4)
   thB <- 0.3 * thA + sqrt(1 - 0.09) * rnorm(Np, 0, 1.4)
@@ -206,9 +220,37 @@ test_that("the scree reference is model-simulated and calibrated", {
   pc2 <- residual_pca(f2, 10)
   set.seed(102)
   ref2 <- rasch:::.scree_reference(f2, nrow(pc2$eigen_table), 20)
-  expect_gt(pc2$eigen_table$eigenvalue[1], 1.3 * ref2[1])
+  inf2 <- rasch:::.sim_upper_family(
+    pc2$eigen_table$eigenvalue, attr(ref2, "draws"), 0.05)
+  expect_gt(pc2$eigen_table$eigenvalue[1], inf2$critical[1])
   pdf(NULL); on.exit(dev.off())
-  expect_no_error(plot_scree(f2, reps = 5))
-  expect_error(plot_scree(f2, reps = 1), "between 2")
+  expect_no_error(et <- plot_scree(f2, reps = 20))
+  expect_true(all(c("reference_mean", "reference_critical", "parallel_p",
+                    "parallel_p_adj", "parallel_significant",
+                    "n_reference") %in% names(et)))
+  expect_true(all(et$parallel_p > 0 & et$parallel_p <= 1))
+  expect_true(all(et$parallel_p_adj >= et$parallel_p))
+  expect_identical(et$parallel_significant, et$parallel_p_adj <= 0.05)
+  expect_identical(attr(et, "parallel_adjustment"),
+                   "single-step leave-one-out maximum-standardised-statistic")
+  expect_error(plot_scree(f2, reps = 19), "between 20")
   expect_no_error(plot_scree(f2, parallel = FALSE, reps = 1))
+})
+
+test_that("simulated upper-tail decisions use finite familywise probabilities", {
+  draws <- cbind(a = seq_len(20), b = rev(seq_len(20)))
+  out <- rasch:::.sim_upper_family(c(100, 20), draws, alpha = 0.05)
+  expect_equal(unname(out$p), c(1 / 21, 2 / 21))
+  expect_true(all(out$p_adjusted >= out$p))
+  expect_identical(out$significant, out$p_adjusted <= 0.05)
+  expect_identical(out$significant,
+                   unname(c(100, 20) > out$critical))
+  expect_true(out$significant[1])
+  expect_false(out$significant[2])
+  manual_max <- vapply(seq_len(nrow(draws)), function(i) {
+    training <- draws[-i, , drop = FALSE]
+    max((draws[i, ] - colMeans(training)) /
+          apply(training, 2, stats::sd))
+  }, numeric(1))
+  expect_equal(out$max_null, manual_max)
 })

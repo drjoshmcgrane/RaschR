@@ -9,16 +9,20 @@ btl_dimensionality(fit, reps = 200L)
 \arguments{
 \item{fit}{A paired-comparison fit from \code{\link{btl}}.}
 
-\item{reps}{Model-simulated replicates for the noise reference.}
+\item{reps}{Model-simulated replicates for the noise reference; at least 20.
+Larger values give a more stable upper-tail reference.}
 }
 \value{
 A list of class \code{"rasch_btl_dim"}: \code{bimensions} (per
-  bimension: strength and share of residual size; the reference mean, 95th
-  percentile, and the clears-the-reference flag are reported for the
+  bimension: strength and share of residual size; the reference mean, 5%
+  upper critical value, and the clears-the-reference flag are reported for the
   leading bimension and \code{NA} for the rest);
   \code{coords} (each object's position in the leading bimension plane, for
   the residual map); \code{leading_structured} (whether bimension 1 clears
-  its reference); \code{residual_matrix}; and \code{notes}.
+  its reference); \code{reference} (the simulated mean, finite-simulation
+  5% critical value and upper-tail probability, calculated as one plus the
+  exceedance count divided by one plus \code{reps}); \code{residual_matrix}; and
+  \code{notes}.
 }
 \description{
 Decomposes the skew-symmetric matrix of observed-minus-expected pair

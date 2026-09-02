@@ -1050,6 +1050,25 @@
 #' the requested refits to be usable. Otherwise inference is withheld because
 #' failed refits can select a non-random subset of the bootstrap null.
 #'
+#' The approach follows Wolfe (2013), who bootstrapped critical values for
+#' Rasch fit statistics by generating from the estimated person and item
+#' parameters and averaging replicate quantiles into cut points. This
+#' implementation conditions on the observed scores instead --- generating
+#' at estimated locations carries their estimation error into the null,
+#' which his single 1,000-person design could not surface --- and returns
+#' per-statistic probabilities under a declared multiplicity policy rather
+#' than averaged cut points.
+#'
+#' The need for a replicated null is not a real-data artefact. Wu and Adams
+#' (2013) derive the mean squares' null variance as about \eqn{2/N} but
+#' conclude the standardised statistics have a sample-size-independent null,
+#' reading contrary reports as flawed simulation or as genuine misfit
+#' surfacing in large samples. Under data generated from the model ---
+#' neither explanation applies --- infit z beyond 1.96 still flags 11.5
+#' percent of correctly fitting items at 250 persons and 68.4 percent at
+#' 4,000 with eight items: parameter estimation alone moves the null, and
+#' reproducing that estimation in every replicate is what calibrates it.
+#'
 #' @param fit A fitted object from \code{\link{rasch}} or \code{\link{btl}}.
 #'   Extended-frame, many-facet and explanatory person-by-item fits are not
 #'   supported. Explanatory paired-comparison fits are supported.
@@ -1077,6 +1096,13 @@
 #'   and 90 percent of the requested refits are usable.
 #' @references Andrich, D. and Marais, I. (2019) \emph{A Course in Rasch
 #'   Measurement Theory}. Springer.
+#'
+#' Wolfe, E. W. (2013). A bootstrap approach to evaluating person and item
+#'   fit to the Rasch model. \emph{Journal of Applied Measurement}, 14(1),
+#'   1--9.
+#'
+#' Wu, M. and Adams, R. J. (2013). Properties of Rasch residual fit
+#'   statistics. \emph{Journal of Applied Measurement}, 14(4), 339--355.
 #' Molenaar, I. W. and Hoijtink, H. (1996). Person-fit test statistics for the
 #'   Rasch model. Applied Measurement in Education, 9, 87--106.
 #'

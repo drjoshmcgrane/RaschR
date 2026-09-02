@@ -16,9 +16,9 @@ Called for its plotting side effect.
 }
 \description{
 Bimension strengths against the model-simulated noise reference (its mean
-and 95th percentile band), when that reference is available. A leading bar
-clearing the band is structured residual dependence -- a likely second
-attribute.
+and finite-simulation 5% upper reference band), when that reference is
+available. A leading bar clearing the band is structured residual
+dependence -- a likely second attribute.
 }
 \examples{
 \donttest{

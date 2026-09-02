@@ -128,6 +128,21 @@ test_that("invalid app analysis files are refused", {
   expect_true(isTRUE(attr(upgraded, "rasch_project_legacy")))
   expect_no_error(.validate_app_project(upgraded))
 
+  # Schema 1 could save a bootstrap before result fingerprints existed. The
+  # analysis remains reopenable, but that unverifiable result is not restored.
+  old_bs <- suppressWarnings(fit_bootstrap(fit, B = 3, seed = 17))
+  old_bs$result_signature <- NULL
+  legacy$results <- list(bootstrap = list(bs = old_bs, B = 3L,
+                                          seed = 17L, kind = "rasch"))
+  saveRDS(legacy, bad)
+  expect_warning(upgraded_bs <- .read_app_project(bad),
+                 "omitted: fit bootstrap")
+  expect_null(upgraded_bs$results$bootstrap)
+  expect_identical(attr(upgraded_bs, "rasch_project_legacy_dropped"),
+                   "fit bootstrap")
+  expect_s3_class(upgraded_bs$base_fit, "rasch")
+  expect_no_error(.validate_app_project(upgraded_bs))
+
   empty_fit <- structure(list(), class = "rasch")
   malformed_fit <- .seal_app_project(list(
     format = "rasch-shiny-project", schema = 2L,
@@ -276,6 +291,19 @@ test_that("CJ results and background work remain tied to their launching fit", {
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path), add = TRUE)
   .save_app_project(project, path)
+
+  legacy_path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(legacy_path), add = TRUE)
+  legacy <- project
+  legacy$schema <- 1L
+  legacy$binding <- NULL
+  legacy$results$btl_dif$result_signature <- NULL
+  saveRDS(legacy, legacy_path)
+  expect_warning(upgraded <- .read_app_project(legacy_path),
+                 "Comparative Judgement DIF")
+  expect_null(upgraded$results$btl_dif)
+  expect_null(upgraded$results$btl_dif_meta)
+  expect_s3_class(upgraded$base_fit, "rasch_btl")
 
   shiny::testServer(e$server, {
     # A successful replacement owns none of the preceding fit's requested

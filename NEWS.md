@@ -7,10 +7,15 @@
   the sequence needed to estimate exposure and carry-over effects. The
   dimensionality diagnostic retains the same guard for older saved fits.
 * Scree parallel analysis now draws from the exact Rasch distribution
-  conditional on each person's observed score and missingness pattern. Saved
-  result and application-project signatures use platform-independent binary
-  serialisation; analysis files carrying the earlier text signatures remain
-  valid across Windows and Unix line endings.
+  conditional on each person's observed score and missingness pattern. Its
+  shaded reference band runs from the simulated mean to a finite-simulation
+  familywise 5% upper critical curve. Each simulated maximum is standardised
+  against the other draws, so its reference matches the externally
+  standardised observed value. The returned table gives marginal and adjusted
+  upper-tail probabilities for every displayed component.
+  Saved result and application-project signatures use platform-independent
+  binary serialisation; analysis files carrying the earlier text signatures
+  remain valid across Windows and Unix line endings.
 * Crossed Extended Frames groups retain their original column names in fitted
   objects and factorial unit tables. Frame-defining groups are therefore
   excluded correctly from a subsequent DIF analysis even when their names
@@ -46,8 +51,10 @@
   estimates. Application project files use a sealed schema that detects a
   changed dataset, fit, history or saved result before restoration, and
   structurally validates every stored fit and history entry. Schema-1 files
-  are structurally checked and upgraded when opened; saving them again records
-  the new integrity information.
+  are structurally checked and upgraded when opened; saved bootstrap or DIF
+  results that predate the current fingerprints are omitted with a warning,
+  while the data, fit and history are retained. Saving the analysis again
+  records the new integrity information.
 * Fit bootstraps now withhold inference when fewer than 90% of 30 or more
   requested refits are usable. This prevents sparse polytomous analyses from
   reporting a null distribution selectively thinned by failed category

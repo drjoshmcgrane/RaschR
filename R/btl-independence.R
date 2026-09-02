@@ -248,11 +248,12 @@ print.rasch_btl_transitivity <- function(x, ...) {
     s <- .btl_bimensions(rr)$strength
     if (length(s)) s[1] else 0
   }, 0)
-  ref_mean <- mean(lead_ref)
-  ref_p95 <- stats::quantile(lead_ref, .95, names = FALSE)
+  inference <- .sim_upper_family(bm$strength[1], matrix(lead_ref, ncol = 1L))
+  ref_mean <- inference$mean[1L]
+  ref_p95 <- inference$critical[1L]
   nb <- length(bm$strength)
   prop <- 2 * bm$strength^2 / bm$total
-  lead_flag <- if (complete_pairs) bm$strength[1] > ref_p95 else NA
+  lead_flag <- if (complete_pairs) inference$significant[1L] else NA
   bimensions <- data.frame(
     bimension = seq_len(nb), strength = bm$strength,
     prop_residual = prop,
@@ -272,8 +273,11 @@ print.rasch_btl_transitivity <- function(x, ...) {
   out <- list(
     bimensions = bimensions, coords = coords,
     leading_structured = lead_flag,
-    reference = list(mean = ref_mean, p95 = ref_p95, reps = reps,
-                     draws = lead_ref),
+    reference = list(mean = ref_mean, p95 = ref_p95, p = inference$p[1L],
+                     p_adj = inference$p_adjusted[1L], reps = reps,
+                     n_used = inference$n_used, alpha = inference$alpha,
+                     draws = lead_ref,
+                     method = inference$method),
     residual_matrix = R, notes = notes)
   class(out) <- "rasch_btl_dim"
   out
@@ -301,14 +305,18 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' residual structure are then confounded.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
-#' @param reps Model-simulated replicates for the noise reference.
+#' @param reps Model-simulated replicates for the noise reference; at least 20.
+#'   Larger values give a more stable upper-tail reference.
 #' @return A list of class \code{"rasch_btl_dim"}: \code{bimensions} (per
-#'   bimension: strength and share of residual size; the reference mean, 95th
-#'   percentile, and the clears-the-reference flag are reported for the
+#'   bimension: strength and share of residual size; the reference mean, 5%
+#'   upper critical value, and the clears-the-reference flag are reported for the
 #'   leading bimension and \code{NA} for the rest);
 #'   \code{coords} (each object's position in the leading bimension plane, for
 #'   the residual map); \code{leading_structured} (whether bimension 1 clears
-#'   its reference); \code{residual_matrix}; and \code{notes}.
+#'   its reference); \code{reference} (the simulated mean, finite-simulation
+#'   5% critical value and upper-tail probability, calculated as one plus the
+#'   exceedance count divided by one plus \code{reps}); \code{residual_matrix}; and
+#'   \code{notes}.
 #' @references Gower, J. C. (1977). The analysis of asymmetry and orthogonality.
 #'   In J. R. Barra et al. (Eds.), \emph{Recent Developments in Statistics}
 #'   (pp. 109-123). North-Holland.
@@ -472,16 +480,17 @@ btl_dimensionality <- function(fit, reps = 200L) {
     s <- .btl_bimensions(Rr)$strength
     if (length(s)) s[1] else 0
   }, 0)
-  ref_mean <- if (length(lead_ref)) mean(lead_ref) else NA_real_
-  ref_p95 <- if (length(lead_ref))
-    stats::quantile(lead_ref, 0.95, names = FALSE) else NA_real_
+  inference <- if (length(lead_ref))
+    .sim_upper_family(bm$strength[1], matrix(lead_ref, ncol = 1L)) else NULL
+  ref_mean <- if (is.null(inference)) NA_real_ else inference$mean[1L]
+  ref_p95 <- if (is.null(inference)) NA_real_ else inference$critical[1L]
 
   nb <- length(bm$strength)
   prop <- 2 * bm$strength^2 / bm$total
   # under a shared fixed order the verdict is not identifiable: withhold it
   # (NA) rather than report a confounded flag
   lead_flag <- if (reference_unavailable || shared_order || !complete_pairs) NA else
-    bm$strength[1] > ref_p95
+    inference$significant[1L]
   bimensions <- data.frame(
     bimension = seq_len(nb), strength = bm$strength,
     prop_residual = prop,
@@ -519,9 +528,17 @@ btl_dimensionality <- function(fit, reps = 200L) {
               # keep the public verdict consistent with above_reference:
               # TRUE/FALSE when identified, NA when inference is withheld
               leading_structured = lead_flag,
-              reference = list(mean = ref_mean, p95 = ref_p95,
-                               reps = if (reference_unavailable) 0L else reps,
-                               draws = lead_ref),
+              reference = list(
+                mean = ref_mean, p95 = ref_p95,
+                p = if (is.null(inference)) NA_real_ else inference$p[1L],
+                p_adj = if (is.null(inference)) NA_real_ else
+                  inference$p_adjusted[1L],
+                reps = if (reference_unavailable) 0L else reps,
+                n_used = length(lead_ref),
+                alpha = if (is.null(inference)) 0.05 else inference$alpha,
+                draws = lead_ref,
+                method = if (is.null(inference)) NA_character_ else
+                  inference$method),
               residual_matrix = R, notes = notes)
   class(out) <- "rasch_btl_dim"
   out
@@ -536,13 +553,20 @@ print.rasch_btl_dim <- function(x, ...) {
   else "within the conditional reference"
   cat(sprintf("Paired-comparison residual dimensionality: %d bimension(s)\n",
               nrow(b)))
-  if (is.finite(x$reference$p95))
-    cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference 95%%: %.3f) -> %s\n",
+  p_ref <- x$reference[["p"]]
+  if (is.null(p_ref) && length(x$reference$draws))
+    p_ref <- (1 + sum(x$reference$draws >= b$strength[1])) /
+      (length(x$reference$draws) + 1)
+  if (is.finite(x$reference$p95)) {
+    probability <- if (length(p_ref) && is.finite(p_ref))
+      sprintf("; p = %.3f", p_ref) else ""
+    cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference 5%% upper limit: %.3f%s) -> %s\n",
                 b$strength[1], 100 * b$prop_residual[1], x$reference$p95,
-                verdict))
-  else
+                probability, verdict))
+  } else {
     cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference unavailable) -> %s\n",
                 b$strength[1], 100 * b$prop_residual[1], verdict))
+  }
   for (n in x$notes) cat("Note:", n, "\n")
   invisible(x)
 }
@@ -609,9 +633,9 @@ plot_btl_transitivity <- function(x, by = c("auto", "judge", "object"), ...) {
 #' Scree of paired-comparison residual bimensions
 #'
 #' Bimension strengths against the model-simulated noise reference (its mean
-#' and 95th percentile band), when that reference is available. A leading bar
-#' clearing the band is structured residual dependence -- a likely second
-#' attribute.
+#' and finite-simulation 5% upper reference band), when that reference is
+#' available. A leading bar clearing the band is structured residual
+#' dependence -- a likely second attribute.
 #'
 #' @param x A \code{"rasch_btl_dim"} object.
 #' @param ... Unused.
@@ -636,14 +660,16 @@ plot_btl_scree <- function(x, ...) {
   rect(seq_len(k) - 0.32, 0, seq_len(k) + 0.32, b$strength,
        col = ifelse(c(isTRUE(x$leading_structured), rep(FALSE, k - 1)),
                     .rr$blue, .rr$soft), border = NA)
-  # noise reference: mean line with a shaded band up to the 95th percentile
+  # Noise reference: mean line with a shaded band up to the finite-simulation
+  # 5% upper critical value.
   if (has_ref) {
     rect(0.5, ref_m, k + 0.5, ref_p, col = "#dc262622", border = NA)
     abline(h = ref_m, col = .rr$red, lty = 5, lwd = 1.6)
+    abline(h = ref_p, col = .rr$red, lty = 2, lwd = 1.8)
   }
   axis(1, at = seq_len(k), col = .rr$grid, col.ticks = .rr$soft)
   .rr_legend("topright",
-             if (has_ref) c("Observed", "Noise reference (mean, 95%)") else
+             if (has_ref) c("Observed", "Null reference band") else
                "Observed",
              fill = if (has_ref) c(.rr$blue, "#dc262633") else .rr$blue,
              border = NA)

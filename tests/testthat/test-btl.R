@@ -827,11 +827,25 @@ test_that("btl_transitivity and btl_dimensionality read one-D vs a swirl", {
   expect_s3_class(t1, "rasch_btl_transitivity")
   expect_s3_class(d1, "rasch_btl_dim")
   expect_false(is.null(t1$judges))    # judges present -> per-judge table
+  expect_equal(d1$reference$p,
+               (1 + sum(d1$reference$draws >= d1$bimensions$strength[1])) /
+                 (length(d1$reference$draws) + 1))
+  expect_equal(d1$reference$p_adj, d1$reference$p)
+  expect_identical(d1$leading_structured, d1$reference$p_adj <= 0.05)
+  old_d1 <- d1
+  old_d1$reference$p <- old_d1$reference$p_adj <- NULL
+  old_print <- expect_no_error(capture.output(print(old_d1)))
+  expected_old_p <- (1 + sum(old_d1$reference$draws >=
+                               old_d1$bimensions$strength[1])) /
+    (length(old_d1$reference$draws) + 1)
+  expect_true(any(grepl(sprintf("p = %.3f", expected_old_p), old_print,
+                        fixed = TRUE)))
 
   # a cyclic swirl: leading bimension clears the reference, most of residual
   f2 <- mk(1.6, 2); d2 <- btl_dimensionality(f2, reps = 40)
   expect_true(d2$leading_structured)
   expect_gt(d2$bimensions$strength[1], d2$reference$p95)
+  expect_identical(d2$leading_structured, d2$reference$p_adj <= 0.05)
   expect_gt(d2$bimensions$prop_residual[1], 0.5)
 
   # genuine intransitivity (flat locations, strong cycle) -> loops above chance
@@ -969,7 +983,8 @@ test_that("ordered count rows are refused before fitting", {
                         fixed = TRUE)))
   printed <- capture.output(print(out))
   expect_true(any(grepl("reference unavailable", printed, fixed = TRUE)))
-  expect_false(any(grepl("reference 95%: NA", printed, fixed = TRUE)))
+  expect_false(any(grepl("reference 5% upper limit: NA", printed,
+                         fixed = TRUE)))
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off(), add = TRUE)
   expect_no_error(plot_btl_scree(out))

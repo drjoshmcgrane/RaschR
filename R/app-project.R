@@ -110,6 +110,7 @@
 .app_project_binding <- function(project) {
   x <- project
   attr(x, "rasch_project_legacy") <- NULL
+  attr(x, "rasch_project_legacy_dropped") <- NULL
   x$binding <- NULL
   .fit_boot_md5(x)
 }
@@ -275,6 +276,7 @@
     fail("the analysis file has no valid data-to-fit integrity information")
   unsigned_project <- project
   attr(unsigned_project, "rasch_project_legacy") <- NULL
+  attr(unsigned_project, "rasch_project_legacy_dropped") <- NULL
   unsigned_project$binding <- NULL
   if (!.fit_boot_hash_matches(project$binding, unsigned_project))
     fail(paste("the analysis file's source data, fitted models or results have",
@@ -294,18 +296,54 @@
     identical(project$format, "rasch-shiny-project") &&
     length(project$schema) == 1L && is.numeric(project$schema) &&
     !is.na(project$schema) && project$schema == 1L
+  dropped <- character(0)
   if (legacy) {
     # Schema 1 did not record an integrity binding. It can be checked
     # structurally and upgraded, but its original data-to-fit relationship
-    # cannot be authenticated retrospectively.
+    # cannot be authenticated retrospectively. Results written before the
+    # current result fingerprints cannot be validated against the retained
+    # fit, so omit those results while preserving the data, fit and history.
+    results <- project$results
+    has_signature <- function(x)
+      is.list(x) && is.character(x$result_signature) &&
+        length(x$result_signature) == 1L && !is.na(x$result_signature)
+    if (is.list(results)) {
+      if (!is.null(results$bootstrap) &&
+          (!is.list(results$bootstrap) ||
+           !has_signature(results$bootstrap$bs))) {
+        results$bootstrap <- NULL
+        dropped <- c(dropped, "fit bootstrap")
+      }
+      primary_dropped <- FALSE
+      for (nm in c("dif", "btl_dif")) {
+        if (!is.null(results[[nm]]) && !has_signature(results[[nm]])) {
+          results[[nm]] <- NULL
+          dropped <- c(dropped, if (nm == "btl_dif")
+            "Comparative Judgement DIF" else "DIF")
+          primary_dropped <- TRUE
+        }
+      }
+      if (isTRUE(primary_dropped)) results$btl_dif_meta <- NULL
+      if (!is.null(results$dif_bootstrap) &&
+          (isTRUE(primary_dropped) || !is.list(results$dif_bootstrap) ||
+           !has_signature(results$dif_bootstrap$db))) {
+        results$dif_bootstrap <- NULL
+        dropped <- c(dropped, "DIF bootstrap")
+      }
+      project$results <- results
+    }
     project <- .seal_app_project(project)
   }
   .validate_app_project(project)
   if (legacy) {
     attr(project, "rasch_project_legacy") <- TRUE
+    attr(project, "rasch_project_legacy_dropped") <- unique(dropped)
     warning(paste("this schema-1 analysis predates data-to-fit integrity",
                   "checks; it passed structural validation and has been",
-                  "upgraded in memory; save it again to retain schema 2"),
+                  "upgraded in memory; save it again to retain schema 2",
+                  if (length(dropped)) paste0("; unverifiable saved results ",
+                    "were omitted: ", paste(unique(dropped), collapse = ", "))
+                  else ""),
             call. = FALSE)
   }
   project

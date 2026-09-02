@@ -163,11 +163,92 @@ residual_pca <- function(fit, n_components = 10) {
 # person parameters before recomputing the residual eigenvalues. This avoids
 # treating estimated person locations as known while carrying calibration
 # variability through the same estimation chain as the observed eigenvalues.
+.sim_upper_family <- function(observed, draws, alpha = 0.05) {
+  .check_prob(alpha, "alpha")
+  if (!is.matrix(draws)) draws <- as.matrix(draws)
+  B <- nrow(draws); k <- ncol(draws)
+  if (length(observed) != k || B < 20L || any(!is.finite(draws)) ||
+      any(!is.finite(observed)))
+    stop("the simulated upper-tail family is incomplete")
+
+  centre <- colMeans(draws)
+  p_raw <- vapply(seq_len(k), function(j)
+    (1 + sum(draws[, j] >= observed[j])) / (B + 1), numeric(1))
+  permitted <- which((1 + 0:B) / (B + 1) <= alpha) - 1L
+  if (!length(permitted))
+    stop("too few simulated draws to resolve the requested familywise level")
+  critical_index <- B - max(permitted)
+  marginal_critical <- apply(draws, 2L, function(x)
+    sort(x)[critical_index])
+
+  # A single leading statistic is not a multiple-testing family. Its exact
+  # finite-simulation probability and corresponding order statistic are the
+  # appropriate decision; maximum-statistic standardisation would add
+  # conservatism without controlling anything further.
+  if (k == 1L) {
+    return(list(
+      mean = centre, critical = marginal_critical, p = p_raw,
+      p_adjusted = p_raw, significant = p_raw <= alpha,
+      max_null = draws[, 1L], alpha = alpha, n_used = B,
+      method = "finite simulated upper-tail"))
+  }
+
+  spread <- apply(draws, 2L, stats::sd)
+  stable <- is.finite(spread) & spread > sqrt(.Machine$double.eps)
+  # Each simulated maximum must be externally standardised. If a draw helps
+  # estimate its own mean and SD, its departure is shrunk relative to the
+  # observed value, which is not part of those estimates, and the familywise
+  # test becomes anti-conservative. Leave each row out when standardising that
+  # row; the observed vector uses all simulated rows.
+  Z <- matrix(0, B, k)
+  for (i in seq_len(B)) {
+    training <- draws[-i, , drop = FALSE]
+    centre_i <- colMeans(training)
+    spread_i <- apply(training, 2L, stats::sd)
+    stable_i <- is.finite(spread_i) & spread_i > sqrt(.Machine$double.eps)
+    Z[i, stable_i] <- (draws[i, stable_i] - centre_i[stable_i]) /
+      spread_i[stable_i]
+    if (any(!stable_i)) {
+      tol_i <- sqrt(.Machine$double.eps) *
+        pmax(1, abs(centre_i[!stable_i]))
+      delta_i <- draws[i, !stable_i] - centre_i[!stable_i]
+      Z[i, !stable_i] <- ifelse(delta_i > tol_i, Inf,
+                                ifelse(delta_i < -tol_i, -Inf, 0))
+    }
+  }
+  z_observed <- numeric(k)
+  z_observed[stable] <- (observed[stable] - centre[stable]) / spread[stable]
+  if (any(!stable)) {
+    tol <- sqrt(.Machine$double.eps) * pmax(1, abs(centre[!stable]))
+    delta <- observed[!stable] - centre[!stable]
+    z_observed[!stable] <- ifelse(delta > tol, Inf,
+                                  ifelse(delta < -tol, -Inf, 0))
+  }
+
+  max_null <- apply(Z, 1L, max)
+  p_adjusted <- vapply(z_observed, function(z)
+    (1 + sum(max_null >= z)) / (B + 1), numeric(1))
+  p_adjusted <- pmax(p_raw, p_adjusted)
+
+  # Match crossing the plotted curve to p_adjusted <= alpha. With 20 draws
+  # the smallest probability is 1/21, so the requested five-percent test is
+  # resolvable; larger B makes the critical curve progressively less coarse.
+  critical_z <- sort(max_null)[critical_index]
+  critical <- pmax(
+    marginal_critical,
+    centre + critical_z * ifelse(stable, spread, 0))
+
+  list(mean = centre, critical = critical, p = p_raw,
+       p_adjusted = p_adjusted, significant = p_adjusted <= alpha,
+       max_null = max_null, alpha = alpha, n_used = B,
+       method = "single-step leave-one-out maximum-standardised-statistic")
+}
+
 .scree_reference <- function(fit, k, reps) {
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     .refuse("parallel residual reference is not available for mutually exclusive ",
          "EFRM/MFRM virtual designs; fit and analyse an observable design block")
-  reps <- .check_whole(reps, "reps", 2)
+  reps <- .check_whole(reps, "reps", 20)
   tau_list <- fit$tau_list; L <- length(tau_list)
   disc_v <- if (is.null(fit$disc)) rep(1, L) else fit$disc
   if (any(abs(disc_v - 1) > 1e-12))
@@ -200,11 +281,25 @@ residual_pca <- function(fit, n_components = 10) {
              error = function(e) rep(NA_real_, k))
   })
   sim <- do.call(rbind, draws)
-  if (sum(stats::complete.cases(sim)) < ceiling(reps / 2))
-    stop("fewer than half the full-refit scree replicates were estimable",
+  complete <- stats::complete.cases(sim)
+  minimum_usable <- max(20L, ceiling(reps / 2))
+  if (sum(complete) < minimum_usable)
+    stop("only ", sum(complete), " of ", reps,
+         " full-refit scree replicates were estimable; at least ",
+         minimum_usable, " are needed for the 5% reference",
          if (!is.null(first_error))
            paste0("; the first replicate failed with: ", first_error) else "")
-  colMeans(sim, na.rm = TRUE)
+  sim <- sim[complete, , drop = FALSE]
+  # The plotted curve is completed once the observed eigenvalues are known.
+  # Retain the full joint draws so plot_scree() can use their maximum
+  # standardised departure to control the component family.
+  alpha <- 0.05
+  reference <- colMeans(sim)
+  attr(reference, "mean") <- colMeans(sim)
+  attr(reference, "draws") <- sim
+  attr(reference, "alpha") <- alpha
+  attr(reference, "n_used") <- nrow(sim)
+  reference
 }
 
 #' Scree plot of the residual components with parallel analysis
@@ -213,19 +308,33 @@ residual_pca <- function(fit, n_components = 10) {
 #' with a model-simulated parallel-analysis reference: response patterns are
 #' drawn conditional on each person's observed score and missingness pattern,
 #' the item calibration and every person are re-estimated, and the residual
-#' eigenvalues recomputed.
+#' eigenvalues recomputed. The plotted reference is a finite-simulation 5%
+#' familywise upper critical curve, obtained from the maximum standardised
+#' departure across the displayed components. Each simulated maximum is
+#' standardised against the other simulated draws so that it is comparable
+#' with the externally standardised observed value. The returned table also gives
+#' the reference mean, marginal upper-tail probability and single-step
+#' adjusted probability.
 #' Because estimating
 #' the person locations couples the residuals within a person, this reference
 #' sits above the classical random-normal one and is calibrated under the
-#' fitted model (Raiche 2005; Chou & Wang 2010). Observed eigenvalues above
-#' the reference suggest structure beyond what the model itself produces.
+#' fitted model (Raiche 2005; Chou & Wang 2010). An observed eigenvalue above
+#' the critical reference has a familywise-adjusted simulated upper-tail
+#' probability at or below .05 and suggests structure beyond what the fitted model
+#' produces.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
-#' @param n_components Number of leading components to display.
-#' @param parallel Draw the parallel-analysis reference line.
-#' @param reps Model-simulated replicates for the reference; at least two when
-#'   \code{parallel = TRUE}.
-#' @return Called for its plotting side effect; invisibly the eigen table.
+#' @param n_components Number of leading components to display. The familywise
+#'   adjustment covers these components.
+#' @param parallel Draw the parallel-analysis reference band.
+#' @param reps Model-simulated replicates for the reference; at least 20 when
+#'   \code{parallel = TRUE}. Larger values give a more stable upper-tail
+#'   reference.
+#' @return Called for its plotting side effect; invisibly the eigen table. With
+#'   parallel analysis it also contains \code{reference_mean},
+#'   \code{reference_critical}, \code{parallel_p}, \code{parallel_p_adj},
+#'   \code{parallel_significant}, and \code{n_reference}. The adjustment is
+#'   recorded in the table's \code{parallel_adjustment} attribute.
 #' @references Raiche, G. (2005). Critical eigenvalue sizes (variances) in
 #'   standardized residual principal components analysis. \emph{Rasch
 #'   Measurement Transactions}, 19(1), 1012.
@@ -234,34 +343,69 @@ residual_pca <- function(fit, n_components = 10) {
 #'   response models with principal component analysis on standardized
 #'   residuals. \emph{Educational and Psychological Measurement}, 70(5),
 #'   717-731.
+#'
+#'   Westfall, P. H., & Young, S. S. (1993). \emph{Resampling-Based Multiple
+#'   Testing: Examples and Methods for p-Value Adjustment}. Wiley.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-2, 2, length.out = 8)
 #' X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 #' colnames(X) <- paste0("I", 1:8)
-#' plot_scree(rasch(X), reps = 10)
+#' plot_scree(rasch(X), reps = 20)
 #' @export
 plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50) {
   .check_flag(parallel, "parallel")
   n_components <- .check_whole(n_components, "n_components", 1)
-  reps <- .check_whole(reps, "reps", if (parallel) 2 else 1)
+  reps <- .check_whole(reps, "reps", if (parallel) 20 else 1)
   pc <- residual_pca(fit, n_components)
   k <- nrow(pc$eigen_table)
   obs <- pc$eigen_table$eigenvalue
   pa <- if (parallel) .scree_reference(fit, k, reps) else NULL
+  pa_mean <- NULL
+  significant <- rep(FALSE, k)
+  if (!is.null(pa)) {
+    draws <- attr(pa, "draws")
+    inference <- .sim_upper_family(obs, draws, attr(pa, "alpha"))
+    pa <- inference$critical
+    pa_mean <- inference$mean
+    significant <- inference$significant
+    pc$eigen_table$reference_mean <- inference$mean
+    pc$eigen_table$reference_critical <- inference$critical
+    pc$eigen_table$parallel_p <- inference$p
+    pc$eigen_table$parallel_p_adj <- inference$p_adjusted
+    pc$eigen_table$parallel_significant <- inference$significant
+    pc$eigen_table$n_reference <- inference$n_used
+    attr(pc$eigen_table, "parallel_adjustment") <- inference$method
+  }
   ylim <- c(0, max(c(obs, pa, 1)) * 1.12)
   op <- .rr_canvas(c(0.5, k + 0.5), ylim, "Component", "Eigenvalue",
                    grid_x = FALSE, xaxis = FALSE)
   on.exit(par(op))
+  if (!is.null(pa))
+    polygon(c(seq_len(k), rev(seq_len(k))),
+            c(pa_mean, rev(pa)), col = "#dc262622", border = NA)
   abline(h = 1, lty = 3, col = .rr$soft)
-  if (!is.null(pa)) lines(seq_len(k), pa, lwd = 2, lty = 5, col = .rr$red)
+  if (!is.null(pa)) {
+    lines(seq_len(k), pa_mean, lwd = 1.5, lty = 3, col = .rr$red)
+    lines(seq_len(k), pa, lwd = 2, lty = 5, col = .rr$red)
+  }
   lines(seq_len(k), obs, lwd = 2.6, col = .rr$blue)
-  points(seq_len(k), obs, pch = 21, bg = .rr$blue, col = "white", cex = 1.5)
+  points(seq_len(k), obs, pch = 21,
+         bg = ifelse(significant, .rr$red, .rr$blue),
+         col = "white", cex = 1.5)
   axis(1, at = seq_len(k), col = .rr$grid, col.ticks = .rr$soft)
-  .rr_legend("topright",
-             if (is.null(pa)) "Observed" else c("Observed", "Parallel analysis"),
-             lwd = c(2.6, if (!is.null(pa)) 2), lty = c(1, if (!is.null(pa)) 5),
-             col = c(.rr$blue, if (!is.null(pa)) .rr$red))
+  if (is.null(pa)) {
+    .rr_legend("topright", "Observed", lwd = 2.6, lty = 1,
+               col = .rr$blue)
+  } else {
+    .rr_legend(
+      "topright",
+      c("Observed", "Null reference band", "Adjusted p <= .05"),
+      lwd = c(2.6, NA, NA), lty = c(1, NA, NA),
+      pch = c(NA, 22, 21), pt.bg = c(NA, "#dc262633", .rr$red),
+      pt.cex = c(NA, 1.4, 1.2),
+      col = c(.rr$blue, "#dc262666", "white"))
+  }
   invisible(pc$eigen_table)
 }
 

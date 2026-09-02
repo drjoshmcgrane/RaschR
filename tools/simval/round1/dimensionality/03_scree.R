@@ -1,7 +1,7 @@
 suppressWarnings(pkgload::load_all(".", quiet=TRUE))
 
 N <- 400; I <- 12
-OUTER <- 20; INNER_REPS <- 15
+OUTER <- 20; INNER_REPS <- 20
 
 run_cond <- function(gen_fun, label) {
   ratios <- numeric(OUTER); obs1 <- numeric(OUTER); ref1 <- numeric(OUTER)
@@ -10,7 +10,9 @@ run_cond <- function(gen_fun, label) {
     s <- gen_fun(r)
     f <- rasch(s)
     pc <- residual_pca(f)
-    ref <- .scree_reference(f, 5, INNER_REPS)
+    # Round 1 assessed centring against the simulated mean. The current plot
+    # uses the finite-simulation 5% upper critical value for inference.
+    ref <- attr(.scree_reference(f, 5, INNER_REPS), "mean")
     obs1[r] <- pc$first_eigen; ref1[r] <- ref[1]
     ratios[r] <- pc$first_eigen / ref[1]
     above[r] <- pc$first_eigen > ref[1]

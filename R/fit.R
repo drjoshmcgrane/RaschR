@@ -4,7 +4,11 @@
 # the log-of-mean-square fit residual of Andrich & Marais (2019, ch. 23)
 # for items and persons (with its
 # untransformed "natural" form); infit and outfit mean squares with
-# Wilson-Hilferty standardisations; the class-interval ANOVA item-fit F;
+# Wilson-Hilferty standardisations (the mean squares' null variance is
+# about 2/N and the mean square reads as relative ICC slope -- Wu & Adams
+# 2013, JAM 14(4), whose claimed N-independent null for the standardised
+# forms does NOT survive parameter estimation; see fit_bootstrap());
+# the class-interval ANOVA item-fit F;
 # the item-trait interaction chi-square; the person separation index with
 # and without extremes; Cronbach's alpha; targeting; and the test
 # information function.

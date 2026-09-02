@@ -383,9 +383,8 @@ APP_HELP <- c(
     "opposing large loadings define the strongest residual contrast."
   ),
   eigen_tbl = paste(
-    "Compares observed residual eigenvalues with simulations from the fitted",
-    "model. An observed value above its simulated reference indicates more",
-    "residual structure than expected under the model."
+    "Reports the observed residual eigenvalues and the variance represented by",
+    "each component. The scree plot adds the fitted-model simulation reference."
   ),
   dm_tbl = paste(
     "Compares reliability when items are treated separately with a refit in",
@@ -545,8 +544,9 @@ APP_HELP <- c(
     "dichotomous item matrix."
   ),
   scree = paste(
-    "Shows residual eigenvalues and, where available, their score-conditional",
-    "simulated reference. Components above it warrant substantive examination."
+    "Shows residual eigenvalues against the score-conditional null reference",
+    "band. Red points exceed the familywise 5% limit after adjustment across",
+    "the displayed components."
   ),
   pca_biplot = paste(
     "Displays items and persons in the selected residual-component space.",
@@ -617,8 +617,9 @@ APP_HELP <- c(
     "Agreement with the shifted identity line indicates stable common-object linking."
   ),
   btl_scree = paste(
-    "Shows residual bimension strengths against simulations from the fitted model when the comparison sequence supports them.",
-    "A leading value above the reference suggests structured preference cycles."
+    "Shows residual bimension strengths against simulations from the fitted",
+    "model when the comparison sequence supports them. A leading value above",
+    "the 5% reference band suggests structured preference cycles."
   ),
   btl_dim_map = paste(
     "Maps objects on the leading residual bimension. The circular arrangement",

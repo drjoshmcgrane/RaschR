@@ -9009,11 +9009,16 @@ server <- function(input, output, session) {
                        type = "error", duration = 10)
       return()
     }
-    if (isTRUE(attr(p, "rasch_project_legacy")))
+    if (isTRUE(attr(p, "rasch_project_legacy"))) {
+      dropped <- attr(p, "rasch_project_legacy_dropped") %||% character(0)
       showNotification(paste(
         "This analysis was saved in the earlier project format.",
-        "It passed structural checks; save it again to use the current format."),
+        "It passed structural checks; save it again to use the current format.",
+        if (length(dropped)) paste0(
+          "Results that could not be authenticated were omitted: ",
+          paste(dropped, collapse = ", "), ".") else ""),
         type = "warning", duration = 10)
+    }
     cancelled_job <- cancel_efrm_job() | cancel_btlef_job() |
       cancel_boot_job()
     advance_analysis_context()

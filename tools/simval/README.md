@@ -46,15 +46,20 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
 - `parse_check.R` — parses every script in the battery and fails loudly on
   any syntax error; run it (and a smoke subset) before trusting the
   reproducibility claim.
-- `results/scree-conditional-reference.csv` — the score-conditional scree
-  reference checked on dichotomous, PCM, RSM, linked-booklet and explanatory
-  fits. Across 20 null datasets per design, the mean observed/reference first-
-  eigenvalue ratio was 0.990--1.005. With a planted second dimension it was
-  1.165--1.953, and the observed value exceeded the mean reference in all 20
-  datasets for every design. Each outer dataset used 15 conditional reference
-  draws; all 200 fits were analysed. The script is
-  `studies/scree-conditional-reference.R`; the result carries script hash
-  `1cccd03c3acef215fef4816fbea5b35c` and R-tree hash `8856b9d9c95d`.
+- `results/scree-conditional-reference.csv` records the score-conditional
+  scree study. Across five null designs, familywise rejection over ten
+  displayed components was 2.0--5.5%, and 39/1,000 (3.9%) overall. Power for a
+  planted second dimension was 99.5--100% in the complete designs and 69.0% in
+  the booklet design. All 2,000 datasets were analysed. The study is
+  `studies/scree-conditional-reference.R`; its rows carry script hash
+  `eeab8635027f3a7e9a90dbb112cd8622` and R-tree hash `c49eb3933f89`.
+- `results/btl-dimensionality-reference.csv` checks the finite simulated
+  upper-tail decision for BTL and BTL-EFRM. Null rejection was 2.5% and 3.6%
+  with 20 reference draws, and 2.7% and 5.2% with 200. BTL power for a planted
+  second attribute was 78.8% and 86.0%, respectively. All 6,000 datasets were
+  analysed. The study is `studies/btl-dimensionality-reference.R`; its rows
+  carry script hash `b2eff3a9139d4aff32de70689bb95ea4` and R-tree hash
+  `c49eb3933f89`.
 
 ## Known limitations surfaced by the battery
 

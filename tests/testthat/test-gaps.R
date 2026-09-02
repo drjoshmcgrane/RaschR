@@ -1149,10 +1149,11 @@ test_that("restricted models are not silently relaxed by a refit", {
   on.exit(try(invisible(utils::capture.output(
     untrace(".explanatory_refit_modified", where = asNamespace("rasch")))),
     silent = TRUE), add = TRUE)
-  expect_no_error(plot_scree(fe, parallel = TRUE, reps = 3))
+  expect_no_error(plot_scree(fe, parallel = TRUE, reps = 20))
   expect_gt(cnt, 0L)
 
-  db <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 2)
+  db <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 2,
+                     seed = 1)
   obj <- sort(unique(c(as.character(db$object_a), as.character(db$object_b))))
   bp <- data.frame(object = obj, w = seq_along(obj) %% 2)
   fbe <- btl_explanatory(db, predictors = bp, formula = ~ w,
@@ -1267,7 +1268,7 @@ test_that("the explanatory scree reference aligns its person rows", {
   fe <- rasch_explanatory(d, predictors = prd, formula = ~ w, level = "item",
                           id = "id", factors = "sex", items = colnames(Xp))
   expect_gt(sum(is.na(fe$person$theta)), 0L)
-  ref <- .scree_reference(fe, k = 2, reps = 3)
+  ref <- .scree_reference(fe, k = 2, reps = 20)
   expect_true(all(is.finite(unlist(ref))))
 
   # the refit carries the retained rows' identifiers and factors, stays an
