@@ -202,7 +202,8 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 }
 
 .save_btl_outputs <- function(fit, dir, formats, width, height, dpi,
-                              object_plots, bootstrap = NULL) {
+                              object_plots, bootstrap = NULL, dif = NULL,
+                              dif_bootstrap = NULL) {
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   odir <- file.path(pdir, "objects")
@@ -226,6 +227,23 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
     wtab(bootstrap$judges, "bootstrap_judge_fit")
     wtab(data.frame(quantity = names(unlist(bootstrap$total)),
                     value = unlist(bootstrap$total)), "bootstrap_total")
+  }
+  if (!is.null(dif)) {
+    wtab(dif$summary, "dif_anova")
+    wtab(dif$terms, "dif_anova_terms")
+    wtab(dif$levels, "dif_resolved_locations")
+    wtab(dif$sizes, "dif_magnitudes")
+  }
+  if (!is.null(dif_bootstrap)) {
+    wtab(dif_bootstrap$summary, "dif_bootstrap")
+    wtab(dif_bootstrap$terms, "dif_bootstrap_terms")
+    wtab(data.frame(
+      quantity = c("requested", "used", "failed", "nonconverged",
+                   "errors", "family_tests"),
+      value = c(dif_bootstrap$B, dif_bootstrap$B_used,
+                dif_bootstrap$B_failed, dif_bootstrap$B_nonconverged,
+                dif_bootstrap$B_errors, dif_bootstrap$family_n)),
+      "dif_bootstrap_accounting")
   }
   if (inherits(fit, "rasch_btl_explanatory")) {
     wtab(explanatory_test(fit), "explanatory_model_comparison")
@@ -302,6 +320,8 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #' @param bootstrap Optional \code{\link{fit_bootstrap}} result from this fit. Its item and
 #'   person tables, or pair, object and judge tables for paired comparisons,
 #'   join the export with the whole-test readings.
+#' @param dif_bootstrap Optional \code{\link{dif_bootstrap}} sensitivity
+#'   analysis from this fit and DIF specification.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
 #'   threshold curve, and frequency chart per item).
 #' @return Invisibly, the vector of files written.
@@ -315,10 +335,14 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #' @export
 save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE,
-                         dif = NULL, bootstrap = NULL) {
+                         dif = NULL, bootstrap = NULL,
+                         dif_bootstrap = NULL) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
-  .validate_dif_result(dif, fit)
+  .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
+  if (!is.null(dif_bootstrap) && is.null(dif))
+    stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
+  .validate_dif_bootstrap(dif_bootstrap, fit, dif)
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
   # complete export but carries no plots
@@ -328,7 +352,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   if (inherits(fit, "rasch_btl"))
     return(.save_btl_outputs(fit, dir, formats, width, height, dpi,
                              object_plots = item_plots,
-                             bootstrap = bootstrap))
+                             bootstrap = bootstrap, dif = dif,
+                             dif_bootstrap = dif_bootstrap))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
@@ -469,6 +494,17 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
       wtab(bootstrap$persons, "bootstrap_person_fit")
     wtab(data.frame(quantity = names(unlist(bootstrap$total)),
                     value = unlist(bootstrap$total)), "bootstrap_total")
+  }
+  if (!is.null(dif_bootstrap)) {
+    wtab(dif_bootstrap$summary, "dif_conditional_bootstrap")
+    wtab(dif_bootstrap$terms, "dif_conditional_bootstrap_terms")
+    wtab(data.frame(
+      quantity = c("requested", "usable", "failed", "nonconverged",
+                   "other_errors", "family_size"),
+      value = c(dif_bootstrap$B, dif_bootstrap$B_used,
+                dif_bootstrap$B_failed, dif_bootstrap$B_nonconverged,
+                dif_bootstrap$B_errors, dif_bootstrap$family_n)),
+      "dif_conditional_bootstrap_accounting")
   }
   if (any(fit$person$extreme)) {
     pe <- tryCatch(person_extrapolated(fit), error = function(e) NULL)
@@ -666,6 +702,8 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' @param dif,bootstrap Optional computed \code{\link{dif_anova}} and
 #'   \code{\link{fit_bootstrap}} results from this fit, exported as run; the DIF table is
 #'   otherwise recomputed at defaults when the fit carries person factors.
+#' @param dif_bootstrap Optional \code{\link{dif_bootstrap}} sensitivity
+#'   analysis from this fit and DIF specification.
 #' @return Invisibly, \code{file}.
 #' @examples
 #' set.seed(1)
@@ -676,13 +714,17 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' report_html(rasch(X), out)
 #' @export
 report_html <- function(fit, file, title = "Rasch measurement analysis",
-                        dpi = 150, dif = NULL, bootstrap = NULL) {
+                        dpi = 150, dif = NULL, bootstrap = NULL,
+                        dif_bootstrap = NULL) {
   # a vector title would be pasted into as many documents as it has entries,
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
   .check_out_path(file, "file")
-  .validate_dif_result(dif, fit)
+  .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
+  if (!is.null(dif_bootstrap) && is.null(dif))
+    stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
+  .validate_dif_bootstrap(dif_bootstrap, fit, dif)
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")
   .check_pos_num(dpi, "dpi")
@@ -882,8 +924,31 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
                                      "p_uniform_adj", "eta2_uniform",
                                      "F_nonuniform", "p_nonuniform_adj",
                                      "eta2_nonuniform", "uniform_DIF",
-                                     "nonuniform_DIF"), names(da$summary))])) else ""
+                                     "nonuniform_DIF"), names(da$summary))]),
+        if (!is.null(da$sizes) && nrow(da$sizes)) s(
+          "<h3>DIF magnitude</h3>",
+          .html_table(da$sizes[, intersect(
+            c("item", "term", "level_a", "level_b", "difference", "se",
+              "df", "p_adj", "practical"), names(da$sizes)), drop = FALSE]))
+        else "") else ""
     } else "",
+    if (!is.null(dif_bootstrap)) s(
+      "<h3>Bootstrap sensitivity analysis</h3>",
+      sprintf(paste0("<p class='note'>%d of %d complete-family replicates; ",
+                     "%d did not converge and %d otherwise failed. ",
+                     "Bootstrap decisions use single-step minimum-p ",
+                     "familywise probabilities under the fitted global ",
+                     "invariant null; they do not provide strong control when ",
+                     "another member has DIF. The adjusted residual ANOVA ",
+                     "above remains the primary DIF analysis. Null generator: ",
+                     "%s.</p>"),
+              dif_bootstrap$B_used, dif_bootstrap$B,
+              dif_bootstrap$B_nonconverged, dif_bootstrap$B_errors,
+              dif_bootstrap$null_method %||% "conditional"),
+      .html_table(dif_bootstrap$summary[, intersect(
+        c("item", "term", "p_uniform_boot_adj", "uniform_DIF_boot",
+          "p_nonuniform_boot_adj", "nonuniform_DIF_boot"),
+        names(dif_bootstrap$summary)), drop = FALSE])) else "",
     if (!is.null(fit$mc)) s("<h2>Distractor analysis</h2>",
       "<p class='note'>Locations use the rest measure; a distractor whose takers are abler than the keyed option's flags a possible miskey.</p>",
       .html_table(tryCatch(distractor_analysis(fit), error = function(e) NULL))) else "",
@@ -948,6 +1013,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #' @param dif,bootstrap Optional computed \code{\link{dif_anova}} and
 #'   \code{\link{fit_bootstrap}} results from this fit, rendered as run rather than
 #'   recomputed at defaults.
+#' @param dif_bootstrap Optional \code{\link{dif_bootstrap}} sensitivity
+#'   analysis from this fit and DIF specification.
 #' @param title Report title.
 #' @return Invisibly, the output path.
 #' @details Word and HTML output require Pandoc, supplied with RStudio and
@@ -962,15 +1029,21 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 report_document <- function(fit, file,
                             format = c("auto", "html", "docx", "pdf"),
                             title = "Rasch measurement analysis",
-                            dif = NULL, bootstrap = NULL) {
+                            dif = NULL, bootstrap = NULL,
+                            dif_bootstrap = NULL) {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
-  .validate_dif_result(dif, fit)
+  .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
+  if (!is.null(dif_bootstrap) && is.null(dif))
+    stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
+  .validate_dif_bootstrap(dif_bootstrap, fit, dif)
   # computed results travel as attributes on the serialised fit, so the
   # template renders the analysis as run rather than a default recomputation
   if (!is.null(dif)) attr(fit, "report_dif") <- dif
   if (!is.null(bootstrap)) attr(fit, "report_bootstrap") <- bootstrap
+  if (!is.null(dif_bootstrap))
+    attr(fit, "report_dif_bootstrap") <- dif_bootstrap
   .check_out_path(file, "file")
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")

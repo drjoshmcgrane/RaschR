@@ -846,6 +846,13 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
   summary_factors <- lapply(summary_tab$term, function(tt)
     fnames[match(.term_vars(tt), safe)])
 
+  # Retain the collision-free internal term identifiers before replacing
+  # them with display labels.  A conditional bootstrap must align the same
+  # item-by-term family across refits without trying to parse factor names
+  # that may themselves contain punctuation or be called "ci".
+  term_ids <- terms$term
+  summary_term_ids <- summary_tab$term
+
   # relabel the stand-ins to the nominated names for display, now that all
   # classification is done
   terms$term <- relabel(terms$term)
@@ -870,12 +877,21 @@ dif_anova <- function(fit, factors = NULL, n_groups = NULL,
       "filtering (a between level lost all its complete within panels)"))
   out <- list(summary = summary_tab, terms = terms,
               summary_factors = summary_factors,
+              term_ids = term_ids,
+              summary_term_ids = summary_term_ids,
               n_groups = nlevels(as.factor(ci)), within = within,
               factor_names = fnames,
               between_covariance = "HC3 for uniform factor terms",
               effects = effects, alpha = alpha, p_adjust = p_adjust,
               notes = notes,
-              fit_signature = .fit_boot_signature(fit))
+              fit_signature = .fit_boot_signature(fit),
+              bootstrap_design = list(
+                factors = factors,
+                id = id,
+                within = if (length(within)) within else NULL,
+                n_groups = nlevels(as.factor(ci)), effects = effects,
+                pool_facets = pool_facets, p_adjust = p_adjust,
+                alpha = alpha))
   if (isTRUE(sizes)) {
     out$sizes <- size_tab
     out$posthoc <- posthoc_tab

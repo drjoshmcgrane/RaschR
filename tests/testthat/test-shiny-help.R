@@ -145,6 +145,9 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_false(grepl('input$pc_id', src, fixed = TRUE))
   expect_match(src, 'unique(f$virtual_map$item)', fixed = TRUE)
   expect_match(src, "A location split cannot model", fixed = TRUE)
+  expect_match(src,
+    '!inherits(active_bf, c("rasch_btl_efrm", "rasch_btl_explanatory"))',
+    fixed = TRUE)
 })
 
 test_that("the app uses structurally stable responsive control layouts", {

@@ -358,6 +358,25 @@ dif$posthoc[, c(
 )]
 ```
 
+The residual ANOVA is the primary DIF analysis. A bootstrap sensitivity
+analysis repeats the calibration and complete DIF analysis under the fitted
+invariant model. Here it conditions on each person's score and observed-item
+pattern; Multiple Ratings and explanatory models use the same sufficient-score
+principle, Extended Frames conditions within item sets, and Comparative
+Judgement draws from its fitted outcome model. Its minimum-p probabilities
+calibrate the same item- or object-by-term family under the fitted global
+invariant null. They do not guarantee strong familywise control after one
+member departs. The bootstrap is not a way to purify a scale after DIF has
+already contaminated the person scores, so
+disagreement calls for closer review rather than an automatic split.
+
+```{r dif-bootstrap, eval = FALSE}
+dif_boot <- dif_bootstrap(fit, dif, B = 999, workers = 4, seed = 2026)
+dif_boot$summary[, c(
+  "item", "term", "p_uniform_boot_adj", "p_nonuniform_boot_adj"
+)]
+```
+
 Statistical significance and practical magnitude answer different questions.
 Any split must be supported by the response process and should be applied with
 `resolve_dif()`, which refits the calibration and updates the item and person
@@ -444,7 +463,9 @@ knitr::include_graphics("figures/app-local.png")
 facets and extended frames. The DIF panel runs `dif_anova()` over the
 nominated person factors, reports the uniform and non-uniform tests with
 their Holm adjustment and effect sizes, and draws the observed and expected
-curves by group for a selected item.
+curves by group for a selected item. Its bootstrap panel runs the
+optional sensitivity analysis in the background and keeps it with saved
+analyses and reports.
 
 ```{r app-dif, echo = FALSE, out.width = "100%", fig.alt = "The DIF panel, showing the analysis of variance table by item and term with the flagged items and the characteristic curves by person group."}
 knitr::include_graphics("figures/app-dif.png")

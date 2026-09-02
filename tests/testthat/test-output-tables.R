@@ -201,6 +201,23 @@ test_that("exports accept DIF only from the fitted model being reported", {
   expect_error(report_document(fit2, html, dif = da),
                "different fitted model")
 
+  # A report carries the substantive follow-up estimates, not only the
+  # omnibus DIF flags. Use a small valid result-shaped table so the output
+  # path is tested independently of whether this random fixture flags DIF.
+  da$sizes <- data.frame(
+    item = "I1", term = "group", level_a = "A", level_b = "B",
+    difference = .5, se = .2, df = 100, p_adj = .02, practical = TRUE)
+  magnitude_html <- tempfile(fileext = ".html")
+  on.exit(unlink(magnitude_html), add = TRUE)
+  expect_no_error(report_html(fit1, magnitude_html, dif = da))
+  magnitude_text <- paste(readLines(magnitude_html, warn = FALSE),
+                          collapse = "\n")
+  expect_match(magnitude_text, "DIF magnitude", fixed = TRUE)
+  template <- testthat::test_path("..", "..", "inst", "rmarkdown",
+                                 "rasch-report.Rmd")
+  expect_match(paste(readLines(template, warn = FALSE), collapse = "\n"),
+               'cat("\\n## DIF magnitude\\n\\n")', fixed = TRUE)
+
   # Person identity is part of the statistical design: the same response
   # rows and factors are a repeated-person analysis under one identifier and
   # a between-person analysis under another.

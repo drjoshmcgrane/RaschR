@@ -10,7 +10,8 @@ report_document(
   format = c("auto", "html", "docx", "pdf"),
   title = "Rasch measurement analysis",
   dif = NULL,
-  bootstrap = NULL
+  bootstrap = NULL,
+  dif_bootstrap = NULL
 )
 }
 \arguments{
@@ -26,6 +27,9 @@ report_document(
 \item{dif, bootstrap}{Optional computed \code{\link{dif_anova}} and
 \code{\link{fit_bootstrap}} results from this fit, rendered as run rather than
 recomputed at defaults.}
+
+\item{dif_bootstrap}{Optional \code{\link{dif_bootstrap}} sensitivity
+analysis from this fit and DIF specification.}
 }
 \value{
 Invisibly, the output path.

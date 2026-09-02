@@ -253,11 +253,28 @@ APP_HELP <- c(
     "with a factor effect; non-uniform DIF with a factor-by-class-interval",
     "interaction."
   ),
+  dif_boot_tbl = paste(
+    "Repeats the complete DIF analysis under the fitted invariant model while",
+    "holding each response row's score and observed-item pattern fixed;",
+    "Extended Frames instead holds its item-set subtotals fixed.",
+    "Bootstrap probabilities use single-step minimum-p familywise adjustment",
+    "under the fitted global invariant null. They are a sensitivity analysis",
+    "beside the primary residual ANOVA, not strong control after another item",
+    "has DIF."
+  ),
   bdif_anova_tbl = paste(
     "Summarises object DIF across judge factors. A factor effect indicates a",
     "location difference between judge groups; an opponent-band interaction",
     "indicates non-uniform DIF. HC3 inference allows judge workloads to differ;",
     "a factor cell needs at least eight judges and eight effective judges."
+  ),
+  bdif_boot_tbl = paste(
+    "Draws outcomes from the fitted comparison model, retaining judges,",
+    "comparison design, response categories and fitted history effects.",
+    "Single-step minimum-p probabilities cover the complete object-by-term",
+    "family under the fitted global invariant null. They supplement the",
+    "primary residual analysis and do not provide strong control after another",
+    "object has DIF."
   ),
   bdif_sizes_tbl = paste(
     "Reports resolved object-location differences between judge-factor levels",

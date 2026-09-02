@@ -215,6 +215,41 @@
                  problem))
   }
 
+  dif_bootstrap <- project$results$dif_bootstrap
+  if (!is.null(dif_bootstrap)) {
+    if (!is.list(dif_bootstrap) || is.null(dif_bootstrap$db))
+      fail("the analysis file has an invalid saved DIF bootstrap result")
+    # Exact indexing matters here: `$dif` partially matches `dif_bootstrap`
+    # when the primary result is absent, which would then pass the wrong
+    # object to the provenance validator.
+    primary_dif <- if (is_btl) project$results[["btl_dif"]] else
+      project$results[["dif"]]
+    if (is.null(primary_dif))
+      fail(paste("the saved DIF bootstrap has no accompanying primary DIF",
+                 "analysis"))
+    problem <- tryCatch({
+      .validate_dif_bootstrap(dif_bootstrap$db, active_fit, primary_dif)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (!is.null(problem))
+      fail(paste("the saved DIF bootstrap result does not belong to the active fit and DIF analysis:",
+                 problem))
+    # Ordinary Rasch DIF is recomputed reactively after the saved controls are
+    # restored. Pin the stored analysis to those controls so a coherent DIF
+    # result and bootstrap cannot be reopened beside different live settings.
+    if (!is_btl) {
+      settings <- project$settings %||% list()
+      effects <- settings$dif_effects %||% "main"
+      alpha <- settings$dif_alpha %||% 0.05
+      if (!.app_scalar_text(effects) ||
+          !identical(primary_dif$effects, effects) ||
+          length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) ||
+          !isTRUE(all.equal(primary_dif$alpha, alpha, tolerance = 0)))
+        fail(paste("the saved primary DIF analysis does not match the",
+                   "restored DIF settings"))
+    }
+  }
+
   if (!.app_scalar_text(project$binding))
     fail("the analysis file has no valid data-to-fit integrity information")
   expected <- .app_project_binding(project)

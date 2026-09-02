@@ -132,9 +132,12 @@ fit <- rasch(d, model = "PCM", id = "id", factors = "group")
 summary(fit)
 fit_summary_table(fit)
 targeting_table(fit)
-dif_anova(fit)
+dif <- dif_anova(fit)
 residual_correlations(fit)
 dimensionality_test(fit)
+
+# Optional sensitivity analysis for the DIF reference distribution
+dif_bootstrap(fit, dif, B = 999, seed = 1)
 
 # Calibrated item and person fit (use more replicates for a final analysis)
 boot <- fit_bootstrap(fit, B = 199, seed = 1)
@@ -147,6 +150,9 @@ plot_icc(fit, "I05", group = "group")
 # WrightMap is an optional dependency
 wright_map(fit, person_panels = "group")
 ```
+
+The DIF bootstrap is a sensitivity analysis under the fitted global invariant
+null. The adjusted residual analysis remains primary.
 
 The [function reference](https://drjoshmcgrane.github.io/rasch/reference/index.html)
 documents the data requirements and returned values for each analysis. The

@@ -11,7 +11,8 @@ if (identical(Sys.getenv("NOT_CRAN"), "true")) {
 } else {
   core <- c(
     "app-project", "btl-efrm", "btl-equating", "btl-targeting", "compare-ic",
-    "dif-contrasts", "fit-residual", "format", "identification", "item-disc",
+    "dif-bootstrap", "dif-contrasts", "fit-residual", "format",
+    "identification", "item-disc",
     "mc-scoring", "missing", "pcml-pc", "plots", "recovery", "resolve-frames",
     "statistical-validity", "wright-map"
   )

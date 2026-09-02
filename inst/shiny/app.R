@@ -97,6 +97,7 @@ NONE_CH <- c(None = "(none)")
 .seal_app_project <- .rasch_internal(".seal_app_project")
 .classical_design_applicable <-
   .rasch_internal(".classical_design_applicable")
+.validate_dif_bootstrap <- .rasch_internal(".validate_dif_bootstrap")
 
 # Controls that determine the fitted analysis. Project files retain these
 # separately from display-only choices so reopening an analysis also restores
@@ -106,7 +107,7 @@ NONE_CH <- c(None = "(none)")
 .project_radio_inputs <- c(
   "model_type", "lp_layout", "lp_structure", "rasch_calibration",
   "thr_structure", "thr_mode", "exp_level", "bt_thr", "bt_ties",
-  "anchor_type", "btlef_se")
+  "anchor_type", "btlef_se", "dif_effects", "bdif_effects")
 .project_select_inputs <- c(
   "id_col", "ef_id", "ef_group", "lp_person", "lp_item", "lp_score",
   "lp_interaction", "bt_a", "bt_b", "bt_win", "bt_judge", "bt_count",
@@ -115,11 +116,12 @@ NONE_CH <- c(None = "(none)")
 .project_selectize_inputs <- c(
   "factor_cols", "item_cols", "ef_items", "lp_facets", "lp_items_wide",
   "bt_margin", "bt_response", "bt_order", "bt_jfactors", "exp_main",
-  "exp_interactions")
+  "exp_interactions", "bdif_factors")
 .project_checkbox_inputs <- c("ef_prefix", "bt_position", "ng_auto")
 .project_numeric_inputs <- c(
   "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
-  "btlef_seed")
+  "btlef_seed", "dif_alpha", "dif_boot_B", "dif_boot_seed",
+  "bdif_alpha", "bdif_boot_B", "bdif_boot_seed")
 
 .collect_app_settings <- function(input) {
   ids <- unique(c(.project_radio_inputs, .project_select_inputs,
@@ -1554,6 +1556,30 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
         accordion_panel("Full ANOVA table", value = "dif_full_panel",
           tableCard("dif_full_tbl",
                     note = "The complete per-item ANOVA: every model term with its df, sums of squares, mean squares, F, and adjusted probability.")),
+        accordion_panel("Bootstrap sensitivity", value = "dif_boot_panel",
+          conditionalPanel("output.can_dif_boot != true",
+            accordion_info(paste(
+              "This analysis needs an estimable DIF model and a fitted",
+              "model whose null response structure can be reproduced."))),
+          conditionalPanel("output.can_dif_boot == true",
+            card(card_body(fillable = FALSE,
+              uiOutput("dif_boot_explainer"),
+              layout_columns(col_widths = c(4, 4, 4),
+                numericInput("dif_boot_B", "Replicates", 999,
+                             min = 99, max = 9999, step = 100),
+                numericInput("dif_boot_seed", "Seed", 2026,
+                             min = 0, step = 1),
+                div(class = "mt-4",
+                  input_task_button("dif_boot_run", "Run sensitivity analysis",
+                                    type = "primary", class = "w-100"))),
+              uiOutput("dif_boot_job_controls", inline = TRUE),
+              uiOutput("dif_boot_state"))),
+            conditionalPanel("output.has_dif_boot == true",
+              tableCard("dif_boot_tbl", "Bootstrap DIF probabilities",
+                controls = cols_switch("dif_boot_full"),
+                note = paste("Adjusted probabilities refer to the complete",
+                             "item-by-term family. Read them beside, not in",
+                             "place of, the primary DIF table."))))),
         accordion_panel("Post-hoc comparisons", value = "dif_pairwise",
           card(card_header_bar(info = app_help("dif_posthoc_tbl")),
                card_body(fillable = FALSE,
@@ -1649,9 +1675,34 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
               hover = TRUE))),
         accordion_panel("DIF magnitude in logits", value = "bdif_size_panel",
           tableCard("bdif_sizes_tbl",
-            note = "Pairwise differences between resolved group locations, in logits, with Holm-adjusted probabilities. Differences of at least 0.5 logits are flagged as practically significant.")))
+            note = "Pairwise differences between resolved group locations, in logits, with Holm-adjusted probabilities. Differences of at least 0.5 logits are flagged as practically significant.")),
+        accordion_panel("Bootstrap sensitivity", value = "bdif_boot_panel",
+          card(card_body(fillable = FALSE,
+            accordion_info(paste(
+              "Draws outcomes from the fitted comparison model while",
+              "retaining judges and the comparison design, then refits the",
+              "model and repeats the complete DIF analysis. The adjusted",
+              "residual ANOVA remains the primary result. Bootstrap familywise",
+              "probabilities refer to the fitted global invariant null; they",
+              "do not provide strong control when another object has DIF.")),
+            layout_columns(col_widths = c(4, 4, 4),
+              numericInput("bdif_boot_B", "Replicates", 999,
+                           min = 99, max = 9999, step = 100),
+              numericInput("bdif_boot_seed", "Seed", 2026,
+                           min = 0, step = 1),
+              div(class = "mt-4",
+                input_task_button("bdif_boot_run", "Run sensitivity analysis",
+                                  type = "primary", class = "w-100"))),
+            uiOutput("bdif_boot_job_controls", inline = TRUE),
+            uiOutput("bdif_boot_state"))),
+          conditionalPanel("output.has_bdif_boot == true",
+            tableCard("bdif_boot_tbl", "Bootstrap DIF probabilities",
+              controls = cols_switch("bdif_boot_full"),
+              note = paste("Adjusted probabilities refer to the complete",
+                           "object-by-term family. Read them beside, not in",
+                           "place of, the primary DIF table."))))
     ))
-  )
+  ))
 
 # --------------------------------------------------------------- FACETS --
 panel_facets <- nav_panel("Facets", value = "p_facets", icon = bs_icon("person-badge"),
@@ -1887,7 +1938,7 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
             "The skew-symmetric matrix of pair residuals is decomposed into rotational planes, or bimensions (Gower 1977). The leading bimension is compared with simulations from the fitted model."),
           layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
             plotCard("btl_scree", title = "Bimension strengths",
-                     info = "Each bimension's strength against the mean and 95th-percentile band of data simulated from the fitted one-scale model. A bar clearing the band is structure the single scale does not explain.",
+                     info = "Each bimension's strength against the mean and 95th-percentile band of data simulated from the fitted one-scale model. A bar that clears the band indicates structure the single scale does not explain.",
                      height = "460px"),
             plotCard("btl_dim_map", title = "Leading residual map",
                      info = "Objects in the leading bimension plane. A rotational arrangement is the second attribute; a formless cloud at the centre is noise. Point size grows with the object's location on the main scale.",
@@ -4132,6 +4183,10 @@ server <- function(input, output, session) {
   observe({
     f <- tryCatch(fit(), error = function(e) NULL)
     bf <- btl_fit()
+    active_bf <- if (is.null(bf)) NULL else {
+      s <- active_btl_step()
+      if (is.null(s)) bf else s$fit
+    }
     show <- function(value, on)
       session$sendCustomMessage("rasch-nav-vis",
                                 list(value = value, show = isTRUE(on)))
@@ -4147,7 +4202,9 @@ server <- function(input, output, session) {
       !inherits(f, c("rasch_mfrm", "rasch_efrm"))
     # judge-factor DIF applies to a paired-comparison fit once judge
     # factors are nominated in the Data roles
-    btl_dif_on <- btl_on && length(input$bt_jfactors) > 0
+    btl_dif_on <- btl_on &&
+      !inherits(active_bf, c("rasch_btl_efrm", "rasch_btl_explanatory")) &&
+      length(input$bt_jfactors) > 0
     rasch_dif_factors <- if (rasch_on)
       setdiff(names(f$factors), f$frame_group %||% character(0)) else
         character(0)
@@ -4756,6 +4813,10 @@ server <- function(input, output, session) {
     F_nonuniform = "Non-uniform F", p_uniform = "Uniform p",
     p_nonuniform = "Non-uniform p", p_uniform_adj = "Uniform adj. p",
     p_nonuniform_adj = "Non-uniform adj. p",
+    p_uniform_boot = "Uniform boot p",
+    p_uniform_boot_adj = "Uniform boot adj. p",
+    p_nonuniform_boot = "Non-uniform boot p",
+    p_nonuniform_boot_adj = "Non-uniform boot adj. p",
     eta2_uniform = "Uniform η²",
     eta2_nonuniform = "Non-uniform η²",
     eta2_partial = "Partial η²",
@@ -5379,11 +5440,18 @@ server <- function(input, output, session) {
     })
   # ---- bootstrap null for the fit statistics (post-estimation, on request)
   boot_val <- reactiveVal(NULL)
+  dif_boot_val <- reactiveVal(NULL)
   observeEvent(fit(), {
-    if (!isTRUE(restoring_project())) boot_val(NULL)
+    if (!isTRUE(restoring_project())) {
+      boot_val(NULL)
+      dif_boot_val(NULL)
+    }
   }, ignoreInit = TRUE)
   observeEvent(list(btl_fit(), active_btl_step()), {
-    if (!isTRUE(restoring_project())) boot_val(NULL)
+    if (!isTRUE(restoring_project())) {
+      boot_val(NULL)
+      dif_boot_val(NULL)
+    }
   }, ignoreInit = TRUE)
   output$can_boot <- reactive({
     f <- fit_or_null()
@@ -5399,6 +5467,30 @@ server <- function(input, output, session) {
       !inherits(f, "rasch_btl_efrm") && !is.null(f$refit_spec)
   })
   outputOptions(output, "can_btl_boot", suspendWhenHidden = FALSE)
+  output$can_dif_boot <- reactive({
+    f <- fit_or_null()
+    testable <- if (is.null(f) || is.null(f$factors)) character(0) else
+      setdiff(names(f$factors), f$frame_group %||% character(0))
+    !is.null(f) && length(testable) > 0L && inherits(f, "rasch") &&
+      is.null(f$refit_spec$pc_components) &&
+      (inherits(f, "rasch_efrm") || is.null(f$disc) ||
+         length(unique(f$disc)) == 1L)
+  })
+  outputOptions(output, "can_dif_boot", suspendWhenHidden = FALSE)
+  output$dif_boot_explainer <- renderUI({
+    f <- fit_or_null()
+    txt <- if (inherits(f, "rasch_efrm")) paste(
+      "Generates responses conditional on each person's observed subtotal",
+      "within each item set, then repeats the complete Extended Frames",
+      "calibration and DIF analysis.") else paste(
+        "Generates responses conditional on each person's observed score",
+        "and missingness pattern, then repeats the calibration and complete",
+        "DIF analysis.")
+    accordion_info(paste(txt,
+      "The adjusted residual ANOVA remains the primary result. Bootstrap",
+      "familywise probabilities refer to the fitted global invariant null;",
+      "they do not provide strong control when another item has DIF."))
+  })
 
   boot_job <- reactiveVal(NULL)
   close_boot_job <- function(st) {
@@ -5425,8 +5517,22 @@ server <- function(input, output, session) {
     actionButton("cancel_btl_boot", "Cancel", icon = bs_icon("x-circle"),
                  class = "btn-outline-danger btn-sm mb-2")
   })
+  output$dif_boot_job_controls <- renderUI({
+    st <- boot_job()
+    if (is.null(st) || !identical(st$kind, "dif")) return(NULL)
+    actionButton("cancel_dif_boot", "Cancel", icon = bs_icon("x-circle"),
+                 class = "btn-outline-danger btn-sm mb-2")
+  })
+  output$bdif_boot_job_controls <- renderUI({
+    st <- boot_job()
+    if (is.null(st) || !identical(st$kind, "bdif")) return(NULL)
+    actionButton("cancel_bdif_boot", "Cancel", icon = bs_icon("x-circle"),
+                 class = "btn-outline-danger btn-sm mb-2")
+  })
   outputOptions(output, "boot_job_controls", suspendWhenHidden = FALSE)
   outputOptions(output, "btl_boot_job_controls", suspendWhenHidden = FALSE)
+  outputOptions(output, "dif_boot_job_controls", suspendWhenHidden = FALSE)
+  outputOptions(output, "bdif_boot_job_controls", suspendWhenHidden = FALSE)
   observeEvent(input$cancel_boot, {
     if (cancel_boot_job())
       showNotification("Fit bootstrap cancelled.", type = "message", duration = 5)
@@ -5435,20 +5541,28 @@ server <- function(input, output, session) {
     if (cancel_boot_job())
       showNotification("Fit bootstrap cancelled.", type = "message", duration = 5)
   })
+  observeEvent(input$cancel_dif_boot, {
+    if (cancel_boot_job())
+      showNotification("DIF bootstrap cancelled.", type = "message", duration = 5)
+  })
+  observeEvent(input$cancel_bdif_boot, {
+    if (cancel_boot_job())
+      showNotification("DIF bootstrap cancelled.", type = "message", duration = 5)
+  })
   session$onSessionEnded(function() {
     st <- isolate(boot_job())
     if (!is.null(st) && st$process$is_alive()) stop_efrm_process(st$process)
     if (!is.null(st)) close_boot_job(st)
   })
 
-  start_bootstrap <- function(f, B_raw, seed_raw, kind) {
+  start_bootstrap <- function(f, B_raw, seed_raw, kind, dif = NULL) {
     if (!is.null(efrm_job()) || !is.null(btlef_job())) {
-      showNotification("Another background analysis is running. Cancel it before starting a fit bootstrap.",
+      showNotification("Another background analysis is running. Cancel it before starting a bootstrap.",
                        type = "warning", duration = 7)
       return(invisible(NULL))
     }
     if (!is.null(boot_job())) {
-      showNotification("A fit bootstrap is already running. Cancel it before starting another.",
+      showNotification("A bootstrap is already running. Cancel it before starting another.",
                        type = "warning", duration = 7)
       return(invisible(NULL))
     }
@@ -5468,12 +5582,14 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     seed <- as.integer(seed_raw)
-    log_file <- tempfile("rasch-fit-bootstrap-", fileext = ".log")
+    log_file <- tempfile("rasch-bootstrap-", fileext = ".log")
     progress <- shiny::Progress$new(session, min = 0, max = 1)
-    progress$set(message = sprintf("Bootstrapping fit (B = %d)", B),
+    progress$set(message = sprintf("Bootstrapping %s (B = %d)",
+                                   if (kind %in% c("dif", "bdif"))
+                                     "DIF" else "fit", B),
                  detail = "Refitting the simulated datasets", value = .5)
     process <- tryCatch(callr::r_bg(
-      function(fit, B, seed, source_dir) {
+      function(fit, dif, B, seed, kind, source_dir) {
         if (!is.null(source_dir)) {
           if (!requireNamespace("pkgload", quietly = TRUE))
             stop("pkgload is needed for a source-tree background analysis")
@@ -5481,17 +5597,22 @@ server <- function(input, output, session) {
         }
         warnings <- character(0)
         value <- tryCatch(withCallingHandlers(
-          do.call(if (exists("fit_bootstrap", inherits = TRUE))
-            get("fit_bootstrap", inherits = TRUE) else
-              getExportedValue("rasch", "fit_bootstrap"),
-            list(fit = fit, B = B, workers = 4L, seed = seed)),
+          do.call(if (kind %in% c("dif", "bdif")) {
+              if (exists("dif_bootstrap", inherits = TRUE))
+                get("dif_bootstrap", inherits = TRUE) else
+                  getExportedValue("rasch", "dif_bootstrap")
+            } else if (exists("fit_bootstrap", inherits = TRUE))
+              get("fit_bootstrap", inherits = TRUE) else
+                getExportedValue("rasch", "fit_bootstrap"),
+            c(list(fit = fit), if (kind %in% c("dif", "bdif")) list(dif = dif)
+              else list(), list(B = B, workers = 4L, seed = seed))),
           warning = function(w) {
             warnings <<- c(warnings, conditionMessage(w))
             invokeRestart("muffleWarning")
           }), error = function(e) list(.error = conditionMessage(e),
                                        .refusal = inherits(e, "rasch_refusal")))
         list(value = value, warnings = unique(warnings))
-      }, args = list(fit = f, B = B, seed = seed,
+      }, args = list(fit = f, dif = dif, B = B, seed = seed, kind = kind,
                      source_dir = .rasch_source_dir),
       libpath = .libPaths(), stdout = log_file, stderr = log_file,
       supervise = TRUE), error = function(e) e)
@@ -5502,7 +5623,7 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     boot_job(list(process = process, progress = progress, log_file = log_file,
-                  kind = kind, base_fit = f,
+                  kind = kind, base_fit = f, base_dif = dif,
                   context = isolate(analysis_context()), B = B, seed = seed))
     invisible(NULL)
   }
@@ -5510,6 +5631,16 @@ server <- function(input, output, session) {
     start_bootstrap(fit(), input$boot_B, input$boot_seed, "rasch"))
   observeEvent(input$btl_boot_run,
     start_bootstrap(bfit(), input$btl_boot_B, input$btl_boot_seed, "btl"))
+  observeEvent(input$dif_boot_run, {
+    f <- fit()
+    d <- tryCatch(dif_res(), error = function(e) e)
+    if (inherits(d, "error")) {
+      showNotification(paste("DIF analysis failed:", conditionMessage(d)),
+                       type = "error", duration = 10)
+      return()
+    }
+    start_bootstrap(f, input$dif_boot_B, input$dif_boot_seed, "dif", d)
+  })
 
   observe({
     st <- boot_job()
@@ -5518,10 +5649,14 @@ server <- function(input, output, session) {
     if (st$process$is_alive()) return()
     result <- tryCatch(st$process$get_result(), error = function(e) e)
     close_boot_job(st); boot_job(NULL)
-    current <- if (identical(st$kind, "btl"))
+    current <- if (st$kind %in% c("btl", "bdif"))
       tryCatch(bfit(), error = function(e) NULL) else fit_or_null()
     if (!identical(st$context, isolate(analysis_context())) ||
-        !identical(current, st$base_fit)) {
+        !identical(current, st$base_fit) ||
+        (st$kind %in% c("dif", "bdif") &&
+         !identical(tryCatch(isolate(if (identical(st$kind, "bdif"))
+           bdif_res() else dif_res()), error = function(e) NULL),
+           st$base_dif))) {
       showNotification("The completed bootstrap was not used because the active analysis changed while it was running.",
                        type = "warning", duration = 8)
       return()
@@ -5541,8 +5676,36 @@ server <- function(input, output, session) {
         duration = 10)
       return()
     }
-    boot_val(list(bs = result$value, B = st$B, seed = st$seed,
-                  kind = st$kind))
+    if (st$kind %in% c("dif", "bdif")) {
+      problem <- tryCatch({
+        .validate_dif_bootstrap(result$value, st$base_fit, st$base_dif)
+        NULL
+      }, error = function(e) conditionMessage(e))
+      if (!is.null(problem)) {
+        showNotification(paste("DIF bootstrap result was not retained:",
+                               problem),
+                         type = "error", duration = 10)
+        return()
+      }
+      dif_boot_val(list(db = result$value, B = st$B, seed = st$seed,
+                        kind = st$kind))
+    } else
+      boot_val(list(bs = result$value, B = st$B, seed = st$seed,
+                    kind = st$kind))
+  })
+  output$has_dif_boot <- reactive({
+    z <- dif_boot_val(); !is.null(z) && !identical(z$kind, "bdif")
+  })
+  outputOptions(output, "has_dif_boot", suspendWhenHidden = FALSE)
+  output$dif_boot_state <- renderUI({
+    bv <- dif_boot_val()
+    if (is.null(bv) || identical(bv$kind, "bdif")) return(NULL)
+    span(class = "badge bg-primary-subtle text-primary-emphasis pb-2 mb-2",
+         sprintf(paste0("Sensitivity analysis active: %d of %d used; %d did ",
+                        "not converge; %d otherwise failed; seed %d"),
+                 bv$db$B_used, bv$B,
+                 bv$db$B_nonconverged %||% NA_integer_,
+                 bv$db$B_errors %||% NA_integer_, bv$seed))
   })
   output$boot_state <- renderUI({
     bv <- boot_val()
@@ -6308,6 +6471,9 @@ server <- function(input, output, session) {
     soft(dif_anova(f, effects = input$dif_effects %||% "main",
                    p_adjust = "holm", alpha = dif_alpha()))
   })
+  observeEvent(list(input$dif_effects, input$dif_alpha), {
+    if (!isTRUE(restoring_project())) dif_boot_val(NULL)
+  }, ignoreInit = TRUE)
   # code footer: omit the effects argument when there is only one factor
   dif_effects_arg <- function()
     if (dif_multi()) sprintf('effects = %s, ', qstr(input$dif_effects %||% "main"))
@@ -6334,6 +6500,25 @@ server <- function(input, output, session) {
   }, code = function()
     sprintf('dif_anova(fit, %sp_adjust = %s, alpha = %s)$terms',
             dif_effects_arg(), qstr("holm"), dif_alpha()))
+  register_table("dif_boot_tbl", function() {
+    bv <- dif_boot_val(); req(!is.null(bv)); bv$db$summary
+  }, function() {
+    bv <- dif_boot_val(); req(!is.null(bv))
+    d <- bv$db$summary
+    if (!isTRUE(input$dif_boot_full))
+      d <- d[, intersect(c(
+        "item", "term", "p_uniform_adj", "p_uniform_boot_adj",
+        "p_nonuniform_adj", "p_nonuniform_boot_adj"), names(d)), drop = FALSE]
+    dt <- num_dt(d)
+    dt <- style_lo_red(dt, d, "p_uniform_boot_adj", dif_alpha())
+    style_lo_red(dt, d, "p_nonuniform_boot_adj", dif_alpha())
+  }, code = function() {
+    bv <- dif_boot_val(); req(!is.null(bv))
+    sprintf(paste0(
+      "d <- dif_anova(fit, %sp_adjust = %s, alpha = %s)\n",
+      "dif_bootstrap(fit, d, B = %d, workers = 4, seed = %d)$summary"),
+      dif_effects_arg(), qstr("holm"), dif_alpha(), bv$B, bv$seed)
+  })
   output$dif_note <- renderUI({
     r <- dif_res(); d <- r$summary
     sig <- sum(d$uniform_DIF | d$nonuniform_DIF, na.rm = TRUE)
@@ -7269,6 +7454,7 @@ server <- function(input, output, session) {
   }, ignoreNULL = FALSE)
   bdif_res <- reactiveVal(NULL)
   observeEvent(input$bdif_run, {
+    dif_boot_val(NULL)
     active_bt <- tryCatch(bfit(), error = function(e) e)
     if (inherits(active_bt, "rasch_btl_efrm")) {
       showNotification(paste(
@@ -7303,6 +7489,31 @@ server <- function(input, output, session) {
       bdif_res(NULL)
     } else bdif_res(r)
   })
+  observeEvent(input$bdif_boot_run, {
+    f <- tryCatch(bfit(), error = function(e) e)
+    d <- bdif_res()
+    if (inherits(f, "error") || is.null(d)) {
+      showNotification("Run the Comparative Judgement DIF analysis first.",
+                       type = "warning", duration = 7)
+      return()
+    }
+    start_bootstrap(f, input$bdif_boot_B, input$bdif_boot_seed,
+                    "bdif", d)
+  })
+  output$has_bdif_boot <- reactive({
+    z <- dif_boot_val(); !is.null(z) && identical(z$kind, "bdif")
+  })
+  outputOptions(output, "has_bdif_boot", suspendWhenHidden = FALSE)
+  output$bdif_boot_state <- renderUI({
+    bv <- dif_boot_val()
+    if (is.null(bv) || !identical(bv$kind, "bdif")) return(NULL)
+    span(class = "badge bg-primary-subtle text-primary-emphasis pb-2 mb-2",
+         sprintf(paste0("Sensitivity analysis active: %d of %d used; %d did ",
+                        "not converge; %d otherwise failed; seed %d"),
+                 bv$db$B_used, bv$B,
+                 bv$db$B_nonconverged %||% NA_integer_,
+                 bv$db$B_errors %||% NA_integer_, bv$seed))
+  })
   register_table("bdif_anova_tbl", function() {
     r <- bdif_res(); req(!is.null(r)); r$summary
   }, function() {
@@ -7329,6 +7540,30 @@ server <- function(input, output, session) {
                           'p_adjust = %s, alpha = %s)$summary'),
                    qstr(bdif_shown_effects()),
                    qstr(bdif_res()$p_adjust), bdif_shown_alpha())))
+  register_table("bdif_boot_tbl", function() {
+    bv <- dif_boot_val(); req(!is.null(bv), identical(bv$kind, "bdif"))
+    bv$db$summary
+  }, function() {
+    bv <- dif_boot_val()
+    validate(need(!is.null(bv) && identical(bv$kind, "bdif"),
+                  "Run the bootstrap sensitivity analysis first."))
+    d <- bv$db$summary
+    if (!isTRUE(input$bdif_boot_full))
+      d <- d[, intersect(c(
+        "object", "term", "p_uniform_adj", "p_uniform_boot_adj",
+        "p_nonuniform_adj", "p_nonuniform_boot_adj"), names(d)), drop = FALSE]
+    dt <- num_dt(d)
+    dt <- style_lo_red(dt, d, "p_uniform_boot_adj", bdif_shown_alpha())
+    style_lo_red(dt, d, "p_nonuniform_boot_adj", bdif_shown_alpha())
+  }, code = function() {
+    bv <- dif_boot_val(); req(!is.null(bv), identical(bv$kind, "bdif"))
+    paste0(bdif_code_grp(), "\n",
+      sprintf(paste0(
+        "d <- btl_dif(bt, factors, effects = %s, p_adjust = %s, alpha = %s)\n",
+        "dif_bootstrap(bt, d, B = %d, workers = 4, seed = %d)$summary"),
+        qstr(bdif_shown_effects()), qstr(bdif_res()$p_adjust),
+        bdif_shown_alpha(), bv$B, bv$seed))
+  })
   register_table("bdif_sizes_tbl", function() {
     r <- bdif_res(); req(!is.null(r), !is.null(r$sizes)); r$sizes
   }, function() {
@@ -8640,23 +8875,49 @@ server <- function(input, output, session) {
                       fitted_generation = fitted_sim_gen()),
     results = list(
       resolve = resolve_res(), lr = lr_res(), rescore = rescore_res(),
-      contrasts = contr_res(), btl_dif = bdif_res(), btl_frames = btlef_res(),
+      contrasts = contr_res(),
+      dif = if (is.null(btl_fit())) app_dif_res() else NULL,
+      btl_dif = bdif_res(), btl_frames = btlef_res(),
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
       dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
       person_weights = person_weight_state(),
-      bootstrap = boot_val())))
+      bootstrap = boot_val(), dif_bootstrap = {
+        bv <- dif_boot_val()
+        if (is.null(bv)) NULL else {
+          f <- if (!is.null(btl_fit()))
+            tryCatch(bfit(), error = function(e) NULL) else fit_or_null()
+          d <- app_dif_res()
+          if (is.null(f) || is.null(d))
+            stop("the saved DIF bootstrap no longer has its active fit and primary DIF analysis; rerun it before saving")
+          .validate_dif_bootstrap(bv$db, f, d)
+          bv
+        }
+      })))
 
   # exports carry the analysis as run in this session: the DIF model the
   # analyst configured and any bootstrap null, not default recomputations
   app_dif_res <- function() {
-    f <- fit_or_null()
-    if (is.null(f) || inherits(f, "rasch_btl") || is.null(f$factors))
-      return(NULL)
+    f <- if (!is.null(btl_fit())) tryCatch(bfit(), error = function(e) NULL)
+      else fit_or_null()
+    if (is.null(f)) return(NULL)
+    if (inherits(f, "rasch_btl")) return(bdif_res())
+    if (is.null(f$factors)) return(NULL)
     tryCatch(dif_res(), error = function(e) NULL)
   }
   app_boot_res <- function() {
     bv <- boot_val()
     if (is.null(bv)) NULL else bv$bs
+  }
+  app_dif_boot_res <- function() {
+    bv <- dif_boot_val()
+    f <- if (!is.null(btl_fit())) tryCatch(bfit(), error = function(e) NULL)
+      else fit_or_null()
+    if (is.null(bv) || is.null(f)) return(NULL)
+    d <- app_dif_res()
+    if (is.null(d))
+      stop("the DIF bootstrap no longer has its primary DIF analysis; rerun it before exporting")
+    .validate_dif_bootstrap(bv$db, f, d)
+    bv$db
   }
 
   output$dl_project <- downloadHandler(
@@ -8728,6 +8989,7 @@ server <- function(input, output, session) {
       guess_res(rr$guessing %||% NULL)
       person_weight_state(rr$person_weights %||% NULL)
       boot_val(rr$bootstrap %||% NULL)
+      dif_boot_val(rr$dif_bootstrap %||% NULL)
     })
     # raw_data() first refreshes the choices available to every role control;
     # applying the stored selections after that flush prevents the automatic
@@ -8755,9 +9017,11 @@ server <- function(input, output, session) {
     withProgress(message = paste("Building the", toupper(format), "report…"),
                  value = 0.4, {
       if (identical(format, "html") && !inherits(f, "rasch_btl"))
-        report_html(f, file, dif = app_dif_res(), bootstrap = app_boot_res())
+        report_html(f, file, dif = app_dif_res(), bootstrap = app_boot_res(),
+                    dif_bootstrap = app_dif_boot_res())
       else report_document(f, file, format = format,
-                           dif = app_dif_res(), bootstrap = app_boot_res())
+                           dif = app_dif_res(), bootstrap = app_boot_res(),
+                           dif_bootstrap = app_dif_boot_res())
     })
   }
   output$dl_report <- downloadHandler(
@@ -8776,7 +9040,8 @@ server <- function(input, output, session) {
         save_outputs(f, tmp,
                      formats = if (length(input$exp_formats)) input$exp_formats else "png",
                      item_plots = isTRUE(input$exp_items),
-                     dif = app_dif_res(), bootstrap = app_boot_res())
+                     dif = app_dif_res(), bootstrap = app_boot_res(),
+                     dif_bootstrap = app_dif_boot_res())
       })
       owd <- setwd(tmp); on.exit(setwd(owd), add = TRUE)
       utils::zip(zipfile = file, files = list.files(".", recursive = TRUE),

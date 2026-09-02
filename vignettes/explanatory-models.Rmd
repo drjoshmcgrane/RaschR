@@ -47,7 +47,8 @@ item_design <- data.frame(
 
 difficulty <- 0.8 * (item_design$operation == "inference") +
   0.4 * (item_design$format == "constructed")
-theta <- rnorm(500)
+group <- factor(rep(c("A", "B"), each = 250))
+theta <- rnorm(500) + ifelse(group == "B", 0.3, 0)
 X <- sapply(difficulty, function(delta)
   rbinom(length(theta), 1, plogis(theta - delta)))
 colnames(X) <- item_design$item
@@ -56,7 +57,8 @@ fit <- rasch_explanatory(
   X,
   predictors = item_design,
   formula = ~ operation + format,
-  level = "item"
+  level = "item",
+  factors = data.frame(group = group)
 )
 fit$est$coefficients
 ```
@@ -154,6 +156,16 @@ the required fixed departures for changed items. Response-dependence
 resolution does the same for its resolved item copies. With keyed
 multiple-choice data, unchanged and split items retain their raw responses for
 distractor analysis.
+
+When person factors are supplied to `rasch_explanatory()`, DIF is tested in
+the usual way. The optional bootstrap conditions on each person's score and
+refits the active explanatory model, including accepted fixed departures. Its
+familywise probabilities refer to the fitted global invariant null.
+
+```{r dif-bootstrap, eval=FALSE}
+dif <- dif_anova(fit)
+dif_bootstrap(fit, dif, B = 999, seed = 2026)$summary
+```
 
 The same workflow is available under **Explanatory** in the Shiny application.
 Predictor type is selected explicitly in the application; ordinal predictors

@@ -679,6 +679,14 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   }
   fit$facet_spec <- facets
   fit$virtual_map <- vmap
+  # Retain the public fitting contract needed to reproduce this structural
+  # calibration from a generated virtual response matrix.  The response
+  # matrix itself and the person factors already live on `fit`; keeping the
+  # roles and controls here avoids trying to infer them from display tables.
+  fit$refit_spec <- list(
+    facets = facets, interaction = interaction,
+    n_groups = n_groups, na_codes = na_codes,
+    maxit = maxit, tol = tol)
   fit <- .tag_tables(fit)
   class(fit) <- c("rasch_mfrm", "rasch")
   fit

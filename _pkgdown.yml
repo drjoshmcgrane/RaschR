@@ -108,6 +108,7 @@ reference:
     Examine DIF across groups or occasions and equate calibrations.
   contents:
   - dif_anova
+  - dif_bootstrap
   - dif_contrasts
   - dif_posthoc
   - dif_size

@@ -10,7 +10,8 @@ report_html(
   title = "Rasch measurement analysis",
   dpi = 150,
   dif = NULL,
-  bootstrap = NULL
+  bootstrap = NULL,
+  dif_bootstrap = NULL
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ report_html(
 \item{dif, bootstrap}{Optional computed \code{\link{dif_anova}} and
 \code{\link{fit_bootstrap}} results from this fit, exported as run; the DIF table is
 otherwise recomputed at defaults when the fit carries person factors.}
+
+\item{dif_bootstrap}{Optional \code{\link{dif_bootstrap}} sensitivity
+analysis from this fit and DIF specification.}
 }
 \value{
 Invisibly, \code{file}.

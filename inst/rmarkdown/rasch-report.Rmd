@@ -232,6 +232,30 @@ if (!is_btl) {
         c("item", "term", "p_uniform_adj", "eta2_uniform",
           "p_nonuniform_adj", "eta2_nonuniform", "uniform_DIF",
           "nonuniform_DIF"))))
+      if (!is.null(da$sizes) && nrow(da$sizes)) {
+        cat("\n## DIF magnitude\n\n")
+        print(show_table(report_columns(da$sizes,
+          c("item", "term", "level_a", "level_b", "difference", "se",
+            "df", "p_adj", "practical"))))
+      }
+    }
+    db <- attr(fit, "report_dif_bootstrap")
+    if (!is.null(db)) {
+      cat("\n## Bootstrap sensitivity analysis\n\n")
+      cat(sprintf(paste0("%d of %d complete-family replicates; %d did not ",
+                         "converge and %d otherwise failed. Bootstrap ",
+                         "decisions use single-step minimum-p familywise ",
+                         "probabilities under the fitted global invariant ",
+                         "null; they do not provide strong control when ",
+                         "another member has DIF. The adjusted residual ANOVA above ",
+                         "remains the primary DIF analysis. Null generator: ",
+                         "%s.\n\n"),
+                  db$B_used, db$B, db$B_nonconverged, db$B_errors,
+                  if (is.null(db$null_method)) "conditional" else
+                    db$null_method))
+      print(show_table(report_columns(db$summary,
+        c("item", "term", "p_uniform_boot_adj", "uniform_DIF_boot",
+          "p_nonuniform_boot_adj", "nonuniform_DIF_boot"))))
     }
   }
 }
@@ -289,6 +313,36 @@ if (is_btl) {
         c("judge", "n", "fit_resid", "fit_resid_p_boot_adj",
           "n_boot_fit_resid", "infit_ms_p_boot_adj", "outfit_ms_p_boot_adj"))))
     }
+  }
+  da <- attr(fit, "report_dif")
+  if (!is.null(da)) {
+    cat("\n# Differential object functioning\n\n")
+    print(show_table(report_columns(da$summary,
+      c("object", "term", "p_uniform_adj", "eta2_uniform",
+        "p_nonuniform_adj", "eta2_nonuniform", "uniform_DIF",
+        "nonuniform_DIF"))))
+    if (!is.null(da$sizes)) {
+      cat("\n## DIF magnitude\n\n")
+      print(show_table(report_columns(da$sizes,
+        c("object", "term", "level_a", "level_b", "difference", "se",
+          "df", "p_adj", "practical"))))
+    }
+  }
+  db <- attr(fit, "report_dif_bootstrap")
+  if (!is.null(db)) {
+    cat("\n## Bootstrap sensitivity analysis\n\n")
+    cat(sprintf(paste0(
+      "%d of %d complete-family replicates; %d did not converge and %d ",
+      "otherwise failed. The null generator was %s. Bootstrap decisions ",
+      "use single-step minimum-p familywise probabilities under the fitted ",
+      "global invariant null; they do not provide strong control when another ",
+      "member has DIF. The adjusted ",
+      "residual ANOVA remains primary.\n\n"),
+      db$B_used, db$B, db$B_nonconverged, db$B_errors,
+      if (is.null(db$null_method)) "fitted-outcome" else db$null_method))
+    print(show_table(report_columns(db$summary,
+      c("object", "term", "p_uniform_boot_adj", "uniform_DIF_boot",
+        "p_nonuniform_boot_adj", "nonuniform_DIF_boot"))))
   }
   if (inherits(fit, "rasch_btl_efrm")) {
     cat("\n# Frame-dependent units\n\n")

@@ -1,5 +1,21 @@
 # rasch 1.12.1
 
+* DIF bootstrap results are now checked before they are restored, reported or
+  exported. The replicate matrices, accounting totals, declared test family,
+  primary DIF tables and derived probabilities must agree; an incomplete or
+  inconsistent result is refused before any output files are written.
+* `dif_bootstrap()` adds an optional sensitivity analysis for DIF. It
+  conditions on person scores for Rasch, explanatory and Multiple Ratings
+  models, on item-set subtotals for Extended Frames, and on the fitted outcome
+  model for Comparative Judgement. Each replicate refits the model and repeats
+  the declared DIF analysis. Adjusted probabilities use a single-step
+  minimum-p reference over the complete family; `dif_anova()` or `btl_dif()`
+  remains primary. They describe the fitted global invariant null, not strong
+  familywise control when another member has DIF. The application runs the
+  analysis in the background and retains it with its primary DIF specification
+  in saved projects, reports and exports. Validation now separates power for
+  the affected member from familywise error among invariant members under
+  partial alternatives in every supported model family.
 * Fitted-model provenance now includes the complete fit, including person
   identities, comparative-judgement thresholds and sequential-dependence
   estimates. Application project files use a sealed schema that detects a
@@ -15,7 +31,9 @@
   give a short summary rather than dumping the stored replicate matrices.
 * DIF results carry the identity of their fitted model and cannot be exported
   or reported with a different calibration. Saved application projects now
-  validate every fitted-model history entry, not only the active one.
+  validate every fitted-model history entry, not only the active one. A saved
+  DIF bootstrap must also match its primary DIF specification and restored
+  controls. Reports include the corresponding DIF magnitude estimates.
 * Adjusted probabilities for DIF magnitudes and contrasts, paired-comparison
   DIF magnitudes, explanatory coefficients and diagnostics, MFRM interaction
   follow-ups, and tailored analysis now retain the complete declared family

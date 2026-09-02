@@ -85,6 +85,64 @@ files used. `btl-efrm-current.csv` and `btl-efrm-bias-sweep.csv` were rerun on
 2026-08-27 after the reconciled-panel refit; both carry R-tree hash
 `dc534f567649`. Their current results are described below.
 
+The DIF-bootstrap studies regenerated on 2026-09-01 and 2026-09-02 carry
+R-tree hash `067abd31b102`: `dif-bootstrap-public-conformance.csv`,
+`dif-bootstrap-model-conformance.csv`, `dif-bootstrap-structural-null.csv`,
+`dif-bootstrap-structural-followup.csv`,
+`dif-bootstrap-structural-alternative.csv`, and
+`dif-bootstrap-repeated.csv`. The execution state was `bee6523+dirty`; the
+R-tree and script hashes identify the exact estimator and study sources used.
+
+The DIF bootstrap implementation is checked through two independent public
+refit studies. `studies/dif-bootstrap-public-conformance.R` covers ordinary
+dichotomous, PCM and RSM fits; its 49 generated datasets preserved every
+person score and missingness pattern and reproduced the retained F statistics,
+reference probabilities and bootstrap adjustments exactly. The structural
+extension is in `studies/dif-bootstrap-model-conformance.R`, with results in
+`results/dif-bootstrap-model-conformance.csv`. Across 19 replicates for each
+of explanatory Rasch, Multiple Ratings, Extended Frames and Comparative
+Judgement, all refits were usable. Person scores, item-set subtotals, or the
+paired-comparison design were preserved as appropriate, and the independently
+orchestrated F and reference-probability matrices agreed exactly with
+`dif_bootstrap()`. The result rows record the executed R-tree and script hashes.
+
+Null calibration of the structural extensions is in
+`studies/dif-bootstrap-structural-null.R`; the two elevated 50-dataset cells
+were followed by 150 fresh datasets in
+`studies/dif-bootstrap-structural-followup.R`. Combined minimum-p FWER was
+9/170 (5.29%) for Extended Frames and 13/200 (6.50%) for ordinary Comparative
+Judgement; the corresponding Monte Carlo standard errors were 1.72 and 1.74
+percentage points. The clustered-judge stress screen was 1/50. Extended
+Frames had a material refusal rate in this small linked design: in the
+follow-up, 12 observed links failed, one fit did not converge, and 11 of 137
+otherwise fitted analyses retained fewer than 90 of 99 complete-family
+refits. Performance is conditional on the 126 analysed datasets. The result
+file includes the attempted, usable, non-converged and other-failure counts,
+including work done inside a refused bootstrap.
+
+Partial-alternative power and invariant-unit error are examined in
+`studies/dif-bootstrap-structural-alternative.R` for explanatory Rasch,
+Multiple Ratings, Extended Frames and Comparative Judgement. Each condition
+plants one uniform-DIF member at two magnitudes and records affected-member
+power separately from familywise error among the remaining invariant members.
+This distinction is required because the bootstrap adjustment describes the
+fitted global invariant null rather than strong control under every partial
+alternative.
+
+The mixed-design extension is examined separately in
+`studies/dif-bootstrap-repeated.R`. It crosses a between-person group with
+four observations of a within-person occasion factor. Under an exact balanced
+Rasch null, primary and bootstrap familywise error were 6.86% and 4.86% over
+350 datasets. They were 2.86% and 2.29% in a local-dependence stress condition,
+and 4.57% and 4.00% with unequal groups and group-dependent panel loss. With
+uniform occasion DIF of 0.70 and 1.20 logits, primary/bootstrap power was
+48.8/41.6% and 98.4/96.0%; familywise error among the other items was no more
+than 4.0%. Adjusted power for non-uniform occasion DIF was weak: 2.4/2.4% for
+a slope increment of 0.80 and 5.6/4.8% for an increment of 1.50. This was not
+a bootstrap-specific loss; the primary residual analysis was also insensitive
+after adjustment over the complete 42-test family. Every conditional refit was
+usable in all seven conditions.
+
 The explanatory-model study run on 2026-08-23 is in
 `studies/explanatory-models.R`, with results in
 `results/explanatory-models.csv`. It covers LLTM and LPCM coefficients,
@@ -290,7 +348,45 @@ granularity deliberately).
   versus 2.5% for the RSM (hybrid versus bootstrap). With a 1.4 slope
   departure on one item, false flags among the other five items occurred in
   19.0% versus 13.5% of PCM datasets and 14.5% versus 11.0% of RSM datasets.
-  The bootstrap attenuates score contamination but does not solve it.
+  The bootstrap attenuates score contamination but does not solve it. The
+  public result also requires its adjusted probability to be no smaller than
+  its marginal empirical probability. This floor can only remove flags from
+  the study implementation: the reported null and unaffected-item rates are
+  upper bounds for the public rule, and the reported power is likewise an
+  upper bound.
+- `results/dif-bootstrap-public-conformance.csv` — direct conformance of the
+  exported `dif_bootstrap()` result to a separately orchestrated refit loop.
+  The check covers a correlated multifactor design, a mixed repeated-measures
+  design, PCM and RSM. It verifies the complete F matrix, marginal empirical
+  probabilities, minimum-p familywise probabilities, raw-score
+  preservation and missingness preservation. All discrepancies and failure
+  counts were zero over 49 conditional refits per design. This connects the
+  public implementation to the operating-characteristic studies above; it is
+  not a further estimate of size or power.
+- `results/dif-bootstrap-structural-null.csv` and
+  `results/dif-bootstrap-structural-followup.csv` — global-null calibration
+  for explanatory Rasch, Multiple Ratings, Extended Frames and Comparative
+  Judgement, including a judge-heterogeneity stress condition and a separate
+  top-up of the two initially elevated cells. The follow-up separates losses
+  at the observed fit, observed DIF analysis and bootstrap stages.
+- `results/dif-bootstrap-structural-alternative.csv` — affected-member power
+  and invariant-member familywise error under two uniform-DIF magnitudes in
+  each supported structural model family (100 attempted datasets per cell,
+  B = 99). For effects of 0.5 and 0.9 logits, primary/bootstrap power was
+  5/8% and 51/49% for explanatory Rasch, 23/23% and 78/74% for Multiple
+  Ratings, and 7/8% and 15/17% for Comparative Judgement. Corresponding
+  invariant-member FWER was 3/2% and 8/5%, 10/9% and 23/20%, and 5/6% and
+  7/10%. Extended Frames analysed 83 and 80 datasets; conditional power was
+  6.0/8.4% and 31.3/25.0%, with invariant-item FWER 0/0% and 6.3/3.8%.
+  Observed-fit/DIF refusals accounted for 9 and 11 datasets, and bootstrap
+  failures for 8 and 9. The study confirms that the fitted-global-null
+  bootstrap is a sensitivity analysis: it can reduce artificial flags, but
+  does not provide strong control after one member departs.
+- `results/dif-bootstrap-repeated.csv` — familywise error and affected-item
+  power for a four-occasion mixed DIF design. It includes an exact balanced
+  null, a local-dependence stress condition, group-dependent panel loss, and
+  uniform and non-uniform alternatives at two magnitudes. Each row records
+  Greenhouse--Geisser epsilon and complete inner-refit accounting.
 - `results/dif-score-purification.csv` — an initial comparison of leave-one-out,
   fixed-anchor, and iterative matching scores. Leave-one-out testing was
   rejected because null familywise error reached 28--34%. Re-estimating the

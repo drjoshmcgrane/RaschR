@@ -13,7 +13,8 @@ save_outputs(
   dpi = 300,
   item_plots = TRUE,
   dif = NULL,
-  bootstrap = NULL
+  bootstrap = NULL,
+  dif_bootstrap = NULL
 )
 }
 \arguments{
@@ -38,6 +39,9 @@ computes the default when the fit carries person factors.}
 \item{bootstrap}{Optional \code{\link{fit_bootstrap}} result from this fit. Its item and
 person tables, or pair, object and judge tables for paired comparisons,
 join the export with the whole-test readings.}
+
+\item{dif_bootstrap}{Optional \code{\link{dif_bootstrap}} sensitivity
+analysis from this fit and DIF specification.}
 }
 \value{
 Invisibly, the vector of files written.

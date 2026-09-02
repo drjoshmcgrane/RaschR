@@ -179,6 +179,16 @@ head(bd$summary[bd_order, c(
 )], 6)
 ```
 
+An optional fitted-outcome bootstrap repeats the comparison fit and the
+complete object-by-term family. It is a sensitivity analysis beside the
+primary HC3 residual analysis. Its familywise probabilities refer to the
+fitted global invariant null.
+
+```{r btl-dif-bootstrap, eval = FALSE}
+bd_boot <- dif_bootstrap(fit, bd, B = 999, seed = 2026)
+bd_boot$summary
+```
+
 ## Equate panels through common objects
 
 `btl_equate` aligns two calibrations that share at least two objects. Two

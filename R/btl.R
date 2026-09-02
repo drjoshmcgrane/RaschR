@@ -2270,6 +2270,19 @@ btl_dif <- function(fit, factors, objects = NULL,
   summary_tab <- if (length(srows)) do.call(rbind, srows) else NULL
   summary_factors <- if (is.null(summary_tab)) list() else
     lapply(summary_tab$term, function(tt) fnames[match(tvars(tt), safe)])
+  # Preserve collision-free term identifiers before replacing the internal
+  # stand-ins with display labels.  Judge maps, rather than row-wise factor
+  # vectors, remain valid when a fitted-null replicate expands a comparison
+  # row into several observed response categories.
+  term_ids <- terms$term
+  summary_term_ids <- if (is.null(summary_tab)) character(0) else
+    summary_tab$term
+  judges_used <- unique(cm$judge[!is.na(cm$judge)])
+  factor_maps <- lapply(seq_along(gvs), function(j) {
+    first <- match(judges_used, cm$judge)
+    stats::setNames(gvs[[j]][first], judges_used)
+  })
+  names(factor_maps) <- fnames
 
   # resolution: for each flagged, non-superseded group term, resolve the object
   # over the COMPLETE judge-factor design. The omnibus terms were fitted
@@ -2461,9 +2474,17 @@ btl_dif <- function(fit, factors, objects = NULL,
   if (!is.null(levels_df)) levels_df$term <- relab(levels_df$term)
   out <- list(summary = summary_tab, terms = terms, levels = levels_df,
               sizes = sizes, summary_factors = summary_factors,
+              term_ids = term_ids,
+              summary_term_ids = summary_term_ids,
               effects = effects, factors = fnames,
               alpha = alpha, p_adjust = p_adjust, flag_logits = flag_logits,
-              notes = unique(notes))
+              notes = unique(notes),
+              fit_signature = .fit_boot_signature(fit),
+              bootstrap_design = list(
+                factors = factor_maps, objects = its, effects = effects,
+                p_adjust = p_adjust, alpha = alpha,
+                flag_logits = flag_logits, min_n = min_n,
+                maxit = maxit, tol = tol))
   out <- .tag_tables(out)
   class(out) <- "rasch_btl_dif"
   out
