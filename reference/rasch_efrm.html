@@ -206,9 +206,14 @@ restored when estimation finishes.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The partial credit model holds within each frame in its natural unit.
-Person-group units \(\phi_g\) are identified from common item thresholds
-across groups. Item sets partition the items, so set units \(\alpha_s\)
-are identified instead from persons observed in more than one set. The
+\(\phi_g\) and \(\alpha_s\) are unit <em>ratios</em> in the sense of
+Humphry and Andrich (2008, eq. 15) — each is the reference unit over the
+frame's own unit, against a reference level fixed at one, so a value above
+one means a finer natural unit and steeper curves on the common scale.
+Person-group ratios \(\phi_g\) are identified from common item
+thresholds across groups. Item sets partition the items, so set ratios
+\(\alpha_s\) are identified instead from persons observed in more than
+one set. The
 set-linking graph and the group-by-set frame graph must each connect to a
 common scale.</p>
 <p>Set units use a semiparametric likelihood for persons observed in each

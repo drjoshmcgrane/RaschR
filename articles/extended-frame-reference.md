@@ -18,9 +18,15 @@ and person \\n\\ in group \\g\\,
 {\sum\_{y=0}^{m_i}\exp\\\rho\_{sg}\[y\theta_n-
 \sum\_{k=1}^{y}\delta\_{ik}\]\\},\qquad \rho\_{sg}=\alpha_s\phi_g . \\
 
-The item-set unit is \\\alpha_s\\, and the person-group unit is
-\\\phi_g\\. The partial credit model holds within each frame in its
-natural unit. Dichotomous items are the one-threshold case.
+Following Humphry and Andrich (2008, eq. 15), the multiplicative
+parameter of a frame is the ratio of the reference unit to the frame’s
+own unit: \\\alpha_s\\ carries that ratio for item set \\s\\ and
+\\\phi_g\\ for person group \\g\\, each against a reference level fixed
+at one. A set with \\\alpha_s = 1.3\\ has the *smaller* natural unit —
+its logits are finer-grained, its response curves steeper on the common
+scale — since the unit itself is \\1/\alpha_s\\ of the reference unit.
+The partial credit model holds within each frame in its natural unit;
+dichotomous items are the one-threshold case.
 
 Use this model when variation in the unit is part of the measurement
 account. Poor fit to an equal-unit model is not by itself evidence for a
@@ -100,7 +106,7 @@ fit$phi_table       # person-group units
 #>  group   phi se_log_phi
 #>     g1 0.897      0.040
 #>     g2 1.115      0.040
-fit$alpha_table     # item-set units
+fit$alpha_table     # item-set unit ratios (reference unit / set unit)
 #>   set alpha se_log_alpha
 #>  set1 0.840        0.042
 #>  set2 1.190        0.042
