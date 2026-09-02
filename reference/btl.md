@@ -66,7 +66,9 @@ btl(
 - count:
 
   Optional name of a column of replication counts (a row standing for
-  several identical comparisons).
+  several identical comparisons). Counts greater than one cannot be
+  combined with `order`, because a compressed row does not retain the
+  sequence of the comparisons it represents.
 
 - order:
 

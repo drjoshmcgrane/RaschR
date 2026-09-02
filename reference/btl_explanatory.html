@@ -131,7 +131,9 @@ table and clusters the sandwich standard errors by judge.</p></dd>
 
 <dt id="arg-count">count<a class="anchor" aria-label="anchor" href="#arg-count"></a></dt>
 <dd><p>Optional name of a column of replication counts (a row
-standing for several identical comparisons).</p></dd>
+standing for several identical comparisons). Counts greater than one
+cannot be combined with <code>order</code>, because a compressed row does not
+retain the sequence of the comparisons it represents.</p></dd>
 
 
 <dt id="arg-order">order<a class="anchor" aria-label="anchor" href="#arg-order"></a></dt>

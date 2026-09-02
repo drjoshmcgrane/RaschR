@@ -62,8 +62,9 @@ dif_contrasts(
 
 - p_adjust:
 
-  Familywise adjustment across items and contrasts. The default is
-  `"holm"`.
+  Adjustment across items and contrasts. The default `"holm"` controls
+  familywise error; use `"BH"` only for false-discovery-rate screening.
+  `"none"` leaves probabilities unadjusted.
 
 - alpha:
 

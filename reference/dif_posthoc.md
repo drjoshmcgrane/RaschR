@@ -61,7 +61,9 @@ dif_posthoc(
 
 - p_adjust:
 
-  Familywise adjustment over this post-hoc family; default `"holm"`.
+  Adjustment over this post-hoc family. The default `"holm"` controls
+  familywise error; use `"BH"` only for false-discovery-rate screening.
+  `"none"` leaves probabilities unadjusted.
 
 - alpha:
 

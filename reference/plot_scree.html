@@ -6,17 +6,19 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Scree plot of the residual components with parallel analysis — plot_scree"><meta name="description" content="Eigenvalues of the residual correlation matrix for the leading components,
-with a model-simulated parallel-analysis reference: responses are simulated
-from the calibrated model (observed missingness kept), the item calibration
-and every person are re-estimated, and the residual eigenvalues recomputed.
+with a model-simulated parallel-analysis reference: response patterns are
+drawn conditional on each person's observed score and missingness pattern,
+the item calibration and every person are re-estimated, and the residual
+eigenvalues recomputed.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the
 fitted model (Raiche 2005; Chou &amp;amp; Wang 2010). Observed eigenvalues above
 the reference suggest structure beyond what the model itself produces."><meta property="og:description" content="Eigenvalues of the residual correlation matrix for the leading components,
-with a model-simulated parallel-analysis reference: responses are simulated
-from the calibrated model (observed missingness kept), the item calibration
-and every person are re-estimated, and the residual eigenvalues recomputed.
+with a model-simulated parallel-analysis reference: response patterns are
+drawn conditional on each person's observed score and missingness pattern,
+the item calibration and every person are re-estimated, and the residual
+eigenvalues recomputed.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the
@@ -63,9 +65,10 @@ the reference suggest structure beyond what the model itself produces."><meta pr
 
     <div class="ref-description section level2">
     <p>Eigenvalues of the residual correlation matrix for the leading components,
-with a model-simulated parallel-analysis reference: responses are simulated
-from the calibrated model (observed missingness kept), the item calibration
-and every person are re-estimated, and the residual eigenvalues recomputed.
+with a model-simulated parallel-analysis reference: response patterns are
+drawn conditional on each person's observed score and missingness pattern,
+the item calibration and every person are re-estimated, and the residual
+eigenvalues recomputed.
 Because estimating
 the person locations couples the residuals within a person, this reference
 sits above the classical random-normal one and is calibrated under the
@@ -95,7 +98,8 @@ the reference suggest structure beyond what the model itself produces.</p>
 
 
 <dt id="arg-reps">reps<a class="anchor" aria-label="anchor" href="#arg-reps"></a></dt>
-<dd><p>Model-simulated replicates for the reference.</p></dd>
+<dd><p>Model-simulated replicates for the reference; at least two when
+<code>parallel = TRUE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

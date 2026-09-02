@@ -1,14 +1,15 @@
 # Scree plot of the residual components with parallel analysis
 
 Eigenvalues of the residual correlation matrix for the leading
-components, with a model-simulated parallel-analysis reference:
-responses are simulated from the calibrated model (observed missingness
-kept), the item calibration and every person are re-estimated, and the
-residual eigenvalues recomputed. Because estimating the person locations
-couples the residuals within a person, this reference sits above the
-classical random-normal one and is calibrated under the fitted model
-(Raiche 2005; Chou & Wang 2010). Observed eigenvalues above the
-reference suggest structure beyond what the model itself produces.
+components, with a model-simulated parallel-analysis reference: response
+patterns are drawn conditional on each person's observed score and
+missingness pattern, the item calibration and every person are
+re-estimated, and the residual eigenvalues recomputed. Because
+estimating the person locations couples the residuals within a person,
+this reference sits above the classical random-normal one and is
+calibrated under the fitted model (Raiche 2005; Chou & Wang 2010).
+Observed eigenvalues above the reference suggest structure beyond what
+the model itself produces.
 
 ## Usage
 
@@ -33,7 +34,8 @@ plot_scree(fit, n_components = 10, parallel = TRUE, reps = 50)
 
 - reps:
 
-  Model-simulated replicates for the reference.
+  Model-simulated replicates for the reference; at least two when
+  `parallel = TRUE`.
 
 ## Value
 

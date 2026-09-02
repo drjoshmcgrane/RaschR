@@ -40,7 +40,9 @@ dif_size(
 
 - p_adjust:
 
-  Familywise adjustment over the pairwise comparisons; default `"holm"`.
+  Adjustment over the pairwise comparisons. The default `"holm"`
+  controls familywise error; use `"BH"` only for false-discovery-rate
+  screening. `"none"` leaves probabilities unadjusted.
 
 - alpha:
 

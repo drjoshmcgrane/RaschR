@@ -2,6 +2,40 @@
 
 ## rasch 1.12.1
 
+- Simulated response styles now preserve declared local dependence by
+  rebuilding dependent responses from the styled source responses, and
+  their log-probability tilt remains stable at large finite strengths.
+  [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md) now
+  refuses count-compressed rows with judgment order: the row does not
+  retain the sequence needed to estimate exposure and carry-over
+  effects. The dimensionality diagnostic retains the same guard for
+  older saved fits.
+
+- Scree parallel analysis now draws from the exact Rasch distribution
+  conditional on each person’s observed score and missingness pattern.
+  Saved result and application-project signatures use
+  platform-independent binary serialisation; analysis files carrying the
+  earlier text signatures remain valid across Windows and Unix line
+  endings.
+
+- Crossed Extended Frames groups retain their original column names in
+  fitted objects and factorial unit tables. Frame-defining groups are
+  therefore excluded correctly from a subsequent DIF analysis even when
+  their names contain spaces, reserved words or punctuation.
+
+- Explanatory models in the application now preserve exact predictor
+  names and distinguish literal colons from interactions. Ordered
+  predictors keep unique adjacent-contrast names. Comparative Judgement
+  DIF display settings are kept outside the signed result, and saved
+  primary DIF analyses are checked against the active fit whether or not
+  a bootstrap was requested.
+
+- Fit-bootstrap and primary DIF results now carry their own integrity
+  fingerprints. Before an analysis is restored, reported or exported,
+  the package checks the fitted-model identity, replicate accounting,
+  declared family, adjusted probabilities and the agreement between
+  detailed and summary tables. Edited or incomplete results are refused.
+
 - DIF bootstrap results are now checked before they are restored,
   reported or exported. The replicate matrices, accounting totals,
   declared test family, primary DIF tables and derived probabilities
