@@ -1098,14 +1098,14 @@ test_that("EFRM fits export and report despite the residual-PCA refusal", {
   expect_true(grepl("split unavailable", dt$note))
 })
 
-test_that("dimensionality_test gives a verdict for ordinary short tests", {
+test_that("dimensionality_test withholds an uncalibrated automatic verdict", {
   set.seed(1); N <- 500; L <- 10
   d <- seq(-2, 2, length.out = L)
   X <- matrix(rbinom(N * L, 1, plogis(outer(rnorm(N), d, "-"))), N, L)
   colnames(X) <- paste0("I", 1:L)
   dt <- dimensionality_test(rasch(as.data.frame(X)))
-  # the verdict is computed (short subtests caution, not NA-withhold)
-  expect_true(dt$multidimensional %in% c(TRUE, FALSE))
+  expect_true(is.na(dt$multidimensional))
+  expect_true(dt$binomial_multidimensional %in% c(TRUE, FALSE))
   expect_true(!is.null(dt$caution) && grepl("score points", dt$caution))
 })
 

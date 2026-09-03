@@ -283,6 +283,18 @@
       fail(paste("the saved dimensionality analysis does not belong to the active fit:",
                  problem))
   }
+  subtest <- project$results$subtest
+  if (!is.null(subtest)) {
+    if (is_btl)
+      fail("the saved person-subset dimensionality test accompanies a paired-comparison fit")
+    problem <- tryCatch({
+      .validate_dimensionality_test(subtest, active_fit)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (!is.null(problem))
+      fail(paste("the saved person-subset dimensionality test does not belong to the active fit:",
+                 problem))
+  }
   invariance <- project$results$frame_invariance
   if (!is.null(invariance)) {
     problem <- tryCatch({

@@ -58,7 +58,9 @@
 #' uncertainty, Holm adjustment covers the location comparisons. With
 #' bootstrap uncertainty, it covers the combined family of location and
 #' discrimination comparisons. An unavailable comparison remains in the
-#' applicable family.
+#' applicable family. A discrimination probability is unavailable when
+#' either separate-frame slope is on its imposed estimation boundary; the
+#' ratio remains descriptive and the comparison remains in the Holm family.
 #' The summary gives the root mean squared location difference and root mean
 #' squared standard error for each set and frame pair. Items from different
 #' sets cannot be compared because the sets partition the items.
@@ -243,6 +245,29 @@ NULL
     use.names = FALSE)
 }
 
+.frame_invariance_probabilities <- function(cmp, dsc, excluded, se_method,
+                                            alpha, adjust) {
+  if (identical(se_method, "bootstrap")) {
+    boundary <- dsc$disc_boundary %in% TRUE
+    dsc$statistic[boundary] <- NA_real_
+    dsc$p[boundary] <- NA_real_
+  }
+  allp <- c(cmp$p, dsc$p)
+  padj <- rep(NA_real_, length(allp))
+  usable <- is.finite(allp)
+  n_excluded <- nrow(excluded)
+  family_n <- nrow(cmp) + n_excluded + if (se_method == "bootstrap")
+    nrow(dsc) + n_excluded else 0L
+  padj[usable] <- stats::p.adjust(allp[usable], method = "holm", n = family_n)
+  cmp$p_adj <- padj[seq_len(nrow(cmp))]
+  dsc$p_adj <- padj[nrow(cmp) + seq_len(nrow(dsc))]
+  p_cmp <- if (adjust == "holm") cmp$p_adj else cmp$p
+  cmp$flagged <- ifelse(is.finite(p_cmp), p_cmp < alpha, NA)
+  p_dsc <- if (adjust == "holm") dsc$p_adj else dsc$p
+  dsc$flagged <- ifelse(is.finite(p_dsc), p_dsc < alpha, NA)
+  list(locations = cmp, discrimination = dsc, family_n = family_n)
+}
+
 #' @rdname frame_invariance
 #' @export
 frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
@@ -356,19 +381,11 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
   }
   # Conditional inference covers locations only. The validated bootstrap
   # adds discrimination and controls the two tables as one family.
-  allp <- c(cmp$p, dsc$p)
-  padj <- rep(NA_real_, length(allp))
-  usable <- is.finite(allp)
-  family_n <- nrow(cmp) + if (se_method == "bootstrap") nrow(dsc) else 0L
-  padj[usable] <- stats::p.adjust(
-    allp[usable], method = "holm", n = family_n)
-  cmp$p_adj <- padj[seq_len(nrow(cmp))]
-  dsc$p_adj <- padj[nrow(cmp) + seq_len(nrow(dsc))]
-  p_cmp <- if (adjust == "holm") cmp$p_adj else cmp$p
-  cmp$flagged <- ifelse(is.finite(p_cmp), p_cmp < alpha, NA)
+  inference <- .frame_invariance_probabilities(
+    cmp, dsc, ans$excluded, se_method, alpha, adjust)
+  cmp <- inference$locations
+  dsc <- inference$discrimination
   rownames(cmp) <- NULL
-  p_dsc <- if (adjust == "holm") dsc$p_adj else dsc$p
-  dsc$flagged <- ifelse(is.finite(p_dsc), p_dsc < alpha, NA)
   rownames(dsc) <- NULL
 
   frame_pairs <- unique(cmp[c("set", "frame_1", "frame_2")])
@@ -451,7 +468,7 @@ print.rasch_frame_invariance <- function(x, ...) {
     print(.fmt_df(fl[, c("set", "frame_1", "frame_2", "item", "difference",
                          "se", "statistic", pcol)]), row.names = FALSE)
   } else {
-    cat(sprintf("\nNo item's location differs across frames at alpha = %.2f (%s).\n",
+    cat(sprintf("\nNo available item-location comparison differs across frames at alpha = %.2f (%s).\n",
                 x$alpha, rule))
   }
   if (!identical(x$se_method, "bootstrap")) {
@@ -464,6 +481,10 @@ print.rasch_frame_invariance <- function(x, ...) {
     cat("Use se_method = \"bootstrap\" for discrimination probabilities.\n")
     return(invisible(x))
   }
+  nb <- sum(x$discrimination$disc_boundary %in% TRUE)
+  if (nb)
+    cat(sprintf("\n%d discrimination probability/probabilities withheld because a fitted slope is on its boundary.\n",
+                nb))
   fd <- x$discrimination[x$discrimination$flagged %in% TRUE, , drop = FALSE]
   if (nrow(fd)) {
     cat(sprintf(paste0("\nDiscrimination differs across frames in %d item ",
@@ -475,7 +496,7 @@ print.rasch_frame_invariance <- function(x, ...) {
     print(.fmt_df(fd[, intersect(cols, names(fd)), drop = FALSE]),
           row.names = FALSE)
   } else {
-    cat("\nNo item's discrimination differs across frames.\n")
+    cat("\nNo available discrimination comparison differs across frames.\n")
   }
   invisible(x)
 }

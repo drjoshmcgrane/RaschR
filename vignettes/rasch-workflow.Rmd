@@ -307,11 +307,17 @@ t_n=\frac{\hat\theta_{nA}-\hat\theta_{nB}}
 $$
 
 Under unidimensionality, about the nominated alpha level of these comparisons
-should be significant. The exact binomial interval, the residual loadings,
-and the score points in each subset are part of the result.
+should be significant when the subsets were fixed in advance. The exact
+binomial interval and the score points in each subset are part of the result.
+A split selected from the residuals is descriptive unless its selection is
+repeated in a parametric bootstrap.
 
 ```{r trait-dependence}
-dimensionality <- dimensionality_test(fit)
+dimensionality <- dimensionality_test(
+  fit,
+  items_positive = paste0("I", sprintf("%02d", 1:6)),
+  items_negative = paste0("I", sprintf("%02d", 7:12))
+)
 ```
 
 ```{r residual-scree, fig.alt = "Residual eigenvalues against the score-conditional model-reference band."}

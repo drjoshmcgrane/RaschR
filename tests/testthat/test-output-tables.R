@@ -200,6 +200,31 @@ test_that("exports accept dimensionality only from the fitted model being report
   expect_error(report_html(fit, tempfile(fileext = ".html"),
                            dimensionality = changed),
                "plot_scree")
+
+  subtest <- dimensionality_test(
+    fit, items_positive = colnames(fit$X)[1:2],
+    items_negative = colnames(fit$X)[3:5], min_score_points = 2)
+  expect_no_error(.validate_dimensionality_test(subtest, fit))
+  out <- tempfile("subtest-export-")
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+  save_outputs(fit, out, formats = "png", dpi = 72,
+               item_plots = FALSE, subtest = subtest)
+  exported <- read.csv(file.path(
+    out, "tables", "unidimensionality_t_test.csv"),
+    stringsAsFactors = FALSE)
+  expect_identical(exported$split, "manual")
+  expect_equal(exported$prop_significant, subtest$prop_significant)
+  expect_equal(exported$items_positive,
+               paste(subtest$items_positive, collapse = ";"))
+  expect_error(.validate_dimensionality_test(subtest, other),
+               "this fitted model")
+  expect_error(save_outputs(other, tempfile("wrong-subtest-"),
+                            formats = "png", item_plots = FALSE,
+                            subtest = subtest), "this fitted model")
+  altered <- subtest
+  altered$prop_significant <- altered$prop_significant + .01
+  expect_error(report_html(fit, tempfile(fileext = ".html"),
+                           subtest = altered), "dimensionality_test")
 })
 
 test_that("exports accept DIF only from the fitted model being reported", {

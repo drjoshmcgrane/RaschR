@@ -134,7 +134,7 @@ fit_summary_table(fit)
 targeting_table(fit)
 dif <- dif_anova(fit)
 residual_correlations(fit)
-dimensionality_test(fit)
+dimensionality_test(fit, B = 99, seed = 1)
 
 # Optional sensitivity analysis for the DIF reference distribution
 dif_bootstrap(fit, dif, B = 999, seed = 1)

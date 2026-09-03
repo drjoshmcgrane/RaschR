@@ -4,7 +4,9 @@ test_that("dimensionality test separates 1D from 2D data", {
   set.seed(1); Np <- 1500; L <- 20
   d <- scale(seq(-2, 2, length.out = L), scale = FALSE)[, 1]; th <- rnorm(Np, 0, 1.4)
   X1 <- matrix(rbinom(Np * L, 1, plogis(outer(th, d, "-"))), Np, L); colnames(X1) <- sprintf("U%02d", 1:L)
-  dt1 <- dimensionality_test(rasch(X1, model = "PCM"), min_score_points = 2)
+  dt1 <- dimensionality_test(
+    rasch(X1, model = "PCM"), items_positive = colnames(X1)[1:10],
+    items_negative = colnames(X1)[11:20], min_score_points = 2)
   expect_false(dt1$multidimensional)
 
   set.seed(2)
@@ -12,22 +14,28 @@ test_that("dimensionality test separates 1D from 2D data", {
   XA <- matrix(rbinom(Np * 10, 1, plogis(outer(thA, d[1:10], "-"))), Np, 10)
   XB <- matrix(rbinom(Np * 10, 1, plogis(outer(thB, d[11:20], "-"))), Np, 10)
   X2 <- cbind(XA, XB); colnames(X2) <- sprintf("D%02d", 1:20)
-  dt2 <- dimensionality_test(rasch(X2, model = "PCM"), min_score_points = 2)
+  dt2 <- dimensionality_test(
+    rasch(X2, model = "PCM"), items_positive = colnames(X2)[1:10],
+    items_negative = colnames(X2)[11:20], min_score_points = 2)
   expect_true(dt2$multidimensional)
   expect_gt(dt2$prop_significant, dt1$prop_significant)
 })
 
-test_that("dimensionality gives short subtests a verdict with a caution", {
+test_that("a short automatic dimensionality split is descriptive with a caution", {
   set.seed(11)
   X <- matrix(rbinom(500 * 12, 1, 0.5), 500, 12,
               dimnames = list(NULL, paste0("S", 1:12)))
   dt <- dimensionality_test(rasch(X))
-  # short subtests are the norm for ordinary dichotomous tests: the verdict
-  # is computed, and the Andrich-Marais ~15-score-point guidance is carried
-  # as a caution about subtest stability, not an NA-withhold
-  expect_true(dt$multidimensional %in% c(TRUE, FALSE))
+  # The short-subtest caution and the data-driven-split withholding are
+  # separate: the descriptive binomial reading remains available.
+  expect_true(is.na(dt$multidimensional))
+  expect_true(dt$binomial_multidimensional %in% c(TRUE, FALSE))
   expect_match(dt$caution, "score points")
   expect_true(all(dt$score_points < 15))
+  printed <- capture.output(print(dt))
+  expect_true(any(grepl("withheld for the data-driven split", printed,
+                        fixed = TRUE)))
+  expect_false(any(grepl("fit_signature", printed, fixed = TRUE)))
 })
 
 test_that("the dimensionality bootstrap calibrates the split it is given", {
@@ -37,6 +45,8 @@ test_that("the dimensionality bootstrap calibrates the split it is given", {
               dimnames = list(NULL, sprintf("I%02d", 1:L)))
   fit <- rasch(X)
   dt <- dimensionality_test(fit, min_score_points = 2)
+  expect_s3_class(dt, "rasch_dimensionality_test")
+  expect_no_error(.validate_dimensionality_test(dt, fit))
   expect_null(dt$p_boot)
   expect_null(dt$bootstrap)
   b1 <- dimensionality_test(fit, min_score_points = 2, B = 19, seed = 3)
@@ -51,6 +61,9 @@ test_that("the dimensionality bootstrap calibrates the split it is given", {
   expect_true(all(b1$bootstrap$null >= 0 & b1$bootstrap$null <= 1))
   expect_equal(b1$prop_null, mean(b1$bootstrap$null))
   expect_equal(b1$bootstrap$minimum_usable, 10L)
+  b_alpha <- dimensionality_test(fit, min_score_points = 2, B = 19,
+                                 seed = 3, alpha = .10)
+  expect_identical(b_alpha$multidimensional, b_alpha$p_boot <= .10)
   # a seed reproduces the replicates
   b2 <- dimensionality_test(fit, min_score_points = 2, B = 19, seed = 3)
   expect_equal(b1$bootstrap$null, b2$bootstrap$null)
@@ -66,6 +79,7 @@ test_that("the dimensionality bootstrap calibrates the split it is given", {
   expect_error(dimensionality_test(fit, B = 2.5), "`B`")
   expect_error(dimensionality_test(fit, B = 5, workers = 0), "`workers`")
   expect_error(dimensionality_test(fit, B = 5, seed = -1), "`seed`")
+  expect_error(dimensionality_test(fit, seed = -1), "`seed`")
   for (cl in c("rasch_efrm", "rasch_mfrm", "rasch_explanatory")) {
     f2 <- fit; class(f2) <- c(cl, "rasch")
     expect_error(dimensionality_test(f2, B = 5), "generating structure",
@@ -77,6 +91,22 @@ test_that("the dimensionality bootstrap calibrates the split it is given", {
   f4 <- fit; f4$refit_spec$pc_components <- 2L
   expect_error(dimensionality_test(f4, B = 5), "principal components",
                class = "rasch_refusal")
+})
+
+test_that("unavailable dimensionality comparisons keep a stable result shape", {
+  set.seed(211)
+  X <- matrix(rbinom(120 * 6, 1, .5), 120, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  fit <- rasch(X)
+  thin <- fit
+  thin$X <- thin$X[seq_len(9), , drop = FALSE]
+  out <- dimensionality_test(
+    thin, items_positive = colnames(X)[1:3],
+    items_negative = colnames(X)[4:6], min_score_points = 2)
+  expect_s3_class(out, "rasch_dimensionality_test")
+  expect_true(is.na(out$multidimensional))
+  expect_match(out$note, "fewer than 10 usable persons")
+  expect_no_error(.validate_dimensionality_test(out, thin))
 })
 
 test_that("a residual-component split runs above a fixed split under the model", {

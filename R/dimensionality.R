@@ -508,22 +508,19 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' significance. Persons with an extreme score on either subset are excluded
 #' (their weighted-likelihood estimates are most biased there). The
 #' proportion of significant tests is reported with an exact
-#' (Clopper-Pearson) binomial confidence interval; a lower bound above
-#' \code{alpha} signals multidimensionality. The test requires a converged
-#' calibration.
+#' (Clopper-Pearson) binomial confidence interval. For a split fixed in
+#' advance, a lower bound above \code{alpha} signals multidimensionality. The
+#' test requires a converged calibration.
 #'
 #' The binomial reading holds for a split fixed in advance. A split chosen
 #' from the residuals is chosen to make the two subsets disagree, so its
-#' proportion runs above \code{alpha} under unidimensionality. In the
-#' package's own simulation of unidimensional data (400 persons; 20
-#' four-category items, or 30 dichotomous items) the residual-component split
-#' left 6 to 7 per cent of persons significant and the binomial verdict
-#' flagged between a sixth and a half of the samples, depending on the
-#' design, while a split fixed in advance on the same data held the nominal
-#' rate and flagged none. With \code{B = 99} the bootstrap verdict flagged
-#' 2 to 8 per cent of the same samples and 97 per cent of samples from a
-#' two-dimensional design that the binomial verdict flagged in 87 per cent.
-#' Two remedies are available. A content-based split, named through \code{items_positive}
+#' proportion runs above \code{alpha} under unidimensionality. Package
+#' simulations confirmed that applying the fixed-split binomial rule after
+#' choosing the split from the same residuals is anti-conservative. Without
+#' bootstrap calibration the data-driven split therefore has no binary verdict:
+#' \code{multidimensional} is \code{NA}, while the interval and uncalibrated
+#' binomial reading remain available descriptively. Two inferential routes
+#' are available. A content-based split, named through \code{items_positive}
 #' and \code{items_negative}, keeps the binomial reading exact. Otherwise
 #' \code{B > 0} calibrates the data-driven split by a parametric bootstrap:
 #' each replicate draws responses from the fitted model conditional on every
@@ -531,7 +528,7 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' repeats the residual-component split on its own residuals and recomputes
 #' the proportion, so the bootstrap probability \code{p_boot} carries the
 #' same selection the observed proportion carries. With \code{B > 0} the
-#' verdict is \code{p_boot <= .05}; the binomial interval is still reported,
+#' verdict is \code{p_boot <= alpha}; the binomial interval is still reported,
 #' as a description of the observed proportion rather than a test of it.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
@@ -545,14 +542,15 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' @param min_score_points Score-point threshold below which the verdict
 #'   carries a caution. Andrich and Marais (2019) recommend subtests of
 #'   roughly 15 score points for stable subtest estimates; shorter subsets
-#'   (the norm for ordinary dichotomous tests) still receive a verdict, with
-#'   a \code{caution} field noting the reduced stability. A quiet verdict
+#'   (the norm for ordinary dichotomous tests) retain the analysis, with a
+#'   \code{caution} field noting the reduced stability. A quiet verdict
 #'   under caution is inconclusive, not clean: with a four-item subtest the
 #'   test lacks power where nonparametric alternatives still flag.
 #' @param B Number of parametric-bootstrap replicates that calibrate the
 #'   proportion of significant tests under the fitted model (see Details).
-#'   The default \code{0} reports the binomial reading alone. Each replicate
-#'   refits the calibration, so \code{B = 200} costs about two hundred
+#'   The default \code{0} reports the binomial interval and descriptive
+#'   reading alone; an automatic split then has no inferential verdict. Each
+#'   replicate refits the calibration, so \code{B = 200} costs about two hundred
 #'   fits; the bootstrap is available for single-facet fits with a common
 #'   unit whose thresholds were estimated directly.
 #' @param workers Number of parallel workers for the bootstrap refits.
@@ -561,7 +559,8 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' @return A list with the proportion of significant tests, its exact
 #'   confidence interval, the sample sizes (\code{n} used,
 #'   \code{n_excluded_extreme}), the item split and its source, a
-#'   \code{multidimensional} verdict, a \code{caution} note when the
+#'   \code{multidimensional} verdict, the corresponding uncalibrated
+#'   \code{binomial_multidimensional} reading, a \code{caution} note when the
 #'   subtests fall short of \code{min_score_points}, and \code{paired_t},
 #'   the paired t-test of the two subset means (the group-level comparison,
 #'   which requires pairing because both estimates come from the same
@@ -586,7 +585,9 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' d <- seq(-2, 2, length.out = 8)
 #' X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 #' colnames(X) <- paste0("I", 1:8)
-#' dimensionality_test(rasch(X))$multidimensional
+#' dimensionality_test(
+#'   rasch(X), items_positive = paste0("I", 1:4),
+#'   items_negative = paste0("I", 5:8))$multidimensional
 #' \donttest{
 #' # calibrate the data-driven split under the fitted model
 #' dimensionality_test(rasch(X), B = 99, workers = 1, seed = 1)$p_boot
@@ -613,6 +614,7 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   min_score_points <- .check_whole(min_score_points, "min_score_points", 1)
   B <- .check_whole(B, "B", 0)
   workers <- .check_whole(workers, "workers", 1)
+  if (!is.null(seed)) seed <- .check_whole(seed, "seed", 0)
   if (B > 0L) .dim_bootstrap_check(fit)
   X <- fit$X
   disc <- if (is.null(fit$disc)) rep(1, ncol(X)) else fit$disc
@@ -637,8 +639,9 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
     split <- tryCatch(.dim_split(fit$residuals, component), error = function(e)
       structure(list(msg = conditionMessage(e)), class = "rr_pca_refusal"))
     if (inherits(split, "rr_pca_refusal"))
-      return(list(note = paste0("dimensionality split unavailable: ", split$msg),
-                  multidimensional = NA))
+      return(.dimensionality_test_result(
+        list(note = paste0("dimensionality split unavailable: ", split$msg),
+             multidimensional = NA), fit))
     if (is.null(split))
       stop("component ", component, " is not available")
     pos <- split$pos; neg <- split$neg
@@ -646,7 +649,11 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
     first_eigen <- split$first_eigen
   }
   if (length(pos) < 2 || length(neg) < 2)
-    return(list(note = "need >= 2 items in each subset"))
+    return(.dimensionality_test_result(
+      list(note = "need >= 2 items in each subset",
+           multidimensional = NA, split = split_source,
+           items_positive = colnames(X)[pos],
+           items_negative = colnames(X)[neg]), fit))
   score_points <- c(positive = sum(fit$m[pos]), negative = sum(fit$m[neg]))
   # Andrich & Marais (2019) recommend subtests of roughly 15 score points
   # for STABLE subtest estimates. Short subtests make the person-level
@@ -659,7 +666,12 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
     score_points[1], score_points[2], as.integer(min_score_points)) else NULL
   tt <- .dim_ttest(X, fit$tau_list, disc, pos, neg, alpha)
   n <- tt$n
-  if (n < 10) return(list(note = "fewer than 10 usable persons for the t-test"))
+  if (n < 10) return(.dimensionality_test_result(
+    list(note = "fewer than 10 usable persons for the t-test",
+         multidimensional = NA, split = split_source,
+         items_positive = colnames(X)[pos],
+         items_negative = colnames(X)[neg], score_points = score_points,
+         n = n, n_excluded_extreme = tt$n_excluded_extreme), fit))
   bt <- stats::binom.test(tt$n_sig, n, p = alpha)
   # paired t-test of the two subset means (the group-level comparison: the
   # two estimates come from the same persons, so the means need pairing;
@@ -668,22 +680,29 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   # would crash t.test with a raw error: report the degeneracy instead
   dd <- tt$difference
   if (!is.finite(stats::sd(dd)) || stats::sd(dd) < 1e-12)
-    return(list(note = paste0(
-      "dimensionality verdict withheld: the subset person estimates are ",
-      "degenerate (no variation in the paired differences) -- the subsets ",
-      "are too short or too sparsely answered for the comparison"),
-      multidimensional = NA, split = split_source,
-      items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
-      score_points = score_points))
+    return(.dimensionality_test_result(list(note = paste0(
+        "dimensionality verdict withheld: the subset person estimates are ",
+        "degenerate (no variation in the paired differences) -- the subsets ",
+        "are too short or too sparsely answered for the comparison"),
+        multidimensional = NA, split = split_source,
+        items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
+        score_points = score_points), fit))
   pt <- stats::t.test(dd)
+  binomial_verdict <- bt$conf.int[1] > alpha
   out <- list(prop_significant = tt$n_sig / n, ci = as.numeric(bt$conf.int),
               n = n, n_excluded_extreme = tt$n_excluded_extreme,
-              multidimensional = bt$conf.int[1] > alpha,
+              multidimensional = if (manual) binomial_verdict else NA,
+              binomial_multidimensional = binomial_verdict,
+              verdict_method = if (manual) "fixed-split binomial" else
+                "withheld for data-driven split",
               split = split_source,
               score_points = score_points,
               caution = caution,
               items_positive = colnames(X)[pos], items_negative = colnames(X)[neg],
               first_eigenvalue = first_eigen,
+              alpha = alpha, component = if (manual) NA_integer_ else component,
+              min_score_points = min_score_points, B = B,
+              workers = workers, seed = seed,
               paired_t = list(mean_difference = mean(dd),
                               t = unname(pt$statistic), df = unname(pt$parameter),
                               p = pt$p.value))
@@ -693,10 +712,58 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
                            workers = workers, seed = seed)
     out$p_boot <- .boot_p(out$prop_significant, boot$null, "upper")
     out$prop_null <- mean(boot$null)
-    out$multidimensional <- out$p_boot <= 0.05
+    out$multidimensional <- out$p_boot <= alpha
+    out$verdict_method <- "parametric bootstrap"
     out$bootstrap <- boot
   }
-  out
+  .dimensionality_test_result(out, fit)
+}
+
+# Computed diagnostic results can be saved in an app project or supplied to a
+# report. Bind them to the fitted model, as for scree and fit-bootstrap
+# results, so an analysis from an earlier structural fit cannot be presented
+# beside a later calibration.
+.dimensionality_test_result <- function(x, fit) {
+  class(x) <- c("rasch_dimensionality_test", "list")
+  attr(x, "fit_signature") <- .fit_boot_signature(fit)
+  attr(x, "result_signature") <- .fit_boot_md5(x)
+  x
+}
+
+.validate_dimensionality_test <- function(result, fit) {
+  if (is.null(result)) return(invisible(NULL))
+  signature <- attr(result, "result_signature")
+  unsigned <- result
+  attr(unsigned, "result_signature") <- NULL
+  if (!inherits(result, "rasch_dimensionality_test") || !is.list(result) ||
+      !is.character(signature) || length(signature) != 1L || is.na(signature) ||
+      !.fit_boot_hash_matches(signature, unsigned) ||
+      !.fit_boot_signature_matches(attr(result, "fit_signature"), fit))
+    stop("`subtest` must be a dimensionality_test() result from this fitted model")
+  invisible(result)
+}
+
+#' @export
+print.rasch_dimensionality_test <- function(x, ...) {
+  cat("Person-subset unidimensionality t-test\n\n")
+  if (!is.null(x$note)) {
+    cat(x$note, "\n")
+    return(invisible(x))
+  }
+  cat(sprintf("Split: %s\n", x$split))
+  cat(sprintf("Significant comparisons: %.1f%% (95%% CI %.1f%% to %.1f%%; n = %d)\n",
+              100 * x$prop_significant, 100 * x$ci[1], 100 * x$ci[2], x$n))
+  verdict <- if (isTRUE(x$multidimensional))
+    "evidence against unidimensionality" else
+    if (identical(x$multidimensional, FALSE))
+      "consistent with unidimensionality" else
+        "withheld for the data-driven split"
+  cat("Verdict:", verdict, "\n")
+  if (!is.null(x$p_boot))
+    cat(sprintf("Bootstrap p: %s (%d of %d replicates used)\n",
+                .fmt_p(x$p_boot), x$bootstrap$B_used, x$bootstrap$B))
+  if (!is.null(x$caution)) cat("Caution:", x$caution, "\n")
+  invisible(x)
 }
 
 # The per-person comparison behind dimensionality_test(): each person

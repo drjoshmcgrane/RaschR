@@ -21,8 +21,8 @@
 #   to boot_reps=399 (the task's own suggested fallback; Holm floor for
 #   m=8 items is 2*8/400 = 0.040 < 0.05, so detection stays possible):
 #       70.8s/replicate (N=300, I=8, boot_reps=399, boot_reps_used=399)
-#   That is still ~50-55 replicates per ~65-minute single-process chunk --
-#   well under the aspirational ">= 300" for the principal claim. Reducing
+#   The principal cell therefore uses 55 predeclared replicates -- well under
+#   the aspirational ">= 300" for the principal claim. Reducing
 #   N to 150 saves only ~16% (59.7s/replicate) -- the cost is dominated by
 #   the number of bootstrap iterations x item-pair count, not person count,
 #   so shrinking N is not a useful lever and was NOT used (it would also
@@ -54,8 +54,7 @@
 #   inside a ~70-minute budget by any reallocation. The power grid is
 #   therefore SCOPED DOWN, deliberately and transparently:
 #     - the full 2x2x2 (guess x chance x targeting) grid at I=8 keeps ALL
-#       8 cells, at boot_reps=399, with as many replicates/cell as the
-#       chunk-2 time budget affords (see sizing below);
+#       8 cells, at boot_reps=399, with 4 predeclared replicates per cell;
 #     - I=15 is run as a smaller CONFIRMATORY check (guess rate only,
 #       chance=0.25 and on-target held at their I=8 defaults) rather than
 #       the full 8-cell crossing, at boot_reps=601, so it still says
@@ -106,7 +105,7 @@ DIFF8  <- seq(-2, 2.5, length.out = 8)
 DIFF15 <- seq(-2.5, 3, length.out = 15)
 
 # --- shared: one attempt (simulate -> fit -> tailored bootstrap) -----------
-# Returns a list with $status in {"ok", "refused", "nonconv"} and, when ok,
+# Returns a list with $status in {"ok", "refused", "nonconv", "error"} and, when ok,
 # the comparison table, boot_reps_used, responses removed, anchor count and
 # whether the p-floor warning fired (it should not, given the boot_reps
 # chosen below).
@@ -117,7 +116,8 @@ run_one <- function(N, diff, guess_vec, theta_mean, theta_sd, chance,
                         theta_sd = theta_sd, seed = seed)
   fit0 <- tryCatch(rasch(dat, id = "id"), error = function(e) e)
   if (inherits(fit0, "error"))
-    return(list(status = "refused", stage = "fit", msg = conditionMessage(fit0)))
+    return(list(status = if (inherits(fit0, "rasch_refusal")) "refused" else "error",
+                stage = "fit", msg = conditionMessage(fit0)))
   if (!isTRUE(fit0$est$converged))
     return(list(status = "nonconv"))
   floor_warned <- FALSE
@@ -128,8 +128,15 @@ run_one <- function(N, diff, guess_vec, theta_mean, theta_sd, chance,
       if (grepl("smallest achievable", conditionMessage(w))) floor_warned <<- TRUE
       invokeRestart("muffleWarning")
     })
-  if (inherits(ta, "error"))
-    return(list(status = "refused", stage = "tailored", msg = conditionMessage(ta)))
+  if (inherits(ta, "error")) {
+    structured <- inherits(ta, "rasch_fit_bootstrap_refusal")
+    return(list(status = if (inherits(ta, "rasch_refusal")) "refused" else "error",
+                stage = "tailored", msg = conditionMessage(ta),
+                boot_reps = if (structured) ta$B else NULL,
+                boot_used = if (structured) ta$B_used else NULL,
+                boot_nonconv = if (structured) ta$B_nonconverged else NULL,
+                boot_errors = if (structured) ta$B_errors else NULL))
+  }
   list(status = "ok", table = ta$table, boot_used = ta$boot_reps_used,
        boot_reps = boot_reps, floor_warned = floor_warned,
        boot_nonconv = ta$boot_reps_nonconverged,
@@ -143,9 +150,8 @@ run_one <- function(N, diff, guess_vec, theta_mean, theta_sd, chance,
 # ---------------------------------------------------------------------------
 run_family_a <- function() {
   t0 <- Sys.time()
-  TIME_BUDGET <- 3300   # seconds (~55 min) for this chunk's principal loop
-  MAX_REPS <- 60
-  n_attempted <- 0L; n_refused <- 0L; n_nonconv <- 0L
+  MAX_REPS <- 55L
+  n_attempted <- 0L; n_refused <- 0L; n_nonconv <- 0L; n_error <- 0L
   tabs <- list(); boot_used_v <- integer(0); boot_reqd_v <- integer(0)
   boot_nonconv_v <- integer(0); boot_errors_v <- integer(0)
   floor_warned_any <- logical(0)
@@ -153,24 +159,26 @@ run_family_a <- function() {
   cat("[a] FWER principal: N=300, I=8, chance=0.25, no guessing, boot_reps=399\n")
   repeat {
     if (n_attempted >= MAX_REPS) break
-    if (as.numeric(Sys.time() - t0, units = "secs") >= TIME_BUDGET) break
     n_attempted <- n_attempted + 1L
     seed <- 90000L + n_attempted
     out <- run_one(300, DIFF8, rep(0, 8), theta_mean = 0, theta_sd = 1,
                    chance = 0.25, boot_reps = 399, seed = seed)
+    if (!is.null(out$boot_reps)) {
+      boot_used_v <- c(boot_used_v, out$boot_used)
+      boot_reqd_v <- c(boot_reqd_v, out$boot_reps)
+      boot_nonconv_v <- c(boot_nonconv_v, out$boot_nonconv)
+      boot_errors_v <- c(boot_errors_v, out$boot_errors)
+    }
     if (out$status == "refused") { n_refused <- n_refused + 1L; next }
     if (out$status == "nonconv") { n_nonconv <- n_nonconv + 1L; next }
+    if (out$status == "error") { n_error <- n_error + 1L; next }
     if (is.na(first_ok_seed)) first_ok_seed <- seed
     tabs[[length(tabs) + 1L]] <- out$table
-    boot_used_v <- c(boot_used_v, out$boot_used)
-    boot_reqd_v <- c(boot_reqd_v, out$boot_reps)
-    boot_nonconv_v <- c(boot_nonconv_v, out$boot_nonconv)
-    boot_errors_v <- c(boot_errors_v, out$boot_errors)
     floor_warned_any <- c(floor_warned_any, out$floor_warned)
   }
   elapsed <- as.numeric(Sys.time() - t0, units = "secs")
-  cat(sprintf("[a] done: %d attempted, %d ok, %d refused, %d nonconv, %.1fs (%.1fs/rep)\n",
-              n_attempted, length(tabs), n_refused, n_nonconv, elapsed,
+  cat(sprintf("[a] done: %d attempted, %d ok, %d refused, %d nonconv, %d error, %.1fs (%.1fs/rep)\n",
+              n_attempted, length(tabs), n_refused, n_nonconv, n_error, elapsed,
               elapsed / max(1, n_attempted)))
 
   rows <- list()
@@ -181,32 +189,49 @@ run_family_a <- function() {
   any_sig <- if (n_reps) vapply(tabs, function(t) any(t$significant %in% TRUE), logical(1)) else logical(0)
   degen_loss <- (boot_reqd_v - boot_used_v) / boot_reqd_v   # fraction of inner draws lost
   degen_any <- boot_used_v < boot_reqd_v
+  inner <- list(n_boot_attempted = sum(boot_reqd_v),
+                n_boot_used = sum(boot_used_v),
+                n_boot_nonconv = sum(boot_nonconv_v),
+                n_boot_errors = sum(boot_errors_v))
 
   rows[[1]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "familywise (any item significant per replicate, Holm-adjusted alpha=.05)",
     n_reps = n_reps, familywise = if (n_reps) mean(any_sig) else NA_real_, effect = 0,
     n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
-    notes = "PRINCIPAL claim; as many replicates as the ~55-min chunk budget allowed (benchmarked 70.8s/rep at N=300 I=8 boot_reps=399); see header for the boot_reps=999 infeasibility benchmark.")
+    n_error = n_error, n_boot_attempted = inner$n_boot_attempted,
+    n_boot_used = inner$n_boot_used, n_boot_nonconv = inner$n_boot_nonconv,
+    n_boot_errors = inner$n_boot_errors,
+    notes = "PRINCIPAL claim; 55 predeclared replicates at N=300, I=8 and boot_reps=399; see the script header for the boot_reps=999 benchmark.")
   rows[[2]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "type1_item (per item, Holm-adjusted, pooled)",
     n_reps = n_reps, type1 = if (n_reps) mean(per_rep_type1) else NA_real_,
     mc_override = list(type1 = if (n_reps > 1) stats::sd(per_rep_type1) / sqrt(n_reps) else NA_real_),
-    effect = 0, n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
+    effect = 0, n_attempted = n_attempted, n_refused = n_refused,
+    n_nonconv = n_nonconv, n_error = n_error,
+    n_boot_attempted = inner$n_boot_attempted, n_boot_used = inner$n_boot_used,
+    n_boot_nonconv = inner$n_boot_nonconv, n_boot_errors = inner$n_boot_errors,
     notes = "pooled over 8 items/replicate; MC SE is cluster-robust (sd of per-replicate proportions / sqrt(n_reps)), not the plug-in binomial SE, since items within a replicate share one fit.")
   rows[[3]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "bootstrap inner-draw degeneracy (fraction of B inner resamples that failed)",
-    n_reps = n_reps, bias = if (n_reps) mean(degen_loss) else NA_real_,
-    emp_sd = if (n_reps > 1) stats::sd(degen_loss) else NA_real_,
+    n_reps = length(degen_loss),
+    bias = if (length(degen_loss)) mean(degen_loss) else NA_real_,
+    emp_sd = if (length(degen_loss) > 1) stats::sd(degen_loss) else NA_real_,
     n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
-    n_boot_attempted = sum(boot_reqd_v), n_boot_used = sum(boot_used_v),
-    n_boot_nonconv = sum(boot_nonconv_v), n_boot_errors = sum(boot_errors_v),
-    notes = if (n_reps) sprintf("mean fraction lost = %.4f; %d/%d replicates lost >=1 inner draw",
-                    mean(degen_loss), sum(degen_any), n_reps) else "no successful replicates")
+    n_error = n_error, n_boot_attempted = inner$n_boot_attempted,
+    n_boot_used = inner$n_boot_used, n_boot_nonconv = inner$n_boot_nonconv,
+    n_boot_errors = inner$n_boot_errors,
+    notes = if (length(degen_loss)) sprintf(
+      "mean fraction lost = %.4f; %d/%d bootstrap runs lost >=1 inner draw",
+      mean(degen_loss), sum(degen_any), length(degen_loss)) else
+        "no outer replicate reached the bootstrap")
   rows[[4]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "p-floor warning fired during principal loop (should never, floor=0.040<0.05)",
     n_reps = n_reps, type1 = if (n_reps) mean(floor_warned_any) else NA_real_,
     mc_override = list(type1 = 0),
     n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
+    n_error = n_error, n_boot_attempted = inner$n_boot_attempted,
+    n_boot_used = inner$n_boot_used, n_boot_nonconv = inner$n_boot_nonconv,
+    n_boot_errors = inner$n_boot_errors,
     notes = "deterministic given boot_reps=399, m=8: floor 2*8/400=0.040<0.05, so the floor warning is not expected to fire in ANY replicate.")
 
   # deterministic floor-warning demonstration: same data, boot_reps=50
@@ -221,8 +246,13 @@ run_family_a <- function() {
       n_reps = 1L, type1 = if (isTRUE(fired)) 1 else 0, mc_override = list(type1 = 0),
       n_attempted = 1L, n_refused = if (demo$status == "refused") 1L else 0L,
       n_nonconv = if (demo$status == "nonconv") 1L else 0L,
+      n_error = if (demo$status == "error") 1L else 0L,
+      n_boot_attempted = if (is.null(demo$boot_reps)) 0L else demo$boot_reps,
+      n_boot_used = if (is.null(demo$boot_used)) 0L else demo$boot_used,
+      n_boot_nonconv = if (is.null(demo$boot_nonconv)) 0L else demo$boot_nonconv,
+      n_boot_errors = if (is.null(demo$boot_errors)) 0L else demo$boot_errors,
       notes = sprintf("deterministic behavioural check (n=1 by construction, not a rate): fired=%s (expect TRUE)",
-                      if (is.na(fired)) "NA (replicate refused/nonconv)" else fired))
+                      if (is.na(fired)) "NA (replicate unavailable)" else fired))
   }
   do.call(rbind, rows)
 }
@@ -237,14 +267,23 @@ run_cell <- function(n_items, diff, guess_rate, chance, theta_mean, boot_reps,
                      n_reps, seed0) {
   guess_vec <- rep(0, n_items); guess_vec[guessed_idx(n_items)] <- guess_rate
   gnm <- guessed_nm(n_items)
-  n_attempted <- 0L; n_refused <- 0L; n_nonconv <- 0L
+  n_attempted <- 0L; n_refused <- 0L; n_nonconv <- 0L; n_error <- 0L
   det <- numeric(0); ff <- numeric(0)   # per-replicate proportions
+  boot_attempted <- integer(0); boot_used <- integer(0)
+  boot_nonconv <- integer(0); boot_errors <- integer(0)
   for (r in seq_len(n_reps)) {
     n_attempted <- n_attempted + 1L
     out <- run_one(300, diff, guess_vec, theta_mean = theta_mean, theta_sd = 1,
                    chance = chance, boot_reps = boot_reps, seed = seed0 + r)
+    if (!is.null(out$boot_reps)) {
+      boot_attempted <- c(boot_attempted, out$boot_reps)
+      boot_used <- c(boot_used, out$boot_used)
+      boot_nonconv <- c(boot_nonconv, out$boot_nonconv)
+      boot_errors <- c(boot_errors, out$boot_errors)
+    }
     if (out$status == "refused") { n_refused <- n_refused + 1L; next }
     if (out$status == "nonconv") { n_nonconv <- n_nonconv + 1L; next }
+    if (out$status == "error") { n_error <- n_error + 1L; next }
     tab <- out$table
     sig <- tab$significant %in% TRUE
     is_g <- tab$item %in% gnm
@@ -252,7 +291,10 @@ run_cell <- function(n_items, diff, guess_rate, chance, theta_mean, boot_reps,
     ff  <- c(ff, mean(sig[!is_g]))
   }
   list(det = det, ff = ff, n_attempted = n_attempted, n_refused = n_refused,
-       n_nonconv = n_nonconv, n_items = n_items, guess_rate = guess_rate,
+       n_nonconv = n_nonconv, n_error = n_error,
+       n_boot_attempted = sum(boot_attempted), n_boot_used = sum(boot_used),
+       n_boot_nonconv = sum(boot_nonconv), n_boot_errors = sum(boot_errors),
+       n_items = n_items, guess_rate = guess_rate,
        chance = chance, theta_mean = theta_mean, boot_reps = boot_reps)
 }
 
@@ -264,6 +306,10 @@ cell_row <- function(cell, label) {
       mc_override = list(power = if (n_reps > 1) stats::sd(cell$det) / sqrt(n_reps) else NA_real_),
       effect = cell$guess_rate, n_attempted = cell$n_attempted,
       n_refused = cell$n_refused, n_nonconv = cell$n_nonconv,
+      n_error = cell$n_error, n_boot_attempted = cell$n_boot_attempted,
+      n_boot_used = cell$n_boot_used,
+      n_boot_nonconv = cell$n_boot_nonconv,
+      n_boot_errors = cell$n_boot_errors,
       notes = sprintf("I=%d guess=%.2f chance=%.2f theta_mean=%.0f boot_reps=%d",
                       cell$n_items, cell$guess_rate, cell$chance, cell$theta_mean, cell$boot_reps)),
     sv_row(STUDY, label, "false-flag rate (clean items, Holm-adjusted, pooled)",
@@ -271,6 +317,10 @@ cell_row <- function(cell, label) {
       mc_override = list(type1 = if (n_reps > 1) stats::sd(cell$ff) / sqrt(n_reps) else NA_real_),
       effect = 0, n_attempted = cell$n_attempted,
       n_refused = cell$n_refused, n_nonconv = cell$n_nonconv,
+      n_error = cell$n_error, n_boot_attempted = cell$n_boot_attempted,
+      n_boot_used = cell$n_boot_used,
+      n_boot_nonconv = cell$n_boot_nonconv,
+      n_boot_errors = cell$n_boot_errors,
       notes = sprintf("I=%d guess=%.2f chance=%.2f theta_mean=%.0f boot_reps=%d",
                       cell$n_items, cell$guess_rate, cell$chance, cell$theta_mean, cell$boot_reps))
   )
@@ -300,7 +350,7 @@ run_family_b <- function() {
 
   # main-effect marginals (pool raw per-replicate proportions across the
   # other two factors, for more precision on the primary contrast)
-  pool_by <- function(field) {
+  pool_by <- function() {
     for (g in c(0.15, 0.30)) {
       keys <- names(cells8)[vapply(cells8, function(c) c$guess_rate == g, TRUE)]
       det <- unlist(lapply(cells8[keys], `[[`, "det"))
@@ -308,6 +358,11 @@ run_family_b <- function() {
       na  <- sum(vapply(cells8[keys], `[[`, 0L, "n_attempted"))
       nr  <- sum(vapply(cells8[keys], `[[`, 0L, "n_refused"))
       nn  <- sum(vapply(cells8[keys], `[[`, 0L, "n_nonconv"))
+      ne  <- sum(vapply(cells8[keys], `[[`, 0L, "n_error"))
+      nba <- sum(vapply(cells8[keys], `[[`, 0L, "n_boot_attempted"))
+      nbu <- sum(vapply(cells8[keys], `[[`, 0L, "n_boot_used"))
+      nbn <- sum(vapply(cells8[keys], `[[`, 0L, "n_boot_nonconv"))
+      nbe <- sum(vapply(cells8[keys], `[[`, 0L, "n_boot_errors"))
       n_reps <- length(det)
       rows[[length(rows) + 1L]] <<- sv_row(STUDY,
         sprintf("I=8 power MARGINAL: guess=%.2f (pooled over chance, targeting)", g),
@@ -315,6 +370,8 @@ run_family_b <- function() {
         n_reps = n_reps, power = if (n_reps) mean(det) else NA_real_,
         mc_override = list(power = if (n_reps > 1) stats::sd(det) / sqrt(n_reps) else NA_real_),
         effect = g, n_attempted = na, n_refused = nr, n_nonconv = nn,
+        n_error = ne, n_boot_attempted = nba, n_boot_used = nbu,
+        n_boot_nonconv = nbn, n_boot_errors = nbe,
         notes = "main effect of guessing rate, pooling the 4 chance x targeting cells at this rate")
       rows[[length(rows) + 1L]] <<- sv_row(STUDY,
         sprintf("I=8 power MARGINAL: guess=%.2f (pooled over chance, targeting)", g),
@@ -322,6 +379,8 @@ run_family_b <- function() {
         n_reps = n_reps, type1 = if (n_reps) mean(ff) else NA_real_,
         mc_override = list(type1 = if (n_reps > 1) stats::sd(ff) / sqrt(n_reps) else NA_real_),
         effect = 0, n_attempted = na, n_refused = nr, n_nonconv = nn,
+        n_error = ne, n_boot_attempted = nba, n_boot_used = nbu,
+        n_boot_nonconv = nbn, n_boot_errors = nbe,
         notes = "main effect of guessing rate, pooling the 4 chance x targeting cells at this rate")
     }
   }

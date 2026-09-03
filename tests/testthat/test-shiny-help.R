@@ -143,6 +143,15 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src, '"boot_reps = %s, workers = %s, seed = %s, "',
                fixed = TRUE)
   expect_false(grepl('input$pc_id', src, fixed = TRUE))
+  expect_match(src,
+               '"exp_interactions", "bdif_factors", "dim_pos", "dim_neg"',
+               fixed = TRUE)
+  expect_match(src,
+               'updateSelectizeInput(session, "dim_pos", selected = s$pos',
+               fixed = TRUE)
+  expect_match(src,
+               'updateSelectizeInput(session, "dim_neg", selected = s$neg',
+               fixed = TRUE)
   expect_match(src, 'unique(f$virtual_map$item)', fixed = TRUE)
   expect_match(src, "A location split cannot model", fixed = TRUE)
   expect_match(src,

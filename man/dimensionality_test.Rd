@@ -32,15 +32,16 @@ component.}
 \item{min_score_points}{Score-point threshold below which the verdict
 carries a caution. Andrich and Marais (2019) recommend subtests of
 roughly 15 score points for stable subtest estimates; shorter subsets
-(the norm for ordinary dichotomous tests) still receive a verdict, with
-a \code{caution} field noting the reduced stability. A quiet verdict
+(the norm for ordinary dichotomous tests) retain the analysis, with a
+\code{caution} field noting the reduced stability. A quiet verdict
 under caution is inconclusive, not clean: with a four-item subtest the
 test lacks power where nonparametric alternatives still flag.}
 
 \item{B}{Number of parametric-bootstrap replicates that calibrate the
 proportion of significant tests under the fitted model (see Details).
-The default \code{0} reports the binomial reading alone. Each replicate
-refits the calibration, so \code{B = 200} costs about two hundred
+The default \code{0} reports the binomial interval and descriptive
+reading alone; an automatic split then has no inferential verdict. Each
+replicate refits the calibration, so \code{B = 200} costs about two hundred
 fits; the bootstrap is available for single-facet fits with a common
 unit whose thresholds were estimated directly.}
 
@@ -53,7 +54,8 @@ reproducible for a given seed whatever the worker count.}
 A list with the proportion of significant tests, its exact
   confidence interval, the sample sizes (\code{n} used,
   \code{n_excluded_extreme}), the item split and its source, a
-  \code{multidimensional} verdict, a \code{caution} note when the
+  \code{multidimensional} verdict, the corresponding uncalibrated
+  \code{binomial_multidimensional} reading, a \code{caution} note when the
   subtests fall short of \code{min_score_points}, and \code{paired_t},
   the paired t-test of the two subset means (the group-level comparison,
   which requires pairing because both estimates come from the same
@@ -80,23 +82,20 @@ standard normal and about \code{alpha} of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
 proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval; a lower bound above
-\code{alpha} signals multidimensionality. The test requires a converged
-calibration.
+(Clopper-Pearson) binomial confidence interval. For a split fixed in
+advance, a lower bound above \code{alpha} signals multidimensionality. The
+test requires a converged calibration.
 }
 \details{
 The binomial reading holds for a split fixed in advance. A split chosen
 from the residuals is chosen to make the two subsets disagree, so its
-proportion runs above \code{alpha} under unidimensionality. In the
-package's own simulation of unidimensional data (400 persons; 20
-four-category items, or 30 dichotomous items) the residual-component split
-left 6 to 7 per cent of persons significant and the binomial verdict
-flagged between a sixth and a half of the samples, depending on the
-design, while a split fixed in advance on the same data held the nominal
-rate and flagged none. With \code{B = 99} the bootstrap verdict flagged
-2 to 8 per cent of the same samples and 97 per cent of samples from a
-two-dimensional design that the binomial verdict flagged in 87 per cent.
-Two remedies are available. A content-based split, named through \code{items_positive}
+proportion runs above \code{alpha} under unidimensionality. Package
+simulations confirmed that applying the fixed-split binomial rule after
+choosing the split from the same residuals is anti-conservative. Without
+bootstrap calibration the data-driven split therefore has no binary verdict:
+\code{multidimensional} is \code{NA}, while the interval and uncalibrated
+binomial reading remain available descriptively. Two inferential routes
+are available. A content-based split, named through \code{items_positive}
 and \code{items_negative}, keeps the binomial reading exact. Otherwise
 \code{B > 0} calibrates the data-driven split by a parametric bootstrap:
 each replicate draws responses from the fitted model conditional on every
@@ -104,7 +103,7 @@ person's raw score and missingness pattern, refits the calibration,
 repeats the residual-component split on its own residuals and recomputes
 the proportion, so the bootstrap probability \code{p_boot} carries the
 same selection the observed proportion carries. With \code{B > 0} the
-verdict is \code{p_boot <= .05}; the binomial interval is still reported,
+verdict is \code{p_boot <= alpha}; the binomial interval is still reported,
 as a description of the observed proportion rather than a test of it.
 }
 \examples{
@@ -112,7 +111,9 @@ set.seed(1)
 d <- seq(-2, 2, length.out = 8)
 X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 colnames(X) <- paste0("I", 1:8)
-dimensionality_test(rasch(X))$multidimensional
+dimensionality_test(
+  rasch(X), items_positive = paste0("I", 1:4),
+  items_negative = paste0("I", 5:8))$multidimensional
 \donttest{
 # calibrate the data-driven split under the fitted model
 dimensionality_test(rasch(X), B = 99, workers = 1, seed = 1)$p_boot

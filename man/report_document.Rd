@@ -13,7 +13,8 @@ report_document(
   bootstrap = NULL,
   dif_bootstrap = NULL,
   dimensionality = NULL,
-  invariance = NULL
+  invariance = NULL,
+  subtest = NULL
 )
 }
 \arguments{
@@ -38,6 +39,9 @@ analysis from this fit and DIF specification.}
 
 \item{invariance}{Optional computed \code{\link{frame_invariance}} result
 from an EFRM fit.}
+
+\item{subtest}{Optional computed \code{\link{dimensionality_test}} result
+from this fit.}
 }
 \value{
 Invisibly, the output path.

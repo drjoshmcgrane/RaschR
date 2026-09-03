@@ -117,6 +117,27 @@ test_that("saved dimensionality results are authenticated against the active fit
                "saved dimensionality analysis")
 })
 
+test_that("saved person-subset tests are authenticated against the active fit", {
+  set.seed(8111)
+  X <- matrix(rbinom(720, 1, .5), 120, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  fit <- rasch(X)
+  subtest <- dimensionality_test(
+    fit, items_positive = colnames(X)[1:3],
+    items_negative = colnames(X)[4:6], min_score_points = 2)
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), settings = list(),
+    results = list(subtest = subtest)))
+  expect_no_error(.validate_app_project(project))
+
+  project$results$subtest$prop_significant <-
+    project$results$subtest$prop_significant + .01
+  expect_error(.validate_app_project(project),
+               "saved person-subset dimensionality test")
+})
+
 test_that("schema-2 projects drop results made with the earlier maxT adjustment", {
   set.seed(812)
   X <- matrix(rbinom(600, 1, .5), 120, 5,

@@ -144,6 +144,8 @@ NONE_CH <- c(None = "(none)")
 .validate_dif_bootstrap <- .rasch_internal(".validate_dif_bootstrap")
 .scree_analysis <- .rasch_internal(".scree_analysis")
 .validate_scree_result <- .rasch_internal(".validate_scree_result")
+.validate_dimensionality_test <-
+  .rasch_internal(".validate_dimensionality_test")
 .validate_btl_dimensionality <-
   .rasch_internal(".validate_btl_dimensionality")
 .validate_frame_invariance <-
@@ -162,16 +164,17 @@ NONE_CH <- c(None = "(none)")
   "id_col", "ef_id", "ef_group", "lp_person", "lp_item", "lp_score",
   "lp_interaction", "bt_a", "bt_b", "bt_win", "bt_judge", "bt_count",
   "pc_rank", "ng", "ef_se", "ef_workers", "btlef_panel",
-  "btlef_workers")
+  "btlef_workers", "pca_component", "dim_workers")
 .project_selectize_inputs <- c(
   "factor_cols", "item_cols", "ef_items", "lp_facets", "lp_items_wide",
   "bt_margin", "bt_response", "bt_order", "bt_jfactors", "exp_main",
-  "exp_interactions", "bdif_factors")
+  "exp_interactions", "bdif_factors", "dim_pos", "dim_neg")
 .project_checkbox_inputs <- c("ef_prefix", "bt_position", "ng_auto")
 .project_numeric_inputs <- c(
   "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
   "btlef_seed", "dif_alpha", "dif_boot_B", "dif_boot_seed",
-  "bdif_alpha", "bdif_boot_B", "bdif_boot_seed", "inv_boot", "inv_seed")
+  "bdif_alpha", "bdif_boot_B", "bdif_boot_seed", "inv_boot", "inv_seed",
+  "dim_boot_B", "dim_boot_seed")
 
 .collect_app_settings <- function(input) {
   ids <- unique(c(.project_radio_inputs, .project_select_inputs,
@@ -2027,7 +2030,10 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
         title = "Unidimensionality t-test",
         value = "dim_ttest",
         accordion_info(
-          "Smith's test measures each person separately on two item subsets and compares the estimates by t-test. Unidimensionality is questioned when clearly more than 5% are significant."),
+          paste("Smith's test compares each person's estimates from two item",
+                "subsets. A split fixed in advance uses the binomial interval;",
+                "a residual-derived split needs bootstrap calibration for an",
+                "inferential verdict.")),
         layout_columns(col_widths = breakpoints(sm = 12, xl = c(4, 8)),
           div(
             h6(span("t-test item subsets",
@@ -2044,6 +2050,23 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
                            options = list(placeholder = "positive loadings on the selected component")),
             selectizeInput("dim_neg", "Subset B", NULL, multiple = TRUE,
                            options = list(placeholder = "negative loadings on the selected component")),
+            numericInput("dim_boot_B", info_label(
+              "Bootstrap replicates",
+              paste("Leave at zero for a descriptive automatic-split result.",
+                    "A positive value calibrates the data-driven split;",
+                    "99 or more is suitable for inference.")),
+              value = 0, min = 0, step = 99),
+            div(class = "d-flex gap-2",
+              div(class = "flex-fill",
+                selectInput("dim_workers", info_label(
+                  "Parallel workers",
+                  "Bootstrap results reproduce across worker counts."),
+                  choices = .efrm_worker_choices,
+                  selected = max(.efrm_worker_values))),
+              div(class = "flex-fill",
+                numericInput("dim_boot_seed", info_label(
+                  "Random seed", "Used only for bootstrap calibration."),
+                  value = 1, min = 0, step = 1))),
             input_task_button("dim_apply", "Run t-test",
                               type = "primary", class = "w-100")),
           card(card_body(verbatimTextOutput("dim_txt"), rcode_details("dim"))))),
@@ -2535,6 +2558,7 @@ server <- function(input, output, session) {
   restored_project_resources <- reactiveVal(list())
   person_weight_state <- reactiveVal(NULL)
   restored_dimensionality <- reactiveVal(NULL)
+  restored_subtest <- reactiveVal(NULL)
   restored_invariance <- reactiveVal(NULL)
   # generation stamps: which simulation is loaded, and which one the current
   # fit was estimated on (recovery only renders when they agree)
@@ -4468,7 +4492,9 @@ server <- function(input, output, session) {
       lr_res(NULL); dep_res(NULL); spread_res(NULL); dm_res(NULL)
       guess_res(NULL); contr_res(NULL); rescore_res(NULL)
       person_weight_state(NULL)
-      restored_dimensionality(NULL); restored_invariance(NULL)
+      restored_dimensionality(NULL); restored_subtest(NULL)
+      dim_computed(NULL)
+      restored_invariance(NULL)
       # An automatic resolution sets the override fit itself, so its trace
       # must survive its own refit; a fresh run or another override clears it.
       if (!identical(active_step_type(), "dif_auto")) resolve_res(NULL)
@@ -8489,25 +8515,56 @@ server <- function(input, output, session) {
 
   # --------------------------------------------------------- dimensionality --
   dim_subsets <- reactiveVal(NULL)
+  dim_computed <- reactiveVal(NULL)
   observeEvent(input$dim_apply, {
+    restored_subtest(NULL)
+    s <- NULL
     if (length(input$dim_pos) >= 2 && length(input$dim_neg) >= 2) {
       if (length(intersect(input$dim_pos, input$dim_neg))) {
         showNotification("The two subsets must be disjoint.", type = "error")
-      } else dim_subsets(list(pos = input$dim_pos, neg = input$dim_neg))
+        return()
+      }
+      s <- list(pos = input$dim_pos, neg = input$dim_neg)
     } else if (!length(input$dim_pos) && !length(input$dim_neg)) {
-      dim_subsets(NULL)
-      showNotification(sprintf("Ran the t-test on the automatic split (residual component %d).",
-                               pca_k()),
-                       type = "message")
+      s <- NULL
     } else {
       showNotification("Nominate at least two items in each subset (or leave both empty).",
                        type = "warning")
+      return()
     }
+    dim_subsets(s)
+    B <- input$dim_boot_B %||% 0L
+    workers <- suppressWarnings(as.integer(input$dim_workers %||% 1L))
+    seed <- input$dim_boot_seed %||% 1L
+    f <- fit()
+    value <- withProgress(
+      message = if (is.finite(B) && B > 0L)
+        "Calibrating the dimensionality test…" else
+          "Running the dimensionality test…", value = 0.4,
+      soft(if (is.null(s)) dimensionality_test(
+        f, component = pca_k(), B = B, workers = workers, seed = seed)
+      else dimensionality_test(f, items_positive = s$pos,
+                               items_negative = s$neg, B = B,
+                               workers = workers, seed = seed)))
+    dim_computed(value)
+    showNotification(if (is.null(s)) sprintf(
+      "Ran the t-test on the automatic split (residual component %d).", pca_k())
+      else "Ran the t-test on the nominated item subsets.", type = "message")
     # the magnitude table is computed from the subsets in force at ITS run;
     # a changed split makes it stale
     dm_res(NULL)
   })
-  observeEvent(input$pca_component, dm_res(NULL), ignoreInit = TRUE)
+  observeEvent(input$pca_component, {
+    dm_res(NULL)
+    if (!isTRUE(restoring_project())) {
+      dim_computed(NULL)
+    }
+  }, ignoreInit = TRUE)
+  observeEvent(c(input$dim_boot_B, input$dim_workers, input$dim_boot_seed), {
+    if (!isTRUE(restoring_project())) {
+      dim_computed(NULL)
+    }
+  }, ignoreInit = TRUE)
   # the residual principal component that, when no manual subsets are named,
   # defines the t-test default split
   pca_k <- reactive({
@@ -8515,10 +8572,15 @@ server <- function(input, output, session) {
     if (is.na(k) || k < 1L) 1L else k
   })
   dim_res <- reactive({
-    s <- dim_subsets()
-    soft(if (is.null(s)) dimensionality_test(fit(), component = pca_k())
-         else dimensionality_test(fit(), items_positive = s$pos,
-                                  items_negative = s$neg))
+    f <- fit()
+    saved <- restored_subtest()
+    if (!is.null(saved) &&
+        !inherits(tryCatch(.validate_dimensionality_test(saved, f),
+                           error = function(e) e), "error")) return(saved)
+    value <- dim_computed()
+    validate(need(!is.null(value),
+                  "Choose item subsets or an automatic component, then press Run t-test."))
+    value
   })
   output$dim_txt <- renderPrint({
     dt <- dim_res()
@@ -8528,17 +8590,21 @@ server <- function(input, output, session) {
     cat(sprintf("Significant person t-tests: %.1f%%  (exact 95%% CI %.1f%% to %.1f%%, n = %d)\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2], dt$n))
     cat(sprintf("Persons excluded (extreme on a subset): %d\n", dt$n_excluded_extreme))
-    cat(sprintf("Verdict: %s\n", if (dt$multidimensional)
-      "lower CI exceeds 5% - unidimensionality is questionable"
-      else "consistent with unidimensionality"))
+    verdict <- if (isTRUE(dt$multidimensional))
+      "evidence against unidimensionality" else
+      if (identical(dt$multidimensional, FALSE))
+        "consistent with unidimensionality" else
+          "withheld for the data-driven split"
+    cat(sprintf("Verdict: %s\n", verdict))
+    if (!is.null(dt$p_boot))
+      cat(sprintf("Bootstrap p: %s (%d of %d replicates used)\n",
+                  fmt_p(dt$p_boot), dt$bootstrap$B_used, dt$bootstrap$B))
     if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
     # a split chosen from the residuals is chosen to disagree: the binomial
     # reading is exact only for a split fixed in advance
-    if (dt$split != "manual")
-      cat("Note: the split was chosen from the residuals, which inflates the",
-          "proportion under unidimensionality (about 7% rather than 5% in the",
-          "package's simulations); name the subsets by content for an exact",
-          "reading, or calibrate the split with dimensionality_test(fit, B = ...)\n")
+    if (dt$split != "manual" && is.null(dt$p_boot))
+      cat("Note: the split was chosen from the residuals; name the subsets by",
+          "content or use bootstrap calibration for an inferential verdict.\n")
     if (!is.null(dt$paired_t))
       cat(sprintf("Paired t-test of subset means: mean difference %.3f, t = %.2f (df %.0f), p = %s\n",
                   dt$paired_t$mean_difference, dt$paired_t$t,
@@ -8548,13 +8614,19 @@ server <- function(input, output, session) {
   })
   register_code("dim", function() {
     s <- dim_subsets()
+    B <- input$dim_boot_B %||% 0L
+    workers <- suppressWarnings(as.integer(input$dim_workers %||% 1L))
+    seed <- input$dim_boot_seed %||% 1L
+    extra <- if (length(B) == 1L && is.finite(B) && B > 0L) sprintf(
+      ", B = %s, workers = %s, seed = %s", format(B, scientific = FALSE),
+      format(workers, scientific = FALSE), format(seed, scientific = FALSE)) else ""
     if (is.null(s)) {
       k <- pca_k()
-      return(if (k == 1L) "dimensionality_test(fit)"
-             else sprintf("dimensionality_test(fit, component = %d)", k))
+      return(if (k == 1L) sprintf("dimensionality_test(fit%s)", extra)
+             else sprintf("dimensionality_test(fit, component = %d%s)", k, extra))
     }
-    sprintf("dimensionality_test(fit, items_positive = %s,\n  items_negative = %s)",
-            qvec(s$pos), qvec(s$neg))
+    sprintf("dimensionality_test(fit, items_positive = %s,\n  items_negative = %s%s)",
+            qvec(s$pos), qvec(s$neg), extra)
   })
 
   # magnitude of multidimensionality (Andrich 2016): needs every item in a
@@ -9007,6 +9079,8 @@ server <- function(input, output, session) {
       dimension_subsets = dim_subsets(), dimension_magnitude = dm_res(),
       dependence = dep_res(), spread = spread_res(), guessing = guess_res(),
       person_weights = person_weight_state(),
+      subtest = tryCatch(if (is.null(btl_fit())) dim_res() else NULL,
+                         error = function(e) NULL),
       dimensionality = tryCatch(if (!is.null(btl_fit())) btl_dim()
         else scree_diag(), error = function(e) NULL),
       frame_invariance = tryCatch({
@@ -9055,6 +9129,10 @@ server <- function(input, output, session) {
   app_dim_res <- function() {
     tryCatch(if (!is.null(btl_fit())) btl_dim() else scree_diag(),
              error = function(e) NULL)
+  }
+  app_subtest_res <- function() {
+    if (!is.null(btl_fit())) return(NULL)
+    tryCatch(dim_res(), error = function(e) NULL)
   }
   app_inv_res <- function() {
     f <- fit_or_null()
@@ -9141,6 +9219,7 @@ server <- function(input, output, session) {
       bdif_meta(rr$btl_dif_meta %||% NULL)
       btlef_res(rr$btl_frames %||% NULL)
       dim_subsets(rr$dimension_subsets %||% NULL)
+      restored_subtest(rr$subtest %||% NULL)
       dm_res(rr$dimension_magnitude %||% NULL)
       dep_res(rr$dependence %||% NULL); spread_res(rr$spread %||% NULL)
       guess_res(rr$guessing %||% NULL)
@@ -9155,6 +9234,14 @@ server <- function(input, output, session) {
     # name guesses from overwriting the saved analysis configuration.
     session$onFlushed(function() {
       .restore_app_settings(session, restored_project_settings())
+      # Projects saved before the subset selectors became ordinary saved
+      # settings still carry the nominated split with their result. Reflect
+      # that split in the controls as well as in the restored calculation.
+      s <- dim_subsets()
+      if (is.list(s)) {
+        updateSelectizeInput(session, "dim_pos", selected = s$pos %||% character(0))
+        updateSelectizeInput(session, "dim_neg", selected = s$neg %||% character(0))
+      }
       restoring_project(FALSE)
     }, once = TRUE)
     showNotification(paste("Saved analysis opened. The active fit, its history,",
@@ -9178,11 +9265,13 @@ server <- function(input, output, session) {
       if (identical(format, "html") && !inherits(f, "rasch_btl"))
         report_html(f, file, dif = app_dif_res(), bootstrap = app_boot_res(),
                     dif_bootstrap = app_dif_boot_res(),
-                    dimensionality = app_dim_res(), invariance = app_inv_res())
+                    dimensionality = app_dim_res(),
+                    subtest = app_subtest_res(), invariance = app_inv_res())
       else report_document(f, file, format = format,
                            dif = app_dif_res(), bootstrap = app_boot_res(),
                            dif_bootstrap = app_dif_boot_res(),
                            dimensionality = app_dim_res(),
+                           subtest = app_subtest_res(),
                            invariance = app_inv_res())
     })
   }
@@ -9205,6 +9294,7 @@ server <- function(input, output, session) {
                      dif = app_dif_res(), bootstrap = app_boot_res(),
                      dif_bootstrap = app_dif_boot_res(),
                      dimensionality = app_dim_res(),
+                     subtest = app_subtest_res(),
                      invariance = app_inv_res())
       })
       owd <- setwd(tmp); on.exit(setwd(owd), add = TRUE)

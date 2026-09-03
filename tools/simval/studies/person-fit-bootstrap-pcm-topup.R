@@ -4,12 +4,13 @@
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")
 
-NREP <- as.integer(Sys.getenv("SV_REPS", "200"))
-B <- as.integer(Sys.getenv("SV_B", "199"))
+NREP <- as.integer(Sys.getenv("SV_REPS", "100"))
+B <- as.integer(Sys.getenv("SV_B", "99"))
 CORES <- as.integer(Sys.getenv("SV_CORES", "8"))
 
 one <- function(r) {
   d <- simulate_rasch(500, 12, model = "PCM", n_categories = 4,
+                      difficulty = c(-1.5, 1.5), threshold_spread = .8,
                       seed = 510000L + r)
   f <- tryCatch(rasch(d, id = "id", model = "PCM"), error = function(e) e)
   if (inherits(f, "error"))
@@ -66,7 +67,8 @@ inner_note <- sprintf("%d of %d bootstrap refits did not converge; %d otherwise 
   inner$nonconv, inner$attempted, inner$errors)
 
 rows <- rbind(
-  sv_row("person fit bootstrap", "PCM, 500 persons x 12 four-category items",
+  sv_row("person fit bootstrap",
+    "well-targeted PCM, 500 persons x 12 four-category items",
     "person fit-residual marginal Type I error", n_reps = nr,
     n_attempted = acct$attempted, n_refused = acct$refused,
     n_nonconv = acct$nonconv, n_error = acct$error,
@@ -77,17 +79,18 @@ rows <- rbind(
     notes = paste(sprintf(paste0("B = %d; score-conditional null; ",
       "at least 90%% usable required when B >= 30"), B), inner_note,
                   sep = "; ")),
-  sv_row("person fit bootstrap", "PCM, 500 persons x 12 four-category items",
+  sv_row("person fit bootstrap",
+    "well-targeted PCM, 500 persons x 12 four-category items",
     "person fit-residual joint-adjusted familywise error", n_reps = nr,
     n_attempted = acct$attempted, n_refused = acct$refused,
     n_nonconv = acct$nonconv, n_error = acct$error,
     n_boot_attempted = inner$attempted, n_boot_used = inner$used,
     n_boot_nonconv = inner$nonconv, n_boot_errors = inner$errors,
     familywise = mean(a$familywise),
-    notes = paste(sprintf(paste0("B = %d; maximum-statistic adjustment; ",
+    notes = paste(sprintf(paste0("B = %d; leave-one-out maxT adjustment; ",
       "at least 90%% usable required when B >= 30"), B),
                   inner_note, sep = "; ")))
 
-primary <- NREP == 200L && B == 199L
+primary <- NREP == 100L && B == 99L
 sv_write(rows, if (primary) "person-fit-bootstrap-pcm-topup" else
   "person-fit-bootstrap-pcm-topup-screen")

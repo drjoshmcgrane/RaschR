@@ -131,7 +131,8 @@
   # attributes. They do not change the fitted model and must not make those
   # same results appear to belong to a different fit during rendering.
   for (nm in c("report_dif", "report_bootstrap", "report_dif_bootstrap",
-               "report_dimensionality", "report_invariance"))
+               "report_dimensionality", "report_subtest",
+               "report_invariance"))
     attr(fit, nm) <- NULL
   fit
 }

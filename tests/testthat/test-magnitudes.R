@@ -180,8 +180,9 @@ test_that("tailored_analysis bootstrap repeats the complete procedure", {
   # at 50 replicates and 6 items the Holm-adjusted p floor (2m/(B+1))
   # exceeds 0.05, and tailored_analysis must SAY so -- the warning is part
   # of the contract being tested here, not noise to suppress
+  fit <- rasch(X)
   expect_warning(
-    ta <- tailored_analysis(rasch(X), chance = 0.25,
+    ta <- tailored_analysis(fit, chance = 0.25,
                             se_method = "bootstrap", boot_reps = 50),
     "smallest achievable")
   expect_identical(ta$se_method, "bootstrap")
@@ -194,6 +195,22 @@ test_that("tailored_analysis bootstrap repeats the complete procedure", {
   expect_true(all(is.finite(ta$table$ci_low)))
   expect_true(all(is.finite(ta$table$ci_high)))
   expect_true(all(is.finite(ta$table$p_adj)))
+
+  original_rasch <- rasch
+  calls <- 0L
+  refused <- tryCatch(suppressWarnings(with_mocked_bindings(
+    tailored_analysis(fit, chance = 0.25,
+                      se_method = "bootstrap", boot_reps = 50),
+    rasch = function(...) {
+      calls <<- calls + 1L
+      if (calls <= 2L) original_rasch(...) else stop("forced inner failure")
+    },
+    .package = "rasch")), error = identity)
+  expect_s3_class(refused, "rasch_fit_bootstrap_refusal")
+  expect_identical(refused$B, 50L)
+  expect_identical(refused$B_used, 0L)
+  expect_identical(refused$B_nonconverged, 0L)
+  expect_identical(refused$B_errors, 50L)
 })
 
 test_that("tailored bootstrap keeps repeated-person rows together", {

@@ -74,7 +74,9 @@ Raw and Holm-adjusted probabilities are reported. With conditional
 uncertainty, Holm adjustment covers the location comparisons. With
 bootstrap uncertainty, it covers the combined family of location and
 discrimination comparisons. An unavailable comparison remains in the
-applicable family.
+applicable family. A discrimination probability is unavailable when
+either separate-frame slope is on its imposed estimation boundary; the
+ratio remains descriptive and the comparison remains in the Holm family.
 The summary gives the root mean squared location difference and root mean
 squared standard error for each set and frame pair. Items from different
 sets cannot be compared because the sets partition the items.

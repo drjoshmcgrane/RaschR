@@ -345,6 +345,9 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #' @param dimensionality Optional computed \code{\link{plot_scree}} or
 #'   \code{\link{btl_dimensionality}} result from this fit. Supplying it keeps
 #'   the exported table and figure identical to the analysis already run.
+#' @param subtest Optional computed \code{\link{dimensionality_test}} result
+#'   from this fit. Supplying it keeps the nominated item split and bootstrap
+#'   calibration used in the analysis.
 #' @param invariance Optional computed \code{\link{frame_invariance}} result
 #'   from an EFRM fit.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
@@ -362,16 +365,21 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE,
                          dif = NULL, bootstrap = NULL,
                          dif_bootstrap = NULL, dimensionality = NULL,
-                         invariance = NULL) {
+                         invariance = NULL, subtest = NULL) {
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   if (!is.null(dif_bootstrap) && is.null(dif))
     stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
   .validate_dif_bootstrap(dif_bootstrap, fit, dif)
-  if (inherits(fit, "rasch_btl"))
+  if (inherits(fit, "rasch_btl")) {
+    if (!is.null(subtest))
+      stop("`subtest` is not available for a paired-comparison fit")
     .validate_btl_dimensionality(dimensionality, fit)
-  else .validate_scree_result(dimensionality, fit)
+  } else {
+    .validate_scree_result(dimensionality, fit)
+    .validate_dimensionality_test(subtest, fit)
+  }
   .validate_frame_invariance(invariance, fit)
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
@@ -401,6 +409,27 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     path <- file.path(tdir, paste0(name, ".csv"))
     .write_csv_plain(d, path)
     files <<- c(files, path)
+  }
+
+  dt <- if (!is.null(subtest)) subtest else dimensionality_test(fit)
+  if (is.null(dt$note)) {
+    wtab(data.frame(
+      split = dt$split, items_positive = paste(dt$items_positive, collapse = ";"),
+      items_negative = paste(dt$items_negative, collapse = ";"),
+      prop_significant = dt$prop_significant, ci_lower = dt$ci[1],
+      ci_upper = dt$ci[2], n = dt$n,
+      n_excluded_extreme = dt$n_excluded_extreme,
+      multidimensional = dt$multidimensional,
+      binomial_multidimensional = dt$binomial_multidimensional,
+      verdict_method = dt$verdict_method,
+      p_boot = dt$p_boot %||% NA_real_, stringsAsFactors = FALSE),
+      "unidimensionality_t_test")
+    if (!is.null(dt$bootstrap))
+      wtab(data.frame(replicate = seq_along(dt$bootstrap$null),
+                      prop_significant = dt$bootstrap$null),
+           "unidimensionality_t_test_bootstrap")
+  } else {
+    wtab(data.frame(note = dt$note), "unidimensionality_t_test")
   }
 
   # --- tables ---------------------------------------------------------------
@@ -560,14 +589,19 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   con <- file(spath, "w")
   sink(con); on.exit({ sink(); close(con) }, add = TRUE)
   summary(fit)
-  dt <- dimensionality_test(fit)
   if (is.null(dt$note)) {
+    verdict <- if (isTRUE(dt$multidimensional)) "evidence against unidimensionality" else
+      if (identical(dt$multidimensional, FALSE)) "consistent with one dimension" else
+        "inferential verdict withheld for the data-driven split"
     cat(sprintf("\nUnidimensionality t-test: %.1f%% significant (exact 95%% CI %.1f%% to %.1f%%), %s\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
-                if (dt$multidimensional) "MULTIDIMENSIONAL" else "consistent with one dimension"))
+                verdict))
+    if (!is.null(dt$p_boot))
+      cat(sprintf("Parametric-bootstrap p = %s (%d of %d replicates used)\n",
+                  .fmt_p(dt$p_boot), dt$bootstrap$B_used, dt$bootstrap$B))
     if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
-    cat("Note: the item split was chosen from the residuals, which inflates the proportion",
-        "under unidimensionality; see ?dimensionality_test for a content split or a bootstrap calibration\n")
+    if (is.na(dt$multidimensional))
+      cat("Note: the item split was chosen from the residuals; use a content split or a bootstrap calibration for an inferential verdict\n")
   } else cat("\nUnidimensionality t-test:", dt$note, "\n")
   cat(sprintf("Average residual correlation: %.3f; binary Q3 flags withheld (no universal critical value)\n",
               rc$average))
@@ -755,6 +789,9 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' @param dimensionality Optional computed \code{\link{plot_scree}} result
 #'   from this fit. Supplying it keeps the table and figure identical to the
 #'   analysis already run.
+#' @param subtest Optional computed \code{\link{dimensionality_test}} result
+#'   from this fit. Supplying it keeps the item split and bootstrap calibration
+#'   used in the analysis.
 #' @param invariance Optional computed \code{\link{frame_invariance}} result
 #'   from an EFRM fit.
 #' @return Invisibly, \code{file}.
@@ -769,7 +806,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 report_html <- function(fit, file, title = "Rasch measurement analysis",
                         dpi = 150, dif = NULL, bootstrap = NULL,
                         dif_bootstrap = NULL, dimensionality = NULL,
-                        invariance = NULL) {
+                        invariance = NULL, subtest = NULL) {
   # a vector title would be pasted into as many documents as it has entries,
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
@@ -780,6 +817,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
   .validate_dif_bootstrap(dif_bootstrap, fit, dif)
   .validate_scree_result(dimensionality, fit)
+  .validate_dimensionality_test(subtest, fit)
   .validate_frame_invariance(invariance, fit)
   if (length(title) != 1L || !is.character(title) || is.na(title))
     stop("`title` must be one non-missing title")
@@ -857,15 +895,22 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
       s("<p class='note'>Notes: ", esc(paste(fit$notes, collapse = "; ")), "</p>")
     else "")
   rc <- residual_correlations(fit)
-  dt <- dimensionality_test(fit)
-  dim_html <- if (is.null(dt$note))
+  dt <- if (!is.null(subtest)) subtest else dimensionality_test(fit)
+  dim_html <- if (is.null(dt$note)) {
+    verdict <- if (isTRUE(dt$multidimensional))
+      "<span class='flag'>evidence against unidimensionality</span>" else
+      if (identical(dt$multidimensional, FALSE)) "consistent with one dimension" else
+        "inferential verdict withheld for the data-driven split"
     paste0(sprintf("<p>%.1f%% of person subset t-tests significant (95%% CI %.1f-%.1f%%): %s.</p>",
-            100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
-            if (dt$multidimensional) "<span class='flag'>evidence of multidimensionality</span>"
-            else "consistent with one dimension"),
+            100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2], verdict),
+           if (!is.null(dt$p_boot)) sprintf(
+             "<p>Parametric-bootstrap p = %s (%d of %d replicates used).</p>",
+             .fmt_p(dt$p_boot), dt$bootstrap$B_used, dt$bootstrap$B) else "",
            if (!is.null(dt$caution))
              sprintf("<p class='note'>%s</p>", esc(dt$caution)) else "",
-           "<p class='note'>The item split was chosen from the residuals, which inflates the proportion under unidimensionality; see ?dimensionality_test for a content split or a bootstrap calibration.</p>")
+           if (is.na(dt$multidimensional))
+             "<p class='note'>The item split was chosen from the residuals. Use a content split or a bootstrap calibration for an inferential verdict.</p>" else "")
+  }
   else sprintf("<p class='note'>%s</p>", esc(dt$note))
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
@@ -1092,6 +1137,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #'   analysis from this fit and DIF specification.
 #' @param dimensionality Optional computed \code{\link{plot_scree}} or
 #'   \code{\link{btl_dimensionality}} result from this fit.
+#' @param subtest Optional computed \code{\link{dimensionality_test}} result
+#'   from this fit.
 #' @param invariance Optional computed \code{\link{frame_invariance}} result
 #'   from an EFRM fit.
 #' @param title Report title.
@@ -1110,7 +1157,7 @@ report_document <- function(fit, file,
                             title = "Rasch measurement analysis",
                             dif = NULL, bootstrap = NULL,
                             dif_bootstrap = NULL, dimensionality = NULL,
-                            invariance = NULL) {
+                            invariance = NULL, subtest = NULL) {
   if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
     stop("fit must be a Rasch or paired-comparison fit")
   .validate_boot_dif_result(dif, fit)
@@ -1118,9 +1165,14 @@ report_document <- function(fit, file,
   if (!is.null(dif_bootstrap) && is.null(dif))
     stop("`dif` must accompany `dif_bootstrap` so the primary and sensitivity analyses use the same specification")
   .validate_dif_bootstrap(dif_bootstrap, fit, dif)
-  if (inherits(fit, "rasch_btl"))
+  if (inherits(fit, "rasch_btl")) {
+    if (!is.null(subtest))
+      stop("`subtest` is not available for a paired-comparison fit")
     .validate_btl_dimensionality(dimensionality, fit)
-  else .validate_scree_result(dimensionality, fit)
+  } else {
+    .validate_scree_result(dimensionality, fit)
+    .validate_dimensionality_test(subtest, fit)
+  }
   .validate_frame_invariance(invariance, fit)
   # computed results travel as attributes on the serialised fit, so the
   # template renders the analysis as run rather than a default recomputation
@@ -1130,6 +1182,7 @@ report_document <- function(fit, file,
     attr(fit, "report_dif_bootstrap") <- dif_bootstrap
   if (!is.null(dimensionality))
     attr(fit, "report_dimensionality") <- dimensionality
+  if (!is.null(subtest)) attr(fit, "report_subtest") <- subtest
   if (!is.null(invariance)) attr(fit, "report_invariance") <- invariance
   .check_out_path(file, "file")
   if (length(title) != 1L || !is.character(title) || is.na(title))
@@ -1195,6 +1248,7 @@ report_document <- function(fit, file,
   fl <- inv$locations[inv$locations$flagged %in% TRUE, , drop = FALSE]
   fd <- inv$discrimination[inv$discrimination$flagged %in% TRUE, ,
                            drop = FALSE]
+  nb <- sum(inv$discrimination$disc_boundary %in% TRUE)
   paste0("<h2>Item invariance across frames</h2>",
     if (bootstrap) paste0(
       "<p class='note'>Each frame is calibrated separately and compared on the",
@@ -1214,17 +1268,21 @@ report_document <- function(fit, file,
       .html_table(as.data.frame(fl[, intersect(
         c("set", "frame_1", "frame_2", "item", "location_1", "location_2",
           "difference", "se", "statistic", "p_adj"), names(fl))])))
-    else "<p class='note'>No item's location differs across frames.</p>",
+    else "<p class='note'>No available item-location comparison differs across frames.</p>",
     if (!bootstrap) paste0("<h3>Descriptive discrimination comparisons</h3>",
       .html_table(as.data.frame(inv$discrimination[, intersect(
         c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
           "infit_z", "disc_1", "disc_2", "disc_ratio", "disc_boundary"),
         names(inv$discrimination)), drop = FALSE])))
-    else if (nrow(fd)) paste0(
+    else paste0(
+      if (nb) sprintf(paste0(
+        "<p class='note'>%d discrimination probability/probabilities were ",
+        "withheld because a fitted slope is on its boundary.</p>"), nb) else "",
+      if (nrow(fd)) paste0(
       "<h3>Discrimination differing across frames</h3>",
       .html_table(as.data.frame(fd[, intersect(
         c("set", "frame_1", "frame_2", "item", "log_disc_ratio",
           "se_log_disc_ratio", "statistic", "p_adj", "disc_1", "disc_2",
           "disc_ratio", "disc_boundary"), names(fd)), drop = FALSE])))
-    else "<p class='note'>No item's discrimination differs across frames.</p>")
+      else "<p class='note'>No available discrimination comparison differs across frames.</p>"))
 }

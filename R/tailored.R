@@ -235,11 +235,13 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     }
     minimum_usable <- .fit_min_boot_success(boot_reps)
     if (length(draws) < minimum_usable)
-      stop("only ", length(draws), " of ", boot_reps,
-           " tailored bootstrap replicates were estimable; at least ",
-           minimum_usable, " are required for inference (",
-           boot_nonconverged, " did not converge and ", boot_errors,
-           " otherwise failed)")
+      .fit_boot_refuse(
+        "only ", length(draws), " of ", boot_reps,
+        " tailored bootstrap replicates were estimable; at least ",
+        minimum_usable, " are required for inference (",
+        boot_nonconverged, " did not converge and ", boot_errors,
+        " otherwise failed)", B = boot_reps, B_used = length(draws),
+        B_nonconverged = boot_nonconverged, B_errors = boot_errors)
     B <- do.call(rbind, draws); boot_used <- nrow(B)
     tab$se <- apply(B, 2, stats::sd)
     tab$ci_low <- apply(B, 2, stats::quantile, probs = 0.025, names = FALSE)

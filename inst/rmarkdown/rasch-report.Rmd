@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
 fit <- readRDS(params$fit_file)
 is_btl <- inherits(fit, "rasch_btl")
 reported_dimensionality <- attr(fit, "report_dimensionality")
+reported_subtest <- attr(fit, "report_subtest")
 # a refusal is kept so the document says why the dimensionality analysis is
 # absent, rather than dropping it without a word
 dimensionality_refusal <- NULL
@@ -28,6 +29,11 @@ if (is.null(reported_dimensionality)) {
         NULL
       })
 }
+if (!is_btl && is.null(reported_subtest))
+  reported_subtest <- tryCatch(dimensionality_test(fit),
+                               error = function(e) list(
+                                 note = conditionMessage(e),
+                                 multidimensional = NA))
 reported_invariance <- attr(fit, "report_invariance")
 show_table <- function(x, n = 250L, digits = 3L) {
   if (is.null(x) || !NROW(x)) return(invisible(NULL))
@@ -145,6 +151,27 @@ if (!is_btl) {
   }
   cat("\n# Targeting and reliability\n\n")
   print(show_table(targeting_table(fit)))
+  cat("\n# Unidimensionality t-test\n\n")
+  if (!is.null(reported_subtest$note)) {
+    cat("Not available: ", reported_subtest$note, "\n\n", sep = "")
+  } else {
+    verdict <- if (isTRUE(reported_subtest$multidimensional))
+      "evidence against unidimensionality" else
+      if (identical(reported_subtest$multidimensional, FALSE))
+        "consistent with unidimensionality" else
+          "withheld for the data-driven split"
+    print(show_table(data.frame(
+      split = reported_subtest$split,
+      significant_percent = 100 * reported_subtest$prop_significant,
+      lower_95_percent = 100 * reported_subtest$ci[1],
+      upper_95_percent = 100 * reported_subtest$ci[2],
+      verdict = verdict,
+      bootstrap_p = reported_subtest$p_boot %||% NA_real_,
+      stringsAsFactors = FALSE)))
+    if (is.na(reported_subtest$multidimensional))
+      cat("The residual-derived split is descriptive until it is calibrated",
+          "by bootstrap or replaced by item subsets fixed in advance.\n\n")
+  }
   cat("\n# Person estimates\n\n")
   print(show_table(report_columns(fit$person,
     c("id", "raw", "max_raw", "theta", "se", "extreme", "fit_resid"))))
@@ -203,9 +230,14 @@ if (!is_btl) {
       cat("Frame invariance was unavailable: ", conditionMessage(inv), "\n",
           sep = "")
     } else {
-      cat("The conditional analysis tests relative item locations. Its",
-          " discrimination columns describe the separate calibrations; use",
-          " bootstrap uncertainty for discrimination tests.\n\n")
+      inv_bootstrap <- identical(inv$se_method, "bootstrap")
+      if (inv_bootstrap)
+        cat("Persons were resampled within frame. Holm adjustment covers",
+            "location and discrimination comparisons together.\n\n")
+      else
+        cat("The conditional analysis tests relative item locations. Its",
+            "discrimination columns describe the separate calibrations; use",
+            "bootstrap uncertainty for discrimination tests.\n\n")
       print(show_table(inv$summary))
       if (!is.null(inv$excluded) && nrow(inv$excluded)) {
         cat("\n### Excluded comparisons\n\n")
@@ -215,10 +247,17 @@ if (!is_btl) {
       print(show_table(report_columns(inv$locations,
         c("set", "frame_1", "frame_2", "item", "difference", "se",
           "statistic", "p_adj", "flagged"))))
-      cat("\n### Descriptive discrimination comparisons\n\n")
-      print(show_table(report_columns(inv$discrimination,
-        c("set", "frame_1", "frame_2", "item", "infit_1", "infit_2",
-          "infit_z", "disc_1", "disc_2", "disc_ratio", "disc_boundary"))))
+      cat(if (inv_bootstrap) "\n### Discrimination comparisons\n\n" else
+        "\n### Descriptive discrimination comparisons\n\n")
+      disc_cols <- c("set", "frame_1", "frame_2", "item", "infit_1",
+        "infit_2", "infit_z", "disc_1", "disc_2", "disc_ratio",
+        if (inv_bootstrap) c("se_log_disc_ratio", "statistic", "p_adj",
+                            "flagged"), "disc_boundary")
+      print(show_table(report_columns(inv$discrimination, disc_cols)))
+      nb <- sum(inv$discrimination$disc_boundary %in% TRUE)
+      if (inv_bootstrap && nb)
+        cat("\n", nb, " discrimination probability/probabilities were withheld",
+            " because a fitted slope is on its boundary.\n", sep = "")
     }
   }
   bs <- attr(fit, "report_bootstrap")

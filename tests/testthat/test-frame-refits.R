@@ -61,6 +61,28 @@ test_that("polytomous frame differences use the threshold-weighted origin", {
                    boot_reps = 0)
   z2 <- frame_invariance(f2)
   expect_true(items[1] %in% z2$excluded$item)
+  expect_equal(z2$locations$p_adj,
+               p.adjust(z2$locations$p, "holm",
+                        n = nrow(z2$locations) + nrow(z2$excluded)))
+})
+
+test_that("frame invariance withholds boundary slope tests without shrinking the family", {
+  cmp <- data.frame(p = c(.01, .03))
+  dsc <- data.frame(p = c(.02, .04), statistic = c(2.4, 2.1),
+                    disc_boundary = c(TRUE, FALSE))
+  excluded <- data.frame(item = "unavailable")
+  z <- .frame_invariance_probabilities(
+    cmp, dsc, excluded, "bootstrap", alpha = .05, adjust = "holm")
+  # Two tested and one unavailable item contribute a location and a
+  # discrimination comparison each: the predeclared family has six members.
+  expect_identical(z$family_n, 6L)
+  expect_true(is.na(z$discrimination$p[1]))
+  expect_true(is.na(z$discrimination$statistic[1]))
+  expect_true(is.na(z$discrimination$p_adj[1]))
+  expect_equal(z$locations$p_adj,
+               p.adjust(c(.01, .03, .04), "holm", n = 6L)[1:2])
+  expect_equal(z$discrimination$p_adj[2],
+               p.adjust(c(.01, .03, .04), "holm", n = 6L)[3])
 })
 
 test_that("frame-invariance bootstrap refits the units and controls one family", {

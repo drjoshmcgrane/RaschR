@@ -47,12 +47,24 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
   any syntax error; run it (and a smoke subset) before trusting the
   reproducibility claim.
 - `results/scree-conditional-reference.csv` records the score-conditional
-  scree study. Across five null designs, familywise rejection over ten
-  displayed components was 2.0--5.5%, and 39/1,000 (3.9%) overall. Power for a
-  planted second dimension was 99.5--100% in the complete designs and 69.0% in
-  the booklet design. All 2,000 datasets were analysed. The study is
+  scree study. Across five supported null designs, familywise rejection over
+  ten displayed components was 2.0--5.5%, and 40/1,000 (4.0%) overall. Power
+  for a planted second dimension was 98.5--100% in the complete designs and
+  71.5% in the booklet design. Every supported dataset and all 100,000 inner
+  draws were analysed. A sparse-PCM stress cell analysed 178/200 datasets
+  (2 fits refused and 20 reference analyses unavailable); its conditional
+  familywise rate was 2.8%, with 8,751/8,900 inner draws used. The study is
   `studies/scree-conditional-reference.R`; its rows carry script hash
-  `eeab8635027f3a7e9a90dbb112cd8622` and R-tree hash `c49eb3933f89`.
+  `7c42ef04e0a145c398cfa46a977c0819` and R-tree hash `17a08ef1fa4c`.
+- `results/dimensionality-bootstrap.csv` separates a content split fixed in
+  advance from the residual-derived split and its parametric-bootstrap
+  calibration. Across 100 null datasets, the uncalibrated automatic rule
+  rejected 15% of dichotomous samples and 41% of PCM samples; bootstrap
+  rejection was 5% and 9% (MCSE 2.2 and 2.9 points). All three procedures
+  detected the planted PCM second dimension. All 300 outer datasets were
+  analysed; 29,697 of 29,700 inner refits converged and none otherwise
+  failed. The study and R-tree hashes are
+  `abae964531ee3fc544ecc0ba226c89d6` and `17a08ef1fa4c`.
 - `results/btl-dimensionality-reference.csv` checks the finite simulated
   upper-tail decision for BTL and BTL-EFRM. Null rejection was 2.5% and 3.6%
   with 20 reference draws, and 2.7% and 5.2% with 200. BTL power for a planted
@@ -219,31 +231,24 @@ The score-conditional person-fit and fitted-design comparative-judgement
 bootstraps are checked in `studies/person-cj-fit-bootstrap.R`. The supported
 four-category follow-ups are `studies/person-fit-bootstrap-pcm-topup.R` and
 `studies/cj-fit-bootstrap-polytomous-topup.R`; their result files have the
-same stems under `results/`. Dichotomous person-fit familywise error was 5.0%.
-After the 90% usable-refit rule was introduced, the 500-person PCM top-up gave
-4.08% marginal error and 7.62% familywise error (MCSE 2.59 points) among
-105/200 analysed fits. Ninety-three datasets had fewer than 180 of 199 usable
-refits, one observed calibration was singular, and one complete adjusted
-family was unavailable. The refusal rate was 47.5% (MCSE 3.53 points). None of
-39,601 inner refits failed to converge; 5,952 otherwise failed. The result is
-conditional on analysed fits and shows that the broad default PCM design can
-produce categories too sparse for this bootstrap even when its observed fit
-is estimable. The 200-dataset polytomous CJ top-up gave 3.0% total-test,
-2.0% pair-family, 7.0% object-family and 4.5% judge-family error, with no
-refusals; all 39,800 inner refits were usable. All three studies were rerun
-against their recorded release trees. Their exact package, R-tree and
-study-script hashes are recorded in the result rows; the PCM policy rerun uses
-R-tree hash `1276623a1f23`.
+same stems under `results/`. At B = 99, dichotomous person-fit marginal error
+was 2.41% and leave-one-out maxT familywise error was 5.0%. In the
+well-targeted four-category PCM follow-up they were 3.81% and 6.0%. Each used
+100 datasets without an outer refusal or an unusable inner refit. The broad
+240-person PCM stress condition in the main study refused 71/100 datasets
+because too many bootstrap samples lost sparse categories; its 29 conditional
+results are not used to claim calibration. The current comparative-judgement
+rerun gave total-test, pair-family, object-family and judge-family error of
+3%, 3%, 1% and 2% for dichotomous responses and 3%, 8%, 8% and 3% for
+polytomous responses. The two 8% estimates have MCSE 2.7 points. Neither CJ
+design was refused. The current model studies carry R-tree hash
+`17a08ef1fa4c`; their exact package and study hashes are in the result rows.
 Outer errors and inner-bootstrap attempts, usable refits, non-convergence and
 other failures are recorded in separate columns; the inner counts reconcile
 to the attempted total in every row.
 
-The familywise person, object and judge rows in those files predate the
-leave-one-out maxT correction and are retained only as provenance for the
-superseded implementation. Marginal probabilities and the raw total and pair
-families do not use estimated maxT standardisation and are unaffected. The
-corrected algorithm is checked directly in `studies/maxt-exchangeability.R`;
-the model-specific scripts above are the rerun specification. With 20,000
+The corrected algorithm is also checked directly in
+`studies/maxt-exchangeability.R`. With 20,000
 iid global-null experiments, 99 reference rows and a family of ten, the
 leave-one-out familywise rates were 4.955% and 5.105% for centred upper- and
 two-sided statistics, and 4.895% and 5.110% for their studentised counterparts
@@ -643,6 +648,15 @@ adjusted (300 replicates per condition).
   error is 2.5% at guessing 0.15 and 0% at 0.30. At least one of two planted
   hard items is detected in 17.5% and 26.3% of datasets respectively, showing
   that calibration is conservative and power is limited for this design.
+- `results/tailored-bootstrap.csv` — current-tree rerun with complete outer
+  and inner accounting. Under no guessing, 0/54 analysed datasets had a
+  Holm-adjusted item flag (exact 95% interval 0--6.6%); one of 55 datasets was
+  refused by the 90% usable-refit rule. In all, 21,802/21,945 null refits were
+  usable, with no non-convergence and 143 other failures. All 44 datasets and
+  all 19,980 inner refits in the power grid were usable. Its per-cell counts
+  are too small for precise power estimates; the 80-replicate top-up above is
+  used for those. The current result carries script hash
+  `55f5ce4436029ac4cbfb6f853336b04f` and R-tree hash `3ae2582c9cf7`.
 - `results/cross-package-diagnostics.csv` — the diagnostics checked
   against independent implementations, at the level each comparison
   supports. Formula parity: alpha vs `psych::alpha` to 4e-15. Value

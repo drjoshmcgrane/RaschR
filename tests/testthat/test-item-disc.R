@@ -76,7 +76,8 @@ test_that("frame_invariance results print without scientific notation", {
   # the returned elements match what the documentation claims
   expect_setequal(names(inv), c("locations", "discrimination", "summary",
                                 "excluded", "alpha", "adjust", "se_method",
-                                "boot_reps_used"))
+                                "boot_reps", "boot_reps_used", "seed",
+                                "fit_signature", "result_signature"))
 })
 
 test_that("a frame model's virtual item name resolves to its source item", {
@@ -136,7 +137,7 @@ test_that("the report and saved outputs carry the invariance test", {
   # the section reports whichever way the test came out; which branch fires
   # is a question about power, tested elsewhere, not about the report
   expect_true(any(grepl("Locations differing across frames", x)) ||
-                any(grepl("No item's location differs", x)))
+                any(grepl("No available item-location comparison differs", x)))
   expect_true(any(grepl("Descriptive discrimination comparisons", x)))
   expect_true(any(grepl("bootstrap", x, ignore.case = TRUE)))
   expect_true(any(grepl("<th>rmsd</th>", x, fixed = TRUE))) # summary is there

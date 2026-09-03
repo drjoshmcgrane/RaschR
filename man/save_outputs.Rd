@@ -16,7 +16,8 @@ save_outputs(
   bootstrap = NULL,
   dif_bootstrap = NULL,
   dimensionality = NULL,
-  invariance = NULL
+  invariance = NULL,
+  subtest = NULL
 )
 }
 \arguments{
@@ -51,6 +52,10 @@ the exported table and figure identical to the analysis already run.}
 
 \item{invariance}{Optional computed \code{\link{frame_invariance}} result
 from an EFRM fit.}
+
+\item{subtest}{Optional computed \code{\link{dimensionality_test}} result
+from this fit. Supplying it keeps the nominated item split and bootstrap
+calibration used in the analysis.}
 }
 \value{
 Invisibly, the vector of files written.
