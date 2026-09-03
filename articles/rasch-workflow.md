@@ -383,13 +383,18 @@ subsets \\A\\ and \\B\\, the person-level statistic is
 \operatorname{SE}(\hat\theta\_{nB})^2}}. \\
 
 Under unidimensionality, about the nominated alpha level of these
-comparisons should be significant. The exact binomial interval, the
-residual loadings, and the score points in each subset are part of the
-result.
+comparisons should be significant when the subsets were fixed in
+advance. The exact binomial interval and the score points in each subset
+are part of the result. A split selected from the residuals is
+descriptive unless its selection is repeated in a parametric bootstrap.
 
 ``` r
 
-dimensionality <- dimensionality_test(fit)
+dimensionality <- dimensionality_test(
+  fit,
+  items_positive = paste0("I", sprintf("%02d", 1:6)),
+  items_negative = paste0("I", sprintf("%02d", 7:12))
+)
 ```
 
 ``` r
@@ -412,9 +417,9 @@ plot_pca(fit)
 ![Loadings of items on the first residual
 component.](rasch-workflow_files/figure-html/trait-dependence-plot-1.png)
 
-Here, 4.5% of the person comparisons are significant (exact 95% interval
-3.0% to 6.5%). The test does not flag trait dependence, but one opposed
-subset contains only 12 score points. A quiet result from a short
+Here, 3.2% of the person comparisons are significant (exact 95% interval
+1.9% to 5.0%). The test does not flag trait dependence, but one opposed
+subset contains only 18 score points. A quiet result from a short
 subtest is inconclusive rather than evidence that a secondary trait is
 absent.
 

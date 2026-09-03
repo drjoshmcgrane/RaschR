@@ -135,7 +135,9 @@ computationally demanding.</p>
 uncertainty, Holm adjustment covers the location comparisons. With
 bootstrap uncertainty, it covers the combined family of location and
 discrimination comparisons. An unavailable comparison remains in the
-applicable family.
+applicable family. A discrimination probability is unavailable when
+either separate-frame slope is on its imposed estimation boundary; the
+ratio remains descriptive and the comparison remains in the Holm family.
 The summary gives the root mean squared location difference and root mean
 squared standard error for each set and frame pair. Items from different
 sets cannot be compared because the sets partition the items.
@@ -183,7 +185,7 @@ Measurement</em>. PhD thesis, Murdoch University.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> rmsd/rmse above 1 indicates item behaviour the frame units do not account for</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> No item's location differs across frames at alpha = 0.05 (Holm-adjusted).</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> No available item-location comparison differs across frames at alpha = 0.05 (Holm-adjusted).</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> The discrimination comparisons are descriptive:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   set frame_1 frame_2  item infit_1 infit_2 infit_z disc_1 disc_2 disc_ratio</span>

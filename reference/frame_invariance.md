@@ -88,18 +88,20 @@ Raw and Holm-adjusted probabilities are reported. With conditional
 uncertainty, Holm adjustment covers the location comparisons. With
 bootstrap uncertainty, it covers the combined family of location and
 discrimination comparisons. An unavailable comparison remains in the
-applicable family. The summary gives the root mean squared location
-difference and root mean squared standard error for each set and frame
-pair. Items from different sets cannot be compared because the sets
-partition the items. Location differences are relative to the mean
-difference of the common items. Concentrated DIF can therefore produce
-non-zero centred contrasts for items that were not themselves shifted.
-The table identifies the pattern of relative departures; item content or
-external anchors are needed to determine which items provide the
-defensible reference. A compared set-by-frame cell must contain at least
-50 persons with two or more responses. Items with weakly determined
-standard errors in either separate calibration are listed in `excluded`
-rather than tested.
+applicable family. A discrimination probability is unavailable when
+either separate-frame slope is on its imposed estimation boundary; the
+ratio remains descriptive and the comparison remains in the Holm family.
+The summary gives the root mean squared location difference and root
+mean squared standard error for each set and frame pair. Items from
+different sets cannot be compared because the sets partition the items.
+Location differences are relative to the mean difference of the common
+items. Concentrated DIF can therefore produce non-zero centred contrasts
+for items that were not themselves shifted. The table identifies the
+pattern of relative departures; item content or external anchors are
+needed to determine which items provide the defensible reference. A
+compared set-by-frame cell must contain at least 50 persons with two or
+more responses. Items with weakly determined standard errors in either
+separate calibration are listed in `excluded` rather than tested.
 
 A flagged item may be resolved with
 [`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)
@@ -142,7 +144,7 @@ frame_invariance(fit)
 #> 
 #> rmsd/rmse above 1 indicates item behaviour the frame units do not account for
 #> 
-#> No item's location differs across frames at alpha = 0.05 (Holm-adjusted).
+#> No available item-location comparison differs across frames at alpha = 0.05 (Holm-adjusted).
 #> 
 #> The discrimination comparisons are descriptive:
 #>   set frame_1 frame_2  item infit_1 infit_2 infit_z disc_1 disc_2 disc_ratio

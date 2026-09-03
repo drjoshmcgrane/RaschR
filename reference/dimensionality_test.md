@@ -12,9 +12,9 @@ standard normal and about `alpha` of the tests should reach
 significance. Persons with an extreme score on either subset are
 excluded (their weighted-likelihood estimates are most biased there).
 The proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval; a lower bound above
-`alpha` signals multidimensionality. The test requires a converged
-calibration.
+(Clopper-Pearson) binomial confidence interval. For a split fixed in
+advance, a lower bound above `alpha` signals multidimensionality. The
+test requires a converged calibration.
 
 ## Usage
 
@@ -59,7 +59,7 @@ dimensionality_test(
   Score-point threshold below which the verdict carries a caution.
   Andrich and Marais (2019) recommend subtests of roughly 15 score
   points for stable subtest estimates; shorter subsets (the norm for
-  ordinary dichotomous tests) still receive a verdict, with a `caution`
+  ordinary dichotomous tests) retain the analysis, with a `caution`
   field noting the reduced stability. A quiet verdict under caution is
   inconclusive, not clean: with a four-item subtest the test lacks power
   where nonparametric alternatives still flag.
@@ -68,10 +68,11 @@ dimensionality_test(
 
   Number of parametric-bootstrap replicates that calibrate the
   proportion of significant tests under the fitted model (see Details).
-  The default `0` reports the binomial reading alone. Each replicate
-  refits the calibration, so `B = 200` costs about two hundred fits; the
-  bootstrap is available for single-facet fits with a common unit whose
-  thresholds were estimated directly.
+  The default `0` reports the binomial interval and descriptive reading
+  alone; an automatic split then has no inferential verdict. Each
+  replicate refits the calibration, so `B = 200` costs about two hundred
+  fits; the bootstrap is available for single-facet fits with a common
+  unit whose thresholds were estimated directly.
 
 - workers:
 
@@ -86,8 +87,9 @@ dimensionality_test(
 
 A list with the proportion of significant tests, its exact confidence
 interval, the sample sizes (`n` used, `n_excluded_extreme`), the item
-split and its source, a `multidimensional` verdict, a `caution` note
-when the subtests fall short of `min_score_points`, and `paired_t`, the
+split and its source, a `multidimensional` verdict, the corresponding
+uncalibrated `binomial_multidimensional` reading, a `caution` note when
+the subtests fall short of `min_score_points`, and `paired_t`, the
 paired t-test of the two subset means (the group-level comparison, which
 requires pairing because both estimates come from the same persons).
 With `B > 0` the list also carries `p_boot`, the bootstrap probability
@@ -103,26 +105,22 @@ explaining why and `multidimensional = NA`.
 
 The binomial reading holds for a split fixed in advance. A split chosen
 from the residuals is chosen to make the two subsets disagree, so its
-proportion runs above `alpha` under unidimensionality. In the package's
-own simulation of unidimensional data (400 persons; 20 four-category
-items, or 30 dichotomous items) the residual-component split left 6 to 7
-per cent of persons significant and the binomial verdict flagged between
-a sixth and a half of the samples, depending on the design, while a
-split fixed in advance on the same data held the nominal rate and
-flagged none. With `B = 99` the bootstrap verdict flagged 2 to 8 per
-cent of the same samples and 97 per cent of samples from a
-two-dimensional design that the binomial verdict flagged in 87 per cent.
-Two remedies are available. A content-based split, named through
-`items_positive` and `items_negative`, keeps the binomial reading exact.
-Otherwise `B > 0` calibrates the data-driven split by a parametric
-bootstrap: each replicate draws responses from the fitted model
-conditional on every person's raw score and missingness pattern, refits
-the calibration, repeats the residual-component split on its own
-residuals and recomputes the proportion, so the bootstrap probability
-`p_boot` carries the same selection the observed proportion carries.
-With `B > 0` the verdict is `p_boot <= .05`; the binomial interval is
-still reported, as a description of the observed proportion rather than
-a test of it.
+proportion runs above `alpha` under unidimensionality. Package
+simulations confirmed that applying the fixed-split binomial rule after
+choosing the split from the same residuals is anti-conservative. Without
+bootstrap calibration the data-driven split therefore has no binary
+verdict: `multidimensional` is `NA`, while the interval and uncalibrated
+binomial reading remain available descriptively. Two inferential routes
+are available. A content-based split, named through `items_positive` and
+`items_negative`, keeps the binomial reading exact. Otherwise `B > 0`
+calibrates the data-driven split by a parametric bootstrap: each
+replicate draws responses from the fitted model conditional on every
+person's raw score and missingness pattern, refits the calibration,
+repeats the residual-component split on its own residuals and recomputes
+the proportion, so the bootstrap probability `p_boot` carries the same
+selection the observed proportion carries. With `B > 0` the verdict is
+`p_boot <= alpha`; the binomial interval is still reported, as a
+description of the observed proportion rather than a test of it.
 
 ## References
 
@@ -140,7 +138,9 @@ set.seed(1)
 d <- seq(-2, 2, length.out = 8)
 X <- matrix(rbinom(300 * 8, 1, plogis(outer(rnorm(300), d, "-"))), 300, 8)
 colnames(X) <- paste0("I", 1:8)
-dimensionality_test(rasch(X))$multidimensional
+dimensionality_test(
+  rasch(X), items_positive = paste0("I", 1:4),
+  items_negative = paste0("I", 5:8))$multidimensional
 #> [1] FALSE
 # \donttest{
 # calibrate the data-driven split under the fitted model

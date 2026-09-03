@@ -16,7 +16,8 @@ report_html(
   bootstrap = NULL,
   dif_bootstrap = NULL,
   dimensionality = NULL,
-  invariance = NULL
+  invariance = NULL,
+  subtest = NULL
 )
 ```
 
@@ -66,6 +67,13 @@ report_html(
   Optional computed
   [`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
   result from an EFRM fit.
+
+- subtest:
+
+  Optional computed
+  [`dimensionality_test`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md)
+  result from this fit. Supplying it keeps the item split and bootstrap
+  calibration used in the analysis.
 
 ## Value
 

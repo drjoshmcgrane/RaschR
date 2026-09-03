@@ -19,7 +19,8 @@ report_document(
   bootstrap = NULL,
   dif_bootstrap = NULL,
   dimensionality = NULL,
-  invariance = NULL
+  invariance = NULL,
+  subtest = NULL
 )
 ```
 
@@ -74,6 +75,12 @@ report_document(
   Optional computed
   [`frame_invariance`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
   result from an EFRM fit.
+
+- subtest:
+
+  Optional computed
+  [`dimensionality_test`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md)
+  result from this fit.
 
 ## Value
 

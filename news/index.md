@@ -2,23 +2,30 @@
 
 ## rasch 1.12.1
 
+- A tailored-analysis bootstrap that cannot retain enough refits now
+  signals the standard structured refusal, including requested, usable,
+  non-converged and other-failure counts.
+
+- [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
+  now retains excluded comparisons in its Holm family. Bootstrap
+  discrimination probabilities are withheld when either fitted slope is
+  on its imposed boundary; the ratio remains descriptive.
+
 - [`dimensionality_test()`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md)
-  documents that its default split, chosen from the residuals, inflates
-  the proportion of significant person comparisons under
-  unidimensionality: in the package’s own simulation the
-  residual-component split left 6 to 7% of persons significant where a
-  split fixed in advance held 5%, and the binomial verdict flagged
-  between a sixth and a half of unidimensional samples, depending on the
-  design. The earlier documentation claimed the procedure held an exact
-  null. A new `B` argument calibrates the split by a parametric
-  bootstrap under the fitted model (score-conditional replicates, each
-  refitted and split afresh from its own residuals), giving `p_boot`,
-  the mean replicate proportion `prop_null`, and a verdict at the 5%
-  level. Refactored
+  documents that its default split, chosen from the residuals, makes the
+  ordinary fixed-split binomial rule anti-conservative. The earlier
+  documentation claimed the procedure held an exact null. A new `B`
+  argument calibrates the split by a parametric bootstrap under the
+  fitted model (score-conditional replicates, each refitted and split
+  afresh from its own residuals), giving `p_boot`, the mean replicate
+  proportion `prop_null`, and a verdict at the chosen `alpha` level. An
+  automatic split without bootstrap calibration is now descriptive and
+  has no binary verdict. The application can run the bootstrap and
+  carries the exact item split and result into saved analyses, tables
+  and reports. Refactored
   [`residual_pca()`](https://drjoshmcgrane.github.io/rasch/reference/residual_pca.md)
   and the fit-bootstrap refit so the replicates travel the observed
-  computation. The application, summary export and report note the
-  inflation where the default split is used.
+  computation.
 
 - A category observed only in extreme response patterns (every answered
   item at its floor, or every one at its ceiling) carries no pairwise

@@ -17,9 +17,9 @@ standard normal and about alpha of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
 proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval; a lower bound above
-alpha signals multidimensionality. The test requires a converged
-calibration."><meta property="og:description" content="Estimates each person separately on two item subsets and compares the two
+(Clopper-Pearson) binomial confidence interval. For a split fixed in
+advance, a lower bound above alpha signals multidimensionality. The
+test requires a converged calibration."><meta property="og:description" content="Estimates each person separately on two item subsets and compares the two
 estimates with a per-person t-test (Smith 2002). By default the subsets
 are defined by the sign of a residual-component loading (the first by
 default; any leading component may be chosen); they can also be nominated
@@ -31,9 +31,9 @@ standard normal and about alpha of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
 proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval; a lower bound above
-alpha signals multidimensionality. The test requires a converged
-calibration."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+(Clopper-Pearson) binomial confidence interval. For a split fixed in
+advance, a lower bound above alpha signals multidimensionality. The
+test requires a converged calibration."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -86,9 +86,9 @@ standard normal and about <code>alpha</code> of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
 proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval; a lower bound above
-<code>alpha</code> signals multidimensionality. The test requires a converged
-calibration.</p>
+(Clopper-Pearson) binomial confidence interval. For a split fixed in
+advance, a lower bound above <code>alpha</code> signals multidimensionality. The
+test requires a converged calibration.</p>
     </div>
 
     <div class="section level2">
@@ -134,8 +134,8 @@ component.</p></dd>
 <dd><p>Score-point threshold below which the verdict
 carries a caution. Andrich and Marais (2019) recommend subtests of
 roughly 15 score points for stable subtest estimates; shorter subsets
-(the norm for ordinary dichotomous tests) still receive a verdict, with
-a <code>caution</code> field noting the reduced stability. A quiet verdict
+(the norm for ordinary dichotomous tests) retain the analysis, with a
+<code>caution</code> field noting the reduced stability. A quiet verdict
 under caution is inconclusive, not clean: with a four-item subtest the
 test lacks power where nonparametric alternatives still flag.</p></dd>
 
@@ -143,8 +143,9 @@ test lacks power where nonparametric alternatives still flag.</p></dd>
 <dt id="arg-b">B<a class="anchor" aria-label="anchor" href="#arg-b"></a></dt>
 <dd><p>Number of parametric-bootstrap replicates that calibrate the
 proportion of significant tests under the fitted model (see Details).
-The default <code>0</code> reports the binomial reading alone. Each replicate
-refits the calibration, so <code>B = 200</code> costs about two hundred
+The default <code>0</code> reports the binomial interval and descriptive
+reading alone; an automatic split then has no inferential verdict. Each
+replicate refits the calibration, so <code>B = 200</code> costs about two hundred
 fits; the bootstrap is available for single-facet fits with a common
 unit whose thresholds were estimated directly.</p></dd>
 
@@ -163,7 +164,8 @@ reproducible for a given seed whatever the worker count.</p></dd>
     <p>A list with the proportion of significant tests, its exact
   confidence interval, the sample sizes (<code>n</code> used,
   <code>n_excluded_extreme</code>), the item split and its source, a
-  <code>multidimensional</code> verdict, a <code>caution</code> note when the
+  <code>multidimensional</code> verdict, the corresponding uncalibrated
+  <code>binomial_multidimensional</code> reading, a <code>caution</code> note when the
   subtests fall short of <code>min_score_points</code>, and <code>paired_t</code>,
   the paired t-test of the two subset means (the group-level comparison,
   which requires pairing because both estimates come from the same
@@ -181,16 +183,13 @@ reproducible for a given seed whatever the worker count.</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The binomial reading holds for a split fixed in advance. A split chosen
 from the residuals is chosen to make the two subsets disagree, so its
-proportion runs above <code>alpha</code> under unidimensionality. In the
-package's own simulation of unidimensional data (400 persons; 20
-four-category items, or 30 dichotomous items) the residual-component split
-left 6 to 7 per cent of persons significant and the binomial verdict
-flagged between a sixth and a half of the samples, depending on the
-design, while a split fixed in advance on the same data held the nominal
-rate and flagged none. With <code>B = 99</code> the bootstrap verdict flagged
-2 to 8 per cent of the same samples and 97 per cent of samples from a
-two-dimensional design that the binomial verdict flagged in 87 per cent.
-Two remedies are available. A content-based split, named through <code>items_positive</code>
+proportion runs above <code>alpha</code> under unidimensionality. Package
+simulations confirmed that applying the fixed-split binomial rule after
+choosing the split from the same residuals is anti-conservative. Without
+bootstrap calibration the data-driven split therefore has no binary verdict:
+<code>multidimensional</code> is <code>NA</code>, while the interval and uncalibrated
+binomial reading remain available descriptively. Two inferential routes
+are available. A content-based split, named through <code>items_positive</code>
 and <code>items_negative</code>, keeps the binomial reading exact. Otherwise
 <code>B &gt; 0</code> calibrates the data-driven split by a parametric bootstrap:
 each replicate draws responses from the fitted model conditional on every
@@ -198,7 +197,7 @@ person's raw score and missingness pattern, refits the calibration,
 repeats the residual-component split on its own residuals and recomputes
 the proportion, so the bootstrap probability <code>p_boot</code> carries the
 same selection the observed proportion carries. With <code>B &gt; 0</code> the
-verdict is <code>p_boot &lt;= .05</code>; the binomial interval is still reported,
+verdict is <code>p_boot &lt;= alpha</code>; the binomial interval is still reported,
 as a description of the observed proportion rather than a test of it.</p>
     </div>
     <div class="section level2">
@@ -216,7 +215,9 @@ of two Smiths?). Rasch Measurement Transactions, 20(1), 1048–1051.</p>
 <span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2</span>, <span class="fl">2</span>, length.out <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">X</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">300</span> <span class="op">*</span> <span class="fl">8</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">300</span><span class="op">)</span>, <span class="va">d</span>, <span class="st">"-"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="fl">300</span>, <span class="fl">8</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">dimensionality_test</span><span class="op">(</span><span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">multidimensional</span></span></span>
+<span class="r-in"><span><span class="fu">dimensionality_test</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, items_positive <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  items_negative <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">5</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">multidimensional</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="co"># calibrate the data-driven split under the fitted model</span></span></span>
