@@ -32,6 +32,15 @@ test_that("app formula and code symbols preserve exact source names", {
   expect_no_error(mm <- model.matrix(f, d))
   expect_setequal(colnames(mm),
                   c("(Intercept)", "`a:b`", "`if`", "`a:b`:`if`"))
+
+  mf <- structure(list(
+    items = data.frame(item = c("I1:r1", "I1:r2", "I2:r1")),
+    virtual_map = data.frame(item = c("I1", "I1", "I2"))),
+    class = c("rasch_mfrm", "rasch"))
+  expect_identical(e$.app_dif_item_choices(mf), c("I1", "I2"))
+  ordinary <- structure(list(items = data.frame(item = c("I1", "I2"))),
+                        class = "rasch")
+  expect_identical(e$.app_dif_item_choices(ordinary), c("I1", "I2"))
 })
 
 test_that("sourcing the in-tree app reuses the active source namespace", {
@@ -163,6 +172,49 @@ test_that("schema-2 projects drop results made with the earlier maxT adjustment"
   expect_match(attr(restored, "rasch_project_legacy_dropped"),
                "superseded maxT")
   expect_no_error(.validate_app_project(restored))
+
+  # Early schema-2 files used the legacy text signature for the enclosing
+  # project as well as for the bootstrap result. They must reach the same
+  # migration rather than being refused as altered files.
+  legacy <- project
+  legacy$binding <- NULL
+  legacy$binding <- .fit_boot_md5_legacy_candidates(legacy)[2L]
+  saveRDS(legacy, path)
+  expect_warning(restored_legacy <- .read_app_project(path), "earlier maxT")
+  expect_null(restored_legacy$results$bootstrap)
+  expect_match(attr(restored_legacy, "rasch_project_legacy_dropped"),
+               "superseded maxT")
+  expect_no_error(.validate_app_project(restored_legacy))
+})
+
+test_that("schema-2 projects omit superseded frame-invariance inference", {
+  set.seed(813)
+  X <- matrix(rbinom(600, 1, .5), 120, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  fit <- rasch(X)
+  # The earlier result shape predates the complete accounting fields. The
+  # project seal is valid, so the reader should migrate the derived result
+  # rather than reject the whole analysis file.
+  old_invariance <- structure(list(
+    boot_reps = 100L, boot_reps_used = 85L,
+    fit_signature = .fit_boot_signature(fit),
+    result_signature = "legacy-result"),
+    class = c("rasch_frame_invariance", "list"))
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), settings = list(),
+    results = list(frame_invariance = old_invariance)))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+  saveRDS(project, path)
+
+  expect_warning(restored <- .read_app_project(path),
+                 "frame-invariance analysis used earlier")
+  expect_null(restored$results$frame_invariance)
+  expect_match(attr(restored, "rasch_project_legacy_dropped"),
+               "frame-invariance")
+  expect_no_error(.validate_app_project(restored))
 })
 
 test_that("invalid app analysis files are refused", {
@@ -180,11 +232,24 @@ test_that("invalid app analysis files are refused", {
   saveRDS(future, bad)
   expect_error(.read_app_project(bad), "unsupported")
 
+  shaped_schema <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = fit,
+    settings = list(), results = list()))
+  shaped_schema$schema <- matrix(2L)
+  expect_error(.validate_app_project(shaped_schema), "unsupported")
+
   malformed <- .seal_app_project(list(
     format = "rasch-shiny-project", schema = 2L,
     data = as.data.frame(X), base_fit = fit, settings = "not a list"))
   saveRDS(malformed, bad)
   expect_error(.read_app_project(bad), "invalid settings")
+
+  malformed_results <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), base_fit = fit, results = "not a list"))
+  saveRDS(malformed_results, bad)
+  expect_error(.read_app_project(bad), "invalid results")
 
   legacy <- list(format = "rasch-shiny-project", schema = 1L,
                  data = as.data.frame(X), model_type = "rasch",
@@ -227,6 +292,10 @@ test_that("invalid app analysis files are refused", {
   matrix_bound$data <- X
   matrix_bound <- .seal_app_project(matrix_bound)
   expect_no_error(.validate_app_project(matrix_bound))
+  blank_named <- bound
+  names(blank_named$data)[1] <- "   "
+  blank_named <- .seal_app_project(blank_named)
+  expect_error(.validate_app_project(blank_named), "column names")
   bound$data <- data.frame(unrelated = seq_len(nrow(X)))
   expect_error(.validate_app_project(bound), "changed since they were saved")
 })
@@ -534,6 +603,12 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
   e <- new.env(parent = globalenv())
   suppressWarnings(sys.source(.app_test_path(), envir = e))
   shiny::testServer(e$server, {
+    session$setInputs(sim_layout = "rasch_exp", sim_seed = 17.5,
+                      sim_go = 1)
+    session$flushReact()
+    expect_null(sim_data())
+    expect_null(sim_code_val())
+
     session$setInputs(
       sim_layout = "rasch_exp", sim_seed = 17,
       sr_persons = 100, sr_items = 6, sr_model = "dichotomous", sr_cats = 4,
@@ -542,7 +617,7 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
       sr_rho = 0.3, sr_dep = FALSE, sr_dif = FALSE, sr_difmag = 1,
       sr_style = FALSE, sr_styletype = "extreme", sr_speeded = 0,
       sr_careless = 0, sr_missing = 0, sx_cont = 1, sx_cat = 0.5,
-      sx_interaction = TRUE, sx_int = 0.4, sx_depart = 0.7, sim_go = 1)
+      sx_interaction = TRUE, sx_int = 0.4, sx_depart = 0.7, sim_go = 2)
     session$flushReact()
     expect_equal(nrow(sim_predictors_val()), 6L)
     expect_identical(sim_interactions_val(), "exposure:type")
@@ -575,7 +650,7 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
       sbf_objects = 4, sbf_sets = 2, sbf_judges = 4, sbf_panels = 2,
       sbf_within = 5, sbf_cross = 5, sbf_objsd = 1,
       sbf_setratio = 1.3, sbf_panelratio = 1.2, sbf_origin = 0.5,
-      sbf_erratic = 0.25, sim_go = 2)
+      sbf_erratic = 0.25, sim_go = 3)
     session$flushReact()
     regenerated <- eval(parse(text = sim_code_val()))
     tr <- attr(regenerated, "truth")
@@ -586,6 +661,7 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
     # equal-unit base fit. A truth-valued stand-in isolates that app routing
     # from the estimator, which is covered by test-simulate.R.
     framed <- structure(list(
+      converged = TRUE,
       objects = data.frame(object = names(tr$v), v = unname(tr$v)),
       phi_table = data.frame(panel = names(tr$phi), phi = unname(tr$phi)),
       alpha_table = data.frame(set = names(tr$alpha), alpha = unname(tr$alpha)),

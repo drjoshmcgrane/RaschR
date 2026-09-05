@@ -4,7 +4,7 @@
 \alias{plot_tif}
 \title{Plot the test information function}
 \usage{
-plot_tif(fit, grid = seq(-6, 6, 0.05))
+plot_tif(fit, grid = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}

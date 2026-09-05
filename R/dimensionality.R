@@ -48,11 +48,18 @@ residual_correlations <- function(fit, flag = NULL) {
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; residual correlations are unavailable")
   if (!is.null(flag) && (length(flag) != 1L || !is.numeric(flag) ||
-                         !is.finite(flag) || flag <= 0))
+                         is.complex(flag) || !is.null(dim(flag)) ||
+                         !is.null(oldClass(flag)) || !is.finite(flag) ||
+                         flag <= 0))
     stop("flag must be NULL or one positive finite heuristic threshold")
   Z <- fit$residuals
   R <- cor(Z, use = "pairwise.complete.obs")
-  off <- R[upper.tri(R)]; avg <- mean(off, na.rm = TRUE)
+  off <- R[upper.tri(R)]
+  finite_off <- is.finite(off)
+  if (!any(finite_off))
+    .refuse("residual correlations are unavailable because no item pair has ",
+            "enough shared, varying residual observations")
+  avg <- mean(off[finite_off])
   idx <- which(upper.tri(R), arr.ind = TRUE)
   pairs <- data.frame(item_a = colnames(Z)[idx[, 1]],
                       item_b = colnames(Z)[idx[, 2]],
@@ -255,6 +262,14 @@ residual_pca <- function(fit, n_components = 10) {
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     .refuse("parallel residual reference is not available for mutually exclusive ",
          "EFRM/MFRM virtual designs; fit and analyse an observable design block")
+  id_text <- .role_text_values(fit$person$id)
+  known_id <- id_text[!is.na(id_text) & nzchar(id_text)]
+  if (anyDuplicated(known_id))
+    .refuse("parallel residual inference is not available when a person ",
+            "identifier occurs on several response rows: the current null ",
+            "generator treats rows as independent occasions and would not ",
+            "preserve within-person dependence. Residual eigenvalues remain ",
+            "available with parallel = FALSE")
   reps <- .check_whole(reps, "reps", 20)
   if (!is.null(seed)) {
     seed <- .check_whole(seed, "seed", 0)
@@ -307,7 +322,10 @@ residual_pca <- function(fit, n_components = 10) {
       })
   })
   sim <- do.call(rbind, draws)
-  complete <- stats::complete.cases(sim)
+  # A replicated eigenvalue must be finite. complete.cases() regards Inf as
+  # complete, which would contaminate every simulated centre and critical
+  # value if a numerically failed refit returned an infinite value.
+  complete <- rowSums(is.finite(sim)) == ncol(sim)
   status[!complete & status == "used"] <- "error"
   minimum_usable <- .fit_min_boot_success(reps)
   if (sum(complete) < minimum_usable)
@@ -355,7 +373,9 @@ residual_pca <- function(fit, n_components = 10) {
 #' probability at or below .05 and suggests structure beyond what the fitted model
 #' produces.
 #'
-#' @param fit A fitted object from \code{\link{rasch}}.
+#' @param fit A fitted object from \code{\link{rasch}}. A simulated reference
+#'   requires one response row per person; with repeated identifiers, use
+#'   \code{parallel = FALSE} to display the observed eigenvalues alone.
 #' @param n_components Number of leading components to display. The familywise
 #'   adjustment covers these components.
 #' @param parallel Draw the parallel-analysis reference band.
@@ -401,8 +421,6 @@ NULL
   k <- nrow(pc$eigen_table)
   obs <- pc$eigen_table$eigenvalue
   pa <- if (parallel) .scree_reference(fit, k, reps, seed = seed) else NULL
-  pa_mean <- NULL
-  significant <- rep(FALSE, k)
   if (!is.null(pa)) {
     draws <- attr(pa, "draws")
     n_requested <- attr(pa, "n_requested")
@@ -410,9 +428,6 @@ NULL
     n_errors <- attr(pa, "n_errors")
     reference_seed <- attr(pa, "seed")
     inference <- .sim_upper_family(obs, draws, attr(pa, "alpha"))
-    pa <- inference$critical
-    pa_mean <- inference$mean
-    significant <- inference$significant
     pc$eigen_table$reference_mean <- inference$mean
     pc$eigen_table$reference_critical <- inference$critical
     pc$eigen_table$parallel_p <- inference$p
@@ -507,10 +522,10 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' standard normal and about \code{alpha} of the tests should reach
 #' significance. Persons with an extreme score on either subset are excluded
 #' (their weighted-likelihood estimates are most biased there). The
-#' proportion of significant tests is reported with an exact
-#' (Clopper-Pearson) binomial confidence interval. For a split fixed in
+#' proportion of significant tests is reported with a Clopper--Pearson
+#' binomial confidence interval. For a split fixed in
 #' advance, a lower bound above \code{alpha} signals multidimensionality. The
-#' test requires a converged calibration.
+#' test requires a converged calibration and one response row per person.
 #'
 #' The binomial reading holds for a split fixed in advance. A split chosen
 #' from the residuals is chosen to make the two subsets disagree, so its
@@ -521,7 +536,8 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' \code{multidimensional} is \code{NA}, while the interval and uncalibrated
 #' binomial reading remain available descriptively. Two inferential routes
 #' are available. A content-based split, named through \code{items_positive}
-#' and \code{items_negative}, keeps the binomial reading exact. Otherwise
+#' and \code{items_negative}, supports the conventional fixed-split binomial
+#' rule without the selection induced by the residual-derived split. Otherwise
 #' \code{B > 0} calibrates the data-driven split by a parametric bootstrap:
 #' each replicate draws responses from the fitted model conditional on every
 #' person's raw score and missingness pattern, refits the calibration,
@@ -531,7 +547,9 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' verdict is \code{p_boot <= alpha}; the binomial interval is still reported,
 #' as a description of the observed proportion rather than a test of it.
 #'
-#' @param fit A fitted object from \code{\link{rasch}}.
+#' @param fit A fitted object from \code{\link{rasch}} with one response row
+#'   per person. Repeated identifiers are refused because the person-level
+#'   comparisons and their binomial count would not be independent.
 #' @param alpha Nominal significance level for the per-person t-tests.
 #' @param items_positive,items_negative Optional character vectors naming the
 #'   two item subsets; both must be given (disjoint, at least two items
@@ -556,8 +574,8 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' @param workers Number of parallel workers for the bootstrap refits.
 #' @param seed Optional integer seed for the bootstrap; the replicates are
 #'   reproducible for a given seed whatever the worker count.
-#' @return A list with the proportion of significant tests, its exact
-#'   confidence interval, the sample sizes (\code{n} used,
+#' @return A list with the proportion of significant tests, its
+#'   Clopper--Pearson confidence interval, the sample sizes (\code{n} used,
 #'   \code{n_excluded_extreme}), the item split and its source, a
 #'   \code{multidimensional} verdict, the corresponding uncalibrated
 #'   \code{binomial_multidimensional} reading, a \code{caution} note when the
@@ -597,18 +615,17 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
                                 items_negative = NULL, component = 1,
                                 min_score_points = 15L, B = 0,
                                 workers = 4L, seed = NULL) {
-  for (side in list(items_positive, items_negative))
-    if (!is.null(side) && anyDuplicated(side))
-      stop("item(s) named more than once in a subset: ",
-           paste(unique(side[duplicated(side)]), collapse = ", "),
-           "; a repeated item would count its score points repeatedly")
-  both <- intersect(items_positive, items_negative)
-  if (length(both))
-    stop("item(s) in both subsets: ", paste(both, collapse = ", "),
-         "; the subsets must be disjoint")
   if (!inherits(fit, "rasch")) stop("dimensionality_test needs a rasch fit")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; the dimensionality test is unavailable")
+  id_text <- .role_text_values(fit$person$id)
+  known_id <- id_text[!is.na(id_text) & nzchar(id_text)]
+  if (anyDuplicated(known_id))
+    .refuse("the person-subset dimensionality test requires one response ",
+            "row per person. Repeated identifiers make the person tests ",
+            "dependent and the binomial interval invalid; analyse one ",
+            "occasion at a time or use a method defined for repeated ",
+            "measurements")
   .check_prob(alpha, "alpha")
   component <- .check_whole(component, "component", 1)
   min_score_points <- .check_whole(min_score_points, "min_score_points", 1)
@@ -622,14 +639,30 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   if (manual) {
     if (is.null(items_positive) || is.null(items_negative))
       stop("supply both item subsets, or neither")
-    pos <- match(items_positive, colnames(X))
-    neg <- match(items_negative, colnames(X))
+    resolve_subset <- function(x, name) {
+      if (!(is.character(x) || is.factor(x)) || !is.null(dim(x)) ||
+          !length(x) || anyNA(x) || any(!nzchar(trimws(as.character(x)))))
+        stop("`", name, "` must be a non-empty ordinary vector of item names",
+             call. = FALSE)
+      match(as.character(x), colnames(X))
+    }
+    pos <- resolve_subset(items_positive, "items_positive")
+    neg <- resolve_subset(items_negative, "items_negative")
     if (anyNA(pos) || anyNA(neg))
       stop("subset item(s) not in the fit: ",
-           paste(c(items_positive[is.na(pos)], items_negative[is.na(neg)]),
+           paste(c(as.character(items_positive)[is.na(pos)],
+                   as.character(items_negative)[is.na(neg)]),
                  collapse = ", "))
-    if (length(intersect(pos, neg)))
-      stop("the two subsets must be disjoint")
+    repeated <- c(pos[duplicated(pos)], neg[duplicated(neg)])
+    if (length(repeated))
+      stop("item(s) named more than once in a subset: ",
+           paste(unique(colnames(X)[repeated]), collapse = ", "),
+           "; a repeated item would count its score points repeatedly")
+    both <- intersect(pos, neg)
+    if (length(both))
+      stop("item(s) in both subsets: ",
+           paste(colnames(X)[both], collapse = ", "),
+           "; the subsets must be disjoint")
     split_source <- "manual"
     first_eigen <- NA_real_
   } else {
@@ -781,7 +814,11 @@ print.rasch_dimensionality_test <- function(x, ...) {
                                 disc[cols])
   }
   a <- est_sub(pos); b <- est_sub(neg)
-  usable <- !is.na(a$theta) & !is.na(b$theta) & !is.na(a$se) & !is.na(b$se)
+  # A non-finite estimate or a non-positive uncertainty is not a person-level
+  # test. In particular, allowing a zero denominator through would turn a
+  # numerical failure into an infinite statistic and a certain rejection.
+  usable <- is.finite(a$theta) & is.finite(b$theta) &
+    is.finite(a$se) & a$se > 0 & is.finite(b$se) & b$se > 0
   ok <- usable & !a$extreme & !b$extreme
   dd <- a$theta[ok] - b$theta[ok]
   t <- dd / sqrt(a$se[ok]^2 + b$se[ok]^2)
@@ -961,6 +998,11 @@ dimensionality_magnitude <- function(fit, subtests) {
     stop("the fitted calibration did not converge; dimensionality magnitude is unavailable")
   if (!is.list(subtests) || length(subtests) < 2)
     stop("supply a list of at least two subscales")
+  if (!all(vapply(subtests, function(x)
+      (is.character(x) || is.factor(x)) && is.null(dim(x)) && length(x) &&
+        !anyNA(x) && all(nzchar(trimws(as.character(x)))), logical(1))))
+    stop("each subscale must be an ordinary vector of non-missing item names")
+  subtests <- lapply(subtests, as.character)
   allit <- unlist(subtests)
   if (!setequal(allit, fit$items$item) || anyDuplicated(allit))
     stop("subtests must assign every item of the fit to exactly one subscale")

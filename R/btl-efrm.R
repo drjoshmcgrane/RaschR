@@ -15,10 +15,11 @@
 #
 # with beta_k the within-set (frame-unit) calibration location, alpha_s > 0
 # the set unit and kappa_s the set origin. In Humphry and Andrich's (2008,
-# eq. 15) terms alpha_s and phi_g are unit RATIOS -- the reference unit over
-# the frame's own -- against reference levels fixed at one, so a value above
-# one means the finer natural unit and the steeper comparisons on the common
-# scale; "unit" is the short name for that ratio throughout. A comparison
+# eq. 15) terms alpha_s and phi_g are unit RATIOS -- the common reference unit
+# over the frame's own. Panel units have geometric mean one; the first linked
+# object set fixes alpha = 1 and kappa = 0. A value above one means the finer
+# natural unit and steeper comparisons on the common scale; "unit" is the
+# short name for that ratio throughout. A comparison
 # judged in panel g carries the panel unit phi_g, and:
 #
 #   * WITHIN a set s (both objects in s):
@@ -214,7 +215,14 @@
     y <- c(y, bk$lrho[bk$free]); pan <- c(pan, bk$free)
     ref <- c(ref, rep(bk$ref, length(bk$free)))
     cb <- bk$cov[bk$free, bk$free, drop = FALSE]
-    cb <- cb + diag(1e-10, nrow(cb))                       # numerical floor
+    if (!.covariance_is_symmetric(cb))
+      stop("a within-set panel-unit covariance is asymmetric; its precision ",
+           "weights are unavailable")
+    cb <- (cb + t(cb)) / 2
+    if (any(!is.finite(cb)) || is.null(tryCatch(chol(cb),
+                                                error = function(e) NULL)))
+      stop("a within-set panel-unit covariance is not positive definite; ",
+           "its precision weights are unavailable")
     Z <- matrix(0, nrow(Cov) + nrow(cb), ncol(Cov) + ncol(cb))
     if (nrow(Cov)) Z[seq_len(nrow(Cov)), seq_len(ncol(Cov))] <- Cov
     Z[nrow(Cov) + seq_len(nrow(cb)), ncol(Cov) + seq_len(ncol(cb))] <- cb
@@ -510,14 +518,20 @@
     term = term, df = NA_integer_, df2 = NA_real_, wald = NA_real_,
     f = NA_real_, p = NA_real_)
   if (!is.matrix(V) || nrow(V) != length(est) || ncol(V) != length(est) ||
-      any(!is.finite(est)) || any(!is.finite(V)))
+      any(!is.finite(est)) || any(!is.finite(V)) ||
+      !.covariance_is_symmetric(V))
     return(unavailable())
   ee <- eigen((V + t(V)) / 2, symmetric = TRUE)
   cutoff <- max(abs(ee$values)) * 1e-8
+  if (!is.finite(cutoff) || cutoff == 0 || min(ee$values) < -cutoff)
+    return(unavailable())
   use <- ee$values > cutoff
   if (!any(use)) return(unavailable())
-  Vinv <- ee$vectors[, use, drop = FALSE] %*%
-    (t(ee$vectors[, use, drop = FALSE]) / ee$values[use])
+  estimable <- ee$vectors[, use, drop = FALSE]
+  omitted <- est - drop(estimable %*% crossprod(estimable, est))
+  if (sqrt(sum(omitted^2)) >
+      1e-7 * max(1, sqrt(sum(est^2)))) return(unavailable())
+  Vinv <- estimable %*% (t(estimable) / ee$values[use])
   W <- drop(t(est) %*% Vinv %*% est)
   q <- sum(use)
   if (!available) {
@@ -647,6 +661,8 @@
 #'   unit-specific judge support, frame definitions, convergence information,
 #'   and analysis notes. \code{boot_reps_requested}, \code{boot_reps_used}
 #'   and \code{boot_reps_failed} report the bootstrap accounting.
+#'   A non-converged fit retains its final estimates and residual patterns for
+#'   diagnosis but withholds standard errors and inferential probabilities.
 #' @references Andrich, D. (1978). Relationships between the Thurstone and
 #'   Rasch approaches to item scaling. Applied Psychological Measurement,
 #'   2(3), 451--462.
@@ -698,18 +714,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   .check_column_names(data)
   ties <- match.arg(ties)
   se_method <- match.arg(se_method)
-  if (length(boot_reps) != 1L || !is.numeric(boot_reps) ||
-      !is.finite(boot_reps) || boot_reps < 0L ||
-      boot_reps != floor(boot_reps) || boot_reps > .Machine$integer.max)
-    stop("boot_reps must be one non-negative whole number")
-  boot_reps <- as.integer(boot_reps)
+  boot_reps <- .check_whole(boot_reps, "boot_reps", 0)
   if (se_method %in% c("bootstrap", "judge_bootstrap") && boot_reps < 30L)
     stop("BTL-EFRM bootstrap inference needs at least 30 replicates")
-  if (length(workers) != 1L || !is.numeric(workers) || !is.finite(workers) ||
-      workers < 1L || workers != floor(workers) ||
-      workers > .Machine$integer.max)
-    stop("workers must be one positive whole number")
-  workers <- as.integer(workers)
+  workers <- .check_whole(workers, "workers", 1)
   workers <- if (se_method == "judge_bootstrap")
     min(workers, .rasch_available_workers(), boot_reps) else 1L
   if (workers > 1L &&
@@ -721,10 +729,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (!is.null(cancel) && !is.function(cancel))
     stop("cancel must be NULL or a function")
   if (!is.null(seed)) {
-    if (length(seed) != 1L || !is.numeric(seed) || !is.finite(seed) || seed < 0 ||
-        seed != floor(seed) || seed > .Machine$integer.max)
-      stop("seed must be NULL or one non-negative whole number within the integer range")
-    seed <- as.integer(seed)
+    seed <- .check_whole(seed, "seed", 0)
     old_seed <- .sim_seed_capture()
     on.exit(.sim_seed_restore(old_seed), add = TRUE)
     set.seed(seed)
@@ -749,6 +754,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                     object_b = as.character(object_b),
                     winner = as.character(winner),
                     judge = as.character(judge))
+  if (!is.atomic(panels) || !is.null(dim(panels)) || !length(panels))
+    stop("`panels` must name one data column or be a plain named judge-to-panel vector",
+         call. = FALSE)
   panels_is_map <- !is.null(names(panels))
   panels_is_column <- !panels_is_map && length(panels) == 1L &&
     is.character(panels) && panels %in% names(data)
@@ -758,10 +766,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (length(repeated_roles))
     stop("comparison role columns must be distinct; repeated: ",
          paste(repeated_roles, collapse = ", "))
-  a <- trimws(as.character(data[[object_a]]))
-  b <- trimws(as.character(data[[object_b]]))
-  wn <- trimws(as.character(data[[winner]]))
-  jd <- trimws(as.character(data[[judge]]))
+  a <- .role_text_values(data[[object_a]])
+  b <- .role_text_values(data[[object_b]])
+  wn <- .role_text_values(data[[winner]])
+  jd <- .role_text_values(data[[judge]])
   # a whitespace-only identifier is not a name: blank judges would pool as
   # one unidentified rater in the clustered bootstrap, and a blank panel
   # would be estimated as a frame unit of its own
@@ -776,12 +784,13 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (panels_is_map) {
     if (anyNA(names(panels)) || any(!nzchar(trimws(names(panels)))))
       stop("the panels map must use non-missing judge names")
+    names(panels) <- .role_text_values(names(panels))
     if (anyDuplicated(names(panels)))
-      stop("duplicate judge(s) in the panels map: ",
+      stop("duplicate judge(s) in the panels map after trimming: ",
            paste(unique(names(panels)[duplicated(names(panels))]),
                  collapse = ", "),
            "; each judge may be assigned to one panel")
-    pv <- trimws(as.character(panels))
+    pv <- .role_text_values(panels)
     bad_pv <- is.na(panels) | !nzchar(pv)
     if (any(bad_pv))
       stop("missing or blank panel identifier(s) in the panels map for ",
@@ -802,7 +811,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
            if (length(extra) > 5) ", ..." else "")
     pan <- unname(pv[match(jd, names(panels))])
   } else if (panels_is_column) {
-    pan <- trimws(as.character(data[[panels]]))
+    pan <- .role_text_values(data[[panels]])
     if (any(!is.na(pan) & !nzchar(pan)))
       stop("blank panel identifier(s) in ", panels,
            "; a whitespace-only name is not a panel")
@@ -846,13 +855,18 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (!length(a)) stop("no usable comparisons after cleaning")
 
   # --- object sets ----------------------------------------------------------
-  if (!is.list(object_sets) || is.null(names(object_sets)) ||
+  if (!is.list(object_sets) || is.data.frame(object_sets) ||
+      !is.null(dim(object_sets)) ||
+      !all(vapply(object_sets, function(s)
+        (is.character(s) || is.factor(s)) && is.null(dim(s)), logical(1))) ||
+      is.null(names(object_sets)) ||
       anyNA(names(object_sets)) ||
       any(!nzchar(trimws(names(object_sets)))))
     stop("`object_sets` must be a named list: set name -> object names; a ",
          "blank name is not a set")
+  names(object_sets) <- trimws(names(object_sets))
   if (anyDuplicated(names(object_sets)))
-    stop("duplicate set name(s) in object_sets: ",
+    stop("duplicate set name(s) in object_sets after trimming: ",
          paste(unique(names(object_sets)[duplicated(names(object_sets))]),
                collapse = ", "))
   # an empty set is a frame the design cannot carry: fitting without it
@@ -869,6 +883,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (any(bad_member))
     stop("object set(s) contain a missing or blank object name: ",
          paste(names(object_sets)[bad_member], collapse = ", "))
+  object_sets <- lapply(object_sets, .role_text_values)
   within_dup <- vapply(object_sets, anyDuplicated, integer(1)) > 0L
   if (any(within_dup))
     stop("object name(s) repeated within set(s): ",
@@ -1020,7 +1035,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       usable <- isTRUE(fit1$converged) && isTRUE(fit1$rank_ok) &&
         (!length(fit1$free) ||
            (all(is.finite(lr)) && max(abs(lr)) < 4 &&
-            all(is.finite(fit1$cov_lrho)) && all(diag(fit1$cov_lrho) > 0)))
+            all(is.finite(fit1$cov_lrho)) &&
+            !is.null(tryCatch(chol((fit1$cov_lrho +
+                                      t(fit1$cov_lrho)) / 2),
+                              error = function(e) NULL))))
       if (!usable && length(fit1$free)) { dropped <- c(dropped, s); next }
       if (!isTRUE(fit1$rank_ok))
         stop("the within-set information of set '", s, "' is singular: ",
@@ -1450,7 +1468,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   df_phi <- if (se_method == "judge_bootstrap" && all(panel_ok))
     max(floor(sum(panel_support$effective_judges)) - 1L, 1L)
     else if (se_method == "judge_bootstrap") NA_real_ else Inf
-  z_phi <- log(phi) / se_log_phi
+  z_phi <- .wald_ratio(log(phi), se_log_phi)
   phi_table <- data.frame(panel = panels_u, phi = unname(phi),
                           se_log_phi = unname(se_log_phi),
                           t = unname(z_phi), df = df_phi,
@@ -1460,13 +1478,13 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     z <- pmax(floor(set_support$effective_judges) - 1L, 1L)
     z[!set_ok | !all(panel_ok)] <- NA_real_; setNames(z, set_support$set)
   } else setNames(rep(Inf, S), sets_u)
-  z_al <- log(alpha) / se_log_alpha
+  z_al <- .wald_ratio(log(alpha), se_log_alpha)
   alpha_table <- data.frame(set = sets_u, alpha = unname(alpha),
                             se_log_alpha = unname(se_log_alpha),
                             t = unname(z_al), df = unname(df_set[sets_u]),
                             p = unname(2 * pt(-abs(z_al), df_set[sets_u])),
                             stringsAsFactors = FALSE)
-  z_ka <- kappa / se_kappa
+  z_ka <- .wald_ratio(kappa, se_kappa)
   kappa_table <- data.frame(set = sets_u, kappa = unname(kappa),
                             se_kappa = unname(se_kappa),
                             t = unname(z_ka), df = unname(df_set[sets_u]),
@@ -1591,6 +1609,39 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     a, b, y, jd, pan, sa, sb, fit0$p_all, phi, alpha_use,
     objects, n_parameters = npar_frame)
   objects <- diag_frame$objects
+  if (!isTRUE(fit0$converged)) {
+    # The locations and residuals remain useful for diagnosing a stalled
+    # fit, but neither the curvature nor probabilities at its final iterate
+    # are inferential results. Withdraw every field that could make the
+    # rejected solution look like a completed calibration.
+    for (nm in intersect(c("se", "se_beta", "se_v"), names(objects)))
+      objects[[nm]][] <- NA_real_
+    withhold_unit <- function(tab) {
+      if (is.null(tab)) return(tab)
+      for (nm in intersect(c("se_log_phi", "se_log_alpha", "se_kappa",
+                             "t", "df", "p", "p_adj"), names(tab)))
+        tab[[nm]][] <- NA_real_
+      if ("significant" %in% names(tab)) tab$significant[] <- NA
+      tab
+    }
+    phi_table <- withhold_unit(phi_table)
+    alpha_table <- withhold_unit(alpha_table)
+    kappa_table <- withhold_unit(kappa_table)
+    if (!is.null(unit_omnibus)) {
+      for (nm in intersect(c("df", "df2", "wald", "f", "p", "p_adj"),
+                           names(unit_omnibus)))
+        unit_omnibus[[nm]][] <- NA_real_
+      unit_omnibus$significant[] <- NA
+    }
+    diag_frame$total_p <- NA_real_
+    cov_v <- NULL
+    equal_unit$loglik_frames <- NA_real_
+    equal_unit$difference <- NA_real_
+    equal_unit$two_delta_ll <- NA_real_
+    notes <- c(notes, paste0(
+      "standard errors and inferential probabilities withheld because the ",
+      "two-stage fit did not converge"))
+  }
   osi <- .psi(objects$location, objects$se)
 
   if (S == 1L)
@@ -1782,6 +1833,7 @@ print.rasch_btl_efrm <- function(x, ...) {
 plot_btl_units <- function(fit) {
   if (!inherits(fit, "rasch_btl_efrm"))
     stop("plot_btl_units needs a rasch_btl_efrm fit")
+  .check_btl_display_fit(fit)
   ph <- fit$phi_table; al <- fit$alpha_table
   rows <- rbind(
     data.frame(label = paste0("panel: ", ph$panel), kind = "panel",

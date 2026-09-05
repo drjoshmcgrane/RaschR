@@ -10,7 +10,7 @@ save_item_plots(
   file,
   items = NULL,
   n_groups = fit$n_groups,
-  grid = seq(-5, 5, 0.05),
+  grid = NULL,
   observed = TRUE,
   width = 8,
   height = 5.5,

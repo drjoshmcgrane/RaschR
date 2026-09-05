@@ -112,6 +112,31 @@ test_that("dif_size recovers a planted uniform DIF in logits", {
   expect_false(ds0$pairs$practical)
 })
 
+test_that("dif_size withholds inference from an invalid resolved covariance", {
+  set.seed(104)
+  n <- 500
+  X <- matrix(rbinom(n * 6, 1, .5), n, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  grp <- factor(rep(c("a", "b"), each = n / 2))
+  fit <- rasch(data.frame(X, grp = grp), factors = "grp")
+  bad_refit <- split_items(fit, "I2", by = fit$factors$grp)
+  split_rows <- grep("^I2 \\(", bad_refit$items$item)
+  split_ids <- bad_refit$thresholds$id[
+    bad_refit$thresholds$item %in% split_rows]
+  bad_refit$est$cov_tau[split_ids[1], split_ids[1]] <- -1e6
+
+  guarded <- testthat::with_mocked_bindings(
+    dif_size(fit, "I2", by = "grp"),
+    .rasch_refit = function(...) bad_refit,
+    .package = "rasch")
+  expect_true(all(is.na(guarded$levels$se)))
+  expect_true(all(is.na(guarded$pairs$se)))
+  expect_true(all(is.na(guarded$pairs$p)))
+  expect_true(all(is.na(guarded$pairs$significant)))
+  expect_true(all(is.finite(guarded$pairs$difference)))
+  expect_true(any(grepl("not positive semidefinite", guarded$notes)))
+})
+
 test_that("multi-level factors get familywise pairwise comparisons in logits", {
   s <- sim_dif(n = 1200, seed = 5,
                shifts = list(a = rep(0, 8),
@@ -241,6 +266,23 @@ test_that("person_extrapolated continues the score table geometrically", {
   ne <- !pe$extreme
   expect_equal(pe$theta_extrapolated[ne], pe$theta[ne])
   expect_equal(pe$se_extrapolated[ne], pe$se[ne])
+
+  # The information and score conversion must use the fitted common unit.
+  scaled <- fit
+  scaled$disc <- rep(0.5, ncol(scaled$X))
+  conv <- person_wle(scaled$tau_list, disc = 0.5)
+  scaled$score_table <- data.frame(
+    score = 0:(length(conv$theta) - 1L),
+    theta = unname(conv$theta), se = unname(conv$se))
+  pes <- person_extrapolated(scaled)
+  top_s <- pes$extreme & pes$raw == pes$max_raw & pes$n_items == 10
+  if (any(top_s)) {
+    th <- unname(conv$theta); M <- length(th) - 1L
+    hi <- th[M] + (th[M] - th[M - 1L])^2 /
+      (th[M - 1L] - th[M - 2L])
+    expect_equal(unique(pes$theta_extrapolated[top_s]), hi,
+                 tolerance = 1e-8)
+  }
 })
 
 test_that("MFRM facet fit reports margin and pooled statistics with df", {

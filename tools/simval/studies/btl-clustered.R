@@ -100,7 +100,7 @@ if (identical(chunk, "combine")) {
   f2 <- file.path("tools/simval/results", paste0(STUDY, "_chunk2.csv"))
   r1 <- utils::read.csv(f1, stringsAsFactors = FALSE)
   r2 <- utils::read.csv(f2, stringsAsFactors = FALSE)
-  sv_write(rbind(r1, r2), STUDY)
+  sv_write(sv_bind_rows(r1, r2), STUDY)
   quit(save = "no")
 }
 
@@ -314,7 +314,12 @@ for (s in seq_len(nrow(scenarios))) {
   covc <- pooled_rate(cov_sp_c);   covn <- pooled_rate(cov_sp_n)
   fw <- any_rej_flat_c[is.finite(rowMeans(rej_flat_c, na.rm = TRUE))]
 
-  mk <- function(quantity, ...) sv_row(STUDY, sc$label, quantity, n_attempted = n_att, ...)
+  mk <- function(quantity, n_reps, n_refused, n_nonconv, ...)
+    sv_row(STUDY, sc$label, quantity, n_reps = n_reps,
+           n_attempted = n_att, n_refused = n_refused,
+           n_nonconv = n_nonconv, n_error = 0L,
+           n_withheld = max(0L, n_att - n_reps - n_refused - n_nonconv),
+           n_metric_unavailable = 0L, ...)
 
   rows[[length(rows) + 1]] <- mk("type1_clustered", n_reps = ty1c$n, type1 = ty1c$p,
     mc_override = list(type1 = ty1c$mcse), n_refused = n_ref_flat, n_nonconv = n_nc_flat,

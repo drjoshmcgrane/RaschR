@@ -59,12 +59,16 @@ requires \code{judge}. See Details. Incompatible with
 treating \code{object_a} as the first object in each comparison.}
 
 \item{anchors}{Optional named numeric vector of fixed object locations.
-Anchored objects have standard error zero and must not be boundary objects.}
+Anchored objects have standard error zero and must not be boundary objects.
+The values are treated as fixed: uncertainty from an earlier calibration
+is not included in the returned covariance or standard errors. Several
+anchors impose their stated relative spacing as well as the scale origin.}
 
 \item{ties}{How to treat ties in the dichotomous analysis:
 \code{"drop"} (default, removed with a note), \code{"half"} (half a
-win each way, a common pragmatic device -- flagged in the notes
-because the halves are not independent Bernoulli trials), or
+win each way, a common pragmatic device; the two halves remain one
+sampling unit in the sandwich because they are not independent
+Bernoulli trials), or
 \code{"error"}. With polytomous responses, code ties as a middle
 category instead.}
 
@@ -84,6 +88,8 @@ A \code{"rasch_btl"} object. Principal components are
   \code{thresholds}, \code{m}, and \code{categories}. Fits using
   \code{order} contain \code{dependence} and \code{dependence_data}; the
   former reports raw \code{p} and Holm-adjusted \code{p_adj}.
+  A non-converged fit retains estimates and residual patterns for diagnosis
+  but withholds standard errors, separation indices and probabilities.
   An undefeated or winless object is set aside from estimation, as an
   extreme person is in a Rasch calibration, and reported in
   \code{objects} with \code{extreme = TRUE} at an extrapolated location:

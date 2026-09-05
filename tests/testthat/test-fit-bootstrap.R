@@ -170,6 +170,15 @@ test_that("fixed locations remain paired with their response rows", {
   expect_equal(.fit_theta_source(th, X, "resample"), c(-1, 1))
 })
 
+test_that("ability resampling treats a singleton as a value, not a sequence", {
+  # base sample(3, n, replace = TRUE) samples 1:3; sampling positions is
+  # robust if an internal or future caller supplies a singleton population.
+  expect_equal(.fit_theta("resample", 3, list(), n = 8), rep(3, 8))
+  expect_equal(.fit_theta("normal", 3,
+                          list(var_theta = 0, mean_error_var = 0), n = 8),
+               rep(3, 8))
+})
+
 test_that("source-tree bootstrap workers do not load another installation", {
   expect_warning(out <- with_mocked_bindings(
     .rasch_boot_apply(3L, identity, workers = 2L, label = "test bootstrap"),
@@ -224,6 +233,17 @@ test_that("studentised maxT externally standardises every null row", {
   expected <- vapply(z_obs, function(z)
     (1 + sum(max_null >= z)) / (B + 1), numeric(1))
   expect_equal(got$p_adj, pmax(got$p, expected), tolerance = 1e-14)
+})
+
+test_that("transformed maxT references exclude non-finite joint rows", {
+  null <- cbind(a = seq(0.5, 2.5, length.out = 40),
+                b = seq(2.5, 0.5, length.out = 40))
+  null[1L, 1L] <- 0                         # log(0) is -Inf, not a usable row
+  z <- .boot_maxt(c(2, 2), null, "two", min_success = 30L,
+                  mode = "studentised", transform = log)
+  expect_equal(z$family_boot, 39L)
+  expect_true(all(is.finite(z$p_adj)))
+  expect_true(all(z$p_adj >= z$p))
 })
 
 test_that("tiny maxT runs return marginal probabilities without invalid studentisation", {
@@ -289,13 +309,13 @@ test_that("the bootstrap refuses designs it cannot generate from", {
 
 test_that("the bootstrap validates its own controls", {
   fit <- rasch(simb(200, seq(-1, 1, length.out = 5), seed = 12))
-  expect_error(fbq(fit, B = 0), "whole positive number of replicates")
-  expect_error(fbq(fit, B = c(10, 20)), "whole positive number of replicates")
-  expect_error(fbq(fit, B = 2.5), "whole positive number of replicates")
-  expect_error(fbq(fit, B = 5, workers = 0), "whole positive number of workers")
-  expect_error(fbq(fit, B = 5, seed = c(1, 2)), "non-negative whole")
-  expect_error(fbq(fit, B = 5, seed = 1.5), "non-negative whole")
-  expect_error(fbq(fit, B = 5, seed = -1), "non-negative whole")
+  expect_error(fbq(fit, B = 0), "whole number")
+  expect_error(fbq(fit, B = c(10, 20)), "whole number")
+  expect_error(fbq(fit, B = 2.5), "whole number")
+  expect_error(fbq(fit, B = 5, workers = 0), "whole number")
+  expect_error(fbq(fit, B = 5, seed = c(1, 2)), "whole number")
+  expect_error(fbq(fit, B = 5, seed = 1.5), "whole number")
+  expect_error(fbq(fit, B = 5, seed = -1), "whole number")
   expect_error(fbq(fit, B = 5, seed = .Machine$integer.max + 1),
                "integer range")
   expect_error(fbq(fit, B = 5, theta = "wishful"), "should be one of")
@@ -628,6 +648,12 @@ test_that("paired-comparison bootstrap covers ordered categories and history", {
 
 test_that("paired-comparison bootstrap refuses designs it cannot regenerate", {
   d <- simulate_btl(5, 20, reps_per_pair = 6, seed = 44)
+  ordinary <- btl(d, "object_a", "object_b", winner = "winner",
+                  judge = "judge")
+  oversized <- ordinary
+  oversized$comparisons$weight[1L] <- .Machine$integer.max + 1
+  expect_error(.btl_boot_data(oversized), "exceeds the integer range",
+               class = "rasch_refusal")
   d$winner[1:4] <- "tie"
   half <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge",
               ties = "half")

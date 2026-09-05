@@ -98,6 +98,11 @@ STUDY <- "tailored-bootstrap"
 ALPHA <- 0.05
 t_study <- Sys.time()
 
+.sv_row <- function(..., n_withheld = 0L, n_metric_unavailable = 0L) {
+  sv_row(..., n_withheld = n_withheld,
+         n_metric_unavailable = n_metric_unavailable)
+}
+
 args <- commandArgs(trailingOnly = TRUE)
 chunk <- if (length(args) >= 1) args[1] else "all"
 
@@ -194,15 +199,16 @@ run_family_a <- function() {
                 n_boot_nonconv = sum(boot_nonconv_v),
                 n_boot_errors = sum(boot_errors_v))
 
-  rows[[1]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
+  rows[[1]] <- .sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "familywise (any item significant per replicate, Holm-adjusted alpha=.05)",
     n_reps = n_reps, familywise = if (n_reps) mean(any_sig) else NA_real_, effect = 0,
-    n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
-    n_error = n_error, n_boot_attempted = inner$n_boot_attempted,
+    n_attempted = n_attempted, n_refused = n_refused,
+    n_nonconv = n_nonconv, n_error = n_error,
+    n_boot_attempted = inner$n_boot_attempted,
     n_boot_used = inner$n_boot_used, n_boot_nonconv = inner$n_boot_nonconv,
     n_boot_errors = inner$n_boot_errors,
     notes = "PRINCIPAL claim; 55 predeclared replicates at N=300, I=8 and boot_reps=399; see the script header for the boot_reps=999 benchmark.")
-  rows[[2]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
+  rows[[2]] <- .sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "type1_item (per item, Holm-adjusted, pooled)",
     n_reps = n_reps, type1 = if (n_reps) mean(per_rep_type1) else NA_real_,
     mc_override = list(type1 = if (n_reps > 1) stats::sd(per_rep_type1) / sqrt(n_reps) else NA_real_),
@@ -211,20 +217,22 @@ run_family_a <- function() {
     n_boot_attempted = inner$n_boot_attempted, n_boot_used = inner$n_boot_used,
     n_boot_nonconv = inner$n_boot_nonconv, n_boot_errors = inner$n_boot_errors,
     notes = "pooled over 8 items/replicate; MC SE is cluster-robust (sd of per-replicate proportions / sqrt(n_reps)), not the plug-in binomial SE, since items within a replicate share one fit.")
-  rows[[3]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
+  rows[[3]] <- .sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "bootstrap inner-draw degeneracy (fraction of B inner resamples that failed)",
     n_reps = length(degen_loss),
     bias = if (length(degen_loss)) mean(degen_loss) else NA_real_,
     emp_sd = if (length(degen_loss) > 1) stats::sd(degen_loss) else NA_real_,
-    n_attempted = n_attempted, n_refused = n_refused, n_nonconv = n_nonconv,
-    n_error = n_error, n_boot_attempted = inner$n_boot_attempted,
+    n_attempted = length(degen_loss), n_refused = 0L, n_nonconv = 0L,
+    n_error = 0L, n_boot_attempted = inner$n_boot_attempted,
     n_boot_used = inner$n_boot_used, n_boot_nonconv = inner$n_boot_nonconv,
     n_boot_errors = inner$n_boot_errors,
     notes = if (length(degen_loss)) sprintf(
-      "mean fraction lost = %.4f; %d/%d bootstrap runs lost >=1 inner draw",
+      paste0("mean fraction lost = %.4f; %d/%d bootstrap runs lost >=1 ",
+             "inner draw; denominator is every run that reached the inner ",
+             "bootstrap, including a run later refused by the usable-draw rule"),
       mean(degen_loss), sum(degen_any), length(degen_loss)) else
         "no outer replicate reached the bootstrap")
-  rows[[4]] <- sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
+  rows[[4]] <- .sv_row(STUDY, "FWER null: N=300 I=8 chance=.25 boot_reps=399 no guessing",
     "p-floor warning fired during principal loop (should never, floor=0.040<0.05)",
     n_reps = n_reps, type1 = if (n_reps) mean(floor_warned_any) else NA_real_,
     mc_override = list(type1 = 0),
@@ -241,7 +249,7 @@ run_family_a <- function() {
     demo <- run_one(300, DIFF8, rep(0, 8), theta_mean = 0, theta_sd = 1,
                     chance = 0.25, boot_reps = 50, seed = first_ok_seed)
     fired <- if (demo$status == "ok") demo$floor_warned else NA
-    rows[[5]] <- sv_row(STUDY, "floor-warning behavioural check: same draw, boot_reps=50",
+    rows[[5]] <- .sv_row(STUDY, "floor-warning behavioural check: same draw, boot_reps=50",
       "p-floor warning fires when boot_reps too small for m=8 (floor 2*8/51=0.314>0.05)",
       n_reps = 1L, type1 = if (isTRUE(fired)) 1 else 0, mc_override = list(type1 = 0),
       n_attempted = 1L, n_refused = if (demo$status == "refused") 1L else 0L,
@@ -301,7 +309,7 @@ run_cell <- function(n_items, diff, guess_rate, chance, theta_mean, boot_reps,
 cell_row <- function(cell, label) {
   n_reps <- length(cell$det)
   list(
-    sv_row(STUDY, label, "detection rate (planted items, Holm-adjusted, pooled over the 2 guessed items)",
+    .sv_row(STUDY, label, "detection rate (planted items, Holm-adjusted, pooled over the 2 guessed items)",
       n_reps = n_reps, power = if (n_reps) mean(cell$det) else NA_real_,
       mc_override = list(power = if (n_reps > 1) stats::sd(cell$det) / sqrt(n_reps) else NA_real_),
       effect = cell$guess_rate, n_attempted = cell$n_attempted,
@@ -312,7 +320,7 @@ cell_row <- function(cell, label) {
       n_boot_errors = cell$n_boot_errors,
       notes = sprintf("I=%d guess=%.2f chance=%.2f theta_mean=%.0f boot_reps=%d",
                       cell$n_items, cell$guess_rate, cell$chance, cell$theta_mean, cell$boot_reps)),
-    sv_row(STUDY, label, "false-flag rate (clean items, Holm-adjusted, pooled)",
+    .sv_row(STUDY, label, "false-flag rate (clean items, Holm-adjusted, pooled)",
       n_reps = n_reps, type1 = if (n_reps) mean(cell$ff) else NA_real_,
       mc_override = list(type1 = if (n_reps > 1) stats::sd(cell$ff) / sqrt(n_reps) else NA_real_),
       effect = 0, n_attempted = cell$n_attempted,
@@ -364,7 +372,7 @@ run_family_b <- function() {
       nbn <- sum(vapply(cells8[keys], `[[`, 0L, "n_boot_nonconv"))
       nbe <- sum(vapply(cells8[keys], `[[`, 0L, "n_boot_errors"))
       n_reps <- length(det)
-      rows[[length(rows) + 1L]] <<- sv_row(STUDY,
+      rows[[length(rows) + 1L]] <<- .sv_row(STUDY,
         sprintf("I=8 power MARGINAL: guess=%.2f (pooled over chance, targeting)", g),
         "detection rate (planted items, pooled marginal)",
         n_reps = n_reps, power = if (n_reps) mean(det) else NA_real_,
@@ -373,7 +381,7 @@ run_family_b <- function() {
         n_error = ne, n_boot_attempted = nba, n_boot_used = nbu,
         n_boot_nonconv = nbn, n_boot_errors = nbe,
         notes = "main effect of guessing rate, pooling the 4 chance x targeting cells at this rate")
-      rows[[length(rows) + 1L]] <<- sv_row(STUDY,
+      rows[[length(rows) + 1L]] <<- .sv_row(STUDY,
         sprintf("I=8 power MARGINAL: guess=%.2f (pooled over chance, targeting)", g),
         "false-flag rate (clean items, pooled marginal)",
         n_reps = n_reps, type1 = if (n_reps) mean(ff) else NA_real_,
@@ -413,7 +421,7 @@ if (chunk == "combine") {
   p2 <- "tools/simval/results/tailored-bootstrap-chunk2.csv"
   r1 <- read.csv(p1, stringsAsFactors = FALSE)
   r2 <- read.csv(p2, stringsAsFactors = FALSE)
-  sv_write(rbind(r1, r2), STUDY)
+  sv_write(sv_bind_rows(r1, r2), STUDY)
 } else {
   rows_a <- NULL; rows_b <- NULL
   if (chunk %in% c("1", "all")) rows_a <- run_family_a()

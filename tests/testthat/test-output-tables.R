@@ -59,6 +59,85 @@ test_that("score_table extrapolates extremes by the geometric rule", {
   # frequencies count complete responders
   expect_equal(sum(ex$freq), sum(stats::complete.cases(fit$X)))
   expect_equal(ex$cum_pct[11], 100)
+
+  failed <- fit
+  failed$est$converged <- FALSE
+  expect_error(score_table(failed), "did not converge")
+  expect_error(person_extrapolated(failed), "did not converge")
+  expect_error(chisq_detail(failed, "I1"), "did not converge")
+})
+
+test_that("person score roots follow an externally translated origin", {
+  tau <- list(c(-1, 0, 1), c(-0.5, 0.5), c(0, 1))
+  base <- person_wle(tau)
+  shifted <- person_wle(lapply(tau, `+`, 100))
+  expect_true(all(is.finite(shifted$theta)))
+  expect_equal(unname(shifted$theta), unname(base$theta) + 100,
+               tolerance = 1e-8)
+  expect_equal(unname(shifted$se), unname(base$se), tolerance = 1e-8)
+
+  fit <- rasch(simd2(500, seq(-2, 2, length.out = 8), seed = 61))
+  anchors <- data.frame(
+    item = fit$items$item[1:3], k = NA_real_,
+    tau = fit$items$location[1:3] + 100, average = TRUE)
+  translated <- rasch(fit$X, anchors = anchors)
+  expect_identical(
+    lapply(translated$threshold_diagnostics, `[[`,
+           "never_modal_categories"),
+    lapply(fit$threshold_diagnostics, `[[`,
+           "never_modal_categories"))
+  mle_base <- score_table(fit, method = "mle")
+  mle_translated <- score_table(translated, method = "mle")
+  interior <- is.finite(mle_base$theta)
+  expect_equal(mle_translated$theta[interior],
+               mle_base$theta[interior] + 100, tolerance = 1e-7)
+  expect_equal(mle_translated$se[interior], mle_base$se[interior],
+               tolerance = 1e-7)
+
+  info_base <- test_information(fit)
+  info_translated <- test_information(translated)
+  expect_equal(info_translated$theta, info_base$theta + 100,
+               tolerance = 1e-7)
+  expect_equal(info_translated$info, info_base$info, tolerance = 1e-7)
+
+  weights <- stats::setNames(rep(1, nrow(fit$items)), fit$items$item)
+  weighted_base <- weighted_person_estimates(fit, weights)
+  weighted_translated <- weighted_person_estimates(translated, weights)
+  expect_true(all(is.finite(weighted_translated$theta)))
+  expect_equal(weighted_translated$theta, weighted_base$theta + 100,
+               tolerance = 1e-7)
+  expect_equal(weighted_translated$se, weighted_base$se, tolerance = 1e-7)
+
+  unequal_score <- getFromNamespace(".efrm_person_estimates", "rasch")
+  X <- fit$X[, 1:3, drop = FALSE]
+  units <- c(0.7, 1.1, 1.5)
+  e0 <- unequal_score(X, fit$tau_list[1:3], units)
+  e1 <- unequal_score(X, lapply(fit$tau_list[1:3], `+`, 100), units)
+  expect_true(all(is.finite(e1$theta)))
+  expect_equal(e1$theta, e0$theta + 100, tolerance = 1e-7)
+  expect_equal(e1$se, e0$se, tolerance = 1e-7)
+})
+
+test_that("extreme-score extrapolation refuses collapsed interior spacings", {
+  geometric <- getFromNamespace(".geometric_score_extremes", "rasch")
+  expect_equal(unname(geometric(c(NA, 1, 2, 4, NA))), c(0.5, 8))
+  expect_null(geometric(c(NA, 1, 1, 2, NA)))
+  expect_null(geometric(c(NA, 1, 2, 2, NA)))
+  expect_null(geometric(c(NA, 1, NA, 2, NA)))
+
+  fit <- rasch(simd2(500, seq(-2, 2, length.out = 10), seed = 61))
+  fit$score_table$theta[3] <- fit$score_table$theta[2]
+  expect_error(score_table(fit, extremes = "extrapolated"),
+               "stable increasing spacings")
+})
+
+test_that("modal-category diagnostics do not depend on a theta grid", {
+  modal <- getFromNamespace(".modal_score_categories", "rasch")
+  expect_identical(modal(c(-1, 0, 1)), 0:3)
+  expect_identical(modal(c(1, -1)), c(0L, 2L))
+  # Category 2 is modal only in the one-millionth-logit interval between the
+  # two central thresholds. A regular plotting grid does not resolve it.
+  expect_true(2L %in% modal(c(-1, 0.123, 0.123001, 2)))
 })
 
 test_that("lr_test prefers PCM when thresholds differ and RSM when they do not", {
@@ -137,6 +216,39 @@ test_that("report_html writes a complete self-contained report", {
   expect_equal(enc("Ma"), "TWE=")
   expect_equal(enc("M"), "TQ==")
   expect_equal(enc("foobar"), "Zm9vYmFy")
+})
+
+test_that("export entry points refuse invalid fits before writing", {
+  out <- tempfile("invalid-export-")
+  expect_error(save_outputs(1, out, formats = "png", item_plots = FALSE),
+               "fitted Rasch or paired-comparison model")
+  expect_false(dir.exists(out))
+  expect_error(report_html(1, tempfile(fileext = ".html")),
+               "person-by-item Rasch model")
+  expect_error(save_item_plots(1, "icc", tempfile(fileext = ".pdf")),
+               "person-by-item Rasch model")
+  expect_error(save_person_plots(1, tempfile(fileext = ".pdf")),
+               "person-by-item Rasch model")
+
+  fit <- rasch(simd2(120, seq(-1, 1, length.out = 5), seed = 231))
+  fit$est$converged <- FALSE
+  out_failed <- tempfile("failed-export-")
+  html_failed <- tempfile(fileext = ".html")
+  expect_error(save_outputs(fit, out_failed, formats = "png",
+                            item_plots = FALSE), "did not converge")
+  expect_false(dir.exists(out_failed))
+  expect_error(report_html(fit, html_failed), "did not converge")
+  expect_false(file.exists(html_failed))
+  expect_error(report_document(fit, html_failed), "did not converge")
+
+  bd <- simulate_btl(5, 10, reps_per_pair = 4, seed = 232)
+  bt <- btl(bd, "object_a", "object_b", winner = "winner", judge = "judge")
+  bt$converged <- FALSE
+  out_btl <- tempfile("failed-btl-export-")
+  expect_error(save_outputs(bt, out_btl, formats = "png",
+                            item_plots = FALSE), "did not converge")
+  expect_false(dir.exists(out_btl))
+  expect_error(report_document(bt, html_failed), "did not converge")
 })
 
 test_that("exports accept only a compatible fit-bootstrap result", {
@@ -227,6 +339,15 @@ test_that("exports accept dimensionality only from the fitted model being report
                            subtest = altered), "dimensionality_test")
 })
 
+test_that("exports turn an unavailable person-subset test into a note", {
+  d <- simulate_rasch(100, 6, seed = 243)
+  repeated <- d[rep(seq_len(nrow(d)), each = 2L), ]
+  fit <- rasch(repeated, id = "id", items = sprintf("I%02d", 1:6))
+  z <- .dimensionality_or_note(fit)
+  expect_match(z$note, "requires one response row per person")
+  expect_true(is.na(z$multidimensional))
+})
+
 test_that("exports accept DIF only from the fitted model being reported", {
   X <- simd2(160, seq(-1, 1, length.out = 5), seed = 27)
   g1 <- rep(c("A", "B"), each = 80)
@@ -311,6 +432,8 @@ test_that("report_document writes a self-contained HTML report", {
 })
 
 test_that("the fit and targeting summaries are complete tidy tables", {
+  expect_error(fit_summary_table(list()), "fitted model")
+  expect_error(targeting_table(list()), "response-data fit")
   set.seed(1)
   d <- seq(-2, 2, length.out = 6)
   X <- matrix(rbinom(300 * 6, 1, plogis(outer(rnorm(300), d, "-"))), 300, 6)
@@ -329,6 +452,59 @@ test_that("the fit and targeting summaries are complete tidy tables", {
   expect_lt(abs(as.numeric(tt$value[tt$statistic == "PSI"]) - f$psi$PSI), 5e-4)
   expect_lt(abs(as.numeric(tt$value[tt$statistic == "Coefficient alpha"]) -
                 f$alpha$alpha), 5e-4)
+  failed <- f
+  failed$est$converged <- FALSE
+  expect_error(targeting_table(failed), "did not converge")
+
+  # EFRM records convergence per set-link edge, not in a scalar `link` field.
+  # A failed real edge must stop every output that depends on the linked scale.
+  bad_link <- f
+  class(bad_link) <- c("rasch_efrm", class(bad_link))
+  bad_link$alpha_table <- data.frame(set = c("set1", "set2"))
+  bad_link$linking <- list(alpha_edges = data.frame(converged = FALSE))
+  expect_false(rasch:::.efrm_link_converged(bad_link))
+  expect_identical(fit_summary_table(bad_link)$value[
+    fit_summary_table(bad_link)$statistic == "Converged"], "NO")
+  expect_error(targeting_table(bad_link), "set-unit link did not converge")
+  expect_error(score_table(bad_link), "set-unit link did not converge")
+  expect_error(person_extrapolated(bad_link), "set-unit link did not converge")
+  expect_error(chisq_detail(bad_link, "I1"), "set-unit link did not converge")
+  expect_error(test_information(bad_link), "set-unit link did not converge")
+  expect_error(guttman_table(bad_link), "set-unit link did not converge")
+  expect_error(rasch:::.wright_map_data(bad_link),
+               "set-unit link did not converge")
+  bad_link_dir <- tempfile("failed-link-export-")
+  bad_link_html <- tempfile(fileext = ".html")
+  expect_error(save_outputs(bad_link, bad_link_dir, formats = "png",
+                            item_plots = FALSE),
+               "set-unit link did not converge")
+  expect_false(dir.exists(bad_link_dir))
+  expect_error(report_html(bad_link, bad_link_html),
+               "set-unit link did not converge")
+  expect_false(file.exists(bad_link_html))
+  expect_error(weighted_person_estimates(
+    bad_link, stats::setNames(rep(1, ncol(f$X)), colnames(f$X))),
+    "set-unit link did not converge")
+  unknown_link <- bad_link
+  unknown_link$linking$alpha_edges$converged <- NA
+  expect_false(rasch:::.efrm_link_converged(unknown_link))
+
+  one_set <- bad_link
+  one_set$alpha_table <- data.frame(set = "set1")
+  one_set$linking$alpha_edges <- data.frame()
+  expect_true(rasch:::.efrm_link_converged(one_set))
+  missing_edges <- bad_link
+  missing_edges$linking <- NULL
+  expect_false(rasch:::.efrm_link_converged(missing_edges))
+  invalid_detail <- f
+  invalid_detail$moments$V[, 1] <- 0
+  invalid_detail$item_trait$chisq[1] <- NA_real_
+  invalid_detail$item_trait$df[1] <- NA_integer_
+  invalid_detail$item_trait$p[1] <- NA_real_
+  detail <- chisq_detail(invalid_detail, 1)
+  expect_true(all(is.na(detail$intervals$residual)))
+  expect_true(all(is.na(detail$intervals$chisq)))
+  expect_false(any(detail$intervals$used))
   # robust when alpha is not applicable (missing data)
   Xm <- X; Xm[1:150, 1] <- NA; Xm[151:300, 6] <- NA
   fm <- rasch(Xm)
@@ -362,6 +538,7 @@ test_that("structural summaries name response cells and withhold alpha", {
   expect_true(is.na(f$alpha$alpha))
   expect_false(f$alpha$design_applicable)
   expect_null(score_table(f))
+  expect_error(person_extrapolated(f), "common raw-score conversion")
   saved_before_flag <- f
   saved_before_flag$alpha$design_applicable <- NULL
   expect_error(ctt_table(saved_before_flag), "several frame or facet response cells")
@@ -375,6 +552,7 @@ test_that("structural summaries name response cells and withhold alpha", {
   expect_true(is.na(ef$alpha$alpha))
   expect_false(ef$alpha$design_applicable)
   expect_null(score_table(ef))
+  expect_error(person_extrapolated(ef), "common raw-score conversion")
 })
 
 test_that("lr_test refuses PCM fits that are already constrained", {

@@ -9,7 +9,8 @@ tailored_analysis(
   chance = 0.25,
   anchor_items = NULL,
   se_method = c("none", "bootstrap"),
-  boot_reps = 999L
+  boot_reps = 999L,
+  seed = NULL
 )
 }
 \arguments{
@@ -38,6 +39,9 @@ sign-count bootstrap p-value has resolution floor \code{2/(boot_reps
 + 1)}, so after the Holm adjustment across m items the smallest
 achievable adjusted p is \code{2m/(boot_reps + 1)}; a warning fires
 when that floor exceeds 0.05 (detection would be impossible).}
+
+\item{seed}{Optional non-negative whole-number seed for the person
+bootstrap. The caller's random-number state is restored on exit.}
 }
 \value{
 A list of class \code{"rasch_tailored"}: \code{tailored},

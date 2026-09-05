@@ -488,7 +488,7 @@ if (chunk == "combine") {
   p2 <- "tools/simval/results/custom-wald-tests-chunk2.csv"
   r1 <- read.csv(p1, stringsAsFactors = FALSE)
   r2 <- read.csv(p2, stringsAsFactors = FALSE)
-  sv_write(rbind(r1, r2), STUDY)
+  sv_write(sv_bind_rows(r1, r2), STUDY)
 } else {
   rows_a <- NULL; rows_bcd <- NULL
   if (chunk %in% c("1", "all")) rows_a <- run_family_a()

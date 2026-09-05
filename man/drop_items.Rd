@@ -31,8 +31,9 @@ The refit retains person identifiers and factors, class-interval settings,
 optimisation controls, anchors, multiple-choice scoring and PCM component
 constraints. An EFRM refit also retains the item-set and crossed-frame
 design, linking controls and uncertainty method. The operation is refused
-if it would remove every anchor, empty an item set or leave the model
-unidentified.
+if it would remove an externally anchored item, empty an item set or leave
+the model unidentified. To change the anchor set, refit explicitly; this
+prevents an item-removal comparison from silently changing its scale.
 
 Item removal changes both the item calibration and the person estimates.
 For an EFRM it can also change the estimated frame units. Compare the

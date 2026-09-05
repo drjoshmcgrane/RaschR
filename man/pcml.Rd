@@ -30,8 +30,12 @@ instead: every parameter is estimated free, and the calibration is
 shifted so that the mean location of the anchor items equals the mean
 of their \code{tau} values (one row per item, \code{k = NA}). Only the
 origin changes, so every item, the anchors included, keeps its
-estimated position relative to the others. Column names must be unique.
-PCM only.}
+estimated position relative to the others. Numeric-threshold and
+item-location anchor values are treated as fixed constants: their
+uncertainty is not included in the returned covariance or standard
+errors. With several numeric-threshold anchors, their stated relative
+spacing is a model constraint as well as a choice of origin. Column names
+must be unique. PCM only.}
 
 \item{maxit, tol}{Newton-Raphson iteration cap and convergence tolerance.}
 }
@@ -42,7 +46,8 @@ A list containing the threshold table \code{thr}, covariance matrix
   \code{weak} marks all thresholds of an item with fewer than eight
   responses in any category, or a threshold adjacent to a category with
   fewer than three responses. Standard errors for weak thresholds are
-  reported as \code{NA}.
+  reported as \code{NA}. If estimation does not converge, the function
+  warns and all standard errors and covariance entries are \code{NA}.
 }
 \description{
 Estimates PCM or RSM thresholds by Newton--Raphson maximisation of the

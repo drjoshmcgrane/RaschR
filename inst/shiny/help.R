@@ -35,11 +35,14 @@ APP_HELP <- c(
   metric_item_trait = paste(
     "Approximate asymptotic probability for the overall item- or",
     "response-cell-trait chi-square. It treats estimated person locations as",
-    "known and can be miscalibrated; use the item-fit bootstrap where available."
+    "known and can be miscalibrated; use the item-fit bootstrap where available.",
+    "It is withheld when person IDs repeat because the reference counts rows,",
+    "not independent persons."
   ),
   metric_power = paste(
-    "Qualitative power of the item-trait test at the observed sample size and",
-    "test length. Low power limits what a non-significant fit result can establish."
+    "Describes person separation from the PSI in broad bands.",
+    "It is not the statistical power of a fit test, which also depends on the",
+    "sample, targeting, test statistic and departure being tested."
   ),
   metric_objects = "Number of objects represented in the active comparative judgement analysis.",
   metric_comparisons = paste(
@@ -62,7 +65,8 @@ APP_HELP <- c(
     "Before bootstrapping, this is the number of items with an approximate",
     "asymptotic Holm probability below .05. After bootstrapping, it uses the",
     "calibrated bootstrap probability. Adjustment is within that statistic",
-    "under the fitted global null."
+    "under the fitted global null. Item-fit inference is unavailable when",
+    "person IDs repeat."
   ),
   metric_disordered = paste(
     "Number of polytomous items whose estimated thresholds are not ordered.",
@@ -321,28 +325,28 @@ APP_HELP <- c(
   ),
   phi_tbl = paste(
     "Reports the relative measurement unit for each person group in an EFRM.",
-    "A value of one is the equal-unit reference; intervals and tests are",
-    "calculated on the log-unit scale."
+    "The group units have geometric mean one, so no observed group is the",
+    "reference. Intervals and tests are calculated on the log-unit scale."
   ),
   alpha_tbl = paste(
     "Reports each item set's unit ratio: the reference unit over the set's",
     "own, so a value above one means the finer unit and steeper curves.",
     "The link uses persons observed in more than one set, estimating their",
     "distribution on a finite grid within each person group.",
-    "One is the equal-unit reference; set origins are separate."
+    "The set units have geometric mean one; set origins are separate."
   ),
   frame_tbl = paste(
     "Reports the unit and fit for each observed item-set by person-group frame.",
     "The frame unit combines the relevant set and group units."
   ),
   btlef_phi_tbl = paste(
-    "Reports panel units in the comparative judgement frame model. A value of",
-    "one is the equal-unit reference; adjusted tests compare each panel with",
-    "that reference."
+    "Reports panel units in the comparative judgement frame model. Their",
+    "geometric mean is one; adjusted tests compare each panel with equal unit."
   ),
   btlef_units_tbl = paste(
     "Reports set units and origins for linked comparative judgement sets.",
     "Units describe scale changes; origins describe translations between sets.",
+    "The first set fixes unit one and origin zero.",
     "The adjusted probabilities form one Holm family across panel units, set units and origins."
   ),
   btlef_frames_tbl = paste(

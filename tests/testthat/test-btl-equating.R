@@ -27,11 +27,19 @@ test_that("btl_equate recovers the origin shift and flags nothing when no object
 
   f1 <- sim_panel(set1, beta)
   f2 <- sim_panel(set2, beta)
+  bad_convergence <- f1
+  bad_convergence$converged <- NA
+  expect_error(btl_equate(bad_convergence, f2), "did not converge")
   withheld <- btl_equate(f1, f2)
   expect_false(withheld$inferential)
   expect_true(all(is.na(withheld$table$p)))
   expect_match(paste(withheld$notes, collapse = " "), "independence")
   eq <- btl_equate(f1, f2, independent = TRUE)
+  expect_error(btl_equate(f1, f2, independent = matrix(TRUE)),
+               "NULL, TRUE, or FALSE")
+  expect_error(btl_equate(f1, f2, independent = TRUE,
+                          p_adjust = matrix("holm")),
+               "p_adjust")
 
   expect_s3_class(eq, "rasch_btl_equate")
   expect_equal(eq$n_common, 7L)
@@ -47,6 +55,14 @@ test_that("btl_equate recovers the origin shift and flags nothing when no object
   # fit2's equated locations track the truth (a pure shift of it) ~ perfectly
   truth <- beta[eq$equated$object]
   expect_gt(cor(eq$equated$location, truth), 0.97)
+
+  bad_covariance <- f1
+  bad_covariance$cov_beta[1, 1] <- -1e6
+  guarded <- btl_equate(bad_covariance, f2, independent = TRUE)
+  expect_false(guarded$inferential)
+  expect_true(all(is.na(guarded$table$p_adj)))
+  expect_match(paste(guarded$notes, collapse = " "),
+               "not positive semidefinite")
 })
 
 test_that("btl_equate flags a planted drift and essentially only that object", {
@@ -87,7 +103,7 @@ test_that("clustered equating uses contrast-specific finite degrees of freedom",
     objects = data.frame(object = objs, location = loc,
                          se = sqrt(diag(C))),
     cov_beta = C, converged = TRUE, m = 1L, categories = 0:1,
-    thr_structure = "none",
+    thr_structure = "none", clustered = TRUE,
     comparisons = data.frame(judge = rep(paste0(prefix, 1:12), each = 2))),
     class = "rasch_btl")
   f1 <- make_fit(c(-1, -0.4, 0, 0.5, 0.9), "A")
@@ -100,6 +116,18 @@ test_that("clustered equating uses contrast-specific finite degrees of freedom",
                tolerance = 1e-12)
   expect_false(isTRUE(all.equal(eq$table$p,
                                 2 * pnorm(-abs(eq$table$t)))))
+})
+
+test_that("BTL-EFRM equating df follows its uncertainty method", {
+  z <- structure(list(
+    se_method = "bootstrap",
+    comparisons = data.frame(judge = rep(paste0("J", 1:12), each = 2)),
+    clustered = TRUE), class = c("rasch_btl_efrm", "rasch_btl"))
+  expect_identical(.btl_equate_cov_df(z), Inf)
+  z$se_method <- "conditional"
+  expect_identical(.btl_equate_cov_df(z), Inf)
+  z$se_method <- "judge_bootstrap"
+  expect_equal(.btl_equate_cov_df(z), 11)
 })
 
 test_that("a bank link is descriptive without its joint covariance", {
@@ -180,6 +208,57 @@ test_that("btl_equate permits a two-object link but withholds drift tests", {
   expect_error(btl_equate(42, bank2), "btl")
   # non-btl, non-bank fit2
   expect_error(btl_equate(f1, 42), "btl fit or a bank")
+})
+
+test_that("btl_equate refuses a malformed bank covariance degree of freedom", {
+  set.seed(224)
+  d <- simulate_btl(n_objects = 5, n_judges = 20,
+                    reps_per_pair = 20, seed = 224)
+  fit <- btl(d, "object_a", "object_b", "winner", judge = "judge")
+  bank <- fit$objects[, c("object", "location", "se")]
+  attr(bank, "cov_location") <- fit$cov_beta
+  attr(bank, "df_location") <- -1
+  expect_error(btl_equate(fit, bank), "df_location.*positive")
+  attr(bank, "cov_location") <- NULL
+  expect_error(btl_equate(fit, bank), "df_location.*positive")
+})
+
+test_that("a polytomous bank declares its score scale as numeric", {
+  set.seed(225)
+  d <- simulate_btl(n_objects = 5, n_judges = 20,
+                    reps_per_pair = 25, model = "polytomous",
+                    n_categories = 3, seed = 225)
+  fit <- btl(d, "object_a", "object_b", response = "response",
+             judge = "judge")
+  bank <- fit$objects[, c("object", "location", "se")]
+  attr(bank, "m") <- factor(as.character(fit$m))
+  expect_error(btl_equate(fit, bank), "attr\\(bank, 'm'\\)")
+  attr(bank, "m") <- .Machine$integer.max + 1
+  expect_error(btl_equate(fit, bank), "attr\\(bank, 'm'\\)")
+})
+
+test_that("bank covariance validation is invariant to uncertainty scale", {
+  set.seed(226)
+  d <- simulate_btl(n_objects = 5, n_judges = 20,
+                    reps_per_pair = 10, seed = 226)
+  fit <- btl(d, "object_a", "object_b", "winner", judge = "judge")
+  bank <- fit$objects[, c("object", "location", "se")]
+  bank$se <- 1e-8
+  attr(bank, "cov_location") <- diag(rep((2e-8)^2, nrow(bank)))
+  expect_error(btl_equate(fit, bank), "standard errors must agree")
+  attr(bank, "cov_location") <- diag(rep((1e-8)^2, nrow(bank)))
+  expect_no_error(btl_equate(fit, bank))
+
+  bank$se <- 1e-10
+  Cbad <- diag(rep(1e-20, nrow(bank)))
+  Cbad[1, 2] <- Cbad[2, 1] <- 2e-20
+  attr(bank, "cov_location") <- Cbad
+  expect_error(btl_equate(fit, bank), "positive semidefinite")
+
+  Casym <- diag(rep(1e-20, nrow(bank)))
+  Casym[1, 2] <- 5e-21
+  attr(bank, "cov_location") <- Casym
+  expect_error(btl_equate(fit, bank), "symmetric")
 })
 
 test_that("plot_btl_equate draws without error", {

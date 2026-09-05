@@ -21,6 +21,18 @@ test_that("dimensionality test separates 1D from 2D data", {
   expect_gt(dt2$prop_significant, dt1$prop_significant)
 })
 
+test_that("residual diagnostics refuse an empty pairwise reference", {
+  set.seed(101)
+  X <- matrix(rbinom(300 * 4, 1, 0.5), 300, 4,
+              dimnames = list(NULL, paste0("I", 1:4)))
+  fit <- rasch(X)
+  # Preserve a valid fitted object while representing a structurally empty
+  # residual-overlap graph. Returning an average of NaN here is not a result.
+  fit$residuals[,] <- NA_real_
+  expect_error(residual_correlations(fit), "no item pair",
+               class = "rasch_refusal")
+})
+
 test_that("a short automatic dimensionality split is descriptive with a caution", {
   set.seed(11)
   X <- matrix(rbinom(500 * 12, 1, 0.5), 500, 12,
@@ -91,6 +103,33 @@ test_that("the dimensionality bootstrap calibrates the split it is given", {
   f4 <- fit; f4$refit_spec$pc_components <- 2L
   expect_error(dimensionality_test(f4, B = 5), "principal components",
                class = "rasch_refusal")
+})
+
+test_that("person-subset and simulated residual inference refuse repeated IDs", {
+  d <- simulate_rasch(120, 8, seed = 212)
+  items <- sprintf("I%02d", 1:8)
+  repeated <- d[rep(seq_len(nrow(d)), each = 2L), ]
+  fit <- rasch(repeated, id = "id", items = items)
+
+  expect_error(
+    dimensionality_test(
+      fit, items_positive = items[1:4], items_negative = items[5:8]),
+    "requires one response row per person", class = "rasch_refusal")
+  expect_no_error(.scree_analysis(fit, parallel = FALSE))
+  expect_error(plot_scree(fit, parallel = TRUE, reps = 20),
+               "person identifier occurs on several response rows",
+               class = "rasch_refusal")
+
+  # Missing identifiers denote unknown people, not a repeated person. They
+  # must not trigger the repeated-row refusal merely because NA recurs.
+  partly_unknown <- d
+  partly_unknown$id <- as.character(partly_unknown$id)
+  partly_unknown$id[1:4] <- c(NA, NA, "", "  ")
+  fit_unknown <- rasch(partly_unknown, id = "id", items = items)
+  expect_no_error(dimensionality_test(
+    fit_unknown, items_positive = items[1:4], items_negative = items[5:8]))
+  expect_no_error(plot_scree(fit_unknown, parallel = TRUE, reps = 20,
+                             seed = 212))
 })
 
 test_that("unavailable dimensionality comparisons keep a stable result shape", {
@@ -315,7 +354,9 @@ test_that("reliability and fit summaries are coherent", {
   expect_gt(fit$total_chisq_p, 1e-6)   # well-fitting data should not collapse
   expect_lt(abs(fit$item_fit_summary$mean), 1)
   expect_false(any(fit$items$p_adj < 0.05, na.rm = TRUE))
-  expect_true(fit$power_of_fit %in% c("reasonable", "good", "excellent"))
+  expect_true(fit$separation_quality %in%
+                c("reasonable", "good", "excellent"))
+  expect_identical(fit$power_of_fit, fit$separation_quality)
 })
 
 test_that("save_outputs writes the full set of tables and plots", {

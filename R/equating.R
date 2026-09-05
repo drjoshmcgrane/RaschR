@@ -47,7 +47,7 @@
       !identical(dim(C), c(length(ids), length(ids))))
     stop("attr(reference, 'cov_location') must be a finite numeric square ",
          "matrix with one row and column per bank item")
-  if (!isTRUE(all.equal(C, t(C), tolerance = 1e-8)))
+  if (!.covariance_is_symmetric(C))
     stop("attr(reference, 'cov_location') must be symmetric")
   if (!is.null(rownames(C)) || !is.null(colnames(C))) {
     if (is.null(rownames(C)) || is.null(colnames(C)) ||
@@ -55,8 +55,7 @@
       stop("named bank covariance rows and columns must match every bank item")
     C <- C[ids, ids, drop = FALSE]
   }
-  ev <- eigen((C + t(C)) / 2, symmetric = TRUE, only.values = TRUE)$values
-  if (min(ev) < -1e-8 * max(1, max(abs(ev))))
+  if (!.covariance_is_psd(C))
     stop("attr(reference, 'cov_location') must be positive semidefinite")
   C
 }
@@ -75,7 +74,7 @@
   if (!"se" %in% names(reference)) reference$se <- NA_real_
   if (!"max" %in% names(reference)) reference$max <- NA_integer_
   out <- reference[, c("item", "location", "se", "max")]
-  out$item <- trimws(as.character(out$item))
+  out$item <- .role_text_values(out$item)
   out$location <- .bank_numeric(out$location, "location")
   out$se <- .bank_numeric(out$se, "se")
   out$max <- .bank_numeric(out$max, "max")
@@ -111,8 +110,9 @@
 #' finite locations, the function returns their unweighted mean difference as
 #' a descriptive fallback and records \code{shift_method = "unweighted"}.
 #' Drift inference requires
-#' independent calibrations and at least three common items with usable joint
-#' covariance information. Otherwise the function returns a descriptive link.
+#' independent calibrations and at least three common items with usable,
+#' positive-semidefinite joint covariance information. Otherwise the function
+#' returns a descriptive link.
 #' Fitted calibrations must have converged.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
@@ -143,6 +143,8 @@
 #'   number with usable standard errors \code{n}, and whether drift inference
 #'   was available (\code{inferential}). The \code{note} component records
 #'   exclusions and the reason inference was withheld, where applicable.
+#'   An individual drift probability is also withheld when its contrast has
+#'   zero estimated uncertainty.
 #'   Common items with unavailable drift probabilities remain in the
 #'   multiplicity family.
 #' @examples
@@ -158,11 +160,15 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
                          independent = NULL) {
   shift <- match.arg(shift)
   if (!is.null(independent) && (length(independent) != 1L ||
-      is.na(independent) || !is.logical(independent)))
+      !is.logical(independent) || !is.null(dim(independent)) ||
+      !is.null(oldClass(independent)) || is.na(independent)))
     stop("independent must be NULL, TRUE, or FALSE")
   if (!inherits(fit, "rasch") ||
       inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     stop("fit must be an ordinary person-by-item Rasch calibration")
+  if (inherits(reference, "rasch_btl"))
+    stop("reference must be an ordinary Rasch calibration or item bank; ",
+         "a paired-comparison calibration is on a different response scale")
   if (inherits(reference, "rasch_efrm") || inherits(reference, "rasch_mfrm"))
     stop("reference must be an ordinary Rasch calibration or item bank")
   # under an explanatory design an item location is not an item parameter:
@@ -192,8 +198,7 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   if (!is.null(bank_cov)) {
     cov_se <- sqrt(pmax(diag(bank_cov), 0))
     stated <- is.finite(ref$se)
-    if (any(stated & abs(ref$se - cov_se) >
-            1e-6 * pmax(1, ref$se, cov_se)))
+    if (any(stated & !.se_covariance_agree(ref$se, cov_se)))
       stop("the bank standard errors must agree with the diagonal of ",
            "attr(reference, 'cov_location')")
     # The joint covariance supplies every marginal variance. Retain a stated
@@ -221,7 +226,7 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   notes <- character(0)
   w <- numeric(0)
   if (shift == "mean" && sum(usable) >= 2L) {
-    w <- 1 / pmax(v[usable], 1e-10)
+    w <- .inverse_variance_weights(v[usable])
     c0 <- sum(w * d[usable]) / sum(w)
     shift_method <- "precision-weighted"
   } else if (shift == "mean") {
@@ -284,21 +289,42 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   # with Sigma the sum of the two calibrations' item-location covariances
   var_d <- rep(NA_real_, length(common))
   if (inferential) {
-    Sg <- .equate_loc_cov(fit, common) + .equate_loc_cov(reference, common)
-    if (shift == "mean") {
-      u <- w / sum(w)
-      Suu <- Sg[usable, usable, drop = FALSE]
-      Su <- drop(Suu %*% u)
-      var_d[usable] <- pmax(diag(Suu) - 2 * Su +
-                              drop(t(u) %*% Su), 1e-10)
-    } else var_d[usable] <- pmax(diag(Sg)[usable], 1e-10)
+    S1 <- tryCatch(.equate_loc_cov(fit, common), error = function(e) NULL)
+    S2 <- tryCatch(.equate_loc_cov(reference, common),
+                   error = function(e) NULL)
+    covariance_ok <- .covariance_supports_wald(S1, length(common)) &&
+      .covariance_supports_wald(S2, length(common))
+    if (!covariance_ok) {
+      inferential <- FALSE
+      notes <- c(notes, paste(
+        "drift tests withheld because a fitted item-location covariance is",
+        "unavailable or not positive semidefinite"))
+    } else {
+      Sg <- S1 + S2
+      if (shift == "mean") {
+        u <- w / sum(w)
+        Suu <- Sg[usable, usable, drop = FALSE]
+        Su <- drop(Suu %*% u)
+        var_d[usable] <- pmax(diag(Suu) - 2 * Su +
+                                drop(t(u) %*% Su), 0)
+      } else var_d[usable] <- pmax(diag(Sg)[usable], 0)
+    }
   }
-  t <- ifelse(usable, (d - c0) / sqrt(var_d), NA_real_)
+  t <- if (inferential) .wald_ratio(d - c0, sqrt(var_d)) else
+    rep(NA_real_, length(common))
   p <- 2 * pnorm(-abs(t))
   n <- sum(usable)
   p_adj <- rep(NA_real_, length(p))
-  if (inferential) p_adj[usable] <- p.adjust(
-    p[usable], method = "holm", n = length(common))
+  testable <- inferential & usable & is.finite(p)
+  if (any(testable)) p_adj[testable] <- p.adjust(
+    p[testable], method = "holm", n = length(common))
+  zero_uncertainty <- inferential & usable & !is.finite(p)
+  if (any(zero_uncertainty))
+    notes <- c(notes, paste0(
+      "drift probability/probabilities withheld for zero contrast ",
+      "uncertainty: ",
+      paste(common[zero_uncertainty], collapse = ", ")))
+  inferential <- inferential && any(testable)
   tab <- data.frame(item = common,
                     location_1 = a$location, se_1 = a$se,
                     location_2 = b$location, se_2 = b$se,
@@ -306,7 +332,9 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
                     t = t, p = p, p_adj = p_adj,
                     drift = ifelse(is.na(p_adj), NA, p_adj < 0.05))
   rownames(tab) <- NULL
-  cor_link <- if (sum(finite_loc) >= 2L)
+  cor_link <- if (sum(finite_loc) >= 2L &&
+                   stats::sd(a$location[finite_loc]) > 0 &&
+                   stats::sd(b$location[finite_loc]) > 0)
     stats::cor(a$location[finite_loc], b$location[finite_loc]) else NA_real_
   structure(class = "rasch_equate", list(table = tab, shift = c0,
        shift_method = shift_method,

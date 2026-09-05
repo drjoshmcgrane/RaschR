@@ -17,7 +17,11 @@ A list with \code{item}, \code{location}, the \code{intervals}
   mean \code{ave}, and the item's total \code{chisq}, \code{df}, and
   \code{p}. Intervals with fewer than 2 responders are shown but carry no
   chi-square contribution (\code{used = FALSE}), matching the item-trait
-  computation.
+  computation. The same applies when the model variance for an interval
+  is unavailable or zero. The probability is \code{NA} when person IDs
+  repeat because the asymptotic reference counts response rows rather than
+  independent persons; the interval summaries and chi-square remain
+  descriptive.
 }
 \description{
 The per-class-interval breakdown behind an item's item-trait chi-square,

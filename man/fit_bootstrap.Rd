@@ -50,7 +50,9 @@ Refers fit statistics to replicated datasets fitted in the same way as the
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate.
+person locations are re-estimated in every replicate. The generator assumes
+independent response rows. A fit with repeated person IDs is therefore
+refused because this bootstrap does not reproduce within-person dependence.
 }
 \details{
 Item chi-squares use the upper tail. Fit residuals, infit and outfit use

@@ -35,7 +35,7 @@ ETS_DELTA_PER_LOGIT <- 2.35
   # ceiling. Shervish's interval-null p-value retains both normal tails.
   out <- stats::pnorm((-a_cut - d) / se) +
     stats::pnorm((a_cut - d) / se)
-  out[is.na(difference) | is.na(se) | se <= 0] <- NA_real_
+  out[!is.finite(difference) | !is.finite(se) | se <= 0] <- NA_real_
   out
 }
 
@@ -44,13 +44,27 @@ ETS_DELTA_PER_LOGIT <- 2.35
   a_cut <- 1.0 / ETS_DELTA_PER_LOGIT      # 0.43 as published
   c_cut <- 1.5 / ETS_DELTA_PER_LOGIT      # 0.64 as published
   d <- abs(difference)
-  sig <- !is.na(p) & p < alpha
+  sig <- is.finite(p) & p < alpha
   if (is.null(p_beyond)) p_beyond <- .ets_p_beyond(difference, se)
-  beyond <- !is.na(se) & se > 0 & !is.na(p_beyond) & p_beyond < alpha
+  beyond <- is.finite(se) & se > 0 & is.finite(p_beyond) & p_beyond < alpha
   out <- ifelse(!sig | d <= a_cut, "A",
                 ifelse(d >= c_cut & beyond, "C", "B"))
-  out[is.na(difference) | is.na(se)] <- NA_character_
-  sign_c <- ifelse(is.na(difference) | out == "A", "",
+  out[!is.finite(difference) | !is.finite(se)] <- NA_character_
+  sign_c <- ifelse(!is.finite(difference) | out == "A", "",
                    ifelse(difference > 0, "+", "-"))
   ifelse(is.na(out), NA_character_, paste0(out, sign_c))
+}
+
+# EFRM has no scalar link-convergence flag. Each estimated connection between
+# item sets carries its own status; all must converge before a result that
+# depends on the linked scale is reported. A one-set model has no link edges.
+.efrm_link_converged <- function(fit) {
+  if (!inherits(fit, "rasch_efrm")) return(TRUE)
+  edges <- fit$linking$alpha_edges
+  n_sets <- if (is.data.frame(fit$alpha_table))
+    nrow(fit$alpha_table) else NA_integer_
+  if (is.null(edges) || !NROW(edges))
+    return(is.finite(n_sets) && n_sets <= 1L)
+  is.data.frame(edges) && "converged" %in% names(edges) &&
+    all(edges$converged %in% TRUE)
 }

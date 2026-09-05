@@ -12,6 +12,7 @@ test_that("anchored estimation holds anchors and recovers the uncentred scale", 
   est <- fit$thresholds$tau
   expect_identical(est[c(1, 10)], dtrue[c(1, 10)])
   expect_identical(fit$thresholds$se[c(1, 10)], c(0, 0))
+  expect_equal(fit$isi$n, 8L)
   expect_lt(sqrt(mean((est[-c(1, 10)] - dtrue[-c(1, 10)])^2)), 0.15)
   # person measures land on the anchored (uncentred) metric
   expect_equal(mean(fit$person$theta, na.rm = TRUE), 0.7, tolerance = 0.15)
@@ -39,6 +40,7 @@ test_that("average item anchoring shifts the free calibration onto the anchor or
   # no item is fixed: the anchors keep a sampling variance on the new origin
   expect_true(all(fit$items$se[1:3] > 0))
   expect_false(any(fit$thresholds$anchored))
+  expect_equal(fit$isi$n, ncol(X))
   expect_match(paste(fit$notes, collapse = " "), "average location of 3 anchor")
   # the covariance follows the re-identification, so the anchor mean has
   # (numerically) no variance while the other items keep theirs
@@ -56,6 +58,39 @@ test_that("average item anchoring shifts the free calibration onto the anchor or
   # the anchor set survives an item drop and a bootstrap refit
   fd <- drop_items(fit, "I08")
   expect_equal(mean(fd$items$location[1:3]), mean(anc$tau), tolerance = 1e-9)
+})
+
+test_that("average anchoring is a pure re-identification with mixed score ranges", {
+  set.seed(9301)
+  m <- c(1L, 2L, 3L, 2L, 1L, 3L, 2L, 3L)
+  location <- seq(-1.4, 1.4, length.out = length(m)) + 0.4
+  tau <- Map(function(mi, di)
+    di + if (mi == 1L) 0 else seq(-0.7, 0.7, length.out = mi),
+    m, location)
+  theta <- rnorm(800, 0.4, 1.1)
+  draw <- function(th, tt) vapply(th, function(z) {
+    score <- 0:length(tt)
+    lp <- score * z - c(0, cumsum(tt))
+    sample(score, 1L, prob = exp(lp - max(lp)))
+  }, 0L)
+  X <- sapply(tau, function(tt) draw(theta, tt))
+  colnames(X) <- sprintf("I%02d", seq_along(m))
+
+  free <- rasch(X)
+  anchors <- data.frame(item = c("I01", "I04", "I07"), k = NA_real_,
+                        tau = c(-0.8, 0.2, 1.1), average = TRUE)
+  anchored <- rasch(X, anchors = anchors)
+  shift <- mean(anchors$tau) -
+    mean(free$items$location[match(anchors$item, free$items$item)])
+
+  expect_equal(anchored$thresholds$tau, free$thresholds$tau + shift,
+               tolerance = 1e-9)
+  expect_equal(anchored$person$theta, free$person$theta + shift,
+               tolerance = 1e-7)
+  expect_equal(anchored$est$loglik, free$est$loglik, tolerance = 1e-9)
+  expect_equal(mean(anchored$items$location[
+    match(anchors$item, anchored$items$item)]), mean(anchors$tau),
+    tolerance = 1e-9)
 })
 
 test_that("tailored step 3 equates the origin by average item anchoring", {
@@ -107,6 +142,11 @@ test_that("MFRM recovers facet severities and item locations", {
   # the full diagnostic object works at the virtual-item level
   expect_equal(ncol(fit$residuals), 20)
   expect_false(is.na(fit$psi$PSI))
+  no_se <- fit
+  no_se$facet_effects$rater$se[1L] <- NA_real_
+  grDevices::pdf(NULL)
+  expect_no_error(plot_facets(no_se, "rater"))
+  grDevices::dev.off()
 })
 
 test_that("MFRM flags an erratic rater through pooled fit", {
@@ -179,6 +219,9 @@ test_that("Guttman reproducibility is high for near-deterministic data", {
   expect_equal(dim(g$matrix), c(Np, L))
   # items ordered easy to hard across columns
   expect_equal(colnames(g$matrix), rasch(X)$items$item[order(rasch(X)$items$location)])
+  failed <- rasch(X)
+  failed$est$converged <- FALSE
+  expect_error(guttman_table(failed), "did not converge")
 })
 
 test_that("the whole-item Guttman display rejects polytomous scales", {

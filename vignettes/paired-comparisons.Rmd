@@ -230,10 +230,12 @@ $$
 A same-set comparison in panel $g$ has logit
 $\phi_g(\beta_A-\beta_B)$; a cross-set comparison has logit
 $\phi_g(v_A-v_B)$. As in Humphry and Andrich (2008, eq. 15), $\phi_g$ and
-$\alpha_s$ are unit ratios --- the reference unit over the frame's own, each
-against a reference fixed at one, a value above one meaning the finer unit
-and steeper comparisons --- and "unit" names that ratio for short throughout.
-Cross-set comparisons identify the set units and origins.
+$\alpha_s$ are unit ratios: the common reference unit over the frame's own
+unit. The panel units $\phi_g$ have geometric mean one. For the linked item
+sets, the first set fixes $\alpha_1=1$ and $\kappa_1=0$, defining the unit
+and origin of the common scale; the remaining set transformations are
+estimated relative to it. A value above one denotes a finer unit and steeper
+comparisons. Cross-set comparisons identify the set units and origins.
 The cross-set likelihood holds the within-set locations and panel units fixed.
 It estimates the set transformations directly from the comparison outcomes
 and does not use the finite-grid person-distribution link in `rasch_efrm()`.

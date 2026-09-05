@@ -46,7 +46,9 @@
 # drawn as empty panels or left to emit internal warnings.
 .check_xlim <- function(xlim) {
   if (!is.null(xlim) &&
-      (length(xlim) != 2L || !is.numeric(xlim) || any(!is.finite(xlim)) ||
+      (length(xlim) != 2L || !is.numeric(xlim) || is.complex(xlim) ||
+       !is.null(dim(xlim)) || !is.null(oldClass(xlim)) ||
+       any(!is.finite(xlim)) ||
        xlim[1] >= xlim[2]))
     stop("`xlim` must be two finite ascending limits", call. = FALSE)
   invisible(xlim)
@@ -56,7 +58,8 @@
 # does not select one row. Taking the first would draw a different occasion
 # from the one the caller asked for, with nothing on the display to say so.
 .person_row <- function(fit, person) {
-  if (missing(person) || length(person) != 1L || is.na(person))
+  if (missing(person) || !is.atomic(person) || !is.null(dim(person)) ||
+      length(person) != 1L || is.na(person))
     stop("`person` must name or index exactly one person", call. = FALSE)
   if (is.numeric(person) && person %in% seq_len(nrow(fit$X)))
     return(as.integer(person))
@@ -71,7 +74,8 @@
 }
 
 .check_cex <- function(x, name = "cex_labels") {
-  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
+  if (length(x) != 1L || !is.numeric(x) || is.complex(x) ||
+      !is.null(dim(x)) || !is.null(oldClass(x)) || !is.finite(x) || x <= 0)
     stop("`", name, "` must be one positive finite size", call. = FALSE)
   invisible(x)
 }
@@ -84,6 +88,25 @@
     stop("the display range contains no person estimates; widen `xlim`",
          call. = FALSE)
   invisible(TRUE)
+}
+
+# Targeting displays use fitted person and threshold locations directly.  A
+# failed calibration can still contain the last numerical iterate, which is
+# drawable but is not an estimate and must not be presented as one.
+.check_response_display_fit <- function(fit, display = "fitted displays") {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a fitted response-data Rasch model", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; ", display, " are unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; ", display, " are unavailable",
+         call. = FALSE)
+  invisible(fit)
+}
+
+.check_targeting_fit <- function(fit) {
+  .check_response_display_fit(fit, "targeting plots")
 }
 
 # The observed points must sit on the SAME class intervals as the item-trait
@@ -101,17 +124,51 @@
 }
 
 .check_grid <- function(grid) {
-  if (!is.numeric(grid) || length(grid) < 2L || any(!is.finite(grid)) ||
+  if (!is.numeric(grid) || is.complex(grid) || !is.null(dim(grid)) ||
+      !is.null(oldClass(grid)) || length(grid) < 2L ||
+      any(!is.finite(grid)) ||
       any(diff(grid) <= 0))
     stop("`grid` must be a strictly increasing vector of at least two finite locations",
          call. = FALSE)
   invisible(grid)
 }
 
+# Default curve grids follow the fitted origin. The location origin is
+# arbitrary and may be set by external anchors; a fixed grid around zero can
+# therefore draw an empty curve for a valid fit.
+.default_model_grid <- function(fit, half_width = 6, by = 0.05) {
+  tau <- unlist(fit$tau_list, use.names = FALSE)
+  tau <- tau[is.finite(tau)]
+  if (!length(tau))
+    stop("the fitted thresholds are unavailable; model curves cannot be drawn",
+         call. = FALSE)
+  origin <- mean(tau)
+  span <- max(half_width, max(abs(tau - origin)) + 1)
+  n <- max(2L, ceiling(2 * span / by) + 1L)
+  seq(origin - span, origin + span, length.out = n)
+}
+
+.model_grid <- function(fit, grid = NULL, half_width = 6, by = 0.05) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a fitted response-data Rasch model", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; model curves are unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; model curves are unavailable",
+         call. = FALSE)
+  if (is.null(grid))
+    grid <- .default_model_grid(fit, half_width, by)
+  .check_grid(grid)
+  grid
+}
+
 # A misfit band is a positive finite half-width; a logical flag must be
 # stated as TRUE or FALSE, not NA.
 .check_band <- function(band) {
-  if (length(band) != 1L || !is.numeric(band) || !is.finite(band) || band <= 0)
+  if (length(band) != 1L || !is.numeric(band) || is.complex(band) ||
+      !is.null(dim(band)) || !is.null(oldClass(band)) ||
+      !is.finite(band) || band <= 0)
     stop("`band` must be one positive finite half-width", call. = FALSE)
   invisible(band)
 }
@@ -144,12 +201,24 @@
   legend(pos, ..., bty = "n", text.col = .rr$ink, cex = cex)
 
 .item_idx <- function(fit, item) {
+  if (!is.atomic(item) || !is.null(dim(item)))
+    stop("item must be an ordinary vector of names or indices",
+         call. = FALSE)
   if (!length(item)) stop("item must name or index at least one item")
   if (is.character(item) || is.factor(item)) {
-    i <- match(as.character(item), fit$items$item)
+    supplied <- as.character(item)
+    if (anyNA(supplied) || any(!nzchar(trimws(supplied))))
+      stop("item names must be non-missing and non-empty", call. = FALSE)
+    # Keep deliberately spaced column names addressable. Otherwise surrounding
+    # whitespace is selector syntax rather than part of an ordinary item name.
+    i <- match(supplied, fit$items$item)
+    fallback <- is.na(i)
+    if (any(fallback))
+      i[fallback] <- match(.role_text_values(supplied[fallback]),
+                           fit$items$item)
     if (anyNA(i))
       stop("no such item: ",
-           paste(as.character(item)[is.na(i)], collapse = ", "), call. = FALSE)
+           paste(supplied[is.na(i)], collapse = ", "), call. = FALSE)
     i
   } else {
     if (!is.numeric(item) || any(!is.finite(item)) ||
@@ -196,7 +265,7 @@
     data.frame(theta = fit$person$theta - shift,
                score = fit$X[, j], extreme = fit$person$extreme,
                group = if (is.null(group)) NA_character_ else
-                 as.character(group), stringsAsFactors = FALSE)
+                 .role_text_values(group), stringsAsFactors = FALSE)
   })
   stacked <- do.call(rbind, Filter(Negate(is.null), stacked))
   if (is.null(stacked) || !nrow(stacked))
@@ -277,9 +346,9 @@
 #' plot_icc(rasch(X), "I03")
 #' @export
 plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
-                     grid = seq(-5, 5, 0.05), observed = TRUE) {
+                     grid = NULL, observed = TRUE) {
   .check_flag(observed, "observed")
-  .check_grid(grid)
+  grid <- .model_grid(fit, grid, half_width = 5)
   n_groups_given <- !is.null(n_groups)
   if (!is.null(n_groups)) n_groups <- .check_whole(n_groups, "n_groups", 2)
   if (!is.null(group)) {
@@ -425,11 +494,11 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
 #' colnames(X) <- sprintf("P%02d", 1:4)
 #' plot_ccc(rasch(X), "P01", observed = TRUE)
 #' @export
-plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
+plot_ccc <- function(fit, item, grid = NULL, observed = FALSE,
                      n_groups = NULL) {
   if (length(item) != 1L) stop("`item` must name exactly one item")
   .check_flag(observed, "observed")
-  .check_grid(grid)
+  grid <- .model_grid(fit, grid)
   n_groups_given <- !is.null(n_groups)
   n_groups <- .check_whole(if (is.null(n_groups)) fit$n_groups else n_groups,
                            "n_groups", 2)
@@ -499,10 +568,10 @@ plot_ccc <- function(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE,
 #' colnames(X) <- sprintf("P%02d", 1:4)
 #' plot_threshold_prob(rasch(X), "P01")
 #' @export
-plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
+plot_threshold_prob <- function(fit, item, grid = NULL,
                                 observed = FALSE, n_groups = NULL) {
   if (length(item) != 1L) stop("`item` must name exactly one item")
-  .check_grid(grid)
+  grid <- .model_grid(fit, grid)
   .check_flag(observed, "observed")
   n_groups_given <- !is.null(n_groups)
   n_groups <- .check_whole(if (is.null(n_groups)) fit$n_groups else n_groups,
@@ -580,6 +649,7 @@ plot_threshold_prob <- function(fit, item, grid = seq(-6, 6, 0.05),
 #' @export
 plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
                        group = NULL, items = NULL) {
+  .check_targeting_fit(fit)
   bins <- .check_whole(bins, "bins", 2)
   .check_flag(information, "information")
   .check_xlim(xlim)
@@ -717,7 +787,8 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
 .pimap_persons <- function(fit, group) {
   n <- nrow(fit$person)
   if (is.null(group)) return(rep(TRUE, n))
-  if (length(group) != 1L || is.na(group))
+  if (!is.atomic(group) || !is.null(dim(group)) || length(group) != 1L ||
+      is.na(group))
     stop("`group` must name exactly one person-group level", call. = FALSE)
   fac <- fit$factors
   if (is.null(fac) || !ncol(fac))
@@ -832,6 +903,7 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
 #' plot_wright(rasch(X))
 #' @export
 plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
+  .check_targeting_fit(fit)
   bins <- .check_whole(bins, "bins", 2)
   .check_xlim(xlim)
   .check_cex(cex_labels)
@@ -905,6 +977,7 @@ plot_wright <- function(fit, bins = 35, xlim = NULL, cex_labels = 0.8) {
 #' plot_threshold_map(rasch(X))
 #' @export
 plot_threshold_map <- function(fit, order_by_location = TRUE) {
+  .check_response_display_fit(fit, "threshold plots")
   .check_flag(order_by_location, "order_by_location")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   L <- length(fit$tau_list)
@@ -955,8 +1028,8 @@ plot_threshold_map <- function(fit, order_by_location = TRUE) {
 #' colnames(X) <- paste0("I", 1:6)
 #' plot_tcc(rasch(X))
 #' @export
-plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
-  .check_grid(grid)
+plot_tcc <- function(fit, grid = NULL) {
+  grid <- .model_grid(fit, grid)
   # the same administrable design blocks as test_information(), so the two
   # displays can never disagree about which items form a curve
   blocks <- .design_blocks(fit)
@@ -990,8 +1063,8 @@ plot_tcc <- function(fit, grid = seq(-6, 6, 0.05)) {
 #' colnames(X) <- paste0("I", 1:6)
 #' plot_tif(rasch(X))
 #' @export
-plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
-  .check_grid(grid)
+plot_tif <- function(fit, grid = NULL) {
+  grid <- .model_grid(fit, grid)
   ti <- test_information(fit, grid)
   if (!any(is.finite(ti$info) & ti$info > 0))
     stop("the requested grid contains no positive test information; use locations nearer the calibrated range")
@@ -1000,16 +1073,38 @@ plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
     cols <- rep_len(.rr$pal, length(des))
     ymax <- max(ti$info, na.rm = TRUE) * 1.1
     op <- .rr_canvas(range(grid), c(0, ymax), "Person location (logits)",
-                     "Test information")
+                     "Test information", right = 3.6)
     on.exit(par(op))
+    sem <- ti$sem
+    sem[!is.finite(sem)] <- NA_real_
+    grid_mid <- mean(range(ti$theta))
+    inr <- abs(ti$theta - grid_mid) < 4
+    if (!any(inr & is.finite(sem))) inr <- is.finite(sem)
+    sem_max <- max(sem[inr], na.rm = TRUE)
+    scl <- if (is.finite(sem_max) && sem_max > 0)
+      max(ti$info, na.rm = TRUE) * 1.05 / sem_max else NA_real_
     for (j in seq_along(des)) {
       z <- ti$design == des[j]
       lines(ti$theta[z], ti$info[z], lwd = 3, col = cols[j])
+      if (is.finite(scl))
+        lines(ti$theta[z], sem[z] * scl, lwd = 2.2, lty = 5,
+              col = cols[j])
     }
-    .rr_legend("topleft", des, lwd = 3, col = cols)
+    if (is.finite(scl)) {
+      sem_ticks <- pretty(c(0, sem_max))
+      sem_ticks <- sem_ticks[sem_ticks * scl <= ymax]
+      axis(4, at = sem_ticks * scl, labels = sem_ticks,
+           col = .rr$grid, col.ticks = .rr$soft, col.axis = .rr$red,
+           cex.axis = 0.8)
+      mtext("SEM", side = 4, line = 2.3, col = .rr$red, cex = 0.85)
+    }
+    .rr_legend("topleft", des, title = if (is.finite(scl))
+      "Solid: information; dashed: SEM" else NULL,
+      lwd = 3, col = cols)
     return(invisible(NULL))
   }
-  op <- .rr_canvas(range(grid), c(0, max(ti$info) * 1.1),
+  imax <- max(ti$info[is.finite(ti$info) & ti$info > 0])
+  op <- .rr_canvas(range(grid), c(0, imax * 1.1),
                    "Person location (logits)", "Test information",
                    right = 3.6)
   on.exit(par(op))
@@ -1020,12 +1115,14 @@ plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
   # the SEM axis is scaled over the central range; if the plotting grid lies
   # entirely outside it, fall back to the whole grid rather than max() over
   # an empty selection (which returns -Inf)
-  inr <- ti$theta > -4 & ti$theta < 4
+  grid_mid <- mean(range(ti$theta))
+  inr <- abs(ti$theta - grid_mid) < 4
   if (!any(inr & is.finite(sem))) inr <- is.finite(sem)
-  scl <- max(ti$info) * 1.05 / max(sem[inr], na.rm = TRUE)
+  sem_max <- max(sem[inr], na.rm = TRUE)
+  scl <- imax * 1.05 / sem_max
   lines(ti$theta, sem * scl, lwd = 2.2, col = .rr$red, lty = 5)
-  sem_ticks <- pretty(c(0, max(sem[inr], na.rm = TRUE)))
-  sem_ticks <- sem_ticks[sem_ticks * scl <= max(ti$info) * 1.1]
+  sem_ticks <- pretty(c(0, sem_max))
+  sem_ticks <- sem_ticks[sem_ticks * scl <= imax * 1.1]
   axis(4, at = sem_ticks * scl, labels = sem_ticks,
        col = .rr$grid, col.ticks = .rr$soft, col.axis = .rr$red, cex.axis = 0.8)
   mtext("SEM", side = 4, line = 2.3, col = .rr$red, cex = 0.85)
@@ -1060,6 +1157,7 @@ plot_tif <- function(fit, grid = seq(-6, 6, 0.05)) {
 #' @export
 plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
                           band = 2.5) {
+  .check_response_display_fit(fit, "item-fit plots")
   .check_band(band)
   statistic <- match.arg(statistic)
   d <- fit$items
@@ -1068,11 +1166,13 @@ plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
   ylab <- switch(statistic, residual = "Fit residual",
                  infit = "Infit (standardised)",
                  outfit = "Outfit (standardised)")
-  if (is.null(y) || all(is.na(y)))
-    .refuse("the fitted object does not carry the ", statistic, " statistic")
+  ok <- is.finite(y) & is.finite(d$location)
+  if (is.null(y) || !any(ok))
+    .refuse("the fitted object does not carry a finite ", statistic,
+            " statistic with a finite item location")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
-  ylim <- range(c(y, -band, band), na.rm = TRUE) * 1.2
-  op <- .rr_canvas(range(d$location) + c(-0.5, 0.5), ylim,
+  ylim <- range(c(y[ok], -band, band)) * 1.2
+  op <- .rr_canvas(range(d$location[ok]) + c(-0.5, 0.5), ylim,
                    if (structural) "Response-cell location (logits)" else
                      "Item location (logits)", ylab,
                    grid_x = TRUE)
@@ -1080,12 +1180,11 @@ plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
   rect(par("usr")[1], -band, par("usr")[2], band,
        col = paste0(.rr$teal, "11"), border = NA)
   abline(h = c(-band, band), lty = 2, col = .rr$soft)
-  ok <- !is.na(y)
   out <- ok & abs(y) > band
-  points(d$location, y, pch = 21, cex = 1.7,
-         bg = ifelse(out, .rr$red, .rr$blue), col = "white", lwd = 1.2)
-  text(d$location, y, d$item, pos = 3, offset = 0.5, cex = 0.7,
-       col = ifelse(out, .rr$red, .rr$soft))
+  points(d$location[ok], y[ok], pch = 21, cex = 1.7,
+         bg = ifelse(out[ok], .rr$red, .rr$blue), col = "white", lwd = 1.2)
+  text(d$location[ok], y[ok], d$item[ok], pos = 3, offset = 0.5, cex = 0.7,
+       col = ifelse(out[ok], .rr$red, .rr$soft))
   mtext(sprintf("%d of %d %s beyond +/-%.1f (%.1f%%)", sum(out), sum(ok),
                 if (structural) "response cells" else "items", band,
                 100 * sum(out) / sum(ok)),
@@ -1116,6 +1215,7 @@ plot_item_map <- function(fit, statistic = c("residual", "infit", "outfit"),
 #' @export
 plot_person_fit <- function(fit, statistic = c("residual", "infit", "outfit"),
                             band = 2.5) {
+  .check_response_display_fit(fit, "person-fit plots")
   .check_band(band)
   statistic <- match.arg(statistic)
   p <- fit$person
@@ -1124,9 +1224,10 @@ plot_person_fit <- function(fit, statistic = c("residual", "infit", "outfit"),
   ylab <- switch(statistic, residual = "Fit residual",
                  infit = "Infit (standardised)",
                  outfit = "Outfit (standardised)")
-  if (is.null(y) || all(is.na(y)))
-    .refuse("the fitted object does not carry the ", statistic, " statistic")
-  ok <- !is.na(p$theta) & !is.na(y)
+  ok <- is.finite(p$theta) & is.finite(y)
+  if (is.null(y) || !any(ok))
+    .refuse("the fitted object does not carry a finite ", statistic,
+            " statistic with a finite person location")
   ylim <- range(c(y[ok], -band - 0.5, band + 0.5))
   op <- .rr_canvas(range(p$theta[ok]) + c(-0.3, 0.3), ylim,
                    "Person location (logits)", ylab,
@@ -1177,7 +1278,9 @@ plot_resid_cor <- function(fit, stat = c("q3star", "q3"), cap = 0.5) {
   stat <- match.arg(stat)
   # the cap divides the colour-key coordinates, so it must be strictly
   # positive as well as finite
-  if (length(cap) != 1L || !is.numeric(cap) || !is.finite(cap) || cap <= 0)
+  if (length(cap) != 1L || !is.numeric(cap) || is.complex(cap) ||
+      !is.null(dim(cap)) || !is.null(oldClass(cap)) ||
+      !is.finite(cap) || cap <= 0)
     stop("`cap` must be one positive finite correlation")
   rc <- residual_correlations(fit)
   R <- rc$matrix; L <- ncol(R); avg <- rc$average
@@ -1244,7 +1347,10 @@ plot_pca <- function(fit, component = 1) {
          " returned)")
   ld <- pc$loadings_matrix[[cn]][match(fit$items$item, pc$loadings_matrix$item)]
   loc <- fit$items$location
-  op <- .rr_canvas(range(loc) + c(-0.5, 0.5), range(ld) * 1.25,
+  yr <- range(c(0, ld), finite = TRUE)
+  if (!all(is.finite(yr)) || diff(yr) <= 0) yr <- c(-0.5, 0.5)
+  else yr <- yr + c(-0.08, 0.08) * diff(yr)
+  op <- .rr_canvas(range(loc) + c(-0.5, 0.5), yr,
                    "Item location (logits)", paste0("PC", k, " loading"),
                    sprintf("PC%d: eigenvalue %.3f  (%.1f%% of residual variance)",
                            k, pc$eigen_table$eigenvalue[k],
@@ -1285,6 +1391,7 @@ plot_pca_biplot <- function(fit) {
   }
   x <- lm$PC1; y <- lm$PC2; items <- lm$item
   L <- max(abs(c(x, y)), na.rm = TRUE) * 1.2
+  if (!is.finite(L) || L <= 0) L <- 1
   pct <- 100 * pc$eigen_table$proportion
   # equal (asp = 1) axes, so distances between items are read faithfully
   op <- par(mar = c(4.2, 4.4, 1.6, 1.6), mgp = c(2.5, 0.7, 0), tcl = -0.25,
@@ -1368,15 +1475,16 @@ plot_catfreq <- function(fit, item) {
 #' colnames(X) <- paste0("I", 1:12)
 #' plot_pcc(rasch(X), person = 1)
 #' @export
-plot_pcc <- function(fit, person, n_groups = 5, grid = seq(-5, 5, 0.05)) {
+plot_pcc <- function(fit, person, n_groups = 5, grid = NULL) {
   n_groups <- .check_whole(n_groups, "n_groups", 2)
-  .check_grid(grid)
+  grid <- .model_grid(fit, grid, half_width = 5)
   n <- .person_row(fit, person)
   th <- fit$person$theta[n]
-  if (is.na(th)) stop("no estimate for this person")
-  x <- fit$X[n, ]; ok <- !is.na(x)
-  if (sum(ok) < 3) stop("fewer than 3 observed responses for this person")
+  if (!is.finite(th)) stop("no finite estimate for this person")
+  x <- fit$X[n, ]
   loc <- fit$items$location; mm <- fit$m
+  ok <- !is.na(x) & is.finite(loc) & is.finite(mm) & mm > 0
+  if (sum(ok) < 3) stop("fewer than 3 observed responses for this person")
   # the fitted per-cell expectations carry the thresholds, response cells,
   # and frame units of every model family; plogis(theta - location) is the
   # model only for a wholly dichotomous unit-discrimination fit
@@ -1451,6 +1559,7 @@ plot_pcc <- function(fit, person, n_groups = 5, grid = seq(-5, 5, 0.05)) {
 #' @export
 plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
                         cex_labels = 0.8) {
+  .check_response_display_fit(fit, "person diagnostic maps")
   .check_prob(level, "level")
   bins <- .check_whole(bins, "bins", 2)
   .check_xlim(xlim)
@@ -1552,6 +1661,7 @@ plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
 #' @export
 plot_resid_dist <- function(fit, what = c("items", "persons"),
                             statistic = c("fit_resid", "natural"), bins = 25) {
+  .check_response_display_fit(fit, "fit-residual plots")
   what <- match.arg(what); statistic <- match.arg(statistic)
   bins <- .check_whole(bins, "bins", 2)
   v <- if (what == "items") {
@@ -1559,7 +1669,7 @@ plot_resid_dist <- function(fit, what = c("items", "persons"),
   } else {
     if (statistic == "fit_resid") fit$person$fit_resid else fit$person$natural_resid
   }
-  v <- v[!is.na(v)]
+  v <- v[is.finite(v)]
   if (length(v) < 3) stop("fewer than 3 residuals to display")
   lab <- if (statistic == "fit_resid") "fit residual (log-transformed)"
          else "natural fit residual"

@@ -148,14 +148,18 @@
 #'   treating \code{object_a} as the first object in each comparison.
 #' @param anchors Optional named numeric vector of fixed object locations.
 #'   Anchored objects have standard error zero and must not be boundary objects.
+#'   The values are treated as fixed: uncertainty from an earlier calibration
+#'   is not included in the returned covariance or standard errors. Several
+#'   anchors impose their stated relative spacing as well as the scale origin.
 #' @param count Optional name of a column of replication counts (a row
 #'   standing for several identical comparisons). Counts greater than one
 #'   cannot be combined with \code{order}, because a compressed row does not
 #'   retain the sequence of the comparisons it represents.
 #' @param ties How to treat ties in the dichotomous analysis:
 #'   \code{"drop"} (default, removed with a note), \code{"half"} (half a
-#'   win each way, a common pragmatic device -- flagged in the notes
-#'   because the halves are not independent Bernoulli trials), or
+#'   win each way, a common pragmatic device; the two halves remain one
+#'   sampling unit in the sandwich because they are not independent
+#'   Bernoulli trials), or
 #'   \code{"error"}. With polytomous responses, code ties as a middle
 #'   category instead.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
@@ -168,6 +172,8 @@
 #'   \code{thresholds}, \code{m}, and \code{categories}. Fits using
 #'   \code{order} contain \code{dependence} and \code{dependence_data}; the
 #'   former reports raw \code{p} and Holm-adjusted \code{p_adj}.
+#'   A non-converged fit retains estimates and residual patterns for diagnosis
+#'   but withholds standard errors, separation indices and probabilities.
 #'   An undefeated or winless object is set aside from estimation, as an
 #'   extreme person is in a Rasch calibration, and reported in
 #'   \code{objects} with \code{extreme = TRUE} at an extrapolated location:
@@ -255,12 +261,12 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   if (length(repeated_roles))
     stop("comparison role columns must be distinct; repeated: ",
          paste(repeated_roles, collapse = ", "))
-  a <- trimws(as.character(data[[object_a]]))
-  b <- trimws(as.character(data[[object_b]]))
+  a <- .role_text_values(data[[object_a]])
+  b <- .role_text_values(data[[object_b]])
   if (any(!is.na(a) & !nzchar(a)) || any(!is.na(b) & !nzchar(b)))
     stop("blank object identifier(s) in ", object_a, "/", object_b,
          "; a whitespace-only name is not an object")
-  jd <- if (is.null(judge)) NULL else trimws(as.character(data[[judge]]))
+  jd <- if (is.null(judge)) NULL else .role_text_values(data[[judge]])
   if (!is.null(jd) && any(!is.na(jd) & !nzchar(jd)))
     stop("blank judge identifier(s) in ", judge,
          "; a whitespace-only name is not a judge")
@@ -295,10 +301,18 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   }
   notes <- character(0)
   if (!is.null(anchors)) {
-    if (!is.numeric(anchors) || !length(anchors) || is.null(names(anchors)) ||
-        any(!nzchar(names(anchors))))
+    if (!is.numeric(anchors) || is.complex(anchors) ||
+        !is.null(dim(anchors)) || !is.null(oldClass(anchors)) ||
+        !length(anchors) || is.null(names(anchors)) ||
+        anyNA(names(anchors)) || any(!nzchar(trimws(names(anchors)))))
       stop("`anchors` must be a non-empty named numeric vector ",
            "(names = object names)")
+    names(anchors) <- .role_text_values(names(anchors))
+    if (anyDuplicated(names(anchors)))
+      stop("duplicate anchor(s) after trimming for: ",
+           paste(unique(names(anchors)[duplicated(names(anchors))]),
+                 collapse = ", "),
+           "; each object may be anchored once")
     if (any(!is.finite(anchors)))
       stop("anchor value(s) must be finite: ",
            paste(names(anchors)[!is.finite(anchors)], collapse = ", "))
@@ -309,11 +323,6 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     if (length(bad_anch))
       stop("`anchors` name(s) do not match any object in the data: ",
            paste(bad_anch, collapse = ", "))
-    if (anyDuplicated(names(anchors)))
-      stop("duplicate anchor(s) for: ",
-           paste(unique(names(anchors)[duplicated(names(anchors))]),
-                 collapse = ", "),
-           "; each object may be anchored once")
   }
   # a constant, object_a-oriented covariate for the first-position advantage;
   # appended to the dependence design (alone, or beside exposure/carry-over)
@@ -393,12 +402,13 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     # would produce plausible-looking categories from a scale that is not a
     # margin
     if (!is.factor(mg)) {
-      if (!is.numeric(mg) || is.complex(mg) || !is.null(oldClass(mg)))
+      if (!is.numeric(mg) || is.complex(mg) || !is.null(dim(mg)) ||
+          !is.null(oldClass(mg)))
         stop("`margin` must be an ORDERED factor (levels smallest to ",
              "largest margin) or a plain numeric magnitude; a ",
              paste(class(mg), collapse = "/"), " column is not a margin")
     }
-    wn <- trimws(as.character(data[[winner]]))
+    wn <- .role_text_values(data[[winner]])
     is_a <- !is.na(wn) & wn == a
     is_b <- !is.na(wn) & wn == b
     tie <- !is.na(wn) & !is_a & !is_b & tolower(wn) %in% c("tie", "draw")
@@ -465,7 +475,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
                        object_design = .object_design))
   }
 
-  wn <- trimws(as.character(data[[winner]]))
+  wn <- .role_text_values(data[[winner]])
   keep <- !is.na(a) & !is.na(b) & !is.na(wn) & a != b & !is.na(w) & w > 0
   if (!is.null(jd)) keep <- keep & !is.na(jd)
   if (!is.null(ord)) keep <- keep & !is.na(ord)
@@ -496,6 +506,7 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     if (!is.null(ord)) ord <- ord[sel]
     if (!length(a)) stop("no usable comparisons")
   }
+  row_cluster <- row_replicates <- NULL
   if (anyNA(y)) {
     n_tie <- sum(is.na(y))
     if (ties == "error") stop(n_tie, " tie(s) present; set ties = 'drop' or 'half'")
@@ -509,9 +520,16 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
       notes <- c(notes, sprintf("%d tie(s) scored half a win each way (halves are not independent trials)",
                                 n_tie))
       t_i <- which(is.na(y))
+      # Keep the two half rows tied to their original comparison for the
+      # unclustered sandwich. Their scores are two parts of one pragmatic
+      # tie contribution, not two independent Bernoulli observations.
+      row_cluster <- seq_along(y)
+      row_replicates <- w
       a <- c(a, a[t_i]); b <- c(b, b[t_i])
       y[t_i] <- 1; y <- c(y, rep(0, length(t_i)))
       w[t_i] <- w[t_i] / 2; w <- c(w, w[t_i])
+      row_cluster <- c(row_cluster, row_cluster[t_i])
+      row_replicates <- c(row_replicates, row_replicates[t_i])
       if (!is.null(jd)) jd <- c(jd, jd[t_i])
     }
   }
@@ -525,7 +543,9 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
     Z <- add_pos(Z, length(a))
     return(.btl_graded(a, b, as.integer(y), jd, w, c("0", "1"), maxit, tol,
                        notes, thr = "free", Z = Z, ord = ord,
-                       anchors = anchors, object_design = .object_design))
+                       anchors = anchors, object_design = .object_design,
+                       row_cluster = row_cluster,
+                       row_replicates = row_replicates))
   }
 
   # the two-category polytomous engine IS the dichotomous conditional model
@@ -534,7 +554,9 @@ btl <- function(data, object_a, object_b, winner = NULL, response = NULL,
   # proportions inside .btl_graded
   .btl_graded(a, b, as.integer(y), jd, w, c("0", "1"), maxit, tol,
               notes, thr = "free", anchors = anchors,
-              object_design = .object_design)
+              object_design = .object_design,
+              row_cluster = row_cluster %||% NULL,
+              row_replicates = row_replicates %||% NULL)
 }
 
 #' @export
@@ -619,6 +641,7 @@ print.rasch_btl <- function(x, ...) {
 #' plot_btl(btl(d, "a", "b", "win"))
 #' @export
 plot_btl <- function(fit, band = 2.5) {
+  .check_btl_display_fit(fit)
   .check_band(band)
   d <- fit$objects[order(fit$objects$location), ]
   k <- nrow(d)
@@ -644,6 +667,18 @@ plot_btl <- function(fit, band = 2.5) {
   invisible(NULL)
 }
 
+# A failed optimiser can leave a complete-looking final iterate in the fit.
+# It is useful for diagnosis but is not a calibrated scale and must not reach
+# a public plot as though it were an estimate.
+.check_btl_display_fit <- function(fit) {
+  if (!inherits(fit, "rasch_btl"))
+    stop("not a paired-comparison (btl) fit", call. = FALSE)
+  if (!isTRUE(fit$converged))
+    stop("the paired-comparison calibration did not converge; fitted displays are unavailable",
+         call. = FALSE)
+  invisible(fit)
+}
+
 # ---------------------------------------------------------------------------
 # Polytomous paired comparisons: the adjacent-categories (Rasch-type) ordinal
 # extension of BTL (Tutz 1986; Agresti 1992). The response is one of m+1
@@ -658,9 +693,17 @@ plot_btl <- function(fit, band = 2.5) {
 # ---------------------------------------------------------------------------
 .btl_graded <- function(a, b, x, jd, w, cats, maxit, tol, notes,
                         thr = "free", Z = NULL, ord = NULL, anchors = NULL,
-                        object_design = NULL) {
+                        object_design = NULL, row_cluster = NULL,
+                        row_replicates = NULL) {
   m <- length(cats) - 1L
   if (m < 1L) stop("polytomous responses need at least two categories")
+  if (is.null(row_cluster)) row_cluster <- seq_along(a)
+  if (is.null(row_replicates)) row_replicates <- w
+  if (length(row_cluster) != length(a) ||
+      length(row_replicates) != length(a) ||
+      any(!is.finite(row_replicates)) || any(row_replicates <= 0))
+    stop("internal independent-comparison bookkeeping is inconsistent",
+         call. = FALSE)
   # identifiability: empty EXTREME categories leave no finite spread (the
   # data are evidence of infinite spread, as a zero raw score is of an
   # infinite person location); empty interior categories are unidentified
@@ -718,6 +761,8 @@ plot_btl <- function(fit, band = 2.5) {
     removed_ext <- c(removed_ext, ext)
     sel <- !(a %in% ext) & !(b %in% ext)
     a <- a[sel]; b <- b[sel]; x <- x[sel]; w <- w[sel]
+    row_cluster <- row_cluster[sel]
+    row_replicates <- row_replicates[sel]
     if (!is.null(jd)) jd <- jd[sel]
     if (!is.null(ord)) ord <- ord[sel]
     if (!is.null(Z)) Z <- Z[sel, , drop = FALSE]
@@ -844,8 +889,13 @@ plot_btl <- function(fit, band = 2.5) {
     Bmat <- rbind(diag(K - 1L), rep(-1, K - 1L))
     beta0 <- numeric(K)
   } else {
-    anch <- anchors[names(anchors) %in% objs]
-    if (!length(anch)) stop("no `anchors` name matches a comparable object")
+    unavailable_anchors <- setdiff(names(anchors), objs)
+    if (length(unavailable_anchors))
+      stop("anchored object(s) have no usable comparisons after data ",
+           "preparation: ", paste(unavailable_anchors, collapse = ", "),
+           "; remove them from `anchors` or supply informative comparisons",
+           call. = FALSE)
+    anch <- anchors
     apos <- match(names(anch), objs)
     free <- setdiff(seq_len(K), apos)
     if (!length(free)) stop("every object is anchored; nothing to estimate")
@@ -1023,7 +1073,7 @@ plot_btl <- function(fit, band = 2.5) {
 
   # Godambe sandwich over the full parameter, clustered by judge (each
   # cluster's score contributions accumulated by rowsum, not per-row loops)
-  cl <- if (is.null(jd)) as.character(seq_along(ia)) else jd
+  cl <- if (is.null(jd)) as.character(row_cluster) else jd
   ucl <- unique(cl)
   nc <- length(ucl); cidx <- match(cl, ucl)
   # the clustered sandwich estimates the meat from between-judge variation:
@@ -1038,20 +1088,23 @@ plot_btl <- function(fit, band = 2.5) {
   Gm <- matrix(0, nc, np, dimnames = list(ucl, NULL))
   # beta block: per-cluster sums of resE into the winner / loser slots,
   # laid out cluster-major so one rowsum fills the (cluster x object) grid
-  gA <- drop(acc(resE, (cidx - 1L) * K + ia, nc * K))
-  gB <- drop(acc(resE, (cidx - 1L) * K + ib, nc * K))
+  # Without judge clusters, a count-weighted row represents that many
+  # independent repeats. Divide its aggregate score by sqrt(count) before
+  # forming the meat. For a half-scored tie, both expanded rows share the
+  # original comparison cluster and original count, so their scaled scores
+  # are summed before squaring.
+  meat_scale <- if (is.null(jd)) 1 / sqrt(row_replicates) else
+    rep(1, length(resE))
+  resE_meat <- resE * meat_scale
+  gA <- drop(acc(resE_meat, (cidx - 1L) * K + ia, nc * K))
+  gB <- drop(acc(resE_meat, (cidx - 1L) * K + ib, nc * K))
   Gm[, 1:nb] <- t(matrix(gA - gB, nrow = K)) %*% Bmat
   if (q) {
-    st_tau <- (w * (mo$S - cumInd)) %*% Cmat
+    st_tau <- (w * meat_scale * (mo$S - cumInd)) %*% Cmat
     Gm[, (nb + 1L):(nb + q)] <- acc(st_tau, cidx, nc)
   }
-  if (pz) Gm[, (nb + q + 1L):np] <- acc(Z * resE, cidx, nc)
-  # count-weighted rows with NO judge stand for w INDEPENDENT comparisons,
-  # each its own cluster: the meat must accumulate w * (x - E)^2 per row,
-  # not (w * (x - E))^2 -- the per-row scores carry w, so divide by sqrt(w)
-  # (with a judge the w replicates share the judge's cluster, where the
-  # summed score w * (x - E) is exactly right and nothing is rescaled)
-  if (is.null(jd)) Gm <- Gm / sqrt(w)
+  if (pz) Gm[, (nb + q + 1L):np] <-
+    acc(Z * resE_meat, cidx, nc)
   H <- gh$H
   # Identification of the free-parameter information. Two failure modes:
   #  (i) genuine singularity (duplicate/degenerate objects, an exactly
@@ -1203,10 +1256,28 @@ plot_btl <- function(fit, band = 2.5) {
   }
   if (any(sep_run)) {
     converged <- FALSE
-    se[sep_run] <- NA_real_
+    # The weak direction belongs to the joint location/threshold/dependence
+    # solution. Once that solution is rejected, none of its sandwich
+    # uncertainty is inferentially usable: retaining the unaffected-looking
+    # marginal SEs, or the composite effective parameter count, presents the
+    # covariance of a fit we have just declared invalid.
+    cluster_inference <- FALSE
+    cl_info$eff_params <- NA_real_
+    cl_info$inference_available <- FALSE
+    se[] <- NA_real_
+    if (length(anch_idx)) se[anch_idx] <- 0
     notes <- c(notes, sprintf(
       "object(s) %s have run to the location boundary and the design does not identify them (a cluster linked to the rest by too few informative comparisons -- e.g. cross-divide comparisons all at an extreme category); their standard errors are withheld and the fit is marked not converged. Add comparisons that place them, or anchor them",
       paste(objs[sep_run], collapse = ", ")))
+  }
+  if (!isTRUE(converged) && isTRUE(cluster_inference)) {
+    # A solver that stops short of convergence has not supplied an estimated
+    # covariance, even when its last Hessian happens to be invertible.
+    cluster_inference <- FALSE
+    cl_info$eff_params <- NA_real_
+    cl_info$inference_available <- FALSE
+    se[] <- NA_real_
+    if (length(anch_idx)) se[anch_idx] <- 0
   }
   dependence <- NULL
   if (pz) {
@@ -1217,10 +1288,11 @@ plot_btl <- function(fit, band = 2.5) {
     # freedom (the standard few-cluster correction) rather than normal
     # theory, so five judges give honestly wide p-values
     t_df <- if (!is.null(jd)) max(nc - 1L, 1L) else Inf
+    dep_stat <- .wald_ratio(dep, dse)
     dependence <- data.frame(
       effect = colnames(Z), estimate = dep, se = dse,
-      t = dep / dse, df = t_df,
-      p = 2 * pt(-abs(dep / dse), df = t_df),
+      t = dep_stat, df = t_df,
+      p = 2 * pt(-abs(dep_stat), df = t_df),
       # count-weighted: the number of comparisons (not rows) that carry
       # information about each effect
       n_informative = vapply(seq_len(ncol(Z)), function(j)
@@ -1371,7 +1443,7 @@ plot_btl <- function(fit, band = 2.5) {
     bhat <- drop(solve(crossprod(Bmat), crossprod(Bmat, beta - beta0)))
     bse <- sqrt(pmax(diag(covth)[seq_len(nb)], 0))
     if (!cluster_inference) bse[] <- NA_real_
-    stat <- bhat / bse
+    stat <- .wald_ratio(bhat, bse)
     ref_df <- if (!is.null(jd)) max(nc - 1L, 1L) else Inf
     prob <- 2 * stats::pt(-abs(stat), df = ref_df)
     object_coefficients <- data.frame(
@@ -1458,7 +1530,8 @@ plot_btl <- function(fit, band = 2.5) {
               pairs = pairs,
               judges = judges, m = m, categories = cats,
               total_chisq = total_chisq, total_df = total_df,
-              total_p = pchisq(total_chisq, total_df, lower.tail = FALSE),
+              total_p = if (isTRUE(converged) && is.finite(total_df))
+                pchisq(total_chisq, total_df, lower.tail = FALSE) else NA_real_,
               osi = osi, loglik = loglik, iterations = it,
               converged = converged, n_comparisons = n_rows,
               clustered = !is.null(jd), cov_beta = cov_beta, cl = cl_info,
@@ -1466,7 +1539,10 @@ plot_btl <- function(fit, band = 2.5) {
               object_design = if (is.null(object_design)) NULL else Bmat,
               object_offset = if (is.null(object_design)) NULL else beta0,
               object_coefficients = object_coefficients,
-              sensitivity = H, cov_parameters = covth,
+              sensitivity = H,
+              cov_parameters = if (isTRUE(converged)) covth else {
+                z <- covth; z[,] <- NA_real_; z
+              },
               fitted_prob = mo$P,
               refit_spec = list(
                 thresholds = thr, anchors = anch,
@@ -1486,6 +1562,17 @@ plot_btl <- function(fit, band = 2.5) {
                   for (cn in colnames(Zfull)) cmp[[cn]] <- Zfull[, cn]
                 cmp
               },
+              # Row-aligned bookkeeping for the independent comparison
+              # units.  Ordinarily each stored row is one unit repeated
+              # `weight` times.  A half-scored tie instead has two stored
+              # rows in the same unit; retaining that allocation lets model
+              # comparison distinguish one tie from two independent,
+              # opposing judgements while recognising count compression as
+              # a change of representation only.
+              independent_allocation = if (is.null(jd)) data.frame(
+                unit = as.character(row_cluster),
+                replicates = as.numeric(row_replicates),
+                stringsAsFactors = FALSE) else NULL,
               anchors = anch,
               notes = notes)
   out <- .tag_tables(out)
@@ -1515,6 +1602,7 @@ plot_btl <- function(fit, band = 2.5) {
 #' plot_btl_categories(btl(d, "a", "b", response = "grade"))
 #' @export
 plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
+  .check_btl_display_fit(fit)
   .check_grid(grid)
   if (is.null(fit$m) || fit$m < 2L)
     stop("category curves need a polytomous fit (three or more categories)")
@@ -1565,8 +1653,12 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 #' @export
 plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
                          min_n = 10) {
-  if (missing(object) || length(object) != 1L || is.na(object))
+  .check_btl_display_fit(fit)
+  if (missing(object) || length(object) != 1L || is.na(object) ||
+      !is.atomic(object) || !is.null(dim(object)))
     stop("`object` must name exactly one object")
+  object <- .role_text_values(object)
+  if (!nzchar(object)) stop("`object` must name exactly one object")
   if (!is.null(grid)) .check_grid(grid)
   min_n <- .check_whole(min_n, "min_n", 1)
   if (inherits(fit, "rasch_btl_efrm")) {
@@ -1576,13 +1668,14 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
            "equal-unit fit for judge-group DIF")
     return(.plot_btl_efrm_icc(fit, object, grid = grid, min_n = min_n))
   }
-  ob <- fit$objects
-  if (length(object) != 1L) stop("`object` must name exactly one object")
-  if (!object %in% ob$object) stop("no such object: ", object)
-  if (isTRUE(ob$extreme[ob$object == object]))
+  ob_all <- fit$objects
+  if (!object %in% ob_all$object) stop("no such object: ", object)
+  if (isTRUE(ob_all$extreme[ob_all$object == object]))
     .refuse(object, " was set aside at a response boundary; it has no ",
             "fitted curve. Its reported location is an extrapolation ",
             "for display only")
+  ob <- if ("extreme" %in% names(ob_all))
+    ob_all[!(ob_all$extreme %in% TRUE), , drop = FALSE] else ob_all
   m <- if (is.null(fit$m)) 1L else fit$m
   tau <- if (!is.null(fit$thresholds)) fit$thresholds$tau else numeric(1)
   b_o <- ob$location[ob$object == object]
@@ -1597,8 +1690,9 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     gv <- if (!is.null(names(group))) {
       if (anyNA(names(group)) || any(!nzchar(trimws(names(group)))))
         stop("the group map must use non-missing judge names")
+      names(group) <- .role_text_values(names(group))
       if (anyDuplicated(names(group)))
-        stop("duplicate judge(s) in the group map: ",
+        stop("duplicate judge(s) in the group map after trimming: ",
              paste(unique(names(group)[duplicated(names(group))]),
                    collapse = ", "),
              "; each judge may carry one value")
@@ -1609,11 +1703,11 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
              paste(utils::head(absent, 5L), collapse = ", "))
       # a map built from the source data legitimately names judges the fit
       # set aside; they take no part in the curve, so they are ignored
-      unname(as.character(group)[match(cm$judge, names(group))])
+      unname(.role_text_values(group)[match(cm$judge, names(group))])
     } else {
       if (length(group) != nrow(cm))
         stop("`group` must have one entry per comparison or be named by judge")
-      as.character(group)
+      .role_text_values(group)
     }
   }
   sel_a <- cm$object_a == object
@@ -1725,6 +1819,7 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
 #' @export
 plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
                                 bins = 6) {
+  .check_btl_display_fit(fit)
   if (missing(effect)) effect <- "exposure"
   if (!is.character(effect) || length(effect) != 1L || is.na(effect))
     stop("`effect` must be one of \"exposure\" or \"carry_over\"")
@@ -1875,7 +1970,9 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #' apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
 #' An externally anchored object is not resolved: fixing each of its copies at
 #' the same anchor would define their difference as zero. Anchors on the other
-#' objects are retained in the joint refit.
+#' objects are retained in the joint refit. If a resolved-location covariance
+#' is unavailable or not positive semidefinite, the locations and differences
+#' remain descriptive but their uncertainty and tests are withheld.
 #'
 #' @param fit An ordinary paired-comparison fit from \code{\link{btl}}.
 #' @param factors One judge factor, or a named list containing several. Each
@@ -1907,8 +2004,10 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
 #'   support for both sides, SE, t, degrees of
 #'   freedom, adjusted p, significance and practical flags); \code{effects},
 #'   \code{factors}, \code{alpha}, \code{p_adjust}, \code{flag_logits}, and
-#'   \code{notes}. \code{summary_factors} retains the factor membership of
-#'   each displayed term.
+#'   \code{notes}. \code{size_family_n} records the complete planned
+#'   resolved-contrast family, including unavailable comparisons.
+#'   \code{summary_factors} retains the factor membership of each displayed
+#'   term.
 #' @references Andrich, D., & Hagquist, C. (2012). Real and artificial
 #'   differential item functioning. \emph{Journal of Educational and
 #'   Behavioral Statistics}, 37(3), 387-416.
@@ -1971,8 +2070,10 @@ btl_dif <- function(fit, factors, objects = NULL,
   if (!is.list(factors)) factors <- list(group = factors)
   if (!length(factors))
     stop("`factors` must name at least one judge factor")
-  if (is.null(names(factors)) || any(!nzchar(names(factors))))
+  if (is.null(names(factors)))
     names(factors) <- paste0("factor", seq_along(factors))
+  else if (anyNA(names(factors)) || any(!nzchar(trimws(names(factors)))))
+    stop("every judge factor needs a non-empty name")
   if (anyDuplicated(names(factors)))
     stop("duplicate factor name(s): ",
          paste(unique(names(factors)[duplicated(names(factors))]),
@@ -1980,11 +2081,15 @@ btl_dif <- function(fit, factors, objects = NULL,
   fnames <- names(factors)
   unfitted <- character(0)
   gvs <- lapply(factors, function(g) {
+    if (!is.atomic(g) || !length(g) || !is.null(dim(g)))
+      stop("each judge factor must be a plain vector, optionally named by judge",
+           call. = FALSE)
     if (!is.null(names(g))) {
       if (anyNA(names(g)) || any(!nzchar(trimws(names(g)))))
         stop("named judge factors must use non-missing judge names")
+      names(g) <- .role_text_values(names(g))
       if (anyDuplicated(names(g)))
-        stop("duplicate judge(s) in a named factor: ",
+        stop("duplicate judge(s) in a named factor after trimming: ",
              paste(unique(names(g)[duplicated(names(g))]), collapse = ", "),
              "; each judge may carry one value")
       observed <- unique(cm$judge[!is.na(cm$judge)])
@@ -1999,12 +2104,16 @@ btl_dif <- function(fit, factors, objects = NULL,
       # and they take no part in the analysis, so they are ignored and
       # reported rather than refused
       if (length(extra)) unfitted <<- union(unfitted, extra)
-      unname(as.character(g)[match(cm$judge, names(g))])
+      unname(.role_text_values(g)[match(cm$judge, names(g))])
     } else {
       if (length(g) != nrow(cm))
         stop("each factor needs one value per comparison or names by judge")
-      as.character(g)
+      .role_text_values(g)
     }
+  })
+  gvs <- lapply(gvs, function(g) {
+    g[!is.na(g) & !nzchar(g)] <- NA_character_
+    g
   })
   # judge-group DIF tests judge ATTRIBUTES: a row-wise factor that varies
   # within a judge has no judge-level value, and the judge-level analysis
@@ -2037,7 +2146,17 @@ btl_dif <- function(fit, factors, objects = NULL,
   cats <- if (!is.null(fit$categories)) fit$categories else c("0", "1")
   thr <- if (!is.null(fit$thr_structure)) fit$thr_structure else "free"
   tau <- if (!is.null(fit$thresholds)) fit$thresholds$tau else numeric(1)
-  its <- if (is.null(objects)) fit$objects$object else {
+  excluded_extreme <- if (is.null(fit$objects$extreme)) character(0) else
+    as.character(fit$objects$object[fit$objects$extreme %in% TRUE])
+  calibrated_objects <- setdiff(as.character(fit$objects$object),
+                                excluded_extreme)
+  its <- if (is.null(objects)) calibrated_objects else {
+    if (!is.atomic(objects) || !is.null(dim(objects)) || !length(objects) ||
+        anyNA(objects))
+      stop("`objects` must contain one or more non-missing object names")
+    objects <- .role_text_values(objects)
+    if (any(!nzchar(objects)))
+      stop("`objects` must contain one or more non-missing object names")
     unknown <- setdiff(objects, fit$objects$object)
     if (length(unknown))
       stop("object(s) not in the fit: ", paste(unknown, collapse = ", "))
@@ -2046,6 +2165,10 @@ btl_dif <- function(fit, factors, objects = NULL,
            paste(unique(objects[duplicated(objects)]), collapse = ", "),
            "; a repeated object would repeat its tests in the ",
            "multiplicity family")
+    boundary <- intersect(objects, excluded_extreme)
+    if (length(boundary))
+      .refuse("object(s) set aside at a response boundary have no fitted DIF ",
+              "model: ", paste(boundary, collapse = ", "))
     objects
   }
   bl <- setNames(fit$objects$location, fit$objects$object)
@@ -2072,6 +2195,11 @@ btl_dif <- function(fit, factors, objects = NULL,
 
   # per object: the residual ANOVA z ~ (f1 [+/*] fk) * band, one row per term
   notes <- character(0); term_rows <- list(); caution_count <- 0L
+  if (length(excluded_extreme))
+    notes <- c(notes, paste0(
+      "object(s) set aside at a response boundary were excluded because ",
+      "their displayed locations are extrapolations, not fitted DIF ",
+      "parameters: ", paste(excluded_extreme, collapse = ", ")))
   if (length(unfitted))
     notes <- c(notes, paste0(
       "judge(s) named in a factor but not in the fitted comparisons, and ",
@@ -2309,7 +2437,7 @@ btl_dif <- function(fit, factors, objects = NULL,
   full_map <- unique(data.frame(cell = as.character(full_cell), full_factors,
                                 check.names = FALSE))
   full_map <- full_map[match(levels(full_cell), full_map$cell), , drop = FALSE]
-  lev_rows <- list(); sz_rows <- list()
+  lev_rows <- list(); sz_rows <- list(); size_family_n <- 0L
   flagged <- if (is.null(summary_tab)) integer(0) else
     which(summary_tab$uniform_DIF & !summary_tab$superseded)
   for (r in flagged) {
@@ -2331,6 +2459,20 @@ btl_dif <- function(fit, factors, objects = NULL,
       notes <- c(notes, sprintf(
         "%s [%s]: cell(s) dropped with fewer than %d comparisons: %s",
         ob, ttd, min_n, paste(setdiff(names(lev_n), use_lev), collapse = ", ")))
+    # Declare this term's contrast family before attempting its resolution.
+    # An anchor, name collision or failed refit makes the corresponding
+    # probabilities unavailable; it does not remove those planned questions
+    # from the pooled multiplicity family promised by the public interface.
+    map_use <- full_map[match(use_lev, full_map$cell), , drop = FALSE]
+    fam <- tryCatch(.dif_posthoc_family(full_factors, map_use, target,
+                                        within = character(0)),
+                    error = function(e) e)
+    if (inherits(fam, "error")) {
+      notes <- c(notes, sprintf("%s [%s]: %s", ob, ttd,
+                                conditionMessage(fam)))
+      next
+    }
+    size_family_n <- size_family_n + length(fam$family)
     if (!is.null(fit$anchors) && ob %in% names(fit$anchors)) {
       notes <- c(notes, sprintf(
         "%s [%s]: the object is externally anchored and cannot be resolved; fixing every copy at the anchor would define its DIF as zero",
@@ -2372,7 +2514,12 @@ btl_dif <- function(fit, factors, objects = NULL,
       next
     }
     loc <- rf$objects$location[idx]
-    vv <- rf$cov_beta[copies, copies, drop = FALSE]
+    vv <- tryCatch(rf$cov_beta[copies, copies, drop = FALSE],
+                   error = function(e)
+                     matrix(NA_real_, length(copies), length(copies)))
+    vv_ok <- identical(dim(vv), c(length(copies), length(copies))) &&
+      all(is.finite(vv)) && .covariance_is_symmetric(vv) &&
+      .covariance_is_psd(vv)
     # A resolved cell is a judge-level group estimate. The base fit's global
     # cluster guard is not enough when a many-level factor leaves only a few
     # judges in each cell: simulations with four to six judges per level gave
@@ -2396,6 +2543,12 @@ btl_dif <- function(fit, factors, objects = NULL,
         "%s [%s]: the resolved calibration does not support cluster-robust inference; locations are descriptive",
         ob, ttd))
     }
+    if (!vv_ok) {
+      lev_ok[] <- FALSE
+      notes <- c(notes, sprintf(
+        "%s [%s]: the resolved-location covariance is unavailable or not positive semidefinite; locations and differences are descriptive",
+        ob, ttd))
+    }
     if (any(!lev_ok))
       notes <- c(notes, sprintf(
         "%s [%s]: pairwise inference is withheld for level(s) below eight effective judges: %s; resolved locations and differences remain descriptive",
@@ -2406,21 +2559,13 @@ btl_dif <- function(fit, factors, objects = NULL,
       notes <- c(notes, sprintf(
         "%s [%s]: level(s) %s have 8.0--9.4 effective judges; interpret pairwise inference cautiously",
         ob, ttd, paste(use_lev[caution], collapse = ", ")))
-    lev_se <- sqrt(pmax(diag(vv), 0))
+    lev_se <- if (vv_ok) sqrt(pmax(diag(vv), 0)) else
+      rep(NA_real_, length(use_lev))
     lev_se[!lev_ok] <- NA_real_
     lev_rows[[length(lev_rows) + 1L]] <- data.frame(
       object = ob, term = tt, level = use_lev, location = loc,
       se = lev_se, n = as.numeric(lev_n[use_lev]),
       n_judges = unname(lev_j), effective_judges = unname(lev_eff))
-    map_use <- full_map[match(use_lev, full_map$cell), , drop = FALSE]
-    fam <- tryCatch(.dif_posthoc_family(full_factors, map_use, target,
-                                        within = character(0)),
-                    error = function(e) e)
-    if (inherits(fam, "error")) {
-      notes <- c(notes, sprintf("%s [%s]: %s", ob, ttd,
-                                conditionMessage(fam)))
-      next
-    }
     for (nm in names(fam$family)) {
       w <- fam$family[[nm]][use_lev]
       w[is.na(w)] <- 0
@@ -2428,7 +2573,7 @@ btl_dif <- function(fit, factors, objects = NULL,
       if (!length(pos) || !length(neg)) next
       contrast_ok <- all(lev_ok[used])
       contrast_se <- if (contrast_ok)
-        sqrt(max(drop(t(w) %*% vv %*% w), 1e-12)) else NA_real_
+        sqrt(max(drop(t(w) %*% vv %*% w), 0)) else NA_real_
       # The established two-cell comparison uses its validated Welch
       # reference. There is no corresponding Welch formula based only on
       # cell effective counts for a contrast spanning three or more fitted
@@ -2467,9 +2612,10 @@ btl_dif <- function(fit, factors, objects = NULL,
   levels_df <- if (length(lev_rows)) do.call(rbind, lev_rows) else NULL
   sizes <- if (length(sz_rows)) do.call(rbind, sz_rows) else NULL
   if (!is.null(sizes)) {
-    sizes$t <- sizes$difference / sizes$se
+    sizes$t <- .wald_ratio(sizes$difference, sizes$se)
     sizes$p <- 2 * stats::pt(-abs(sizes$t), df = sizes$df)
-    sizes$p_adj <- .p_adjust_family(sizes$p, method = p_adjust)
+    sizes$p_adj <- .p_adjust_family(sizes$p, method = p_adjust,
+                                    n = size_family_n)
     sizes$significant <- ifelse(is.finite(sizes$p_adj),
                                 sizes$p_adj < alpha, NA)
     sizes$practical <- abs(sizes$difference) >= flag_logits
@@ -2488,6 +2634,7 @@ btl_dif <- function(fit, factors, objects = NULL,
               sizes = sizes, summary_factors = summary_factors,
               term_ids = term_ids,
               summary_term_ids = summary_term_ids,
+              size_family_n = size_family_n,
               effects = effects, factors = fnames,
               alpha = alpha, p_adjust = p_adjust, flag_logits = flag_logits,
               notes = unique(notes),
@@ -2514,8 +2661,9 @@ print.rasch_btl_dif <- function(x, ...) {
                               "p_nonuniform_adj", "nonuniform_DIF")]),
         row.names = FALSE)
   if (!is.null(x$sizes)) {
-    cat(sprintf("\nResolved locations (logits; %s over %d comparison(s); practical %.2f)\n",
-                x$p_adjust, nrow(x$sizes), x$flag_logits))
+    cat(sprintf("\nResolved locations (logits; %s over %d planned comparison(s); practical %.2f)\n",
+                x$p_adjust, x$size_family_n %||% nrow(x$sizes),
+                x$flag_logits))
     cols <- c("object", "term", "level_a", "level_b", "difference",
               "n_judges_a", "n_judges_b", "effective_judges_a",
               "effective_judges_b", "se", "t", "df", "p_adj",

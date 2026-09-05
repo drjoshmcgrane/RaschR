@@ -38,6 +38,30 @@ test_that("the auto family follows the factor structure and finds planted DIF", 
   expect_equal(t$statistic, t$estimate / t$se, tolerance = 1e-10)
 })
 
+test_that("planned DIF contrasts withhold Wald inference from invalid covariance", {
+  set.seed(142)
+  n <- 500
+  X <- matrix(rbinom(n * 6, 1, .5), n, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  grp <- factor(rep(c("a", "b"), each = n / 2))
+  fit <- rasch(data.frame(X, grp = grp), factors = "grp")
+  bad_refit <- split_items(fit, "I2", by = fit$factors$grp)
+  split_rows <- grep("^I2 \\(", bad_refit$items$item)
+  split_ids <- bad_refit$thresholds$id[
+    bad_refit$thresholds$item %in% split_rows]
+  bad_refit$est$cov_tau[split_ids[1], split_ids[1]] <- -1e6
+
+  guarded <- testthat::with_mocked_bindings(
+    dif_contrasts(fit, items = "I2"),
+    .rasch_refit = function(...) bad_refit,
+    .package = "rasch")
+  expect_true(all(is.finite(guarded$table$estimate)))
+  expect_true(all(is.na(guarded$table$se)))
+  expect_true(all(is.na(guarded$table$p)))
+  expect_false(any(guarded$table$significant))
+  expect_true(any(grepl("not positive semidefinite", guarded$notes)))
+})
+
 test_that("stacked designs use person-level scores and detect drift over time", {
   skip_on_cran()
   set.seed(9); n <- 400
@@ -72,13 +96,12 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   expect_false(t$significant[t$item == "I4" & t$contrast == "gender: m - f"])
   expect_false(t$significant[t$item == "I4" &
                              t$contrast == "time(2 - 1) x gender(m - f)"])
-  # The resolved point size remains available, but its row-independent
-  # calibration covariance is not a repeated-person sampling covariance.
+  # The resolved magnitude uses the person-clustered calibration covariance.
   ds <- dif_size(fit, "I4", by = "time")
   expect_true(any(abs(ds$pairs$difference) > 0.3))
-  expect_true(all(is.na(ds$levels$se)))
-  expect_true(all(is.na(ds$pairs$se)) && all(is.na(ds$pairs$significant)))
-  expect_match(paste(ds$notes, collapse = " "), "sampling SEs")
+  expect_true(all(is.finite(ds$levels$se)))
+  expect_true(all(is.finite(ds$pairs$se)))
+  expect_type(ds$pairs$significant, "logical")
   # the fitted identifier is used automatically when it is not repeated in
   # the call
   auto <- dif_contrasts(fit, items = "I4", within = "time")
@@ -172,6 +195,11 @@ test_that("custom cell-weight contrasts are accepted and normalised", {
   expect_error(dif_contrasts(fit, items = "I2",
                              contrasts = list(bad = c(x = 1, y = -1))),
                "design cells")
+  shaped <- matrix(c(-1, -1, 2), 1L)
+  names(shaped) <- c("a", "b", "c")
+  expect_error(dif_contrasts(fit, items = "I2",
+                             contrasts = list(bad = shaped)),
+               "plain vector")
 })
 
 test_that("DIF post-hocs give marginal pairs and pure interaction magnitudes", {

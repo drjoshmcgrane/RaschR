@@ -4,6 +4,40 @@
 # chi-square degrees of freedom, covariance-correct equating drift tests,
 # the few-judges clustering guard, and the judge-level DIF ANOVA.
 
+test_that("repeated response rows use a person-clustered calibration sandwich", {
+  set.seed(3401)
+  N <- 320L; L <- 6L
+  X <- matrix(rbinom(N * L, 1,
+    plogis(outer(rnorm(N), seq(-1.2, 1.2, length.out = L), "-"))),
+    N, L, dimnames = list(NULL, paste0("I", seq_len(L))))
+
+  once <- rasch(X, id = sprintf("P%03d", seq_len(N)))
+  twice <- rasch(rbind(X, X),
+                 id = rep(sprintf("P%03d", seq_len(N)), 2L))
+  independent <- rasch(rbind(X, X), id = sprintf("R%03d", seq_len(2L * N)))
+
+  expect_equal(twice$thresholds$tau, once$thresholds$tau,
+               tolerance = 1e-8)
+  expect_equal(twice$est$cov_tau, once$est$cov_tau, tolerance = 1e-7)
+  expect_equal(independent$est$cov_tau, once$est$cov_tau / 2,
+               tolerance = 1e-7)
+  expect_match(paste(twice$notes, collapse = " "), "clustered")
+  expect_true(isTRUE(twice$repeated_ids))
+  expect_true(all(is.na(twice$items$p)))
+  expect_true(all(is.na(twice$items$p_adj)))
+  expect_true(all(is.na(twice$items$p_anova)))
+  expect_true(all(is.na(twice$item_trait$p)))
+  expect_true(all(is.na(twice$item_anova$p)))
+  expect_true(is.na(twice$total_chisq_p))
+  expect_true(any(is.finite(twice$items$chisq)))
+  expect_match(paste(twice$notes, collapse = " "), "probabilities withheld")
+  expect_false(isTRUE(once$repeated_ids))
+  expect_false(isTRUE(independent$repeated_ids))
+  expect_true(any(is.finite(independent$items$p_adj)))
+  expect_error(fit_bootstrap(twice, B = 5, workers = 1, seed = 1),
+               "assumes independent response rows")
+})
+
 test_that("mixed-max-score item location SEs are calibrated (cov transform)", {
   skip_on_cran()   # 60 replicate fits
   set.seed(9)
@@ -906,7 +940,12 @@ test_that("btl marks subset separation as non-convergence, not a boundary fit", 
                  data.frame(a = "B", b = "D", resp = 3))
   fit <- btl(rbind(within1, within2, cross), "a", "b", response = "resp")
   expect_false(fit$converged)
-  expect_true(any(is.na(fit$objects$se)))
+  expect_false(fit$cl$inference_available)
+  expect_true(is.na(fit$cl$eff_params))
+  expect_true(all(is.na(fit$objects$se)))
+  expect_true(all(is.na(fit$thresholds$se)))
+  expect_true(all(is.na(fit$components$se)))
+  expect_true(is.na(fit$total_p))
   expect_true(any(grepl("run to the location boundary", fit$notes)))
   # equating refuses a non-converged calibration
   fit2 <- fit
@@ -1139,6 +1178,7 @@ test_that("test_information splits EFRM groups by administration pattern", {
 
 test_that("MFRM information combines facets administered to the same person", {
   fit <- structure(list(
+    est = list(converged = TRUE),
     tau_list = rep(list(0), 4),
     disc = rep(1, 4),
     virtual_map = data.frame(

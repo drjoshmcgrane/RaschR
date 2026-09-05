@@ -189,6 +189,56 @@ test_that("EFRM reports nuisance-mass non-convergence and bootstrap accounting",
   expect_identical(f$boot_reps_failed, 0L)
 })
 
+test_that("failed structural calibrations withhold their inferential fields", {
+  dm <- simulate_mfrm(60, 5, 4, seed = 3)
+  fm <- suppressWarnings(rasch_mfrm(
+    dm, "person", "item", "score", facets = "rater", maxit = 1L))
+  expect_false(fm$est$converged)
+  expect_true(all(is.na(fm$items$se)))
+  expect_true(all(is.na(fm$facet_effects$rater$se)))
+  expect_true(is.na(fm$psi$PSI))
+
+  de <- simulate_efrm(n_per_group = 80, items_per_set = 5,
+                      n_sets = 1, n_groups = 2, seed = 36)
+  old_solve <- rasch:::.efrm_solve
+  expect_warning(
+    fe <- testthat::with_mocked_bindings(
+      rasch_efrm(de, item_sets = attr(de, "truth")$item_sets,
+                 groups = "group", boot_reps = 0),
+      .efrm_solve = function(...) {
+        z <- old_solve(...)
+        z$converged <- FALSE
+        z
+      },
+      .package = "rasch"),
+    "did NOT converge")
+  expect_false(fe$est$stage1_converged)
+  expect_true(all(is.na(fe$phi_table$se_log_phi)))
+  expect_true(all(is.na(fe$item_arbitrary$se)))
+  expect_true(all(is.na(fe$efrm_vs_rasch$unit_tests$p)))
+  expect_true(is.na(fe$efrm_vs_rasch$two_delta_ll))
+})
+
+test_that("low-level PCML entries warn and withhold failed-fit uncertainty", {
+  set.seed(50)
+  difficulty <- seq(-1.5, 1.5, length.out = 5)
+  X <- matrix(rbinom(300 * 5, 1,
+    plogis(outer(rnorm(300), difficulty, "-"))), 300, 5)
+  expect_warning(p <- pcml(X, maxit = 1L), "did NOT converge")
+  expect_false(p$converged)
+  expect_true(all(is.na(p$thr$se)))
+  expect_true(all(is.na(p$cov_tau)))
+  expect_true(all(is.na(p$cov_beta)))
+
+  expect_warning(pp <- pcml_pc(X, n_components = 1L, maxit = 1L),
+                 "did NOT converge")
+  expect_false(pp$converged)
+  expect_true(all(is.na(pp$thr$se)))
+  expect_true(all(is.na(pp$components$location_se)))
+  expect_true(all(is.na(pp$cov_tau)))
+  expect_true(all(is.na(pp$cov_beta)))
+})
+
 test_that("a failed EFRM full bootstrap retains its accounting", {
   d <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 1,
                      n_groups = 1, seed = 1904)
@@ -227,6 +277,15 @@ test_that("fixed-iteration NPML skips convergence checks without changing EM", {
   expect_true(is.finite(cc$loglik))
   expect_equal(rr$logw, cc$logw, tolerance = 1e-12)
   expect_equal(rr$loglik, cc$loglik, tolerance = 1e-12)
+})
+
+test_that("NPML compression preserves distinct weighted scores", {
+  x <- c(1, 1 + 5e-13)
+  # The former 12-digit display key pooled these two likelihood rows.
+  expect_identical(formatC(x[1], digits = 12L, format = "fg"),
+                   formatC(x[2], digits = 12L, format = "fg"))
+  expect_false(identical(rasch:::.efrm_score_key(x[1]),
+                         rasch:::.efrm_score_key(x[2])))
 })
 
 test_that("resolve_dif uses the adjusted omnibus rather than pairwise rejection", {
@@ -304,4 +363,15 @@ test_that("frame bootstrap keeps a singleton stratum in its own group", {
   expect_identical(ii[11L], 17L)
   expect_true(all(ii[1:10] %in% 1:10))
   expect_true(all(ii[12:16] %in% 21:25))
+})
+# Covariance gates are shared by the downstream Wald procedures. They must
+# fail closed on malformed matrices instead of letting eigen() error or an
+# asymmetric matrix acquire a plausible result after silent symmetrisation.
+test_that("covariance validity gates fail closed", {
+  expect_true(rasch:::.covariance_is_psd(diag(2)))
+  expect_true(rasch:::.covariance_is_psd(matrix(c(1, -1, -1, 1), 2)))
+  expect_false(rasch:::.covariance_is_psd(matrix(c(1, 2, 0, 1), 2)))
+  expect_false(rasch:::.covariance_is_psd(matrix(c(1, NA, NA, 1), 2)))
+  expect_false(rasch:::.covariance_is_psd(matrix(c(1, 2, 2, 1), 2)))
+  expect_false(rasch:::.covariance_supports_wald(diag(2), 3L))
 })

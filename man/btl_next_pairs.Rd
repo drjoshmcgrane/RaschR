@@ -14,8 +14,9 @@ btl_next_pairs(fit, n = 10, weight_se = TRUE)
 \item{weight_se}{If \code{TRUE} (the default), rank pairs by their one-step
 reduction in total location variance. When the fit has no covariance,
 the fallback priority is expected information multiplied by the sum of
-the two squared standard errors. If \code{FALSE}, rank pairs by expected
-information alone.}
+the two squared standard errors. A stored covariance that is invalid or
+cannot be aligned with the objects is refused. If \code{FALSE}, rank
+pairs by expected information alone.}
 }
 \value{
 A data frame of the top \code{n} candidate pairs, each oriented to

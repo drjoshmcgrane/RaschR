@@ -102,13 +102,11 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
   C <- suppressWarnings(stats::cov(X, use = "pairwise.complete.obs"))
   csum <- sum(C, na.rm = TRUE)
   dsum <- sum(diag(C), na.rm = TRUE)
-  C_ok <- !anyNA(C) && {
-    ev <- eigen((C + t(C)) / 2, symmetric = TRUE, only.values = TRUE)$values
-    # tolerate the small numerical non-PSD-ness ordinary pairwise deletion
-    # produces; refuse MATERIAL indefiniteness (and, via anyNA, any pair
-    # with no respondents in common, whose covariance does not exist)
-    min(ev) >= -1e-2 * max(1, max(abs(ev)))
-  } && is.finite(csum) && csum > 0.05 * dsum
+  # Pairwise deletion can produce a genuinely indefinite matrix; this is not
+  # numerical rounding and cannot define coefficient alpha. Use the same
+  # scale-relative PSD tolerance as the package's other covariance checks.
+  C_ok <- !anyNA(C) && .covariance_is_psd(C) &&
+    is.finite(csum) && csum > 0.05 * dsum
   alpha <- if (L > 1L && C_ok)
     L / (L - 1L) * (1 - dsum / csum) else NA_real_
   min_i <- suppressWarnings(vapply(seq_len(L), function(i)
@@ -220,8 +218,8 @@ print.rasch_ctt <- function(x, ...) {
 #'              items = c("Q1", "Q2"))
 #' @export
 rack_data <- function(data, person, time, items) {
-  data <- as.data.frame(data)
   .check_column_names(data)
+  data <- as.data.frame(data)
   if (!is.character(items) || !length(items) || anyNA(items) ||
       any(!nzchar(trimws(items))))
     stop("`items` must name at least one item column")
@@ -231,8 +229,8 @@ rack_data <- function(data, person, time, items) {
   .check_reshape_column(data, time, "time")
   if (identical(as.character(person), as.character(time)))
     stop("the person and time columns must be distinct")
-  pv <- trimws(as.character(data[[person]]))
-  tv <- trimws(as.character(data[[time]]))
+  pv <- .role_text_values(data[[person]])
+  tv <- .role_text_values(data[[time]])
   if (anyNA(pv) || any(!nzchar(pv[!is.na(pv)])))
     stop(sum(is.na(pv) | !nzchar(pv)), " row(s) have a missing or blank ",
          "person identifier; they cannot be aligned across occasions")
@@ -250,21 +248,30 @@ rack_data <- function(data, person, time, items) {
     stop("column not found: ", col)
   bad <- setdiff(items, names(data))
   if (length(bad)) stop("item column(s) not found: ", paste(bad, collapse = ", "))
-  times <- sort(unique(data[[time]]))
+  # Use the same canonical values that were validated above. Otherwise
+  # visually identical labels such as "T1" and " T1 " pass the blank check
+  # but become different occasions, and padded person IDs become different
+  # respondents in the reshaped design.
+  time_column <- .canonical_role_column(data[[time]])
+  times <- sort(unique(time_column))
   time_labels <- as.character(times)
   made <- unlist(lapply(time_labels, function(tt) paste0(items, "@", tt)),
                  use.names = FALSE)
   if (anyDuplicated(c("id", made)))
     stop("generated racked column names are not unique; rename the items or time levels")
-  ids <- unique(data[[person]])
-  out <- data.frame(id = ids)
+  first_id <- !duplicated(pv)
+  ids <- pv[first_id]
+  id_out <- .canonical_role_column(data[[person]])[first_id]
+  out <- data.frame(id = id_out)
   for (j in seq_along(times)) {
     tt <- times[j]
     time_label <- time_labels[j]
-    d_t <- data[data[[time]] == tt, , drop = FALSE]
-    if (anyDuplicated(d_t[[person]]))
+    rows_t <- which(time_column == tt)
+    d_t <- data[rows_t, , drop = FALSE]
+    p_t <- pv[rows_t]
+    if (anyDuplicated(p_t))
       stop("more than one row for a person at time ", time_label)
-    idx <- match(ids, d_t[[person]])
+    idx <- match(ids, p_t)
     blk <- d_t[idx, items, drop = FALSE]
     names(blk) <- paste0(items, "@", time_label)
     out <- cbind(out, blk)
@@ -276,8 +283,8 @@ rack_data <- function(data, person, time, items) {
 #' @rdname rack_data
 #' @export
 stack_data <- function(data, person, time, items) {
-  data <- as.data.frame(data)
   .check_column_names(data)
+  data <- as.data.frame(data)
   if (!is.character(items) || !length(items) || anyNA(items) ||
       any(!nzchar(trimws(items))))
     stop("`items` must name at least one item column")
@@ -287,8 +294,8 @@ stack_data <- function(data, person, time, items) {
   .check_reshape_column(data, time, "time")
   if (identical(as.character(person), as.character(time)))
     stop("the person and time columns must be distinct")
-  pv <- trimws(as.character(data[[person]]))
-  tv <- trimws(as.character(data[[time]]))
+  pv <- .role_text_values(data[[person]])
+  tv <- .role_text_values(data[[time]])
   if (anyNA(pv) || any(!nzchar(pv[!is.na(pv)])))
     stop(sum(is.na(pv) | !nzchar(pv)), " row(s) have a missing or blank ",
          "person identifier; they cannot be aligned across occasions")
@@ -310,15 +317,15 @@ stack_data <- function(data, person, time, items) {
   if (length(reserved))
     stop("item name(s) reserved by the stacked output: ",
          paste(reserved, collapse = ", "), "; rename them before stacking")
-  key <- .factor_cells(data.frame(person = data[[person]],
-                                  time = data[[time]]), sep = "\r")
+  key <- .factor_cells(data.frame(person = pv, time = tv), sep = "\r")
   if (anyDuplicated(key))
     stop("more than one row for a person at the same time point")
-  row_id <- .factor_cells(data.frame(person = data[[person]],
-                                     time = data[[time]]), sep = "@")
-  out <- data.frame(id = data[[person]],
+  row_id <- .factor_cells(data.frame(person = pv, time = tv), sep = "@")
+  time_column <- .canonical_role_column(data[[time]])
+  if (!is.factor(time_column)) time_column <- factor(time_column)
+  out <- data.frame(id = .canonical_role_column(data[[person]]),
                     row_id = row_id,
-                    time = factor(data[[time]]),
+                    time = time_column,
                     data[, items, drop = FALSE], check.names = FALSE)
   rownames(out) <- NULL
   out

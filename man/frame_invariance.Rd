@@ -22,10 +22,12 @@ frame_invariance(
 adjusted probabilities are returned.}
 
 \item{se_method}{\code{"conditional"} treats the estimated frame units as
-fixed; \code{"bootstrap"} refits the complete analysis to person
-resamples within frame.}
+fixed; \code{"bootstrap"} refits the complete analysis to whole-person
+resamples within person group, preserving item-set response patterns.}
 
-\item{boot_reps}{Number of bootstrap replicates. At least 30 are required.}
+\item{boot_reps}{Number of bootstrap replicates. At least 30 are required.
+At least 90 per cent, and no fewer than 30, must yield the complete set
+of comparisons.}
 
 \item{seed}{Optional bootstrap seed.}
 }
@@ -35,9 +37,12 @@ An object of class \code{"rasch_frame_invariance"}. The
   item comparisons; \code{summary} contains set-level RMSD and RMSE
   summaries. Under the conditional method, discrimination \code{p},
   \code{p_adj}, and \code{flagged} are \code{NA}. \code{excluded} lists
-  items whose observed category structures differed between calibrations
-  or whose separate-frame estimate was weakly determined.
-  The remaining components record the multiplicity and uncertainty settings.
+  items dropped or rescored by a separate calibration, whose observed
+  category structures differed between calibrations, or whose
+  separate-frame estimate was weakly determined.
+  The remaining components record the multiplicity and uncertainty settings,
+  including the declared comparison-family size \code{family_n}, and the
+  requested, usable, non-converged and other-failure bootstrap counts.
 }
 \description{
 Calibrates each frame separately and compares the locations and
@@ -63,7 +68,8 @@ divided by \eqn{\sqrt{2}}, together with fitted slopes and their ratio.
 These quantities are descriptive under the conditional method; it does not
 report discrimination probabilities.
 
-With \code{se_method = "bootstrap"}, persons are resampled within frame
+With \code{se_method = "bootstrap"}, whole person rows are resampled
+within person group, retaining each sampled row's item-set response pattern,
 and the EFRM and separate frame calibrations are refitted. Location tests
 then use the empirical covariance of the centred differences. The
 discrimination test uses the bootstrap standard error of the log slope

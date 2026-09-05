@@ -91,7 +91,9 @@ and tested over persons. The complete cell-weight vector is retained for
 main effects and interactions, so the residual test and resolved estimate
 address the same marginal contrast. The sign of each residual test is
 aligned with the resolved logit contrast. Contrasts require a converged
-calibration.
+calibration. For independent rows, an unavailable or non-positive-
+semidefinite resolved-location covariance leaves the logit estimate
+descriptive and causes Wald inference to be withheld.
 A contrast with withheld inference remains in the adjustment family formed
 by every requested item and contrast.
 For an MFRM fit, underlying items are pooled over their facet cells by

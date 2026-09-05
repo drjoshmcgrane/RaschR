@@ -11,6 +11,9 @@ test_that("WrightMap data are prepared for dichotomous and polytomous fits", {
   expect_equal(rownames(dd$items), colnames(X))
   expect_identical(colnames(dd$items), "")
   expect_equal(unname(drop(dd$items)), fd$thresholds$tau)
+  failed <- fd
+  failed$est$converged <- FALSE
+  expect_error(rasch:::.wright_map_data(failed), "did not converge")
 
   sim_p <- function(th, tau) {
     score <- 0:length(tau)
@@ -70,6 +73,14 @@ test_that("person and item panels preserve their labels and ordering", {
                             Second = c("I2", "I4", "I6")))
   expect_equal(as.character(dl$item_panels),
                rep(c("First", "Second"), 3))
+  dl_pad <- rasch:::.wright_map_data(
+    fit, item_panels = list(" First " = c("I1", "I3", "I5"),
+                            "Second " = c("I2", "I4", "I6")))
+  expect_equal(levels(dl_pad$item_panels), c("First", "Second"))
+  expect_error(rasch:::.wright_map_data(
+    fit, item_panels = list(A = colnames(X)[1:3],
+                            " A " = colnames(X)[4:6])),
+    "distinct after trimming")
 
   d2 <- rasch:::.wright_map_data(fit, person_panels = c("group", "occasion"))
   expect_equal(ncol(d2$persons), 4L)

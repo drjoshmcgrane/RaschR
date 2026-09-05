@@ -7,15 +7,18 @@
 person_extrapolated(fit)
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}} (equal
-discriminations; not EFRM).}
+\item{fit}{A fitted object from \code{\link{rasch}} with one common
+raw-score conversion and a common discrimination. Expanded many-facet
+and frame response-cell designs do not have such a conversion and are
+refused.}
 }
 \value{
 The fit's person table with two added columns,
   \code{theta_extrapolated} and \code{se_extrapolated}: equal to
   \code{theta} and \code{se} for non-extreme persons, extrapolated for
   extreme persons. Patterns with fewer than three interior scores cannot
-  be extrapolated and keep their Warm values.
+  be extrapolated, or whose interior score locations do not have stable
+  increasing spacings, keep their Warm values.
 }
 \description{
 Extreme persons (zero or maximum raw score on their observed items) are

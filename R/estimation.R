@@ -22,8 +22,10 @@
 # declared family. stats::p.adjust() otherwise reduces n when p contains NA,
 # which makes an incomplete family less stringent than the question asked.
 .p_adjust_family <- function(p, method = "holm", n = length(p)) {
-  if (length(n) != 1L || is.na(n) || !is.finite(n) || n < length(p) ||
-      n != as.integer(n))
+  if (length(n) != 1L || !is.numeric(n) || is.complex(n) ||
+      !is.null(dim(n)) || !is.null(oldClass(n)) || is.na(n) ||
+      !is.finite(n) || n < length(p) || n > .Machine$integer.max ||
+      n != floor(n))
     stop("`n` must be one whole number at least as large as `p`",
          call. = FALSE)
   out <- rep(NA_real_, length(p))
@@ -32,6 +34,142 @@
     out[usable] <- stats::p.adjust(p[usable], method = method,
                                    n = as.integer(n))
   out
+}
+
+# A zero estimated standard error is not evidence of an infinitely precise
+# effect. It usually marks a singular sandwich, constant bootstrap column or
+# fixed parameter. Withhold the Wald statistic instead of manufacturing an
+# infinite value and p = 0. Any positive finite standard error remains
+# testable: comparing it with the coefficient would make the answer depend on
+# the units in which a predictor or contrast happened to be expressed.
+.wald_ratio <- function(estimate, se) {
+  n <- max(length(estimate), length(se))
+  if (!n) return(numeric(0))
+  if (!length(estimate) || !length(se) ||
+      !length(estimate) %in% c(1L, n) || !length(se) %in% c(1L, n))
+    stop("Wald estimates and standard errors have incompatible lengths",
+         call. = FALSE)
+  out <- rep(NA_real_, n)
+  estimate <- rep_len(estimate, length(out))
+  se <- rep_len(se, length(out))
+  usable <- is.finite(estimate) & is.finite(se) & se > 0
+  out[usable] <- estimate[usable] / se[usable]
+  out
+}
+
+# Relative inverse-variance weights. Dividing by the smallest positive
+# variance before inversion gives the same weighted mean as 1 / v without an
+# arbitrary absolute floor or overflow. An exactly zero variance is a fixed
+# contrast and therefore carries all the weight; several such contrasts are
+# weighted equally.
+.inverse_variance_weights <- function(v) {
+  if (!is.numeric(v) || is.complex(v) || !length(v) ||
+      any(!is.finite(v)) || any(v < 0))
+    stop("variances must be finite non-negative numeric values", call. = FALSE)
+  if (any(v == 0)) return(as.numeric(v == 0))
+  rel <- v / min(v)
+  1 / rel
+}
+
+# A bank's stated marginal standard errors and attached covariance must refer
+# to the same calibration. Use relative agreement at their own scale: an
+# absolute floor would accept materially different uncertainties merely
+# because both happen to be expressed in small units.
+.se_covariance_agree <- function(se, cov_se, tolerance = 1e-6) {
+  if (length(se) != length(cov_se)) return(FALSE)
+  scale <- pmax(abs(se), abs(cov_se))
+  abs(se - cov_se) <= tolerance * scale
+}
+
+# Positive-semidefiniteness is also scale free. Covariance matrices may be
+# singular because of identification constraints, so retain eigenvalues that
+# are negative only at the stated relative numerical tolerance.
+.covariance_is_psd <- function(C, tolerance = 1e-8) {
+  if (!is.matrix(C) || !is.numeric(C) || is.complex(C) ||
+      nrow(C) != ncol(C) ||
+      any(!is.finite(C))) return(FALSE)
+  if (!nrow(C)) return(TRUE)
+  cscale <- max(abs(C))
+  if (cscale > 0 && max(abs(C - t(C))) > tolerance * cscale) return(FALSE)
+  ev <- eigen((C + t(C)) / 2, symmetric = TRUE, only.values = TRUE)$values
+  scale <- max(abs(ev))
+  !length(ev) || scale == 0 || min(ev) >= -tolerance * scale
+}
+
+.covariance_is_symmetric <- function(C, tolerance = 1e-8) {
+  if (!is.matrix(C) || !is.numeric(C) || is.complex(C) ||
+      nrow(C) != ncol(C) ||
+      any(!is.finite(C))) return(FALSE)
+  if (!nrow(C)) return(TRUE)
+  scale <- max(abs(C))
+  scale == 0 || max(abs(C - t(C))) <= tolerance * scale
+}
+
+# A covariance used for Wald inference must be more than present. This common
+# gate prevents a malformed or materially indefinite matrix from becoming a
+# zero variance through downstream pmax(..., 0) guards. Singular matrices are
+# allowed: identifying constraints commonly make a full parameter covariance
+# positive semidefinite rather than positive definite.
+.covariance_supports_wald <- function(C, n = NULL) {
+  if (!is.matrix(C) || !is.numeric(C) || is.complex(C) ||
+      nrow(C) != ncol(C) ||
+      any(!is.finite(C))) return(FALSE)
+  if (!is.null(n) && !identical(dim(C), c(as.integer(n), as.integer(n))))
+    return(FALSE)
+  .covariance_is_symmetric(C) && .covariance_is_psd(C)
+}
+
+# First-order Kent calibration for a composite likelihood-ratio statistic.
+# The calibration is inferential, so an indefinite or singular estimated
+# sensitivity in the tested directions makes it unavailable. In particular,
+# do not let a generic solve() error escape or turn numerical eigenvalues into
+# a plausible-looking probability.
+.kent_calibration <- function(statistic, C, covariance,
+                              sensitivity_inverse,
+                              tolerance = sqrt(.Machine$double.eps)) {
+  unavailable <- list(chisq = NA_real_, p = NA_real_, lambda = numeric(0))
+  if (length(statistic) != 1L || !is.numeric(statistic) ||
+      is.complex(statistic) || !is.null(dim(statistic)) ||
+      !is.finite(statistic) || statistic < 0 || !is.matrix(C) ||
+      !is.numeric(C) || is.complex(C) || !ncol(C) || any(!is.finite(C)) ||
+      !is.matrix(covariance) || !is.numeric(covariance) ||
+      is.complex(covariance) || !is.matrix(sensitivity_inverse) ||
+      !is.numeric(sensitivity_inverse) || is.complex(sensitivity_inverse))
+    return(unavailable)
+  p <- nrow(C)
+  if (!identical(dim(covariance), c(p, p)) ||
+      !identical(dim(sensitivity_inverse), c(p, p)) ||
+      any(!is.finite(covariance)) || any(!is.finite(sensitivity_inverse)) ||
+      !.covariance_supports_wald(covariance, p) ||
+      !.covariance_supports_wald(sensitivity_inverse, p))
+    return(unavailable)
+  num <- crossprod(C, covariance %*% C)
+  den <- crossprod(C, sensitivity_inverse %*% C)
+  num <- (num + t(num)) / 2
+  den <- (den + t(den)) / 2
+  ed <- tryCatch(eigen(den, symmetric = TRUE), error = function(e) NULL)
+  if (is.null(ed) || any(!is.finite(ed$values))) return(unavailable)
+  dscale <- max(abs(ed$values))
+  if (!is.finite(dscale) || dscale <= 0 ||
+      min(ed$values) <= tolerance * dscale)
+    return(unavailable)
+  inv_root <- ed$vectors %*%
+    (diag(1 / sqrt(ed$values), nrow = length(ed$values))) %*%
+    t(ed$vectors)
+  ratio <- inv_root %*% num %*% inv_root
+  lambda <- tryCatch(eigen((ratio + t(ratio)) / 2, symmetric = TRUE,
+                           only.values = TRUE)$values,
+                     error = function(e) NULL)
+  if (is.null(lambda) || any(!is.finite(lambda))) return(unavailable)
+  lscale <- max(abs(lambda))
+  if (!is.finite(lscale) || lscale <= 0 ||
+      min(lambda) <= tolerance * lscale)
+    return(unavailable)
+  adjusted <- statistic * length(lambda) / sum(lambda)
+  if (!is.finite(adjusted) || adjusted < 0) return(unavailable)
+  list(chisq = adjusted,
+       p = stats::pchisq(adjusted, length(lambda), lower.tail = FALSE),
+       lambda = lambda)
 }
 
 
@@ -51,8 +189,9 @@
 .check_factor_frame <- function(fac_df) {
   if (is.null(fac_df)) return(invisible(NULL))
   nms <- names(fac_df)
-  if (is.null(nms) || any(is.na(nms)) || any(!nzchar(nms)))
-    stop("every person factor needs a non-empty name", call. = FALSE)
+  if (is.null(nms) || any(is.na(nms)) || any(!nzchar(trimws(nms))))
+    stop("every person factor needs a non-empty name (not whitespace-only)",
+         call. = FALSE)
   if (anyDuplicated(nms))
     stop("duplicate factor column name(s): ",
          paste(unique(nms[duplicated(nms)]), collapse = ", "), call. = FALSE)
@@ -72,7 +211,8 @@
     stop("`", name, "` must be supplied", call. = FALSE)
   }
   upper <- min(max, .Machine$integer.max)
-  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) ||
+  if (length(x) != 1L || !is.numeric(x) || is.complex(x) ||
+      !is.null(dim(x)) || !is.null(oldClass(x)) || !is.finite(x) ||
       x != floor(x) || x < min || x > upper)
     stop("`", name, "` must be one whole number between ", min, " and ",
          if (is.finite(max)) max else "the integer range", call. = FALSE)
@@ -81,7 +221,9 @@
 
 # One probability strictly inside (0, 1).
 .check_prob <- function(x, name) {
-  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0 || x >= 1)
+  if (length(x) != 1L || !is.numeric(x) || is.complex(x) ||
+      !is.null(dim(x)) || !is.null(oldClass(x)) || !is.finite(x) ||
+      x <= 0 || x >= 1)
     stop("`", name, "` must be one probability strictly between 0 and 1",
          call. = FALSE)
   invisible(x)
@@ -89,10 +231,14 @@
 
 # Shared validation for the Newton controls every estimator accepts.
 .check_controls <- function(maxit, tol) {
-  if (length(maxit) != 1L || !is.numeric(maxit) || !is.finite(maxit) ||
+  if (length(maxit) != 1L || !is.numeric(maxit) || is.complex(maxit) ||
+      !is.null(dim(maxit)) || !is.null(oldClass(maxit)) ||
+      !is.finite(maxit) ||
       maxit != floor(maxit) || maxit < 1 || maxit > .Machine$integer.max)
     stop("`maxit` must be one whole positive iteration cap", call. = FALSE)
-  if (length(tol) != 1L || !is.numeric(tol) || !is.finite(tol) || tol <= 0)
+  if (length(tol) != 1L || !is.numeric(tol) || is.complex(tol) ||
+      !is.null(dim(tol)) || !is.null(oldClass(tol)) || !is.finite(tol) ||
+      tol <= 0)
     stop("`tol` must be one positive finite tolerance", call. = FALSE)
   invisible(NULL)
 }
@@ -109,7 +255,8 @@
 #' threshold_index(c(1, 3, 2))
 #' @export
 threshold_index <- function(m) {
-  if (!is.numeric(m) || !length(m) || any(!is.finite(m)) ||
+  if (!is.numeric(m) || is.complex(m) || !is.null(dim(m)) ||
+      !is.null(oldClass(m)) || !length(m) || any(!is.finite(m)) ||
       any(m != floor(m)) || any(m < 0) || any(m > .Machine$integer.max))
     stop("`m` must hold at least one whole non-negative maximum score")
   thr <- do.call(rbind, lapply(seq_along(m), function(i)
@@ -185,8 +332,9 @@ threshold_index <- function(m) {
     stop("`X` must contain at least one person and two item columns",
          call. = FALSE)
   nm <- colnames(X)
-  if (!is.null(nm) && (anyNA(nm) || any(!nzchar(nm))))
-    stop("item column names must be non-missing and non-empty", call. = FALSE)
+  if (!is.null(nm) && (anyNA(nm) || any(!nzchar(trimws(nm)))))
+    stop("item column names must be non-missing and non-empty (not whitespace-only)",
+         call. = FALSE)
   .check_integer_scores(X, "the score matrix")
   storage.mode(X) <- "integer"
   for (j in seq_len(ncol(X))) {
@@ -356,7 +504,7 @@ threshold_index <- function(m) {
 # inverse information overstates precision because every response enters
 # L - 1 overlapping pairs; the sandwich H^-1 J H^-1 with J the empirical
 # covariance of the per-person scores corrects this.
-.pcml_sandwich <- function(X, thr, m, tau, pairs) {
+.pcml_sandwich <- function(X, thr, m, tau, pairs, cluster = NULL) {
   M <- nrow(thr); N <- nrow(X)
   cum <- lapply(seq_along(m), function(i) cumsum(tau[thr$item == i]))
   ids <- lapply(seq_along(m), function(i) thr$id[thr$item == i])
@@ -382,6 +530,19 @@ threshold_index <- function(m) {
     if (!length(both)) next
     cell <- X[both, i] * (mj + 1L) + X[both, j] + 1L
     S[both, idx] <- S[both, idx] + V[cell, , drop = FALSE]
+  }
+  if (!is.null(cluster)) {
+    if (!is.atomic(cluster) || !is.null(dim(cluster)) ||
+        length(cluster) != N)
+      stop("internal calibration clusters must give one plain identifier per response row",
+           call. = FALSE)
+    z <- .role_text_values(cluster)
+    missing <- is.na(z) | !nzchar(z)
+    known <- unique(z[!missing])
+    group <- match(z, known)
+    if (any(missing))
+      group[missing] <- length(known) + seq_len(sum(missing))
+    S <- rowsum(S, group = group, reorder = FALSE)
   }
   crossprod(S)
 }
@@ -418,7 +579,7 @@ threshold_index <- function(m) {
 # indeterminacy, imposes the rating scale or facet structure, or restricts
 # estimation to the unanchored thresholds (offset carrying the anchors).
 .pcml_solve <- function(X, thr, m, B, beta0, offset = 0, maxit = 60, tol = 1e-8,
-                        pairs = NULL) {
+                        pairs = NULL, cluster = NULL) {
   if (is.null(pairs)) pairs <- .pair_counts(X, m)
   if (!length(pairs)) stop("no informative item pairs: check the data")
   beta <- beta0
@@ -470,7 +631,8 @@ threshold_index <- function(m) {
   move_tol <- min(20 * tol, 1e-6)
   converged <- max(abs(gb_final)) < 1e-4 ||
     max(abs(newton_move)) < move_tol
-  J  <- .pcml_sandwich(X, thr, m, drop(offset + B %*% beta), pairs)
+  J  <- .pcml_sandwich(X, thr, m, drop(offset + B %*% beta), pairs,
+                       cluster = cluster)
   Jb <- crossprod(B, J %*% B)
   covb <- Hinv %*% Jb %*% Hinv
   covt <- B %*% covb %*% t(B)
@@ -478,6 +640,55 @@ threshold_index <- function(m) {
        cov_tau = covt, se_tau = sqrt(pmax(diag(covt), 0)), H_beta = Hb,
        loglik = glh$ll, iterations = it,
        converged = converged)
+}
+
+.pcml_anchor_k <- function(k) {
+  if (!is.null(dim(k)) || !is.null(oldClass(k)))
+    stop("anchor `k` must be a plain vector", call. = FALSE)
+  if (is.logical(k) && all(is.na(k))) return(as.numeric(k))
+  if (!is.numeric(k) || any(is.nan(k)) || any(!is.na(k) &
+      (!is.finite(k) | k != floor(k) | k < 1)))
+    stop("anchor `k` values must be positive whole threshold numbers or NA for item locations",
+         call. = FALSE)
+  as.numeric(k)
+}
+
+.pcml_anchor_columns <- function(anchors) {
+  n <- nrow(anchors)
+  item <- anchors$item
+  item_kind <- is.character(item) || is.factor(item) ||
+    (is.numeric(item) && !is.complex(item) && is.null(oldClass(item)))
+  if (!item_kind || !is.null(dim(item)) || length(item) != n)
+    stop("anchor `item` must be one plain item name or index per row",
+         call. = FALSE)
+  if (is.character(item) || is.factor(item)) {
+    text <- as.character(item)
+    if (anyNA(text) || any(!nzchar(trimws(text))))
+      stop("anchor item names must be non-missing and non-blank",
+           call. = FALSE)
+  } else if (any(!is.finite(item)) || any(item != floor(item))) {
+    stop("numeric anchor item indices must be finite whole numbers",
+         call. = FALSE)
+  }
+
+  anchors$k <- .pcml_anchor_k(anchors$k)
+  if (length(anchors$k) != n)
+    stop("anchor `k` must contain one value per row", call. = FALSE)
+
+  tau <- anchors$tau
+  if (!is.numeric(tau) || is.complex(tau) || !is.null(dim(tau)) ||
+      !is.null(oldClass(tau)) || length(tau) != n || any(!is.finite(tau)))
+    stop("anchor `tau` must contain one plain finite numeric value per row",
+         call. = FALSE)
+
+  if ("average" %in% names(anchors)) {
+    average <- anchors$average
+    if (!is.logical(average) || !is.null(dim(average)) ||
+        !is.null(oldClass(average)) || length(average) != n || anyNA(average))
+      stop("the anchors `average` column must contain one plain TRUE or FALSE per row",
+           call. = FALSE)
+  }
+  anchors
 }
 
 #' Estimate Rasch thresholds by pairwise conditional maximum likelihood
@@ -513,8 +724,12 @@ threshold_index <- function(m) {
 #'   shifted so that the mean location of the anchor items equals the mean
 #'   of their \code{tau} values (one row per item, \code{k = NA}). Only the
 #'   origin changes, so every item, the anchors included, keeps its
-#'   estimated position relative to the others. Column names must be unique.
-#'   PCM only.
+#'   estimated position relative to the others. Numeric-threshold and
+#'   item-location anchor values are treated as fixed constants: their
+#'   uncertainty is not included in the returned covariance or standard
+#'   errors. With several numeric-threshold anchors, their stated relative
+#'   spacing is a model constraint as well as a choice of origin. Column names
+#'   must be unique. PCM only.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
 #' @return A list containing the threshold table \code{thr}, covariance matrix
 #'   \code{cov_tau}, pairwise conditional log-likelihood, iteration count,
@@ -522,7 +737,8 @@ threshold_index <- function(m) {
 #'   \code{weak} marks all thresholds of an item with fewer than eight
 #'   responses in any category, or a threshold adjacent to a category with
 #'   fewer than three responses. Standard errors for weak thresholds are
-#'   reported as \code{NA}.
+#'   reported as \code{NA}. If estimation does not converge, the function
+#'   warns and all standard errors and covariance entries are \code{NA}.
 #' @references
 #' Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
 #' Applied Psychological Measurement, 19(4), 369--375.
@@ -539,6 +755,20 @@ threshold_index <- function(m) {
 #' @export
 pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
                  maxit = 60, tol = 1e-8) {
+  out <- .pcml_fit(X, model = model, anchors = anchors,
+                   maxit = maxit, tol = tol)
+  if (!isTRUE(out$converged))
+    warning("estimation did NOT converge in ", out$iterations,
+            " iterations; standard errors and covariance are unavailable",
+            call. = FALSE)
+  out
+}
+
+# Internal entry used by rasch() when several response rows belong to the
+# same person. The public low-level pcml() interface continues to regard its
+# matrix rows as independent units.
+.pcml_fit <- function(X, model = c("PCM", "RSM"), anchors = NULL,
+                      maxit = 60, tol = 1e-8, cluster = NULL) {
   model <- match.arg(model)
   .check_controls(maxit, tol)
   if (!is.null(colnames(X)) && anyDuplicated(colnames(X)))
@@ -561,6 +791,7 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
       stop("anchors needs columns item, k, tau")
     if (!nrow(anchors))
       stop("anchors must contain at least one fixed threshold or item mean")
+    anchors <- .pcml_anchor_columns(anchors)
     a_item <- if (is.character(anchors$item) || is.factor(anchors$item))
       match(as.character(anchors$item), colnames(X))
     else {
@@ -572,18 +803,12 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
       as.integer(ai)
     }
     if (anyNA(a_item)) stop("anchor item(s) not found among the item columns")
-    if (!is.numeric(anchors$tau) || any(!is.finite(anchors$tau)))
-      stop("anchor tau value(s) must be finite: ",
-           paste(colnames(X)[a_item[!is.finite(anchors$tau)]], collapse = ", "))
-
     # average = TRUE selects RUMM's average item anchoring: the calibration
     # is estimated free and then shifted so the mean location of the anchor
     # items equals the mean of their anchor values. No item is fixed, so it
     # is handled by the free branches below with a different origin
     if ("average" %in% names(anchors)) {
       avg <- anchors$average
-      if (!is.logical(avg) || anyNA(avg))
-        stop("the anchors `average` column must be TRUE or FALSE on every row")
       if (any(avg) && !all(avg))
         stop("average anchoring applies to the whole anchor set: `average` ",
              "must be TRUE on every row, or absent")
@@ -648,7 +873,8 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     .pcml_check_connected(pairs, L, inames,
                           anchored = unique(c(ft_item, mean_items)))
     sol <- .pcml_solve(X, thr, m, B, beta0, offset = offset,
-                       maxit = maxit, tol = tol, pairs = pairs)
+                       maxit = maxit, tol = tol, pairs = pairs,
+                       cluster = cluster)
     thr$tau <- sol$tau; thr$se <- sol$se_tau; thr$se[a_id] <- 0
     thr$anchored <- seq_len(M) %in% a_id | thr$item %in% mean_items
     # location anchoring (k = NA) fixes only an item's MEAN location; its
@@ -658,6 +884,16 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
     # is still a boundary artefact and must keep weak = TRUE / se = NA
     thr$weak <- weak$flag & !(seq_len(M) %in% a_id)
     thr$se[thr$weak] <- NA_real_
+    if (!isTRUE(sol$converged)) {
+      thr$se[] <- NA_real_
+      thr$se[a_id] <- 0
+      sol$cov_tau[,] <- NA_real_
+      if (length(a_id)) {
+        sol$cov_tau[a_id, ] <- 0
+        sol$cov_tau[, a_id] <- 0
+      }
+      sol$cov_beta[,] <- NA_real_
+    }
     return(list(model = model, thr = thr, cov_tau = sol$cov_tau,
                 loglik = sol$loglik, iterations = sol$iterations,
                 converged = sol$converged, m = m, anchors = anchors,
@@ -695,7 +931,7 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
   if (model == "PCM") .pcml_check_uninformative(X, m, inames, thr = thr)
   .pcml_check_connected(pairs, L, inames)
   sol <- .pcml_solve(X, thr, m, B, beta0, maxit = maxit, tol = tol,
-                     pairs = pairs)
+                     pairs = pairs, cluster = cluster)
   # fix the origin -- mean item location zero, or under average anchoring
   # the mean location of the anchor items at the mean of their anchor
   # values -- and move the covariance to that parameterisation with it. The
@@ -719,6 +955,11 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
   A_c <- diag(M) - matrix(1, M, 1) %*% t(a_c)
   sol$cov_tau <- A_c %*% sol$cov_tau %*% t(A_c)
   sol$se_tau <- sqrt(pmax(diag(sol$cov_tau), 0))
+  if (!isTRUE(sol$converged)) {
+    sol$se_tau[] <- NA_real_
+    sol$cov_tau[,] <- NA_real_
+    sol$cov_beta[,] <- NA_real_
+  }
   thr$tau <- sol$tau; thr$se <- sol$se_tau; thr$anchored <- FALSE
   thr$weak <- weak$flag
   thr$se[thr$weak] <- NA_real_
@@ -814,7 +1055,9 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 #'   errors, \code{NA} where an item's rank does not support that
 #'   component), the threshold covariance matrix \code{cov_tau}, the
 #'   pairwise conditional log-likelihood, the iteration count, a convergence
-#'   flag, and the max-score vector \code{m}.
+#'   flag, and the max-score vector \code{m}. If estimation does not converge,
+#'   the function warns and all standard errors and covariance entries are
+#'   \code{NA}.
 #' @references
 #' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
 #' Rasch model for ordered response categories using principal components.
@@ -840,6 +1083,17 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 #' pcml_pc(X)$components
 #' @export
 pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
+  out <- .pcml_pc_fit(X, n_components = n_components,
+                      maxit = maxit, tol = tol)
+  if (!isTRUE(out$converged))
+    warning("estimation did NOT converge in ", out$iterations,
+            " iterations; standard errors and covariance are unavailable",
+            call. = FALSE)
+  out
+}
+
+.pcml_pc_fit <- function(X, n_components = 4, maxit = 60, tol = 1e-8,
+                         cluster = NULL) {
   .check_controls(maxit, tol)
   n_components <- .check_whole(n_components, "n_components", 1, 4)
   if (!is.null(colnames(X)) && anyDuplicated(colnames(X)))
@@ -877,7 +1131,7 @@ pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
   pairs <- .pair_counts(X, m)
   .pcml_check_connected(pairs, L, inames)
   sol <- .pcml_solve(X, thr, m, B, beta0, maxit = maxit, tol = tol,
-                     pairs = pairs)
+                     pairs = pairs, cluster = cluster)
   thr$tau <- sol$tau; thr$se <- sol$se_tau
 
   labs <- c("spread", "skewness", "kurtosis")
@@ -898,6 +1152,13 @@ pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
       comp[[lab]][i] <- sol$beta[cols[j]]
       comp[[paste0(lab, "_se")]][i] <- sqrt(pmax(sol$cov_beta[cols[j], cols[j]], 0))
     }
+  }
+  if (!isTRUE(sol$converged)) {
+    thr$se[] <- NA_real_
+    se_cols <- grep("_se$", names(comp), value = TRUE)
+    for (nm in se_cols) comp[[nm]][] <- NA_real_
+    sol$cov_tau[,] <- NA_real_
+    sol$cov_beta[,] <- NA_real_
   }
 
   list(model = "PCM", n_components = n_components, thr = thr,

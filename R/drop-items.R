@@ -14,6 +14,20 @@
   fit$factors[[fg]]
 }
 
+.structural_item_names <- function(items, action = "change") {
+  if (is.factor(items)) items <- as.character(items)
+  if (!is.character(items) || !is.null(dim(items)) || !length(items) ||
+      anyNA(items) ||
+      any(!nzchar(trimws(items))))
+    stop("`items` must contain at least one non-missing item name to ",
+         action, call. = FALSE)
+  if (anyDuplicated(items))
+    stop("item(s) named more than once: ",
+         paste(unique(items[duplicated(items)]), collapse = ", "),
+         call. = FALSE)
+  items
+}
+
 # Structural refits must not let ordinary data preparation renumber an item's
 # scores. `maxima` is a named vector giving the intended maximum score for
 # each column being checked. A missing intermediate category makes that
@@ -196,8 +210,9 @@
 #' optimisation controls, anchors, multiple-choice scoring and PCM component
 #' constraints. An EFRM refit also retains the item-set and crossed-frame
 #' design, linking controls and uncertainty method. The operation is refused
-#' if it would remove every anchor, empty an item set or leave the model
-#' unidentified.
+#' if it would remove an externally anchored item, empty an item set or leave
+#' the model unidentified. To change the anchor set, refit explicitly; this
+#' prevents an item-removal comparison from silently changing its scale.
 #'
 #' Item removal changes both the item calibration and the person estimates.
 #' For an EFRM it can also change the estimated frame units. Compare the
@@ -229,11 +244,7 @@ drop_items <- function(fit, items, boot_reps = NULL) {
   if (inherits(fit, "rasch_mfrm"))
     stop("remove the item's rows from the long-format data and refit ",
          "rasch_mfrm() instead")
-  if (!length(items)) stop("name at least one item to drop")
-  items <- as.character(items)
-  if (anyDuplicated(items))
-    stop("item(s) named more than once: ",
-         paste(unique(items[duplicated(items)]), collapse = ", "))
+  items <- .structural_item_names(items, "drop")
 
   if (inherits(fit, "rasch_efrm")) {
     all_items <- names(fit$set_of)
@@ -263,12 +274,19 @@ drop_items <- function(fit, items, boot_reps = NULL) {
     keep <- setdiff(colnames(fit$X), items)
     if (length(keep) < 2L)
       stop("dropping those items would leave fewer than two items")
+    anchors <- (fit$refit_spec %||% list())$anchors
+    dropped_anchors <- if (is.null(anchors)) character(0) else
+      intersect(items, as.character(anchors$item))
+    if (length(dropped_anchors))
+      stop("externally anchored item(s) cannot be dropped: ",
+           paste(dropped_anchors, collapse = ", "),
+           "; refit explicitly with a revised anchor set so the change of ",
+           "scale is deliberate", call. = FALSE)
     refit <- .rasch_refit_after_drop(fit, keep)
   }
   if (!isTRUE(refit$est$converged))
     stop("the reduced calibration did not converge; the dropped-item analysis is unavailable")
-  if (inherits(refit, "rasch_efrm") &&
-      any(refit$linking$alpha_edges$converged %in% FALSE))
+  if (!.efrm_link_converged(refit))
     stop("the reduced calibration's set-unit link did not converge; the dropped-item analysis is unavailable")
   if (length(fit$subtest_map)) {
     sk <- intersect(names(fit$subtest_map), refit$items$item)

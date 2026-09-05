@@ -135,6 +135,26 @@ test_that("next-pair recommender adapts to poorly measured objects", {
   unw <- btl_next_pairs(fit2, n = 5, weight_se = FALSE)
   expect_false(identical(paste(wnp$object_a, wnp$object_b),
                          paste(unw$object_a, unw$object_b)))
+
+  invalid <- fit2
+  invalid$cov_beta[1, 1] <- -1e6
+  expect_error(btl_next_pairs(invalid, weight_se = TRUE),
+               "positive-semidefinite")
+  expect_no_error(btl_next_pairs(invalid, weight_se = FALSE))
+
+  misaligned <- fit2
+  rownames(misaligned$cov_beta)[1] <- "not an object"
+  expect_error(btl_next_pairs(misaligned, weight_se = TRUE),
+               "cannot be aligned")
+
+  no_cov <- fit2
+  no_cov$cov_beta <- NULL
+  no_cov$objects$se[1] <- NA_real_
+  expect_error(btl_next_pairs(no_cov, weight_se = TRUE),
+               "standard errors")
+  expect_no_error(btl_next_pairs(no_cov, weight_se = FALSE))
+  expect_error(btl_next_pairs(fit2, weight_se = matrix(TRUE)),
+               "TRUE or FALSE")
 })
 
 test_that("the targeting plot draws without error", {

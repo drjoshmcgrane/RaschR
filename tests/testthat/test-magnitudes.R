@@ -50,6 +50,26 @@ test_that("dependence_magnitude se uses the joint covariance of the refit", {
   expect_equal(dm$thresholds$se_k, se_joint, tolerance = 1e-10)
 })
 
+test_that("dependence_magnitude withholds inference from an invalid covariance", {
+  set.seed(111)
+  X <- matrix(rbinom(700 * 8, 1, .5), 700, 8,
+              dimnames = list(NULL, paste0("I", 1:8)))
+  fit <- rasch(X)
+  good <- dependence_magnitude(fit, dependent = "I6", independent = "I5")
+  bad_refit <- good$refit
+  bad_refit$est$cov_tau[1, 1] <- -1e6
+
+  guarded <- testthat::with_mocked_bindings(
+    dependence_magnitude(fit, dependent = "I6", independent = "I5"),
+    .rasch_refit = function(...) bad_refit,
+    .package = "rasch")
+  expect_equal(guarded$d, good$d)
+  expect_true(is.na(guarded$se))
+  expect_true(is.na(guarded$p))
+  expect_true(all(is.na(guarded$thresholds$se_k)))
+  expect_match(guarded$note, "not positive semidefinite")
+})
+
 test_that("dependence resolution retains controls and refuses constrained polytomous thresholds", {
   set.seed(12)
   X <- matrix(rbinom(1000 * 8, 1, .5), 1000, 8,
@@ -92,6 +112,15 @@ test_that("spread_test flags a dependent subtest by the LUB", {
   expect_true(st$dependent[dep_row])
   expect_lt(st$spread[dep_row], 0.3)
   expect_true(all(st$spread[ind_rows] > st$spread[dep_row]))
+
+  pc_zero <- pcml_pc(fit2$X)
+  pc_zero$components$spread_se[1] <- 0
+  st_zero <- testthat::with_mocked_bindings(
+    spread_test(fit2),
+    pcml_pc = function(...) pc_zero,
+    .package = "rasch")
+  expect_true(is.na(st_zero$z[1]))
+  expect_true(is.na(st_zero$p_adj[1]))
 
   pcm <- rasch(simulate_rasch(400, 5, model = "PCM", n_categories = 3,
                               seed = 52), id = "id")
@@ -161,12 +190,22 @@ test_that("tailored_analysis shows the guessing signature", {
   expect_lt(mean(ta0$table$shift[order(ta0$table$initial,
                                        decreasing = TRUE)[1:2]]), 0.3)
   expect_error(tailored_analysis(rasch(X), chance = c(0.2, 0.25)),
-               "chance must be one")
+               "chance.*probability")
   expect_error(tailored_analysis(rasch(X), chance = 1),
                "strictly between")
   expect_error(tailored_analysis(rasch(X), chance = 0.25,
                                  se_method = "bootstrap", boot_reps = 49),
-               "at least 50")
+               "whole number")
+  expect_error(tailored_analysis(rasch(X), chance = 0.25,
+                                 se_method = "bootstrap", seed = 1.5),
+               "whole number")
+  expect_error(tailored_analysis(
+    rasch(X), chance = 0.25,
+    anchor_items = matrix(c("I1", "I2"), ncol = 1L)),
+    "ordinary vector")
+  expect_error(tailored_analysis(
+    rasch(X), chance = 0.25, anchor_items = c("I1", "I1")),
+    "named more than once")
 })
 
 test_that("tailored_analysis bootstrap repeats the complete procedure", {
@@ -181,10 +220,15 @@ test_that("tailored_analysis bootstrap repeats the complete procedure", {
   # exceeds 0.05, and tailored_analysis must SAY so -- the warning is part
   # of the contract being tested here, not noise to suppress
   fit <- rasch(X)
+  set.seed(99)
+  caller_stream <- .Random.seed
   expect_warning(
     ta <- tailored_analysis(fit, chance = 0.25,
-                            se_method = "bootstrap", boot_reps = 50),
+                            se_method = "bootstrap", boot_reps = 50,
+                            seed = 812),
     "smallest achievable")
+  expect_identical(.Random.seed, caller_stream)
+  expect_identical(ta$seed, 812L)
   expect_identical(ta$se_method, "bootstrap")
   expect_gte(ta$boot_reps_used, 45L)
   expect_identical(ta$boot_minimum_usable, 45L)
@@ -290,6 +334,22 @@ test_that("rack_data and stack_data reshape repeated measurements", {
                "not unique")
   ds <- data.frame(pid = 1:2, t = 1:2, id = 0:1)
   expect_error(stack_data(ds, "pid", "t", "id"), "reserved")
+
+  # Whitespace is not part of an identifier or occasion label.  The values
+  # used to validate the design must also be the values used to align it.
+  dw <- data.frame(pid = c(" P1", "P2 ", "P1 ", " P2"),
+                   t = c(" T1", "T1 ", " T2", "T2 "), Q = 1:4)
+  rw <- rack_data(dw, "pid", "t", "Q")
+  expect_identical(rw$id, c("P1", "P2"))
+  expect_identical(names(rw), c("id", "Q@T1", "Q@T2"))
+  expect_equal(rw$`Q@T1`, 1:2)
+  expect_equal(rw$`Q@T2`, 3:4)
+  sw <- stack_data(dw, "pid", "t", "Q")
+  expect_identical(sw$id, c("P1", "P2", "P1", "P2"))
+  expect_identical(levels(sw$time), c("T1", "T2"))
+  expect_error(stack_data(transform(dw, pid = c("P1", " P1 ", "P2", "P3"),
+                                    t = c("T1", " T1 ", "T2", "T2")),
+                          "pid", "t", "Q"), "same time point")
 })
 
 test_that("the new displays draw without error", {

@@ -11,7 +11,10 @@ compare_fits(..., reference = 1)
 Rasch-family fits or all \code{btl} fits. For \code{btl}, fits of the same
 comparison data (same objects, comparisons, and judges) support the
 likelihood columns -- e.g. free versus principal-component thresholds,
-with and without a position effect or within-judge dependence.}
+with and without a position effect or within-judge dependence.
+Row order, arbitrary person or judge labels, and expansion versus count
+compression do not change data identity; allocation to independent
+persons or judges does.}
 
 \item{reference}{Index or name of the reference fit for the
 log-likelihood difference; defaults to the first.}
@@ -54,7 +57,8 @@ printed note) for MFRM and EFRM fits, which do not carry their Godambe
 matrices.
 
 Across different data preparations (subtests, splits, facet or frame
-structures) the likelihoods are not comparable. The table retains
+structures), or different allocations of response rows to persons, the
+likelihood-based criteria are not comparable and are withheld. The table retains
 descriptive context: total trait chi-square per degree of freedom,
 calibration and person fit-residual SDs (ideal 1), PSI, and alpha where
 applicable (OSI for paired comparisons). Alpha is \code{NA} when an MFRM

@@ -23,14 +23,14 @@
 .resolve_key <- function(key) {
   if (is.data.frame(key)) .check_column_names(key)
   if (is.data.frame(key) && all(c("item", "option", "score") %in% names(key))) {
-    key$item <- as.character(key$item)
+    key$item <- .role_text_values(key$item)
     # a row with no item names no item: split() would file it under a
     # phantom group and the real item would be left unscored
     blank_item <- is.na(key$item) | !nzchar(trimws(key$item))
     if (any(blank_item))
       stop("missing or blank item name in the scoring table (row(s) ",
            paste(which(blank_item), collapse = ", "), ")")
-    key$option <- trimws(toupper(as.character(key$option)))
+    key$option <- toupper(.role_text_values(key$option))
     # an option nobody can have chosen scores its item zero for everyone,
     # and the item is then dropped as constant under a misleading message
     blank_opt <- is.na(key$option) | !nzchar(key$option)
@@ -55,7 +55,8 @@
     if (!all(c("item", "key") %in% names(key)))
       stop("a key data frame needs columns item, key ",
            "(or item, option, score for polytomous option scoring)")
-    key <- setNames(as.character(key$key), as.character(key$item))
+    key <- setNames(.role_text_values(key$key),
+                    .role_text_values(key$item))
   }
   if (is.null(names(key))) stop("the key must be named by item")
   # a key entry that names no item scores no item: the real item would be
@@ -153,17 +154,33 @@
 #' head(distractor_analysis(fit))
 #' @export
 distractor_analysis <- function(fit, items = NULL, min_n = 10) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a fitted response-data Rasch model", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; rest-measure distractor analysis is unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; rest-measure distractor analysis is unavailable",
+         call. = FALSE)
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
   min_n <- .check_whole(min_n, "min_n", 1)
-  if (!is.null(items) && !length(items))
-    stop("`items` must name at least one item")
   raw <- fit$mc$raw; map <- fit$mc$map
   if (is.null(items)) items <- colnames(raw)
-  items <- as.character(items)
-  unknown <- setdiff(items, colnames(raw))
-  if (length(unknown))
+  if (!is.atomic(items) || !is.null(dim(items)) || !length(items))
+    stop("`items` must be an ordinary vector naming at least one item")
+  supplied <- as.character(items)
+  if (anyNA(supplied) || any(!nzchar(trimws(supplied))))
+    stop("`items` must contain non-missing, non-empty item names")
+  idx <- match(supplied, colnames(raw))
+  fallback <- is.na(idx)
+  if (any(fallback))
+    idx[fallback] <- match(.role_text_values(supplied[fallback]), colnames(raw))
+  if (anyNA(idx))
     stop("item(s) without raw multiple-choice responses: ",
-         paste(unknown, collapse = ", "))
+         paste(supplied[is.na(idx)], collapse = ", "))
+  items <- colnames(raw)[idx]
+  if (anyDuplicated(items))
+    stop("`items` must not name the same keyed item more than once")
   out <- list()
   for (it in items) {
     r <- raw[, it]
@@ -225,7 +242,9 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
 #' plot_distractors(fit, "M3")
 #' @export
 plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
-  if (length(item) != 1L || is.na(item))
+  .check_response_display_fit(fit, "rest-measure distractor plots")
+  if (!is.atomic(item) || !is.null(dim(item)) ||
+      length(item) != 1L || is.na(item))
     stop("`item` must name exactly one item")
   item <- as.character(item)
   n_groups <- .check_whole(n_groups, "n_groups", 2)
@@ -312,10 +331,9 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
 #' pr$option_scores
 #' @export
 distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
-  if (length(min_n) != 1L || !is.numeric(min_n) || !is.finite(min_n) ||
-      min_n != floor(min_n) || min_n < 1L || min_n > .Machine$integer.max)
-    stop("`min_n` must be one positive whole number")
-  if (length(z) != 1L || !is.numeric(z) || !is.finite(z) || z <= 0)
+  min_n <- .check_whole(min_n, "min_n", 1)
+  if (length(z) != 1L || !is.numeric(z) || is.complex(z) ||
+      !is.null(dim(z)) || !is.null(oldClass(z)) || !is.finite(z) || z <= 0)
     stop("`z` must be one positive finite separation threshold")
   if (!is.null(items) && !length(items))
     stop("`items` must name at least one keyed item")
@@ -324,6 +342,10 @@ distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
   ev <- list(); os <- list()
   for (it in unique(da$item)) {
     d <- da[da$item == it, ]
+    if (!any(d$keyed %in% TRUE))
+      stop("item ", it, " has no observed full-credit option; a rescoring ",
+           "proposal cannot locate the keyed response on the rest-measure ",
+           "scale", call. = FALSE)
     idx <- match(it, colnames(fit$X))
     th <- .person_estimates(fit$X[, -idx, drop = FALSE],
                             fit$tau_list[-idx])$theta

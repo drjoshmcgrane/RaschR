@@ -284,8 +284,9 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' @param weight_se If \code{TRUE} (the default), rank pairs by their one-step
 #'   reduction in total location variance. When the fit has no covariance,
 #'   the fallback priority is expected information multiplied by the sum of
-#'   the two squared standard errors. If \code{FALSE}, rank pairs by expected
-#'   information alone.
+#'   the two squared standard errors. A stored covariance that is invalid or
+#'   cannot be aligned with the objects is refused. If \code{FALSE}, rank
+#'   pairs by expected information alone.
 #' @return A data frame of the top \code{n} candidate pairs, each oriented to
 #'   its stronger object: \code{object_a}, \code{object_b}, the location
 #'   \code{gap}, \code{n_existing} (replications already observed for the
@@ -307,7 +308,9 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' @export
 btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
   n <- .check_whole(n, "n", 1)
-  if (length(weight_se) != 1L || is.na(weight_se) || !is.logical(weight_se))
+  if (length(weight_se) != 1L || !is.logical(weight_se) ||
+      !is.null(dim(weight_se)) || !is.null(oldClass(weight_se)) ||
+      is.na(weight_se))
     stop("`weight_se` must be TRUE or FALSE")
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
@@ -347,12 +350,39 @@ btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
   # (sum of se^2 as a fallback when the fit carries no covariance)
   prio <- if (weight_se && !is.null(fit$cov_beta)) {
     Sg <- fit$cov_beta
-    vapply(seq_along(i), function(k) {
+    if (!is.null(rownames(Sg)) || !is.null(colnames(Sg))) {
+      if (is.null(rownames(Sg)) || is.null(colnames(Sg)) ||
+          anyDuplicated(rownames(Sg)) || anyDuplicated(colnames(Sg)) ||
+          !all(objs %in% rownames(Sg)) || !all(objs %in% colnames(Sg)))
+        stop("the stored object covariance cannot be aligned with the ",
+             "calibrated objects", call. = FALSE)
+      Sg <- Sg[objs, objs, drop = FALSE]
+    }
+    if (!.covariance_supports_wald(Sg, n = K))
+      stop("uncertainty-weighted pair recommendations require a finite, ",
+           "symmetric positive-semidefinite object covariance; use ",
+           "`weight_se = FALSE` for information-only recommendations",
+           call. = FALSE)
+    Sg <- (Sg + t(Sg)) / 2
+    p <- vapply(seq_along(i), function(k) {
       v <- numeric(K); v[hi[k]] <- 1; v[loo[k]] <- -1
       Sv <- drop(Sg %*% v)
-      eI[k] * sum(Sv^2) / (1 + eI[k] * drop(crossprod(v, Sv)))
+      denominator <- 1 + eI[k] * drop(crossprod(v, Sv))
+      if (!is.finite(denominator) || denominator <= 0) return(NA_real_)
+      eI[k] * sum(Sv^2) / denominator
     }, 0)
-  } else if (weight_se) eI * (se[hi]^2 + se[loo]^2) else eI
+    if (any(!is.finite(p)) || any(p < 0))
+      stop("the stored object covariance does not yield finite non-negative ",
+           "variance reductions; use `weight_se = FALSE` for information-only ",
+           "recommendations", call. = FALSE)
+    p
+  } else if (weight_se) {
+    if (any(!is.finite(se)) || any(se < 0))
+      stop("uncertainty-weighted pair recommendations require finite ",
+           "non-negative object standard errors; use `weight_se = FALSE` ",
+           "for information-only recommendations", call. = FALSE)
+    eI * (se[hi]^2 + se[loo]^2)
+  } else eI
   ne <- n_existing[paste(pmin(i, j), pmax(i, j))]
   ne[is.na(ne)] <- 0
 

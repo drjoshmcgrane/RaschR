@@ -620,7 +620,8 @@ print.rasch_btl_dim <- function(x, ...) {
 #' }
 #' @export
 plot_btl_transitivity <- function(x, by = c("auto", "judge", "object"), ...) {
-  stopifnot(inherits(x, "rasch_btl_transitivity"))
+  if (!inherits(x, "rasch_btl_transitivity"))
+    stop("`x` must be a result from btl_transitivity()", call. = FALSE)
   by <- match.arg(by)
   use_judge <- if (by == "auto") !is.null(x$judges) else by == "judge"
   if (use_judge && is.null(x$judges))
@@ -675,7 +676,8 @@ plot_btl_transitivity <- function(x, by = c("auto", "judge", "object"), ...) {
 #' }
 #' @export
 plot_btl_scree <- function(x, ...) {
-  stopifnot(inherits(x, "rasch_btl_dim"))
+  if (!inherits(x, "rasch_btl_dim"))
+    stop("`x` must be a result from btl_dimensionality()", call. = FALSE)
   b <- x$bimensions; k <- nrow(b)
   ref_m <- x$reference$mean; ref_p <- x$reference$p95
   has_ref <- is.finite(ref_m) && is.finite(ref_p)
@@ -721,7 +723,8 @@ plot_btl_scree <- function(x, ...) {
 #' }
 #' @export
 plot_btl_dim_map <- function(x, ...) {
-  stopifnot(inherits(x, "rasch_btl_dim"))
+  if (!inherits(x, "rasch_btl_dim"))
+    stop("`x` must be a result from btl_dimensionality()", call. = FALSE)
   d <- x$coords
   r <- max(sqrt(d$x^2 + d$y^2), 1e-9)
   lim <- c(-r, r) * 1.25
@@ -776,20 +779,22 @@ plot_btl_dim_map <- function(x, ...) {
 #' locations). For the nominated judge, each object it met is given a
 #' standardised residual oriented to the object -- how much more (\code{z > 0},
 #' over-rated) or less (\code{z < 0}, under-rated) that judge favoured it than
-#' its consensus location predicts. A surprise is an object the judge treated
-#' against its standing: a strong object under-rated, or a weak object
-#' over-rated (residual opposite in sign to the location), beyond
-#' \code{flag_z} and seen at least \code{min_n} times. The fitted model must
-#' have converged.
+#' its consensus location predicts. Approximate two-sided normal probabilities
+#' are adjusted by Holm across the objects meeting \code{min_n}. A surprise
+#' is an eligible object treated against its standing (residual opposite in
+#' sign to the location) whose adjusted probability passes the level
+#' represented by \code{flag_z}. The fitted model must have converged.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}} with judges.
 #' @param judge The judge to profile (a value of the fit's judge column).
 #' @param min_n Objects met fewer times are shown but never flagged.
-#' @param flag_z Absolute residual at or beyond which a contrary judgement is
-#'   flagged unexpected.
+#' @param flag_z Absolute normal-residual threshold defining the familywise
+#'   flagging level; 1.96 corresponds to an adjusted two-sided probability
+#'   of approximately 0.05.
 #' @return A list of class \code{"rasch_btl_judge"}: \code{objects} (per object
-#'   met: location, times met \code{n}, residual \code{z}, \code{surprise} flag
-#'   and its \code{type}); \code{all_locations} (every object, for orientation);
+#'   met: location, times met \code{n}, residual \code{z}, approximate
+#'   \code{p}, Holm-adjusted \code{p_adj}, \code{surprise} flag and its
+#'   \code{type}); \code{all_locations} (every object, for orientation);
 #'   the \code{judge} and settings.
 #' @examples
 #' set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)
@@ -800,22 +805,27 @@ plot_btl_dim_map <- function(x, ...) {
 #' judge_surprise(btl(d, "a", "b", "win", judge = "judge"), "J1")
 #' @export
 judge_surprise <- function(fit, judge, min_n = 2L, flag_z = 1.96) {
-  if (length(judge) != 1L || is.na(judge))
+  if (!is.atomic(judge) || !is.null(dim(judge)) || length(judge) != 1L ||
+      is.na(judge))
     stop("`judge` must be one judge identifier")
   min_n <- .check_whole(min_n, "min_n", 1)
-  if (length(flag_z) != 1L || !is.numeric(flag_z) || !is.finite(flag_z) ||
-      flag_z <= 0)
+  if (length(flag_z) != 1L || !is.numeric(flag_z) || is.complex(flag_z) ||
+      !is.null(dim(flag_z)) || !is.null(oldClass(flag_z)) ||
+      !is.finite(flag_z) || flag_z <= 0)
     stop("`flag_z` must be one positive finite flagging value")
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; judge residuals are unavailable")
   cmp <- fit$comparisons
   if (all(is.na(cmp$judge))) stop("no judges in this fit")
-  judge <- as.character(judge)
+  judge <- .role_text_values(judge)
+  if (!nzchar(judge)) stop("`judge` must be one judge identifier")
   sel <- which(!is.na(cmp$judge) & as.character(cmp$judge) == judge)
   if (!length(sel)) stop("no comparisons for judge ", judge)
-  objs <- fit$objects$object; K <- length(objs); m <- fit$m
-  beta <- setNames(fit$objects$location, objs)
+  tab <- fit$objects
+  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object; K <- length(objs); m <- fit$m
+  beta <- setNames(tab$location, objs)
   d <- cmp[sel, , drop = FALSE]
   mo <- .btl_fitted_moments(fit, d)
   ia <- match(d$object_a, objs); ib <- match(d$object_b, objs)
@@ -831,15 +841,25 @@ judge_surprise <- function(fit, judge, min_n = 2L, flag_z = 1.96) {
   z <- (obs - exq) / sqrt(pmax(vr, 1e-9))
   o <- data.frame(object = objs, location = unname(beta), n = nn,
                   z = z)[keep, , drop = FALSE]
-  # a surprise: residual opposite in sign to the location (the judge pushed
-  # the object against its consensus standing), large enough, and seen enough
-  o$surprise <- abs(o$z) >= flag_z & o$n >= min_n & o$z * o$location < 0
+  # The normal reference is approximate because the consensus locations are
+  # estimated. Holm control remains valid under the dependence among the
+  # object residuals.
+  o$p <- 2 * stats::pnorm(-abs(o$z))
+  eligible <- o$n >= min_n & is.finite(o$p)
+  o$p_adj <- NA_real_
+  if (any(eligible))
+    o$p_adj[eligible] <- stats::p.adjust(o$p[eligible], method = "holm",
+                                         n = sum(eligible))
+  family_alpha <- 2 * stats::pnorm(-flag_z)
+  o$surprise <- eligible & o$z * o$location < 0 &
+    o$p_adj <= family_alpha
   o$type <- ifelse(!o$surprise, "",
                    ifelse(o$location > 0, "strong object under-rated",
                           "weak object over-rated"))
   o <- o[order(-abs(o$z)), ]; rownames(o) <- NULL
   structure(list(judge = judge, objects = o, all_locations = beta,
                  n_comparisons = sum(cmp$weight[sel]), flag_z = flag_z,
+                 family_alpha = family_alpha, p_adjust = "holm",
                  min_n = min_n),
             class = "rasch_btl_judge")
 }
@@ -852,8 +872,9 @@ print.rasch_btl_judge <- function(x, ...) {
   if (nrow(s)) {
     cat("Unexpected judgements:\n")
     for (i in seq_len(nrow(s)))
-      cat(sprintf("  %-6s (loc %+.2f): z = %+.2f  [%s]\n",
-                  s$object[i], s$location[i], s$z[i], s$type[i]))
+      cat(sprintf("  %-6s (loc %+.2f): z = %+.2f, Holm p = %s  [%s]\n",
+                  s$object[i], s$location[i], s$z[i], .fmt_p(s$p_adj[i]),
+                  s$type[i]))
   } else cat("No object judged against its consensus standing.\n")
   invisible(x)
 }
@@ -864,20 +885,22 @@ print.rasch_btl_judge <- function(x, ...) {
 #' the judge met is oriented to its stronger object (higher consensus
 #' location) and given a standardised residual: \code{z < 0} means the
 #' stronger object won less than its lead predicts -- the judge backed the
-#' underdog. A matchup is an unexpected judgement when \code{z} falls at or
-#' below \code{-flag_z} and the pair was seen at least \code{min_n} times, i.e.
-#' the judge favoured the weaker object further than sampling noise explains.
-#' The fitted model must have converged.
+#' underdog. Approximate two-sided normal probabilities are adjusted by Holm
+#' across matchups meeting \code{min_n}. A surprise is an eligible matchup
+#' with a negative residual whose adjusted probability passes the level
+#' represented by \code{flag_z}. The fitted model must have converged.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}} with judges.
 #' @param judge The judge to profile.
 #' @param min_n Pairs met fewer times are shown but never flagged.
-#' @param flag_z Absolute residual at or beyond which an upset is flagged.
+#' @param flag_z Absolute normal-residual threshold defining the familywise
+#'   flagging level; 1.96 corresponds to an adjusted two-sided probability
+#'   of approximately 0.05.
 #' @return A list of class \code{"rasch_btl_judge_pairs"}: \code{pairs} (per
 #'   matchup: the stronger and weaker object and their locations, the location
-#'   \code{gap}, times met \code{n}, residual \code{z}, the \code{net_winner},
-#'   and the \code{surprise} flag); \code{all_locations}; the \code{judge} and
-#'   settings.
+#'   \code{gap}, times met \code{n}, residual \code{z}, approximate \code{p},
+#'   Holm-adjusted \code{p_adj}, the \code{net_winner}, and the
+#'   \code{surprise} flag); \code{all_locations}; the \code{judge} and settings.
 #' @examples
 #' set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)
 #' pr <- t(utils::combn(objs, 2))
@@ -887,22 +910,27 @@ print.rasch_btl_judge <- function(x, ...) {
 #' judge_pair_surprise(btl(d, "a", "b", "win", judge = "judge"), "J1")
 #' @export
 judge_pair_surprise <- function(fit, judge, min_n = 1L, flag_z = 1.96) {
-  if (length(judge) != 1L || is.na(judge))
+  if (!is.atomic(judge) || !is.null(dim(judge)) || length(judge) != 1L ||
+      is.na(judge))
     stop("`judge` must be one judge identifier")
   min_n <- .check_whole(min_n, "min_n", 1)
-  if (length(flag_z) != 1L || !is.numeric(flag_z) || !is.finite(flag_z) ||
-      flag_z <= 0)
+  if (length(flag_z) != 1L || !is.numeric(flag_z) || is.complex(flag_z) ||
+      !is.null(dim(flag_z)) || !is.null(oldClass(flag_z)) ||
+      !is.finite(flag_z) || flag_z <= 0)
     stop("`flag_z` must be one positive finite flagging value")
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   if (!isTRUE(fit$converged))
     stop("the paired-comparison calibration did not converge; judge residuals are unavailable")
   cmp <- fit$comparisons
   if (all(is.na(cmp$judge))) stop("no judges in this fit")
-  judge <- as.character(judge)
+  judge <- .role_text_values(judge)
+  if (!nzchar(judge)) stop("`judge` must be one judge identifier")
   sel <- which(!is.na(cmp$judge) & as.character(cmp$judge) == judge)
   if (!length(sel)) stop("no comparisons for judge ", judge)
-  objs <- fit$objects$object; K <- length(objs); m <- fit$m
-  beta <- setNames(fit$objects$location, objs)
+  tab <- fit$objects
+  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object; K <- length(objs); m <- fit$m
+  beta <- setNames(tab$location, objs)
   d <- cmp[sel, , drop = FALSE]
   mo <- .btl_fitted_moments(fit, d)
   ia <- match(d$object_a, objs); ib <- match(d$object_b, objs)
@@ -923,12 +951,21 @@ judge_pair_surprise <- function(fit, judge, min_n = 1L, flag_z = 1.96) {
       loc_hi = unname(beta[hi]), loc_lo = unname(beta[lo]),
       gap = dd, n = n, z = zed,
       net_winner = if (obs >= n * m / 2) objs[hi] else objs[lo],
-      surprise = zed <= -flag_z & n >= min_n)
+      stringsAsFactors = FALSE)
   }
   p <- do.call(rbind, rows)
+  p$p <- 2 * stats::pnorm(-abs(p$z))
+  eligible <- p$n >= min_n & is.finite(p$p)
+  p$p_adj <- NA_real_
+  if (any(eligible))
+    p$p_adj[eligible] <- stats::p.adjust(p$p[eligible], method = "holm",
+                                         n = sum(eligible))
+  family_alpha <- 2 * stats::pnorm(-flag_z)
+  p$surprise <- eligible & p$z < 0 & p$p_adj <= family_alpha
   p <- p[order(p$z), ]; rownames(p) <- NULL
   structure(list(judge = judge, pairs = p, all_locations = beta,
                  n_comparisons = sum(cmp$weight[sel]), flag_z = flag_z,
+                 family_alpha = family_alpha, p_adjust = "holm",
                  min_n = min_n),
             class = "rasch_btl_judge_pairs")
 }
@@ -941,8 +978,9 @@ print.rasch_btl_judge_pairs <- function(x, ...) {
   if (nrow(s)) {
     cat("Unexpected judgements (weaker object favoured beyond its lead):\n")
     for (i in seq_len(nrow(s)))
-      cat(sprintf("  %s vs %s  (gap %.2f, z = %+.2f, %s)\n",
+      cat(sprintf("  %s vs %s  (gap %.2f, z = %+.2f, Holm p = %s, %s)\n",
                   s$object_hi[i], s$object_lo[i], s$gap[i], s$z[i],
+                  .fmt_p(s$p_adj[i]),
                   if (s$net_winner[i] == s$object_lo[i]) "upset"
                   else "favourite under-performed"))
   } else cat("No matchup went against the consensus beyond noise.\n")
@@ -954,7 +992,7 @@ print.rasch_btl_judge_pairs <- function(x, ...) {
 #' The judge counterpart of the kidmap, drawn matchup by matchup. Each pair the
 #' judge met is a segment on the consensus location axis, spanning its two
 #' objects, positioned horizontally by how surprising the verdict was: at zero
-#' (the dashed line, inside the shaded band) the stronger object won as its
+#' (the dashed line, inside the unadjusted z-reference band) the stronger object won as its
 #' lead predicts; to the left the judge backed the underdog. A filled dot marks
 #' the object the judge's verdict favoured, hollow the other -- so an upset is a
 #' red segment on the left with its filled dot at the lower end. The rug marks
@@ -987,7 +1025,9 @@ plot_btl_judge_map <- function(fit, judge, min_n = 1L, flag_z = 1.96, ...) {
                                   jp$judge, nrow(p)))
   on.exit(par(op))
   u <- par("usr")
-  rect(-flag_z, u[3], flag_z, u[4], col = "#94a3b81f", border = NA)  # expected
+  # The band shows the familiar per-match z scale; red verdicts additionally
+  # satisfy the Holm-adjusted familywise rule used by judge_pair_surprise().
+  rect(-flag_z, u[3], flag_z, u[4], col = "#94a3b81f", border = NA)
   abline(v = 0, col = .rr$soft, lwd = 1.2, lty = 2)
   rug(jp$all_locations, side = 2, col = .rr$grid, lwd = 1.4)
   # each matchup: a segment spanning its two objects at x = its residual, faint

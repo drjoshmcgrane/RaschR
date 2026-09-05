@@ -35,7 +35,9 @@ for category \eqn{x_i} is shifted by \eqn{-d} when \eqn{k \le x_i} and
 and \eqn{\hat d} is their mean (eq. 24.7 of Andrich and Marais 2019).
 The resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \eqn{\hat d} is
-calculated from their full sandwich covariance.
+calculated from their full sandwich covariance. If that covariance is
+unavailable or not positive semidefinite, the point estimate is retained
+as a descriptive magnitude and Wald inference is withheld.
 }
 \details{
 Polytomous resolution requires an unconstrained partial credit model so

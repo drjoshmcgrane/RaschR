@@ -567,7 +567,11 @@
 
   V <- transform(null[, family, drop = FALSE])
   obs_e <- transform(obs[family])
-  complete <- stats::complete.cases(V)
+  # complete.cases() accepts +/-Inf. That is unsuitable after transforming a
+  # statistic: for example log(0) is -Inf and would poison every centring,
+  # scale and row maximum in the joint reference. A usable maxT row must be
+  # finite for every member of the declared family.
+  complete <- rowSums(is.finite(V)) == ncol(V)
   family_boot <- sum(complete)
   # The family is declared by the finite observed statistics, not by which
   # null columns happen to survive. A partial maxT family would make every
@@ -658,6 +662,10 @@
     .refuse("the paired-comparison fit bootstrap requires whole positive ",
             "comparison counts; a fit using half-weighted ties cannot be generated ",
             "as independent comparisons. Code ties as an ordered middle category")
+  if (any(cmp$weight > .Machine$integer.max))
+    .refuse("the paired-comparison fit contains a compressed row whose count ",
+            "exceeds the integer range supported by the multinomial bootstrap; ",
+            "split that count over several otherwise identical rows before fitting")
   if (any(grepl("half a win", fit$notes %||% character(0), fixed = TRUE)))
     .refuse("the paired-comparison fit used half-weighted ties, which the fit ",
             "bootstrap cannot generate as independent comparisons. Code ties ",
@@ -837,20 +845,11 @@
   if (!isTRUE(fit$converged))
     .refuse("the observed paired-comparison fit did not converge; refit it ",
             "successfully before bootstrapping fit")
-  if (length(B) != 1L || !is.numeric(B) || !is.finite(B) || B != floor(B) ||
-      B < 1 || B > .Machine$integer.max)
-    stop("`B` must be one whole positive number of replicates")
-  if (length(workers) != 1L || !is.numeric(workers) || !is.finite(workers) ||
-      workers != floor(workers) || workers < 1 || workers > .Machine$integer.max)
-    stop("`workers` must be one whole positive number of workers")
-  if (!is.null(seed) &&
-      (length(seed) != 1L || !is.numeric(seed) || !is.finite(seed) ||
-       seed < 0 || seed != floor(seed) || seed > .Machine$integer.max))
-    stop("`seed` must be one non-negative whole number within the integer range")
-  B <- as.integer(B)
-  workers <- min(as.integer(workers), .rasch_available_workers())
+  B <- .check_whole(B, "B", 1)
+  workers <- .check_whole(workers, "workers", 1)
+  if (!is.null(seed)) seed <- .check_whole(seed, "seed", 0)
+  workers <- min(workers, .rasch_available_workers())
   if (!is.null(seed)) {
-    seed <- as.integer(seed)
     old <- .sim_seed_capture(); on.exit(.sim_seed_restore(old), add = TRUE)
     set.seed(seed)
   }
@@ -1063,14 +1062,16 @@
 }
 
 .fit_theta <- function(scheme, theta, psi, n = length(theta)) {
+  resample_theta <- function(x, size)
+    x[sample.int(length(x), size = size, replace = TRUE)]
   switch(scheme,
     normal = {
       vt <- psi$var_theta; mse <- psi$mean_error_var
       sd_c <- if (is.finite(vt) && is.finite(mse)) sqrt(max(vt - mse, 0)) else NA_real_
-      if (!is.finite(sd_c) || sd_c <= 0) sample(theta, n, replace = TRUE)
+      if (!is.finite(sd_c) || sd_c <= 0) resample_theta(theta, n)
       else stats::rnorm(n, mean(theta), sd_c)
     },
-    resample = sample(theta, n, replace = TRUE),
+    resample = resample_theta(theta, n),
     fixed = {
       if (length(theta) != n)
         stop("fixed person locations must have one value per response row")
@@ -1084,7 +1085,9 @@
 #' observed data. For a person-by-item Rasch model, the default generator
 #' conditions on each person's observed raw score and missingness pattern.
 #' The person parameter then cancels by sufficiency. Item parameters and
-#' person locations are re-estimated in every replicate.
+#' person locations are re-estimated in every replicate. The generator assumes
+#' independent response rows. A fit with repeated person IDs is therefore
+#' refused because this bootstrap does not reproduce within-person dependence.
 #'
 #' Item chi-squares use the upper tail. Fit residuals, infit and outfit use
 #' equal-tailed probabilities. Holm adjustment is applied separately to each
@@ -1201,6 +1204,11 @@ fit_bootstrap <- function(fit, B = 200,
     .refuse("the item fit bootstrap generates from a single-facet Rasch ",
             "model; an extended-frame, many-facet or explanatory fit has a ",
             "generating structure this function does not reproduce")
+  ids <- fit$person$id
+  if (.has_repeated_person_ids(ids))
+    .refuse("the item fit bootstrap assumes independent response rows and ",
+            "does not reproduce within-person dependence; fit the occasions ",
+            "separately or use the repeated-measures DIF procedures")
   if (!is.null(fit$disc) && length(unique(fit$disc)) > 1L)
     .refuse("the item fit bootstrap generates under equal discriminations; ",
             "this fit carries frame units that differ across items")
@@ -1211,22 +1219,13 @@ fit_bootstrap <- function(fit, B = 200,
   if (!isTRUE(fit$est$converged))
     .refuse("the observed Rasch fit did not converge; refit it successfully ",
             "before bootstrapping fit")
-  if (length(B) != 1L || !is.numeric(B) || !is.finite(B) || B != floor(B) ||
-      B < 1 || B > .Machine$integer.max)
-    stop("`B` must be one whole positive number of replicates")
+  B <- .check_whole(B, "B", 1)
   theta <- match.arg(theta)
-  if (length(workers) != 1L || !is.numeric(workers) || !is.finite(workers) ||
-      workers != floor(workers) || workers < 1 ||
-      workers > .Machine$integer.max)
-    stop("`workers` must be one whole positive number of workers")
-  B <- as.integer(B)
-  workers <- min(as.integer(workers), .rasch_available_workers())
+  workers <- .check_whole(workers, "workers", 1)
+  workers <- min(workers, .rasch_available_workers())
 
   if (!is.null(seed)) {
-    if (length(seed) != 1L || !is.numeric(seed) || !is.finite(seed) ||
-        seed < 0 || seed != floor(seed) || seed > .Machine$integer.max)
-      stop("`seed` must be one non-negative whole number within the integer range")
-    seed <- as.integer(seed)
+    seed <- .check_whole(seed, "seed", 0)
     old <- .sim_seed_capture()
     on.exit(.sim_seed_restore(old), add = TRUE)
     set.seed(seed)

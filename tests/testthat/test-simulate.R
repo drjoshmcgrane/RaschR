@@ -52,6 +52,22 @@ test_that("response-style probabilities remain stable at large strengths", {
   expect_true(all(as.matrix(middle[sm, paste0("I0", 1:5)]) == 1L))
 })
 
+test_that("a requested threshold disorder is present in the generating truth", {
+  # PCM threshold spans vary by item. The disorder must therefore be imposed
+  # as an adjacent reversal, not as a subtraction that a wide random gap can
+  # sometimes absorb.
+  for (seed in 1:30) {
+    d <- simulate_rasch(
+      40, 4, model = "PCM", n_categories = 3,
+      disordered = "I01", seed = seed)
+    tr <- attr(d, "truth")
+    expect_named(tr$thresholds, sprintf("I%02d", 1:4))
+    expect_true(any(diff(tr$thresholds$I01) < 0))
+    expect_equal(mean(tr$thresholds$I01), tr$difficulty[["I01"]],
+                 tolerance = 1e-12)
+  }
+})
+
 test_that("simulate_btl plants misfit the paired-comparison diagnostics detect", {
   # erratic judges carry large fit residuals and low consistency
   d <- simulate_btl(8, 12, erratic_judges = 0.17, seed = 1)
@@ -86,6 +102,22 @@ test_that("simulate_btl accepts explanatory object locations", {
   expect_error(simulate_btl(4, object_locations = rep(1, 4),
                             second_attribute = list(rho = 0.2)),
                "positive spread")
+})
+
+test_that("explanatory simulation departures cannot be absorbed by the design", {
+  p <- data.frame(exposure = seq(-1, 1, length.out = 5),
+                  type = rep(c("A", "B"), length.out = 5))
+  B <- stats::model.matrix(~ exposure * type, p)
+  d <- .sim_explanatory_departure(B, 1.25)
+  expect_equal(unname(drop(crossprod(B, d$values))), rep(0, ncol(B)),
+               tolerance = 1e-10)
+  expect_equal(d$values[d$index], 1.25, tolerance = 1e-12)
+
+  saturated <- stats::model.matrix(
+    ~ exposure * type,
+    data.frame(exposure = seq(-1, 1, length.out = 4),
+               type = rep(c("A", "B"), length.out = 4)))
+  expect_error(.sim_explanatory_departure(saturated, 1), "saturated")
 })
 
 test_that("simulate_mfrm plants rater severity, misfit, and interaction", {
@@ -171,6 +203,37 @@ test_that("EFRM simulators plant frame-specific and judge departures", {
                                        levels = c("panel1", "panel2"))))), 1L)
 })
 
+test_that("BTL-EFRM simulator unit arguments are plain vectors", {
+  expect_error(
+    simulate_btl_efrm(n_panels = 2, panel_units = matrix(c(1, 1.2), 1)),
+    "panel_units")
+  expect_error(
+    simulate_btl_efrm(n_sets = 2, set_units = matrix(c(1, 1.2), 1)),
+    "set_units")
+  expect_error(
+    simulate_btl_efrm(n_sets = 2, set_origins = matrix(c(0, 0.2), 1)),
+    "set_origins")
+})
+
+test_that("planted-misfit selectors are plain vectors", {
+  expect_error(
+    simulate_rasch(40, 4, disordered = matrix("I01", 1),
+                   model = "PCM"),
+    "plain vectors")
+  expect_error(
+    simulate_mfrm(10, 3, 3,
+      interaction = list(rater = matrix("R1", 1), item = "I1", bias = 1)),
+    "each name one")
+  expect_error(
+    simulate_efrm(10, 3,
+      item_drift = list(items = matrix("S1I01", 1), group = "g1", shift = 1)),
+    "plain vector")
+  expect_error(
+    simulate_efrm(10, 3,
+      item_drift = list(items = "S1I01", group = matrix("g1", 1), shift = 1)),
+    "name one generated group")
+})
+
 test_that("paired-comparison simulators retain every declared judge", {
   d <- simulate_btl(n_objects = 3, n_judges = 20, reps_per_pair = 7,
                     erratic_judges = 0.2, seed = 713)
@@ -214,7 +277,8 @@ test_that("sim_replicate and sim_recovery support Monte Carlo and recovery", {
 
   # recovery: a clean fit gets its planted parameters back
   d <- simulate_rasch(600, 12, seed = 1)
-  rec <- sim_recovery(rasch(d), d)
+  fit <- rasch(d)
+  rec <- sim_recovery(fit, d)
   expect_s3_class(rec, "rasch_recovery")
   s <- rec$summary
   expect_gt(s$correlation[s$parameter == "item difficulty"], 0.95)
@@ -224,6 +288,10 @@ test_that("sim_replicate and sim_recovery support Monte Carlo and recovery", {
   # is reported NA rather than a structurally-zero value
   expect_true(is.na(s$bias[s$parameter == "item difficulty"]))
   pdf(NULL); on.exit(dev.off()); expect_no_error(plot_recovery(rec))
+
+  bad <- fit
+  bad$est$converged <- FALSE
+  expect_error(sim_recovery(bad, d), "did not converge")
 
   # recovery across the other layouts
   d <- simulate_btl(8, 12, seed = 2)
@@ -247,6 +315,57 @@ test_that("sim_replicate and sim_recovery support Monte Carlo and recovery", {
     c("object location", "panel unit (log)", "set unit (log)", "set origin"))
   expect_gt(rf$summary$correlation[
     rf$summary$parameter == "object location"], 0.9)
+
+  # Set names are arbitrary labels: recovery follows the object partition,
+  # not the simulator's conventional set1/set2 spelling.
+  renamed <- bf
+  set_names <- c(set1 = "Form A", set2 = "Form B")
+  renamed$objects$set <- unname(set_names[as.character(renamed$objects$set)])
+  renamed$alpha_table$set <- unname(set_names[as.character(
+    renamed$alpha_table$set)])
+  renamed$kappa_table$set <- unname(set_names[as.character(
+    renamed$kappa_table$set)])
+  rr <- sim_recovery(renamed, d)
+  expect_setequal(rr$summary$parameter,
+    c("object location", "panel unit (log)", "set unit (log)", "set origin"))
+})
+
+test_that("EFRM recovery follows set membership rather than set labels", {
+  d <- simulate_efrm(20, 4, n_sets = 2, n_groups = 2, seed = 72)
+  tr <- attr(d, "truth")
+  set_of <- stats::setNames(
+    rep(c("Form A", "Form B"), lengths(tr$item_sets)),
+    unlist(tr$item_sets, use.names = FALSE))
+  fit <- list(
+    est = list(converged = TRUE),
+    linking = list(alpha_edges = data.frame(converged = TRUE)),
+    set_of = set_of,
+    alpha_table = data.frame(set = c("Form A", "Form B"), alpha = tr$alpha),
+    phi_table = data.frame(group = names(tr$phi), phi = tr$phi))
+  class(fit) <- c("rasch_efrm", "rasch")
+  r <- sim_recovery(fit, d)
+  expect_setequal(r$summary$parameter,
+                  c("set unit (log)", "group unit (log)"))
+  expect_identical(r$pieces[["set unit (log)"]]$label,
+                   c("Form A", "Form B"))
+
+  repartitioned <- fit
+  repartitioned$set_of[tr$item_sets[[1]][1]] <- "Form B"
+  expect_error(sim_recovery(repartitioned, d),
+               "partition does not match")
+})
+
+test_that("sim_replicate preserves a seed at the integer boundary", {
+  seen <- integer(0)
+  generator <- function(seed) {
+    seen <<- c(seen, seed)
+    structure(data.frame(x = 1), truth = list(layout = "test"))
+  }
+  out <- sim_replicate(generator, 1, seed = .Machine$integer.max)
+  expect_identical(seen, .Machine$integer.max)
+  expect_length(out, 1L)
+  expect_error(sim_replicate(generator, 2, seed = .Machine$integer.max),
+               "exceeds the integer range")
 })
 
 test_that("person recovery matches generating truth by ID", {
@@ -260,6 +379,39 @@ test_that("person recovery matches generating truth by ID", {
     is.finite(fit$person$theta)])
   expect_gt(rec$summary$correlation[
     rec$summary$parameter == "person ability"], 0.7)
+})
+
+test_that("recovery retains an externally anchored origin", {
+  d <- simulate_rasch(600, 8, seed = 720)
+  tr <- attr(d, "truth")
+  anchors <- data.frame(item = names(tr$difficulty)[c(1, 8)], k = 1L,
+                        tau = unname(tr$difficulty[c(1, 8)]))
+  fit <- rasch(d, id = "id", anchors = anchors)
+  rec <- sim_recovery(fit, d)
+  ip <- rec$pieces[["item difficulty"]]
+  pp <- rec$pieces[["person ability"]]
+  expect_equal(ip$estimated,
+               fit$items$location[match(ip$label, fit$items$item)])
+  expect_equal(pp$true,
+               unname(tr$theta[match(pp$label, tr$person_id)]))
+  expect_equal(pp$estimated,
+               fit$person$theta[match(pp$label, fit$person$id)])
+  expect_true(all(is.finite(rec$summary$bias)))
+  expect_equal(rec$summary$bias[rec$summary$parameter == "item difficulty"],
+               mean(fit$items$location - unname(tr$difficulty[
+                 match(fit$items$item, names(tr$difficulty))])))
+
+  d <- simulate_btl(7, 20, 10, seed = 721)
+  tr <- attr(d, "truth")
+  fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge",
+             anchors = tr$location[c(1, 7)])
+  rec <- sim_recovery(fit, d)
+  expect_true(is.finite(rec$summary$bias[
+    rec$summary$parameter == "object location"]))
+})
+
+test_that("the recovery plot refuses an unrelated object directly", {
+  expect_error(plot_recovery(list()), "recovery result")
 })
 
 test_that("audit fixes hold: PCM structure, truth honesty, recovery centring", {
@@ -291,9 +443,13 @@ test_that("audit fixes hold: PCM structure, truth honesty, recovery centring", {
                       seed = 3)
   tr <- attr(d, "truth")
   expect_length(intersect(tr$style_idx, tr$careless_idx), 0)
-  # halo raters never overflow into NA when erratic raters shrink the pool
-  d <- simulate_mfrm(30, 4, 5, erratic_raters = 0.4, halo = 0.8, seed = 1)
-  expect_false(anyNA(attr(d, "truth")$halo))
+  # requested proportions are either realised exactly or refused; one
+  # mechanism cannot silently erase part of another
+  expect_error(simulate_mfrm(30, 4, 5, erratic_raters = 0.4, halo = 0.8,
+                             seed = 1), "cannot coexist")
+  d <- simulate_mfrm(30, 4, 5, erratic_raters = 0.4, halo = 0.6, seed = 1)
+  expect_length(attr(d, "truth")$erratic, 2L)
+  expect_length(attr(d, "truth")$halo, 3L)
 
   # person ability is centred in recovery: an asymmetric difficulty range
   # must not masquerade as person-ability bias. Bias is not identifiable
@@ -310,6 +466,44 @@ test_that("audit fixes hold: PCM structure, truth honesty, recovery centring", {
   r <- sim_recovery(mf, d)
   expect_true("item difficulty" %in% r$summary$parameter)
   expect_gt(r$summary$correlation[r$summary$parameter == "item difficulty"], 0.9)
+})
+
+test_that("MFRM recovery identifies the simulated rater facet", {
+  d <- simulate_mfrm(12, 3, 4, seed = 73)
+  tr <- attr(d, "truth")
+  # A fitted object may contain additional facets and need not put the rater
+  # facet first.  Its levels, rather than its position, identify the planted
+  # severity parameter when the rater column has also been renamed.
+  fit <- structure(list(
+    est = list(converged = TRUE),
+    facet_effects = list(
+      occasion = data.frame(level = c("O1", "O2"), severity = c(-0.2, 0.2)),
+      judge = data.frame(level = names(tr$severity),
+                         severity = unname(tr$severity))
+    ),
+    item_effects = data.frame(item = names(tr$difficulty),
+                              location = unname(tr$difficulty)),
+    person = data.frame(id = tr$person_id, theta = tr$theta)
+  ), class = c("rasch_mfrm", "rasch"))
+  r <- sim_recovery(fit, d)
+  rs <- r$pieces[["rater severity"]]
+  expect_identical(rs$label, names(tr$severity))
+  expect_equal(rs$estimated, as.numeric(tr$severity - mean(tr$severity)))
+
+  ambiguous <- fit
+  ambiguous$facet_effects$occasion <- ambiguous$facet_effects$judge
+  expect_error(sim_recovery(ambiguous, d), "cannot be matched to one")
+
+  misleading <- fit
+  misleading$facet_effects$rater <- data.frame(
+    level = c(names(tr$severity)[1], "unrelated"),
+    severity = c(99, -99))
+  r2 <- sim_recovery(misleading, d)
+  expect_identical(r2$pieces[["rater severity"]]$label,
+                   names(tr$severity))
+
+  ordinary <- rasch(simulate_rasch(80, 4, seed = 74))
+  expect_error(sim_recovery(ordinary, d), "does not match")
 })
 
 test_that("misfit layers compose: dependence and style respect DIF / 2nd dim", {
@@ -399,21 +593,27 @@ test_that("every positive planted proportion affects at least one observation", 
     truth$missing_cells]))
   expect_true(any(grepl("1 response missing", truth$planted, fixed = TRUE)))
 
+  speeded_only <- simulate_rasch(20, 5, speeded = 1, seed = 430)
+  both <- simulate_rasch(20, 5, speeded = 1, missing = 0.2, seed = 430)
+  speeded_cells <- which(is.na(as.matrix(speeded_only[, paste0("I0", 1:5)])))
+  both_truth <- attr(both, "truth")
+  expect_length(both_truth$missing_cells, 20L)
+  expect_length(intersect(speeded_cells, both_truth$missing_cells), 0L)
+  expect_error(simulate_rasch(10, 3, speeded = 1, missing = 1, seed = 431),
+               "finite value")
+
   erratic <- simulate_mfrm(10, 3, 2, erratic_raters = 0.01, seed = 44)
   expect_length(attr(erratic, "truth")$erratic, 1L)
   halo <- simulate_mfrm(10, 3, 2, halo = 0.01, seed = 45)
   expect_length(attr(halo, "truth")$halo, 1L)
   expect_error(simulate_mfrm(10, 3, 2, erratic_raters = 1,
                              halo = 0.01, seed = 45),
-               "every rater is erratic")
+               "cannot coexist")
 
-  expect_warning(
-    fully_careless <- simulate_rasch(
-      10, 4, model = "PCM", n_categories = 3, careless = 1,
-      response_style = list(type = "extreme", prop = 0.01, strength = 1),
-      seed = 46),
-    "response_style could not remain")
-  expect_length(attr(fully_careless, "truth")$style_idx, 0L)
+  expect_error(simulate_rasch(
+    10, 4, model = "PCM", n_categories = 3, careless = 1,
+    response_style = list(type = "extreme", prop = 0.01, strength = 1),
+    seed = 46), "cannot coexist")
 
   framed <- simulate_efrm(n_per_group = 2, items_per_set = 2,
                           n_sets = 2, n_groups = 2,
@@ -421,4 +621,19 @@ test_that("every positive planted proportion affects at least one observation", 
   truth <- attr(framed, "truth")
   expect_length(truth$careless_idx, 1L)
   expect_length(truth$missing_cells, 1L)
+
+  no_drift <- simulate_efrm(n_per_group = 4, items_per_set = 2,
+                            n_sets = 2, n_groups = 2, seed = 48)
+  zero_drift <- simulate_efrm(
+    n_per_group = 4, items_per_set = 2, n_sets = 2, n_groups = 2,
+    item_drift = list(items = "S1I01", group = "g2", shift = 0), seed = 48)
+  expect_identical(as.data.frame(zero_drift), as.data.frame(no_drift))
+  expect_null(attr(zero_drift, "truth")$item_drift)
+})
+
+test_that("response-data simulators cannot remove every observation", {
+  expect_error(simulate_rasch(20, 5, missing = 1), "finite value")
+  expect_error(simulate_efrm(10, 3, missing = 1), "finite value")
+  expect_error(simulate_rasch(2, 2, missing = 0.99), "every remaining response")
+  expect_error(simulate_efrm(2, 2, missing = 0.99), "every response")
 })

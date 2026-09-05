@@ -58,8 +58,10 @@ A list of class \code{"rasch_btl_dif"}: \code{summary} (one row per
   support for both sides, SE, t, degrees of
   freedom, adjusted p, significance and practical flags); \code{effects},
   \code{factors}, \code{alpha}, \code{p_adjust}, \code{flag_logits}, and
-  \code{notes}. \code{summary_factors} retains the factor membership of
-  each displayed term.
+  \code{notes}. \code{size_family_n} records the complete planned
+  resolved-contrast family, including unavailable comparisons.
+  \code{summary_factors} retains the factor membership of each displayed
+  term.
 }
 \description{
 Tests whether object locations differ across groups of judges. Several
@@ -102,7 +104,9 @@ remaining objects. With DIF in several objects, this can induce compensating
 apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
 An externally anchored object is not resolved: fixing each of its copies at
 the same anchor would define their difference as zero. Anchors on the other
-objects are retained in the joint refit.
+objects are retained in the joint refit. If a resolved-location covariance
+is unavailable or not positive semidefinite, the locations and differences
+remain descriptive but their uncertainty and tests are withheld.
 }
 \examples{
 set.seed(1)

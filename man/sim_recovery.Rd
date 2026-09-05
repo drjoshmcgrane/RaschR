@@ -26,7 +26,14 @@ Rasch fit, object locations for a paired-comparison fit, rater severities
 (with item and person measures) for a many-facet fit, set and group units
 for a Rasch frames fit, and common object locations, panel and set units,
 and set origins for a paired-comparison frames fit. Locations are
-mean-centred where the model identifies them only up to an origin.
+mean-centred where the model identifies them only up to an origin. An
+externally anchored Rasch or paired-comparison fit retains its identified
+origin, so recovery and bias are reported on the anchored scale.
+The fit must be from the simulated model family and must have converged.
+For a many-facet simulation, the planted rater facet must be identifiable
+uniquely by its name or level labels.
+EFRM set parameters are matched by their item or object membership, not by
+the spelling of the set labels; a different fitted partition is refused.
 }
 \examples{
 d <- simulate_rasch(500, 12, seed = 1)

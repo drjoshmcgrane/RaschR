@@ -65,7 +65,8 @@ An object of classes \code{"rasch_mfrm"} and \code{"rasch"}.
   the corresponding item-by-facet effects. The component \code{fit_resid}
   averages virtual-item residuals within a margin. Its response-weighted
   counterpart is \code{fit_resid_pooled}; its degrees of freedom are in
-  \code{df_fit}.
+  \code{df_fit}. A non-converged fit retains estimates and residual patterns
+  for diagnosis but withholds standard errors and inferential probabilities.
 }
 \description{
 Fits an additive many-facet Rasch model (Linacre 1989) to scored responses

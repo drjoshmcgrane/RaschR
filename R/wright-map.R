@@ -17,6 +17,7 @@
 #' A single person panel has no heading by default. When several person panels
 #' are requested, their panel labels are printed above the distributions. The
 #' plot has no overall title unless one is supplied through \code{main.title}.
+#' The fitted calibration must have converged.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}, including explanatory,
 #'   MFRM and EFRM fits. Comparative-judgement models do not estimate person
@@ -108,6 +109,12 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
          "estimate object locations but not judge locations.", call. = FALSE)
   if (!inherits(fit, "rasch"))
     stop("fit must be a fitted rasch object.", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; a Wright map is unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; a Wright map is unavailable",
+         call. = FALSE)
   type <- match.arg(type)
 
   theta <- fit$person$theta
@@ -158,7 +165,7 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   }
   if (anyNA(group))
     stop("Person-panel memberships cannot be missing.", call. = FALSE)
-  group <- trimws(as.character(group))
+  group <- .role_text_values(group)
   if (any(!nzchar(group)))
     stop("Person-panel memberships cannot be blank.", call. = FALSE)
   group <- factor(group, levels = unique(group))
@@ -212,6 +219,9 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
     if (is.null(names(panels)) || anyNA(names(panels)) ||
         any(!nzchar(trimws(names(panels)))) || anyDuplicated(names(panels)))
       stop("A list supplied to item_panels must name every panel.", call. = FALSE)
+    names(panels) <- trimws(names(panels))
+    if (anyDuplicated(names(panels)))
+      stop("Item-panel names must remain distinct after trimming.", call. = FALSE)
     if (any(!lengths(panels)))
       stop("Every panel in an item_panels list must contain at least one item.",
            call. = FALSE)
@@ -257,7 +267,7 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
   }
   if (anyNA(panels))
     stop("Item-panel memberships cannot be missing.", call. = FALSE)
-  panels <- trimws(as.character(panels))
+  panels <- .role_text_values(panels)
   if (any(!nzchar(panels)))
     stop("Item-panel memberships cannot be blank.", call. = FALSE)
   factor(panels, levels = unique(panels))

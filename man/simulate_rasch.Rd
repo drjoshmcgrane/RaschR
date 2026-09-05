@@ -60,18 +60,19 @@ Values below 1 produce flatter responses and positive fit residuals.}
 \item{second_dim}{\code{NULL}, or \code{list(items=, rho=)}: the named items
 load on a second trait whose realised sample correlation with the first
 is \code{rho}. At least three persons are needed unless \code{rho} is
--1 or 1.}
+-1 or 1. Each item is named once.}
 
 \item{dependence}{\code{NULL}, or \code{list(pairs=, strength=)}: each pair's
 second item responds partly to the first. This departure feeds the
-residual-dependence diagnostics.}
+residual-dependence diagnostics. Each directed pair is listed once.}
 
 \item{dif}{\code{NULL}, or \code{list(items=, uniform=, nonuniform=)}: the
 named items function differently for the last person group: a location
 shift (\code{uniform}) and/or a slope change (\code{nonuniform}). Needs
-\code{n_groups >= 2}.}
+\code{n_groups >= 2}; each item is named once.}
 
-\item{careless}{Proportion of persons who answer at random.}
+\item{careless}{Proportion of persons who answer at random. Careless and
+response-style assignments are disjoint; their requested counts must fit.}
 
 \item{response_style}{\code{NULL}, or \code{list(type=, prop=, strength=)}
 with \code{type} \code{"extreme"} or \code{"middle"}: a proportion
@@ -80,7 +81,8 @@ of the trait, with distortion \code{strength} (default 1.6) on the
 log-probability scale (polytomous).}
 
 \item{speeded}{Proportion not reached at the last item: a growing tail of
-missing responses over the final items.}
+missing responses over the final items. These cells are kept distinct
+from any completely-at-random missing cells.}
 
 \item{disordered}{\code{NULL} or item names/indices given disordered
 thresholds (polytomous; feeds the threshold diagnostics).}
@@ -88,7 +90,9 @@ thresholds (polytomous; feeds the threshold diagnostics).}
 \item{n_groups}{Number of equal person groups (a \code{group} factor column
 is added when > 1, for DIF).}
 
-\item{missing}{Proportion of responses set missing (completely at random).}
+\item{missing}{Proportion of responses set missing completely at random,
+drawn from cells not already missing through speededness. The requested
+count must fit among those cells and leave at least one observed response.}
 
 \item{seed}{Optional non-negative whole-number RNG seed.}
 }

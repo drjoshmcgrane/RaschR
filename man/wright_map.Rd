@@ -66,6 +66,7 @@ For EFRM fits, \code{person_panels = "groups"} and \code{item_panels =
 A single person panel has no heading by default. When several person panels
 are requested, their panel labels are printed above the distributions. The
 plot has no overall title unless one is supplied through \code{main.title}.
+The fitted calibration must have converged.
 }
 \examples{
 set.seed(1)

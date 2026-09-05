@@ -15,7 +15,8 @@
 }
 
 .app_scalar_text <- function(x) {
-  is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)
+  is.character(x) && is.null(dim(x)) && is.null(oldClass(x)) &&
+    length(x) == 1L && !is.na(x) && nzchar(trimws(x))
 }
 
 .validate_app_fit <- function(fit, what = "fitted model") {
@@ -27,7 +28,8 @@
     if (!is.data.frame(fit$objects) || nrow(fit$objects) < 2L ||
         !all(c("object", "location") %in% names(fit$objects)) ||
         !is.character(fit$objects$object) || anyNA(fit$objects$object) ||
-        any(!nzchar(fit$objects$object)) || anyDuplicated(fit$objects$object))
+        any(!nzchar(trimws(fit$objects$object))) ||
+        anyDuplicated(fit$objects$object))
       fail("has an invalid object calibration")
     if (!is.data.frame(fit$comparisons) || !nrow(fit$comparisons) ||
         !all(c("object_a", "object_b", "response", "weight", "judge") %in%
@@ -36,14 +38,20 @@
     if (!is.data.frame(fit$pairs) ||
         !all(c("object_a", "object_b") %in% names(fit$pairs)))
       fail("has an invalid pair-fit table")
-    if (length(fit$m) != 1L || !is.numeric(fit$m) || !is.finite(fit$m) ||
+    if (length(fit$m) != 1L || !is.numeric(fit$m) || is.complex(fit$m) ||
+        !is.null(dim(fit$m)) || !is.null(oldClass(fit$m)) ||
+        !is.finite(fit$m) ||
         fit$m < 1 || fit$m != floor(fit$m))
       fail("has an invalid response scale")
     if (length(fit$n_comparisons) != 1L ||
-        !is.numeric(fit$n_comparisons) || !is.finite(fit$n_comparisons) ||
+        !is.numeric(fit$n_comparisons) || is.complex(fit$n_comparisons) ||
+        !is.null(dim(fit$n_comparisons)) ||
+        !is.null(oldClass(fit$n_comparisons)) ||
+        !is.finite(fit$n_comparisons) ||
         fit$n_comparisons < 1)
       fail("has an invalid comparison count")
     if (length(fit$converged) != 1L || !is.logical(fit$converged) ||
+        !is.null(dim(fit$converged)) || !is.null(oldClass(fit$converged)) ||
         is.na(fit$converged))
       fail("has no valid convergence record")
 
@@ -77,7 +85,7 @@
   if (!is.data.frame(fit$items) || nrow(fit$items) != L ||
       !all(c("item", "location") %in% names(fit$items)) ||
       !is.character(fit$items$item) || anyNA(fit$items$item) ||
-      any(!nzchar(fit$items$item)) || anyDuplicated(fit$items$item))
+      any(!nzchar(trimws(fit$items$item))) || anyDuplicated(fit$items$item))
     fail("has an invalid item calibration")
   if (!is.data.frame(fit$thresholds) ||
       !all(c("item", "k", "tau") %in% names(fit$thresholds)) ||
@@ -129,7 +137,8 @@
   # Read the schema as stored: coercion would accept "2", TRUE, 2.5 or a
   # factor's level code as schema 2.
   schema <- project$schema
-  if (length(schema) != 1L || !is.numeric(schema) || is.na(schema) ||
+  if (length(schema) != 1L || !is.numeric(schema) || is.complex(schema) ||
+      !is.null(dim(schema)) || !is.null(oldClass(schema)) || is.na(schema) ||
       schema != 2L)
     fail(paste("unsupported rasch analysis-file schema; this version needs",
                "a schema-2 file with data-to-fit integrity information"))
@@ -138,7 +147,7 @@
     fail("the analysis file does not contain a valid source dataset")
   data_names <- colnames(project$data)
   if (is.null(data_names) || anyNA(data_names) ||
-      any(!nzchar(data_names)) || anyDuplicated(data_names))
+      any(!nzchar(trimws(data_names))) || anyDuplicated(data_names))
     fail("the analysis file has invalid source-data column names")
 
   base_problem <- tryCatch({
@@ -338,17 +347,48 @@
   old_maxt <- !legacy && is.list(project) &&
     length(project$schema) == 1L && is.numeric(project$schema) &&
     !is.na(project$schema) && project$schema == 2L &&
+    is.list(project$results) &&
     is.list(project$results$bootstrap) &&
     is.list(project$results$bootstrap$bs) &&
     is.null(project$results$bootstrap$bs$algorithm)
+  old_frame_invariance <- !legacy && is.list(project) &&
+    length(project$schema) == 1L && is.numeric(project$schema) &&
+    !is.na(project$schema) && project$schema == 2L &&
+    is.list(project$results) &&
+    is.list(project$results$frame_invariance) &&
+    !all(c("family_n", "boot_reps", "boot_reps_used",
+           "boot_reps_nonconverged", "boot_reps_errors",
+           "boot_minimum_usable") %in%
+         names(project$results$frame_invariance))
   if (isTRUE(old_maxt)) {
+    unsigned_project <- project
+    attr(unsigned_project, "rasch_project_legacy") <- NULL
+    attr(unsigned_project, "rasch_project_legacy_dropped") <- NULL
+    unsigned_project$binding <- NULL
     if (!.app_scalar_text(project$binding) ||
-        !identical(project$binding, .app_project_binding(project)))
+        !.fit_boot_hash_matches(project$binding, unsigned_project))
       stop(paste("the analysis file's source data, fitted models or results have",
                  "changed since they were saved"), call. = FALSE)
     project$results$bootstrap <- NULL
     project <- .seal_app_project(project)
     dropped <- c(dropped, "fit bootstrap (superseded maxT adjustment)")
+  }
+  # Earlier schema-2 projects can carry frame-invariance results produced
+  # before complete multiplicity/bootstrap accounting and the strict
+  # all-frame comparison rule. Authenticate the bundle before omitting that
+  # derived result.
+  if (isTRUE(old_frame_invariance)) {
+    unsigned_project <- project
+    attr(unsigned_project, "rasch_project_legacy") <- NULL
+    attr(unsigned_project, "rasch_project_legacy_dropped") <- NULL
+    unsigned_project$binding <- NULL
+    if (!.app_scalar_text(project$binding) ||
+        !.fit_boot_hash_matches(project$binding, unsigned_project))
+      stop(paste("the analysis file's source data, fitted models or results have",
+                 "changed since they were saved"), call. = FALSE)
+    project$results$frame_invariance <- NULL
+    project <- .seal_app_project(project)
+    dropped <- c(dropped, "frame-invariance analysis (superseded inference)")
   }
   if (legacy) {
     # Schema 1 did not record an integrity binding. It can be checked
@@ -404,6 +444,13 @@
     warning(paste("the saved fit bootstrap used the earlier maxT",
                   "standardisation and was omitted; recompute it before",
                   "reporting adjusted bootstrap probabilities"),
+            call. = FALSE)
+  }
+  if (isTRUE(old_frame_invariance)) {
+    attr(project, "rasch_project_legacy_dropped") <- unique(dropped)
+    warning(paste("the saved frame-invariance analysis used earlier",
+                  "comparison or bootstrap-accounting rules and was omitted;",
+                  "recompute it before reporting frame-invariance inference"),
             call. = FALSE)
   }
   project

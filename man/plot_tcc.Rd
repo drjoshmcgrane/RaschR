@@ -4,7 +4,7 @@
 \alias{plot_tcc}
 \title{Plot the test characteristic curve}
 \usage{
-plot_tcc(fit, grid = seq(-6, 6, 0.05))
+plot_tcc(fit, grid = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}

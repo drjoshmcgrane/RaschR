@@ -88,8 +88,9 @@ combine_items <- function(fit, groups, model = "PCM") {
          "each naming at least one item")
   groups <- lapply(groups, function(g) {
     if (is.factor(g)) g <- as.character(g)
-    if (!is.character(g) || anyNA(g) || any(!nzchar(trimws(g))))
-      stop("each subtest must contain non-missing item names")
+    if (!is.character(g) || !is.null(dim(g)) || anyNA(g) ||
+        any(!nzchar(trimws(g))))
+      stop("each subtest must be an ordinary vector of non-missing item names")
     g
   })
   if (inherits(fit, "rasch_mfrm"))
@@ -228,18 +229,18 @@ combine_items <- function(fit, groups, model = "PCM") {
 #'   it; and \code{\link{dif_anova}}, which identifies the items to split.
 #' @export
 split_items <- function(fit, items, by) {
-  if (!length(items)) stop("`items` must name at least one item to split")
-  if (anyDuplicated(items))
-    stop("item(s) named more than once: ",
-         paste(unique(items[duplicated(items)]), collapse = ", "))
   if (!inherits(fit, "rasch")) stop("split_items needs a rasch fit")
   if (inherits(fit, "rasch_mfrm"))
     stop("split items in the long-format data and refit rasch_mfrm instead")
   if (inherits(fit, "rasch_efrm"))
     stop("amend the source data and refit rasch_efrm instead")
+  items <- .structural_item_names(items, "split")
   X <- fit$X
   bad <- setdiff(items, colnames(X))
   if (length(bad)) stop("item(s) not in the fit: ", paste(bad, collapse = ", "))
+  if (!is.null(dim(by)) || !is.atomic(by) || is.complex(by))
+    stop("`by` must be one person-factor name or an ordinary grouping vector",
+         call. = FALSE)
   if (is.character(by) && length(by) == 1L) {
     if (is.null(fit$factors) || !by %in% names(fit$factors))
       stop("'", by, "' is not a person factor nominated in the fit")
@@ -247,6 +248,10 @@ split_items <- function(fit, items, by) {
   } else {
     if (length(by) != nrow(X)) stop("'by' must have one entry per person")
     grp <- by
+  }
+  if (is.character(grp) || is.factor(grp)) {
+    grp <- .role_text_values(grp)
+    grp[!is.na(grp) & !nzchar(grp)] <- NA_character_
   }
   grp <- factor(grp)
   if (nlevels(grp) < 2) stop("the splitting factor needs at least two levels")
@@ -398,12 +403,15 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
     min_anchors <- min(L0 - 1L, max(3L, L0 %/% 4L))
   if (is.null(max_splits)) max_splits <- L0
   if (length(min_anchors) != 1L || !is.numeric(min_anchors) ||
-      !is.finite(min_anchors) || min_anchors < 2L ||
-      min_anchors != floor(min_anchors) || min_anchors >= L0)
+      is.complex(min_anchors) || !is.null(dim(min_anchors)) ||
+      !is.null(oldClass(min_anchors)) || !is.finite(min_anchors) ||
+      min_anchors < 2L || min_anchors != floor(min_anchors) ||
+      min_anchors >= L0)
     stop("min_anchors must be a whole number from 2 to one fewer than the ",
          "number of fitted items")
   if (length(max_splits) != 1L || !is.numeric(max_splits) ||
-      !is.finite(max_splits) ||
+      is.complex(max_splits) || !is.null(dim(max_splits)) ||
+      !is.null(oldClass(max_splits)) || !is.finite(max_splits) ||
       max_splits < 0L || max_splits != floor(max_splits) ||
       max_splits > .Machine$integer.max)
     stop("max_splits must be a non-negative whole number")

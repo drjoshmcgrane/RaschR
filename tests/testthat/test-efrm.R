@@ -3,6 +3,38 @@ simEF <- function(th, tau, r) {
   p <- exp(r * (x * th - c(0, cumsum(tau)))); p / sum(p)
 }
 
+test_that("EFRM unit tests do not discard indefinite covariance directions", {
+  bad <- rasch:::.efrm_wald_zero(
+    c(0.2, -0.2), diag(c(1, -0.5)), "unit")
+  expect_true(is.na(bad$wald))
+  expect_true(is.na(bad$p))
+  asymmetric <- matrix(c(1, 0.5, 0, 1), 2L)
+  bad <- rasch:::.efrm_wald_zero(c(0.2, -0.2), asymmetric, "unit")
+  expect_true(is.na(bad$wald))
+  singular <- matrix(c(1, -1, -1, 1), 2L)
+  expect_true(is.finite(
+    rasch:::.efrm_wald_zero(c(0.2, -0.2), singular, "unit")$p))
+  bad <- rasch:::.efrm_wald_zero(c(0.2, 0.2), singular, "unit")
+  expect_true(is.na(bad$wald))
+})
+
+test_that("hybrid EFRM refuses an unusable stage-one covariance", {
+  d <- simulate_efrm(n_per_group = 100, items_per_set = 5, n_sets = 2,
+                     n_groups = 1, seed = 7001)
+  tr <- attr(d, "truth")
+  old_solve <- rasch:::.efrm_solve
+  expect_error(testthat::with_mocked_bindings(
+    rasch_efrm(d, item_sets = tr$item_sets, groups = "group", id = "id",
+               boot_reps = 30, workers = 1),
+    .efrm_solve = function(...) {
+      z <- old_solve(...)
+      z$cov_joint[1L, 1L] <- -1e6
+      z
+    },
+    .package = "rasch"),
+    "positive-semidefinite joint stage-one covariance")
+})
+
 test_that("EFRM recovers person-group units (one set, four groups)", {
   skip_on_cran()   # heavy simulation; verified locally and on CI
   set.seed(7); L <- 20; per_g <- 400
@@ -136,6 +168,29 @@ test_that("a single frame reduces to the ordinary rasch fit", {
                colnames(X)[order(fr$items$location)])
 })
 
+test_that("EFRM fits the same cleaned frame labels that it validates", {
+  set.seed(921)
+  N <- 120; L <- 6
+  X <- matrix(rbinom(N * L, 1, 0.5), N, L,
+              dimnames = list(NULL, paste0("I", seq_len(L))))
+  d <- data.frame(X, g = rep(c("A", " A "), length.out = N),
+                  check.names = FALSE)
+  fit <- rasch_efrm(d, item_sets = list(all = colnames(X)), groups = "g",
+                    boot_reps = 0)
+  expect_identical(as.character(fit$phi_table$group), "A")
+  expect_identical(unique(as.character(fit$factors$g)), "A")
+
+  set_map <- stats::setNames(rep(" core ", L), colnames(X))
+  fit_map <- rasch_efrm(d, item_sets = set_map, groups = "g", boot_reps = 0)
+  expect_identical(as.character(fit_map$alpha_table$set), "core")
+
+  bad_sets <- list(core = colnames(X)[1:3],
+                   " core " = colnames(X)[4:6])
+  expect_error(rasch_efrm(d, item_sets = bad_sets, groups = "g",
+                          boot_reps = 0),
+               "after trimming")
+})
+
 test_that("one-cell EFRM keeps classical summaries but not a heterogeneous-unit score table", {
   d <- simulate_efrm(n_per_group = 250, items_per_set = 5, n_sets = 2,
                      n_groups = 1, set_unit_ratio = 1.3, seed = 92)
@@ -253,6 +308,18 @@ test_that("the weighted score, not the raw score, drives person estimates", {
   dup <- key[duplicated(key) & !is.na(p$theta)][1]
   who <- which(key == dup)
   expect_lt(diff(range(p$theta[who])), 1e-12)
+})
+
+test_that("EFRM extreme status follows the response pattern", {
+  X <- rbind(non_extreme = c(1L, 0L, 0L),
+             minimum = c(0L, 0L, 0L),
+             maximum = c(1L, 1L, 1L))
+  z <- .efrm_person_estimates(
+    X, list(0, 0, 0), disc = c(1e-14, 1, 1))
+  expect_lt(z$weighted_score[1L], 1e-12)
+  expect_false(z$extreme[1L])
+  expect_true(z$extreme[2L])
+  expect_true(z$extreme[3L])
 })
 
 test_that("the semiparametric set link beats the naive SD ratio", {
@@ -546,7 +613,7 @@ test_that("rasch.efrm_link_draws is validated and blockdiag is simulation-only",
   on.exit(options(old), add = TRUE)
   expect_error(rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
                           groups = "group", boot_reps = 40),
-               "positive whole number")
+               "whole number")
   options(rasch.efrm_link_draws = NULL, rasch.efrm_link_blockdiag = TRUE)
   fit_bd <- rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
                        groups = "group", boot_reps = 60)
@@ -566,7 +633,7 @@ test_that("frame_invariance tests the invariance the model assumes", {
   expect_equal(inv$summary$n_location, 0L)
   expect_true(is.na(inv$summary$n_discrimination))
   expect_lt(inv$summary$ratio, 1.5)
-  expect_output(print(inv), "No item's location differs")
+  expect_output(print(inv), "No available item-location comparison differs")
   inv_print <- inv
   inv_print$excluded <- data.frame(
     set = "S1", frame_1 = "A", frame_2 = "B", item = c("I01", "I02"),
@@ -744,6 +811,7 @@ test_that("parallel EFRM bootstraps are seed-identical to serial fits", {
   skip_if_not(file.exists(file.path(system.file(package = "rasch"),
                                     "DESCRIPTION")),
               "parallel integration test needs an installed package")
+  expect_true(rasch:::.rasch_namespace_is_installed())
   probe <- try(parallel::makePSOCKcluster(2L), silent = TRUE)
   skip_if(inherits(probe, "try-error"), "local socket clusters unavailable")
   parallel::stopCluster(probe)

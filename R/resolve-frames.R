@@ -62,11 +62,7 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
   if (!inherits(fit, "rasch_efrm"))
     stop("resolve_frames needs a frame model; for an ordinary fit with ",
          "person factors use split_items() instead")
-  if (!length(items)) stop("name at least one item to resolve")
-  items <- as.character(items)
-  if (anyDuplicated(items))
-    stop("item(s) named more than once: ",
-         paste(unique(items[duplicated(items)]), collapse = ", "))
+  items <- .structural_item_names(items, "resolve")
 
   all_items <- names(fit$set_of)
   bad <- setdiff(items, all_items)
@@ -117,7 +113,7 @@ resolve_frames <- function(fit, items, boot_reps = NULL) {
                        score_max = resolved_max)
   if (!isTRUE(refit$est$converged))
     stop("the resolved frame calibration did not converge; the sensitivity analysis is unavailable")
-  if (any(refit$linking$alpha_edges$converged %in% FALSE))
+  if (!.efrm_link_converged(refit))
     stop("the resolved set-unit link did not converge; the sensitivity analysis is unavailable")
   refit$notes <- c(refit$notes,
                    vapply(names(made), function(it)

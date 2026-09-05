@@ -95,6 +95,8 @@ An object of class \code{"rasch_btl_efrm"}. It contains the object
   unit-specific judge support, frame definitions, convergence information,
   and analysis notes. \code{boot_reps_requested}, \code{boot_reps_used}
   and \code{boot_reps_failed} report the bootstrap accounting.
+  A non-converged fit retains its final estimates and residual patterns for
+  diagnosis but withholds standard errors and inferential probabilities.
 }
 \description{
 Fits paired comparisons when judges belong to panels and objects belong to

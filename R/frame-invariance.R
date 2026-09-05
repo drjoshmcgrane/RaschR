@@ -47,7 +47,8 @@
 #' These quantities are descriptive under the conditional method; it does not
 #' report discrimination probabilities.
 #'
-#' With \code{se_method = "bootstrap"}, persons are resampled within frame
+#' With \code{se_method = "bootstrap"}, whole person rows are resampled
+#' within person group, retaining each sampled row's item-set response pattern,
 #' and the EFRM and separate frame calibrations are refitted. Location tests
 #' then use the empirical covariance of the centred differences. The
 #' discrimination test uses the bootstrap standard error of the log slope
@@ -84,18 +85,23 @@
 #' @param adjust Either \code{"holm"} or \code{"none"}. Both raw and
 #'   adjusted probabilities are returned.
 #' @param se_method \code{"conditional"} treats the estimated frame units as
-#'   fixed; \code{"bootstrap"} refits the complete analysis to person
-#'   resamples within frame.
+#'   fixed; \code{"bootstrap"} refits the complete analysis to whole-person
+#'   resamples within person group, preserving item-set response patterns.
 #' @param boot_reps Number of bootstrap replicates. At least 30 are required.
+#'   At least 90 per cent, and no fewer than 30, must yield the complete set
+#'   of comparisons.
 #' @param seed Optional bootstrap seed.
 #' @return An object of class \code{"rasch_frame_invariance"}. The
 #'   \code{locations} and \code{discrimination} tables contain the pairwise
 #'   item comparisons; \code{summary} contains set-level RMSD and RMSE
 #'   summaries. Under the conditional method, discrimination \code{p},
 #'   \code{p_adj}, and \code{flagged} are \code{NA}. \code{excluded} lists
-#'   items whose observed category structures differed between calibrations
-#'   or whose separate-frame estimate was weakly determined.
-#'   The remaining components record the multiplicity and uncertainty settings.
+#'   items dropped or rescored by a separate calibration, whose observed
+#'   category structures differed between calibrations, or whose
+#'   separate-frame estimate was weakly determined.
+#'   The remaining components record the multiplicity and uncertainty settings,
+#'   including the declared comparison-family size \code{family_n}, and the
+#'   requested, usable, non-converged and other-failure bootstrap counts.
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 #' Measurement}. PhD thesis, Murdoch University.
@@ -111,7 +117,7 @@
 #' frame_invariance(fit)
 NULL
 
-.frame_invariance_conditional <- function(fit) {
+.frame_invariance_conditional <- function(fit, strict = TRUE) {
   if (!isTRUE(fit$est$converged)) return(NULL)
   grp <- .frame_group_values(fit)
   glev <- levels(factor(grp))
@@ -120,9 +126,15 @@ NULL
   vm <- fit$virtual_map
   spec <- fit$refit_spec
   if (is.null(spec)) spec <- list()
-  out <- list(); dsc <- list(); excluded <- list()
+  out <- list(); dsc <- list(); excluded <- list(); failures <- character(0)
+  failed <- function(set, group, reason) {
+    failures <<- c(failures, sprintf("%s/%s (%s)", set, group, reason))
+    invisible(NULL)
+  }
   for (s in sets) {
     cal <- list()
+    observed_groups <- unique(as.character(vm$group[vm$set == s]))
+    compared_set <- length(observed_groups) >= 2L
     for (g in glev) {
       vr <- vm$set == s & vm$group == g & vm$vkey %in% colnames(fit$X)
       if (!any(vr)) next
@@ -130,22 +142,57 @@ NULL
       Xg <- fit$X[rows, vm$vkey[vr], drop = FALSE]
       colnames(Xg) <- vm$item[vr]
       Xg <- Xg[, colSums(!is.na(Xg)) > 0L, drop = FALSE]
-      if (ncol(Xg) < 2L) next
+      if (ncol(Xg) < 2L) {
+        if (compared_set) failed(s, g, "fewer than two observed items")
+        next
+      }
       category_signature <- vapply(seq_len(ncol(Xg)), function(j)
         paste(sort(unique(Xg[!is.na(Xg[, j]), j])), collapse = ","), "")
       names(category_signature) <- colnames(Xg)
+      fit_error <- NULL
       f <- tryCatch(do.call(rasch, list(
         data = Xg, model = "PCM", n_groups = spec$n_groups,
         maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7)),
-        error = function(e) NULL)
-      if (is.null(f) || !isTRUE(f$est$converged)) next
+        error = function(e) {
+          fit_error <<- conditionMessage(e)
+          NULL
+        })
+      if (is.null(f)) {
+        if (compared_set) failed(s, g, paste0("calibration failed: ", fit_error))
+        next
+      }
+      if (!isTRUE(f$est$converged)) {
+        if (compared_set) failed(s, g, "calibration did not converge")
+        next
+      }
+      # rasch() may legitimately drop a constant item or merge a category
+      # that carries no conditional information in this one frame. That item
+      # is then unavailable for the frame comparison; it must remain in the
+      # declared multiplicity family rather than disappearing because the
+      # reduced separate calibration itself happened to converge.
+      altered_items <- setdiff(colnames(Xg), colnames(f$X))
+      shared_items <- intersect(colnames(Xg), colnames(f$X))
+      rescored <- shared_items[!vapply(shared_items, function(nm)
+        identical(as.integer(Xg[, nm]), as.integer(f$X[, nm])), logical(1))]
+      altered_items <- union(altered_items, rescored)
       r <- rho$rho[rho$set == s & rho$group == g]
-      if (length(r) != 1L || !is.finite(r) || r <= 0) next
+      if (length(r) != 1L || !is.finite(r) || r <= 0) {
+        if (compared_set) failed(s, g, "fitted frame unit is unavailable")
+        next
+      }
       V <- .item_location_covariance(f)
-      if (is.null(V) || any(!is.finite(V))) next
+      if (!.covariance_supports_wald(V, nrow(f$items))) {
+        if (compared_set) failed(s, g, paste(
+          "item-location covariance is unavailable, asymmetric, or not",
+          "positive semidefinite"))
+        next
+      }
       good <- is.finite(f$items$location) & is.finite(f$items$se)
       weak_items <- f$items$item[!good]
-      if (sum(good) < 2L) next
+      if (sum(good) < 2L) {
+        if (compared_set) failed(s, g, "fewer than two item locations are estimable")
+        next
+      }
       V <- V[good, good, drop = FALSE]
       V <- V / r^2
       cal[[g]] <- list(
@@ -155,18 +202,40 @@ NULL
           category_signature = unname(category_signature[f$items$item[good]]),
           infit = f$items$infit_ms[good], infit_z = f$items$infit_z[good],
           disc = f$items$disc[good], stringsAsFactors = FALSE),
-        covariance = V, weak_items = weak_items)
+        covariance = V, weak_items = weak_items,
+        altered_items = altered_items)
+    }
+    if (length(failures)) {
+      msg <- paste0(
+        "frame-invariance inference requires a usable separate calibration ",
+        "for every observed frame in a compared item set; unavailable: ",
+        paste(unique(failures), collapse = "; "),
+        ". Comparisons cannot be selected according to which frame ",
+        "calibrations happened to succeed")
+      if (isTRUE(strict)) stop(msg, call. = FALSE)
+      return(NULL)
     }
     if (length(cal) < 2L) next
     gg <- names(cal)
     for (a in seq_len(length(gg) - 1L)) for (b in (a + 1L):length(gg)) {
-      weak_pair <- union(cal[[gg[a]]]$weak_items, cal[[gg[b]]]$weak_items)
+      altered_pair <- union(cal[[gg[a]]]$altered_items,
+                            cal[[gg[b]]]$altered_items)
+      if (length(altered_pair))
+        excluded[[length(excluded) + 1L]] <- data.frame(
+          set = s, frame_1 = gg[a], frame_2 = gg[b], item = altered_pair,
+          reason = paste("category structure changed: dropped or rescored",
+                         "in a separate frame calibration"),
+          stringsAsFactors = FALSE)
+      weak_pair <- setdiff(
+        union(cal[[gg[a]]]$weak_items, cal[[gg[b]]]$weak_items),
+        altered_pair)
       if (length(weak_pair)) excluded[[length(excluded) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = weak_pair,
         reason = "weakly determined in a separate frame calibration",
         stringsAsFactors = FALSE)
       m <- merge(cal[[gg[a]]]$table, cal[[gg[b]]]$table, by = "item",
                  suffixes = c("_1", "_2"))
+      m <- m[!m$item %in% altered_pair, , drop = FALSE]
       if (!nrow(m)) next
       comparable <- m$n_thresholds_1 == m$n_thresholds_2 &
         m$category_signature_1 == m$category_signature_2
@@ -178,7 +247,16 @@ NULL
           stringsAsFactors = FALSE)
         m <- m[comparable, , drop = FALSE]
       }
-      if (nrow(m) < 2L) next
+      if (nrow(m) < 2L) {
+        # One location cannot define its own frame-origin contrast. Keep that
+        # unavailable comparison in the declared family rather than letting
+        # a data-dependent category loss silently reduce multiplicity.
+        if (nrow(m)) excluded[[length(excluded) + 1L]] <- data.frame(
+          set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
+          reason = "fewer than two comparable items to establish the frame origin",
+          stringsAsFactors = FALSE)
+        next
+      }
       raw_d <- m$loc_2 - m$loc_1
       w <- m$n_thresholds_1 / sum(m$n_thresholds_1)
       C <- diag(nrow(m)) - outer(rep(1, nrow(m)), w)
@@ -193,12 +271,13 @@ NULL
       # dichotomous items' deflated
       Vd <- C %*% (V1 + V2) %*% t(C)
       se <- sqrt(pmax(diag(Vd), 0))
-      z <- d / se
+      loc_wald <- .frame_invariance_wald(d, se)
+      z <- loc_wald$statistic
       out[[length(out) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
         location_1 = m$loc_1, location_2 = m$loc_2,
         difference = d, se = se, statistic = z,
-        p = 2 * stats::pnorm(-abs(z)), stringsAsFactors = FALSE)
+        p = loc_wald$p, stringsAsFactors = FALSE)
       zd <- (m$infit_z_1 - m$infit_z_2) / sqrt(2)
       dsc[[length(dsc) + 1L]] <- data.frame(
         set = s, frame_1 = gg[a], frame_2 = gg[b], item = m$item,
@@ -245,6 +324,17 @@ NULL
     use.names = FALSE)
 }
 
+# Form a normal-reference statistic only when its estimated uncertainty is
+# positive. A constant bootstrap column otherwise turns a non-zero observed
+# contrast into Inf and a spurious p = 0.
+.frame_invariance_wald <- function(estimate, se) {
+  statistic <- .wald_ratio(estimate, se)
+  probability <- rep(NA_real_, length(statistic))
+  usable <- is.finite(statistic)
+  probability[usable] <- 2 * stats::pnorm(-abs(statistic[usable]))
+  list(statistic = statistic, p = probability)
+}
+
 .frame_invariance_probabilities <- function(cmp, dsc, excluded, se_method,
                                             alpha, adjust) {
   if (identical(se_method, "bootstrap")) {
@@ -275,11 +365,7 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
                              boot_reps = 200, seed = NULL) {
   if (!inherits(fit, "rasch_efrm"))
     stop("frame_invariance needs a fit from rasch_efrm()")
-  if (!is.null(seed) &&
-      (length(seed) != 1L || !is.numeric(seed) || !is.finite(seed) ||
-       seed < 0 || seed != floor(seed) || seed > .Machine$integer.max))
-    stop("seed must be NULL or one non-negative whole number within the ",
-         "integer range")
+  if (!is.null(seed)) seed <- .check_whole(seed, "seed", 0)
   if (!isTRUE(fit$est$converged))
     stop("the frame calibration did not converge; invariance tests are unavailable")
   .check_prob(alpha, "alpha")
@@ -318,13 +404,15 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
          "two frames to be compared")
   cmp <- ans$locations
   dsc <- ans$discrimination
+  if (!nrow(cmp))
+    .refuse("no frame pair retains at least two items with the same observed ",
+            "category structure; frame-invariance comparisons are unavailable")
   reps_used <- 0L
+  reps_nonconverged <- 0L
+  reps_errors <- 0L
+  minimum_usable <- 0L
   if (se_method == "bootstrap") {
-    if (length(boot_reps) != 1L || !is.numeric(boot_reps) ||
-        !is.finite(boot_reps) ||
-        boot_reps < 30L || boot_reps != floor(boot_reps) ||
-        boot_reps > .Machine$integer.max)
-      stop("boot_reps must be a whole number of at least 30")
+    boot_reps <- .check_whole(boot_reps, "boot_reps", 30)
     if (!is.null(seed)) {
       old_seed <- if (exists(".Random.seed", .GlobalEnv, inherits = FALSE))
         get(".Random.seed", .GlobalEnv) else NULL
@@ -342,6 +430,7 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
     dk <- key4(dsc)
     bd <- matrix(NA_real_, boot_reps, nrow(cmp))
     ba <- matrix(NA_real_, boot_reps, nrow(dsc))
+    status <- rep("error", boot_reps)
     for (b in seq_len(boot_reps)) {
       ii <- .frame_stratified_resample(strata)
       fb <- tryCatch(.efrm_refit(
@@ -350,28 +439,41 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
         factors = fit$factors[ii, , drop = FALSE], se_method = "hybrid"),
         error = function(e) NULL)
       if (is.null(fb)) next
-      if (!isTRUE(fb$est$converged) ||
-          any(fb$linking$alpha_edges$converged %in% FALSE)) next
-      ib <- .frame_invariance_conditional(fb)
+      if (!isTRUE(fb$est$converged) || !.efrm_link_converged(fb)) {
+        status[b] <- "nonconverged"
+        next
+      }
+      ib <- .frame_invariance_conditional(fb, strict = FALSE)
       if (is.null(ib)) next
       xk <- key4(ib$locations)
       yk <- key4(ib$discrimination)
       bd[b, ] <- ib$locations$difference[match(lk, xk)]
       ba[b, ] <- log(ib$discrimination$disc_ratio[match(dk, yk)])
+      status[b] <- "used"
     }
     good <- rowSums(is.finite(bd)) == ncol(bd) &
       rowSums(is.finite(ba)) == ncol(ba)
+    status[status == "used" & !good] <- "error"
     reps_used <- sum(good)
-    if (reps_used < max(30L, ceiling(0.8 * boot_reps)))
+    reps_nonconverged <- sum(status == "nonconverged")
+    reps_errors <- sum(status == "error")
+    minimum_usable <- .fit_min_boot_success(boot_reps)
+    if (reps_used < minimum_usable)
       stop("only ", reps_used, " of ", boot_reps,
-           " frame-invariance bootstrap refits succeeded")
+           " frame-invariance bootstrap refits succeeded (",
+           reps_nonconverged, " did not converge; ", reps_errors,
+           " otherwise failed); at least ", minimum_usable,
+           " are required")
     cmp$se <- apply(bd[good, , drop = FALSE], 2, stats::sd)
-    cmp$statistic <- cmp$difference / cmp$se
-    cmp$p <- 2 * stats::pnorm(-abs(cmp$statistic))
+    loc_wald <- .frame_invariance_wald(cmp$difference, cmp$se)
+    cmp$statistic <- loc_wald$statistic
+    cmp$p <- loc_wald$p
     dsc$log_disc_ratio <- log(dsc$disc_ratio)
     dsc$se_log_disc_ratio <- apply(ba[good, , drop = FALSE], 2, stats::sd)
-    dsc$statistic <- dsc$log_disc_ratio / dsc$se_log_disc_ratio
-    dsc$p <- 2 * stats::pnorm(-abs(dsc$statistic))
+    disc_wald <- .frame_invariance_wald(
+      dsc$log_disc_ratio, dsc$se_log_disc_ratio)
+    dsc$statistic <- disc_wald$statistic
+    dsc$p <- disc_wald$p
   } else {
     # The standardised-infit comparison was anti-conservative in the
     # validation study (7.1% combined Holm FWER over 2,000 null replicates,
@@ -395,11 +497,14 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
       d$frame_2 == k$frame_2
     z <- cmp[same(cmp), ]; y <- dsc[same(dsc), ]
     nx <- sum(same(ans$excluded))
+    rmsd <- sqrt(mean(z$difference^2))
+    rmse <- sqrt(mean(z$se^2))
+    ratio <- if (is.finite(rmse) &&
+                  rmse > sqrt(.Machine$double.eps) * pmax(1, rmsd))
+      rmsd / rmse else NA_real_
     data.frame(set = z$set[1], frame_1 = z$frame_1[1], frame_2 = z$frame_2[1],
       n_items = nrow(z), n_excluded = nx,
-      rmsd = sqrt(mean(z$difference^2)),
-      rmse = sqrt(mean(z$se^2)),
-      ratio = sqrt(mean(z$difference^2)) / sqrt(mean(z$se^2)),
+      rmsd = rmsd, rmse = rmse, ratio = ratio,
       n_location = sum(z$flagged %in% TRUE),
       n_discrimination = if (identical(se_method, "bootstrap"))
         sum(y$flagged %in% TRUE) else NA_integer_,
@@ -415,9 +520,14 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
                           summary = smry, excluded = ans$excluded,
                           alpha = alpha, adjust = adjust,
                           se_method = se_method,
+                          family_n = inference$family_n,
                           boot_reps = if (se_method == "bootstrap")
                             as.integer(boot_reps) else 0L,
-                          boot_reps_used = reps_used, seed = seed,
+                          boot_reps_used = reps_used,
+                          boot_reps_nonconverged = reps_nonconverged,
+                          boot_reps_errors = reps_errors,
+                          boot_minimum_usable = minimum_usable,
+                          seed = seed,
                           fit_signature = .fit_boot_signature(fit)))
   out$result_signature <- .fit_boot_md5(out)
   class(out) <- c("rasch_frame_invariance", "list")
@@ -439,6 +549,30 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
       !.fit_boot_hash_matches(signature, unsigned) ||
       !.fit_boot_signature_matches(invariance$fit_signature, fit))
     stop("`invariance` must be a frame_invariance() result from this fitted model")
+  counts <- c("boot_reps", "boot_reps_used", "boot_reps_nonconverged",
+              "boot_reps_errors", "boot_minimum_usable")
+  whole <- function(x)
+    is.numeric(x) && length(x) == 1L && is.finite(x) && x >= 0 &&
+      x == floor(x)
+  if (!all(counts %in% names(invariance)) ||
+      any(!vapply(invariance[counts], whole, logical(1))) ||
+      invariance$boot_reps_used + invariance$boot_reps_nonconverged +
+        invariance$boot_reps_errors != invariance$boot_reps ||
+      (identical(invariance$se_method, "bootstrap") &&
+       (invariance$boot_minimum_usable !=
+          .fit_min_boot_success(invariance$boot_reps) ||
+        invariance$boot_reps_used < invariance$boot_minimum_usable)) ||
+      (!identical(invariance$se_method, "bootstrap") &&
+       any(unlist(invariance[counts]) != 0)))
+    stop("`invariance` has inconsistent bootstrap accounting; recompute it ",
+         "with frame_invariance()")
+  expected_family <- nrow(invariance$locations) + nrow(invariance$excluded) +
+    if (identical(invariance$se_method, "bootstrap"))
+      nrow(invariance$discrimination) + nrow(invariance$excluded) else 0L
+  if (!is.numeric(invariance$family_n) || length(invariance$family_n) != 1L ||
+      !is.finite(invariance$family_n) || invariance$family_n != expected_family)
+    stop("`invariance` has inconsistent multiplicity accounting; recompute it ",
+         "with frame_invariance()")
   invisible(invariance)
 }
 
@@ -449,8 +583,11 @@ print.rasch_frame_invariance <- function(x, ...) {
   rule <- if (adj == "holm") "Holm-adjusted" else "unadjusted, screening"
   cat("Item invariance across frames (each frame calibrated separately)\n\n")
   cat("Uncertainty:", if (identical(x$se_method, "bootstrap"))
-    sprintf("person-within-frame bootstrap (%d successful refits)",
-            x$boot_reps_used) else "conditional on the fitted frame units",
+    sprintf(paste0("whole-person bootstrap within person group ",
+                   "(%d/%d usable; ",
+                   "%d non-converged; %d other failures)"),
+            x$boot_reps_used, x$boot_reps, x$boot_reps_nonconverged,
+            x$boot_reps_errors) else "conditional on the fitted frame units",
     "\n\n")
   print(.fmt_df(x$summary), row.names = FALSE)
   if (!is.null(x$excluded) && nrow(x$excluded)) {

@@ -22,7 +22,7 @@
   x <- as.data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
   if (!ncol(x)) stop("at least one factor is needed")
   parts <- lapply(x, function(v) {
-    z <- as.character(v)
+    z <- .role_text_values(v)
     ifelse(is.na(z), "N;", paste0("S", nchar(z, type = "bytes"), ":", z, ";"))
   })
   do.call(paste0, parts)
@@ -56,7 +56,8 @@
 # before it is dereferenced: an empty or multiple name otherwise fails with
 # a base subscript error that names neither the argument nor the problem.
 .check_reshape_column <- function(data, x, name) {
-  if (length(x) != 1L || is.na(x) || !(is.character(x) || is.numeric(x)))
+  if (!is.atomic(x) || !is.null(dim(x)) || length(x) != 1L || is.na(x) ||
+      !(is.character(x) || is.numeric(x)))
     stop("`", name, "` must name exactly one column", call. = FALSE)
   x <- as.character(x)
   if (!x %in% names(data)) stop("column not found: ", x, call. = FALSE)
@@ -69,8 +70,8 @@
   # `location` components become `location` and `location.1`).
   if (!is.data.frame(x) && !is.list(x)) return(invisible(NULL))
   nm <- names(x)
-  if (anyNA(nm) || any(!nzchar(nm)))
-    stop("data column names must be non-missing and non-empty")
+  if (anyNA(nm) || any(!nzchar(trimws(nm))))
+    stop("data column names must be non-missing and non-empty (not whitespace-only)")
   if (anyDuplicated(nm))
     stop("data column names must be unique: ",
          paste(unique(nm[duplicated(nm)]), collapse = ", "))
@@ -83,6 +84,9 @@
 # nominate all N column names. Repeated labels of length N remain values,
 # even when those labels happen to coincide with data-column names.
 .role_columns <- function(x, data_names, n) {
+  if (!is.data.frame(x) && !is.null(dim(x)))
+    stop("role arguments must be ordinary vectors or data frames, not matrices or arrays",
+         call. = FALSE)
   if (!is.character(x) || !length(x)) return(FALSE)
   exact_names <- !anyNA(x) && !anyDuplicated(x) &&
     all(nzchar(x)) && all(x %in% data_names)
@@ -94,9 +98,34 @@
 # but missingness and displayed values must agree row for row.
 .same_role_values <- function(x, y) {
   if (length(x) != length(y)) return(FALSE)
-  xc <- as.character(x); yc <- as.character(y)
+  xc <- .role_text_values(x); yc <- .role_text_values(y)
   identical(is.na(xc), is.na(yc)) &&
     identical(xc[!is.na(xc)], yc[!is.na(yc)])
+}
+
+# Convert an external identifier or categorical role without turning numeric
+# NaN into the literal level "NaN". Base as.character() preserves ordinary NA
+# but not NaN, which can otherwise create a fictitious shared person, judge,
+# panel, item or object.
+.role_text_values <- function(x) {
+  missing <- is.na(x)
+  out <- trimws(as.character(x))
+  out[missing | is.na(out)] <- NA_character_
+  out
+}
+
+# Store a categorical model role in the same canonical form used to compare
+# and analyse it. Numeric and date identifiers retain their original type;
+# text is trimmed, blank text becomes missing, and factor levels that differ
+# only by padding are merged rather than becoming different downstream groups.
+.canonical_role_column <- function(x) {
+  if (!is.character(x) && !is.factor(x)) return(x)
+  z <- .role_text_values(x)
+  z[!is.na(z) & !nzchar(z)] <- NA_character_
+  if (!is.factor(x)) return(z)
+  lev <- unique(.role_text_values(levels(x)))
+  lev <- lev[!is.na(lev) & nzchar(lev)]
+  factor(z, levels = lev, ordered = is.ordered(x))
 }
 
 # Numeric fields in an external calibration bank may arrive as plain numeric
@@ -109,7 +138,8 @@
     raw <- as.character(x)
   } else if (is.character(x)) {
     raw <- x
-  } else if (is.numeric(x) && !is.complex(x) && is.null(oldClass(x))) {
+  } else if (is.numeric(x) && !is.complex(x) && is.null(dim(x)) &&
+             is.null(oldClass(x))) {
     return(as.numeric(x))
   } else {
     stop("bank `", field, "` must contain plain numeric values, numeric ",
@@ -165,6 +195,15 @@
 
 #' @export
 print.rasch_table <- function(x, ..., digits = 3, n = getOption("rasch.print_rows", 50L)) {
+  if (length(digits) != 1L || !is.numeric(digits) || is.complex(digits) ||
+      !is.null(dim(digits)) || !is.null(oldClass(digits)) ||
+      !is.finite(digits) ||
+      digits != floor(digits) || digits < 0L || digits > 15L)
+    stop("`digits` must be one whole number between 0 and 15", call. = FALSE)
+  if (length(n) != 1L || !is.numeric(n) || is.complex(n) ||
+      !is.null(dim(n)) || !is.null(oldClass(n)) || is.na(n) || n < 0 ||
+      (!is.infinite(n) && (!is.finite(n) || n != floor(n))) || n == -Inf)
+    stop("`n` must be one non-negative whole number or Inf", call. = FALSE)
   d <- as.data.frame(x)
   if (!nrow(d)) {
     cat("<empty table>\n")

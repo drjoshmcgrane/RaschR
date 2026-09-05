@@ -4,7 +4,7 @@
 \alias{plot_ccc}
 \title{Plot category probability curves}
 \usage{
-plot_ccc(fit, item, grid = seq(-6, 6, 0.05), observed = FALSE, n_groups = NULL)
+plot_ccc(fit, item, grid = NULL, observed = FALSE, n_groups = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}

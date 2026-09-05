@@ -75,9 +75,8 @@ fit <- rasch(d, model = "PCM", id = "id", factors = "group")
 ## Overall summary and reliability
 
 The summary establishes whether estimation converged and gives the overall
-item--trait interaction, reliability, and the package's qualitative assessment
-of the power of fit tests. It should be read before individual item or person
-results.
+item--trait interaction and reliability. It should be read before individual
+item or person results.
 
 ```{r overall-summary}
 fit
@@ -98,15 +97,15 @@ persons with extreme scores and is useful when extremes inflate the observed
 spread. The separation ratio and number of strata express the same information
 on more interpretable scales.
 
-The power label is a screening judgement based on PSI, not a formal power
-calculation. Low reliability weakens the ordering of persons and the formation
-of distinct class intervals, so item--trait and DIF tests may fail to detect
-real departures. Power also depends on sample size, test length, targeting,
-category use, and trait spread. Conversely, a large sample can make a small
-departure statistically significant. Here the PSI is `r sprintf("%.2f", fit$psi$PSI)`,
-which the package classifies as `r fit$power_of_fit`; weak separation is
-therefore not an immediate explanation for a quiet fit test. Fit residuals,
-effect sizes, plots, and substantive importance remain necessary.
+The package describes the PSI in broad bands of separation quality. Here the
+PSI is `r sprintf("%.2f", fit$psi$PSI)`, classified as
+`r fit$separation_quality`. This is not the statistical power of a fit test.
+Fit-test sensitivity also depends on sample size, test length, targeting,
+category use, trait spread, the test statistic and the departure being tested.
+Low reliability can weaken the ordering of persons and the formation of class
+intervals, whereas a large sample can make a small departure statistically
+significant. Fit residuals, effect sizes, plots and substantive importance
+remain necessary.
 
 ## Item estimates, fit, and thresholds
 
@@ -141,6 +140,11 @@ repeats the calibration. The default conditions on each observed raw score
 and missingness pattern. Use the adjusted bootstrap probabilities for item
 decisions; 999 replicates is a reasonable minimum for a final analysis, and a
 larger value may be needed when there are many items.
+These references also assume one independent response row per person. When
+IDs repeat, `rasch()` retains the fit statistics as descriptive summaries but
+withholds their probabilities, and `fit_bootstrap()` is unavailable. Analyse
+occasions separately for item-fit inference; repeated-measures DIF remains
+available for testing specified occasion effects.
 Report `B_used`, `B_nonconverged`, and `B_errors`. A sparse polytomous
 calibration may be refused when too few replicated datasets can be fitted with
 the same model. For 30 or more requested replicates, inference is withheld
@@ -333,7 +337,7 @@ plot_pca(fit)
 ```
 
 Here, `r sprintf("%.1f", 100 * dimensionality$prop_significant)`% of the
-person comparisons are significant (exact 95% interval
+person comparisons are significant (Clopper--Pearson 95% interval
 `r sprintf("%.1f", 100 * dimensionality$ci[1])`% to
 `r sprintf("%.1f", 100 * dimensionality$ci[2])`%). The test does not flag
 trait dependence, but one opposed subset contains only

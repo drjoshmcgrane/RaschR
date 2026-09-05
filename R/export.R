@@ -13,15 +13,38 @@
 # fails every plot in a batch, which is a caller error worth stating once
 # rather than reporting as many drawing failures.
 .check_pos_num <- function(x, name) {
-  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
+  if (length(x) != 1L || !is.numeric(x) || is.complex(x) ||
+      !is.null(dim(x)) || !is.null(oldClass(x)) || !is.finite(x) || x <= 0)
     stop("`", name, "` must be one positive finite value", call. = FALSE)
   invisible(x)
 }
 
 .check_out_path <- function(x, name) {
-  if (length(x) != 1L || !is.character(x) || is.na(x) || !nzchar(trimws(x)))
+  if (length(x) != 1L || !is.character(x) || !is.null(dim(x)) ||
+      !is.null(oldClass(x)) || is.na(x) || !nzchar(trimws(x)))
     stop("`", name, "` must be one non-missing path", call. = FALSE)
   invisible(x)
+}
+
+.check_export_fit <- function(fit, btl = TRUE) {
+  ok <- inherits(fit, "rasch") || (isTRUE(btl) && inherits(fit, "rasch_btl"))
+  if (!ok)
+    stop("`fit` must be a fitted ",
+         if (isTRUE(btl)) "Rasch or paired-comparison model"
+         else "person-by-item Rasch model", call. = FALSE)
+  if (inherits(fit, "rasch_btl")) {
+    if (!isTRUE(fit$converged))
+      stop("the paired-comparison calibration did not converge; a complete export is unavailable",
+           call. = FALSE)
+  } else {
+    if (!isTRUE(fit$est$converged))
+      stop("the fitted calibration did not converge; a complete export is unavailable",
+           call. = FALSE)
+    if (!.efrm_link_converged(fit))
+      stop("the fitted set-unit link did not converge; a complete export is unavailable",
+           call. = FALSE)
+  }
+  invisible(fit)
 }
 
 .check_device_size <- function(width, height, dpi) {
@@ -154,10 +177,35 @@
 #' @export
 save_item_plots <- function(fit, what = c("icc", "ccc", "tpc", "cfreq"),
                             file, items = NULL, n_groups = fit$n_groups,
-                            grid = seq(-5, 5, 0.05), observed = TRUE,
+                            grid = NULL, observed = TRUE,
                             width = 8, height = 5.5, dpi = 300) {
+  .check_export_fit(fit, btl = FALSE)
   what <- match.arg(what)
-  its <- if (is.null(items)) fit$items$item else items
+  its <- if (is.null(items)) fit$items$item else {
+    if (!is.atomic(items) || !is.null(dim(items)) || !length(items))
+      stop("`items` must be a non-empty ordinary vector of names or indices",
+           call. = FALSE)
+    if (is.numeric(items)) {
+      if (any(!is.finite(items)) || any(items != floor(items)))
+        stop("numeric `items` must contain whole indices", call. = FALSE)
+      canonical <- as.character(items)
+    } else {
+      supplied <- as.character(items)
+      if (anyNA(supplied) || any(!nzchar(trimws(supplied))))
+        stop("`items` must contain non-missing, non-empty item names",
+             call. = FALSE)
+      ii <- match(supplied, fit$items$item)
+      fallback <- is.na(ii)
+      if (any(fallback))
+        ii[fallback] <- match(.role_text_values(supplied[fallback]),
+                              fit$items$item)
+      canonical <- supplied
+      canonical[!is.na(ii)] <- fit$items$item[ii[!is.na(ii)]]
+    }
+    if (anyDuplicated(canonical))
+      stop("`items` must not name the same item more than once", call. = FALSE)
+    if (is.numeric(items)) items else canonical
+  }
   draw <- function(it) switch(what,
     icc   = plot_icc(fit, it, n_groups = n_groups, grid = grid,
                      observed = observed),
@@ -193,8 +241,38 @@ save_item_plots <- function(fit, what = c("icc", "ccc", "tpc", "cfreq"),
 #' @export
 save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
                               width = 8, height = 6, dpi = 300) {
+  .check_export_fit(fit, btl = FALSE)
   ps <- if (is.null(persons)) which(!is.na(fit$person$theta)) else persons
-  ids <- if (is.numeric(ps)) fit$person$id[ps] else ps
+  if (!is.atomic(ps) || !is.null(dim(ps)) || !length(ps) || anyNA(ps))
+    stop("`persons` must be a non-empty ordinary vector of row numbers or IDs",
+         call. = FALSE)
+  if (is.numeric(ps)) {
+    if (any(!is.finite(ps)) || any(ps != floor(ps)) || any(ps < 1L) ||
+        any(ps > nrow(fit$person)))
+      stop("numeric `persons` must be whole row numbers in 1..",
+           nrow(fit$person), call. = FALSE)
+    ps <- as.integer(ps)
+    if (anyDuplicated(ps))
+      stop("`persons` must not name the same row more than once", call. = FALSE)
+    ids <- fit$person$id[ps]
+  } else {
+    ps <- as.character(ps)
+    if (any(!nzchar(trimws(ps))))
+      stop("person IDs must be non-empty", call. = FALSE)
+    hits <- lapply(ps, function(p)
+      which(as.character(fit$person$id) == p))
+    if (any(!lengths(hits)))
+      stop("person ID(s) not found: ",
+           paste(ps[!lengths(hits)], collapse = ", "), call. = FALSE)
+    repeated <- lengths(hits) > 1L
+    if (any(repeated))
+      stop("person ID(s) occur on several response rows: ",
+           paste(ps[repeated], collapse = ", "),
+           "; use row numbers instead", call. = FALSE)
+    if (anyDuplicated(ps))
+      stop("`persons` must not name the same ID more than once", call. = FALSE)
+    ids <- ps
+  }
   thunks <- lapply(ps, function(p)
     function() plot_kidmap(fit, p, level = level))
   .rr_plot_batch(thunks, as.character(ids), "kidmap", file,
@@ -321,6 +399,11 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
   invisible(files)
 }
 
+.dimensionality_or_note <- function(fit) {
+  tryCatch(dimensionality_test(fit), error = function(e)
+    list(note = conditionMessage(e), multidimensional = NA))
+}
+
 #' Save the outputs of a Rasch analysis
 #'
 #' Writes the summary, estimates, diagnostic tables, person measures, and
@@ -366,6 +449,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          dif = NULL, bootstrap = NULL,
                          dif_bootstrap = NULL, dimensionality = NULL,
                          invariance = NULL, subtest = NULL) {
+  .check_export_fit(fit)
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
@@ -411,7 +495,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     files <<- c(files, path)
   }
 
-  dt <- if (!is.null(subtest)) subtest else dimensionality_test(fit)
+  dt <- if (!is.null(subtest)) subtest else .dimensionality_or_note(fit)
   if (is.null(dt$note)) {
     wtab(data.frame(
       split = dt$split, items_positive = paste(dt$items_positive, collapse = ";"),
@@ -540,6 +624,15 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
       wtab(inv$summary, "frame_invariance_summary")
       wtab(inv$locations, "frame_invariance_locations")
       wtab(inv$discrimination, "frame_invariance_discrimination")
+      if (identical(inv$se_method, "bootstrap"))
+        wtab(data.frame(
+          family_n = inv$family_n,
+          requested = inv$boot_reps,
+          usable = inv$boot_reps_used,
+          nonconverged = inv$boot_reps_nonconverged,
+          other_failures = inv$boot_reps_errors,
+          minimum_usable = inv$boot_minimum_usable),
+          "frame_invariance_bootstrap_accounting")
       if (!is.null(inv$excluded) && nrow(inv$excluded))
         wtab(inv$excluded, "frame_invariance_excluded")
     }
@@ -593,7 +686,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     verdict <- if (isTRUE(dt$multidimensional)) "evidence against unidimensionality" else
       if (identical(dt$multidimensional, FALSE)) "consistent with one dimension" else
         "inferential verdict withheld for the data-driven split"
-    cat(sprintf("\nUnidimensionality t-test: %.1f%% significant (exact 95%% CI %.1f%% to %.1f%%), %s\n",
+    cat(sprintf("\nUnidimensionality t-test: %.1f%% significant (Clopper-Pearson 95%% CI %.1f%% to %.1f%%), %s\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
                 verdict))
     if (!is.null(dt$p_boot))
@@ -810,6 +903,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   # a vector title would be pasted into as many documents as it has entries,
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
+  .check_export_fit(fit, btl = FALSE)
   .check_out_path(file, "file")
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
@@ -819,7 +913,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   .validate_scree_result(dimensionality, fit)
   .validate_dimensionality_test(subtest, fit)
   .validate_frame_invariance(invariance, fit)
-  if (length(title) != 1L || !is.character(title) || is.na(title))
+  if (length(title) != 1L || !is.character(title) || !is.null(dim(title)) ||
+      !is.null(oldClass(title)) || is.na(title))
     stop("`title` must be one non-missing title")
   .check_pos_num(dpi, "dpi")
   tmp <- tempfile("rmtplots"); dir.create(tmp)
@@ -877,6 +972,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   calibration_unit <- if (structural) "response-cell" else "item"
   fit_unit <- if (structural) "Response-cell" else "Item"
   separation_unit <- if (structural) "response-cell" else "item"
+  separation_quality <- fit$separation_quality %||% fit$power_of_fit %||%
+    .separation_quality(fit$psi$PSI)
   summ <- s(
     sprintf("<p>%s %s in %d iterations. ",
             .html_escape(.estimation_label(fit)),
@@ -888,14 +985,14 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     sprintf("%s fit residual mean %.2f, SD %.2f; person fit residual mean %.2f, SD %.2f. ",
             fit_unit, fit$item_fit_summary$mean, fit$item_fit_summary$sd,
             fit$person_fit_summary$mean, fit$person_fit_summary$sd),
-    sprintf("PSI %.3f (%.3f without extremes); %s separation reliability %.3f; power of the test of fit: %s.</p>",
+    sprintf("PSI %.3f (%.3f without extremes); %s separation reliability %.3f; person separation quality: %s. Fit-test sensitivity also depends on sample size, targeting and the departure being tested.</p>",
             fit$psi$PSI, fit$psi_noext$PSI, separation_unit,
-            fit$isi$PSI, fit$power_of_fit),
+            fit$isi$PSI, separation_quality),
     if (length(fit$notes))
       s("<p class='note'>Notes: ", esc(paste(fit$notes, collapse = "; ")), "</p>")
     else "")
   rc <- residual_correlations(fit)
-  dt <- if (!is.null(subtest)) subtest else dimensionality_test(fit)
+  dt <- if (!is.null(subtest)) subtest else .dimensionality_or_note(fit)
   dim_html <- if (is.null(dt$note)) {
     verdict <- if (isTRUE(dt$multidimensional))
       "<span class='flag'>evidence against unidimensionality</span>" else
@@ -915,6 +1012,10 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
     if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
+  if (.has_repeated_person_ids(fit$person$id))
+    for (nm in intersect(c("p", "p_adj", "p_bonf", "p_anova",
+                           "p_anova_adj", "p_anova_bonf"), names(item_tab)))
+      item_tab[[nm]][] <- NA_real_
   item_cols <- intersect(c("item", "set", "max", "location", "se", "n",
                            "fit_resid", "fit_resid_pooled", "infit_ms",
                            "outfit_ms", "chisq", "df", "p_adj", "weak"),
@@ -968,7 +1069,10 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     "<h2>", if (structural) "Common-scale item estimates" else
       "Item statistics", "</h2>",
     if ("p_adj" %in% item_cols)
-      "<p class='note'>The p_adj column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.</p>"
+      if (.has_repeated_person_ids(fit$person$id))
+        "<p class='note'>Item-fit probabilities are withheld because person IDs repeat and the available references assume independent response rows. The fit statistics remain descriptive.</p>"
+      else
+        "<p class='note'>The p_adj column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.</p>"
     else "",
     if (structural)
       "<p class='note'>Item estimates on the common measurement scale.</p>"
@@ -1158,8 +1262,7 @@ report_document <- function(fit, file,
                             dif = NULL, bootstrap = NULL,
                             dif_bootstrap = NULL, dimensionality = NULL,
                             invariance = NULL, subtest = NULL) {
-  if (!inherits(fit, "rasch") && !inherits(fit, "rasch_btl"))
-    stop("fit must be a Rasch or paired-comparison fit")
+  .check_export_fit(fit)
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   if (!is.null(dif_bootstrap) && is.null(dif))
@@ -1185,7 +1288,8 @@ report_document <- function(fit, file,
   if (!is.null(subtest)) attr(fit, "report_subtest") <- subtest
   if (!is.null(invariance)) attr(fit, "report_invariance") <- invariance
   .check_out_path(file, "file")
-  if (length(title) != 1L || !is.character(title) || is.na(title))
+  if (length(title) != 1L || !is.character(title) || !is.null(dim(title)) ||
+      !is.null(oldClass(title)) || is.na(title))
     stop("`title` must be one non-missing title")
   format <- match.arg(format)
   ext <- tolower(tools::file_ext(file))
@@ -1252,12 +1356,16 @@ report_document <- function(fit, file,
   paste0("<h2>Item invariance across frames</h2>",
     if (bootstrap) paste0(
       "<p class='note'>Each frame is calibrated separately and compared on the",
-      " common scale. Person-within-frame bootstrap uncertainty includes the",
-      " fitted frame units; Holm adjustment covers the location and",
-      " discrimination comparisons together.</p>") else paste0(
+      " common scale. Whole-person bootstrap uncertainty within person group includes the",
+      " fitted frame units; Holm adjustment covers ", inv$family_n,
+      " location and discrimination comparisons. ", inv$boot_reps_used, " of ",
+      inv$boot_reps, " refits were usable; ",
+      inv$boot_reps_nonconverged, " did not converge and ",
+      inv$boot_reps_errors, " otherwise failed.</p>") else paste0(
       "<p class='note'>Each frame is calibrated separately and compared on the",
       " common scale. Conditional location tests treat the fitted frame units",
-      " as fixed and are Holm-adjusted as one location family. Discrimination",
+      " as fixed and are Holm-adjusted over ", inv$family_n,
+      " location comparisons. Discrimination",
       " comparisons are descriptive; bootstrap uncertainty is required for",
       " discrimination tests.</p>"),
     .html_table(as.data.frame(inv$summary)),

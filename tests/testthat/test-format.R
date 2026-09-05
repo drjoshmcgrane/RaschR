@@ -24,6 +24,18 @@ test_that("results tables print without scientific notation", {
   expect_false(inherits(.tag_tables(keep), "rasch_table"))
 })
 
+test_that("table printing validates display controls", {
+  x <- .tag_tables(data.frame(p = 0.25))
+  expect_error(print(x, digits = c(2, 3)), "digits")
+  expect_error(print(x, digits = -1), "digits")
+  expect_error(print(x, digits = matrix(2)), "digits")
+  expect_error(print(x, n = NA_real_), "`n`")
+  expect_error(print(x, n = 1.5), "`n`")
+  expect_error(print(x, n = matrix(2)), "`n`")
+  expect_output(print(x, n = Inf), "0.250")
+  expect_output(print(x, n = 0), "more row")
+})
+
 test_that("observed and expected proportions are not read as probabilities", {
   # obs_p and est_p are category proportions: a category nobody chose has an
   # observed proportion of exactly zero, which "< 0.001" would misreport
@@ -103,6 +115,9 @@ test_that("the ETS categories follow the published rule on the logit scale", {
   # large but not significantly beyond the A ceiling is B, not C
   expect_equal(.ets_category(c_cut + 0.01, 0.5, 0.01), "B+")
   expect_true(is.na(.ets_category(NA_real_, NA_real_, NA_real_)))
+  expect_true(is.na(.ets_category(Inf, small, 0.01)))
+  expect_true(is.na(.ets_category(1, Inf, 0.01)))
+  expect_true(is.na(.ets_p_beyond(1, Inf)))
 })
 
 test_that("dif_size reports an ETS category beside the magnitude", {

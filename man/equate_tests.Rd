@@ -40,6 +40,8 @@ A list with the comparison \code{table} (locations, standard
   number with usable standard errors \code{n}, and whether drift inference
   was available (\code{inferential}). The \code{note} component records
   exclusions and the reason inference was withheld, where applicable.
+  An individual drift probability is also withheld when its contrast has
+  zero estimated uncertainty.
   Common items with unavailable drift probabilities remain in the
   multiplicity family.
 }
@@ -59,8 +61,9 @@ If fewer than two common items have usable variances but at least two have
 finite locations, the function returns their unweighted mean difference as
 a descriptive fallback and records \code{shift_method = "unweighted"}.
 Drift inference requires
-independent calibrations and at least three common items with usable joint
-covariance information. Otherwise the function returns a descriptive link.
+independent calibrations and at least three common items with usable,
+positive-semidefinite joint covariance information. Otherwise the function
+returns a descriptive link.
 Fitted calibrations must have converged.
 }
 \examples{

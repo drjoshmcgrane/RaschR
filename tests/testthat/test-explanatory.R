@@ -31,6 +31,29 @@ sim_lpcm_explanatory <- function(n = 700, seed = 4102) {
   list(X = X, predictors = predictors)
 }
 
+test_that("Kent calibration refuses singular or indefinite uncertainty", {
+  C <- diag(2)
+  good <- rasch:::.kent_calibration(4, C, 2 * diag(2), diag(2))
+  expect_equal(good$lambda, c(2, 2))
+  expect_equal(good$chisq, 2)
+  expect_equal(good$p, pchisq(2, 2, lower.tail = FALSE))
+
+  singular <- rasch:::.kent_calibration(4, C, diag(2), matrix(0, 2, 2))
+  expect_true(is.na(singular$chisq))
+  expect_true(is.na(singular$p))
+  expect_length(singular$lambda, 0L)
+
+  indefinite <- rasch:::.kent_calibration(4, C, diag(c(1, -1)), diag(2))
+  expect_true(is.na(indefinite$chisq))
+  expect_true(is.na(indefinite$p))
+
+  asymmetric <- matrix(c(1, 0.5, 0, 1), 2L)
+  expect_true(is.na(
+    rasch:::.kent_calibration(4, C, asymmetric, diag(2))$chisq))
+  expect_true(is.na(
+    rasch:::.kent_calibration(4, C, diag(2), asymmetric)$chisq))
+})
+
 test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   d <- sim_lltm()
   f <- rasch_explanatory(d$X, d$predictors,
@@ -240,13 +263,45 @@ test_that("diagnostics use one Holm family and fixed departures refit all output
   expect_equal(sort(unique(dg$component)), "Item location")
 
   before <- f$person$theta
-  g <- relax_explanatory(f, dg$item[1], "location")
+  g <- relax_explanatory(f, paste0(" ", dg$item[1], " "), "location")
   expect_equal(nrow(g$explanatory$relaxations), 1L)
   expect_gt(g$est$n_parameters, f$est$n_parameters)
   expect_false(isTRUE(all.equal(before, g$person$theta)))
   expect_equal(g$residuals,
                (g$X - g$moments$E) / sqrt(g$moments$V),
                tolerance = 1e-10)
+  expect_error(relax_explanatory(f, data.frame(item = dg$item[1])),
+               "exactly one item")
+  failed <- f
+  failed$est$converged <- FALSE
+  expect_error(explanatory_test(failed), "did not converge")
+  expect_error(explanatory_diagnostics(failed), "did not converge")
+  expect_error(relax_explanatory(failed, dg$item[1]), "did not converge")
+  bad_reference <- f
+  bad_reference$reference_fit$est$converged <- FALSE
+  expect_error(explanatory_test(bad_reference), "reference fit did not converge")
+})
+
+test_that("non-convergent explanatory candidates are withheld, not dropped", {
+  d <- sim_lltm(n = 300)
+  f <- rasch_explanatory(d$X, d$predictors, ~ operation + format)
+  real_design <- rasch:::.pcml_design
+  testthat::local_mocked_bindings(
+    .pcml_design = function(...) {
+      out <- real_design(...)
+      out$converged <- FALSE
+      out
+    },
+    .package = "rasch")
+  dg <- explanatory_diagnostics(f)
+  expect_gt(nrow(dg), 0L)
+  expect_true(all(!dg$converged))
+  expect_true(all(is.na(dg$departure)))
+  expect_true(all(is.na(dg$p)))
+  expect_true(all(is.na(dg$p_adj)))
+  expect_match(attr(dg, "note"), "non-convergent")
+  expect_error(relax_explanatory(f, dg$item[1L]),
+               "relaxed explanatory calibration did not converge")
 })
 
 test_that("item changes preserve and refit explanatory calibrations", {
@@ -359,10 +414,31 @@ test_that("explanatory CJ recovers object effects and compares with a free fit",
 
   dg <- explanatory_diagnostics(f)
   expect_equal(dg$p_adj, p.adjust(dg$p, "holm"))
-  g <- relax_btl_explanatory(f, dg$object[1])
+  g <- relax_btl_explanatory(f, paste0(" ", dg$object[1], " "))
   expect_s3_class(g, "rasch_btl_explanatory")
   expect_equal(nrow(g$explanatory$relaxations), 1L)
   expect_false(isTRUE(all.equal(f$objects$location, g$objects$location)))
+  expect_error(relax_btl_explanatory(
+    f, data.frame(object = dg$object[1])), "exactly one object")
+  failed <- f
+  failed$converged <- FALSE
+  expect_error(explanatory_test(failed), "did not converge")
+  expect_error(explanatory_diagnostics(failed), "did not converge")
+  expect_error(relax_btl_explanatory(failed, dg$object[1]), "did not converge")
+  bad_reference <- f
+  bad_reference$reference_fit$converged <- FALSE
+  expect_error(explanatory_test(bad_reference), "reference fit did not converge")
+
+  real_refit <- rasch:::.btl_explanatory_refit
+  testthat::local_mocked_bindings(
+    .btl_explanatory_refit = function(...) {
+      out <- real_refit(...)
+      out$converged <- FALSE
+      out
+    },
+    .package = "rasch")
+  expect_error(relax_btl_explanatory(f, dg$object[1]),
+               "relaxed explanatory comparative judgement calibration did not converge")
 })
 
 test_that("ordered explanatory CJ retains its response-threshold model", {

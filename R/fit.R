@@ -246,6 +246,7 @@
   L <- ncol(X)
   chi <- setNames(numeric(L), colnames(X))
   used <- integer(L)
+  invalid <- logical(L)
   for (i in seq_len(L)) {
     ci_i <- if (is.null(ci_list)) ci else ci_list[[i]]
     G <- suppressWarnings(max(ci_i, na.rm = TRUE))
@@ -255,6 +256,11 @@
       if (length(sel) < 2) next
       Obar <- mean(X[sel, i])
       Ebar <- mean(mo$E[sel, i]); Vbar <- mean(mo$V[sel, i])
+      if (!is.finite(Obar) || !is.finite(Ebar) ||
+          !is.finite(Vbar) || Vbar <= 0) {
+        invalid[i] <- TRUE
+        next
+      }
       chi[i] <- chi[i] + length(sel) * (Obar - Ebar)^2 / Vbar
       used[i] <- used[i] + 1L
     }
@@ -262,7 +268,7 @@
   # an item whose responders fall in fewer than two class intervals has no
   # estimable item-by-trait interaction: its chi-square and df are NA, not
   # a manufactured df = 1 with a valid-looking p
-  df_i <- ifelse(used >= 2L, used - 1L, NA_integer_)
+  df_i <- ifelse(used >= 2L & !invalid, used - 1L, NA_integer_)
   chi[is.na(df_i)] <- NA_real_
   p <- pchisq(chi, df_i, lower.tail = FALSE)
   usable <- is.finite(p)
@@ -276,7 +282,7 @@
 # Correlation that degrades to NA (rather than erroring) when fewer than 3
 # complete pairs are available.
 .safe_cor <- function(x, y) {
-  ok <- !is.na(x) & !is.na(y)
+  ok <- is.finite(x) & is.finite(y)
   if (sum(ok) < 3 || sd(x[ok]) == 0 || sd(y[ok]) == 0) return(NA_real_)
   cor(x[ok], y[ok])
 }
@@ -284,10 +290,12 @@
 # Distribution summary of a fit-statistic column: mean, SD, skewness, and
 # (excess) kurtosis (the summary block of Andrich & Marais 2019, app. C).
 .dist_stats <- function(x) {
-  x <- x[!is.na(x)]
+  x <- x[is.finite(x)]
   if (length(x) < 3) return(list(mean = NA_real_, sd = NA_real_,
                                  skewness = NA_real_, kurtosis = NA_real_))
   m <- mean(x); s <- sd(x); d <- x - m
+  if (!is.finite(s) || s == 0)
+    return(list(mean = m, sd = s, skewness = NA_real_, kurtosis = NA_real_))
   list(mean = m, sd = s,
        skewness = mean(d^3) / (mean(d^2))^1.5,
        kurtosis = mean(d^4) / (mean(d^2))^2 - 3)
@@ -313,7 +321,11 @@
 #'   mean \code{ave}, and the item's total \code{chisq}, \code{df}, and
 #'   \code{p}. Intervals with fewer than 2 responders are shown but carry no
 #'   chi-square contribution (\code{used = FALSE}), matching the item-trait
-#'   computation.
+#'   computation. The same applies when the model variance for an interval
+#'   is unavailable or zero. The probability is \code{NA} when person IDs
+#'   repeat because the asymptotic reference counts response rows rather than
+#'   independent persons; the interval summaries and chi-square remain
+#'   descriptive.
 #' @seealso \code{\link{fit_bootstrap}}, which refers the item's total, and
 #'   every other item fit statistic, to a bootstrap null rather than to its
 #'   asymptotic distribution.
@@ -325,6 +337,14 @@
 #' chisq_detail(rasch(X), "I3")$intervals
 #' @export
 chisq_detail <- function(fit, item) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("chisq_detail needs a response-data Rasch fit", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; item-trait detail is unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; item-trait detail is unavailable",
+         call. = FALSE)
   if (length(item) != 1L) stop("`item` must name exactly one item")
   i <- .item_idx(fit, item)
   # per-item interval allocation when the fit carries one (missing data)
@@ -352,8 +372,11 @@ chisq_detail <- function(fit, item) {
     iv$theta_max[g] <- max(th[sel]); iv$theta_mean[g] <- mean(th[sel])
     OM <- mean(x[sel]); EV <- mean(E[sel]); Vbar <- mean(V[sel])
     iv$obs_mean[g] <- OM; iv$exp_value[g] <- EV
-    iv$es[g] <- (OM - EV) / sqrt(Vbar)
-    if (length(sel) >= 2) {
+    valid_moment <- is.finite(OM) && is.finite(EV) &&
+      is.finite(Vbar) && Vbar > 0
+    if (valid_moment)
+      iv$es[g] <- (OM - EV) / sqrt(Vbar)
+    if (length(sel) >= 2 && valid_moment) {
       iv$residual[g] <- sqrt(length(sel)) * (OM - EV) / sqrt(Vbar)
       iv$chisq[g] <- iv$residual[g]^2
       iv$used[g] <- TRUE
@@ -371,9 +394,10 @@ chisq_detail <- function(fit, item) {
     }
   }
   it_row <- fit$item_trait[i, ]
+  item_p <- if (.has_repeated_person_ids(fit$person$id)) NA_real_ else it_row$p
   list(item = fit$items$item[i], location = fit$items$location[i],
        intervals = iv, categories = cats, ave = mean(x, na.rm = TRUE),
-       chisq = it_row$chisq, df = it_row$df, p = it_row$p)
+       chisq = it_row$chisq, df = it_row$df, p = item_p)
 }
 
 # Person separation index (separation reliability; Andrich 1982), with the
@@ -381,11 +405,14 @@ chisq_detail <- function(fit, item) {
 # Masters 1982): the count of statistically distinguishable performance
 # levels the instrument supports.
 .psi <- function(theta, se, keep = TRUE) {
-  ok <- !is.na(theta) & !is.na(se) & keep
+  ok <- is.finite(theta) & is.finite(se) & se >= 0 & keep %in% TRUE
   if (sum(ok) < 3) return(list(PSI = NA_real_, separation = NA_real_,
                                strata = NA_real_, var_theta = NA_real_,
                                mean_error_var = NA_real_, n = sum(ok)))
   vt <- var(theta[ok]); mse <- mean(se[ok]^2)
+  if (!is.finite(vt) || vt <= 0 || !is.finite(mse))
+    return(list(PSI = NA_real_, separation = NA_real_, strata = NA_real_,
+                var_theta = vt, mean_error_var = mse, n = sum(ok)))
   psi <- max((vt - mse) / vt, 0)
   sep <- if (psi < 1) sqrt(psi / (1 - psi)) else Inf
   strata <- if (is.finite(sep)) (4 * sep + 1) / 3 else Inf
@@ -427,8 +454,10 @@ chisq_detail <- function(fit, item) {
   if (length(recorded)) isTRUE(recorded) && map_ok else map_ok
 }
 
-# Qualitative power-of-test-of-fit assessment, driven by the PSI.
-.fit_power <- function(psi) {
+# Qualitative description of person separation, driven by the PSI. This is not
+# the statistical power of a test of fit, which also depends on sample size,
+# the departure being tested, targeting, category use and the test statistic.
+.separation_quality <- function(psi) {
   if (is.na(psi)) "unknown"
   else if (psi >= 0.9) "excellent"
   else if (psi >= 0.8) "good"
@@ -437,16 +466,28 @@ chisq_detail <- function(fit, item) {
   else "too low"
 }
 
+# Compatibility for fitted objects and downstream code created before the
+# public label was corrected from power of fit to separation quality.
+.fit_power <- .separation_quality
+
 # Targeting summary: how well item thresholds cover the person distribution.
 .targeting <- function(person, thresholds) {
-  ok <- !is.na(person$theta)
+  ok <- is.finite(person$theta)
   th <- person$theta[ok]
-  list(person_mean = mean(th), person_sd = sd(th),
-       person_mean_noext = mean(person$theta[ok & !person$extreme]),
-       item_mean = 0,
-       threshold_range = range(thresholds$tau),
-       prop_below = mean(th < min(thresholds$tau)),
-       prop_above = mean(th > max(thresholds$tau)))
+  tau_ok <- is.finite(thresholds$tau)
+  tau <- thresholds$tau[tau_ok]
+  item_location <- if (length(tau) && "item" %in% names(thresholds))
+    unname(tapply(tau, thresholds$item[tau_ok], mean)) else numeric(0)
+  tr <- if (length(tau)) range(tau) else c(NA_real_, NA_real_)
+  noext <- ok & person$extreme %in% FALSE
+  list(person_mean = if (length(th)) mean(th) else NA_real_,
+       person_sd = if (length(th) > 1L) sd(th) else NA_real_,
+       person_mean_noext = if (any(noext))
+         mean(person$theta[noext]) else NA_real_,
+       item_mean = if (length(item_location)) mean(item_location) else NA_real_,
+       threshold_range = tr,
+       prop_below = if (length(th) && length(tau)) mean(th < tr[1L]) else NA_real_,
+       prop_above = if (length(th) && length(tau)) mean(th > tr[2L]) else NA_real_)
 }
 
 # Administrable virtual-item blocks of a fit: one per design a person
@@ -559,6 +600,8 @@ chisq_detail <- function(fit, item) {
 #' \operatorname{SEM}(\theta)=I(\theta)^{-1/2},}
 #' where \eqn{d_i} is the frame unit or discrimination multiplier. For an
 #' ordinary Rasch fit, \eqn{d_i=1}.
+#' Information is returned only for a converged calibration. Comparative
+#' Judgement designs use \code{\link{btl_information}} instead.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param grid Logit grid over which to evaluate the information.
@@ -579,15 +622,31 @@ chisq_detail <- function(fit, item) {
 #' colnames(X) <- paste0("I", 1:6)
 #' head(test_information(rasch(X)))
 #' @export
-test_information <- function(fit, grid = seq(-6, 6, by = 0.1), items = NULL) {
+test_information <- function(fit, grid = NULL, items = NULL) {
   if (!inherits(fit, "rasch")) stop("test_information needs a rasch fit")
-  if (!is.numeric(grid) || !length(grid) || any(!is.finite(grid)))
-    stop("grid must contain finite numeric person locations")
+  if (inherits(fit, "rasch_btl"))
+    stop("test_information is for response-data models; use btl_information() for a Comparative Judgement fit")
+  converged <- if (!is.null(fit$est$converged)) fit$est$converged else
+    fit$converged
+  if (!isTRUE(converged))
+    stop("the fitted calibration did not converge; test information is unavailable")
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; test information is unavailable")
+  if (is.null(grid)) {
+    grid <- .default_model_grid(fit, by = 0.1)
+  } else if (!is.numeric(grid) || is.complex(grid) || !length(grid) ||
+             !is.null(dim(grid)) || !is.null(oldClass(grid)) ||
+             any(!is.finite(grid))) {
+    stop("`grid` must contain one or more plain finite numeric locations",
+         call. = FALSE)
+  }
   L <- length(fit$tau_list)
   disc <- if (is.null(fit$disc)) rep(1, L) else fit$disc
   # an item subset restricts every design block to the named items, so a
   # restricted person-item map can carry the information of its own
   # selection rather than the whole instrument's
+  if (!is.null(items) && (!is.atomic(items) || !is.null(dim(items))))
+    stop("`items` must be a vector of item names or indices")
   keep <- if (is.null(items)) seq_len(L)
           else if (is.numeric(items)) {
             if (any(!is.finite(items)) || any(items != floor(items)))
@@ -595,9 +654,24 @@ test_information <- function(fit, grid = seq(-6, 6, by = 0.1), items = NULL) {
             ki <- as.integer(items)
             if (any(ki < 1L) || any(ki > L))
               stop("`items` indices must lie in 1..", L)
+            if (anyDuplicated(ki))
+              stop("item indices must not name the same item more than once")
             ki
           } else {
             nm <- as.character(items)
+            if (anyNA(nm) || any(!nzchar(trimws(nm))))
+              stop("`items` must contain non-missing, non-empty item names")
+            # Resolve literal names before treating surrounding whitespace as
+            # selector syntax, so deliberately spaced columns remain usable.
+            direct <- match(nm, fit$items$item)
+            canonical <- nm
+            canonical[is.na(direct)] <-
+              .role_text_values(nm[is.na(direct)])
+            if (anyDuplicated(canonical))
+              stop("item(s) named more than once: ",
+                   paste(unique(canonical[duplicated(canonical)]),
+                         collapse = ", "))
+            nm <- canonical
             ki <- match(nm, fit$items$item)
             # an EFRM calibrates virtual item-by-group cells; an underlying
             # item name selects every cell it appears in

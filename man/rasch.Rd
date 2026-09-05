@@ -28,8 +28,11 @@ described above.}
 \item{model}{Either \code{"PCM"} (partial credit) or \code{"RSM"} (rating
 scale).}
 
-\item{id}{Optional name of an ID column in \code{data}, or a vector of IDs;
-carried through to the person estimates.}
+\item{id}{Optional name of an ID column in \code{data}, or a vector of IDs.
+Repeated values cluster the item-parameter sandwich covariance and define
+the person unit in repeated-measures DIF. The ordinary item-fit reference
+distributions are row-based, so their probabilities are withheld when an
+ID occurs on more than one response row.}
 
 \item{factors}{Optional character vector of person-factor column names in
 \code{data} (for DIF analysis), a data frame of factors, or one grouping
@@ -49,7 +52,8 @@ at most 10, at least 2. The resolved value is stored in
 columns \code{item}, \code{k}, and \code{tau}, and optionally
 \code{average = TRUE} for average item anchoring; see
 \code{\link{pcml}}. Column names must be unique. Anchors determine the
-scale origin.}
+scale origin. Anchor values are treated as fixed, so their uncertainty
+is not included in the fitted standard errors.}
 
 \item{na_codes}{Values to read as missing. Defaults to \code{-1}, the
 conventional missing-response code; any negative score is also treated as
@@ -75,7 +79,9 @@ An object of class \code{"rasch"}. Its principal components are
   and estimation details. The component \code{summary_stats} contains the
   distribution summaries, fit-location correlations, and the cell
   degrees-of-freedom factor. The item summary carries a \code{disc}
-  column described below.
+  column described below. If estimation does not converge, locations and
+  residual patterns are retained for diagnosis, but standard errors,
+  separation indices and inferential probabilities are \code{NA}.
 }
 \description{
 Fits the partial credit model (PCM) or rating scale model (RSM) by pairwise
@@ -136,7 +142,10 @@ raw and Holm-adjusted probabilities as descriptive diagnostics. Each
 adjustment retains the full item family when one probability is
 unavailable.
 \code{\link{fit_bootstrap}} re-estimates every replicate and should be used
-for item-level inference where it is available.
+for item-level inference where it is available. With repeated IDs, the
+ordinary asymptotic probabilities are withheld and \code{fit_bootstrap()}
+is unavailable because neither reference models within-person dependence;
+the residuals and fit statistics remain descriptive.
 }
 
 \examples{

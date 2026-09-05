@@ -46,7 +46,8 @@ A list of class \code{"rasch_dif_size"}. \code{levels} contains
   dichotomous items it also contains \code{ets}, together with the raw and
   adjusted probabilities for exceeding the ETS A boundary; for polytomous
   items it contains the descriptive \code{signed_area}.
-  Sampling-uncertainty fields are \code{NA} when person identifiers repeat.
+  Sampling-uncertainty fields are \code{NA} when the resolved-location
+  covariance cannot support Wald inference.
 }
 \description{
 Resolves an item by one or more person factors and compares the resulting
@@ -67,11 +68,13 @@ where \eqn{\mathbf{V}_i} is the full covariance of the resolved
 locations. Wald probabilities are adjusted over the pairwise family. A
 comparison with withheld inference remains in that declared family.
 
-With repeated person identifiers, the row-level calibration covariance does
-not represent within-person sampling dependence. Logit differences and
-practical flags are retained, but their standard errors and Wald tests are
-withheld. Use \code{\link{dif_contrasts}} for person-level inference in a
-repeated-measures design.
+When person identifiers repeat, the resolved-location covariance uses the
+person-clustered calibration sandwich. This permits Wald inference for the
+logit difference while allowing response rows from the same person to be
+dependent. For a planned within-person question, \code{\link{dif_contrasts}}
+remains preferable because it tests the nominated contrast directly from
+person-level residual contrasts. Inference is withheld if the resolved-
+location covariance is unavailable or not positive semidefinite.
 }
 \section{Magnitude conventions}{
 

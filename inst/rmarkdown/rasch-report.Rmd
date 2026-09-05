@@ -124,8 +124,16 @@ if (!is_btl) {
   cat("\n# Item estimates\n\n")
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
     if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
-  if ("p_adj" %in% names(item_tab))
-    cat("The `p_adj` column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.\n\n")
+  if (.has_repeated_person_ids(fit$person$id))
+    for (nm in intersect(c("p", "p_adj", "p_bonf", "p_anova",
+                           "p_anova_adj", "p_anova_bonf"), names(item_tab)))
+      item_tab[[nm]][] <- NA_real_
+  if ("p_adj" %in% names(item_tab)) {
+    if (.has_repeated_person_ids(fit$person$id))
+      cat("Item-fit probabilities are withheld because person IDs repeat and the available references assume independent response rows. The fit statistics remain descriptive.\n\n")
+    else
+      cat("The `p_adj` column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.\n\n")
+  }
   print(show_table(report_columns(item_tab,
     c("item", "max", "location", "se", "fit_resid", "infit_ms",
       "outfit_ms", "p_adj"))))
@@ -232,10 +240,16 @@ if (!is_btl) {
     } else {
       inv_bootstrap <- identical(inv$se_method, "bootstrap")
       if (inv_bootstrap)
-        cat("Persons were resampled within frame. Holm adjustment covers",
-            "location and discrimination comparisons together.\n\n")
+        cat(sprintf(paste0("Whole person rows were resampled within person group, ",
+                           "retaining each row's item-set response pattern. Holm ",
+                    "adjustment covers %d location and discrimination comparisons. ",
+                    "%d of %d refits were usable; %d did not converge ",
+                    "and %d otherwise failed.\n\n"),
+                    inv$family_n, inv$boot_reps_used, inv$boot_reps,
+                    inv$boot_reps_nonconverged, inv$boot_reps_errors))
       else
-        cat("The conditional analysis tests relative item locations. Its",
+        cat("The conditional analysis tests", inv$family_n,
+            "relative item locations. Its",
             "discrimination columns describe the separate calibrations; use",
             "bootstrap uncertainty for discrimination tests.\n\n")
       print(show_table(inv$summary))

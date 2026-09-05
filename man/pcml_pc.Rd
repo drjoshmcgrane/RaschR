@@ -28,7 +28,9 @@ A list with the threshold table \code{thr} (columns \code{id},
   errors, \code{NA} where an item's rank does not support that
   component), the threshold covariance matrix \code{cov_tau}, the
   pairwise conditional log-likelihood, the iteration count, a convergence
-  flag, and the max-score vector \code{m}.
+  flag, and the max-score vector \code{m}. If estimation does not converge,
+  the function warns and all standard errors and covariance entries are
+  \code{NA}.
 }
 \description{
 Re-expresses each item's thresholds as orthogonal polynomial components:

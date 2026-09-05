@@ -39,6 +39,22 @@ test_that("CL-ICs select PCM when the threshold spreads truly vary", {
   expect_equal(cmp$label[which.min(cmp$cl_aic)], "PCM")
 })
 
+test_that("CL-BIC counts independent persons when response rows repeat", {
+  L <- 6L; N <- 260L
+  X <- gen_pcm(N, seq(-1, 1, length.out = L),
+               matrix(rep(c(-0.7, 0, 0.7), each = L), L, 3), 220)
+  ids <- sprintf("P%03d", seq_len(N))
+  fit <- rasch(rbind(X, X), id = rep(ids, 2L))
+  eligible <- !fit$person$extreme & rowSums(!is.na(fit$X)) >= 2L
+  n_person <- length(unique(fit$person$id[eligible]))
+  eff <- abs(sum(diag(fit$est$cov_beta %*% fit$est$H_beta)))
+  ic <- .cl_ic(fit)
+  expect_equal(unname(ic["bic"]),
+               -2 * fit$est$loglik + log(n_person) * eff)
+  expect_false(isTRUE(all.equal(unname(ic["bic"]),
+                                -2 * fit$est$loglik + log(sum(eligible)) * eff)))
+})
+
 sim_btl_pos <- function(pos_effect, seed) {
   set.seed(seed)
   K <- 8; beta <- seq(-1.5, 1.5, length.out = K)
@@ -115,10 +131,38 @@ test_that("compare_fits withholds ICs for an unconverged fit", {
   good <- rasch(as.data.frame(X))
   bad <- suppressWarnings(rasch(as.data.frame(X), maxit = 1L))  # non-convergence
   expect_false(isTRUE(bad$est$converged))
+  expect_true(all(is.na(bad$thresholds$se)))
+  expect_true(all(is.na(bad$items$se)))
+  expect_true(all(is.na(bad$items$p_adj)))
+  expect_true(all(is.na(bad$person$se)))
+  expect_true(is.na(bad$total_chisq_p))
+  expect_true(is.na(bad$psi$PSI))
   cmp <- compare_fits(good = good, bad = bad)
   expect_true("converged" %in% names(cmp))
   expect_true(is.na(cmp$cl_aic[cmp$label == "bad"]))
   expect_true(is.na(cmp$loglik[cmp$label == "bad"]))
+})
+
+test_that("compare_fits withholds ICs for invalid Godambe ingredients", {
+  set.seed(501)
+  X <- matrix(rbinom(300 * 5, 1, 0.5), 300, 5)
+  colnames(X) <- paste0("I", 1:5)
+  fit <- rasch(X)
+  expect_true(is.finite(compare_fits(a = fit, b = fit)$cl_aic[1]))
+
+  bad_cov <- fit
+  bad_cov$est$cov_beta[1, 2] <- bad_cov$est$cov_beta[1, 2] + 1
+  cmp_cov <- compare_fits(a = bad_cov, b = bad_cov)
+  expect_true(all(is.na(cmp_cov$eff_params)))
+  expect_true(all(is.na(cmp_cov$cl_aic)))
+  expect_true(all(is.na(cmp_cov$cl_bic)))
+
+  singular_h <- fit
+  singular_h$est$H_beta[,] <- 0
+  cmp_h <- compare_fits(a = singular_h, b = singular_h)
+  expect_true(all(is.na(cmp_h$eff_params)))
+  expect_true(all(is.na(cmp_h$cl_aic)))
+  expect_true(all(is.na(cmp_h$cl_bic)))
 })
 
 test_that("compare_fits same_data compares actual responses", {
@@ -131,6 +175,43 @@ test_that("compare_fits same_data compares actual responses", {
   cmp <- compare_fits(a = f1, b = f2)
   expect_false(cmp$same_data[cmp$label == "b"])
   expect_true(is.na(cmp$two_delta_ll[cmp$label == "b"]))
+  expect_true(is.na(cmp$cl_aic[cmp$label == "b"]))
+  expect_true(is.na(cmp$cl_bic[cmp$label == "b"]))
+})
+
+test_that("same_data includes the independent-person allocation", {
+  set.seed(510)
+  X <- matrix(rbinom(480 * 5, 1, 0.5), 480, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  ids1 <- rep(sprintf("P%03d", 1:240), 2L)
+  ids2 <- rep(sprintf("Q%03d", 1:240), 2L)
+  same <- compare_fits(a = rasch(X, id = ids1),
+                       b = rasch(X, id = ids2))
+  expect_true(same$same_data[2L])
+
+  ids2[c(1L, 241L)] <- ids2[c(2L, 242L)]
+  changed <- compare_fits(a = rasch(X, id = ids1),
+                          b = rasch(X, id = ids2))
+  expect_false(changed$same_data[2L])
+  expect_true(is.na(changed$cl_aic[2L]))
+  expect_true(is.na(changed$cl_bic[2L]))
+})
+
+test_that("Rasch same_data is invariant to row, item and ID presentation", {
+  set.seed(511)
+  X <- matrix(rbinom(360 * 6, 1, 0.5), 360, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  id <- rep(sprintf("P%03d", 1:180), 2L)
+  f1 <- rasch(X, id = id)
+  ord_r <- sample.int(nrow(X)); ord_c <- sample.int(ncol(X))
+  # The response rows, item columns and person labels all change presentation;
+  # the multiset of rows within each independent person does not.
+  relabel <- setNames(sprintf("Q%03d", sample.int(180)), unique(id))
+  f2 <- rasch(X[ord_r, ord_c, drop = FALSE], id = relabel[id[ord_r]])
+  same <- compare_fits(original = f1, reordered = f2)
+  expect_true(same$same_data[2L])
+  expect_true(is.finite(same$cl_aic[2L]))
+  expect_equal(same$two_delta_ll[2L], 0, tolerance = 1e-8)
 })
 
 test_that("BTL same_data is exact and invariant to row order", {
@@ -157,7 +238,9 @@ test_that("BTL same_data is exact and invariant to row order", {
 
   # Equal total comparison count is insufficient when row weights differ.
   dw1 <- d; dw1$count <- 2
-  dw2 <- dw1; dw2$count[1:2] <- c(3, 1)
+  # Move one replicate between rows with opposing outcomes; redistributing
+  # counts between duplicate rows is merely another compression.
+  dw2 <- dw1; dw2$count[c(1, 3)] <- c(3, 1)
   fw1 <- btl(dw1, "a", "b", "win", count = "count")
   fw2 <- btl(dw2, "a", "b", "win", count = "count")
   weighted <- compare_fits(original = fw1, reweighted = fw2)
@@ -171,4 +254,62 @@ test_that("BTL same_data is exact and invariant to row order", {
   fj2 <- btl(dj2, "a", "b", "win", judge = "judge")
   clustered <- compare_fits(original = fj1, reassigned = fj2)
   expect_false(clustered$same_data[2])
+
+  # Judge names themselves do not alter the independent-cluster allocation.
+  relabel <- setNames(paste0("K", sample.int(12)), unique(dj1$judge))
+  dj3 <- dj1
+  dj3$judge <- unname(relabel[dj1$judge])
+  fj3 <- btl(dj3, "a", "b", "win", judge = "judge")
+  renamed <- compare_fits(original = fj1, renamed = fj3)
+  expect_true(renamed$same_data[2])
+  expect_true(is.finite(renamed$cl_aic[2]))
+})
+
+test_that("BTL same_data follows independent units, not count representation", {
+  set.seed(512)
+  pr <- t(combn(LETTERS[1:5], 2L))
+  d <- data.frame(a = rep(pr[, 1L], each = 30L),
+                  b = rep(pr[, 2L], each = 30L))
+  y <- rbinom(nrow(d), 1L, 0.5)
+  d$win <- ifelse(y == 1L, d$a, d$b)
+  expanded <- btl(d, "a", "b", "win")
+  counted <- stats::aggregate(rep(1L, nrow(d)),
+                              d[c("a", "b", "win")], sum)
+  names(counted)[4L] <- "count"
+  compressed <- btl(counted, "a", "b", "win", count = "count")
+  same <- compare_fits(expanded = expanded, compressed = compressed)
+  expect_true(same$same_data[2L])
+  expect_equal(same$loglik[2L], same$loglik[1L], tolerance = 1e-10)
+  expect_equal(same$cl_aic[2L], same$cl_aic[1L], tolerance = 1e-8)
+
+  judged <- d
+  judged$judge <- rep(sprintf("J%02d", 1:15), length.out = nrow(judged))
+  judged_fit <- btl(judged, "a", "b", "win", judge = "judge")
+  judged_count <- stats::aggregate(
+    rep(1L, nrow(judged)), judged[c("a", "b", "win", "judge")], sum)
+  names(judged_count)[5L] <- "count"
+  judged_compressed <- btl(judged_count, "a", "b", "win",
+                           judge = "judge", count = "count")
+  judged_same <- compare_fits(expanded = judged_fit,
+                              compressed = judged_compressed)
+  expect_true(judged_same$same_data[2L])
+  expect_equal(judged_same$cl_bic[2L], judged_same$cl_bic[1L],
+               tolerance = 1e-8)
+
+  # One half-scored tie is one independent unit with two score
+  # contributions.  It is not two independent opposing judgements.
+  base <- d[seq_len(120L), ]
+  tie <- data.frame(a = base$a, b = base$b, win = base$win,
+                    stringsAsFactors = FALSE)
+  tie$win[1L] <- "tie"
+  tie$count <- 1L
+  tie$count[1L] <- 2L
+  tie_fit <- btl(tie, "a", "b", "win", count = "count", ties = "half")
+  opposite <- tie[-1L, c("a", "b", "win"), drop = FALSE]
+  opposite <- rbind(data.frame(a = tie$a[1L], b = tie$b[1L],
+                               win = c(tie$a[1L], tie$b[1L])), opposite)
+  opposite_fit <- btl(opposite, "a", "b", "win")
+  different <- compare_fits(tie = tie_fit, independent = opposite_fit)
+  expect_false(different$same_data[2L])
+  expect_true(is.na(different$cl_aic[2L]))
 })

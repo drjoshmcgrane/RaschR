@@ -67,8 +67,9 @@ treating \code{object_a} as the first object in each comparison.}
 
 \item{ties}{How to treat ties in the dichotomous analysis:
 \code{"drop"} (default, removed with a note), \code{"half"} (half a
-win each way, a common pragmatic device -- flagged in the notes
-because the halves are not independent Bernoulli trials), or
+win each way, a common pragmatic device; the two halves remain one
+sampling unit in the sandwich because they are not independent
+Bernoulli trials), or
 \code{"error"}. With polytomous responses, code ties as a middle
 category instead.}
 

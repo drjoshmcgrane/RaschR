@@ -25,6 +25,13 @@ test_that("misspelled id, factor, and item columns are errors, not fallbacks", {
   expect_equal(ncol(f$X), 6L)
   f2 <- rasch(as.data.frame(mkX()), items = 1:6)
   expect_equal(ncol(f2$X), 6L)
+
+  blank_name <- as.data.frame(mkX(40, 4), check.names = FALSE)
+  names(blank_name)[1] <- "   "
+  expect_error(rasch(blank_name), "whitespace-only")
+  external <- data.frame(group = rep(c("A", "B"), 20))
+  names(external) <- "  "
+  expect_error(rasch(mkX(40, 4), factors = external), "whitespace-only")
 })
 
 test_that("fractional scores error instead of silently truncating", {
@@ -42,6 +49,12 @@ test_that("role names are resolved by content and colliding external factors are
                factors = data.frame(g1 = c("a", "b"), g2 = c("x", "y")))
   got <- .dif_factors(fake, c("g1", "g2"))
   expect_identical(names(got), c("g1", "g2"))
+
+  blank <- list(X = matrix(0, 4, 2), factors = data.frame(
+    g = factor(c(" A ", "", "   ", NA), levels = c(" A ", "", "   "))))
+  cleaned <- .dif_factors(blank, "g")$g
+  expect_identical(levels(cleaned), "A")
+  expect_identical(as.character(cleaned), c("A", NA, NA, NA))
 
   d <- as.data.frame(mkX(40, 4))
   external <- data.frame(I1 = rep(c("A", "B"), 20))
@@ -83,11 +96,17 @@ test_that("missing DIF identifiers remain independent analysis units", {
   expect_equal(a$terms, b$terms)
 })
 
+test_that("DIF contrast normalisation depends on direction, not scale", {
+  w <- c(a = -1, b = 1)
+  expect_equal(.dif_norm(w * 1e-200), .dif_norm(w))
+  expect_null(.dif_norm(c(a = 0, b = 0)))
+})
+
 test_that("distractor rescoring validates its decision thresholds", {
   expect_error(distractor_rescore(NULL, min_n = 2.5),
-               "positive whole number")
+               "whole number")
   expect_error(distractor_rescore(NULL, min_n = -1),
-               "positive whole number")
+               "whole number")
   expect_error(distractor_rescore(NULL, z = Inf), "positive finite")
   expect_error(distractor_rescore(NULL, items = character(0)),
                "at least one keyed item")
@@ -192,6 +211,27 @@ test_that("every public estimator rejects fractional scores", {
   expect_error(btl(d, "a", "b", response = "resp"), "non-integer")
 })
 
+test_that("rasch_mfrm refuses non-data-frame input at entry", {
+  bad <- matrix(c("P1", "I1", "1", "R1"), nrow = 1,
+                dimnames = list(NULL, c("person", "item", "score", "rater")))
+  expect_error(rasch_mfrm(bad, "person", "item", "score", "rater"),
+               "data frame in long or wide form")
+})
+
+test_that("repeated-measures reshaping refuses duplicate source columns", {
+  d <- list(pid = c(1, 1), time = c(1, 2), item = c(0, 1),
+            item = c(1, 0))
+
+  expect_error(
+    rack_data(d, "pid", "time", c("item", "item.1")),
+    "column names must be unique"
+  )
+  expect_error(
+    stack_data(d, "pid", "time", c("item", "item.1")),
+    "column names must be unique"
+  )
+})
+
 test_that("the low-level PCML estimators require an identified 0-to-m score matrix", {
   good <- cbind(A = rep(c(0L, 1L), 20),
                 B = rep(c(0L, 1L, 1L, 0L), 10))
@@ -209,6 +249,9 @@ test_that("the low-level PCML estimators require an identified 0-to-m score matr
   colnames(good)[1] <- ""
   expect_error(pcml(good), "non-missing and non-empty")
   expect_error(pcml_pc(good), "non-missing and non-empty")
+  colnames(good)[1] <- "   "
+  expect_error(pcml(good), "whitespace-only")
+  expect_error(pcml_pc(good), "whitespace-only")
 })
 
 test_that("item_moments is overflow-stable and person_wle survives wide items", {
@@ -353,6 +396,23 @@ test_that("simulators reject malformed counts, effects, and dependence pairs", {
   expect_error(simulate_rasch(50, 6,
     dependence = list(pairs = list(c("I01", "I02")), strength = Inf)),
     "finite value")
+  expect_error(simulate_rasch(50, 6,
+    dependence = list(pairs = list(c("I01", "I02"), c("I01", "I02")),
+                      strength = 1)),
+    "repeats the directed pair")
+  expect_error(simulate_rasch(50, 6,
+    second_dim = list(items = c("I03", "I03"), rho = 0.5)),
+    "at most once")
+  expect_error(simulate_rasch(50, 6, n_groups = 2,
+    dif = list(items = c("I03", "I03"), uniform = 1)),
+    "at most once")
+  expect_error(simulate_rasch(50, 6, n_groups = 2,
+    dif = list(items = character(0), uniform = 1)),
+    "at least one generated item")
+  expect_error(simulate_rasch(50, 6, model = "PCM",
+    response_style = list(type = c("extreme", "middle"), prop = 0.2,
+                          strength = 1)),
+    "type must be one")
   expect_error(simulate_mfrm(interaction = list(
     item = "I99", rater = "R1", bias = 1)), "generated level")
   expect_error(simulate_btl_efrm(panel_units = c(1, -1)),
@@ -376,6 +436,18 @@ test_that("simulators reject malformed counts, effects, and dependence pairs", {
   no_effect <- simulate_btl(5, 8, 3, dependence = list(), seed = 9)
   expect_false("order" %in% names(no_effect))
   expect_false(any(grepl("dependence", attr(no_effect, "truth")$planted)))
+
+  no_dif <- simulate_rasch(50, 6,
+    dif = list(items = "I03", uniform = 0, nonuniform = 0), seed = 10)
+  expect_false(any(grepl("DIF", attr(no_dif, "truth")$planted)))
+  expect_identical(no_dif, simulate_rasch(50, 6, seed = 10))
+  no_dependence <- simulate_rasch(50, 6,
+    dependence = list(pairs = list(c("I01", "I02")), strength = 0),
+    seed = 12)
+  expect_identical(no_dependence, simulate_rasch(50, 6, seed = 12))
+  no_interaction <- simulate_mfrm(20, 3, 3,
+    interaction = list(item = "I1", rater = "R1", bias = 0), seed = 11)
+  expect_false(any(grepl("bias", attr(no_interaction, "truth")$planted)))
 })
 
 test_that("sim_apply counts non-scalar results as failed replicates", {
@@ -664,6 +736,25 @@ test_that("rasch captures a by-value factors vector, refusing an ambiguity", {
   expect_equal(colnames(fi$X), paste0("I", 1:L))
 })
 
+test_that("rasch stores textual person roles in one canonical form", {
+  set.seed(1009)
+  X <- matrix(rbinom(120 * 5, 1, 0.5), 120, 5)
+  colnames(X) <- paste0("I", 1:5)
+  d <- data.frame(id = rep(c(" P1", "P2 "), length.out = 120), X,
+                  grp = factor(rep(c("A", " A ", "B", "   "), 30)),
+                  check.names = FALSE)
+  f <- rasch(d, id = "id", factors = "grp", items = colnames(X))
+  expect_false(any(grepl("^\\s|\\s$", f$person$id, perl = TRUE), na.rm = TRUE))
+  expect_identical(levels(f$factors$grp), c("A", "B"))
+  expect_true(anyNA(f$factors$grp))
+  expect_identical(levels(.dif_factors(f, "grp")$grp), c("A", "B"))
+
+  fn <- rasch(X, id = seq_len(nrow(X)),
+              factors = data.frame(grp = rep(1:2, 60)))
+  expect_type(fn$person$id, "integer")
+  expect_type(fn$factors$grp, "integer")
+})
+
 test_that("rasch errors on length-mismatched id / factors", {
   set.seed(16); n <- 200; L <- 6
   d <- seq(-2, 2, length.out = L)
@@ -752,19 +843,19 @@ test_that("EFRM bootstrap counts are valid before estimation", {
   d <- data.frame(I1 = c(0, 1), I2 = c(1, 0), group = c("a", "b"))
   sets <- list(core = c("I1", "I2"))
   expect_error(rasch_efrm(d, sets, "group", boot_reps = -1),
-               "non-negative whole number")
+               "whole number")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 2.5),
-               "non-negative whole number")
+               "whole number")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 20),
                "zero or at least 30")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, workers = 0),
-               "positive whole number")
+               "whole number")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, workers = 1.5),
-               "positive whole number")
+               "whole number")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, seed = Inf),
-               "non-negative whole number")
+               "whole number")
   expect_error(rasch_efrm(d, sets, "group", boot_reps = 0, seed = 1.5),
-               "non-negative whole number")
+               "whole number")
 })
 
 test_that("EFRM requires one response row per person", {
@@ -782,22 +873,22 @@ test_that("BTL-EFRM bootstrap counts are valid before estimation", {
   sets <- list(core = c("A", "B"))
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = -1),
-               "non-negative whole number")
+               "whole number")
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 2.5),
-               "non-negative whole number")
+               "whole number")
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 20),
                "at least 30")
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 30, workers = 0),
-               "positive whole number")
+               "whole number")
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 30, workers = 1.5),
-               "positive whole number")
+               "whole number")
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 30, seed = Inf),
-               "non-negative whole number")
+               "whole number")
   expect_error(btl_efrm(d, "object_a", "object_b", "winner", "judge",
                         "panel", sets, boot_reps = 30, progress = 1),
                "progress must be NULL or a function")
@@ -823,6 +914,25 @@ test_that("available-case ctt alpha is withheld when the covariance is invalid",
   # either a valid alpha or an explicit withholding -- never an absurd value
   expect_true(is.na(ct$alpha) || (ct$alpha > -1 && ct$alpha <= 1))
   if (is.na(ct$alpha)) expect_true(grepl("alpha withheld", ct$note))
+
+  # This pairwise covariance has a modest-looking alpha but a negative
+  # eigenvalue (-0.0084 against a leading value of 0.56). The former absolute
+  # 0.01 tolerance accepted it even though changing the item scale would
+  # change that decision.
+  set.seed(22)
+  n <- 80L; p <- 6L; theta <- rnorm(n)
+  X2 <- sapply(seq_len(p), function(j)
+    rbinom(n, 1L, plogis(theta + rnorm(1L, 0, 0.7))))
+  u <- runif(n * p)
+  observed <- runif(p, 0.35, 0.75)
+  X2[!matrix(u < observed[col(X2)], n, p)] <- NA
+  colnames(X2) <- paste0("I", seq_len(p))
+  C2 <- stats::cov(X2, use = "pairwise.complete.obs")
+  expect_lt(min(eigen(C2, symmetric = TRUE, only.values = TRUE)$values), 0)
+  ct2 <- ctt_table(rasch(X2), missing = "available")
+  expect_true(is.na(ct2$alpha))
+  expect_true(all(is.na(ct2$table$alpha_drop)))
+  expect_match(ct2$note, "alpha withheld")
 })
 
 test_that("tailored_analysis warns when its p-value floor blocks detection", {

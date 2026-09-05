@@ -36,6 +36,12 @@
 #' @export
 guttman_table <- function(fit) {
   if (!inherits(fit, "rasch")) stop("guttman_table needs a rasch fit")
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; the location-ordered scalogram is unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; the location-ordered scalogram is unavailable",
+         call. = FALSE)
   structural <- inherits(fit, c("rasch_efrm", "rasch_mfrm"))
   if (!.classical_design_applicable(fit))
     stop("the whole-item scalogram is not defined when an item is ",

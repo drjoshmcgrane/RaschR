@@ -76,7 +76,9 @@ test_that("frame_invariance results print without scientific notation", {
   # the returned elements match what the documentation claims
   expect_setequal(names(inv), c("locations", "discrimination", "summary",
                                 "excluded", "alpha", "adjust", "se_method",
-                                "boot_reps", "boot_reps_used", "seed",
+                                "family_n", "boot_reps", "boot_reps_used",
+                                "boot_reps_nonconverged", "boot_reps_errors",
+                                "boot_minimum_usable", "seed",
                                 "fit_signature", "result_signature"))
 })
 

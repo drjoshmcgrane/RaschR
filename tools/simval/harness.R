@@ -7,8 +7,10 @@
 #   (> 1 means the reported SE understates the sampling variability).
 # - Replicate accounting distinguishes n_attempted (replicates started),
 #   n_refused (identification/guard refusals), n_nonconv (fitted but not
-#   converged), n_error (other failures), and n_reps = the ANALYSED replicates every conditional
-#   performance quantity (bias, SD, coverage, rates) is computed on.
+#   converged), n_error (other failures), n_withheld (a deliberate inferential
+#   guard), n_metric_unavailable (an otherwise analysed replicate without this
+#   particular quantity), and n_reps = the replicates on which the reported
+#   quantity is computed.
 #   Rates carry Monte Carlo standard errors on their own denominators.
 
 # Monte Carlo standard error of an estimated proportion.
@@ -47,8 +49,10 @@ mc_se_prop <- function(p, n) sqrt(pmax(p * (1 - p), 0) / n)
     unlink(tf)
     h
   } else NA_character_
+  # The prefix prevents a hexadecimal short SHA such as 369e963 being read
+  # by read.csv() as scientific notation and converted to Inf.
   list(sha = if (length(sha) == 1)
-    paste0(sha, if (isTRUE(dirty)) "+dirty" else "") else NA_character_,
+    paste0("git:", sha, if (isTRUE(dirty)) "+dirty" else "") else NA_character_,
     date = format(Sys.Date()), script = script, hash = hash, rtree = rtree)
 })
 
@@ -64,6 +68,8 @@ sv_row <- function(study, scenario, quantity, n_reps,
                    effect = NA_real_,
                    n_attempted = NA_integer_, n_refused = NA_integer_,
                    n_nonconv = NA_integer_, n_error = NA_integer_,
+                   n_withheld = NA_integer_,
+                   n_metric_unavailable = NA_integer_,
                    n_boot_attempted = NA_integer_, n_boot_used = NA_integer_,
                    n_boot_nonconv = NA_integer_, n_boot_errors = NA_integer_,
                    refusal_rate = if (is.finite(n_attempted) &&
@@ -75,6 +81,12 @@ sv_row <- function(study, scenario, quantity, n_reps,
                    error_rate = if (is.finite(n_attempted) &&
                                     n_attempted > 0)
                      n_error / n_attempted else NA_real_,
+                   withheld_rate = if (is.finite(n_attempted) &&
+                                       n_attempted > 0)
+                     n_withheld / n_attempted else NA_real_,
+                   metric_unavailable_rate = if (is.finite(n_attempted) &&
+                                                  n_attempted > 0)
+                     n_metric_unavailable / n_attempted else NA_real_,
                    notes = "") {
   rate <- c(type1 = type1, familywise = familywise, power = power,
             coverage95 = coverage95)
@@ -92,10 +104,16 @@ sv_row <- function(study, scenario, quantity, n_reps,
     mc_se_prop(nonconv_rate, n_attempted) else NA_real_
   mc_err <- if (is.finite(error_rate) && is.finite(n_attempted))
     mc_se_prop(error_rate, n_attempted) else NA_real_
+  mc_withheld <- if (is.finite(withheld_rate) && is.finite(n_attempted))
+    mc_se_prop(withheld_rate, n_attempted) else NA_real_
+  mc_unavailable <- if (is.finite(metric_unavailable_rate) &&
+                        is.finite(n_attempted))
+    mc_se_prop(metric_unavailable_rate, n_attempted) else NA_real_
   data.frame(study = study, scenario = scenario, quantity = quantity,
              n_reps = n_reps, n_attempted = n_attempted,
              n_refused = n_refused, n_nonconv = n_nonconv,
-             n_error = n_error,
+             n_error = n_error, n_withheld = n_withheld,
+             n_metric_unavailable = n_metric_unavailable,
              n_boot_attempted = n_boot_attempted,
              n_boot_used = n_boot_used,
              n_boot_nonconv = n_boot_nonconv,
@@ -109,6 +127,10 @@ sv_row <- function(study, scenario, quantity, n_reps,
              refusal_rate = refusal_rate, mc_se_refusal = mc_ref,
              nonconv_rate = nonconv_rate, mc_se_nonconv = mc_nc,
              error_rate = error_rate, mc_se_error = mc_err,
+             withheld_rate = withheld_rate,
+             mc_se_withheld = mc_withheld,
+             metric_unavailable_rate = metric_unavailable_rate,
+             mc_se_metric_unavailable = mc_unavailable,
              script = .sv_prov$script, script_md5 = .sv_prov$hash,
              package_sha = .sv_prov$sha, r_tree_md5 = .sv_prov$rtree,
              executed = .sv_prov$date,
@@ -133,6 +155,22 @@ sv_write <- function(rows, name) {
   utils::write.csv(rows, path, row.names = FALSE)
   cat(sprintf("wrote %s (%d rows)\n", path, nrow(rows)))
   invisible(path)
+}
+
+# Bind result chunks written under different revisions of sv_row(). Long
+# simulation chunks can finish after the shared harness gains a provenance or
+# accounting column; align on the union rather than making reruns depend on
+# completion order.
+sv_bind_rows <- function(...) {
+  dfs <- list(...)
+  if (!length(dfs) || any(!vapply(dfs, is.data.frame, logical(1))))
+    stop("sv_bind_rows needs one or more data frames")
+  all_cols <- unique(unlist(lapply(dfs, names), use.names = FALSE))
+  dfs <- lapply(dfs, function(d) {
+    for (nm in setdiff(all_cols, names(d))) d[[nm]] <- NA
+    d[all_cols]
+  })
+  do.call(rbind, dfs)
 }
 
 # Empirical 95% CI coverage from per-replicate estimates and SEs.

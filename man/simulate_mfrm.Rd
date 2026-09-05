@@ -29,7 +29,7 @@ simulate_mfrm(
 recovered in \code{facet_effects}).}
 
 \item{erratic_raters}{Proportion of raters who rate at random (feeds the
-rater fit residual).}
+rater fit residual). Erratic and halo raters are disjoint.}
 
 \item{interaction}{\code{NULL}, or \code{list(rater=, item=, bias=)}: one
 rater is unusually harsh (positive) or lenient (negative) on one item.
@@ -37,7 +37,8 @@ Feeds the item-by-rater interaction (fit with \code{interaction = }).}
 
 \item{halo}{Proportion of raters showing a halo effect: they rate by the
 person's overall level and barely differentiate items (feeds the rater
-fit residual and the item-by-rater interaction).}
+fit residual and the item-by-rater interaction). Its requested count
+must fit among the non-erratic raters.}
 
 \item{seed}{Optional non-negative whole-number RNG seed.}
 }

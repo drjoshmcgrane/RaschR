@@ -95,11 +95,19 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src, "maxit = eo$maxit, tol = eo$tol", fixed = TRUE)
   expect_match(src, 'input$spread_alpha %||% 0.05', fixed = TRUE)
   expect_match(src, 'run_adjust <- "holm"', fixed = TRUE)
+  expect_match(src, "Holm-adjusted bootstrap chi-square p < .05",
+               fixed = TRUE)
+  expect_match(src, '"adjusted p unavailable; refit"', fixed = TRUE)
+  expect_false(grepl("else f$dependence$p[r]", src, fixed = TRUE))
+  expect_match(src, 'num_dt(d, p_bold = "p_adj")', fixed = TRUE)
   expect_false(grepl("dif_padj|spread_padj|inv_screen", src))
   expect_match(src, 'spread_test(fit, alpha = %s, p_adjust = %s)',
                fixed = TRUE)
   expect_match(src, 'callr::r_bg', fixed = TRUE)
   expect_match(src, 'input_task_button("boot_run", "Bootstrap the fit statistics"',
+               fixed = TRUE)
+  expect_match(src, 'identical(kind, "rasch")', fixed = TRUE)
+  expect_match(src, 'item-fit bootstrap is unavailable when person IDs repeat',
                fixed = TRUE)
   expect_match(src, 'input_task_button("btl_boot_run", "Bootstrap the fit statistics"',
                fixed = TRUE)
@@ -124,6 +132,10 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src, 'process$kill_tree()', fixed = TRUE)
   expect_match(src, 'paste0("workers = ", workers)', fixed = TRUE)
   expect_match(src, 'paste0("seed = ", seed)', fixed = TRUE)
+  expect_match(src, '!workers_raw %in% .efrm_worker_values', fixed = TRUE)
+  expect_false(grepl('as.integer(round(seed_raw))', src, fixed = TRUE))
+  expect_match(src, 'Dimensionality seed must be one non-negative whole number',
+               fixed = TRUE)
   expect_match(src, '0.10 + 0.84 * fraction', fixed = TRUE)
   expect_match(src, '"full person bootstrap" = 0.50 + 0.44 * fraction',
                fixed = TRUE)
@@ -157,6 +169,15 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src,
     '!inherits(active_bf, c("rasch_btl_efrm", "rasch_btl_explanatory"))',
     fixed = TRUE)
+  # A structural BTL refit changes bfit() through active_btl_step(), without
+  # changing btl_fit(). Its fit-dependent judge-group DIF cache must therefore
+  # be cleared by the active-step observer as well.
+  active_clear <- regmatches(src, regexpr(
+    'observeEvent\\(list\\(btl_fit\\(\\), active_btl_step\\(\\)\\), \\{[^}]+\\}',
+    src, perl = TRUE))
+  expect_length(active_clear, 1L)
+  expect_match(active_clear, "bdif_res(NULL)", fixed = TRUE)
+  expect_match(active_clear, "bdif_meta(NULL)", fixed = TRUE)
 })
 
 test_that("the app uses structurally stable responsive control layouts", {
@@ -272,4 +293,18 @@ test_that("bundled app examples are exactly reconstructible", {
   cj_dif <- btl_dif(cj_fit, cj_data[c("panel", "experience")])
   expect_false(any(cj_dif$summary$uniform_DIF, na.rm = TRUE))
   expect_false(any(cj_dif$summary$nonuniform_DIF, na.rm = TRUE))
+})
+
+test_that("tailored bootstrap controls are validated and reproducible", {
+  app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
+  if (!file.exists(app)) app <- system.file("shiny", "app.R", package = "rasch")
+  txt <- paste(readLines(app, warn = FALSE), collapse = "\n")
+  expect_match(txt, 'numericInput\\("guess_seed", "Random seed"',
+               perl = TRUE)
+  expect_match(txt, "boot_reps_raw != floor\\(boot_reps_raw\\)",
+               perl = TRUE)
+  expect_match(txt, "seed_raw != floor\\(seed_raw\\)", perl = TRUE)
+  expect_match(txt, "boot_reps = boot_reps, seed = boot_seed", fixed = TRUE)
+  expect_match(txt, 'paste0\\(", seed = ", r\\$run_seed\\)', perl = TRUE)
+  expect_false(grepl("as.integer(input$guess_boot_reps", txt, fixed = TRUE))
 })

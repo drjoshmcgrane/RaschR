@@ -86,7 +86,7 @@ NONE_CH <- c(None = "(none)")
 # dot-digits, spaces, colons and embedded backticks without guessing which
 # names happen to be syntactic.
 .app_quote_name <- function(x) {
-  if (!is.character(x) || anyNA(x) || any(!nzchar(x)))
+  if (!is.character(x) || anyNA(x) || any(!nzchar(trimws(x))))
     stop("column names must be non-empty character values", call. = FALSE)
   vapply(x, function(z)
     paste(deparse(as.name(z), backtick = TRUE), collapse = ""), "")
@@ -97,7 +97,7 @@ NONE_CH <- c(None = "(none)")
 # paired with "b:c". The displayed labels remain readable, while the map
 # retains the two exact source names.
 .app_explanatory_interactions <- function(main) {
-  if (!is.character(main) || anyNA(main) || any(!nzchar(main)) ||
+  if (!is.character(main) || anyNA(main) || any(!nzchar(trimws(main))) ||
       anyDuplicated(main))
     stop("explanatory main effects must have unique non-empty names",
          call. = FALSE)
@@ -113,16 +113,25 @@ NONE_CH <- c(None = "(none)")
 
 .app_explanatory_formula <- function(main, interactions = list()) {
   if (!is.character(main) || !length(main) || anyNA(main) ||
-      any(!nzchar(main)) || anyDuplicated(main))
+      any(!nzchar(trimws(main))) || anyDuplicated(main))
     stop("choose at least one explanatory main effect", call. = FALSE)
   if (!is.list(interactions) || any(!vapply(interactions, function(z)
     is.character(z) && length(z) == 2L && !anyNA(z) &&
-      all(nzchar(z)) && all(z %in% main) && z[1L] != z[2L], logical(1))))
+      all(nzchar(trimws(z))) && all(z %in% main) && z[1L] != z[2L], logical(1))))
     stop("the explanatory interaction selection is invalid", call. = FALSE)
   rhs <- c(lapply(main, as.name), lapply(interactions, function(z)
     call(":", as.name(z[1L]), as.name(z[2L]))))
   rhs <- Reduce(function(a, b) call("+", a, b), rhs)
   stats::as.formula(call("~", rhs), env = parent.frame())
+}
+
+# Planned MFRM DIF is item-pooled by default. Keep its selector on the same
+# unit while the item table continues to display observed item-by-facet cells.
+.app_dif_item_choices <- function(fit) {
+  out <- if (inherits(fit, "rasch_mfrm") && !is.null(fit$virtual_map))
+    unique(as.character(fit$virtual_map$item)) else
+      as.character(fit$items$item)
+  out[!is.na(out) & nzchar(out)]
 }
 
 # Launchers differ in what the app's environment can see: a development
@@ -150,6 +159,8 @@ NONE_CH <- c(None = "(none)")
   .rasch_internal(".validate_btl_dimensionality")
 .validate_frame_invariance <-
   .rasch_internal(".validate_frame_invariance")
+.sim_explanatory_departure <-
+  .rasch_internal(".sim_explanatory_departure")
 
 # Controls that determine the fitted analysis. Project files retain these
 # separately from display-only choices so reopening an analysis also restores
@@ -339,7 +350,7 @@ metric_grid <- function(...) div(class = "metric-grid mb-3", ...)
   separation = '<path d="M1 20 C4.5 20 5 10 7.5 10 S10.5 20 14 20"/><path d="M10 20 C13.5 20 14 5.5 16.5 5.5 S19.5 20 23 20"/>',
   alpha = '<text x="12" y="17.5" text-anchor="middle" font-size="17" font-style="italic" font-family="Georgia, serif" fill="currentColor" stroke="none">&#945;</text>',
   chisq = '<text x="11" y="17" text-anchor="middle" font-size="14" font-style="italic" font-family="Georgia, serif" fill="currentColor" stroke="none">&#967;&#178;</text>',
-  # magnifier over a curve: power of the test of fit
+  # magnifier over a curve: person separation quality
   power = '<circle cx="10" cy="10" r="6.2"/><path d="M14.6 14.6 L20.5 20.5"/><path d="M6.8 11.5 Q10 6 13.2 11.5"/>',
   # data matrix rows / columns
   grid = '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9.3 H21 M3 14.6 H21"/>',
@@ -883,7 +894,10 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
               conditionalPanel("input.rasch_calibration != 'explanatory'",
                 fileInput("bt_anchor_file",
                           span("Anchor objects (CSV: object, location)",
-                               info_icon("Holds the named objects at their given locations and estimates the rest around them.")),
+                               info_icon(paste("Holds the named objects at their given locations",
+                                 "and estimates the rest around them. Values are treated as",
+                                 "fixed, so uncertainty from the earlier calibration is not",
+                                 "included."))),
                           accept = ".csv", placeholder = "optional")),
               conditionalPanel("!input.bt_response && !input.bt_margin",
                 radioButtons("bt_ties", "Ties",
@@ -982,7 +996,8 @@ panel_data <- nav_panel("Data", value = "p_data", icon = bs_icon("database"),
                                 "while its thresholds remain free; average anchoring (RUMM's",
                                 "average item anchoring) estimates every item free and shifts",
                                 "the calibration so the anchor items' mean location equals the",
-                                "mean anchor value.")),
+                                "mean anchor value. Supplied values are treated as fixed; their",
+                                "earlier calibration uncertainty is not included.")),
                           accept = ".csv", placeholder = "optional"),
                 radioButtons("anchor_type", "Anchor as",
                              c("Individual thresholds" = "individual",
@@ -1434,6 +1449,8 @@ panel_persons <- nav_panel("Persons", value = "p_persons", icon = bs_icon("peopl
                            "A fit bootstrap adds fitted-null adjusted probabilities.",
                            "Click a row to map unexpected judgements.")),
             plotCard("btl_judge_map", title = "Unexpected judgements",
+                     info = paste("Matchup residuals for the selected judge.",
+                                  "Red matchups favour the weaker object and pass the Holm-adjusted familywise rule."),
                      height = "460px", hover = TRUE))),
         accordion_panel(
           title = "Judge consistency",
@@ -1946,14 +1963,17 @@ panel_frames <- nav_panel("Extended Frames", value = "p_frames", icon = bs_icon(
               selectInput("inv_se",
                 info_label("Uncertainty",
                   paste("Conditional provides fast location tests and descriptive",
-                        "discrimination comparisons. Bootstrap resamples persons",
-                        "within frames and provides inference for both.")),
+                        "discrimination comparisons. Bootstrap resamples whole",
+                        "person rows within person group, preserving their item-set",
+                        "patterns, and provides inference for both.")),
                 c("Conditional" = "conditional", "Bootstrap" = "bootstrap"),
                 selected = "conditional", width = "150px")),
             conditionalPanel("input.inv_se == 'bootstrap'",
               numericInput("inv_boot",
                 info_label("Replicates",
-                  "Number of complete person-within-frame refits."),
+                  paste("Number of complete whole-person refits.",
+                        "Rows are resampled within person group and keep",
+                        "their observed item-set pattern.")),
                 200, min = 30, max = 1000, step = 50, width = "110px"),
               numericInput("inv_seed",
                 info_label("Seed",
@@ -2221,7 +2241,8 @@ panel_guess <- nav_panel("Guessing", value = "p_guess", icon = bs_icon("question
         checkboxInput("guess_bootstrap", "Person-bootstrap inference", FALSE),
         conditionalPanel("input.guess_bootstrap == true",
           numericInput("guess_boot_reps", "Bootstrap replicates", 200,
-                       min = 50, step = 50)),
+                       min = 50, step = 50),
+          numericInput("guess_seed", "Random seed", 1, min = 0, step = 1)),
         input_task_button("run_guess", "Run tailored analysis",
                           type = "primary", class = "w-100")),
       layout_columns(col_widths = 12,
@@ -2612,10 +2633,15 @@ server <- function(input, output, session) {
   # ---- Simulate page: build the call, generate, and load as current data --
   observeEvent(input$sim_go, {
     lay <- input$sim_layout
-    # numericInput permits NA / non-integers; set.seed() would take them but
-    # the reproducible-code sprintf("%d") would not
-    seed <- suppressWarnings(as.integer(round(input$sim_seed %||% 1)))
-    if (is.na(seed)) seed <- 1L
+    seed_raw <- suppressWarnings(as.numeric(input$sim_seed %||% NA_real_))
+    if (length(seed_raw) != 1L || !is.finite(seed_raw) || seed_raw < 0 ||
+        seed_raw != floor(seed_raw) || seed_raw > .Machine$integer.max) {
+      showNotification(
+        "Seed must be one non-negative whole number within the integer range",
+        type = "warning")
+      return()
+    }
+    seed <- as.integer(seed_raw)
     sim_call <- NULL
     predictors <- NULL
     wanted_interactions <- character(0)
@@ -2651,13 +2677,16 @@ server <- function(input, output, session) {
               exposure * (type == "B")
             wanted_interactions <- "exposure:type"
           }
-          difficulty <- difficulty - mean(difficulty)
+          design_formula <- if (isTRUE(input$sx_interaction))
+            ~ exposure * type else ~ exposure + type
           depart_item <- item[max(1L, round(I / 2))]
           if ((input$sx_depart %||% 0) > 0) {
-            departure <- rep(-input$sx_depart / (I - 1L), I)
-            departure[match(depart_item, item)] <- input$sx_depart
-            difficulty <- difficulty + departure
+            departure <- .sim_explanatory_departure(
+              model.matrix(design_formula), input$sx_depart)
+            difficulty <- difficulty + departure$values
+            depart_item <- item[departure$index]
           }
+          difficulty <- difficulty - mean(difficulty)
           predictors <- data.frame(item = item, exposure = exposure,
                                    type = type, stringsAsFactors = FALSE)
         }
@@ -2740,11 +2769,14 @@ server <- function(input, output, session) {
               exposure * (type == "B")
             wanted_interactions <- "exposure:type"
           }
+          design_formula <- if (isTRUE(input$sbe_interaction))
+            ~ exposure * type else ~ exposure + type
           depart_object <- object[max(1L, round(K / 2))]
           if ((input$sbe_depart %||% 0) > 0) {
-            departure <- rep(-input$sbe_depart / (K - 1L), K)
-            departure[match(depart_object, object)] <- input$sbe_depart
-            object_locations <- object_locations + departure
+            departure <- .sim_explanatory_departure(
+              model.matrix(design_formula), input$sbe_depart)
+            object_locations <- object_locations + departure$values
+            depart_object <- object[departure$index]
           }
           predictors <- data.frame(object = object, exposure = exposure,
                                    type = type, stringsAsFactors = FALSE)
@@ -3899,15 +3931,34 @@ server <- function(input, output, session) {
 
     if (identical(input$model_type, "efrm")) {
       sm <- ef_setmap()
-      reps <- if (!is.null(input$ef_reps) && !is.na(input$ef_reps))
-        max(50L, as.integer(input$ef_reps)) else NULL
-      workers <- if (!is.null(input$ef_workers) &&
-                     !is.na(as.integer(input$ef_workers)))
-        max(1L, as.integer(input$ef_workers)) else 1L
+      reps_raw <- suppressWarnings(as.numeric(input$ef_reps))
+      if (length(reps_raw) != 1L || !is.finite(reps_raw) ||
+          reps_raw != floor(reps_raw) || reps_raw < 50L ||
+          reps_raw > .Machine$integer.max) {
+        showNotification(paste("EFRM bootstrap replicates must be one whole",
+                               "number of at least 50"),
+                         type = "warning", duration = 7)
+        return(invisible(NULL))
+      }
+      reps <- as.integer(reps_raw)
+      workers_raw <- suppressWarnings(as.numeric(input$ef_workers))
+      if (length(workers_raw) != 1L || !is.finite(workers_raw) ||
+          workers_raw != floor(workers_raw) ||
+          !workers_raw %in% .efrm_worker_values) {
+        showNotification("EFRM workers must be one of the available whole-number choices",
+                         type = "warning", duration = 7)
+        return(invisible(NULL))
+      }
+      workers <- as.integer(workers_raw)
       seed_raw <- suppressWarnings(as.numeric(input$ef_seed))
-      seed <- if (length(seed_raw) == 1L && is.finite(seed_raw) &&
-                  seed_raw >= 0 && seed_raw <= .Machine$integer.max)
-        as.integer(round(seed_raw)) else 1L
+      if (length(seed_raw) != 1L || !is.finite(seed_raw) || seed_raw < 0 ||
+          seed_raw != floor(seed_raw) || seed_raw > .Machine$integer.max) {
+        showNotification(paste("EFRM seed must be one non-negative whole",
+                               "number within the integer range"),
+                         type = "warning", duration = 7)
+        return(invisible(NULL))
+      }
+      seed <- as.integer(seed_raw)
       group_arg <- if (is.null(input$ef_group) || input$ef_group == NONE)
         rep("(all)", nrow(df)) else input$ef_group
       id_arg <- if (!is.null(input$ef_id) && input$ef_id != NONE)
@@ -4431,7 +4482,11 @@ server <- function(input, output, session) {
                          selected = character(0), server = TRUE)
     updateSelectizeInput(session, "subtest_items", choices = its, selected = character(0))
     fac <- setdiff(names(fit()$factors), fit()$frame_group %||% character(0))
-    updateSelectizeInput(session, "pc_items", choices = its,
+    # MFRM DIF is pooled to underlying items by default. Planned contrasts
+    # must therefore offer those item names, not the internal item-by-facet
+    # response cells displayed in fit$items.
+    dif_items <- .app_dif_item_choices(fit())
+    updateSelectizeInput(session, "pc_items", choices = dif_items,
                          selected = character(0))
     fs <- if (inherits(fit(), "rasch_mfrm")) fit()$facet_spec else character(0)
     updateSelectizeInput(session, "facet_sel", choices = fs,
@@ -5163,9 +5218,11 @@ server <- function(input, output, session) {
                   if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
                     "Approx. response-cell-trait p" else
                       "Approx. item-trait p",
-                  if (finite1(f$total_chisq_p)) fmt_p(f$total_chisq_p) else "—",
+                  if (!.has_repeated_person_ids(f$person$id) &&
+                      finite1(f$total_chisq_p)) fmt_p(f$total_chisq_p) else "—",
                   icon = "chisq", status = "neutral"),
-      metric_tile("metric_power", "Power of fit", f$power_of_fit,
+      metric_tile("metric_power", "Separation quality",
+                  f$separation_quality %||% f$power_of_fit,
                   icon = "power", status = "neutral")
     )
   })
@@ -5178,7 +5235,7 @@ server <- function(input, output, session) {
     "  PSI = fit$psi$PSI, PSI_without_extremes = fit$psi_noext$PSI,",
     "  alpha = if (inherits(fit, c('rasch_mfrm', 'rasch_efrm')) && !isTRUE(fit$alpha$design_applicable)) NA_real_ else fit$alpha$alpha,",
     "  item_trait_p = fit$total_chisq_p,",
-    "  power_of_fit = fit$power_of_fit",
+    "  separation_quality = if (!is.null(fit$separation_quality)) fit$separation_quality else fit$power_of_fit",
     ")", sep = "\n"))
 
   # test-of-fit and targeting/reliability summaries as curated stat boxes
@@ -5207,7 +5264,9 @@ server <- function(input, output, session) {
                     length(unique(f$set_of)) > 1L)
         "pairwise conditional calibration + semiparametric set linking"
       else "pairwise conditional ML"
-      item_inference <- inference_count(f$items$p_adj)
+      repeated_ids <- .has_repeated_person_ids(f$person$id)
+      item_inference <- inference_count(if (repeated_ids)
+        rep(NA_real_, nrow(f$items)) else f$items$p_adj)
       tagList(
         div(class = "stat-head",
             if (inherits(f, "rasch_explanatory")) f$explanatory_model else f$model,
@@ -5217,7 +5276,8 @@ server <- function(input, output, session) {
                      "Approx. response-cell-trait chi-square" else
                        "Approx. item-trait chi-square",
                    sprintf("%.2f on %d df, %s", f$total_chisq, f$total_df,
-                           p_lab(f$total_chisq_p))),
+                           p_lab(if (repeated_ids) NA_real_
+                                 else f$total_chisq_p))),
           stat_row(if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
                      "Response-cell fit residual" else "Item fit residual",
                    sprintf("mean %.2f, SD %.2f", f$item_fit_summary$mean,
@@ -5563,6 +5623,11 @@ server <- function(input, output, session) {
     if (!isTRUE(restoring_project())) {
       boot_val(NULL)
       dif_boot_val(NULL)
+      # Judge-group DIF belongs to the active BTL calibration, not merely the
+      # base fit. Explanatory relaxations and undo operations change bfit()
+      # through active_btl_step() while leaving btl_fit() untouched.
+      bdif_res(NULL)
+      bdif_meta(NULL)
     }
   }, ignoreInit = TRUE)
   output$can_boot <- reactive({
@@ -5676,6 +5741,15 @@ server <- function(input, output, session) {
     if (!is.null(boot_job())) {
       showNotification("A bootstrap is already running. Cancel it before starting another.",
                        type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    if (identical(kind, "rasch") && !inherits(f, "rasch_btl") &&
+        .has_repeated_person_ids(f$person$id)) {
+      showNotification(paste(
+        "The item-fit bootstrap is unavailable when person IDs repeat because",
+        "its reference distribution assumes independent response rows.",
+        "Analyse occasions separately for item-fit inference."),
+        type = "warning", duration = 10)
       return(invisible(NULL))
     }
     B_raw <- suppressWarnings(as.numeric(B_raw))
@@ -5859,6 +5933,10 @@ server <- function(input, output, session) {
   # its CSV; a NULL boot leaves the asymptotic table untouched
   items_with_boot <- function() {
     d <- fit()$items
+    if (.has_repeated_person_ids(fit()$person$id))
+      for (nm in intersect(c("p", "p_adj", "p_bonf", "p_anova",
+                             "p_anova_adj", "p_anova_bonf"), names(d)))
+        d[[nm]][] <- NA_real_
     bv <- rasch_boot_val()
     if (is.null(bv)) return(d)
     b <- bv$bs$items
@@ -5876,7 +5954,7 @@ server <- function(input, output, session) {
     f <- fit()
     bv <- rasch_boot_val()
     bp <- if (is.null(bv)) NULL else bv$bs$items$chisq_p_boot_adj
-    inf <- inference_count(if (is.null(bp)) f$items$p_adj else bp)
+    inf <- inference_count(if (is.null(bp)) items_with_boot()$p_adj else bp)
     mis <- inf$flagged
     dis <- sum(vapply(f$thresholds_diag, function(d)
       !d$ordered && length(d$thresholds) > 1, TRUE))
@@ -5913,7 +5991,7 @@ server <- function(input, output, session) {
       ")"), collapse = "\n")
   })
   output$items_note <- renderUI({
-    f <- fit(); d <- f$items
+    f <- fit(); d <- items_with_boot()
     dis <- names(which(vapply(f$thresholds_diag, function(x)
       !x$ordered && length(x$thresholds) > 1, TRUE)))
     unit <- if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
@@ -5926,7 +6004,7 @@ server <- function(input, output, session) {
     } else {
       z <- inference_count(bv$bs$items$chisq_p_boot_adj)
       if (!z$tested) "bootstrap chi-square inference unavailable"
-      else sprintf("%s with bootstrap chi-square p < .05 (B = %d)",
+      else sprintf("%s with Holm-adjusted bootstrap chi-square p < .05 (B = %d)",
                    z$text, bv$B)
     }
     sprintf("Note. %d of %d %s beyond |fit residual| 2.5; %s; disordered thresholds: %s.",
@@ -6008,8 +6086,8 @@ server <- function(input, output, session) {
 
   # explorer display settings (inline on the tab-strip controls row):
   # class intervals and scale
-  # range, resolved with fallbacks; the code footers add n_groups / grid
-  # only when they differ from the defaults, keeping default snippets minimal
+  # range, resolved with fallbacks; the code footers carry the displayed grid
+  # explicitly so that automatic and preset ranges reproduce the app plot
   ex_ng <- reactive({
     ng <- input$ex_ng
     if (is.null(ng) || is.na(ng)) fit()$n_groups else as.integer(ng)
@@ -6021,8 +6099,7 @@ server <- function(input, output, session) {
   ex_grid <- reactive(seq(ex_rng()[1], ex_rng()[2], 0.05))
   ex_code_args <- reactive(paste0(c(
     if (ex_ng() != fit()$n_groups) sprintf(", n_groups = %d", ex_ng()),
-    if (!isTRUE(all.equal(ex_rng(), c(-5, 5))))
-      sprintf(", grid = seq(%g, %g, 0.05)", ex_rng()[1], ex_rng()[2])),
+    sprintf(", grid = seq(%g, %g, 0.05)", ex_rng()[1], ex_rng()[2])),
     collapse = ""))
   # second code-footer line pointing at the matching all-items batch export
   ex_batch_line <- function(what) {
@@ -6491,16 +6568,15 @@ server <- function(input, output, session) {
                          np$item[1], np$location[1], np$fit_resid[1]))
   register_plot("rdist_i", function() plot_resid_dist(fit(), "items"),
                 code = function() 'plot_resid_dist(fit, "items")')
-  # Test-page scale range (default -6..6 matches the functions' own default,
-  # so the code footers add `grid` only when the slider has been moved)
+  # Test-page scale range. The code footer carries the displayed grid
+  # explicitly so that automatic and preset ranges reproduce the app plot.
   ts_rng <- reactive({
     resolve_axis_range("ts_axis", c(-6, 6), c(-8, 8),
                        function() fitted_scale_range(c(-6, 6), pad = 1))
   })
   ts_grid <- reactive(seq(ts_rng()[1], ts_rng()[2], 0.05))
   ts_code_arg <- reactive(
-    if (isTRUE(all.equal(ts_rng(), c(-6, 6)))) ""
-    else sprintf(", grid = seq(%g, %g, 0.05)", ts_rng()[1], ts_rng()[2]))
+    sprintf(", grid = seq(%g, %g, 0.05)", ts_rng()[1], ts_rng()[2]))
   register_plot("tcc",    function() plot_tcc(fit(), grid = ts_grid()),
                 code = function() paste0("plot_tcc(fit", ts_code_arg(), ")"))
   register_plot("tif",    function() plot_tif(fit(), grid = ts_grid()),
@@ -6633,10 +6709,17 @@ server <- function(input, output, session) {
   })
   output$dif_note <- renderUI({
     r <- dif_res(); d <- r$summary
-    sig <- sum(d$uniform_DIF | d$nonuniform_DIF, na.rm = TRUE)
-    base <- sprintf("Note. %d of %d terms significant after adjustment. Class intervals: %s (from the smallest cell).",
-                    sig, nrow(d),
-                    if (is.null(r$n_groups)) "NA" else r$n_groups)
+    pp <- c(d$p_uniform_adj, d$p_nonuniform_adj)
+    tested <- sum(is.finite(pp))
+    unavailable <- length(pp) - tested
+    status <- if (tested) sprintf(
+      "%d of %d available DIF effects significant after adjustment%s",
+      sum(pp[is.finite(pp)] < dif_alpha()), tested,
+      if (unavailable) sprintf(" (%d unavailable)", unavailable) else "")
+    else sprintf("no DIF effect supports inference (%d unavailable)",
+                 unavailable)
+    base <- sprintf("Note. %s. Class intervals: %s (from the smallest cell).",
+                    status, if (is.null(r$n_groups)) "NA" else r$n_groups)
     if (identical(r$effects, "factorial")) {
       sup <- sum(d$superseded, na.rm = TRUE)
       if (sup)
@@ -7047,12 +7130,13 @@ server <- function(input, output, session) {
       dep_rows <- if (!is.null(f$dependence)) {
         use_adj <- !is.null(f$dependence$p_adj)
         lapply(seq_len(nrow(f$dependence)), function(r) {
-          shown_p <- if (use_adj) f$dependence$p_adj[r] else f$dependence$p[r]
+          inference <- if (use_adj)
+            paste("Holm-adjusted", p_lab(f$dependence$p_adj[r])) else
+              "adjusted p unavailable; refit"
           stat_row(sprintf("Within-judge %s",
                            gsub("_", "-", f$dependence$effect[r])),
-                   sprintf("%.2f logits (%s%s)", f$dependence$estimate[r],
-                           if (use_adj) "Holm-adjusted " else "",
-                           p_lab(shown_p)))
+                   sprintf("%.2f logits (%s)", f$dependence$estimate[r],
+                           inference))
         })
       }
       tagList(
@@ -7166,13 +7250,18 @@ server <- function(input, output, session) {
     p <- btl_judge_pairs_res()$pairs
     req(nrow(p) > 0)
     rbind(
-      data.frame(z = p$z, y = p$loc_hi, object = p$object_hi,
+      data.frame(z = p$z, y = p$loc_hi, p_adj = p$p_adj,
+                object = p$object_hi,
                 opponent = p$object_lo, stringsAsFactors = FALSE),
-      data.frame(z = p$z, y = p$loc_lo, object = p$object_lo,
+      data.frame(z = p$z, y = p$loc_lo, p_adj = p$p_adj,
+                object = p$object_lo,
                 opponent = p$object_hi, stringsAsFactors = FALSE))
   }, "z", "y", function(np)
-    sprintf("%s vs %s · residual %+.2f · location %.2f",
-            np$object[1], np$opponent[1], np$z[1], np$y[1]))
+    sprintf("%s vs %s · residual %+.2f · Holm p %s · location %.2f",
+            np$object[1], np$opponent[1], np$z[1],
+            if (is.finite(np$p_adj[1]))
+              format.pval(np$p_adj[1], digits = 3, eps = 0.001) else "NA",
+            np$y[1]))
   register_plot("btl_plot", function() plot_btl(bfit()),
                 code = function() "# bt from the Data page\nplot_btl(bt)")
   # object characteristic curve: model expected response against opponent
@@ -7250,15 +7339,24 @@ server <- function(input, output, session) {
   register_table("btl_dep_tbl", function() {
     validate(need(!is.null(bfit()$dependence_data),
                   "Nominate a judgment-order column in the Data roles to estimate within-judge dependence."))
-    bfit()$dependence
+    d <- bfit()$dependence
+    if (!is.null(d) && !"p_adj" %in% names(d)) {
+      d$p_adj <- NA_real_
+      if ("significant" %in% names(d)) d$significant <- NA
+    }
+    d
   }, function() {
     validate(need(!is.null(bfit()$dependence_data),
                   "Nominate a judgment-order column in the Data roles to estimate within-judge dependence."))
     validate(need(!is.null(bfit()$dependence),
                   paste("No dependence effect was estimable:",
                         paste(bfit()$notes, collapse = "; "))))
-    num_dt(bfit()$dependence,
-           p_bold = if ("p_adj" %in% names(bfit()$dependence)) "p_adj" else "p")
+    d <- bfit()$dependence
+    if (!"p_adj" %in% names(d)) {
+      d$p_adj <- NA_real_
+      if ("significant" %in% names(d)) d$significant <- NA
+    }
+    num_dt(d, p_bold = "p_adj")
   }, code = function() "bt$dependence")
   # the graphical display of the selected dependence effect
   register_plot("btl_dep_plot", function() {
@@ -7913,12 +8011,19 @@ server <- function(input, output, session) {
   # Holm family in either case.
   inv_se <- reactive(input$inv_se %||% "conditional")
   inv_reps <- reactive({
-    x <- suppressWarnings(as.integer(input$inv_boot %||% 200L))
-    if (!is.finite(x)) 200L else max(30L, x)
+    x <- suppressWarnings(as.numeric(input$inv_boot %||% NA_real_))
+    validate(need(length(x) == 1L && is.finite(x) && x == floor(x) &&
+                    x >= 30L && x <= 1000L,
+                  "Replicates must be one whole number from 30 to 1000."))
+    as.integer(x)
   })
   inv_seed <- reactive({
-    x <- suppressWarnings(as.integer(input$inv_seed %||% 1L))
-    if (!is.finite(x)) 1L else max(1L, x)
+    x <- suppressWarnings(as.numeric(input$inv_seed %||% NA_real_))
+    validate(need(length(x) == 1L && is.finite(x) && x == floor(x) &&
+                    x >= 0L && x <= .Machine$integer.max,
+                  paste("Seed must be one non-negative whole number within",
+                        "the integer range.")))
+    as.integer(x)
   })
   efrm_invariance_base <- reactive({
     f <- efrm_fit()
@@ -7932,7 +8037,7 @@ server <- function(input, output, session) {
            identical(saved$seed, inv_seed())))) return(saved)
     tryCatch(withProgress(
       message = if (inv_se() == "bootstrap")
-        "Resampling persons within frames..." else "Calibrating frames...",
+        "Resampling persons within person groups..." else "Calibrating frames...",
       value = 0.5,
       frame_invariance(f, adjust = "holm",
                        se_method = inv_se(), boot_reps = inv_reps(),
@@ -8310,17 +8415,35 @@ server <- function(input, output, session) {
     objs <- btl_fit()$objects$object
     sm <- btlef_build_sets(objs)
     se_method <- input$btlef_se %||% "judge_bootstrap"
-    boot_reps <- input$btlef_boot
-    if (is.null(boot_reps) || is.na(boot_reps)) boot_reps <- 200
-    boot_reps <- max(50, min(999, round(boot_reps)))
+    boot_reps_raw <- suppressWarnings(as.numeric(input$btlef_boot))
+    if (length(boot_reps_raw) != 1L || !is.finite(boot_reps_raw) ||
+        boot_reps_raw != floor(boot_reps_raw) || boot_reps_raw < 50L ||
+        boot_reps_raw > 999L) {
+      showNotification(paste("Frame bootstrap replicates must be one whole",
+                             "number from 50 to 999"),
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    boot_reps <- as.integer(boot_reps_raw)
     seed_raw <- suppressWarnings(as.numeric(input$btlef_seed))
-    seed <- if (length(seed_raw) == 1L && is.finite(seed_raw) &&
-                seed_raw >= 0 && seed_raw <= .Machine$integer.max)
-      as.integer(round(seed_raw)) else 1L
-    workers <- if (identical(se_method, "judge_bootstrap") &&
-                   !is.null(input$btlef_workers) &&
-                   !is.na(as.integer(input$btlef_workers)))
-      max(1L, as.integer(input$btlef_workers)) else 1L
+    if (length(seed_raw) != 1L || !is.finite(seed_raw) || seed_raw < 0 ||
+        seed_raw != floor(seed_raw) || seed_raw > .Machine$integer.max) {
+      showNotification(paste("Frame bootstrap seed must be one non-negative",
+                             "whole number within the integer range"),
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    seed <- as.integer(seed_raw)
+    workers_raw <- suppressWarnings(as.numeric(input$btlef_workers))
+    if (length(workers_raw) != 1L || !is.finite(workers_raw) ||
+        workers_raw != floor(workers_raw) ||
+        !workers_raw %in% .efrm_worker_values) {
+      showNotification("Frame workers must be one of the available whole-number choices",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    workers <- if (identical(se_method, "judge_bootstrap"))
+      as.integer(workers_raw) else 1L
     eo <- est_opts()
 
     fit_args <- list(
@@ -8533,9 +8656,31 @@ server <- function(input, output, session) {
       return()
     }
     dim_subsets(s)
-    B <- input$dim_boot_B %||% 0L
-    workers <- suppressWarnings(as.integer(input$dim_workers %||% 1L))
-    seed <- input$dim_boot_seed %||% 1L
+    B_raw <- suppressWarnings(as.numeric(input$dim_boot_B %||% NA_real_))
+    workers_raw <- suppressWarnings(as.numeric(input$dim_workers %||% NA_real_))
+    seed_raw <- suppressWarnings(as.numeric(input$dim_boot_seed %||% NA_real_))
+    if (length(B_raw) != 1L || !is.finite(B_raw) || B_raw < 0L ||
+        B_raw != floor(B_raw) || B_raw > .Machine$integer.max) {
+      showNotification("Dimensionality replicates must be one non-negative whole number",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    if (length(workers_raw) != 1L || !is.finite(workers_raw) ||
+        workers_raw != floor(workers_raw) ||
+        !workers_raw %in% .efrm_worker_values) {
+      showNotification("Dimensionality workers must be one of the available whole-number choices",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    if (length(seed_raw) != 1L || !is.finite(seed_raw) || seed_raw < 0L ||
+        seed_raw != floor(seed_raw) || seed_raw > .Machine$integer.max) {
+      showNotification("Dimensionality seed must be one non-negative whole number within the integer range",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    B <- as.integer(B_raw)
+    workers <- as.integer(workers_raw)
+    seed <- as.integer(seed_raw)
     f <- fit()
     value <- withProgress(
       message = if (is.finite(B) && B > 0L)
@@ -8587,7 +8732,7 @@ server <- function(input, output, session) {
     if (!is.null(dt$note)) { cat(dt$note); return(invisible()) }
     cat(sprintf("Item split: %s\n", dt$split))
     cat(sprintf("First residual eigenvalue: %.3f\n", dt$first_eigenvalue))
-    cat(sprintf("Significant person t-tests: %.1f%%  (exact 95%% CI %.1f%% to %.1f%%, n = %d)\n",
+    cat(sprintf("Significant person t-tests: %.1f%%  (Clopper-Pearson 95%% CI %.1f%% to %.1f%%, n = %d)\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2], dt$n))
     cat(sprintf("Persons excluded (extreme on a subset): %d\n", dt$n_excluded_extreme))
     verdict <- if (isTRUE(dt$multidimensional))
@@ -8601,7 +8746,7 @@ server <- function(input, output, session) {
                   fmt_p(dt$p_boot), dt$bootstrap$B_used, dt$bootstrap$B))
     if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
     # a split chosen from the residuals is chosen to disagree: the binomial
-    # reading is exact only for a split fixed in advance
+    # rule is interpretable only for a split fixed in advance
     if (dt$split != "manual" && is.null(dt$p_boot))
       cat("Note: the split was chosen from the residuals; name the subsets by",
           "content or use bootstrap calibration for an inferential verdict.\n")
@@ -8615,7 +8760,7 @@ server <- function(input, output, session) {
   register_code("dim", function() {
     s <- dim_subsets()
     B <- input$dim_boot_B %||% 0L
-    workers <- suppressWarnings(as.integer(input$dim_workers %||% 1L))
+    workers <- suppressWarnings(as.numeric(input$dim_workers %||% 1L))
     seed <- input$dim_boot_seed %||% 1L
     extra <- if (length(B) == 1L && is.finite(B) && B > 0L) sprintf(
       ", B = %s, workers = %s, seed = %s", format(B, scientific = FALSE),
@@ -8862,19 +9007,40 @@ server <- function(input, output, session) {
     }
     ch <- clamp01(input$guess_chance, 0.25)
     anc <- if (length(input$guess_anchors)) input$guess_anchors else NULL
+    do_boot <- isTRUE(input$guess_bootstrap)
+    boot_reps_raw <- suppressWarnings(as.numeric(
+      input$guess_boot_reps %||% NA_real_))
+    seed_raw <- suppressWarnings(as.numeric(input$guess_seed %||% NA_real_))
+    if (do_boot &&
+        (length(boot_reps_raw) != 1L || !is.finite(boot_reps_raw) ||
+         boot_reps_raw < 50L || boot_reps_raw != floor(boot_reps_raw) ||
+         boot_reps_raw > .Machine$integer.max)) {
+      showNotification("Tailored bootstrap replicates must be one whole number of at least 50",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    if (do_boot &&
+        (length(seed_raw) != 1L || !is.finite(seed_raw) || seed_raw < 0L ||
+         seed_raw != floor(seed_raw) || seed_raw > .Machine$integer.max)) {
+      showNotification("Tailored bootstrap seed must be one non-negative whole number within the integer range",
+                       type = "warning", duration = 7)
+      return(invisible(NULL))
+    }
+    boot_reps <- if (do_boot) as.integer(boot_reps_raw) else 200L
+    boot_seed <- if (do_boot) as.integer(seed_raw) else NULL
     r <- withProgress(message = "Tailored analysis (three re-analyses)…",
                       value = 0.3,
                       tryCatch(tailored_analysis(
                         f, chance = ch, anchor_items = anc,
-                        se_method = if (isTRUE(input$guess_bootstrap))
-                          "bootstrap" else "none",
-                        boot_reps = as.integer(input$guess_boot_reps %||% 200)),
+                        se_method = if (do_boot) "bootstrap" else "none",
+                        boot_reps = boot_reps, seed = boot_seed),
                                error = function(e) e))
     if (inherits(r, "error"))
       showNotification(paste("Tailored analysis failed:", conditionMessage(r)),
                        type = "error", duration = 10)
     else {
-      r$run_boot_reps <- as.integer(input$guess_boot_reps %||% 200)
+      r$run_boot_reps <- boot_reps
+      r$run_seed <- boot_seed
       guess_res(r)
     }
   })
@@ -8898,10 +9064,12 @@ server <- function(input, output, session) {
   })
   guess_code_call <- function(result) {
     r <- guess_res(); req(!is.null(r))
+    seed_arg <- if (identical(r$se_method, "bootstrap"))
+      paste0(", seed = ", r$run_seed) else ""
     paste0(sprintf(paste0("ta <- tailored_analysis(fit, chance = %s, ",
-                          "anchor_items = %s, se_method = %s, boot_reps = %d)"),
+                          "anchor_items = %s, se_method = %s, boot_reps = %d%s)"),
                    r$chance, qvec(r$anchor_items), qstr(r$se_method),
-                   r$run_boot_reps), "\n", result)
+                   r$run_boot_reps, seed_arg), "\n", result)
   }
   register_table("guess_tbl", function() {
     r <- guess_res(); req(!is.null(r)); r$table
@@ -9168,9 +9336,11 @@ server <- function(input, output, session) {
         type = "warning", duration = 10)
     } else if (length(attr(p, "rasch_project_legacy_dropped") %||%
                       character(0))) {
-      showNotification(paste(
-        "A saved fit bootstrap used an earlier adjustment and was omitted.",
-        "Recompute it before reporting adjusted bootstrap probabilities."),
+      dropped <- attr(p, "rasch_project_legacy_dropped")
+      showNotification(paste0(
+        "Saved derived result(s) using superseded inference were omitted: ",
+        paste(dropped, collapse = ", "),
+        ". Recompute them before reporting those results."),
         type = "warning", duration = 10)
     }
     cancelled_job <- cancel_efrm_job() | cancel_btlef_job() |

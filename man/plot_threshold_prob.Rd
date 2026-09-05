@@ -4,13 +4,7 @@
 \alias{plot_threshold_prob}
 \title{Plot threshold probability curves}
 \usage{
-plot_threshold_prob(
-  fit,
-  item,
-  grid = seq(-6, 6, 0.05),
-  observed = FALSE,
-  n_groups = NULL
-)
+plot_threshold_prob(fit, item, grid = NULL, observed = FALSE, n_groups = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}

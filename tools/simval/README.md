@@ -63,8 +63,16 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
   rejection was 5% and 9% (MCSE 2.2 and 2.9 points). All three procedures
   detected the planted PCM second dimension. All 300 outer datasets were
   analysed; 29,697 of 29,700 inner refits converged and none otherwise
-  failed. The study and R-tree hashes are
+  failed. These cells use one response row per person; the public procedure
+  now refuses repeated identifiers because its person comparisons and
+  score-conditional null generator do not model within-person dependence.
+  The study and R-tree hashes are
   `abae964531ee3fc544ecc0ba226c89d6` and `17a08ef1fa4c`.
+- `results/repeated-id-item-fit-guard.csv` checks the inferential boundary for
+  stacked response data. Exact row duplication leaves threshold estimates and
+  their person-clustered covariance unchanged. The ordinary item-fit
+  probabilities are withheld, descriptive statistics remain available, and
+  the independent-row item-fit bootstrap is refused in every replicate.
 - `results/btl-dimensionality-reference.csv` checks the finite simulated
   upper-tail decision for BTL and BTL-EFRM. Null rejection was 2.5% and 3.6%
   with 20 reference draws, and 2.7% and 5.2% with 200. BTL power for a planted
@@ -101,6 +109,31 @@ edits in flight at execution time. Files produced before the tree-hash
 mechanism existed carry none. Documentation-only edits under `R/` move the tree hash of
 later commits without touching any estimator, so a result file's hash
 identifies the sources it ran against, not necessarily HEAD.
+
+The accounting fields added to `btl-clustered.csv`,
+`coherence-fixes.csv` and `tailored-bootstrap.csv` on 2026-09-03 were
+reconstructed from their recorded denominators without rerunning the fitted
+models. They distinguish guarded inferences, unavailable individual metrics
+and failed fits; the estimates and Monte Carlo results are unchanged. Their
+script hashes continue to identify the scripts that produced those results.
+The short commit identifier in `misfit-repair.csv` is stored with a `git:`
+prefix so CSV type inference cannot mistake its hexadecimal notation for a
+number; this likewise leaves the study results unchanged.
+
+Anchored calibration is checked in `studies/anchored-estimation.R`, with six
+rows in `results/anchored-estimation.csv`. Mixed-score PCM with individual
+threshold and item-location anchors gave maximum absolute item bias 0.022
+logits, mean itemwise empirical SD/mean SE 1.003 and coverage 0.946 over 250
+replicates. Two disconnected
+four-item blocks, identified by one true anchor in each, gave maximum absolute
+item bias 0.013, ratio 1.040 and coverage 0.935; one replicate had a weak-item
+SE withheld. Anchored BTL gave maximum absolute object bias 0.018, ratio 1.014
+and coverage 0.943 over 500 replicates. No fit failed or did not converge, and
+the anchor constraints held to numerical precision. These results are
+conditional on the supplied anchor
+values: they do not include uncertainty from an earlier calibration. The
+script and R-tree hashes are `b1fd106131141c5b76e966cad99bd69c` and
+`ae784f3ee517`.
 
 The current-estimator studies run on 2026-08-21 carry R-tree hash
 `360e3609691b`: `alpha-correction-limits.csv`,
@@ -671,7 +704,7 @@ adjusted (300 replicates per condition).
   worst-decile overlap, equal planted-careless detection (0.76 vs 0.77).
   Decision level: uniform DIF detection 84/88/80% (rasch/Waldtest/MH,
   BH-aligned) with comparable false-positive rates; dimensionality —
-  ours holds an exact null (0 false flags) with 67% power at a balanced
+  ours gave no false flags in the sampled null datasets and 67% power at a balanced
   planted second dimension where DETECT flags 100% (also with clean
   nulls) and the quasi-exact Tmd/T11 tests pair full power with 13-20%
   null false-flag rates. Citation rows name the diagnostics with no

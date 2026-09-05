@@ -39,6 +39,12 @@ test_that("double keying credits every listed option", {
   expect_true(all(da$keyed[da$option %in% c("A", "C")]))
   expect_true(all(!da$keyed[da$option %in% c("B", "D")]))
   expect_equal(unname(fit$mc$key[1]), "A/C")
+
+  failed <- fit
+  failed$est$converged <- FALSE
+  expect_error(distractor_analysis(failed), "did not converge")
+  expect_error(distractor_rescore(failed), "did not converge")
+  expect_error(plot_distractors(failed, "M1"), "did not converge")
 })
 
 test_that("polytomous option scoring fits credited distractors as categories", {
@@ -80,6 +86,18 @@ test_that("distractor_rescore proposes credit for the informative distractor", {
   expect_true(is.finite(refit$psi$PSI))
   # evidence table carries the separation statistic
   expect_true(all(c("z_sep", "proposed", "se_location") %in% names(pr$evidence)))
+})
+
+test_that("distractor rescoring refuses an unobserved full-credit option", {
+  set.seed(94)
+  raw <- matrix(sample(c("B", "C"), 800, replace = TRUE), 200, 4,
+                dimnames = list(NULL, paste0("M", 1:4)))
+  key <- do.call(rbind, lapply(colnames(raw), function(item)
+    data.frame(item = item, option = c("A", "B", "C"),
+               score = c(2L, 1L, 0L))))
+  fit <- rasch(raw, key = key)
+  expect_error(distractor_rescore(fit, min_n = 5),
+               "no observed full-credit option")
 })
 
 test_that("key validation guards remain informative", {

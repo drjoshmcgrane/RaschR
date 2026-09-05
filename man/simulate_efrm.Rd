@@ -46,7 +46,8 @@ violating item invariance across frames.}
 replaced by random category choices.}
 
 \item{missing}{Proportion of response cells set missing completely at
-random after the responses are generated.}
+random after the responses are generated. It must leave at least one
+observed response.}
 }
 \value{
 A wide data frame of class \code{"rasch_sim"}, containing an ID,

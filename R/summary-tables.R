@@ -54,6 +54,9 @@
 #' @export
 fit_summary_table <- function(fit) {
   if (inherits(fit, "rasch_btl")) return(.btl_summary_table(fit))
+  if (!inherits(fit, "rasch"))
+    stop("`fit` must be a fitted model from rasch(), rasch_mfrm(), ",
+         "rasch_efrm(), or btl()", call. = FALSE)
   ss <- fit$summary_stats
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   unit <- if (structural) "Response cell" else "Item"
@@ -61,7 +64,12 @@ fit_summary_table <- function(fit) {
   trait_unit <- if (structural) "response-cell" else "item"
   dis <- names(which(vapply(fit$thresholds_diag, function(d)
     !d$ordered && length(d$thresholds) > 1, TRUE)))
-  item_inference <- .inference_count(fit$items$p_adj)
+  repeated_ids <- .has_repeated_person_ids(fit$person$id)
+  item_p <- if (repeated_ids) rep(NA_real_, nrow(fit$items))
+    else fit$items$p_adj
+  item_inference <- .inference_count(item_p)
+  total_p <- if (repeated_ids) NA_real_ else fit$total_chisq_p
+  converged <- isTRUE(fit$est$converged) && .efrm_link_converged(fit)
   num <- function(x, d = 3) formatC(x, digits = d, format = "f")
   out <- data.frame(statistic = c(
     "Model", "Estimation", "Converged", "Iterations",
@@ -84,10 +92,10 @@ fit_summary_table <- function(fit) {
     value = c(
       if (inherits(fit, "rasch_explanatory")) fit$explanatory_model else fit$model,
       .estimation_label(fit),
-      ifelse(isTRUE(fit$est$converged), "yes", "NO"),
+      ifelse(converged, "yes", "NO"),
       as.character(fit$est$iterations),
       num(fit$total_chisq), as.character(fit$total_df),
-      .fmt_p(fit$total_chisq_p), as.character(fit$n_groups),
+      .fmt_p(total_p), as.character(fit$n_groups),
       num(fit$item_fit_summary$mean, 2), num(fit$item_fit_summary$sd, 2),
       num(fit$item_fit_summary$skewness, 2),
       num(fit$item_fit_summary$kurtosis, 2),
@@ -108,7 +116,10 @@ fit_summary_table <- function(fit) {
 #' table suitable for saving and reporting. MFRM and EFRM fits describe
 #' item-by-facet or item-by-frame response cells rather than additional items.
 #' Coefficient alpha is not applicable when an item has several response
-#' cells; it is retained for the one-cell-per-item reduction.
+#' cells; it is retained for the one-cell-per-item reduction. Item separation
+#' excludes wholly fixed item locations in an anchored calibration.
+#' A targeting summary requires a converged calibration and, for EFRM, a
+#' converged set-unit link.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @return A data frame with columns \code{statistic} and \code{value}.
@@ -120,6 +131,15 @@ fit_summary_table <- function(fit) {
 #' targeting_table(rasch(X))
 #' @export
 targeting_table <- function(fit) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a response-data fit from rasch(), rasch_mfrm(), ",
+         "or rasch_efrm()", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; the targeting summary is unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; the targeting summary is unavailable",
+         call. = FALSE)
   ss <- fit$summary_stats; t <- fit$targeting
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
   alpha_design <- .classical_design_applicable(fit)

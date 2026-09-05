@@ -85,6 +85,16 @@ test_that("ties, extremes, counts, and disconnection are handled", {
   expect_true(any(grepl("tie", ft_d$notes)))
   ft_h <- btl(d, "a", "b", "win", ties = "half")
   expect_gt(ft_h$n_comparisons, ft_d$n_comparisons)
+  # The two half rows are one comparison for sandwich purposes. Giving every
+  # original row its own judge reproduces that meat, apart from CR1.
+  d$row_cluster <- sprintf("R%04d", seq_len(nrow(d)))
+  ft_h_cluster <- btl(d, "a", "b", "win", judge = "row_cluster",
+                      ties = "half")
+  cr1 <- nrow(d) / (nrow(d) - 1)
+  expect_equal(ft_h$objects$location, ft_h_cluster$objects$location,
+               tolerance = 1e-10)
+  expect_equal(ft_h$cov_beta, ft_h_cluster$cov_beta / cr1,
+               tolerance = 1e-8)
   # counts replicate rows
   dc <- data.frame(a = c("A", "A", "B"), b = c("B", "C", "C"),
                    win = c("A", "C", "B"), k = c(30, 30, 30))
@@ -373,6 +383,7 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   expect_equal(sum(dif$summary$uniform_DIF), 1L)
   # magnitude route: right size, right object, nothing else
   s6 <- dif$sizes[dif$sizes$object == "S06", ]
+  expect_identical(dif$size_family_n, nrow(dif$sizes))
   expect_true(s6$significant && s6$practical)
   expect_lt(abs(abs(s6$difference) - 1), 3 * s6$se)
   expect_equal(sum(dif$sizes$significant), 1L)
@@ -382,6 +393,23 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   expect_no_error(plot_btl_icc(f, "S06", group = grp))
 
   old_graded <- rasch:::.btl_graded
+  invalid_covariance <- testthat::with_mocked_bindings(
+    btl_dif(f, grp, objects = "S06"),
+    .btl_graded = function(...) {
+      z <- old_graded(...)
+      copy <- grep("^S06 \\(", rownames(z$cov_beta))[1]
+      z$cov_beta[copy, copy] <- -1e6
+      z
+    },
+    .package = "rasch")
+  expect_true(all(is.finite(invalid_covariance$levels$location)))
+  expect_true(all(is.na(invalid_covariance$levels$se)))
+  expect_true(all(is.finite(invalid_covariance$sizes$difference)))
+  expect_true(all(is.na(invalid_covariance$sizes$se)))
+  expect_true(all(is.na(invalid_covariance$sizes$p_adj)))
+  expect_true(any(grepl("not positive semidefinite",
+                        invalid_covariance$notes)))
+
   testthat::local_mocked_bindings(
     .btl_graded = function(...) {
       z <- old_graded(...)
@@ -391,6 +419,7 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
     .package = "rasch")
   failed_resolution <- btl_dif(f, grp)
   expect_null(failed_resolution$sizes)
+  expect_gt(failed_resolution$size_family_n, 0L)
   expect_true(any(grepl("resolved calibration did not converge",
                         failed_resolution$notes)))
 })
@@ -875,6 +904,10 @@ test_that("judge_surprise flags a judge's systematic contrary judgements", {
 
   js <- judge_surprise(f, "J1")
   expect_s3_class(js, "rasch_btl_judge")
+  eligible <- js$objects$n >= js$min_n
+  expect_equal(js$objects$p_adj[eligible],
+               p.adjust(js$objects$p[eligible], "holm"))
+  expect_true(all(is.na(js$objects$p_adj[!eligible])))
   s <- js$objects[js$objects$surprise, ]
   expect_true(all(c("O1", "O8") %in% s$object))          # both extremes flagged
   # correct direction: O8 strong under-rated (z<0), O1 weak over-rated (z>0)
@@ -905,18 +938,22 @@ test_that("judge_pair_surprise flags the matchups a judge got against the grain"
 
   jp <- judge_pair_surprise(f, "J1")
   expect_s3_class(jp, "rasch_btl_judge_pairs")
+  eligible <- jp$pairs$n >= jp$min_n
+  expect_equal(jp$pairs$p_adj[eligible],
+               p.adjust(jp$pairs$p[eligible], "holm"))
+  expect_true(all(is.na(jp$pairs$p_adj[!eligible])))
   s <- jp$pairs[jp$pairs$surprise, ]
   expect_gt(nrow(s), 3L)
   # a flagged matchup is one where the stronger object under-performed
   expect_true(all(s$z < 0))
   expect_true(all(s$loc_hi >= s$loc_lo))          # orientation to the stronger
-  # the large majority of surprises involve an extreme J1 distorted (a
-  # stray noise flag on another pair is allowed at the ~5% rate)
+  # after familywise adjustment the retained surprises involve an extreme
+  # whose judgements J1 deliberately distorted
   involves <- vapply(seq_len(nrow(s)), function(i)
     any(c("O1", "O8") %in% c(s$object_hi[i], s$object_lo[i])), TRUE)
-  expect_gte(sum(involves), 6L)
-  # a model-conforming judge trips at most the ~5% noise rate
-  expect_lte(sum(judge_pair_surprise(f, "J3")$pairs$surprise), 2L)
+  expect_true(all(involves))
+  # a model-conforming judge produces no familywise flag in this fixture
+  expect_equal(sum(judge_pair_surprise(f, "J3")$pairs$surprise), 0L)
 
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_btl_judge_map(f, "J1"))
@@ -1099,6 +1136,16 @@ test_that("anchored estimation reproduces the free scale and equates panels", {
   expect_setequal(names(fa$anchors), c("B", "D"))
   expect_output(print(fa), "Anchored at 2 object")
 
+  fa_pad <- btl(d, "a", "b", winner = "win",
+                anchors = stats::setNames(loc_free[c("B", "D")],
+                                          c(" B ", "D ")))
+  expect_setequal(names(fa_pad$anchors), c("B", "D"))
+  expect_equal(fa_pad$objects$location, fa$objects$location,
+               tolerance = 1e-8)
+  expect_error(
+    btl(d, "a", "b", winner = "win", anchors = c(B = 0, " B " = 1)),
+    "after trimming")
+
   # (b) two-panel equating: overlapping objects anchor panel 2 onto panel 1's
   # scale; the non-common objects then land at their true spacing
   truth <- c(A = -1.5, B = -0.7, C = 0, D = 0.7, E = 1.5, F = 2.1)
@@ -1131,6 +1178,11 @@ test_that("anchored estimation reproduces the free scale and equates panels", {
                "do not match any object")
   expect_error(btl(d, "a", "b", winner = "win", anchors = c(1, 2)),
                "named numeric")
+  bad_name <- c(0, 1); names(bad_name) <- c("A", NA_character_)
+  expect_error(btl(d, "a", "b", winner = "win", anchors = bad_name),
+               "named numeric")
+  expect_error(btl(d, "a", "b", winner = "win", anchors = c(" " = 0)),
+               "named numeric")
   # an anchored boundary object is an error, not silent removal
   set.seed(9)
   db <- data.frame(a = rep(pr[, 1], each = 30), b = rep(pr[, 2], each = 30))
@@ -1144,6 +1196,18 @@ test_that("anchored estimation reproduces the free scale and equates panels", {
   expect_true(isTRUE(fb$objects$extreme[fb$objects$object == "A"]))
   expect_true(is.na(fb$objects$se[fb$objects$object == "A"]))
   expect_true(any(grepl("boundary", fb$notes)))
+})
+
+test_that("an anchor is not silently dropped with its only comparison", {
+  d <- data.frame(
+    a = c(rep("A", 20), rep("B", 20), "D"),
+    b = c(rep("B", 20), rep("C", 20), "A"),
+    winner = c(rep(c("A", "B"), 10), rep(c("B", "C"), 10), "D"),
+    count = c(rep(1L, 40), 0L))
+  expect_error(
+    btl(d, "a", "b", winner = "winner", count = "count",
+        anchors = c(A = 0, D = 1)),
+    "anchored object.*no usable comparisons.*D")
 })
 
 test_that("position and order covariates are estimated together", {
@@ -1249,12 +1313,30 @@ test_that("model-based BTL diagnostics refuse an unconverged calibration", {
                   judge = rep(sprintf("J%02d", 1:10), length.out = 200))
   d$win <- ifelse(stats::runif(nrow(d)) < .5, d$a, d$b)
   f <- btl(d, "a", "b", "win", judge = "judge")
+  limited <- suppressWarnings(
+    btl(d, "a", "b", "win", judge = "judge", maxit = 1L))
+  expect_false(limited$converged)
+  expect_true(all(is.na(limited$objects$se)))
+  expect_true(is.na(limited$osi$PSI))
+  expect_false(limited$cl$inference_available)
+  expect_true(is.na(limited$cl$eff_params))
+  expect_true(all(is.na(limited$cov_parameters)))
   f$converged <- FALSE
   expect_error(btl_information(f), "did not converge")
   expect_error(btl_next_pairs(f), "did not converge")
   expect_error(btl_dimensionality(f, reps = 20), "did not converge")
   expect_error(judge_surprise(f, "J01"), "did not converge")
   expect_error(judge_pair_surprise(f, "J01"), "did not converge")
+  expect_error(plot_btl(f), "did not converge")
+  expect_error(plot_btl_categories(f), "did not converge")
+  expect_error(plot_btl_icc(f, "A"), "did not converge")
+  expect_error(plot_btl_dependence(f), "did not converge")
+})
+
+test_that("BTL result plots refuse the wrong result class directly", {
+  expect_error(plot_btl_transitivity(list()), "btl_transitivity")
+  expect_error(plot_btl_scree(list()), "btl_dimensionality")
+  expect_error(plot_btl_dim_map(list()), "btl_dimensionality")
 })
 
 test_that("BTL DIF does not redefine an externally anchored object", {
@@ -1297,7 +1379,7 @@ test_that("named judge factors are matched by judge before row length", {
 
 test_that("a boundary object is reported at an extrapolated location", {
   set.seed(701)
-  d <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 2)
+  d <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 4)
   # Make O1 deterministically winless; relying on one seed to happen to
   # produce a boundary object makes this a simulator-RNG test instead.
   has_o1 <- d$object_a == "O1" | d$object_b == "O1"
@@ -1314,6 +1396,23 @@ test_that("a boundary object is reported at an extrapolated location", {
   expect_true(is.na(ext$se))
   expect_true(is.na(ext$fit_resid))
   expect_match(paste(f$notes, collapse = " "), "extrapolated location")
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_error(plot_btl_icc(f, " O2 ", min_n = 1))
+  expect_error(plot_btl_icc(f, "O1", min_n = 1), "response boundary")
+  judges <- sort(unique(f$comparisons$judge))
+  group <- stats::setNames(rep(c("g1", "g2"), length.out = length(judges)),
+                           judges)
+  bd <- btl_dif(f, group, min_n = 2)
+  expect_false("O1" %in% bd$summary$object)
+  expect_match(paste(bd$notes, collapse = " "), "extrapolations")
+  expect_error(btl_dif(f, group, objects = "O1", min_n = 2),
+               "response boundary")
+  one_judge <- f$comparisons$judge[1]
+  expect_false("O1" %in% names(judge_surprise(
+    f, paste0(" ", one_judge, " "), min_n = 1)$all_locations))
+  expect_false("O1" %in% names(judge_pair_surprise(
+    f, paste0(" ", one_judge, " "), min_n = 1)$all_locations))
   # the extrapolated row takes no part in equating
   set.seed(9000)
   d2 <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 2)

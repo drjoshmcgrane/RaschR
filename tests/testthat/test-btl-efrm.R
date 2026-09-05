@@ -2,6 +2,33 @@
 # conditional SEs are exact for beta/phi and the estimates are identical
 befit <- function(...) btl_efrm(..., se_method = "conditional")
 
+test_that("panel-unit reconciliation uses scale-free precision weights", {
+  block <- function(value, variance) list(
+    ref = "A", free = "B", lrho = c(B = value),
+    cov = matrix(variance, 1L, 1L, dimnames = list("B", "B")))
+  z <- rasch:::.btlef_reconcile_phi(
+    c("A", "B"), list(block(1, 1e-14), block(3, 4e-14)))
+  # inverse-variance mean = (1 + 3 / 4) / (1 + 1 / 4) = 1.4;
+  # centring changes the two origins but not their difference
+  expect_equal(unname(z$lphi["B"] - z$lphi["A"]), 1.4,
+               tolerance = 1e-10)
+  expect_error(rasch:::.btlef_reconcile_phi(
+    c("A", "B"), list(block(1, -1))), "positive definite")
+  asym_block <- list(
+    ref = "A", free = c("B", "C"), lrho = c(B = 1, C = 2),
+    cov = matrix(c(1, 0.5, 0, 1), 2L,
+                 dimnames = list(c("B", "C"), c("B", "C"))))
+  expect_error(rasch:::.btlef_reconcile_phi(
+    c("A", "B", "C"), list(asym_block)), "asymmetric")
+  bad <- rasch:::.btlef_wald_unit(
+    c(0.2, -0.2), diag(c(1, -0.5)), "unit")
+  expect_true(is.na(bad$wald))
+  expect_true(is.na(bad$p))
+  asymmetric <- matrix(c(1, 0.5, 0, 1), 2L)
+  bad <- rasch:::.btlef_wald_unit(c(0.2, -0.2), asymmetric, "unit")
+  expect_true(is.na(bad$wald))
+})
+
 # Extended frame of reference for paired comparisons: reduction to btl(),
 # recovery of panel and set units, null calibration, and the guards.
 
@@ -22,6 +49,28 @@ test_that("G = 1, S = 1 reduces exactly to btl()", {
   expect_equal(fit$alpha_table$alpha, 1)
   expect_error(btl_dif(fit, factors = rep("g", nrow(fit$comparisons))),
                "not defined after a BTL-EFRM frame adjustment")
+})
+
+test_that("a non-converged BTL-EFRM fit retains no inferential fields", {
+  d <- simulate_btl_efrm(n_objects_per_set = 8, n_sets = 1, n_panels = 1,
+                         reps_within = 40, seed = 1)
+  expect_warning(
+    fit <- btl_efrm(d, "object_a", "object_b", winner = "winner",
+                    judge = "judge", panels = "panel",
+                    object_sets = attr(d, "truth")$object_sets,
+                    se_method = "conditional", maxit = 2),
+    "did NOT converge")
+  expect_false(fit$converged)
+  expect_true(all(is.na(fit$objects$se)))
+  expect_true(all(is.na(fit$objects$se_beta)))
+  expect_true(all(is.na(fit$phi_table$se_log_phi)))
+  expect_true(all(is.na(fit$phi_table$p)))
+  expect_true(all(is.na(fit$phi_table$p_adj)))
+  expect_true(is.na(fit$total_p))
+  expect_true(is.na(fit$osi$PSI))
+  expect_null(fit$cov_beta)
+  expect_true(is.na(fit$equal_unit$two_delta_ll))
+  expect_match(paste(fit$notes, collapse = " "), "probabilities withheld")
 })
 
 test_that("conditional panel units are recovered but inference is withheld", {
@@ -119,6 +168,35 @@ test_that("guards fire with informative errors", {
              panels = "panel", object_sets = os_dup),
     "more than one set")
 
+  # External mappings use the same canonical labels as the comparison data.
+  judges <- unique(d$judge)
+  pmap_pad <- stats::setNames(
+    d$panel[match(judges, d$judge)], paste0(" ", judges, " "))
+  os_pad <- lapply(os, function(x) paste0(" ", x, " "))
+  names(os_pad) <- paste0(" ", names(os_pad), " ")
+  f_pad <- befit(d, "object_a", "object_b", winner = "winner",
+                 judge = "judge", panels = pmap_pad, object_sets = os_pad)
+  expect_setequal(f_pad$alpha_table$set, c("set1", "set2"))
+  bad_set_names <- os
+  names(bad_set_names) <- c("set", " set ")
+  expect_error(
+    befit(d, "object_a", "object_b", winner = "winner", judge = "judge",
+          panels = "panel", object_sets = bad_set_names),
+    "after trimming")
+
+  shaped_panels <- matrix(d$panel[match(judges, d$judge)], nrow = 1L)
+  names(shaped_panels) <- judges
+  expect_error(
+    befit(d, "object_a", "object_b", winner = "winner", judge = "judge",
+          panels = shaped_panels, object_sets = os),
+    "plain named")
+  shaped_sets <- os
+  shaped_sets[[1L]] <- matrix(shaped_sets[[1L]], nrow = 1L)
+  expect_error(
+    befit(d, "object_a", "object_b", winner = "winner", judge = "judge",
+          panels = "panel", object_sets = shaped_sets),
+    "named list")
+
   # insufficient cross-set links: no set pair reaches min_link
   expect_error(
     befit(d, "object_a", "object_b", winner = "winner", judge = "judge",
@@ -160,6 +238,10 @@ test_that("plot_btl_units draws without error", {
                   panels = "panel", object_sets = attr(d, "truth")$object_sets)
   pdf(NULL); on.exit(dev.off())
   expect_silent(plot_btl_units(fit))
+
+  failed <- fit
+  failed$converged <- FALSE
+  expect_error(plot_btl_units(failed), "did not converge")
 })
 
 test_that("frame estimates propagate through paired-comparison diagnostics", {
@@ -272,10 +354,14 @@ test_that("BTL-EFRM omnibus families are not truncated by unavailable covariance
   expect_true(is.na(unavailable$wald))
   expect_true(is.na(unavailable$p))
 
-  singular <- .btlef_wald_unit(c(0.2, -0.3),
+  singular <- .btlef_wald_unit(c(0.2, 0.2),
                                matrix(c(1, 1, 1, 1), 2), "set units")
   expect_equal(singular$df, 1L)
   expect_true(is.finite(singular$p))
+  outside <- .btlef_wald_unit(c(0.2, -0.3),
+                              matrix(c(1, 1, 1, 1), 2), "set units")
+  expect_true(is.na(outside$df))
+  expect_true(is.na(outside$p))
 })
 
 test_that("judge-bootstrap unit tests respect panel-specific judge support", {
@@ -455,6 +541,7 @@ test_that("parallel BTL-EFRM judge bootstraps are seed-identical", {
   skip_if_not(file.exists(file.path(system.file(package = "rasch"),
                                     "DESCRIPTION")),
               "parallel integration test needs an installed package")
+  expect_true(rasch:::.rasch_namespace_is_installed())
   old_workers <- options(rasch.max_workers = 2L)
   on.exit(options(old_workers), add = TRUE)
   probe <- try(parallel::makePSOCKcluster(2L), silent = TRUE)

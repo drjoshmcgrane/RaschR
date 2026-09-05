@@ -4,7 +4,7 @@
 \alias{test_information}
 \title{Test information function}
 \usage{
-test_information(fit, grid = seq(-6, 6, by = 0.1), items = NULL)
+test_information(fit, grid = NULL, items = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}
@@ -39,6 +39,8 @@ error of measurement are
 \operatorname{SEM}(\theta)=I(\theta)^{-1/2},}
 where \eqn{d_i} is the frame unit or discrimination multiplier. For an
 ordinary Rasch fit, \eqn{d_i=1}.
+Information is returned only for a converged calibration. Comparative
+Judgement designs use \code{\link{btl_information}} instead.
 }
 \examples{
 set.seed(1)

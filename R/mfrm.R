@@ -129,7 +129,8 @@
 #'   the corresponding item-by-facet effects. The component \code{fit_resid}
 #'   averages virtual-item residuals within a margin. Its response-weighted
 #'   counterpart is \code{fit_resid_pooled}; its degrees of freedom are in
-#'   \code{df_fit}.
+#'   \code{df_fit}. A non-converged fit retains estimates and residual patterns
+#'   for diagnosis but withholds standard errors and inferential probabilities.
 #' @references
 #' Andrich, D. and Marais, I. (2019). A Course in Rasch Measurement Theory:
 #' Measuring in the Educational, Social and Health Sciences. Springer.
@@ -162,17 +163,17 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
                        na_codes = -1, interaction = NULL,
                        factors = NULL, maxit = 60, tol = 1e-8) {
   .check_controls(maxit, tol)
-  if (!is.null(n_groups) &&
-      (length(n_groups) != 1L || !is.numeric(n_groups) ||
-       !is.finite(n_groups) || n_groups != floor(n_groups) || n_groups < 2 ||
-       n_groups > .Machine$integer.max))
-    stop("`n_groups` must be one whole number of at least 2 class intervals")
+  if (!is.data.frame(data))
+    stop("`data` must be a data frame in long or wide form", call. = FALSE)
+  if (!is.null(n_groups))
+    n_groups <- .check_whole(n_groups, "n_groups", 2)
   .check_column_names(data)
   # the person column is dereferenced by BOTH entry forms, so it is resolved
   # to one existing column before either of them runs; item and score are
   # the long form's own and are checked on that path
   .check_reshape_column(data, person, "person")
-  if (!is.character(facets) || !length(facets) || anyNA(facets) ||
+  if (!is.character(facets) || !is.null(dim(facets)) ||
+      !is.null(oldClass(facets)) || !length(facets) || anyNA(facets) ||
       any(!nzchar(facets)))
     stop("`facets` must name at least one facet column")
   if (anyDuplicated(facets))
@@ -180,6 +181,11 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
          paste(unique(facets[duplicated(facets)]), collapse = ", "))
   if (person %in% facets)
     stop("the person column cannot also be a facet")
+  if (!is.null(factors) &&
+      (!(is.character(factors) && is.null(dim(factors)) &&
+         is.null(oldClass(factors))) && !is.data.frame(factors)))
+    stop("`factors` must be a plain character vector of column names or a data frame",
+         call. = FALSE)
   factor_names <- if (is.character(factors)) factors else
     if (is.data.frame(factors)) names(factors) else character(0)
   if (length(factor_names) &&
@@ -192,7 +198,8 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   if (!is.null(items)) {
     if (!is.null(item) || !is.null(score))
       stop("give either `items` (wide: one column per item) or `item` + `score` (long)")
-    if (!is.character(items) || !length(items) || anyNA(items) ||
+    if (!is.character(items) || !is.null(dim(items)) ||
+        !is.null(oldClass(items)) || !length(items) || anyNA(items) ||
         any(!nzchar(items)))
       stop("`items` must name at least one item column")
     if (anyDuplicated(items))
@@ -219,7 +226,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     tmp_item <- temp_name("..item")
     tmp_score <- temp_name("..score")
     long <- data.frame(
-      rep(as.character(data[[person]]), length(items)),
+      rep(.role_text_values(data[[person]]), length(items)),
       rep(items, each = nrow(data)),
       unlist(lapply(items, function(cn) {
         v0 <- as.character(data[[cn]])
@@ -232,7 +239,8 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       })), check.names = FALSE,
       stringsAsFactors = FALSE)
     names(long) <- c(tmp_person, tmp_item, tmp_score)
-    for (f in facets) long[[f]] <- rep(as.character(data[[f]]), length(items))
+    for (f in facets)
+      long[[f]] <- rep(.role_text_values(data[[f]]), length(items))
     # person factors survive the melt: named columns are replicated like
     # facets, a data frame is replicated row-wise to match the long rows
     fac_pass <- factors
@@ -242,13 +250,13 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
         stop("factor column(s) not found in the data: ",
              paste(missf, collapse = ", "))
       for (cn in factors)
-        long[[cn]] <- rep(as.character(data[[cn]]), length(items))
+        long[[cn]] <- rep(.role_text_values(data[[cn]]), length(items))
     } else if (is.data.frame(factors)) {
       if (anyDuplicated(names(factors)))
         stop("duplicate factor column name(s): ",
              paste(unique(names(factors)[duplicated(names(factors))]),
                    collapse = ", "))
-      persons_row <- as.character(data[[person]])
+      persons_row <- .role_text_values(data[[person]])
       pu <- unique(persons_row)
       if (nrow(factors) == nrow(data)) {
         row_idx <- seq_len(nrow(data))
@@ -283,20 +291,21 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     stop("person-factor column(s) cannot also define another model role: ",
          paste(factor_overlap, collapse = ", "))
   if (!is.null(interaction)) {
-    if (length(interaction) != 1L || is.na(interaction))
+    if (!is.character(interaction) || !is.null(dim(interaction)) ||
+        !is.null(oldClass(interaction)) || length(interaction) != 1L ||
+        is.na(interaction))
       stop("'interaction' must name exactly one facet")
     interaction <- as.character(interaction)
     if (!interaction %in% facets)
       stop("'interaction' must name one of the facets")
   }
-  stopifnot(is.data.frame(data))
   need <- c(person, item, score, facets)
   miss <- setdiff(need, names(data))
   if (length(miss)) stop("column(s) not in data: ", paste(miss, collapse = ", "))
   notes <- character(0)
 
-  pid <- as.character(data[[person]])
-  itm <- as.character(data[[item]])
+  pid <- .role_text_values(data[[person]])
+  itm <- .role_text_values(data[[item]])
   .check_integer_scores(data[[score]], "the score column")
   sc <- suppressWarnings(as.integer(as.character(data[[score]])))
   n_na <- sum(!is.na(sc) & (sc %in% na_codes | sc < 0))
@@ -305,7 +314,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     notes <- c(notes, sprintf("%d response(s) with a missing-data code (%s) set to missing",
                               n_na, paste(unique(c(na_codes, "negative")), collapse = ", ")))
   if (all(is.na(sc))) stop("score column has no usable integer values")
-  fac <- lapply(facets, function(f) as.character(data[[f]]))
+  fac <- lapply(facets, function(f) .role_text_values(data[[f]]))
   names(fac) <- facets
   # a whitespace-only label is not an identifier. Unlike NA, which is
   # dropped with a note below, it silently becomes a level of its own: a
@@ -485,14 +494,17 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
         stop("factor column(s) not found in the data: ",
              paste(miss, collapse = ", "))
       fac_df <- as.data.frame(lapply(factors, function(cn) {
-        v <- as.character(data[[cn]])[!bad_id]
+        v <- .role_text_values(data[[cn]])[!bad_id]
         nvar <- tapply(v, pid, function(x) length(unique(x[!is.na(x)])))
         if (any(nvar > 1L, na.rm = TRUE))
           stop("factor '", cn, "' varies within person(s) ",
                paste(names(nvar)[which(nvar > 1L)], collapse = ", "),
                ": person factors must be constant per person (a facet ",
                "is not a person factor; see `interaction=`)")
-        vv <- tapply(v, pid, function(x) x[!is.na(x)][1])
+        vv <- tapply(v, pid, function(x) {
+          z <- x[!is.na(x)]
+          if (length(z)) z[1L] else NA_character_
+        })
         unname(vv[match(persons_u, names(vv))])
       }), col.names = factors, stringsAsFactors = FALSE)
       names(fac_df) <- factors
@@ -503,7 +515,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       # keeping the first row's would silently pick one occasion
       .check_person_constant <- function(df, key) {
         for (cn in names(df)) {
-          v <- as.character(df[[cn]])
+          v <- .role_text_values(df[[cn]])
           nvar <- tapply(v, key, function(x) length(unique(x[!is.na(x)])))
           if (any(nvar > 1L, na.rm = TRUE))
             stop("factor '", cn, "' varies within person(s) ",
@@ -562,7 +574,11 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   # (Andrich & Marais 2019, ch. 26 and app. C) is the MEAN of the
   # constituent virtual items' fit residuals; the pooled log-residual over
   # the margin's cells is kept alongside with its degrees of freedom.
-  vmean <- function(sel) mean(fit$items$fit_resid[sel], na.rm = TRUE)
+  vmean <- function(sel) {
+    z <- fit$items$fit_resid[sel]
+    z <- z[is.finite(z)]
+    if (length(z)) mean(z) else NA_real_
+  }
   fit$item_effects <- data.frame(
     item = items_u,
     location = vapply(seq_along(items_u), function(i)
@@ -644,8 +660,8 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     # showed ~13% rejection at nominal 5% under the chi-square reference).
     # Use the T-squared-style F reference with persons as the units, and a
     # t reference for the per-cell follow-ups.
-    fit$interaction_effects$z <- fit$interaction_effects$gamma /
-      fit$interaction_effects$se
+    fit$interaction_effects$z <- .wald_ratio(
+      fit$interaction_effects$gamma, fit$interaction_effects$se)
     fit$interaction_effects$p <- if (support_ok)
       2 * stats::pt(-abs(fit$interaction_effects$z),
                     df = max(n_units - 1L, 1L)) else NA_real_
@@ -655,8 +671,10 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       fit$interaction_effects$p_adj < 0.05
     bg <- sol$beta[idx]
     Vg <- covb[idx, idx, drop = FALSE]
-    Wg <- tryCatch(drop(t(bg) %*% solve(Vg) %*% bg),
-                   error = function(e) NA_real_)
+    Wg <- if (.covariance_is_psd(Vg))
+      tryCatch(drop(t(bg) %*% solve(Vg) %*% bg),
+               error = function(e) NA_real_) else NA_real_
+    if (is.finite(Wg) && Wg < 0) Wg <- NA_real_
     q_int <- length(bg)
     test_ok <- support_ok && is.finite(Wg) && n_units > q_int + 1L
     if (test_ok) {
@@ -687,6 +705,21 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     facets = facets, interaction = interaction,
     n_groups = n_groups, na_codes = na_codes,
     maxit = maxit, tol = tol)
+  if (!isTRUE(sol$converged)) {
+    for (f in names(fit$facet_effects)) fit$facet_effects[[f]]$se[] <- NA_real_
+    if (!is.null(fit$interaction_effects)) {
+      for (nm in intersect(c("se", "z", "p", "p_adj"),
+                           names(fit$interaction_effects)))
+        fit$interaction_effects[[nm]][] <- NA_real_
+      fit$interaction_effects$significant[] <- NA
+    }
+    if (!is.null(fit$interaction_test)) {
+      for (nm in intersect(c("wald", "f", "df2", "p"),
+                           names(fit$interaction_test)))
+        fit$interaction_test[[nm]][] <- NA_real_
+      fit$interaction_test$inference_available[] <- FALSE
+    }
+  }
   fit <- .tag_tables(fit)
   class(fit) <- c("rasch_mfrm", "rasch")
   fit
@@ -694,6 +727,8 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
 
 #' @export
 print.rasch_mfrm <- function(x, ...) {
+  separation_quality <- x$separation_quality %||% x$power_of_fit %||%
+    .separation_quality(x$psi$PSI)
   cat(sprintf("rasch multiple ratings analysis: %d items x %s = %d response cells, %d persons\n",
               nrow(x$item_effects),
               paste(vapply(x$facet_spec, function(f)
@@ -703,7 +738,8 @@ print.rasch_mfrm <- function(x, ...) {
   cat(sprintf("Pairwise conditional ML: %s in %d iterations\n",
               if (x$est$converged) "converged" else "NOT converged",
               x$est$iterations))
-  cat(sprintf("PSI %.3f, power of fit: %s\n", x$psi$PSI, x$power_of_fit))
+  cat(sprintf("PSI %.3f, separation quality: %s\n", x$psi$PSI,
+              separation_quality))
   for (f in x$facet_spec) {
     fe <- x$facet_effects[[f]]
     core <- c("level", "severity", "se", "n", "fit_resid")
@@ -757,21 +793,29 @@ print.rasch_mfrm <- function(x, ...) {
 #' }
 #' @export
 plot_facets <- function(fit, facet = NULL, band = 2.5) {
-  .check_band(band)
   if (!inherits(fit, "rasch_mfrm")) stop("plot_facets needs a rasch_mfrm fit")
-  if (!is.null(facet) && (length(facet) != 1L || is.na(facet)))
-    stop("`facet` must name exactly one facet")
+  .check_response_display_fit(fit, "facet plots")
+  .check_band(band)
+  if (!is.null(facet) && (!is.character(facet) || !is.null(dim(facet)) ||
+                          !is.null(oldClass(facet)) || length(facet) != 1L ||
+                          is.na(facet) || !nzchar(trimws(facet))))
+    stop("`facet` must be one non-empty facet name")
   if (is.null(facet)) facet <- fit$facet_spec[1]
   fe <- fit$facet_effects[[facet]]
   if (is.null(fe)) stop("no such facet: ", facet)
   fe <- fe[order(fe$severity), ]
   lo <- fe$severity - 1.96 * fe$se; hi <- fe$severity + 1.96 * fe$se
+  point_ok <- is.finite(fe$severity)
+  if (!any(point_ok))
+    .refuse("this facet has no finite severity estimates to display")
+  ci_ok <- point_ok & is.finite(lo) & is.finite(hi)
   n <- nrow(fe)
   op <- par(mar = c(4.2, 7.5, 3.2, 1.5), mgp = c(2.5, 0.7, 0), tcl = -0.25,
             las = 1, col.axis = .rr$ink, col.lab = .rr$ink, col.main = .rr$ink,
             font.main = 2, cex.main = 1.15)
   on.exit(par(op))
-  plot(NA, xlim = range(c(lo, hi, 0)) + c(-0.2, 0.2), ylim = c(0.5, n + 0.5),
+  xr <- range(c(fe$severity[point_ok], lo[ci_ok], hi[ci_ok], 0))
+  plot(NA, xlim = xr + c(-0.2, 0.2), ylim = c(0.5, n + 0.5),
        xlab = "Severity (logits)", ylab = "", axes = FALSE, main = "")
   title(main = facet, adj = 0, line = 1.4)
   abline(h = seq_len(n), col = .rr$grid, lwd = 0.8)
@@ -780,10 +824,11 @@ plot_facets <- function(fit, facet = NULL, band = 2.5) {
   axis(2, at = seq_len(n), labels = fe$level, cex.axis = 0.8,
        col = .rr$grid, col.ticks = NA)
   misfit <- !is.na(fe$fit_resid) & abs(fe$fit_resid) > band
-  segments(lo, seq_len(n), hi, seq_len(n), lwd = 2.2,
-           col = ifelse(misfit, .rr$red, .rr$soft))
-  points(fe$severity, seq_len(n), pch = 21, cex = 1.5,
-         bg = ifelse(misfit, .rr$red, .rr$blue), col = "white", lwd = 1.2)
+  segments(lo[ci_ok], seq_len(n)[ci_ok], hi[ci_ok], seq_len(n)[ci_ok],
+           lwd = 2.2, col = ifelse(misfit[ci_ok], .rr$red, .rr$soft))
+  points(fe$severity[point_ok], seq_len(n)[point_ok], pch = 21, cex = 1.5,
+         bg = ifelse(misfit[point_ok], .rr$red, .rr$blue),
+         col = "white", lwd = 1.2)
   if (any(misfit))
     mtext(sprintf("%d level(s) with |fit residual| > %.1f", sum(misfit), band),
           side = 3, line = 0.2, adj = 0, cex = 0.8, col = .rr$red)

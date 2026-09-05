@@ -21,17 +21,43 @@
 #' item_moments(0.5, c(-1, 0, 1))
 #' @export
 item_moments <- function(theta, tau_i, disc = 1) {
-  if (length(theta) != 1L || !is.numeric(theta) || !is.finite(theta))
+  if (length(theta) != 1L || !is.numeric(theta) || is.complex(theta) ||
+      !is.null(dim(theta)) || !is.null(oldClass(theta)) || !is.finite(theta))
     stop("`theta` must be one finite location")
-  if (!is.numeric(tau_i) || !length(tau_i) || any(!is.finite(tau_i)))
+  if (!is.numeric(tau_i) || is.complex(tau_i) || !is.null(dim(tau_i)) ||
+      !is.null(oldClass(tau_i)) || !length(tau_i) || any(!is.finite(tau_i)))
     stop("`tau_i` must be a non-empty vector of finite thresholds")
-  if (length(disc) != 1L || !is.numeric(disc) || !is.finite(disc) || disc <= 0)
+  if (length(disc) != 1L || !is.numeric(disc) || is.complex(disc) ||
+      !is.null(dim(disc)) || !is.null(oldClass(disc)) ||
+      !is.finite(disc) || disc <= 0)
     stop("`disc` must be one positive finite discrimination")
   m <- length(tau_i); x <- 0:m
   lp <- disc * (x * theta - c(0, cumsum(tau_i)))
   num <- exp(lp - max(lp)); P <- num / sum(num)   # log-sum-exp: no overflow
   E <- sum(x * P); d <- x - E
   list(P = P, E = E, V = sum(d^2 * P), mu3 = sum(d^3 * P), mu4 = sum(d^4 * P))
+}
+
+# Root searches for person locations must follow the calibration origin.
+# A fixed [-30, 30] interval makes an otherwise valid externally anchored
+# scale fail as soon as its origin is translated outside that range. Moving
+# thirty inverse-discrimination logits beyond the most extreme threshold
+# puts both ends well into the response-function tails while preserving exact
+# translation equivariance.
+.person_root_interval <- function(tau_list, disc) {
+  if (length(disc) == 1L) disc <- rep(disc, length(tau_list))
+  if (length(disc) != length(tau_list) || any(!is.finite(disc)) ||
+      any(disc <= 0))
+    stop("the model discriminations are unavailable for person scoring",
+         call. = FALSE)
+  lower <- min(vapply(seq_along(tau_list), function(i)
+    min(tau_list[[i]]) - 30 / disc[i], 0))
+  upper <- max(vapply(seq_along(tau_list), function(i)
+    max(tau_list[[i]]) + 30 / disc[i], 0))
+  if (!is.finite(lower) || !is.finite(upper) || lower >= upper)
+    stop("the threshold scale is too large for a stable person-location root search",
+         call. = FALSE)
+  c(lower, upper)
 }
 
 #' Warm's weighted likelihood estimates by raw score
@@ -66,14 +92,18 @@ item_moments <- function(theta, tau_i, disc = 1) {
 person_wle <- function(tau_list, disc = 1) {
   if (!is.list(tau_list) || !length(tau_list) ||
       !all(vapply(tau_list, function(t)
-        is.numeric(t) && length(t) >= 1L && all(is.finite(t)), TRUE)))
+        is.numeric(t) && !is.complex(t) && is.null(dim(t)) &&
+          is.null(oldClass(t)) && length(t) >= 1L && all(is.finite(t)),
+        TRUE)))
     stop("`tau_list` must be a list of non-empty finite threshold vectors")
-  if (length(disc) != 1L || !is.numeric(disc) || !is.finite(disc) ||
-      disc <= 0)
+  if (length(disc) != 1L || !is.numeric(disc) || is.complex(disc) ||
+      !is.null(dim(disc)) || !is.null(oldClass(disc)) ||
+      !is.finite(disc) || disc <= 0)
     stop("`disc` must be one positive finite discrimination: the raw-score ",
          "WLE requires a common discrimination")
   Smax <- sum(vapply(tau_list, length, 1L))
   theta <- se <- setNames(rep(NA_real_, Smax + 1L), as.character(0:Smax))
+  interval <- .person_root_interval(tau_list, disc)
   for (R in 0:Smax) {
     g <- function(th) {
       mo <- lapply(tau_list, item_moments, theta = th, disc = disc)
@@ -85,7 +115,8 @@ person_wle <- function(tau_list, disc = 1) {
       # disc = 0.5; the vector-disc EFRM path was already correct)
       (R - E) + m3 / (2 * V)
     }
-    root <- tryCatch(uniroot(g, c(-30, 30), tol = 1e-9)$root, error = function(e) NA_real_)
+    root <- tryCatch(uniroot(g, interval, tol = 1e-9)$root,
+                     error = function(e) NA_real_)
     theta[as.character(R)] <- root
     if (!is.na(root)) {
       V <- sum(vapply(lapply(tau_list, item_moments, theta = root, disc = disc),
@@ -156,9 +187,22 @@ weighted_person_estimates <- function(fit, weights,
   if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
     stop("`fit` must be an ordinary, multiple-ratings or extended-frames Rasch fit",
          call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; weighted person estimates are unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; weighted person estimates are unavailable",
+         call. = FALSE)
   by <- match.arg(by)
-  if (!is.numeric(weights) || !length(weights) || is.null(names(weights)) ||
-      any(is.na(names(weights))) || any(!nzchar(names(weights))) ||
+  # Set names are substantive labels and are canonicalised. Item names are
+  # selectors into the fitted response matrix: preserve an exact name first,
+  # because a column may legitimately contain leading or trailing spaces.
+  if (by == "set" && !is.null(names(weights)))
+    names(weights) <- .role_text_values(names(weights))
+  if (!is.numeric(weights) || is.complex(weights) || !is.null(dim(weights)) ||
+      !is.null(oldClass(weights)) || !length(weights) ||
+      is.null(names(weights)) ||
+      any(is.na(names(weights))) || any(!nzchar(trimws(names(weights)))) ||
       anyDuplicated(names(weights)) || any(!is.finite(weights)) ||
       any(weights < 0))
     stop("`weights` must be a non-empty named numeric vector of non-negative finite values",
@@ -185,11 +229,23 @@ weighted_person_estimates <- function(fit, weights,
     source_item <- cells
   }
   items <- unique(source_item)
+  match_items <- function(x) {
+    x <- as.character(x)
+    vapply(x, function(nm) {
+      if (nm %in% items) return(nm)
+      hit <- items[trimws(items) == trimws(nm)]
+      if (length(hit) == 1L) hit else nm
+    }, character(1), USE.NAMES = FALSE)
+  }
 
   set_of <- NULL
   if (by == "item") {
     if (!is.null(sets))
       stop("`sets` is used only when `by = \"set\"`", call. = FALSE)
+    names(weights) <- match_items(names(weights))
+    if (anyDuplicated(names(weights)))
+      stop("item weights must name every fitted item exactly once",
+           call. = FALSE)
     missing_w <- setdiff(items, names(weights))
     extra_w <- setdiff(names(weights), items)
     if (length(missing_w) || length(extra_w))
@@ -204,26 +260,35 @@ weighted_person_estimates <- function(fit, weights,
       stop("`sets` must map every fitted item when `by = \"set\"`",
            call. = FALSE)
     if (is.list(sets)) {
+      if (!is.null(names(sets))) names(sets) <- .role_text_values(names(sets))
       if (!length(sets) || is.null(names(sets)) ||
-          any(is.na(names(sets))) || any(!nzchar(names(sets))) ||
+          any(is.na(names(sets))) || any(!nzchar(trimws(names(sets)))) ||
           anyDuplicated(names(sets)) ||
           !all(vapply(sets, function(z)
-            (is.character(z) || is.factor(z)) && length(z), logical(1))))
+            (is.character(z) || is.factor(z)) && is.null(dim(z)) &&
+              length(z) && !anyNA(z) &&
+              all(nzchar(trimws(as.character(z)))), logical(1))))
         stop("a set list needs unique non-empty names and item-name elements",
              call. = FALSE)
-      set_items <- unlist(lapply(sets, as.character), use.names = FALSE)
+      sets <- lapply(sets, match_items)
+      set_items <- unlist(sets, use.names = FALSE)
       set_names <- rep(names(sets), lengths(sets))
       if (anyDuplicated(set_items))
         stop("an item cannot belong to more than one externally weighted set",
              call. = FALSE)
       set_of <- stats::setNames(set_names, set_items)
     } else {
-      if (!(is.character(sets) || is.factor(sets)) || !length(sets) ||
-          is.null(names(sets)) || any(is.na(names(sets))) ||
-          any(!nzchar(names(sets))) || anyDuplicated(names(sets)) ||
-          anyNA(sets) || any(!nzchar(as.character(sets))))
+      if (!(is.character(sets) || is.factor(sets)) || !is.null(dim(sets)) ||
+          !length(sets) || is.null(names(sets)) || any(is.na(names(sets))) ||
+          any(!nzchar(trimws(names(sets)))) || anyDuplicated(names(sets)) ||
+          anyNA(sets) || any(!nzchar(trimws(as.character(sets)))))
         stop("`sets` must be a named item-to-set vector or a named list",
              call. = FALSE)
+      if (is.character(sets) || is.factor(sets)) {
+        set_names <- match_items(names(sets))
+        sets <- .role_text_values(sets)
+        names(sets) <- set_names
+      }
       set_of <- stats::setNames(as.character(sets), names(sets))
     }
     missing_set <- setdiff(items, names(set_of))
@@ -243,6 +308,10 @@ weighted_person_estimates <- function(fit, weights,
            call. = FALSE)
     q <- unname(weights[set_of[source_item]])
   }
+  # Relative weights are scale free. Rescale by their maximum before setting
+  # mean one so a perfectly valid vector near the smallest representable
+  # double cannot have mean zero by underflow (and hence become Inf/NaN).
+  q <- q / max(q)
   q <- q / mean(q)
 
   disc <- fit$disc
@@ -261,17 +330,25 @@ weighted_person_estimates <- function(fit, weights,
   raw <- rowSums(replace(X, !obs, NA_real_), na.rm = TRUE)
   raw[rowSums(obs) == 0L] <- NA_real_
   max_raw <- as.numeric(obs %*% m)
-  extreme <- !is.na(weighted_score) &
-    (weighted_score <= 1e-12 |
-       weighted_score >= max_weighted_score - 1e-12)
+  # Extreme status is a response-pattern property. A numerical tolerance on
+  # the weighted total can call a non-extreme response extreme when one item
+  # has a very small positive weight or model unit.
+  away_from_zero <- obs & X != 0
+  away_from_max <- obs & sweep(X, 2L, m, `!=`)
+  extreme <- rowSums(obs) > 0L &
+    (rowSums(away_from_zero, na.rm = TRUE) == 0L |
+       rowSums(away_from_max, na.rm = TRUE) == 0L)
   pat <- apply(obs, 1L, function(z) paste(which(z), collapse = ","))
 
   for (key in unique(pat)) {
     cols <- as.integer(strsplit(key, ",", fixed = TRUE)[[1L]])
     if (!length(cols)) next
     who_pat <- which(pat == key)
-    for (Wu in unique(signif(weighted_score[who_pat], 12L))) {
-      who <- who_pat[signif(weighted_score[who_pat], 12L) == Wu]
+    # Equal weighted totals have the same estimating equation within a
+    # missingness pattern. Do not round them for caching: distinct totals can
+    # be arbitrarily close when external weights are highly unequal.
+    for (Wu in unique(weighted_score[who_pat])) {
+      who <- who_pat[weighted_score[who_pat] == Wu]
       score <- function(th) {
         mo <- lapply(cols, function(j)
           item_moments(th, fit$tau_list[[j]], disc = disc[j]))
@@ -283,7 +360,8 @@ weighted_person_estimates <- function(fit, weights,
         sum(q[cols] * disc[cols] * (X[who[1L], cols] - E)) +
           J * sum(q[cols] * disc[cols]^3 * m3) / (2 * H^2)
       }
-      root <- tryCatch(stats::uniroot(score, c(-30, 30), tol = 1e-9)$root,
+      interval <- .person_root_interval(fit$tau_list[cols], disc[cols])
+      root <- tryCatch(stats::uniroot(score, interval, tol = 1e-9)$root,
                        error = function(e) NA_real_)
       theta[who] <- root
       if (is.finite(root)) {
@@ -412,6 +490,14 @@ weighted_person_estimates <- function(fit, weights,
 #' @export
 score_table <- function(fit, method = c("wle", "mle"),
                         extremes = c("model", "extrapolated")) {
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a response-data Rasch fit", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; the score table is unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; the score table is unavailable",
+         call. = FALSE)
   method <- match.arg(method); extremes <- match.arg(extremes)
   if (is.null(fit$score_table)) return(NULL)
   tab <- fit$score_table[, c("score", "theta", "se")]
@@ -420,6 +506,7 @@ score_table <- function(fit, method = c("wle", "mle"),
   info <- function(th) sum(vapply(fit$tau_list, function(tt)
     disc^2 * item_moments(th, tt, disc = disc)$V, 0))
   if (method == "mle") {
+    interval <- .person_root_interval(fit$tau_list, disc)
     for (r in seq_len(M - 1)) {
       # the ML equation is sum(disc*(x_i - E_i)) = 0: the common
       # discrimination cancels, so the root solves r = sum(E), not
@@ -427,7 +514,7 @@ score_table <- function(fit, method = c("wle", "mle"),
       tab$theta[tab$score == r] <- uniroot(function(th)
         r - sum(vapply(fit$tau_list, function(tt)
           item_moments(th, tt, disc = disc)$E, 0)),
-        c(-30, 30), tol = 1e-9)$root
+        interval, tol = 1e-9)$root
     }
     tab$theta[c(1, M + 1)] <- NA_real_
     tab$se <- 1 / sqrt(vapply(tab$theta, function(th)
@@ -437,10 +524,20 @@ score_table <- function(fit, method = c("wle", "mle"),
   if (extremes == "extrapolated") {
     if (M < 4) stop("extrapolation needs at least three interior scores")
     th <- tab$theta
-    lo <- th[2] - (th[3] - th[2])^2 / (th[4] - th[3])
-    hi <- th[M] + (th[M] - th[M - 1])^2 / (th[M - 1] - th[M - 2])
+    ext <- .geometric_score_extremes(th)
+    if (is.null(ext))
+      stop("extreme-score extrapolation is unavailable because the interior ",
+           "score locations do not define stable increasing spacings",
+           call. = FALSE)
+    lo <- ext[["lower"]]
+    hi <- ext[["upper"]]
+    ext_info <- c(info(lo), info(hi))
+    if (any(!is.finite(ext_info)) || any(ext_info <= 0))
+      stop("extreme-score extrapolation is unavailable because test ",
+           "information is not positive and finite at the continued locations",
+           call. = FALSE)
     tab$theta[c(1, M + 1)] <- c(lo, hi)
-    tab$se[c(1, M + 1)] <- 1 / sqrt(c(info(lo), info(hi)))
+    tab$se[c(1, M + 1)] <- 1 / sqrt(ext_info)
     tab$extrapolated[c(1, M + 1)] <- TRUE
   }
   raw <- rowSums(fit$X)
@@ -451,6 +548,24 @@ score_table <- function(fit, method = c("wle", "mle"),
     tab$cum_pct <- 100 * cumsum(freq) / sum(freq)
   }
   tab
+}
+
+.geometric_score_extremes <- function(theta) {
+  M <- length(theta) - 1L
+  if (M < 4L || any(!is.finite(theta[2:M]))) return(NULL)
+  spacing <- c(theta[3] - theta[2], theta[4] - theta[3],
+               theta[M] - theta[M - 1L],
+               theta[M - 1L] - theta[M - 2L])
+  if (any(!is.finite(spacing))) return(NULL)
+  # The tolerance is relative to the score spacings, not the arbitrary
+  # origin of the logit scale. This preserves origin invariance.
+  tol <- 100 * .Machine$double.eps * max(abs(spacing))
+  if (!is.finite(tol) || any(spacing <= tol)) return(NULL)
+  lower <- theta[2] - spacing[1] * (spacing[1] / spacing[2])
+  upper <- theta[M] + spacing[3] * (spacing[3] / spacing[4])
+  if (!is.finite(lower) || !is.finite(upper) ||
+      lower >= theta[2] || upper <= theta[M]) return(NULL)
+  c(lower = lower, upper = upper)
 }
 
 #' Person measures with extrapolated extreme scores
@@ -470,13 +585,16 @@ score_table <- function(fit, method = c("wle", "mle"),
 #' Warm (weighted likelihood) conversion, matching the package's person
 #' estimates.
 #'
-#' @param fit A fitted object from \code{\link{rasch}} (equal
-#'   discriminations; not EFRM).
+#' @param fit A fitted object from \code{\link{rasch}} with one common
+#'   raw-score conversion and a common discrimination. Expanded many-facet
+#'   and frame response-cell designs do not have such a conversion and are
+#'   refused.
 #' @return The fit's person table with two added columns,
 #'   \code{theta_extrapolated} and \code{se_extrapolated}: equal to
 #'   \code{theta} and \code{se} for non-extreme persons, extrapolated for
 #'   extreme persons. Patterns with fewer than three interior scores cannot
-#'   be extrapolated and keep their Warm values.
+#'   be extrapolated, or whose interior score locations do not have stable
+#'   increasing spacings, keep their Warm values.
 #' @examples
 #' set.seed(1)
 #' d <- seq(-2, 2, length.out = 8)
@@ -487,7 +605,19 @@ score_table <- function(fit, method = c("wle", "mle"),
 #' head(pe[pe$extreme, c("theta", "theta_extrapolated", "se", "se_extrapolated")])
 #' @export
 person_extrapolated <- function(fit) {
-  if (!is.null(fit$disc) && length(unique(fit$disc)) > 1L)
+  if (!inherits(fit, "rasch") || inherits(fit, "rasch_btl"))
+    stop("`fit` must be a fitted Rasch-family object", call. = FALSE)
+  if (!isTRUE(fit$est$converged))
+    stop("the fitted calibration did not converge; extrapolated person estimates are unavailable",
+         call. = FALSE)
+  if (!.efrm_link_converged(fit))
+    stop("the fitted set-unit link did not converge; extrapolated person estimates are unavailable",
+         call. = FALSE)
+  if (is.null(fit$score_table))
+    stop("a common raw-score conversion is not defined across expanded ",
+         "frame or facet response cells", call. = FALSE)
+  disc <- if (is.null(fit$disc)) 1 else unique(fit$disc)
+  if (length(disc) != 1L || !is.finite(disc) || disc <= 0)
     stop("extrapolation over a common raw score needs equal discriminations; ",
          "EFRM fits report per-group score curves instead")
   p <- fit$person
@@ -502,21 +632,26 @@ person_extrapolated <- function(fit) {
     obs <- which(!is.na(X[rows[1], ]))
     if (length(obs) < 2) next
     tl <- fit$tau_list[obs]
-    pe <- person_wle(tl)
+    pe <- person_wle(tl, disc = disc)
     th <- unname(pe$theta); M <- length(th) - 1L
     if (M < 4) next                        # too few interior scores
-    lo <- th[2] - (th[3] - th[2])^2 / (th[4] - th[3])
-    hi <- th[M] + (th[M] - th[M - 1])^2 / (th[M - 1] - th[M - 2])
+    endpoints <- .geometric_score_extremes(th)
+    if (is.null(endpoints)) next
+    lo <- endpoints[["lower"]]
+    hi <- endpoints[["upper"]]
     info <- function(t) sum(vapply(tl, function(tt)
-      item_moments(t, tt)$V, 0))
+      disc^2 * item_moments(t, tt, disc = disc)$V, 0))
+    endpoint_info <- c(lower = info(lo), upper = info(hi))
     for (r in rows) {
       raw <- sum(X[r, obs])
-      if (raw == 0L) {
+      if (raw == 0L && is.finite(endpoint_info[["lower"]]) &&
+          endpoint_info[["lower"]] > 0) {
         p$theta_extrapolated[r] <- lo
-        p$se_extrapolated[r] <- 1 / sqrt(info(lo))
-      } else {
+        p$se_extrapolated[r] <- 1 / sqrt(endpoint_info[["lower"]])
+      } else if (raw != 0L && is.finite(endpoint_info[["upper"]]) &&
+                 endpoint_info[["upper"]] > 0) {
         p$theta_extrapolated[r] <- hi
-        p$se_extrapolated[r] <- 1 / sqrt(info(hi))
+        p$se_extrapolated[r] <- 1 / sqrt(endpoint_info[["upper"]])
       }
     }
   }

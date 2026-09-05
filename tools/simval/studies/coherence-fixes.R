@@ -9,6 +9,12 @@ suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")
 STUDY <- "coherence-fixes"
 
+.sv_row <- function(..., n_error = 0L, n_withheld = 0L,
+                    n_metric_unavailable = 0L) {
+  sv_row(..., n_error = n_error, n_withheld = n_withheld,
+         n_metric_unavailable = n_metric_unavailable)
+}
+
 cores <- suppressWarnings(as.integer(Sys.getenv("SV_CORES", "1")))
 if (!is.finite(cores) || cores < 1L) cores <- 1L
 map_reps <- function(n, fun) {
@@ -132,7 +138,7 @@ summarise_dif <- function(z, label, attempted) {
     target <- truth[[nm]]
     se_nm <- paste0(nm, "se"); p_nm <- paste0(nm, "p")
     ok <- is.finite(z[, nm]) & is.finite(z[, se_nm]) & z[, se_nm] > 0
-    mag <- sv_row(
+    mag <- .sv_row(
       STUDY, label, paste0(nm, " adjusted marginal magnitude"), sum(ok),
       effect = target, bias = mean(z[ok, nm]) - target,
       emp_sd = stats::sd(z[ok, nm]), mean_se = mean(z[ok, se_nm]),
@@ -142,7 +148,7 @@ summarise_dif <- function(z, label, attempted) {
       notes = paste("correlated unbalanced cells AX/AY/BX/BY =",
                     "3/1/1/3; both factors fitted jointly"))
     okp <- is.finite(z[, p_nm])
-    det <- sv_row(
+    det <- .sv_row(
       STUDY, label, paste0(nm, " adjusted omnibus detection"), sum(okp),
       effect = target, power = mean(z[okp, p_nm] < 0.05),
       n_attempted = attempted, n_refused = refused, n_nonconv = nonconv,
@@ -169,29 +175,35 @@ btlef_truth <- c(phi2 = log(phi_truth[2]), alpha2 = log(1.25),
 summarise_btlef <- function(btlef, label, attempted) {
   ok_btlef <- is.finite(btlef[, "gap"])
   rbind(
-    sv_row(
+    .sv_row(
       STUDY, label, "reported-minus-reconstructed loglik",
       sum(ok_btlef), bias = mean(btlef[ok_btlef, "gap"]),
       emp_sd = stats::sd(btlef[ok_btlef, "gap"]),
       n_attempted = attempted, n_refused = sum(btlef[, "refused"]),
       n_nonconv = sum(btlef[, "nonconv"]),
+      n_metric_unavailable = attempted - sum(ok_btlef) -
+        sum(btlef[, "refused"]) - sum(btlef[, "nonconv"]),
       notes = "identity check against every stored expected comparison probability"),
-    sv_row(
+    .sv_row(
       STUDY, label, "common-scale object recovery", sum(ok_btlef),
       bias = mean(btlef[ok_btlef, "bias"]),
       emp_sd = mean(btlef[ok_btlef, "rmse"]), n_attempted = attempted,
       n_refused = sum(btlef[, "refused"]),
       n_nonconv = sum(btlef[, "nonconv"]),
+      n_metric_unavailable = attempted - sum(ok_btlef) -
+        sum(btlef[, "refused"]) - sum(btlef[, "nonconv"]),
       notes = "emp_sd field holds mean within-replicate object RMSE"),
     do.call(rbind, lapply(names(btlef_truth), function(nm) {
       target <- btlef_truth[[nm]]
       ok <- is.finite(btlef[, nm])
-      sv_row(
+      .sv_row(
         STUDY, label, paste0(nm, " recovery"), sum(ok),
         effect = unname(target), bias = mean(btlef[ok, nm]) - target,
         emp_sd = stats::sd(btlef[ok, nm]), n_attempted = attempted,
         n_refused = sum(btlef[, "refused"]),
         n_nonconv = sum(btlef[, "nonconv"]),
+        n_metric_unavailable = attempted - sum(ok) -
+          sum(btlef[, "refused"]) - sum(btlef[, "nonconv"]),
         notes = "point-estimate recovery after refitting all sets at reconciled phi")
     })))
 }

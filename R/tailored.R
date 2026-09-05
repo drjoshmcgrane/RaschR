@@ -18,9 +18,12 @@
 .tailored_boot_rows <- function(id) {
   # rows with no identifier are not one person: clustering them together
   # would resample them as a single unit and understate the uncertainty
-  key <- match(id, unique(id))
-  unknown <- is.na(id)
-  if (any(unknown)) key[unknown] <- max(key, na.rm = TRUE) + seq_len(sum(unknown))
+  id_text <- .role_text_values(id)
+  unknown <- is.na(id_text) | !nzchar(id_text)
+  id_text[unknown] <- NA_character_
+  key <- match(id_text, unique(id_text[!unknown]))
+  if (any(unknown))
+    key[unknown] <- length(unique(id_text[!unknown])) + seq_len(sum(unknown))
   clusters <- split(seq_along(id), key)
   picked <- sample.int(length(clusters), length(clusters), replace = TRUE)
   parts <- clusters[picked]
@@ -68,6 +71,8 @@
 #'   + 1)}, so after the Holm adjustment across m items the smallest
 #'   achievable adjusted p is \code{2m/(boot_reps + 1)}; a warning fires
 #'   when that floor exceeds 0.05 (detection would be impossible).
+#' @param seed Optional non-negative whole-number seed for the person
+#'   bootstrap. The caller's random-number state is restored on exit.
 #' @return A list of class \code{"rasch_tailored"}: \code{tailored},
 #'   \code{origin_equated}, and \code{anchored} fits, the comparison
 #'   \code{table} (initial, tailored, origin-equated locations, the
@@ -94,7 +99,7 @@
 #' @export
 tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
                               se_method = c("none", "bootstrap"),
-                              boot_reps = 999L) {
+                              boot_reps = 999L, seed = NULL) {
   se_method <- match.arg(se_method)
   if (!inherits(fit, "rasch")) stop("tailored_analysis needs a rasch fit")
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
@@ -114,9 +119,20 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("tailored_analysis() requires an unanchored calibration because it estimates its own common origin")
   if (!is.null(spec$pc_components))
     stop("tailored_analysis() is not defined for principal-component constrained thresholds")
-  if (length(chance) != 1L || !is.numeric(chance) || !is.finite(chance) ||
-      chance <= 0 || chance >= 1)
-    stop("chance must be one finite value strictly between 0 and 1")
+  .check_prob(chance, "chance")
+  if (!is.null(seed)) seed <- .check_whole(seed, "seed", 0)
+  if (!is.null(anchor_items)) {
+    if (is.factor(anchor_items)) anchor_items <- as.character(anchor_items)
+    if (!is.character(anchor_items) || !is.null(dim(anchor_items)) ||
+        !length(anchor_items) || anyNA(anchor_items) ||
+        any(!nzchar(trimws(anchor_items))))
+      stop("`anchor_items` must be an ordinary vector of non-missing item names",
+           call. = FALSE)
+    if (anyDuplicated(anchor_items))
+      stop("anchor item(s) named more than once: ",
+           paste(unique(anchor_items[duplicated(anchor_items)]), collapse = ", "),
+           call. = FALSE)
+  }
 
   anchor_requested <- anchor_items
   # step 2: remove responses where the model gives success below chance
@@ -195,11 +211,12 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
                     significant = NA)
   boot_used <- NA_integer_
   if (se_method == "bootstrap") {
-    if (length(boot_reps) != 1L || !is.numeric(boot_reps) ||
-        !is.finite(boot_reps) || boot_reps < 50L ||
-        boot_reps != floor(boot_reps) || boot_reps > .Machine$integer.max)
-      stop("boot_reps must be one whole number of at least 50 for tailored bootstrap inference")
-    boot_reps <- as.integer(boot_reps)
+    boot_reps <- .check_whole(boot_reps, "boot_reps", 50)
+    if (!is.null(seed)) {
+      old_seed <- .sim_seed_capture()
+      on.exit(.sim_seed_restore(old_seed), add = TRUE)
+      set.seed(seed)
+    }
     draws <- list()
     boot_nonconverged <- 0L
     boot_errors <- 0L
@@ -269,6 +286,7 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
               anchored = anchored, table = tab,
               n_removed = sum(cut_cells), chance = chance,
               anchor_items = anchor_items, se_method = se_method,
+              seed = if (se_method == "bootstrap") seed else NULL,
               boot_reps = if (se_method == "bootstrap") boot_reps else NA_integer_,
               boot_reps_used = boot_used,
               boot_reps_nonconverged = if (se_method == "bootstrap")

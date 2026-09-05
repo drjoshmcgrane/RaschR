@@ -23,7 +23,7 @@ test_that("drop_items removes items and refits, for rasch and efrm", {
   # guards
   expect_error(drop_items(fe, "NOPE"), "not in the fit")
   expect_error(drop_items(fe, names(fe$set_of)[1:8]), "empty set")
-  expect_error(drop_items(f, character()), "at least one item")
+  expect_error(drop_items(f, character()), "at least one non-missing item")
 })
 
 test_that("drop_items keeps the standard errors the source fit had", {

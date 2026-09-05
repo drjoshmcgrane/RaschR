@@ -13,13 +13,15 @@ judge_surprise(fit, judge, min_n = 2L, flag_z = 1.96)
 
 \item{min_n}{Objects met fewer times are shown but never flagged.}
 
-\item{flag_z}{Absolute residual at or beyond which a contrary judgement is
-flagged unexpected.}
+\item{flag_z}{Absolute normal-residual threshold defining the familywise
+flagging level; 1.96 corresponds to an adjusted two-sided probability
+of approximately 0.05.}
 }
 \value{
 A list of class \code{"rasch_btl_judge"}: \code{objects} (per object
-  met: location, times met \code{n}, residual \code{z}, \code{surprise} flag
-  and its \code{type}); \code{all_locations} (every object, for orientation);
+  met: location, times met \code{n}, residual \code{z}, approximate
+  \code{p}, Holm-adjusted \code{p_adj}, \code{surprise} flag and its
+  \code{type}); \code{all_locations} (every object, for orientation);
   the \code{judge} and settings.
 }
 \description{
@@ -28,11 +30,11 @@ condition on, so the reference is the consensus object scale (the pooled
 locations). For the nominated judge, each object it met is given a
 standardised residual oriented to the object -- how much more (\code{z > 0},
 over-rated) or less (\code{z < 0}, under-rated) that judge favoured it than
-its consensus location predicts. A surprise is an object the judge treated
-against its standing: a strong object under-rated, or a weak object
-over-rated (residual opposite in sign to the location), beyond
-\code{flag_z} and seen at least \code{min_n} times. The fitted model must
-have converged.
+its consensus location predicts. Approximate two-sided normal probabilities
+are adjusted by Holm across the objects meeting \code{min_n}. A surprise
+is an eligible object treated against its standing (residual opposite in
+sign to the location) whose adjusted probability passes the level
+represented by \code{flag_z}. The fitted model must have converged.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

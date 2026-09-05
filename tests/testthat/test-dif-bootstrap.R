@@ -86,9 +86,9 @@ test_that("conditional DIF bootstrap validates scope and provenance", {
   old$bootstrap_design <- NULL
   expect_error(dif_bootstrap(fit, old, B = 1, workers = 1),
                "predates conditional-bootstrap")
-  expect_error(dif_bootstrap(fit, da, B = 0), "whole positive")
-  expect_error(dif_bootstrap(fit, da, workers = 0), "whole positive")
-  expect_error(dif_bootstrap(fit, da, seed = -1), "non-negative")
+  expect_error(dif_bootstrap(fit, da, B = 0), "whole number")
+  expect_error(dif_bootstrap(fit, da, workers = 0), "whole number")
+  expect_error(dif_bootstrap(fit, da, seed = -1), "whole number")
 
   expect_error(dif_bootstrap(list(), B = 1), "must be a fitted model")
 })

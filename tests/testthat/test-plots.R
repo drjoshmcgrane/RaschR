@@ -34,6 +34,46 @@ test_that("targeting plots render for dichotomous and polytomous fits", {
   expect_no_error(plot_icc(fp, c(1, 2), observed = FALSE))
 })
 
+test_that("default model-curve grids follow the calibration origin", {
+  fit <- rasch(simulate_rasch(n_persons = 300, n_items = 6, seed = 411))
+  anchors <- data.frame(
+    item = fit$items$item[1:3], k = NA_real_,
+    tau = fit$items$location[1:3] + 100, average = TRUE)
+  shifted <- rasch(fit$X, anchors = anchors)
+  grid0 <- rasch:::.model_grid(fit)
+  grid1 <- rasch:::.model_grid(shifted)
+  expect_equal(grid1, grid0 + 100, tolerance = 1e-7)
+
+  failed <- fit
+  failed$est$converged <- FALSE
+  expect_error(plot_icc(failed, failed$items$item[1]), "did not converge")
+  expect_error(plot_tcc(failed), "did not converge")
+  expect_error(plot_pimap(failed), "did not converge")
+  expect_error(plot_wright(failed), "did not converge")
+  expect_error(plot_threshold_map(failed), "did not converge")
+  expect_error(plot_item_map(failed), "did not converge")
+  expect_error(plot_person_fit(failed), "did not converge")
+  expect_error(plot_kidmap(failed, 1), "did not converge")
+  expect_error(plot_resid_dist(failed), "did not converge")
+
+  failed_mfrm <- failed
+  class(failed_mfrm) <- c("rasch_mfrm", "rasch")
+  expect_error(plot_facets(failed_mfrm), "did not converge")
+})
+
+test_that("targeting plots require a converged EFRM link", {
+  d <- simulate_efrm(n_per_group = 55, items_per_set = 4, n_sets = 2,
+                     n_groups = 2, n_categories = 2, seed = 73)
+  truth <- attr(d, "truth")
+  fit <- rasch_efrm(d, item_sets = truth$item_sets, groups = "group",
+                    id = "id", boot_reps = 0)
+  fit$linking$alpha_edges$converged[1] <- FALSE
+
+  expect_error(plot_pimap(fit), "set-unit link did not converge")
+  expect_error(plot_wright(fit), "set-unit link did not converge")
+  expect_error(plot_frames(fit), "set-unit link did not converge")
+})
+
 test_that("the default person-item scale labels beyond every estimate", {
   s <- rasch:::.pimap_scale(c(-4.2, 3.3))
   expect_lte(s$range[1], -4.2)
@@ -74,6 +114,14 @@ test_that("the kidmap and batch savers work, and Q3 pairs are complete", {
   expect_true(file.exists(pdf_path))
   save_person_plots(f, zip_path, persons = 1:4)
   expect_equal(length(utils::unzip(zip_path, list = TRUE)$Name), 4L)
+  expect_error(save_person_plots(f, zip_path, persons = 1.5),
+               "whole row numbers")
+  expect_error(save_person_plots(f, zip_path, persons = matrix(1L)),
+               "ordinary vector")
+  expect_error(save_item_plots(f, "icc", pdf_path, items = c(1L, 1L)),
+               "same item")
+  expect_error(save_item_plots(f, "icc", pdf_path, items = matrix(1L)),
+               "ordinary vector")
   expect_error(save_item_plots(f, "icc", "bad.txt"), "pdf or")
   unlink(c(pdf_path, zip_path))
 })
@@ -158,7 +206,15 @@ test_that("residual dependence displays generalise to MFRM and EFRM fits", {
   ei <- test_information(ef, grid = c(-1, 0, 1))
   expect_equal(length(unique(ei$design)), 2L)
   expect_equal(nrow(ei), 6L)
-  expect_no_error(plot_tif(ef, grid = c(-1, 0, 1)))
+  line_types <- numeric(0)
+  expect_no_error(testthat::with_mocked_bindings(
+    plot_tif(ef, grid = c(-1, 0, 1)),
+    lines = function(x, y = NULL, ..., lty = 1) {
+      line_types <<- c(line_types, lty)
+      graphics::lines(x, y, ..., lty = lty)
+    },
+    .package = "rasch"))
+  expect_gte(sum(line_types == 5), 2L)
   expect_no_error(plot_tcc(ef, grid = c(-1, 0, 1)))
 })
 
@@ -176,6 +232,44 @@ test_that("fit plots display standardised infit and outfit with the count note",
   expect_no_error(plot_person_fit(f, statistic = "outfit"))
   expect_no_error(plot_item_map(f, statistic = "infit"))
   expect_no_error(plot_item_map(f, statistic = "outfit"))
+  boundary <- f
+  boundary$items$fit_resid[1] <- -Inf
+  boundary$person$fit_resid[1] <- -Inf
+  expect_no_error(plot_item_map(boundary))
+  expect_no_error(plot_person_fit(boundary))
+  expect_no_error(plot_resid_dist(boundary, what = "items"))
+  expect_no_error(plot_resid_dist(boundary, what = "persons"))
+  boundary$items$fit_resid[] <- -Inf
+  boundary$person$fit_resid[] <- -Inf
+  expect_error(plot_item_map(boundary), "does not carry")
+  expect_error(plot_person_fit(boundary), "does not carry")
+  expect_error(plot_resid_dist(boundary, what = "items"), "fewer than 3")
+  expect_error(plot_resid_dist(boundary, what = "persons"), "fewer than 3")
+})
+
+test_that("the PCA biplot handles identically zero displayed loadings", {
+  pc <- list(
+    loadings_matrix = data.frame(
+      item = c("I1", "I2"), PC1 = c(0, 0), PC2 = c(0, 0)),
+    eigen_table = data.frame(proportion = c(0, 0)))
+  pdf(NULL); on.exit(dev.off())
+  expect_no_error(testthat::with_mocked_bindings(
+    plot_pca_biplot(structure(list(), class = "rasch")),
+    residual_pca = function(...) pc,
+    .package = "rasch"))
+})
+
+test_that("the single-component PCA plot handles zero displayed loadings", {
+  pc <- list(
+    loadings_matrix = data.frame(item = c("I1", "I2"), PC1 = c(0, 0)),
+    eigen_table = data.frame(eigenvalue = 0, proportion = 0))
+  fit <- structure(list(items = data.frame(
+    item = c("I1", "I2"), location = c(-0.5, 0.5))), class = "rasch")
+  pdf(NULL); on.exit(dev.off())
+  expect_no_error(testthat::with_mocked_bindings(
+    plot_pca(fit),
+    residual_pca = function(...) pc,
+    .package = "rasch"))
 })
 
 test_that("a restricted person-item map carries its own information", {

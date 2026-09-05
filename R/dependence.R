@@ -28,7 +28,9 @@
 #' and \eqn{\hat d} is their mean (eq. 24.7 of Andrich and Marais 2019).
 #' The resolved threshold estimates share the calibration of the remaining
 #' items and are therefore correlated. The standard error of \eqn{\hat d} is
-#' calculated from their full sandwich covariance.
+#' calculated from their full sandwich covariance. If that covariance is
+#' unavailable or not positive semidefinite, the point estimate is retained
+#' as a descriptive magnitude and Wald inference is withheld.
 #'
 #' Polytomous resolution requires an unconstrained partial credit model so
 #' that each resolved threshold can move independently. A rating scale or
@@ -125,7 +127,10 @@ dependence_magnitude <- function(fit, dependent, independent) {
   thr <- refit$thresholds
   item_of <- refit$items$item[thr$item]
   cv <- refit$est$cov_tau
-  w <- numeric(nrow(cv))
+  cov_ok <- length(dim(cv)) == 2L && nrow(cv) == ncol(cv) &&
+    nrow(cv) == nrow(thr) && all(is.finite(cv)) &&
+    .covariance_is_symmetric(cv) && .covariance_is_psd(cv)
+  w <- numeric(nrow(thr))
   tab <- data.frame(k = seq_len(mj), delta_lo = NA_real_, delta_hi = NA_real_,
                     d_k = NA_real_, se_k = NA_real_)
   for (k in seq_len(mj)) {
@@ -133,32 +138,45 @@ dependence_magnitude <- function(fit, dependent, independent) {
     hi <- thr[item_of == res_names[k + 1] & thr$k == k, ]  # x_i = k    : -d
     tab$delta_lo[k] <- lo$tau; tab$delta_hi[k] <- hi$tau
     tab$d_k[k] <- (lo$tau - hi$tau) / 2
-    tab$se_k[k] <- sqrt((cv[lo$id, lo$id] + cv[hi$id, hi$id] -
-                         2 * cv[lo$id, hi$id]) / 4)
+    if (cov_ok)
+      tab$se_k[k] <- sqrt(pmax((cv[lo$id, lo$id] + cv[hi$id, hi$id] -
+                                2 * cv[lo$id, hi$id]) / 4, 0))
     w[lo$id] <- w[lo$id] + 1; w[hi$id] <- w[hi$id] - 1
   }
   w <- w / (2 * mj)
   d <- mean(tab$d_k)
-  se <- sqrt(max(drop(crossprod(w, cv %*% w)), 0))
-  z <- d / se
+  se <- if (cov_ok) sqrt(pmax(drop(crossprod(w, cv %*% w)), 0)) else NA_real_
+  z <- .wald_ratio(d, se)
   # a magnitude built on weakly identified resolved thresholds keeps its
   # descriptive value, but the covariance behind its standard error is not
   # trustworthy; inference is withheld, as it is for the thresholds
   # themselves
   res_thr <- thr[item_of %in% res_names, ]
   weak_res <- isTRUE(any(res_thr$weak))
-  note <- NULL
+  note <- character(0)
   if (weak_res) {
     se <- z <- NA_real_
-    note <- paste("resolved thresholds are weakly identified (sparse",
-                  "resolved categories); the magnitude is descriptive and",
-                  "inference is withheld")
+    note <- c(note, paste("resolved thresholds are weakly identified (sparse",
+                         "resolved categories); the magnitude is descriptive and",
+                         "inference is withheld"))
     tab$se_k <- NA_real_
   }
+  if (!cov_ok) {
+    se <- z <- NA_real_
+    tab$se_k <- NA_real_
+    note <- c(note, paste("the resolved-threshold covariance is unavailable or",
+                         "not positive semidefinite; the magnitude is descriptive",
+                         "and inference is withheld"))
+  } else if (!weak_res && !is.finite(z)) {
+    se <- NA_real_
+    note <- c(note, paste("the resolved contrast has zero estimated uncertainty;",
+                         "Wald inference is withheld"))
+  }
   out <- list(d = d, se = se, z = z,
-              p = if (weak_res) NA_real_ else 2 * pnorm(-abs(z)),
+              p = if (!is.finite(z)) NA_real_ else
+                2 * pnorm(-abs(z)),
               thresholds = tab, dependent = nm_j, independent = nm_i,
-              note = note,
+              note = if (length(note)) paste(note, collapse = "; ") else NULL,
               refit = refit)
   out <- .tag_tables(out)
   class(out) <- "rasch_dependence"
@@ -253,6 +271,7 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
   if (!inherits(fit, "rasch")) stop("spread_test needs a rasch fit")
   .check_prob(alpha, "alpha")
   if (!is.character(p_adjust) || length(p_adjust) != 1L ||
+      !is.null(dim(p_adjust)) || !is.null(oldClass(p_adjust)) ||
       !p_adjust %in% stats::p.adjust.methods)
     stop("p_adjust must name a method in stats::p.adjust.methods")
   if (!isTRUE(fit$est$converged))
@@ -286,7 +305,7 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
                     spread = cmp$spread[idx_pc], se = cmp$spread_se[idx_pc],
                     lub = ifelse(eligible,
                       unname(.spread_lub[as.character(fit$m[idx_fit])]), NA_real_))
-  out$z <- (out$spread - out$lub) / out$se
+  out$z <- .wald_ratio(out$spread - out$lub, out$se)
   out$p <- ifelse(out$eligible & is.finite(out$z), stats::pnorm(out$z), NA_real_)
   out$p_adj <- NA_real_
   use <- out$eligible & is.finite(out$p)

@@ -154,10 +154,10 @@ contrast scores with the same design-cell weights as the resolved estimate.
 Other fitted factors are averaged equally over their complete cells, including
 when their sample sizes differ, and the independent between-person cells use a
 Welch--Satterthwaite reference. The resolved logit difference remains the
-magnitude, but its row-independent calibration covariance is not a
-repeated-measures standard error; the package therefore withholds the logit SE
-and interval in this case. The fitted person identifier is used unless `id` is
-supplied explicitly.
+magnitude. Its standard error uses the person-clustered calibration covariance,
+whereas `dif_contrasts()` tests a nominated within-person comparison directly
+from person-level contrasts. The fitted person identifier is used unless `id`
+is supplied explicitly.
 
 For a many-facet fit, follow-ups may name the underlying item; its virtual
 facet cells are pooled with common weights so facet severity cancels from the

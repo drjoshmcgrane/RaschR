@@ -26,8 +26,7 @@
 # ===========================================================================
 
 # Composite-likelihood information criteria for one fit: effective parameter
-# count tr(H^-1 J) (sign-convention free via abs: the eigenvalues of H^-1 J
-# share one sign), CL-AIC, CL-BIC. NA when the fit does not carry its
+# count tr(H^-1 J), CL-AIC, CL-BIC. NA when the fit does not carry its
 # Godambe matrices (MFRM and EFRM assemble their own estimation structures).
 .cl_ic <- function(f) {
   if (inherits(f, "rasch_btl")) {
@@ -38,12 +37,37 @@
     est <- f$est
     if (is.null(est$cov_beta) || is.null(est$H_beta))
       return(c(eff = NA_real_, aic = NA_real_, bic = NA_real_))
-    eff <- abs(sum(diag(est$cov_beta %*% est$H_beta)))
-    # independent units: persons contributing at least one informative pair
-    # (extreme persons condition every pair onto a boundary total)
-    n <- sum(!f$person$extreme & rowSums(!is.na(f$X)) >= 2L)
+    p <- nrow(est$cov_beta)
+    sensitivity <- -est$H_beta
+    if (!.covariance_supports_wald(est$cov_beta, p) ||
+        !.covariance_supports_wald(sensitivity, p))
+      return(c(eff = NA_real_, aic = NA_real_, bic = NA_real_))
+    # The sensitivity must identify every fitted beta direction. A singular
+    # positive-semidefinite matrix cannot define an effective parameter count,
+    # even though it passes the covariance gate used for identified contrasts.
+    ev <- eigen((sensitivity + t(sensitivity)) / 2,
+                symmetric = TRUE, only.values = TRUE)$values
+    scale <- max(abs(ev))
+    if (!is.finite(scale) || scale <= 0 ||
+        min(ev) <= sqrt(.Machine$double.eps) * scale)
+      return(c(eff = NA_real_, aic = NA_real_, bic = NA_real_))
+    eff <- sum(diag(est$cov_beta %*% sensitivity))
+    # Independent units are persons contributing at least one informative
+    # pair, not response occasions. A missing identifier denotes its own
+    # person, consistently with the clustered calibration sandwich.
+    eligible <- !f$person$extreme & rowSums(!is.na(f$X)) >= 2L
+    if (is.null(f$person$id)) {
+      n <- sum(eligible)
+    } else {
+      id <- .role_text_values(f$person$id[eligible])
+      missing <- is.na(id) | !nzchar(id)
+      n <- length(unique(id[!missing])) + sum(missing)
+    }
     ll <- est$loglik
   }
+  if (!is.finite(eff) || eff < 0 || !is.finite(ll) ||
+      !is.finite(n) || n < 1L)
+    return(c(eff = NA_real_, aic = NA_real_, bic = NA_real_))
   c(eff = eff, aic = -2 * ll + 2 * eff, bic = -2 * ll + log(n) * eff)
 }
 
@@ -76,7 +100,8 @@
 #' matrices.
 #'
 #' Across different data preparations (subtests, splits, facet or frame
-#' structures) the likelihoods are not comparable. The table retains
+#' structures), or different allocations of response rows to persons, the
+#' likelihood-based criteria are not comparable and are withheld. The table retains
 #' descriptive context: total trait chi-square per degree of freedom,
 #' calibration and person fit-residual SDs (ideal 1), PSI, and alpha where
 #' applicable (OSI for paired comparisons). Alpha is \code{NA} when an MFRM
@@ -88,6 +113,9 @@
 #'   comparison data (same objects, comparisons, and judges) support the
 #'   likelihood columns -- e.g. free versus principal-component thresholds,
 #'   with and without a position effect or within-judge dependence.
+#'   Row order, arbitrary person or judge labels, and expansion versus count
+#'   compression do not change data identity; allocation to independent
+#'   persons or judges does.
 #' @param reference Index or name of the reference fit for the
 #'   log-likelihood difference; defaults to the first.
 #' @return A data frame with one row per fit: label, model, persons, items
@@ -114,7 +142,9 @@
 #' @export
 compare_fits <- function(..., reference = 1) {
   if (is.character(reference)) {
-    if (length(reference) != 1L || is.na(reference) || !nzchar(reference))
+    if (length(reference) != 1L || !is.null(dim(reference)) ||
+        !is.null(oldClass(reference)) || is.na(reference) ||
+        !nzchar(trimws(reference)))
       stop("`reference` must be one fit name or one whole number")
   } else reference <- .check_whole(reference, "reference", 1)
   fits <- list(...)
@@ -162,7 +192,6 @@ compare_fits <- function(..., reference = 1) {
       resp[swap] <- max(f$m) - resp[swap]
       z <- data.frame(object_a = lo, object_b = hi, response = resp,
                       weight = as.numeric(cmp$weight),
-                      judge = as.character(cmp$judge),
                       stringsAsFactors = FALSE)
       # Orientation is arbitrary in a plain BTL, so the canonical form above
       # is the right fingerprint. It stops being arbitrary once any compared
@@ -174,9 +203,74 @@ compare_fits <- function(..., reference = 1) {
       # datum, so it never enters.
       if (use_presented) { z$presented_a <- ca; z$presented_b <- cb }
       for (cn in seq_cols) z[[cn]] <- as.character(cmp[[cn]])
-      z <- z[do.call(order, c(z, list(na.last = TRUE))), , drop = FALSE]
-      rownames(z) <- NULL
-      list(objects = sort(f$objects$object), comparisons = z)
+      row_keys <- function(d, omit = character(0)) {
+        x <- d[, setdiff(names(d), omit), drop = FALSE]
+        vapply(seq_len(nrow(x)), function(i) {
+          one <- x[i, , drop = FALSE]
+          rownames(one) <- NULL
+          paste(format(serialize(one, NULL, version = 3L)), collapse = "")
+        }, character(1))
+      }
+      canonical_rows <- function(d) {
+        d <- d[do.call(order, c(d, list(na.last = TRUE))), , drop = FALSE]
+        rownames(d) <- NULL
+        d
+      }
+      aggregate_rows <- function(d) {
+        # A count-compressed row and the corresponding repeated rows are the
+        # same comparison data.  Sum weights only over rows identical in
+        # every field that enters the likelihood or its design.
+        key <- row_keys(d, "weight")
+        first <- !duplicated(key)
+        out <- d[first, , drop = FALSE]
+        out$weight <- as.numeric(rowsum(d$weight, match(key, unique(key)),
+                                        reorder = FALSE))
+        canonical_rows(out)
+      }
+      block_key <- function(d)
+        paste(format(serialize(canonical_rows(d), NULL, version = 3L)),
+              collapse = "")
+      judge <- as.character(cmp$judge)
+      if (all(is.na(judge))) {
+        ia <- f$independent_allocation
+        if (is.data.frame(ia) && nrow(ia) == nrow(z) &&
+            all(c("unit", "replicates") %in% names(ia))) {
+          # Express each independent unit once, plus its replication count.
+          # This makes an expanded dataset identical to its count-compressed
+          # form.  Half-scored ties remain a two-row atomic unit and therefore
+          # cannot be confused with two independent opposing judgements.
+          blocks <- lapply(split(seq_len(nrow(z)), as.character(ia$unit)),
+                           function(ii) {
+            nr <- unique(as.numeric(ia$replicates[ii]))
+            if (length(nr) != 1L || !is.finite(nr) || nr <= 0)
+              return(NULL)
+            d <- z[ii, , drop = FALSE]
+            d$weight <- d$weight / nr
+            list(data = canonical_rows(d), n = nr)
+          })
+          if (length(blocks) && !any(vapply(blocks, is.null, logical(1)))) {
+            keys <- vapply(blocks, function(b) block_key(b$data), "")
+            uk <- unique(keys)
+            allocation <- lapply(uk, function(k) list(
+              data = blocks[[which(keys == k)[1L]]]$data,
+              n = sum(vapply(blocks[keys == k], `[[`, numeric(1), "n"))))
+            allocation <- unname(allocation[order(vapply(
+              allocation, function(b) block_key(b$data), ""))])
+          } else allocation <- canonical_rows(z)
+        } else {
+          # Compatibility with fits made before the allocation was retained.
+          allocation <- canonical_rows(z)
+        }
+      } else {
+        # Judge labels are arbitrary; the allocation of rows to judges is not.
+        # Count compression inside a judge is representational, so identical
+        # rows are combined before anonymous judge blocks are ordered.
+        blocks <- lapply(split(seq_len(nrow(z)), judge), function(ii)
+          aggregate_rows(z[ii, , drop = FALSE]))
+        key <- vapply(blocks, block_key, "")
+        allocation <- unname(blocks[order(key)])
+      }
+      list(objects = sort(f$objects$object), comparisons = allocation)
     }
     ref_sig <- sig(fits[[reference]])
     rows <- lapply(seq_along(fits), function(i) {
@@ -206,7 +300,8 @@ compare_fits <- function(..., reference = 1) {
         cl_bic = unname(ic["bic"]),
         same_data = identical(sig(f), ref_sig),
         two_delta_ll = NA_real_, delta_parameters = NA_integer_,
-        chisq_per_df = f$total_chisq / f$total_df,
+        chisq_per_df = if (is.finite(f$total_df) && f$total_df > 0)
+          f$total_chisq / f$total_df else NA_real_,
         OSI = f$osi$PSI)
     })
   } else {
@@ -214,8 +309,25 @@ compare_fits <- function(..., reference = 1) {
     # maximum scores, and person count: two different datasets sharing those
     # margins would otherwise be declared the same data and get a spurious
     # two_delta_ll. The full response matrix is the exact fingerprint.
-    sig <- function(f) list(items = colnames(f$X), m = unname(f$m),
-                            n = nrow(f$X), X = unname(as.matrix(f$X)))
+    sig <- function(f) {
+      # Row and column order are presentation details, not different response
+      # data.  Canonicalise the items by name, then represent each independent
+      # person by the (sorted) multiset of response rows belonging to that
+      # person.  Sorting those person blocks also makes an arbitrary relabeling
+      # of the IDs immaterial while retaining repeated-person allocation.
+      item_order <- order(colnames(f$X))
+      X <- unname(as.matrix(f$X[, item_order, drop = FALSE]))
+      row_key <- apply(X, 1L, function(z)
+        paste(ifelse(is.na(z), "NA", format(z, scientific = FALSE,
+                                             trim = TRUE)), collapse = ","))
+      person <- if (is.null(f$person$id)) seq_len(nrow(X)) else
+        .dif_ids(f$person$id)
+      blocks <- unname(vapply(split(row_key, person), function(z)
+        paste(sort(z), collapse = "|"), character(1)))
+      list(items = colnames(f$X)[item_order],
+           m = unname(f$m[item_order]), n = nrow(X),
+           person_blocks = sort(blocks))
+    }
     # underlying item count: MFRM/EFRM columns of X are virtual item-by-facet
     # or item-by-group cells, not the real items
     n_items <- function(f)
@@ -243,7 +355,8 @@ compare_fits <- function(..., reference = 1) {
         cl_bic = unname(ic["bic"]),
         same_data = identical(sig(f), ref_sig),
         two_delta_ll = NA_real_, delta_parameters = NA_integer_,
-        chisq_per_df = f$total_chisq / f$total_df,
+        chisq_per_df = if (is.finite(f$total_df) && f$total_df > 0)
+          f$total_chisq / f$total_df else NA_real_,
         item_fit_sd = f$item_fit_summary$sd,
         person_fit_sd = f$person_fit_summary$sd,
         PSI = f$psi$PSI, alpha = f$alpha$alpha)
@@ -251,6 +364,12 @@ compare_fits <- function(..., reference = 1) {
   }
   out <- do.call(rbind, rows)
   ref <- out[reference, ]
+  # Composite information criteria compare models only when the responses
+  # and independent-unit allocation match the reference. Retaining numeric
+  # criteria for a different dataset invites a comparison with no common
+  # target likelihood.
+  out$cl_aic[!out$same_data] <- NA_real_
+  out$cl_bic[!out$same_data] <- NA_real_
   # the descriptive two_delta_ll needs the same data AND two trustworthy
   # (converged) log-likelihoods
   cmp <- out$same_data & out$converged & isTRUE(ref$converged) &
@@ -265,13 +384,18 @@ compare_fits <- function(..., reference = 1) {
     "effective parameter count tr(H^-1 J), which absorbs the pairwise ",
     "over-counting that the nominal count would not; smaller is better, ",
     "valid across models of the same data",
-    if (any(!vapply(fits, function(f)
-      is.finite(.cl_ic(f)["eff"]), TRUE)))
+    if (any(!vapply(fits, function(f) {
+      converged <- if (inherits(f, "rasch_btl")) isTRUE(f$converged) else
+        isTRUE(f$est$converged)
+      converged && is.finite(.cl_ic(f)["eff"])
+    }, TRUE)))
       paste0(" (NA for MFRM/EFRM fits without the required Godambe ",
-             "matrices, and for judge-clustered BTL fits with too few ",
-             "independent clusters)")
+             "matrices, non-converged fits, and judge-clustered BTL fits ",
+             "with too few independent clusters)")
     else "",
-    ". two_delta_ll is the raw composite difference against the reference, ",
+    ". Information criteria and two_delta_ll are withheld when the response ",
+    "data or independent-unit allocation differ from the reference. ",
+    "two_delta_ll is the raw composite difference against the reference, ",
     "descriptive only. Across different data preparations, chisq_per_df, ",
     "the fit residual SDs and separation/reliability columns provide ",
     "descriptive context rather than a formal selection criterion.")
@@ -367,7 +491,7 @@ lr_test <- function(fit, maxit = 60, tol = 1e-8) {
                maxit = maxit, tol = tol)
   if (!isTRUE(rsm$est$converged))
     stop("the rating-scale refit did not converge; the model comparison is unavailable")
-  chisq <- 2 * (fit$est$loglik - rsm$est$loglik)
+  chisq <- max(0, 2 * (fit$est$loglik - rsm$est$loglik))
   df <- fit$est$n_parameters - rsm$est$n_parameters
 
   # composite-likelihood calibration: eigenvalues of the Godambe ratio over
@@ -377,18 +501,22 @@ lr_test <- function(fit, maxit = 60, tol = 1e-8) {
   if (!is.null(Bp) && !is.null(Br) && !is.null(fit$est$H_beta)) {
     M <- nrow(Bp)
     S <- cbind(Br, rep(1, M))            # rating subspace + the null shift
-    Portho <- diag(M) - S %*% solve(crossprod(S), t(S))
+    ss <- svd(S)
+    rs <- sum(ss$d > max(1e-10, max(ss$d) * 1e-8))
+    U <- ss$u[, seq_len(rs), drop = FALSE]
+    Portho <- diag(M) - tcrossprod(U)
     A <- Portho %*% Bp                   # constraint: A beta = 0
     qa <- qr(t(A))
     r <- qa$rank
     if (r > 0) {
       C <- qr.Q(qa)[, seq_len(r), drop = FALSE]
-      Hinv <- solve(-fit$est$H_beta)               # Godambe H = -Hessian
-      num <- crossprod(C, fit$est$cov_beta %*% C)   # C' H^-1 J H^-1 C
-      den <- crossprod(C, Hinv %*% C)               # C' H^-1 C
-      lambda <- Re(eigen(solve(den, num), only.values = TRUE)$values)
-      chisq_adj <- chisq * r / sum(lambda)
-      p_adj <- pchisq(chisq_adj, r, lower.tail = FALSE)
+      Hinv <- tryCatch(solve(-fit$est$H_beta), error = function(e) NULL)
+      kc <- if (is.null(Hinv))
+        list(chisq = NA_real_, p = NA_real_, lambda = numeric(0)) else
+        .kent_calibration(chisq, C, fit$est$cov_beta, Hinv)
+      chisq_adj <- kc$chisq
+      p_adj <- kc$p
+      lambda <- kc$lambda
       df <- r
     }
   }

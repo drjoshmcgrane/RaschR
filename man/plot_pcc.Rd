@@ -4,7 +4,7 @@
 \alias{plot_pcc}
 \title{Plot a person characteristic curve}
 \usage{
-plot_pcc(fit, person, n_groups = 5, grid = seq(-5, 5, 0.05))
+plot_pcc(fit, person, n_groups = 5, grid = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}.}

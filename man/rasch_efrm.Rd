@@ -102,7 +102,10 @@ An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
   attempted, usable and failed counts are retained separately in the
   corresponding \code{full_boot_reps_*} components, including when the fit
   falls back to hybrid standard errors. See the extended frame of reference
-  vignette for their interpretation.
+  vignette for their interpretation. If the within-frame calibration does
+  not converge, its standard errors and all later inferential probabilities
+  are withheld. Failure of only a set link does not invalidate the already
+  converged within-frame calibration or group-unit estimates.
 }
 \description{
 Fits Humphry's extended frame of reference model, in which the unit can
@@ -117,9 +120,13 @@ differ across item-set by person-group frames. For item \eqn{i} in set
 \details{
 The partial credit model holds within each frame in its natural unit.
 \eqn{\phi_g} and \eqn{\alpha_s} are unit \emph{ratios} in the sense of
-Humphry and Andrich (2008, eq. 15) --- each is the reference unit over the
-frame's own unit, against a reference level fixed at one, so a value above
-one means a finer natural unit and steeper curves on the common scale.
+Humphry and Andrich (2008, eq. 15): each is the common reference unit over
+the frame's own unit. The identification constraints set the geometric mean
+of the group units and of the set units to one; no observed group or set is
+the reference level. A value above one therefore denotes a finer natural
+unit than the corresponding geometric-mean unit and steeper curves on the
+common scale. Ratios between two observed levels are obtained directly, for
+example as \eqn{\alpha_s/\alpha_t}.
 Person-group ratios \eqn{\phi_g} are identified from common item
 thresholds across groups. Item sets partition the items, so set ratios
 \eqn{\alpha_s} are identified instead from persons observed in more than

@@ -25,6 +25,20 @@ test_that("location anchoring fixes item means with free thresholds", {
   expect_error(rasch(X, anchors = data.frame(item = "P1", k = c(NA, 1),
                                              tau = c(0, 0))),
                "both a location anchor and threshold anchors")
+
+  # Translating all location anchors changes only the origin. Thresholds and
+  # persons move together; likelihood, residuals and covariance do not.
+  shifted <- data.frame(item = c("P1", "P8"), k = NA_real_,
+                        tau = loc_true[c(1, 8)] + 3)
+  fit_shifted <- rasch(X, anchors = shifted)
+  expect_equal(fit_shifted$thresholds$tau, fit$thresholds$tau + 3,
+               tolerance = 1e-8)
+  expect_equal(fit_shifted$person$theta, fit$person$theta + 3,
+               tolerance = 1e-7)
+  expect_equal(fit_shifted$est$loglik, fit$est$loglik, tolerance = 1e-8)
+  expect_equal(fit_shifted$est$cov_tau, fit$est$cov_tau, tolerance = 1e-10)
+  expect_equal(fit_shifted$residuals, fit$residuals, tolerance = 1e-7)
+  expect_equal(fit$est$n_parameters, sum(fit$m) - 2L)
 })
 
 test_that("split_items resolves planted uniform DIF", {
@@ -62,6 +76,13 @@ test_that("equate_tests flags drifted common items only", {
   expect_equal(sum(eq0$table$drift), 0)
   expect_gt(eq0$correlation, 0.99)
 
+  bad_covariance <- f1
+  bad_covariance$est$cov_tau[1, 1] <- -1e6
+  guarded <- equate_tests(bad_covariance, mk(), independent = TRUE)
+  expect_false(guarded$inferential)
+  expect_true(all(is.na(guarded$table$p_adj)))
+  expect_match(guarded$note, "not positive semidefinite")
+
   eq1 <- equate_tests(f1, mk(drift = 0.8), independent = TRUE)
   expect_equal(eq1$table$p_adj,
                p.adjust(eq1$table$p, method = "holm"))
@@ -75,6 +96,23 @@ test_that("equate_tests flags drifted common items only", {
   expect_match(eqb$note, "joint item-location covariance")
   expect_error(equate_tests(f1, data.frame(item = "ZZ", location = 0)),
                "at least two common items")
+})
+
+test_that("equating refuses fitted models from the other response family", {
+  rf <- rasch(simulate_rasch(100, 5, seed = 740))
+  d <- simulate_btl(5, 12, 6, seed = 741)
+  bf <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+
+  expect_error(equate_tests(rf, bf), "different response scale")
+  expect_error(btl_equate(bf, rf), "different response scale")
+})
+
+test_that("split-item grouping must be an ordinary vector", {
+  d <- simulate_rasch(80, 5, seed = 742)
+  g <- rep(c("a", "b"), each = 40)
+  fit <- rasch(data.frame(d[, -1], group = g), factors = "group")
+  expect_error(split_items(fit, "I01", by = matrix(g, ncol = 1L)),
+               "ordinary grouping vector")
 })
 
 test_that("interactive facet mode recovers a planted item-by-rater effect", {
@@ -214,7 +252,7 @@ test_that("multiple-choice scoring and miskey detection work", {
   expect_error(distractor_analysis(rasch(fit$X)), "no key")
 })
 
-test_that("dimensionality: 10-component PCA, scree, manual subsets, exact CI", {
+test_that("dimensionality: 10-component PCA, scree and manual subsets", {
   set.seed(2); Np <- 1200; L <- 16
   d <- scale(seq(-2, 2, length.out = L), scale = FALSE)[, 1]
   thA <- rnorm(Np, 0, 1.4); thB <- 0.3 * thA + sqrt(1 - 0.3^2) * rnorm(Np, 0, 1.4)
@@ -234,7 +272,7 @@ test_that("dimensionality: 10-component PCA, scree, manual subsets, exact CI", {
   et <- plot_scree(fit)
   expect_equal(nrow(et), 10)
 
-  # default split detects the planted second dimension; exact CI fields present
+  # default split detects the planted second dimension; binomial CI fields present
   dt <- dimensionality_test(fit, min_score_points = 2)
   expect_true(is.na(dt$multidimensional))
   expect_true(dt$binomial_multidimensional)
@@ -258,6 +296,21 @@ test_that("dimensionality: 10-component PCA, scree, manual subsets, exact CI", {
   expect_error(dimensionality_test(fit, items_positive = c("D01", "ZZ"),
                                    items_negative = c("D03", "D04")),
                "not in the fit")
+  expect_error(dimensionality_test(
+    fit, items_positive = matrix(c("D01", "D02"), nrow = 1L),
+    items_negative = c("D03", "D04")),
+    "ordinary vector")
+  expect_error(dimensionality_test(
+    fit, items_positive = c("D01", NA_character_),
+    items_negative = c("D03", "D04")),
+    "ordinary vector")
+  expect_error(combine_items(
+    fit, list(matrix(c("D01", "D02"), nrow = 1L))),
+    "ordinary vector")
+  expect_error(dimensionality_magnitude(
+    fit, list(matrix(sprintf("D%02d", 1:8), nrow = 1L),
+              sprintf("D%02d", 9:16))),
+    "ordinary vector")
 })
 
 test_that("compare_fits contrasts nested models on the same data", {
@@ -286,6 +339,12 @@ test_that("compare_fits contrasts nested models on the same data", {
   expect_true(is.na(cmp2$two_delta_ll[2]))
   expect_true(all(is.finite(cmp2$chisq_per_df)))
   expect_error(compare_fits(pcm), "at least two")
+
+  no_df <- pcm
+  no_df$total_df <- 0L
+  no_df$total_chisq <- 0
+  cmp3 <- compare_fits(valid = pcm, unavailable = no_df)
+  expect_true(is.na(cmp3$chisq_per_df[2L]))
 })
 
 test_that("maxit and tol are honoured by the estimators", {
@@ -393,6 +452,36 @@ test_that("item and anchor indices are validated, not truncated", {
   expect_error(rasch(X, tol = 0), "positive")
 })
 
+test_that("anchor table columns cannot hide matrices", {
+  set.seed(731)
+  X <- matrix(rbinom(120 * 4, 1, 0.5), 120, 4,
+              dimnames = list(NULL, paste0("I", 1:4)))
+  shaped <- function(column, value) {
+    a <- data.frame(item = "I1", k = 1, tau = 0)
+    a[[column]] <- I(matrix(value, nrow = 1L))
+    a
+  }
+  for (fun in list(pcml, rasch)) {
+    expect_error(fun(X, anchors = shaped("item", "I1")), "anchor `item`")
+    expect_error(fun(X, anchors = shaped("k", 1)), "anchor `k`")
+    expect_error(fun(X, anchors = shaped("tau", 0)), "anchor `tau`")
+    expect_error(fun(X, anchors = shaped("average", TRUE)), "average")
+  }
+})
+
+test_that("BTL anchors are a plain named vector", {
+  d <- data.frame(a = c("A", "A", "B", "B", "C", "C"),
+                  b = c("B", "C", "A", "C", "A", "B"),
+                  win = c("A", "C", "B", "B", "A", "C"))
+  shaped <- matrix(0, 1L, 1L)
+  names(shaped) <- "A"
+  expect_error(btl(d, "a", "b", "win", anchors = shaped),
+               "named numeric vector")
+  d$margin <- I(matrix(rep(1, nrow(d)), ncol = 1L))
+  expect_error(btl(d, "a", "b", "win", margin = "margin"),
+               "margin")
+})
+
 test_that("duplicate named mappings are refused", {
   set.seed(34)
   d <- simulate_btl(n_objects = 6, n_judges = 20, reps_per_pair = 4)
@@ -440,6 +529,19 @@ test_that("pooled MFRM items flow through DIF follow-ups", {
   mf <- rasch_mfrm(dm, person = "person", item = "item", score = "score",
                    facets = "rater",
                    factors = data.frame(g = rep(c("x", "y"), length.out = 200)))
+  old_split <- rasch:::split_items
+  bad_covariance <- testthat::with_mocked_bindings(
+    dif_size(mf, "I2", by = "g"),
+    split_items = function(...) {
+      z <- old_split(...)
+      z$est$cov_tau[1L, 1L] <- -1e6
+      z
+    },
+    .package = "rasch")
+  expect_true(all(is.na(bad_covariance$levels$location)))
+  expect_true(all(is.na(bad_covariance$pairs$difference)))
+  expect_match(paste(bad_covariance$notes, collapse = " "),
+               "pooling weights")
   dc <- dif_contrasts(mf, items = "I2")
   expect_identical(unique(dc$table$item), "I2")
   dc_all <- dif_contrasts(mf)
@@ -456,12 +558,93 @@ test_that("matrix items selection validates and subsets", {
                    c("I2", "I3", "I4"))
   expect_error(pcml(X, anchors = data.frame(item = 1.9, k = 1, tau = 0)),
                "whole numbers")
+  expect_error(pcml(X, anchors = data.frame(item = 1, k = 1.5, tau = 0)),
+               "positive whole threshold")
+  expect_error(pcml(X, anchors = data.frame(item = "I1", k = NaN, tau = 0)),
+               "positive whole threshold")
+  expect_error(rasch(X, anchors = data.frame(item = "I1", k = NaN, tau = 0)),
+               "positive whole threshold")
+  expect_error(rasch(X, anchors = data.frame(item = "I1", k = Inf, tau = 0)),
+               "positive whole threshold")
+  expect_error(pcml(X, anchors = data.frame(item = "I1", k = 1,
+                                             tau = "zero")),
+               "finite numeric")
   expect_error(pcml(X, maxit = 5.5), "iteration cap")
   expect_error(pcml_pc(X, tol = 0), "tolerance")
   expect_error(pcml(X, maxit = .Machine$integer.max + 1), "iteration cap")
   expect_error(residual_pca(suppressWarnings(rasch(X)),
                             n_components = .Machine$integer.max + 1),
                "integer range")
+})
+
+test_that("Wald ratios withhold zero without depending on coefficient scale", {
+  z <- .wald_ratio(c(1, 0, 2, NA), c(0, 0, 0.5, 1))
+  expect_true(all(is.na(z[1:2])))
+  expect_equal(z[3], 4)
+  expect_true(is.na(z[4]))
+  expect_equal(.wald_ratio(1e9, 1), 1e9)
+  expect_equal(.wald_ratio(1, 1e-12), 1e12)
+  expect_equal(.wald_ratio(1e9, 1) / .wald_ratio(1, 1e-9), 1)
+  expect_error(.wald_ratio(1:2, 1:3), "incompatible lengths")
+})
+
+test_that("inverse-variance link weights have no absolute numerical floor", {
+  v <- c(1, 4, 9) * 1e-20
+  expect_equal(.inverse_variance_weights(v), c(1, 1 / 4, 1 / 9))
+  expect_equal(.inverse_variance_weights(v * 1e18),
+               .inverse_variance_weights(v))
+  expect_equal(.inverse_variance_weights(c(0, 0, 1)), c(1, 1, 0))
+})
+
+test_that("equating withholds drift tests with zero contrast uncertainty", {
+  set.seed(221)
+  X <- matrix(rbinom(800 * 6, 1, 0.5), 800, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  f <- rasch(X)
+  f$est$cov_tau[,] <- 0
+  f$items$se <- 0
+  eq <- equate_tests(f, f, independent = TRUE)
+  expect_false(eq$inferential)
+  expect_true(all(is.na(eq$table$t)))
+  expect_true(all(is.na(eq$table$p_adj)))
+  expect_match(eq$note, "zero contrast uncertainty")
+
+  d <- simulate_btl(n_objects = 6, n_judges = 30,
+                    reps_per_pair = 20, seed = 222)
+  bt <- btl(d, "object_a", "object_b", "winner", judge = "judge")
+  bt$cov_beta[,] <- 0
+  bt$objects$se <- 0
+  be <- btl_equate(bt, bt, independent = TRUE)
+  expect_false(be$inferential)
+  expect_true(all(is.na(be$table$t)))
+  expect_true(all(is.na(be$table$p_adj)))
+  expect_match(paste(be$notes, collapse = " "),
+               "zero contrast uncertainty")
+})
+
+test_that("DIF identifiers keep every unknown row distinct", {
+  expect_identical(.role_text_values(c(1, NaN, 2)), c("1", NA, "2"))
+  expect_true(.same_role_values(c(1, NaN), c("1", NA)))
+  expect_false(.same_role_values(c(1, NaN), c("1", "NaN")))
+  expect_identical(.factor_keys(data.frame(x = NaN)), "N;")
+  zn <- .dif_ids(c(1, 1, NA_real_, NA_real_, NaN))
+  expect_identical(zn[1:2], c("1", "1"))
+  expect_length(unique(zn[3:5]), 3L)
+  expect_false(any(zn[3:5] %in% zn[1:2]))
+  zc <- .dif_ids(c("P1", "P1", NA, "", "  "))
+  expect_identical(zc[1:2], c("1", "1"))
+  expect_length(unique(zc[3:5]), 3L)
+  expect_false(any(zc[3:5] %in% zc[1:2]))
+})
+
+test_that("numeric NaN judges are missing rather than a shared judge level", {
+  d <- simulate_btl(n_objects = 5, n_judges = 12,
+                    reps_per_pair = 12, seed = 223)
+  d$judge_number <- as.numeric(sub("^J", "", d$judge))
+  d$judge_number[1:2] <- NaN
+  f <- btl(d, "object_a", "object_b", "winner", judge = "judge_number")
+  expect_false(any(f$comparisons$judge == "NaN", na.rm = TRUE))
+  expect_equal(f$n_comparisons, nrow(d) - 2L)
 })
 
 test_that("every estimator validates its controls and coercions", {
@@ -694,6 +877,10 @@ test_that("utility boundaries from the eighth review round hold", {
   db <- simulate_btl(n_objects = 5, n_judges = 16, reps_per_pair = 3)
   f6 <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
   expect_error(judge_surprise(f6, c("J1", "J2")), "one judge")
+  expect_error(judge_surprise(f6, data.frame(judge = c("J1", "J2"))),
+               "one judge")
+  expect_error(judge_pair_surprise(
+    f6, data.frame(judge = c("J1", "J2"))), "one judge")
   expect_error(btl_next_pairs(f6, weight_se = NA), "TRUE or FALSE")
   expect_error(threshold_index(numeric(0)), "at least one")
   png(tf <- tempfile(fileext = ".png"))
@@ -741,6 +928,8 @@ test_that("compare_fits validates character references helpfully", {
                "one fit name")
   expect_error(compare_fits(a = fd, b = fb, reference = c("a", "b")),
                "one fit name")
+  expect_error(compare_fits(a = fd, b = fb, reference = matrix("a")),
+               "one fit name")
 })
 
 test_that("the tenth review round's boundaries hold", {
@@ -784,6 +973,10 @@ test_that("equating displays use paired-finite rows and n_common", {
   colnames(resp) <- paste0("Q", 1:3)
   fmc <- suppressWarnings(rasch(resp, key = c(Q1 = "A", Q2 = "B", Q3 = "C")))
   expect_error(plot_distractors(fmc, c("Q1", "Q2")), "exactly one item")
+  expect_error(plot_distractors(fmc, matrix("Q1")), "exactly one item")
+  expect_error(distractor_analysis(fmc, matrix("Q1")), "ordinary vector")
+  expect_error(distractor_analysis(fmc, c("Q1", " Q1 ")),
+               "same keyed item")
   # the paired-missing boundary: printing survives a table with no finite
   # location pairs, reporting the correlation and RMSD as unavailable
   set.seed(121)
@@ -818,7 +1011,7 @@ test_that("duplicate and ambiguous selectors cannot alter a test family", {
                "more than once")
   expect_error(dif_size(fd, c("I1", "I2"), by = "grp"), "exactly one item")
   set.seed(132)
-  db <- simulate_btl(n_objects = 5, n_judges = 24, reps_per_pair = 3)
+  db <- simulate_btl(n_objects = 5, n_judges = 24, reps_per_pair = 20)
   fb <- btl(db, "object_a", "object_b", winner = "winner", judge = "judge")
   jl <- sort(unique(fb$comparisons$judge))
   gmap <- setNames(rep(c("x", "y"), length.out = length(jl)), jl)
@@ -828,11 +1021,33 @@ test_that("duplicate and ambiguous selectors cannot alter a test family", {
                "more than once")
   expect_error(btl_dif(fb, factors = list(g = gmap, g = gmap)),
                "duplicate factor")
+  expect_error(btl_dif(fb, factors = list(g = gmap, " " = gmap)),
+               "non-empty name")
+  expect_setequal(unique(btl_dif(
+    fb, factors = gmap, objects = " O2 ", min_n = 1)$summary$object), "O2")
   png(tf <- tempfile(fileext = ".png"))
   on.exit({dev.off(); unlink(tf)}, add = TRUE)
   expect_error(plot_item_map(fd, band = -2.5), "positive finite")
   expect_error(plot_pimap(fd, information = NA), "TRUE or FALSE")
   expect_error(plot_scree(fd, parallel = NA), "TRUE or FALSE")
+  expect_equal(
+    test_information(fd, grid = c(-1, 0, 1), items = " I2 "),
+    test_information(fd, grid = c(-1, 0, 1), items = "I2"))
+  expect_error(test_information(
+    fd, grid = c(-1, 0, 1), items = data.frame(item = "I2")),
+    "vector of item names")
+  expect_error(test_information(
+    fd, grid = c(-1, 0, 1), items = matrix(2L)),
+    "vector of item names")
+  expect_error(test_information(
+    fd, grid = c(-1, 0, 1), items = c(2L, 2L)),
+    "same item")
+  expect_error(test_information(
+    fd, grid = c(-1, 0, 1), items = c("I2", " I2 ")),
+    "more than once")
+  unconverged <- fd
+  unconverged$est$converged <- FALSE
+  expect_error(test_information(unconverged), "did not converge")
 })
 
 test_that("the fourteenth round's residual boundaries hold", {
@@ -858,6 +1073,29 @@ test_that("the fourteenth round's residual boundaries hold", {
   on.exit({dev.off(); unlink(tf)}, add = TRUE)
   expect_error(plot_icc_frames(fe, it1, n_groups = 0), "whole number")
   expect_error(plot_icc_frames(fe, it1, grid = NA), "finite locations")
+})
+
+test_that("degenerate reliability and targeting summaries remain available", {
+  z <- rasch:::.psi(rep(0, 4), rep(1, 4))
+  expect_true(is.na(z$PSI))
+  expect_true(is.na(z$separation))
+  expect_equal(z$n, 4L)
+  expect_true(is.na(rasch:::.safe_cor(c(1, 2, Inf), c(1, 2, 3))))
+  expect_true(is.na(rasch:::.dist_stats(rep(2, 4))$skewness))
+
+  tg <- rasch:::.targeting(
+    data.frame(theta = c(-1, 1, Inf), extreme = c(FALSE, FALSE, FALSE)),
+    data.frame(item = c(1L, 1L, 2L), tau = c(10, 12, 20)))
+  expect_equal(tg$item_mean, mean(c(11, 20)))
+  expect_equal(tg$person_mean, 0)
+
+  X <- matrix(c(0, 1, 0, 1), ncol = 1,
+              dimnames = list(NULL, "I1"))
+  it <- rasch:::.item_trait(
+    X, list(E = matrix(0.5, 4, 1), V = matrix(c(0, 0, 0.25, 0.25), 4, 1)),
+    ci = c(1L, 1L, 2L, 2L))
+  expect_true(is.na(it$chisq))
+  expect_true(is.na(it$df))
 })
 
 test_that("factor structures are unambiguous in every input branch", {
@@ -955,7 +1193,11 @@ test_that("the seventeenth round's boundaries hold", {
   fm <- rasch_mfrm(dm, person = "person", item = "item", score = "score",
                    facets = "rater")
   expect_error(plot_facets(fm, facet = c("rater", "rater")),
-               "exactly one facet")
+               "one non-empty facet name")
+  expect_error(plot_facets(fm, facet = factor("rater")),
+               "one non-empty facet name")
+  expect_error(plot_facets(fm, facet = matrix("rater", ncol = 1L)),
+               "one non-empty facet name")
 })
 
 test_that("the eighteenth round's display controls hold", {
@@ -1002,11 +1244,26 @@ test_that("the nineteenth round's drawing grids are checked", {
                "no positive test information")
   expect_error(plot_btl_targeting(fb, grid = numeric(0)), "finite locations")
   expect_error(plot_btl_categories(fb, grid = numeric(0)), "finite locations")
+  expect_error(plot_btl_categories(list(m = 2L)), "paired-comparison")
   expect_error(plot_tif(fd, grid = 0), "finite locations")
   expect_error(plot_btl_icc(fb, fb$objects$object[1], grid = c(0, NA)),
                "finite locations")
   expect_no_error(plot_tcc(fd))
   expect_no_error(plot_btl_targeting(fb))
+})
+
+test_that("plot selectors use canonical labels and reject shaped scalars", {
+  d <- simulate_rasch(180, 6, model = "PCM", n_categories = 3, seed = 192)
+  f <- rasch(d, id = "id")
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_error(plot_ccc(f, " I01 "))
+  expect_no_error(plot_threshold_prob(f, " I01 "))
+  expect_no_error(plot_catfreq(f, " I01 "))
+  expect_error(plot_catfreq(f, matrix(1L)), "ordinary vector")
+  expect_error(chisq_detail(f, matrix(1L)), "ordinary vector")
+  expect_error(plot_pcc(f, data.frame(person = c(1, 2))),
+               "exactly one person")
 })
 
 test_that("the twentieth round's roles and identifiers hold", {
@@ -1461,10 +1718,13 @@ test_that("reports, batches and simulations refuse malformed requests", {
   expect_error(report_html(f, rp, dpi = -100), "positive finite value")
   expect_error(report_html(f, rp, dpi = c(100, 200)), "positive finite value")
   expect_error(report_html(f, rp, title = c("A", "B")), "one non-missing title")
+  expect_error(report_html(f, rp, title = matrix("A")), "one non-missing title")
   expect_error(report_html(f, c(rp, rp)), "one non-missing path")
   expect_false(file.exists(rp))
   expect_error(report_document(f, file.path(tempdir(), "g.html"),
                                title = c("A", "B")), "one non-missing title")
+  expect_error(report_document(f, file.path(tempdir(), "g.html"),
+                               title = matrix("A")), "one non-missing title")
 
   # save_outputs checks before it creates anything
   od <- file.path(tempdir(), "gapsso"); unlink(od, recursive = TRUE)
@@ -2021,8 +2281,8 @@ test_that("ties, keys, identifiers and project files are read faithfully", {
   f <- rasch(d, id = "id", factors = "grp")
   expect_length(dif_anova(f)$within, 0L)
   # the bootstrap treats each unknown identifier as its own person
-  bs <- .tailored_boot_rows(c("A", "A", NA, NA, "B"))
-  expect_equal(length(unique(bs$id)), 4L)
+  bs <- .tailored_boot_rows(c("A", "A", NA, NA, "", "  ", "B"))
+  expect_equal(length(unique(bs$id)), 6L)
 
   db2 <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3)
   db2$resp <- NA_integer_
@@ -2050,6 +2310,12 @@ test_that("unknown identifiers and blank key items do not stand in for data", {
   expect_error(rasch(resp, key = data.frame(
     item = c("Q1", NA, "Q3"), option = c("A", "A", "C"),
     score = c(1, 1, 1))), "missing or blank item name")
+  expect_error(rasch(resp, key = data.frame(
+    item = c(1, NaN, 3), option = c("A", "A", "C"),
+    score = c(1, 1, 1))), "missing or blank item name")
+  expect_error(rasch(resp, key = data.frame(
+    item = c("Q1", "Q2", "Q3"), option = c(1, NaN, 3),
+    score = c(1, 1, 1))), "missing or blank option")
   expect_equal(nrow(rasch(resp, key = data.frame(
     item = c("Q1", "Q2", "Q3"), option = c("A", "A", "C"),
     score = c(1, 1, 1)))$items), 3L)
@@ -2066,15 +2332,16 @@ test_that("unknown identifiers and blank key items do not stand in for data", {
   expect_false(any(grepl("repeat across response rows",
                          ds$notes %||% character(0))))
   expect_true(all(is.finite(ds$pairs$se)))
-  # a genuinely repeated design still withholds its Wald inference
+  # a genuinely repeated design uses person-clustered Wald inference
   dd <- data.frame(pid = rep(sprintf("P%03d", 1:200), 2),
                    t = rep(1:2, each = 200))
   set.seed(403)
   for (j in 1:6) dd[[paste0("Q", j)]] <- rbinom(400, 1, 0.5)
   st <- stack_data(dd, "pid", "t", paste0("Q", 1:6))
   fs <- rasch(st, id = "id", factors = "time", items = paste0("Q", 1:6))
-  expect_true(any(grepl("repeat across response rows",
-                        dif_size(fs, "Q2", by = "time")$notes)))
+  ds_rep <- dif_size(fs, "Q2", by = "time")
+  expect_true(all(is.finite(ds_rep$levels$se)))
+  expect_true(all(is.finite(ds_rep$pairs$se)))
 
   # a declared model type is a character scalar, not a factor code
   f0 <- rasch(X)
@@ -2275,6 +2542,9 @@ test_that("external calibration and design tables are interpreted strictly", {
   expect_error(equate_tests(f, bad), "not a calibration field")
   bad <- bank; bad$location <- complex(real = bad$location, imaginary = 1)
   expect_error(equate_tests(f, bad), "not a calibration field")
+  bad <- bank
+  bad$location <- I(matrix(rep(bad$location, 2L), nrow = nrow(bad)))
+  expect_error(equate_tests(f, bad), "not a calibration field")
   bad <- bank; bad$se <- as.character(bad$se); bad$se[1] <- "unknown"
   expect_error(equate_tests(f, bad), "non-numeric value")
   duplicate_bank <- bank
@@ -2290,6 +2560,27 @@ test_that("external calibration and design tables are interpreted strictly", {
   eq <- equate_tests(f, bank_cov)
   expect_true(eq$inferential)
   expect_equal(eq$n, nrow(bank_cov))
+
+  # Agreement between stated SEs and a bank covariance is relative to their
+  # scale. A 100% discrepancy must not disappear below an absolute floor.
+  tiny <- bank
+  tiny$se <- rep(1e-8, nrow(tiny))
+  attr(tiny, "cov_location") <- diag(rep((2e-8)^2, nrow(tiny)))
+  expect_error(equate_tests(f, tiny), "standard errors must agree")
+  attr(tiny, "cov_location") <- diag(rep((1e-8)^2, nrow(tiny)))
+  expect_no_error(equate_tests(f, tiny))
+
+  indefinite <- bank
+  indefinite$se <- rep(1e-10, nrow(indefinite))
+  Cbad <- diag(rep(1e-20, nrow(indefinite)))
+  Cbad[1, 2] <- Cbad[2, 1] <- 2e-20
+  attr(indefinite, "cov_location") <- Cbad
+  expect_error(equate_tests(f, indefinite), "positive semidefinite")
+
+  Casym <- diag(rep(1e-20, nrow(indefinite)))
+  Casym[1, 2] <- 5e-21
+  attr(indefinite, "cov_location") <- Casym
+  expect_error(equate_tests(f, indefinite), "symmetric")
 
   item_predictors <- data.frame(item = colnames(X), x = seq_len(ncol(X)))
   names(item_predictors)[2] <- "item"
@@ -2366,6 +2657,7 @@ test_that("maps and public controls cannot silently select another analysis", {
   expect_error(split_items(fit, c("I1", "I1"), by = "fac"),
                "more than once")
   expect_error(drop_items(fit, c("I1", "I1")), "more than once")
+  expect_error(drop_items(fit, matrix("I1")), "at least one non-missing")
   expect_error(dif_posthoc(fit, "I1", term = c("fac", "fac")),
                "more than once")
 
@@ -2408,6 +2700,22 @@ test_that("maps and public controls cannot silently select another analysis", {
   grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
   expect_error(plot_btl_icc(bf, "O3", group = group_map[-1]),
                "missing from the group map")
+
+  # Numeric NaN is missing metadata, not a judge group literally named NaN.
+  numeric_group <- setNames(rep(c(1, 2), length.out = length(judges)), judges)
+  numeric_group[1] <- NaN
+  nan_dif <- btl_dif(bf, numeric_group)
+  used_group <- nan_dif$bootstrap_design$factors[[1L]]
+  expect_true(anyNA(used_group))
+  expect_false(any(used_group == "NaN", na.rm = TRUE))
+  expect_no_error(plot_btl_icc(bf, "O3", group = numeric_group))
+
+  blank_group <- setNames(rep(c("A", "B"), length.out = length(judges)), judges)
+  blank_group[1] <- "   "
+  blank_dif <- btl_dif(bf, blank_group)
+  used_blank <- blank_dif$bootstrap_design$factors[[1L]]
+  expect_true(anyNA(used_blank))
+  expect_false(any(used_blank == "", na.rm = TRUE))
 })
 
 test_that("the person-item map can be restricted to a group or an item set", {
@@ -2430,6 +2738,8 @@ test_that("the person-item map can be restricted to a group or an item set", {
   expect_error(plot_pimap(f, group = "zzz"), "not a level of any fitted")
   expect_error(plot_pimap(f, items = c("I1", "NOPE")), "not in the fit")
   expect_error(plot_pimap(f, group = c("a", "b")), "exactly one person-group")
+  expect_error(plot_pimap(f, group = matrix("a")),
+               "exactly one person-group")
 
   # an extended-frame fit calibrates item-by-group cells, so a set name must
   # match through the underlying items rather than the virtual keys
@@ -2441,4 +2751,128 @@ test_that("the person-item map can be restricted to a group or an item set", {
   expect_no_error(plot_pimap(fe, items = "set1"))
   expect_no_error(plot_pimap(fe, group = "g1"))
   expect_no_error(plot_pimap(fe, group = "g1", items = "set2"))
+})
+test_that("covariance shape checks fail closed", {
+  sym <- getFromNamespace(".covariance_is_symmetric", "rasch")
+  wald <- getFromNamespace(".covariance_supports_wald", "rasch")
+
+  expect_true(sym(diag(2)))
+  expect_true(sym(matrix(numeric(0), 0, 0)))
+  expect_false(sym(1:2))
+  expect_false(sym(matrix(1:6, 2, 3)))
+  expect_false(sym(matrix(c(1, NA, NA, 1), 2)))
+  expect_false(sym(diag(2) + 0i))
+  expect_false(wald(1:2))
+  expect_false(wald(diag(2) + 0i))
+})
+
+test_that("shared scalar controls reject shaped and classed values", {
+  expect_error(.check_whole(matrix(2), "reps"), "whole number")
+  expect_error(.check_whole(structure(2, class = "units"), "reps"),
+               "whole number")
+  expect_error(.check_prob(matrix(0.05), "alpha"), "probability")
+  expect_error(.check_controls(matrix(20), 1e-8), "iteration cap")
+  expect_error(.check_controls(20, matrix(1e-8)), "tolerance")
+  expect_error(threshold_index(matrix(c(1, 2))), "maximum score")
+  expect_error(.check_grid(matrix(seq(-1, 1, length.out = 5))),
+               "strictly increasing vector")
+  expect_error(.check_band(matrix(2.5)), "half-width")
+  expect_error(.sim_count(matrix(10), "n"), "whole number")
+  expect_error(.sim_scalar(matrix(1), "effect"), "finite value")
+  expect_error(.sim_vector(matrix(1:2), "effects", 2L),
+               "plain finite numeric values")
+  expect_error(.p_adjust_family(c(0.1, 0.2), n = matrix(2)),
+               "whole number")
+  expect_false(.app_scalar_text(matrix("rasch")))
+})
+
+test_that("DIF design inputs cannot acquire dimensions silently", {
+  set.seed(2711)
+  X <- matrix(rbinom(240 * 5, 1, 0.5), 240, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  g <- rep(c("a", "b"), each = 120)
+  f <- rasch(data.frame(X, group = g), factors = "group")
+  expect_error(dif_anova(f, factors = matrix(g, ncol = 1L)),
+               "ordinary vectors")
+  expect_error(rasch(data.frame(X, group = g),
+                     factors = matrix(g, ncol = 1L)),
+               "plain vector")
+  expect_error(rasch(data.frame(X), items = matrix(c("I1", "I2"), nrow = 1L)),
+               "plain vector")
+  expect_error(rasch(data.frame(X), id = matrix(seq_len(nrow(X)), ncol = 1L)),
+               "plain vector")
+  expect_error(dif_anova(f, within = matrix("group")),
+               "ordinary vector")
+  expect_error(dif_anova(f, id = matrix(seq_len(240), ncol = 1L)),
+               "ordinary vector")
+  expect_error(dif_size(f, matrix("I1"), by = "group"),
+               "exactly one item")
+  expect_error(dif_contrasts(f, items = matrix("I1")),
+               "ordinary vector")
+  expect_error(dif_posthoc(f, matrix("I1"), term = "group"),
+               "one item")
+})
+
+test_that("EFRM item roles cannot acquire dimensions silently", {
+  d <- simulate_efrm(30, 3, seed = 733)
+  tr <- attr(d, "truth")
+  expect_error(
+    rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+               items = matrix(unlist(tr$item_sets), nrow = 1L)),
+    "plain vector")
+  expect_error(
+    rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
+               id = matrix(seq_len(nrow(d)), ncol = 1L)),
+    "plain vector")
+  shaped_set <- tr$item_sets
+  shaped_set[[1L]] <- matrix(shaped_set[[1L]], nrow = 1L)
+  expect_error(rasch_efrm(d, item_sets = shaped_set, groups = "group"),
+               "plain item-name vectors")
+  map <- matrix(rep(c("set1", "set2"), each = 3L), nrow = 1L)
+  names(map) <- unlist(tr$item_sets)
+  expect_error(rasch_efrm(d, item_sets = map, groups = "group"),
+               "item-to-set vector")
+  X <- as.matrix(d[unlist(tr$item_sets)])
+  expect_error(rasch_efrm(
+    X, item_sets = tr$item_sets,
+    groups = matrix(d$group, ncol = 1L), boot_reps = 0),
+    "plain vector")
+  expect_error(rasch_efrm(
+    X, item_sets = tr$item_sets, groups = d$group,
+    factors = matrix(rep(1:2, length.out = nrow(d)), ncol = 1L),
+    boot_reps = 0), "plain vector")
+})
+
+test_that("MFRM role selectors cannot acquire dimensions silently", {
+  d <- simulate_mfrm(12, 3, 3, seed = 734)
+  expect_error(
+    rasch_mfrm(d, person = "person", item = "item", score = "score",
+               facets = matrix("rater", 1L)),
+    "facet")
+  expect_error(
+    rasch_mfrm(d, person = "person", item = "item", score = "score",
+               facets = "rater", interaction = matrix("rater", 1L)),
+    "interaction")
+  expect_error(
+    rasch_mfrm(d, person = "person", item = "item", score = "score",
+               facets = "rater", factors = matrix("group", 1L)),
+    "plain character")
+  expect_error(
+    rasch_mfrm(d, person = "person", item = "item", score = "score",
+               facets = "rater", factors = matrix(seq_len(nrow(d)), ncol = 1L)),
+    "plain character")
+})
+
+test_that("by-value Rasch and CJ factors must be plain vectors", {
+  X <- matrix(rbinom(80 * 4, 1, 0.5), 80, 4,
+              dimnames = list(NULL, paste0("I", 1:4)))
+  expect_error(rasch(X, factors = matrix(rep(1:2, each = 40), ncol = 1L)),
+               "plain vector")
+
+  d <- simulate_btl(n_objects = 5, n_judges = 12, reps_per_pair = 3,
+                    seed = 735)
+  fit <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  expect_error(btl_dif(fit, matrix(rep(1:2, length.out = nrow(fit$comparisons)),
+                                   ncol = 1L)),
+               "plain vector")
 })

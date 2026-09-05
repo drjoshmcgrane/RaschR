@@ -552,19 +552,10 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
   if (!is_btl && !is.null((fit$refit_spec %||% list())$pc_components))
     .refuse("the conditional DIF bootstrap does not reproduce threshold ",
             "estimation through principal components")
-  if (length(B) != 1L || !is.numeric(B) || !is.finite(B) ||
-      B != floor(B) || B < 1 || B > .Machine$integer.max)
-    stop("`B` must be one whole positive number of replicates")
-  if (length(workers) != 1L || !is.numeric(workers) || !is.finite(workers) ||
-      workers != floor(workers) || workers < 1 ||
-      workers > .Machine$integer.max)
-    stop("`workers` must be one whole positive number of workers")
-  if (!is.null(seed) && (length(seed) != 1L || !is.numeric(seed) ||
-      !is.finite(seed) || seed < 0 || seed != floor(seed) ||
-      seed > .Machine$integer.max))
-    stop("`seed` must be one non-negative whole number within the integer range")
-  B <- as.integer(B)
-  workers <- min(as.integer(workers), .rasch_available_workers())
+  B <- .check_whole(B, "B", 1)
+  workers <- .check_whole(workers, "workers", 1)
+  if (!is.null(seed)) seed <- .check_whole(seed, "seed", 0)
+  workers <- min(workers, .rasch_available_workers())
 
   if (is.null(dif)) {
     if (is_btl)

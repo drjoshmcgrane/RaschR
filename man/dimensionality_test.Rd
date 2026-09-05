@@ -17,7 +17,9 @@ dimensionality_test(
 )
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}}.}
+\item{fit}{A fitted object from \code{\link{rasch}} with one response row
+per person. Repeated identifiers are refused because the person-level
+comparisons and their binomial count would not be independent.}
 
 \item{alpha}{Nominal significance level for the per-person t-tests.}
 
@@ -51,8 +53,8 @@ unit whose thresholds were estimated directly.}
 reproducible for a given seed whatever the worker count.}
 }
 \value{
-A list with the proportion of significant tests, its exact
-  confidence interval, the sample sizes (\code{n} used,
+A list with the proportion of significant tests, its
+  Clopper--Pearson confidence interval, the sample sizes (\code{n} used,
   \code{n_excluded_extreme}), the item split and its source, a
   \code{multidimensional} verdict, the corresponding uncalibrated
   \code{binomial_multidimensional} reading, a \code{caution} note when the
@@ -81,10 +83,10 @@ independent given the person location, so
 standard normal and about \code{alpha} of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
-proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval. For a split fixed in
+proportion of significant tests is reported with a Clopper--Pearson
+binomial confidence interval. For a split fixed in
 advance, a lower bound above \code{alpha} signals multidimensionality. The
-test requires a converged calibration.
+test requires a converged calibration and one response row per person.
 }
 \details{
 The binomial reading holds for a split fixed in advance. A split chosen
@@ -96,7 +98,8 @@ bootstrap calibration the data-driven split therefore has no binary verdict:
 \code{multidimensional} is \code{NA}, while the interval and uncalibrated
 binomial reading remain available descriptively. Two inferential routes
 are available. A content-based split, named through \code{items_positive}
-and \code{items_negative}, keeps the binomial reading exact. Otherwise
+and \code{items_negative}, supports the conventional fixed-split binomial
+rule without the selection induced by the residual-derived split. Otherwise
 \code{B > 0} calibrates the data-driven split by a parametric bootstrap:
 each replicate draws responses from the fitted model conditional on every
 person's raw score and missingness pattern, refits the calibration,
