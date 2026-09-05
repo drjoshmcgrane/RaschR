@@ -140,7 +140,8 @@ reference vignette for their interpretation. If the within-frame
 calibration does not converge, its standard errors and all later
 inferential probabilities are withheld. Failure of only a set link does
 not invalidate the already converged within-frame calibration or
-group-unit estimates.
+group-unit estimates, but common-unit item, frame and person uncertainty
+is withheld because it depends on that link.
 
 ## Details
 
@@ -164,10 +165,17 @@ linked pair of sets. For sets \\a\\ and \\b\\, it maximises
 \$\$\prod_n\int P(X\_{na}\mid u)P(X\_{nb}\mid ru+c)\\dF\_{g(n)}(u),\$\$
 where the masses of each observed group's \\F_g\\, the scale ratio \\r\\
 and the offset \\c\\ are estimated jointly on a fixed grid. This avoids
-prescribing a normal or common person distribution across groups. The
-conditional thresholds and group units are held fixed in this step; only
-\\r\\, \\c\\, and the nuisance masses are estimated. The linked
-parameters are then
+prescribing a normal or common person distribution across groups. A link
+whose scale or offset reaches the numerical search boundary is refused
+rather than reported as a finite estimate. So is a link whose grid
+truncates the person distribution: persons with a finite location in at
+least one set may place no more than two per cent of their posterior
+mass on the ends of the grid. Persons at the minimum or maximum score in
+both sets remain in the likelihood but do not count towards this check;
+their likelihood rises towards one end of any finite grid and carries no
+information about the link. The conditional thresholds and group units
+are held fixed in this step; only \\r\\, \\c\\, and the nuisance masses
+are estimated. The linked parameters are then
 \$\$\delta\_{ik}=\widetilde\delta\_{ik}/\alpha_s+\mu_s, \qquad
 \rho\_{sg}=\alpha_s\phi_g.\$\$ Score moments supply starting values and
 screen weak links. Response patterns must span a score range of at least

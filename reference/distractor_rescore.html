@@ -115,9 +115,10 @@ distractor and the uncredited ones.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_rescore"</code>: <code>option_scores</code>, a
   data frame (<code>item</code>, <code>option</code>, <code>score</code>) ready for
-  <code>rasch(key = )</code> and covering every observed option of the
-  examined items, and <code>evidence</code>, the distractor analysis with the
-  proposed scores and the separation z per option.</p>
+  <code>rasch(key = )</code>, covering every observed option of the examined
+  items and retaining the existing scoring of other keyed items; and
+  <code>evidence</code>, the distractor analysis with the proposed scores and
+  the separation z per option.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -140,17 +141,17 @@ distractor and the uncredited ones.</p></dd>
 <span class="r-in"><span><span class="va">pr</span> <span class="op">&lt;-</span> <span class="fu">distractor_rescore</span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">pr</span><span class="op">$</span><span class="va">option_scores</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  item option score</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M1      A     2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M1      B     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M1      A     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M1      B     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    M1      D     0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M2      A     2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M2      B     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M2      A     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M2      B     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    M2      D     0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M3      A     2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M3      B     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M3      A     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M3      B     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    M3      D     0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M4      A     2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    M4      B     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M4      A     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    M4      B     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    M4      D     0</span>
 </code></pre></div>
     </div>

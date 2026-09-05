@@ -26,8 +26,9 @@ the superitems recorded by
 [`combine_items`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md).
 The binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and
-verdict are withheld. The input calibration and the principal-components
-refit must both converge.
+verdict are withheld. When person identifiers repeat, the spread refit's
+sandwich covariance clusters the score contributions by person. The
+input calibration and the principal-components refit must both converge.
 
 ## Usage
 

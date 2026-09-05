@@ -121,11 +121,14 @@ fits also contain `thresholds`, `m`, and `categories`. Fits using
 `order` contain `dependence` and `dependence_data`; the former reports
 raw `p` and Holm-adjusted `p_adj`. A non-converged fit retains estimates
 and residual patterns for diagnosis but withholds standard errors,
-separation indices and probabilities. An undefeated or winless object is
-set aside from estimation, as an extreme person is in a Rasch
-calibration, and reported in `objects` with `extreme = TRUE` at an
-extrapolated location: the profile solution with its score moved half a
-point inside the boundary against the calibrated scale. Its standard
+separation indices and probabilities. `comparisons` contains the rows
+used by the fitted likelihood; `observed_comparisons` retains all
+otherwise usable rows before free boundary objects are set aside, for
+observed-data descriptions such as transitivity. An undefeated or
+winless object is set aside from estimation, as an extreme person is in
+a Rasch calibration, and reported in `objects` with `extreme = TRUE` at
+an extrapolated location: the profile solution with its score moved half
+a point inside the boundary against the calibrated scale. Its standard
 error and fit are withheld and the row takes no part in inference or
 equating.
 

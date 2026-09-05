@@ -75,7 +75,9 @@ dif_posthoc(
 
 - min_n:
 
-  Minimum responders required in a resolved design cell.
+  Minimum distinct responders required in a resolved design cell. When
+  identifiers repeat, response rows from one person count once within
+  each cell.
 
 ## Value
 

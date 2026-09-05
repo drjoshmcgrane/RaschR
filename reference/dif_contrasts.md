@@ -76,8 +76,9 @@ dif_contrasts(
 
 - min_n:
 
-  Cells with fewer responders to an item are dropped from that item's
-  resolution, with a note.
+  Cells with fewer distinct responders to an item are dropped from that
+  item's resolution, with a note. When identifiers repeat, response rows
+  from one person count once within each cell.
 
 ## Value
 

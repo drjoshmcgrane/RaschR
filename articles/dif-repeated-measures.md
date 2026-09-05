@@ -210,8 +210,8 @@ uses person-level differencing for within-person questions.
 dif_size(fit, "I03", by = "group")
 #> DIF size for I03 by group (resolved locations, logits)
 #>  level location    se weak   n
-#>      A   -0.518 0.129    0 320
-#>      B    0.227 0.128    0 320
+#>      A   -0.518 0.129    0 160
+#>      B    0.227 0.128    0 160
 #>  level_a level_b difference    se      z       p   p_adj  lower  upper
 #>        A       B     -0.745 0.203 -3.673 < 0.001 < 0.001 -1.143 -0.348
 #>  significant practical p_beyond_A p_beyond_A_adj ets signed_area

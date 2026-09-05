@@ -54,8 +54,10 @@ dif_size(
 
 - min_n:
 
-  Levels with fewer responders to the item are dropped (their resolved
-  locations would be too unstable to compare), with a note.
+  Levels with fewer distinct responders to the item are dropped (their
+  resolved locations would be too unstable to compare), with a note.
+  When identifiers repeat, response rows from one person count once
+  within each level.
 
 ## Value
 

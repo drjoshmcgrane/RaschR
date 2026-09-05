@@ -49,10 +49,11 @@ resolve_dif(
 
 - min_n:
 
-  Minimum responders required in every item-by-factor cell before an
-  automatic split is allowed. The omnibus DIF test determines whether a
-  split is needed; pairwise follow-ups describe where the difference
-  lies but are not a second significance gate.
+  Minimum distinct responders required in every item-by-factor cell
+  before an automatic split is allowed. Repeated response rows from one
+  person count once within a cell. The omnibus DIF test determines
+  whether a split is needed; pairwise follow-ups describe where the
+  difference lies but are not a second significance gate.
 
 - min_anchors:
 

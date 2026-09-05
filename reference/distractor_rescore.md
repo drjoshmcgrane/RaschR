@@ -44,9 +44,10 @@ distractor_rescore(fit, items = NULL, min_n = 20, z = 1.96)
 ## Value
 
 A list of class `"rasch_rescore"`: `option_scores`, a data frame
-(`item`, `option`, `score`) ready for `rasch(key = )` and covering every
-observed option of the examined items, and `evidence`, the distractor
-analysis with the proposed scores and the separation z per option.
+(`item`, `option`, `score`) ready for `rasch(key = )`, covering every
+observed option of the examined items and retaining the existing scoring
+of other keyed items; and `evidence`, the distractor analysis with the
+proposed scores and the separation z per option.
 
 ## References
 
@@ -69,16 +70,16 @@ fit <- rasch(raw, key = setNames(rep("A", 4), colnames(raw)))
 pr <- distractor_rescore(fit)
 pr$option_scores
 #>  item option score
-#>    M1      A     2
-#>    M1      B     1
+#>    M1      A     1
+#>    M1      B     0
 #>    M1      D     0
-#>    M2      A     2
-#>    M2      B     1
+#>    M2      A     1
+#>    M2      B     0
 #>    M2      D     0
-#>    M3      A     2
-#>    M3      B     1
+#>    M3      A     1
+#>    M3      B     0
 #>    M3      D     0
-#>    M4      A     2
-#>    M4      B     1
+#>    M4      A     1
+#>    M4      B     0
 #>    M4      D     0
 ```

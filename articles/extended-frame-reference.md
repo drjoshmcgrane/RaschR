@@ -80,21 +80,21 @@ fit
 #> 
 #> Item set units (alpha) and locations:
 #>   set alpha se_log_alpha     mu n_items
-#>  set1 0.840        0.042  0.081       8
-#>  set2 1.190        0.042 -0.081       8
+#>  set1 0.840        0.043  0.081       8
+#>  set2 1.190        0.043 -0.081       8
 #> 
 #> Equal-unit comparison: 2(ll_EFRM - ll_equal) = 20.620 with 1 extra unit parameter(s)
 #> (composite likelihood: descriptive; informative for group units (phi))
 #> Omnibus Wald tests of equal units (Holm-adjusted family):
 #>               term df   wald       p   p_adj significant
 #>  group units (phi)  1  7.442   0.006   0.006           *
-#>  set units (alpha)  1 17.016 < 0.001 < 0.001           *
+#>  set units (alpha)  1 16.034 < 0.001 < 0.001           *
 #> Holm-adjusted exploratory unit contrasts (H0: unit = 1):
 #>        parameter estimate    se      z       p   p_adj significant
 #>      log phi[g1]   -0.109 0.040 -2.728   0.006   0.013           *
 #>      log phi[g2]    0.109 0.040  2.728   0.006   0.013           *
-#>  log alpha[set1]   -0.174 0.042 -4.125 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.174 0.042  4.125 < 0.001 < 0.001           *
+#>  log alpha[set1]   -0.174 0.043 -4.004 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.174 0.043  4.004 < 0.001 < 0.001           *
 #> 
 #> Notes: person measures use the weighted score; per-group score curves replace the raw-score table (see score_curves); a universal raw-score conversion is not defined across the expanded frame response cells; use score_curves and design-specific information
 ```
@@ -109,18 +109,18 @@ fit$phi_table       # person-group units
 #>     g2 1.115      0.040
 fit$alpha_table     # item-set unit ratios (reference unit / set unit)
 #>   set alpha se_log_alpha
-#>  set1 0.840        0.042
-#>  set2 1.190        0.042
+#>  set1 0.840        0.043
+#>  set2 1.190        0.043
 fit$set_table       # linked set locations
 #>   set     mu alpha n_items
 #>  set1  0.081 0.840       8
 #>  set2 -0.081 1.190       8
 fit$frames          # complete frame units
 #>   set group n_persons n_items alpha   phi   rho se_log_rho origin infit_ms
-#>  set1    g1       150       8 0.840 0.897 0.754      0.063  0.081    1.031
-#>  set2    g1       150       8 1.190 0.897 1.067      0.053 -0.081    1.048
-#>  set1    g2       150       8 0.840 1.115 0.937      0.053  0.081    1.063
-#>  set2    g2       150       8 1.190 1.115 1.327      0.063 -0.081    1.012
+#>  set1    g1       150       8 0.840 0.897 0.754      0.062  0.081    1.031
+#>  set2    g1       150       8 1.190 0.897 1.067      0.056 -0.081    1.048
+#>  set1    g2       150       8 0.840 1.115 0.937      0.056  0.081    1.063
+#>  set2    g2       150       8 1.190 1.115 1.327      0.062 -0.081    1.012
 #>  outfit_ms fit_resid n_responses
 #>      0.989     0.185        1168
 #>      0.988    -0.316        1168
@@ -137,16 +137,16 @@ fit$linking         # set-linking design
 #> 
 #> $alpha_edges
 #>  set_a set_b   n log_slope converged edge_mass    loglik
-#>   set1  set2 300     0.348         1     0.009 -3522.116
+#>   set1  set2 300     0.348         1     0.000 -3522.116
 #> 
 #> $boot_reps_requested
 #> [1] 50
 #> 
 #> $boot_reps_used
-#> [1] 47
+#> [1] 50
 #> 
 #> $boot_reps_failed
-#> [1] 3
+#> [1] 0
 #> 
 #> $alpha_method
 #> [1] "finite-grid semiparametric maximum likelihood"
@@ -251,13 +251,13 @@ attempted, usable and failed counts in `full_boot_reps_*`.
 fit$efrm_vs_rasch$unit_omnibus
 #>               term df   wald       p   p_adj significant
 #>  group units (phi)  1  7.442   0.006   0.006           *
-#>  set units (alpha)  1 17.016 < 0.001 < 0.001           *
+#>  set units (alpha)  1 16.034 < 0.001 < 0.001           *
 fit$efrm_vs_rasch$unit_tests
 #>        parameter estimate    se      z       p   p_adj significant
 #>      log phi[g1]   -0.109 0.040 -2.728   0.006   0.013           *
 #>      log phi[g2]    0.109 0.040  2.728   0.006   0.013           *
-#>  log alpha[set1]   -0.174 0.042 -4.125 < 0.001 < 0.001           *
-#>  log alpha[set2]    0.174 0.042  4.125 < 0.001 < 0.001           *
+#>  log alpha[set1]   -0.174 0.043 -4.004 < 0.001 < 0.001           *
+#>  log alpha[set2]    0.174 0.043  4.004 < 0.001 < 0.001           *
 ```
 
 The omnibus Wald tests assess the set- and group-unit families. Their
