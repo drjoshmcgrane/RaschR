@@ -279,15 +279,14 @@ questions.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/dif_size.html">dif_size</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I03"</span>, by <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; DIF size for I03 by group (resolved locations, logits)</span></span>
-<span><span class="co">#&gt;  level location se weak   n</span></span>
-<span><span class="co">#&gt;      A   -0.518       0 320</span></span>
-<span><span class="co">#&gt;      B    0.227       0 320</span></span>
-<span><span class="co">#&gt;  level_a level_b difference se z p p_adj lower upper significant practical</span></span>
-<span><span class="co">#&gt;        A       B     -0.745                                        &gt;= 0.50</span></span>
-<span><span class="co">#&gt;  p_beyond_A p_beyond_A_adj  ets signed_area</span></span>
-<span><span class="co">#&gt;                            &lt;NA&gt;            </span></span>
+<span><span class="co">#&gt;  level location    se weak   n</span></span>
+<span><span class="co">#&gt;      A   -0.518 0.129    0 320</span></span>
+<span><span class="co">#&gt;      B    0.227 0.128    0 320</span></span>
+<span><span class="co">#&gt;  level_a level_b difference    se      z       p   p_adj  lower  upper</span></span>
+<span><span class="co">#&gt;        A       B     -0.745 0.203 -3.673 &lt; 0.001 &lt; 0.001 -1.143 -0.348</span></span>
+<span><span class="co">#&gt;  significant practical p_beyond_A p_beyond_A_adj ets signed_area</span></span>
+<span><span class="co">#&gt;            *   &gt;= 0.50      0.058          0.058  B-            </span></span>
 <span><span class="co">#&gt; p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits</span></span>
-<span><span class="co">#&gt; notes: person identifiers repeat across response rows: resolved point differences remain descriptive, but sampling SEs, confidence intervals and Wald tests are withheld; use dif_contrasts for person-level inference or a whole-person bootstrap</span></span>
 <span><span class="va">dc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dif_contrasts.html">dif_contrasts</a></span><span class="op">(</span><span class="va">fit</span>, items <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I03"</span>, <span class="st">"I06"</span><span class="op">)</span>, within <span class="op">=</span> <span class="st">"occasion"</span><span class="op">)</span></span>
 <span><span class="va">dc</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="co">#&gt;  item                         contrast within estimate se statistic      df</span></span>
@@ -329,11 +328,11 @@ residual contrast scores with the same design-cell weights as the
 resolved estimate. Other fitted factors are averaged equally over their
 complete cells, including when their sample sizes differ, and the
 independent between-person cells use a Welch–Satterthwaite reference.
-The resolved logit difference remains the magnitude, but its
-row-independent calibration covariance is not a repeated-measures
-standard error; the package therefore withholds the logit SE and
-interval in this case. The fitted person identifier is used unless
-<code>id</code> is supplied explicitly.</p>
+The resolved logit difference remains the magnitude. Its standard error
+uses the person-clustered calibration covariance, whereas
+<code><a href="../reference/dif_contrasts.html">dif_contrasts()</a></code> tests a nominated within-person comparison
+directly from person-level contrasts. The fitted person identifier is
+used unless <code>id</code> is supplied explicitly.</p>
 <p>For a many-facet fit, follow-ups may name the underlying item; its
 virtual facet cells are pooled with common weights so facet severity
 cancels from the group contrast. Extended-frame fits support the

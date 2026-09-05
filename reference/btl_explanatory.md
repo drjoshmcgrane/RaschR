@@ -95,9 +95,10 @@ btl_explanatory(
 
   How to treat ties in the dichotomous analysis: `"drop"` (default,
   removed with a note), `"half"` (half a win each way, a common
-  pragmatic device – flagged in the notes because the halves are not
-  independent Bernoulli trials), or `"error"`. With polytomous
-  responses, code ties as a middle category instead.
+  pragmatic device; the two halves remain one sampling unit in the
+  sandwich because they are not independent Bernoulli trials), or
+  `"error"`. With polytomous responses, code ties as a middle category
+  instead.
 
 - thresholds:
 

@@ -83,12 +83,14 @@ adjusted probabilities are returned.</p></dd>
 
 <dt id="arg-se-method">se_method<a class="anchor" aria-label="anchor" href="#arg-se-method"></a></dt>
 <dd><p><code>"conditional"</code> treats the estimated frame units as
-fixed; <code>"bootstrap"</code> refits the complete analysis to person
-resamples within frame.</p></dd>
+fixed; <code>"bootstrap"</code> refits the complete analysis to whole-person
+resamples within person group, preserving item-set response patterns.</p></dd>
 
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
-<dd><p>Number of bootstrap replicates. At least 30 are required.</p></dd>
+<dd><p>Number of bootstrap replicates. At least 30 are required.
+At least 90 per cent, and no fewer than 30, must yield the complete set
+of comparisons.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -102,9 +104,12 @@ resamples within frame.</p></dd>
   item comparisons; <code>summary</code> contains set-level RMSD and RMSE
   summaries. Under the conditional method, discrimination <code>p</code>,
   <code>p_adj</code>, and <code>flagged</code> are <code>NA</code>. <code>excluded</code> lists
-  items whose observed category structures differed between calibrations
-  or whose separate-frame estimate was weakly determined.
-  The remaining components record the multiplicity and uncertainty settings.</p>
+  items dropped or rescored by a separate calibration, whose observed
+  category structures differed between calibrations, or whose
+  separate-frame estimate was weakly determined.
+  The remaining components record the multiplicity and uncertainty settings,
+  including the declared comparison-family size <code>family_n</code>, and the
+  requested, usable, non-converged and other-failure bootstrap counts.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -125,7 +130,8 @@ table gives the difference between the two standardised infit statistics,
 divided by \(\sqrt{2}\), together with fitted slopes and their ratio.
 These quantities are descriptive under the conditional method; it does not
 report discrimination probabilities.</p>
-<p>With <code>se_method = "bootstrap"</code>, persons are resampled within frame
+<p>With <code>se_method = "bootstrap"</code>, whole person rows are resampled
+within person group, retaining each sampled row's item-set response pattern,
 and the EFRM and separate frame calibrations are refitted. Location tests
 then use the empirical covariance of the centred differences. The
 discrimination test uses the bootstrap standard error of the log slope

@@ -11,13 +11,7 @@ could ever be justified; Andrich and Marais 2019, ch. 22).
 ## Usage
 
 ``` r
-plot_threshold_prob(
-  fit,
-  item,
-  grid = seq(-6, 6, 0.05),
-  observed = FALSE,
-  n_groups = NULL
-)
+plot_threshold_prob(fit, item, grid = NULL, observed = FALSE, n_groups = NULL)
 ```
 
 ## Arguments

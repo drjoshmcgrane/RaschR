@@ -98,7 +98,7 @@ recovered in <code>facet_effects</code>).</p></dd>
 
 <dt id="arg-erratic-raters">erratic_raters<a class="anchor" aria-label="anchor" href="#arg-erratic-raters"></a></dt>
 <dd><p>Proportion of raters who rate at random (feeds the
-rater fit residual).</p></dd>
+rater fit residual). Erratic and halo raters are disjoint.</p></dd>
 
 
 <dt id="arg-interaction">interaction<a class="anchor" aria-label="anchor" href="#arg-interaction"></a></dt>
@@ -110,7 +110,8 @@ Feeds the item-by-rater interaction (fit with <code>interaction = </code>).</p><
 <dt id="arg-halo">halo<a class="anchor" aria-label="anchor" href="#arg-halo"></a></dt>
 <dd><p>Proportion of raters showing a halo effect: they rate by the
 person's overall level and barely differentiate items (feeds the rater
-fit residual and the item-by-rater interaction).</p></dd>
+fit residual and the item-by-rater interaction). Its requested count
+must fit among the non-erratic raters.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>

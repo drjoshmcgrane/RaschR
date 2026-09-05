@@ -130,7 +130,9 @@ An object of class `"rasch_btl_efrm"`. It contains the object estimates,
 group- and set-unit tables, origin shifts, omnibus unit tests,
 unit-specific judge support, frame definitions, convergence information,
 and analysis notes. `boot_reps_requested`, `boot_reps_used` and
-`boot_reps_failed` report the bootstrap accounting.
+`boot_reps_failed` report the bootstrap accounting. A non-converged fit
+retains its final estimates and residual patterns for diagnosis but
+withholds standard errors and inferential probabilities.
 
 ## Details
 

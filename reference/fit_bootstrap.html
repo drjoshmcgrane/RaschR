@@ -9,11 +9,15 @@
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate."><meta property="og:description" content="Refers fit statistics to replicated datasets fitted in the same way as the
+person locations are re-estimated in every replicate. The generator assumes
+independent response rows. A fit with repeated person IDs is therefore
+refused because this bootstrap does not reproduce within-person dependence."><meta property="og:description" content="Refers fit statistics to replicated datasets fitted in the same way as the
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+person locations are re-estimated in every replicate. The generator assumes
+independent response rows. A fit with repeated person IDs is therefore
+refused because this bootstrap does not reproduce within-person dependence."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -58,7 +62,9 @@ person locations are re-estimated in every replicate."><meta property="og:image"
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate.</p>
+person locations are re-estimated in every replicate. The generator assumes
+independent response rows. A fit with repeated person IDs is therefore
+refused because this bootstrap does not reproduce within-person dependence.</p>
     </div>
 
     <div class="section level2">

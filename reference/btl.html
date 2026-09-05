@@ -135,14 +135,18 @@ treating <code>object_a</code> as the first object in each comparison.</p></dd>
 
 <dt id="arg-anchors">anchors<a class="anchor" aria-label="anchor" href="#arg-anchors"></a></dt>
 <dd><p>Optional named numeric vector of fixed object locations.
-Anchored objects have standard error zero and must not be boundary objects.</p></dd>
+Anchored objects have standard error zero and must not be boundary objects.
+The values are treated as fixed: uncertainty from an earlier calibration
+is not included in the returned covariance or standard errors. Several
+anchors impose their stated relative spacing as well as the scale origin.</p></dd>
 
 
 <dt id="arg-ties">ties<a class="anchor" aria-label="anchor" href="#arg-ties"></a></dt>
 <dd><p>How to treat ties in the dichotomous analysis:
 <code>"drop"</code> (default, removed with a note), <code>"half"</code> (half a
-win each way, a common pragmatic device – flagged in the notes
-because the halves are not independent Bernoulli trials), or
+win each way, a common pragmatic device; the two halves remain one
+sampling unit in the sandwich because they are not independent
+Bernoulli trials), or
 <code>"error"</code>. With polytomous responses, code ties as a middle
 category instead.</p></dd>
 
@@ -170,6 +174,8 @@ threshold; <code>"pc"</code> retains only the symmetric spread component.</p></d
   <code>thresholds</code>, <code>m</code>, and <code>categories</code>. Fits using
   <code>order</code> contain <code>dependence</code> and <code>dependence_data</code>; the
   former reports raw <code>p</code> and Holm-adjusted <code>p_adj</code>.
+  A non-converged fit retains estimates and residual patterns for diagnosis
+  but withholds standard errors, separation indices and probabilities.
   An undefeated or winless object is set aside from estimation, as an
   extreme person is in a Rasch calibration, and reported in
   <code>objects</code> with <code>extreme = TRUE</code> at an extrapolated location:

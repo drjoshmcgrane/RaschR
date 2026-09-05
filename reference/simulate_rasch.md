@@ -86,24 +86,27 @@ simulate_rasch(
 
   `NULL`, or `list(items=, rho=)`: the named items load on a second
   trait whose realised sample correlation with the first is `rho`. At
-  least three persons are needed unless `rho` is -1 or 1.
+  least three persons are needed unless `rho` is -1 or 1. Each item is
+  named once.
 
 - dependence:
 
   `NULL`, or `list(pairs=, strength=)`: each pair's second item responds
   partly to the first. This departure feeds the residual-dependence
-  diagnostics.
+  diagnostics. Each directed pair is listed once.
 
 - dif:
 
   `NULL`, or `list(items=, uniform=, nonuniform=)`: the named items
   function differently for the last person group: a location shift
   (`uniform`) and/or a slope change (`nonuniform`). Needs
-  `n_groups >= 2`.
+  `n_groups >= 2`; each item is named once.
 
 - careless:
 
-  Proportion of persons who answer at random.
+  Proportion of persons who answer at random. Careless and
+  response-style assignments are disjoint; their requested counts must
+  fit.
 
 - response_style:
 
@@ -115,7 +118,8 @@ simulate_rasch(
 - speeded:
 
   Proportion not reached at the last item: a growing tail of missing
-  responses over the final items.
+  responses over the final items. These cells are kept distinct from any
+  completely-at-random missing cells.
 
 - disordered:
 
@@ -129,7 +133,9 @@ simulate_rasch(
 
 - missing:
 
-  Proportion of responses set missing (completely at random).
+  Proportion of responses set missing completely at random, drawn from
+  cells not already missing through speededness. The requested count
+  must fit among those cells and leave at least one observed response.
 
 - seed:
 

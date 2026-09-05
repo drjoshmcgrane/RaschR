@@ -75,7 +75,8 @@ simulate_efrm(
 - missing:
 
   Proportion of response cells set missing completely at random after
-  the responses are generated.
+  the responses are generated. It must leave at least one observed
+  response.
 
 ## Value
 

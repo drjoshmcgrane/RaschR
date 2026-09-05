@@ -148,13 +148,13 @@ head(departures)
 #>    I8 Item location                1    -0.141              4.539  1 0.283     
 #>    I5 Item location                1    -0.041              0.422  1 0.746     
 #>    I2 Item location                1    -0.037              0.353  1 0.767     
-#>  p_adj
-#>  1.000
-#>  1.000
-#>  1.000
-#>  1.000
-#>  1.000
-#>  1.000
+#>  converged p_adj
+#>          * 1.000
+#>          * 1.000
+#>          * 1.000
+#>          * 1.000
+#>          * 1.000
+#>          * 1.000
 ```
 
 An item-location departure moves all thresholds of an item together. A

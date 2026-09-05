@@ -14,7 +14,9 @@ otherwise, so each threshold yields \\\hat d_k =
 \\\hat d\\ is their mean (eq. 24.7 of Andrich and Marais 2019). The
 resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \\\hat d\\ is
-calculated from their full sandwich covariance.
+calculated from their full sandwich covariance. If that covariance is
+unavailable or not positive semidefinite, the point estimate is retained
+as a descriptive magnitude and Wald inference is withheld.
 
 ## Usage
 

@@ -28,8 +28,9 @@ btl_next_pairs(fit, n = 10, weight_se = TRUE)
   If `TRUE` (the default), rank pairs by their one-step reduction in
   total location variance. When the fit has no covariance, the fallback
   priority is expected information multiplied by the sum of the two
-  squared standard errors. If `FALSE`, rank pairs by expected
-  information alone.
+  squared standard errors. A stored covariance that is invalid or cannot
+  be aligned with the objects is refused. If `FALSE`, rank pairs by
+  expected information alone.
 
 ## Value
 

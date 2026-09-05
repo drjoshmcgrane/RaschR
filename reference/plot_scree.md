@@ -36,7 +36,10 @@ plot_scree(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md). A
+  simulated reference requires one response row per person; with
+  repeated identifiers, use `parallel = FALSE` to display the observed
+  eigenvalues alone.
 
 - n_components:
 

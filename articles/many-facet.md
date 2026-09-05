@@ -37,7 +37,7 @@ fit <- rasch_mfrm(d, person = "person", item = "item", score = "score",
 fit
 #> rasch multiple ratings analysis: 4 items x 5 rater level(s) = 20 response cells, 60 persons
 #> Pairwise conditional ML: converged in 7 iterations
-#> PSI 0.923, power of fit: excellent
+#> PSI 0.923, separation quality: excellent
 #> 
 #> Facet 'rater' severities (logits):
 #>  level severity    se   n fit_resid

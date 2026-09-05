@@ -40,8 +40,11 @@ rasch(
 
 - id:
 
-  Optional name of an ID column in `data`, or a vector of IDs; carried
-  through to the person estimates.
+  Optional name of an ID column in `data`, or a vector of IDs. Repeated
+  values cluster the item-parameter sandwich covariance and define the
+  person unit in repeated-measures DIF. The ordinary item-fit reference
+  distributions are row-based, so their probabilities are withheld when
+  an ID occurs on more than one response row.
 
 - factors:
 
@@ -69,6 +72,8 @@ rasch(
   anchoring; see
   [`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md).
   Column names must be unique. Anchors determine the scale origin.
+  Anchor values are treated as fixed, so their uncertainty is not
+  included in the fitted standard errors.
 
 - na_codes:
 
@@ -104,7 +109,9 @@ reliability, targeting, item-trait statistics, threshold diagnostics,
 and estimation details. The component `summary_stats` contains the
 distribution summaries, fit-location correlations, and the cell
 degrees-of-freedom factor. The item summary carries a `disc` column
-described below.
+described below. If estimation does not converge, locations and residual
+patterns are retained for diagnosis, but standard errors, separation
+indices and inferential probabilities are `NA`.
 
 ## Details
 
@@ -161,7 +168,11 @@ diagnostics. Each adjustment retains the full item family when one
 probability is unavailable.
 [`fit_bootstrap`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
 re-estimates every replicate and should be used for item-level inference
-where it is available.
+where it is available. With repeated IDs, the ordinary asymptotic
+probabilities are withheld and
+[`fit_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+is unavailable because neither reference models within-person
+dependence; the residuals and fit statistics remain descriptive.
 
 ## References
 

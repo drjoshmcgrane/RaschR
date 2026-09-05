@@ -31,9 +31,9 @@ btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
   rows (or named by object), unless the bank is treated as fixed with
   zero SEs. A bank whose covariance was estimated from a finite number
   of independent sampling units may carry their residual degrees of
-  freedom in `attr(fit2, "df_location")`. For a polytomous fit the bank
-  must carry `attr(bank, "m")` matching the number of fitted score
-  steps.
+  freedom in `attr(fit2, "df_location")` as one positive numeric value.
+  For a polytomous fit the bank must carry `attr(bank, "m")` matching
+  the number of fitted score steps.
 
 - alpha:
 
@@ -64,7 +64,9 @@ estimated `shift`, its `shift_method` and `shift_se`; `equated`, the
 second calibration's full object table re-expressed on `fit1`'s scale;
 the number of common objects `n_common`; the number usable for inference
 `n_inference`; whether inference was available `inferential`; `alpha`;
-`p_adjust`; and `notes`.
+`p_adjust`; and `notes`. A drift probability is withheld when its
+contrast has zero estimated uncertainty. Such an object remains in the
+multiplicity family.
 
 ## Details
 
@@ -77,9 +79,13 @@ returned as a descriptive fallback and recorded in `shift_method`. Each
 object is tested using its shifted difference \\d_j-\hat s\\. The
 covariance calculation retains the dependence induced by the sum-zero
 constraints. Drift tests require independent calibrations and at least
-three common objects with usable covariance information. Two common
-objects identify a descriptive origin shift, but do not support an
-object-drift test.
+three common objects with usable, positive-semidefinite covariance
+information. Two common objects identify a descriptive origin shift, but
+do not support an object-drift test. A judge-clustered ordinary BTL
+covariance, or a BTL–EFRM covariance from the judge bootstrap, uses
+finite judge-cluster degrees of freedom. A conditional or
+comparison-level parametric-bootstrap BTL–EFRM covariance uses the
+asymptotic normal reference instead.
 
 The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and

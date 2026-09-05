@@ -137,8 +137,10 @@ dropped from its resolution, with a note.</p></dd>
   support for both sides, SE, t, degrees of
   freedom, adjusted p, significance and practical flags); <code>effects</code>,
   <code>factors</code>, <code>alpha</code>, <code>p_adjust</code>, <code>flag_logits</code>, and
-  <code>notes</code>. <code>summary_factors</code> retains the factor membership of
-  each displayed term.</p>
+  <code>notes</code>. <code>size_family_n</code> records the complete planned
+  resolved-contrast family, including unavailable comparisons.
+  <code>summary_factors</code> retains the factor membership of each displayed
+  term.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -174,7 +176,9 @@ remaining objects. With DIF in several objects, this can induce compensating
 apparent DIF in invariant objects (Andrich and Hagquist 2012, 2015).
 An externally anchored object is not resolved: fixing each of its copies at
 the same anchor would define their difference as zero. Anchors on the other
-objects are retained in the joint refit.</p>
+objects are retained in the joint refit. If a resolved-location covariance
+is unavailable or not positive semidefinite, the locations and differences
+remain descriptive but their uncertainty and tests are withheld.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -211,7 +215,7 @@ objects are retained in the joint refit.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  nonuniform_DIF</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Resolved locations (logits; holm over 1 comparison(s); practical 0.50)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Resolved locations (logits; holm over 1 planned comparison(s); practical 0.50)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  object  term level_a level_b difference n_judges_a n_judges_b</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       C group      g2      g1     -1.121         10         10</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  effective_judges_a effective_judges_b    se      t     df   p_adj significant</span>

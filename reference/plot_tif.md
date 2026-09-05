@@ -6,7 +6,7 @@ measurement overlaid on a second axis.
 ## Usage
 
 ``` r
-plot_tif(fit, grid = seq(-6, 6, 0.05))
+plot_tif(fit, grid = NULL)
 ```
 
 ## Arguments

@@ -186,20 +186,20 @@ head(departures, 10)
 #>    S2DoCurse Threshold structure                1     0.224             33.596
 #>  S1WantCurse Threshold structure                1     0.218             30.708
 #>  S4WantCurse Threshold structure                1     0.196             26.631
-#>    S4DoScold       Item location                1    -0.246             19.167
 #>  S4WantScold       Item location                1     0.246             19.167
+#>    S4DoScold       Item location                1    -0.246             19.167
 #>  S3WantCurse Threshold structure                1     0.160             16.779
-#>  df     p weak p_adj
-#>   1 0.030      1.000
-#>   1 0.045      1.000
-#>   1 0.042      1.000
-#>   1 0.110      1.000
-#>   1 0.112      1.000
-#>   1 0.105      1.000
-#>   1 0.123      1.000
-#>   1 0.051      1.000
-#>   1 0.051      1.000
-#>   1 0.249      1.000
+#>  df     p weak converged p_adj
+#>   1 0.030              * 1.000
+#>   1 0.045              * 1.000
+#>   1 0.042              * 1.000
+#>   1 0.110              * 1.000
+#>   1 0.112              * 1.000
+#>   1 0.105              * 1.000
+#>   1 0.123              * 1.000
+#>   1 0.051              * 1.000
+#>   1 0.051              * 1.000
+#>   1 0.249              * 1.000
 sum(departures$p_adj < .05, na.rm = TRUE)
 #> [1] 0
 ```

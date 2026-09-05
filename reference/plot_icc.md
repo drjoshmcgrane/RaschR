@@ -17,7 +17,7 @@ plot_icc(
   item,
   group = NULL,
   n_groups = NULL,
-  grid = seq(-5, 5, 0.05),
+  grid = NULL,
   observed = TRUE
 )
 ```

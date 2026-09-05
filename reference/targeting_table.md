@@ -6,7 +6,9 @@ two-column table suitable for saving and reporting. MFRM and EFRM fits
 describe item-by-facet or item-by-frame response cells rather than
 additional items. Coefficient alpha is not applicable when an item has
 several response cells; it is retained for the one-cell-per-item
-reduction.
+reduction. Item separation excludes wholly fixed item locations in an
+anchored calibration. A targeting summary requires a converged
+calibration and, for EFRM, a converged set-unit link.
 
 ## Usage
 

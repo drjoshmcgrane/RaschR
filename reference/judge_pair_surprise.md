@@ -5,10 +5,10 @@ The comparison-level companion of
 Each pair the judge met is oriented to its stronger object (higher
 consensus location) and given a standardised residual: `z < 0` means the
 stronger object won less than its lead predicts – the judge backed the
-underdog. A matchup is an unexpected judgement when `z` falls at or
-below `-flag_z` and the pair was seen at least `min_n` times, i.e. the
-judge favoured the weaker object further than sampling noise explains.
-The fitted model must have converged.
+underdog. Approximate two-sided normal probabilities are adjusted by
+Holm across matchups meeting `min_n`. A surprise is an eligible matchup
+with a negative residual whose adjusted probability passes the level
+represented by `flag_z`. The fitted model must have converged.
 
 ## Usage
 
@@ -34,14 +34,17 @@ judge_pair_surprise(fit, judge, min_n = 1L, flag_z = 1.96)
 
 - flag_z:
 
-  Absolute residual at or beyond which an upset is flagged.
+  Absolute normal-residual threshold defining the familywise flagging
+  level; 1.96 corresponds to an adjusted two-sided probability of
+  approximately 0.05.
 
 ## Value
 
 A list of class `"rasch_btl_judge_pairs"`: `pairs` (per matchup: the
 stronger and weaker object and their locations, the location `gap`,
-times met `n`, residual `z`, the `net_winner`, and the `surprise` flag);
-`all_locations`; the `judge` and settings.
+times met `n`, residual `z`, approximate `p`, Holm-adjusted `p_adj`, the
+`net_winner`, and the `surprise` flag); `all_locations`; the `judge` and
+settings.
 
 ## Examples
 
@@ -53,6 +56,5 @@ d$judge <- sample(paste0("J", 1:5), nrow(d), TRUE)
 d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]), d$a, d$b)
 judge_pair_surprise(btl(d, "a", "b", "win", judge = "judge"), "J1")
 #> Judge J1: 40 comparisons over 15 matchups
-#> Unexpected judgements (weaker object favoured beyond its lead):
-#>   F vs C  (gap 2.12, z = -2.89, upset)
+#> No matchup went against the consensus beyond noise.
 ```

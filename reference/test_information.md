@@ -13,7 +13,7 @@ mutually exclusive designs remain separate.
 ## Usage
 
 ``` r
-test_information(fit, grid = seq(-6, 6, by = 0.1), items = NULL)
+test_information(fit, grid = NULL, items = NULL)
 ```
 
 ## Arguments
@@ -46,7 +46,10 @@ error of measurement are \$\$I(\theta)=\sum\_{i\in\mathcal A}d_i^2
 \operatorname{Var}(X_i\mid\theta),\qquad
 \operatorname{SEM}(\theta)=I(\theta)^{-1/2},\$\$ where \\d_i\\ is the
 frame unit or discrimination multiplier. For an ordinary Rasch fit,
-\\d_i=1\\.
+\\d_i=1\\. Information is returned only for a converged calibration.
+Comparative Judgement designs use
+[`btl_information`](https://drjoshmcgrane.github.io/rasch/reference/btl_information.md)
+instead.
 
 ## References
 

@@ -136,20 +136,28 @@ reported as `boot_reps_requested`, `boot_reps_used` and
 attempted, usable and failed counts are retained separately in the
 corresponding `full_boot_reps_*` components, including when the fit
 falls back to hybrid standard errors. See the extended frame of
-reference vignette for their interpretation.
+reference vignette for their interpretation. If the within-frame
+calibration does not converge, its standard errors and all later
+inferential probabilities are withheld. Failure of only a set link does
+not invalidate the already converged within-frame calibration or
+group-unit estimates.
 
 ## Details
 
 The partial credit model holds within each frame in its natural unit.
 \\\phi_g\\ and \\\alpha_s\\ are unit *ratios* in the sense of Humphry
-and Andrich (2008, eq. 15) — each is the reference unit over the frame's
-own unit, against a reference level fixed at one, so a value above one
-means a finer natural unit and steeper curves on the common scale.
-Person-group ratios \\\phi_g\\ are identified from common item
-thresholds across groups. Item sets partition the items, so set ratios
-\\\alpha_s\\ are identified instead from persons observed in more than
-one set. The set-linking graph and the group-by-set frame graph must
-each connect to a common scale.
+and Andrich (2008, eq. 15): each is the common reference unit over the
+frame's own unit. The identification constraints set the geometric mean
+of the group units and of the set units to one; no observed group or set
+is the reference level. A value above one therefore denotes a finer
+natural unit than the corresponding geometric-mean unit and steeper
+curves on the common scale. Ratios between two observed levels are
+obtained directly, for example as \\\alpha_s/\alpha_t\\. Person-group
+ratios \\\phi_g\\ are identified from common item thresholds across
+groups. Item sets partition the items, so set ratios \\\alpha_s\\ are
+identified instead from persons observed in more than one set. The
+set-linking graph and the group-by-set frame graph must each connect to
+a common scale.
 
 Set units use a semiparametric likelihood for persons observed in each
 linked pair of sets. For sets \\a\\ and \\b\\, it maximises

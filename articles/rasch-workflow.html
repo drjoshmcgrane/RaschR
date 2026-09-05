@@ -138,15 +138,14 @@ zero.</p>
 <h2 id="overall-summary-and-reliability">Overall summary and reliability<a class="anchor" aria-label="anchor" href="#overall-summary-and-reliability"></a>
 </h2>
 <p>The summary establishes whether estimation converged and gives the
-overall item–trait interaction, reliability, and the package’s
-qualitative assessment of the power of fit tests. It should be read
-before individual item or person results.</p>
+overall item–trait interaction and reliability. It should be read before
+individual item or person results.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span></span>
 <span><span class="co">#&gt; rasch PCM analysis: 12 items, 600 persons</span></span>
 <span><span class="co">#&gt; Pairwise conditional ML (Zwinderman): converged in 5 iterations</span></span>
-<span><span class="co">#&gt; PSI 0.851 (no extremes 0.851), item SI 0.995, alpha 0.855, power of fit: good</span></span>
-<span><span class="co">#&gt; Approximate asymptotic total item-trait chi-square 101.760 on 108 df, p = 0.651</span></span></code></pre></div>
+<span><span class="co">#&gt; PSI 0.851 (no extremes 0.851), item SI 0.995, alpha 0.855, separation quality: good</span></span>
+<span><span class="co">#&gt; Approximate asymptotic total item-trait chi-square 99.853 on 108 df, p = 0.700</span></span></code></pre></div>
 <p>The person separation index (PSI) compares the observed variance of
 person locations with their mean error variance:</p>
 <p><span class="math display">\[
@@ -160,16 +159,14 @@ person locations with their mean error variance:</p>
 useful when extremes inflate the observed spread. The separation ratio
 and number of strata express the same information on more interpretable
 scales.</p>
-<p>The power label is a screening judgement based on PSI, not a formal
-power calculation. Low reliability weakens the ordering of persons and
-the formation of distinct class intervals, so item–trait and DIF tests
-may fail to detect real departures. Power also depends on sample size,
-test length, targeting, category use, and trait spread. Conversely, a
-large sample can make a small departure statistically significant. Here
-the PSI is 0.85, which the package classifies as good; weak separation
-is therefore not an immediate explanation for a quiet fit test. Fit
-residuals, effect sizes, plots, and substantive importance remain
-necessary.</p>
+<p>The package describes the PSI in broad bands of separation quality.
+Here the PSI is 0.85, classified as good. This is not the statistical
+power of a fit test. Fit-test sensitivity also depends on sample size,
+test length, targeting, category use, trait spread, the test statistic
+and the departure being tested. Low reliability can weaken the ordering
+of persons and the formation of class intervals, whereas a large sample
+can make a small departure statistically significant. Fit residuals,
+effect sizes, plots and substantive importance remain necessary.</p>
 </div>
 <div class="section level2">
 <h2 id="item-estimates-fit-and-thresholds">Item estimates, fit, and thresholds<a class="anchor" aria-label="anchor" href="#item-estimates-fit-and-thresholds"></a>
@@ -193,12 +190,12 @@ than a separate hypothesis test, and its meaning moves with <span class="math in
 <span>  <span class="st">"item"</span>, <span class="st">"location"</span>, <span class="st">"se"</span>, <span class="st">"fit_resid"</span>, <span class="st">"p_adj"</span></span>
 <span><span class="op">)</span><span class="op">]</span>, <span class="fl">6</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  item location    se fit_resid p_adj</span></span>
-<span><span class="co">#&gt;   I02   -1.246 0.079     1.548 1.000</span></span>
-<span><span class="co">#&gt;   I07    0.077 0.057     1.501 1.000</span></span>
-<span><span class="co">#&gt;   I06   -0.143 0.059     1.394 1.000</span></span>
-<span><span class="co">#&gt;   I01   -1.604 0.106    -1.103 1.000</span></span>
-<span><span class="co">#&gt;   I05   -0.509 0.059    -0.685 1.000</span></span>
-<span><span class="co">#&gt;   I04   -0.719 0.072    -0.335 1.000</span></span></code></pre></div>
+<span><span class="co">#&gt;   I02   -1.244 0.079     1.482 1.000</span></span>
+<span><span class="co">#&gt;   I07    0.072 0.056     1.477 1.000</span></span>
+<span><span class="co">#&gt;   I06   -0.147 0.058     1.297 1.000</span></span>
+<span><span class="co">#&gt;   I01   -1.605 0.106    -1.121 1.000</span></span>
+<span><span class="co">#&gt;   I05   -0.511 0.059    -0.725 1.000</span></span>
+<span><span class="co">#&gt;   I09    0.685 0.061    -0.346 1.000</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_item_map.html">plot_item_map</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/item-fit-plot-1.png" class="r-plt" alt="Item locations plotted against item fit residuals." width="672"></p>
@@ -208,20 +205,26 @@ under the fitted model and repeats the calibration. The default
 conditions on each observed raw score and missingness pattern. Use the
 adjusted bootstrap probabilities for item decisions; 999 replicates is a
 reasonable minimum for a final analysis, and a larger value may be
-needed when there are many items. Report <code>B_used</code>,
-<code>B_nonconverged</code>, and <code>B_errors</code>. A sparse
-polytomous calibration may be refused when too few replicated datasets
-can be fitted with the same model. For 30 or more requested replicates,
-inference is withheld unless at least 30 and 90% of the refits are
-usable. A maxT adjustment is unavailable for the complete family if one
-testable member lacks a usable joint null. Each simulated statistic is
-standardised against the other bootstrap rows; using a row in its own
-reference mean and standard deviation would make the adjusted
-probabilities too small. The adjustment applies separately to each
-statistic under the fitted global null. It does not guarantee familywise
-error among fitting items when another item misfits. Nominate a primary
-statistic, or adjust again if either statistic will be used to make the
-same confirmatory decision.</p>
+needed when there are many items. These references also assume one
+independent response row per person. When IDs repeat,
+<code><a href="../reference/rasch.html">rasch()</a></code> retains the fit statistics as descriptive summaries
+but withholds their probabilities, and <code><a href="../reference/fit_bootstrap.html">fit_bootstrap()</a></code> is
+unavailable. Analyse occasions separately for item-fit inference;
+repeated-measures DIF remains available for testing specified occasion
+effects. Report <code>B_used</code>, <code>B_nonconverged</code>, and
+<code>B_errors</code>. A sparse polytomous calibration may be refused
+when too few replicated datasets can be fitted with the same model. For
+30 or more requested replicates, inference is withheld unless at least
+30 and 90% of the refits are usable. A maxT adjustment is unavailable
+for the complete family if one testable member lacks a usable joint
+null. Each simulated statistic is standardised against the other
+bootstrap rows; using a row in its own reference mean and standard
+deviation would make the adjusted probabilities too small. The
+adjustment applies separately to each statistic under the fitted global
+null. It does not guarantee familywise error among fitting items when
+another item misfits. Nominate a primary statistic, or adjust again if
+either statistic will be used to make the same confirmatory
+decision.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_bootstrap.html">fit_bootstrap</a></span><span class="op">(</span><span class="va">fit</span>, B <span class="op">=</span> <span class="fl">999</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">items</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">boot</span><span class="op">$</span><span class="va">items</span><span class="op">$</span><span class="va">chisq_p_boot_adj</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -258,12 +261,12 @@ predictable.</p>
 <span>  <span class="st">"id"</span>, <span class="st">"group"</span>, <span class="st">"raw"</span>, <span class="st">"theta"</span>, <span class="st">"se"</span>, <span class="st">"fit_resid"</span></span>
 <span><span class="op">)</span><span class="op">]</span>, <span class="fl">6</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     id group raw  theta    se fit_resid</span></span>
-<span><span class="co">#&gt;  P0486    g3  18 -0.042 0.381    -3.454</span></span>
-<span><span class="co">#&gt;  P0238    g1  23  0.691 0.395    -3.241</span></span>
-<span><span class="co">#&gt;  P0001    g1  18 -0.042 0.381    -3.163</span></span>
-<span><span class="co">#&gt;  P0031    g1  11 -1.062 0.397     2.999</span></span>
-<span><span class="co">#&gt;  P0493    g1  21  0.391 0.387    -2.912</span></span>
-<span><span class="co">#&gt;  P0327    g3  22  0.540 0.390    -2.742</span></span></code></pre></div>
+<span><span class="co">#&gt;  P0486    g3  18 -0.039 0.377    -3.654</span></span>
+<span><span class="co">#&gt;  P0001    g1  18 -0.039 0.377    -3.349</span></span>
+<span><span class="co">#&gt;  P0238    g1  23  0.683 0.393    -3.308</span></span>
+<span><span class="co">#&gt;  P0031    g1  11 -1.036 0.393     3.051</span></span>
+<span><span class="co">#&gt;  P0493    g1  21  0.387 0.384    -3.022</span></span>
+<span><span class="co">#&gt;  P0327    g3  22  0.533 0.388    -2.818</span></span></code></pre></div>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_person_fit.html">plot_person_fit</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/person-fit-plot-1.png" class="r-plt" alt="Person locations plotted against person fit residuals." width="672"></p>
@@ -280,7 +283,7 @@ persons for each statistic.</p>
 <p>An unexpected response pattern may reflect coding or data-entry
 errors, careless responding, a secondary trait, or a genuine but unusual
 person. It is not, by itself, a reason to remove the person. In this
-example, 7 persons (1.2%) fall outside the displayed band; the plot
+example, 8 persons (1.3%) fall outside the displayed band; the plot
 reports the same count and percentage. The <code>statistic</code>
 argument displays the standardised infit or outfit in place of the fit
 residual, under the same band. Fit residuals are unavailable for extreme
@@ -297,19 +300,19 @@ principal reliability indices.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">targeting</span></span>
 <span><span class="co">#&gt; $person_mean</span></span>
-<span><span class="co">#&gt; [1] -0.01154</span></span>
+<span><span class="co">#&gt; [1] -0.0148</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $person_sd</span></span>
-<span><span class="co">#&gt; [1] 1.066</span></span>
+<span><span class="co">#&gt; [1] 1.059</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $person_mean_noext</span></span>
-<span><span class="co">#&gt; [1] -0.01154</span></span>
+<span><span class="co">#&gt; [1] -0.0148</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $item_mean</span></span>
-<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; [1] -5.204e-17</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $threshold_range</span></span>
-<span><span class="co">#&gt; [1] -3.184  2.893</span></span>
+<span><span class="co">#&gt; [1] -3.179  2.894</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $prop_below</span></span>
 <span><span class="co">#&gt; [1] 0.003333</span></span>
@@ -363,14 +366,14 @@ value.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">q3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/residual_correlations.html">residual_correlations</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">q3</span><span class="op">$</span><span class="va">average</span></span>
-<span><span class="co">#&gt; [1] -0.08639</span></span>
+<span><span class="co">#&gt; [1] -0.0866</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">q3</span><span class="op">$</span><span class="va">pairs</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item_a"</span>, <span class="st">"item_b"</span>, <span class="st">"q3"</span>, <span class="st">"q3_star"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">5</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   item_a item_b         q3 q3_star</span></span>
-<span><span class="co">#&gt; 1    I10    I11  0.1266703 0.21306</span></span>
-<span><span class="co">#&gt; 2    I02    I05  0.0045201 0.09091</span></span>
-<span><span class="co">#&gt; 3    I01    I04 -0.0009814 0.08541</span></span>
-<span><span class="co">#&gt; 4    I06    I07 -0.0173825 0.06901</span></span>
-<span><span class="co">#&gt; 5    I02    I03 -0.0244845 0.06190</span></span></code></pre></div>
+<span><span class="co">#&gt;   item_a item_b        q3 q3_star</span></span>
+<span><span class="co">#&gt; 1    I10    I11  0.134107 0.22071</span></span>
+<span><span class="co">#&gt; 2    I02    I05  0.003793 0.09039</span></span>
+<span><span class="co">#&gt; 3    I01    I04 -0.014196 0.07241</span></span>
+<span><span class="co">#&gt; 4    I06    I07 -0.016938 0.06966</span></span>
+<span><span class="co">#&gt; 5    I04    I12 -0.020358 0.06624</span></span></code></pre></div>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_resid_cor.html">plot_resid_cor</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/local-dependence-plot-1.png" class="r-plt" alt="Heatmap of adjusted residual correlations between items." width="672"></p>
@@ -410,9 +413,9 @@ contains both raw and adjusted simulation probabilities.</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_pca.html">plot_pca</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/trait-dependence-plot-1.png" class="r-plt" alt="Loadings of items on the first residual component." width="672"></p>
-<p>Here, 3.2% of the person comparisons are significant (exact 95%
-interval 1.9% to 5.0%). The test does not flag trait dependence, but one
-opposed subset contains only 18 score points. A quiet result from a
+<p>Here, 3.0% of the person comparisons are significant (Clopper–Pearson
+95% interval 1.8% to 4.8%). The test does not flag trait dependence, but
+one opposed subset contains only 18 score points. A quiet result from a
 short subtest is inconclusive rather than evidence that a secondary
 trait is absent.</p>
 </div>
@@ -439,9 +442,9 @@ tests.</p>
 <span>  <span class="st">"F_nonuniform"</span>, <span class="st">"p_nonuniform_adj"</span>, <span class="st">"eta2_nonuniform"</span></span>
 <span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;  item  term F_uniform p_uniform_adj eta2_uniform F_nonuniform p_nonuniform_adj</span></span>
-<span><span class="co">#&gt;   I08 group    20.043       &lt; 0.001        0.067        1.578            1.000</span></span>
+<span><span class="co">#&gt;   I08 group    20.993       &lt; 0.001        0.069        1.220            1.000</span></span>
 <span><span class="co">#&gt;  eta2_nonuniform</span></span>
-<span><span class="co">#&gt;            0.026</span></span></code></pre></div>
+<span><span class="co">#&gt;            0.021</span></span></code></pre></div>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_icc.html">plot_icc</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"I08"</span>, group <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span></code></pre></div>
 <p><img src="rasch-workflow_files/figure-html/dif-plot-1.png" class="r-plt" alt="Observed and expected item characteristic curves for item I08 by person group." width="672"></p>
@@ -457,9 +460,9 @@ for significant interactions.</p>
 <span>  <span class="st">"lower"</span>, <span class="st">"upper"</span>, <span class="st">"practical"</span></span>
 <span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;  item contrast estimate    se   p_adj  lower upper practical</span></span>
-<span><span class="co">#&gt;   I08  g2 - g1   -0.039 0.139   0.777 -0.312 0.233          </span></span>
-<span><span class="co">#&gt;   I08  g3 - g1    0.705 0.148 &lt; 0.001  0.415 0.995         *</span></span>
-<span><span class="co">#&gt;   I08  g3 - g2    0.745 0.147 &lt; 0.001  0.457 1.032         *</span></span></code></pre></div>
+<span><span class="co">#&gt;   I08  g2 - g1   -0.033 0.138   0.813 -0.304 0.238          </span></span>
+<span><span class="co">#&gt;   I08  g3 - g1    0.711 0.148 &lt; 0.001  0.421 1.001         *</span></span>
+<span><span class="co">#&gt;   I08  g3 - g2    0.744 0.147 &lt; 0.001  0.457 1.031         *</span></span></code></pre></div>
 <p>The residual ANOVA is the primary DIF analysis. A bootstrap
 sensitivity analysis repeats the calibration and complete DIF analysis
 under the fitted invariant model. Here it conditions on each person’s

@@ -100,7 +100,11 @@ those scoring k - 1 or k.</p>
   mean <code>ave</code>, and the item's total <code>chisq</code>, <code>df</code>, and
   <code>p</code>. Intervals with fewer than 2 responders are shown but carry no
   chi-square contribution (<code>used = FALSE</code>), matching the item-trait
-  computation.</p>
+  computation. The same applies when the model variance for an interval
+  is unavailable or zero. The probability is <code>NA</code> when person IDs
+  repeat because the asymptotic reference counts response rows rather than
+  independent persons; the interval summaries and chi-square remain
+  descriptive.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

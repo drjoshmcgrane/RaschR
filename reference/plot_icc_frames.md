@@ -8,13 +8,7 @@ factor separates the observed means within each frame for a DIF display.
 ## Usage
 
 ``` r
-plot_icc_frames(
-  fit,
-  item,
-  n_groups = fit$n_groups,
-  grid = seq(-5, 5, 0.05),
-  group = NULL
-)
+plot_icc_frames(fit, item, n_groups = fit$n_groups, grid = NULL, group = NULL)
 ```
 
 ## Arguments

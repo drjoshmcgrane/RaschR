@@ -9,17 +9,17 @@
 the judge met is oriented to its stronger object (higher consensus
 location) and given a standardised residual: z &amp;lt; 0 means the
 stronger object won less than its lead predicts – the judge backed the
-underdog. A matchup is an unexpected judgement when z falls at or
-below -flag_z and the pair was seen at least min_n times, i.e.
-the judge favoured the weaker object further than sampling noise explains.
-The fitted model must have converged."><meta property="og:description" content="The comparison-level companion of judge_surprise. Each pair
+underdog. Approximate two-sided normal probabilities are adjusted by Holm
+across matchups meeting min_n. A surprise is an eligible matchup
+with a negative residual whose adjusted probability passes the level
+represented by flag_z. The fitted model must have converged."><meta property="og:description" content="The comparison-level companion of judge_surprise. Each pair
 the judge met is oriented to its stronger object (higher consensus
 location) and given a standardised residual: z &amp;lt; 0 means the
 stronger object won less than its lead predicts – the judge backed the
-underdog. A matchup is an unexpected judgement when z falls at or
-below -flag_z and the pair was seen at least min_n times, i.e.
-the judge favoured the weaker object further than sampling noise explains.
-The fitted model must have converged."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+underdog. Approximate two-sided normal probabilities are adjusted by Holm
+across matchups meeting min_n. A surprise is an eligible matchup
+with a negative residual whose adjusted probability passes the level
+represented by flag_z. The fitted model must have converged."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -64,10 +64,10 @@ The fitted model must have converged."><meta property="og:image" content="https:
 the judge met is oriented to its stronger object (higher consensus
 location) and given a standardised residual: <code>z &lt; 0</code> means the
 stronger object won less than its lead predicts – the judge backed the
-underdog. A matchup is an unexpected judgement when <code>z</code> falls at or
-below <code>-flag_z</code> and the pair was seen at least <code>min_n</code> times, i.e.
-the judge favoured the weaker object further than sampling noise explains.
-The fitted model must have converged.</p>
+underdog. Approximate two-sided normal probabilities are adjusted by Holm
+across matchups meeting <code>min_n</code>. A surprise is an eligible matchup
+with a negative residual whose adjusted probability passes the level
+represented by <code>flag_z</code>. The fitted model must have converged.</p>
     </div>
 
     <div class="section level2">
@@ -92,16 +92,18 @@ The fitted model must have converged.</p>
 
 
 <dt id="arg-flag-z">flag_z<a class="anchor" aria-label="anchor" href="#arg-flag-z"></a></dt>
-<dd><p>Absolute residual at or beyond which an upset is flagged.</p></dd>
+<dd><p>Absolute normal-residual threshold defining the familywise
+flagging level; 1.96 corresponds to an adjusted two-sided probability
+of approximately 0.05.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_btl_judge_pairs"</code>: <code>pairs</code> (per
   matchup: the stronger and weaker object and their locations, the location
-  <code>gap</code>, times met <code>n</code>, residual <code>z</code>, the <code>net_winner</code>,
-  and the <code>surprise</code> flag); <code>all_locations</code>; the <code>judge</code> and
-  settings.</p>
+  <code>gap</code>, times met <code>n</code>, residual <code>z</code>, approximate <code>p</code>,
+  Holm-adjusted <code>p_adj</code>, the <code>net_winner</code>, and the
+  <code>surprise</code> flag); <code>all_locations</code>; the <code>judge</code> and settings.</p>
     </div>
 
     <div class="section level2">
@@ -113,8 +115,7 @@ The fitted model must have converged.</p>
 <span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">win</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html" class="external-link">plogis</a></span><span class="op">(</span><span class="va">beta</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">a</span><span class="op">]</span> <span class="op">-</span> <span class="va">beta</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">b</span><span class="op">]</span><span class="op">)</span>, <span class="va">d</span><span class="op">$</span><span class="va">a</span>, <span class="va">d</span><span class="op">$</span><span class="va">b</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">judge_pair_surprise</span><span class="op">(</span><span class="fu"><a href="btl.html">btl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"win"</span>, judge <span class="op">=</span> <span class="st">"judge"</span><span class="op">)</span>, <span class="st">"J1"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Judge J1: 40 comparisons over 15 matchups</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Unexpected judgements (weaker object favoured beyond its lead):</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   F vs C  (gap 2.12, z = -2.89, upset)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> No matchup went against the consensus beyond noise.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

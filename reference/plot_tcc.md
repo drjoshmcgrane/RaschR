@@ -6,7 +6,7 @@ curve for each administrable frame or facet design.
 ## Usage
 
 ``` r
-plot_tcc(fit, grid = seq(-6, 6, 0.05))
+plot_tcc(fit, grid = NULL)
 ```
 
 ## Arguments

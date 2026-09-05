@@ -28,14 +28,18 @@ person_extrapolated(fit)
 
   A fitted object from
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  (equal discriminations; not EFRM).
+  with one common raw-score conversion and a common discrimination.
+  Expanded many-facet and frame response-cell designs do not have such a
+  conversion and are refused.
 
 ## Value
 
 The fit's person table with two added columns, `theta_extrapolated` and
 `se_extrapolated`: equal to `theta` and `se` for non-extreme persons,
 extrapolated for extreme persons. Patterns with fewer than three
-interior scores cannot be extrapolated and keep their Warm values.
+interior scores cannot be extrapolated, or whose interior score
+locations do not have stable increasing spacings, keep their Warm
+values.
 
 ## Examples
 

@@ -65,8 +65,8 @@ contains logit differences, Wald statistics, confidence intervals, raw
 and adjusted probabilities, and practical flags. For dichotomous items
 it also contains `ets`, together with the raw and adjusted probabilities
 for exceeding the ETS A boundary; for polytomous items it contains the
-descriptive `signed_area`. Sampling-uncertainty fields are `NA` when
-person identifiers repeat.
+descriptive `signed_area`. Sampling-uncertainty fields are `NA` when the
+resolved-location covariance cannot support Wald inference.
 
 ## Details
 
@@ -80,12 +80,14 @@ full covariance of the resolved locations. Wald probabilities are
 adjusted over the pairwise family. A comparison with withheld inference
 remains in that declared family.
 
-With repeated person identifiers, the row-level calibration covariance
-does not represent within-person sampling dependence. Logit differences
-and practical flags are retained, but their standard errors and Wald
-tests are withheld. Use
+When person identifiers repeat, the resolved-location covariance uses
+the person-clustered calibration sandwich. This permits Wald inference
+for the logit difference while allowing response rows from the same
+person to be dependent. For a planned within-person question,
 [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
-for person-level inference in a repeated-measures design.
+remains preferable because it tests the nominated contrast directly from
+person-level residual contrasts. Inference is withheld if the resolved-
+location covariance is unavailable or not positive semidefinite.
 
 ## Magnitude conventions
 

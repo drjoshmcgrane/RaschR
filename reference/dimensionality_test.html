@@ -16,10 +16,10 @@ t = (theta_A - theta_B) / sqrt(se_A^2 + se_B^2) is approximately
 standard normal and about alpha of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
-proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval. For a split fixed in
+proportion of significant tests is reported with a Clopper–Pearson
+binomial confidence interval. For a split fixed in
 advance, a lower bound above alpha signals multidimensionality. The
-test requires a converged calibration."><meta property="og:description" content="Estimates each person separately on two item subsets and compares the two
+test requires a converged calibration and one response row per person."><meta property="og:description" content="Estimates each person separately on two item subsets and compares the two
 estimates with a per-person t-test (Smith 2002). By default the subsets
 are defined by the sign of a residual-component loading (the first by
 default; any leading component may be chosen); they can also be nominated
@@ -30,10 +30,10 @@ t = (theta_A - theta_B) / sqrt(se_A^2 + se_B^2) is approximately
 standard normal and about alpha of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
-proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval. For a split fixed in
+proportion of significant tests is reported with a Clopper–Pearson
+binomial confidence interval. For a split fixed in
 advance, a lower bound above alpha signals multidimensionality. The
-test requires a converged calibration."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+test requires a converged calibration and one response row per person."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -85,10 +85,10 @@ independent given the person location, so
 standard normal and about <code>alpha</code> of the tests should reach
 significance. Persons with an extreme score on either subset are excluded
 (their weighted-likelihood estimates are most biased there). The
-proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval. For a split fixed in
+proportion of significant tests is reported with a Clopper–Pearson
+binomial confidence interval. For a split fixed in
 advance, a lower bound above <code>alpha</code> signals multidimensionality. The
-test requires a converged calibration.</p>
+test requires a converged calibration and one response row per person.</p>
     </div>
 
     <div class="section level2">
@@ -111,7 +111,9 @@ test requires a converged calibration.</p>
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code>.</p></dd>
+<dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code> with one response row
+per person. Repeated identifiers are refused because the person-level
+comparisons and their binomial count would not be independent.</p></dd>
 
 
 <dt id="arg-alpha">alpha<a class="anchor" aria-label="anchor" href="#arg-alpha"></a></dt>
@@ -161,8 +163,8 @@ reproducible for a given seed whatever the worker count.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with the proportion of significant tests, its exact
-  confidence interval, the sample sizes (<code>n</code> used,
+    <p>A list with the proportion of significant tests, its
+  Clopper–Pearson confidence interval, the sample sizes (<code>n</code> used,
   <code>n_excluded_extreme</code>), the item split and its source, a
   <code>multidimensional</code> verdict, the corresponding uncalibrated
   <code>binomial_multidimensional</code> reading, a <code>caution</code> note when the
@@ -190,7 +192,8 @@ bootstrap calibration the data-driven split therefore has no binary verdict:
 <code>multidimensional</code> is <code>NA</code>, while the interval and uncalibrated
 binomial reading remain available descriptively. Two inferential routes
 are available. A content-based split, named through <code>items_positive</code>
-and <code>items_negative</code>, keeps the binomial reading exact. Otherwise
+and <code>items_negative</code>, supports the conventional fixed-split binomial
+rule without the selection induced by the residual-derived split. Otherwise
 <code>B &gt; 0</code> calibrates the data-driven split by a parametric bootstrap:
 each replicate draws responses from the fitted model conditional on every
 person's raw score and missingness pattern, refits the calibration,

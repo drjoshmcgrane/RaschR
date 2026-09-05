@@ -10,20 +10,20 @@ condition on, so the reference is the consensus object scale (the pooled
 locations). For the nominated judge, each object it met is given a
 standardised residual oriented to the object – how much more (z &amp;gt; 0,
 over-rated) or less (z &amp;lt; 0, under-rated) that judge favoured it than
-its consensus location predicts. A surprise is an object the judge treated
-against its standing: a strong object under-rated, or a weak object
-over-rated (residual opposite in sign to the location), beyond
-flag_z and seen at least min_n times. The fitted model must
-have converged."><meta property="og:description" content="The paired-comparison counterpart of the kidmap. A judge has no ability to
+its consensus location predicts. Approximate two-sided normal probabilities
+are adjusted by Holm across the objects meeting min_n. A surprise
+is an eligible object treated against its standing (residual opposite in
+sign to the location) whose adjusted probability passes the level
+represented by flag_z. The fitted model must have converged."><meta property="og:description" content="The paired-comparison counterpart of the kidmap. A judge has no ability to
 condition on, so the reference is the consensus object scale (the pooled
 locations). For the nominated judge, each object it met is given a
 standardised residual oriented to the object – how much more (z &amp;gt; 0,
 over-rated) or less (z &amp;lt; 0, under-rated) that judge favoured it than
-its consensus location predicts. A surprise is an object the judge treated
-against its standing: a strong object under-rated, or a weak object
-over-rated (residual opposite in sign to the location), beyond
-flag_z and seen at least min_n times. The fitted model must
-have converged."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+its consensus location predicts. Approximate two-sided normal probabilities
+are adjusted by Holm across the objects meeting min_n. A surprise
+is an eligible object treated against its standing (residual opposite in
+sign to the location) whose adjusted probability passes the level
+represented by flag_z. The fitted model must have converged."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -69,11 +69,11 @@ condition on, so the reference is the consensus object scale (the pooled
 locations). For the nominated judge, each object it met is given a
 standardised residual oriented to the object – how much more (<code>z &gt; 0</code>,
 over-rated) or less (<code>z &lt; 0</code>, under-rated) that judge favoured it than
-its consensus location predicts. A surprise is an object the judge treated
-against its standing: a strong object under-rated, or a weak object
-over-rated (residual opposite in sign to the location), beyond
-<code>flag_z</code> and seen at least <code>min_n</code> times. The fitted model must
-have converged.</p>
+its consensus location predicts. Approximate two-sided normal probabilities
+are adjusted by Holm across the objects meeting <code>min_n</code>. A surprise
+is an eligible object treated against its standing (residual opposite in
+sign to the location) whose adjusted probability passes the level
+represented by <code>flag_z</code>. The fitted model must have converged.</p>
     </div>
 
     <div class="section level2">
@@ -98,15 +98,17 @@ have converged.</p>
 
 
 <dt id="arg-flag-z">flag_z<a class="anchor" aria-label="anchor" href="#arg-flag-z"></a></dt>
-<dd><p>Absolute residual at or beyond which a contrary judgement is
-flagged unexpected.</p></dd>
+<dd><p>Absolute normal-residual threshold defining the familywise
+flagging level; 1.96 corresponds to an adjusted two-sided probability
+of approximately 0.05.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_btl_judge"</code>: <code>objects</code> (per object
-  met: location, times met <code>n</code>, residual <code>z</code>, <code>surprise</code> flag
-  and its <code>type</code>); <code>all_locations</code> (every object, for orientation);
+  met: location, times met <code>n</code>, residual <code>z</code>, approximate
+  <code>p</code>, Holm-adjusted <code>p_adj</code>, <code>surprise</code> flag and its
+  <code>type</code>); <code>all_locations</code> (every object, for orientation);
   the <code>judge</code> and settings.</p>
     </div>
 

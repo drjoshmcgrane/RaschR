@@ -110,11 +110,7 @@ erratic_judge <- erratic_fit$judge[
 ]
 judge_surprise(fit, erratic_judge)
 #> Judge J19: 49 comparisons over 8 objects
-#> Unexpected judgements:
-#>   O2     (loc -1.01): z = +2.46  [weak object over-rated]
-#>   O7     (loc +1.09): z = -2.46  [strong object under-rated]
-#>   O6     (loc +0.45): z = -2.32  [strong object under-rated]
-#>   O1     (loc -1.29): z = +2.05  [weak object over-rated]
+#> No object judged against its consensus standing.
 btl_information(fit)
 #> Paired-comparison design information: 8 objects, total 418.83
 #> One-comparison Fisher information about the location gap (dichotomous: P(1 - P))
@@ -314,14 +310,16 @@ set \\s\\,
 A same-set comparison in panel \\g\\ has logit
 \\\phi_g(\beta_A-\beta_B)\\; a cross-set comparison has logit
 \\\phi_g(v_A-v_B)\\. As in Humphry and Andrich (2008, eq. 15),
-\\\phi_g\\ and \\\alpha_s\\ are unit ratios — the reference unit over
-the frame’s own, each against a reference fixed at one, a value above
-one meaning the finer unit and steeper comparisons — and “unit” names
-that ratio for short throughout. Cross-set comparisons identify the set
-units and origins. The cross-set likelihood holds the within-set
-locations and panel units fixed. It estimates the set transformations
-directly from the comparison outcomes and does not use the finite-grid
-person-distribution link in
+\\\phi_g\\ and \\\alpha_s\\ are unit ratios: the common reference unit
+over the frame’s own unit. The panel units \\\phi_g\\ have geometric
+mean one. For the linked item sets, the first set fixes \\\alpha_1=1\\
+and \\\kappa_1=0\\, defining the unit and origin of the common scale;
+the remaining set transformations are estimated relative to it. A value
+above one denotes a finer unit and steeper comparisons. Cross-set
+comparisons identify the set units and origins. The cross-set likelihood
+holds the within-set locations and panel units fixed. It estimates the
+set transformations directly from the comparison outcomes and does not
+use the finite-grid person-distribution link in
 [`rasch_efrm()`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md).
 
 ``` r

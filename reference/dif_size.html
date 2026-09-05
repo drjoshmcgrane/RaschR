@@ -118,7 +118,8 @@ resolved locations would be too unstable to compare), with a note.</p></dd>
   dichotomous items it also contains <code>ets</code>, together with the raw and
   adjusted probabilities for exceeding the ETS A boundary; for polytomous
   items it contains the descriptive <code>signed_area</code>.
-  Sampling-uncertainty fields are <code>NA</code> when person identifiers repeat.</p>
+  Sampling-uncertainty fields are <code>NA</code> when the resolved-location
+  covariance cannot support Wald inference.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -134,11 +135,13 @@ $$\operatorname{SE}(\Delta_{i,ab})=
 where \(\mathbf{V}_i\) is the full covariance of the resolved
 locations. Wald probabilities are adjusted over the pairwise family. A
 comparison with withheld inference remains in that declared family.</p>
-<p>With repeated person identifiers, the row-level calibration covariance does
-not represent within-person sampling dependence. Logit differences and
-practical flags are retained, but their standard errors and Wald tests are
-withheld. Use <code><a href="dif_contrasts.html">dif_contrasts</a></code> for person-level inference in a
-repeated-measures design.</p>
+<p>When person identifiers repeat, the resolved-location covariance uses the
+person-clustered calibration sandwich. This permits Wald inference for the
+logit difference while allowing response rows from the same person to be
+dependent. For a planned within-person question, <code><a href="dif_contrasts.html">dif_contrasts</a></code>
+remains preferable because it tests the nominated contrast directly from
+person-level residual contrasts. Inference is withheld if the resolved-
+location covariance is unavailable or not positive semidefinite.</p>
     </div>
     <div class="section level2">
     <h2 id="magnitude-conventions">Magnitude conventions<a class="anchor" aria-label="anchor" href="#magnitude-conventions"></a></h2>

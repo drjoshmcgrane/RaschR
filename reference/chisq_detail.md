@@ -33,7 +33,11 @@ A list with `item`, `location`, the `intervals` data frame, the
 `categories` data frame, the whole-sample observed mean `ave`, and the
 item's total `chisq`, `df`, and `p`. Intervals with fewer than 2
 responders are shown but carry no chi-square contribution
-(`used = FALSE`), matching the item-trait computation.
+(`used = FALSE`), matching the item-trait computation. The same applies
+when the model variance for an interval is unavailable or zero. The
+probability is `NA` when person IDs repeat because the asymptotic
+reference counts response rows rather than independent persons; the
+interval summaries and chi-square remain descriptive.
 
 ## See also
 

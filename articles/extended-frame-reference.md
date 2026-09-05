@@ -19,14 +19,15 @@ and person \\n\\ in group \\g\\,
 \sum\_{k=1}^{y}\delta\_{ik}\]\\},\qquad \rho\_{sg}=\alpha_s\phi_g . \\
 
 Following Humphry and Andrich (2008, eq. 15), the multiplicative
-parameter of a frame is the ratio of the reference unit to the frame’s
-own unit: \\\alpha_s\\ carries that ratio for item set \\s\\ and
-\\\phi_g\\ for person group \\g\\, each against a reference level fixed
-at one. A set with \\\alpha_s = 1.3\\ has the *smaller* natural unit —
-its logits are finer-grained, its response curves steeper on the common
-scale — since the unit itself is \\1/\alpha_s\\ of the reference unit.
-The partial credit model holds within each frame in its natural unit;
-dichotomous items are the one-threshold case.
+parameter of a frame is the ratio of the common reference unit to the
+frame’s own unit: \\\alpha_s\\ carries that ratio for item set \\s\\,
+and \\\phi_g\\ for person group \\g\\. Their geometric means are fixed
+at one; no observed set or group is the reference. A set with \\\alpha_s
+= 1.3\\ has a smaller natural unit than the geometric-mean set unit, so
+its response curves are steeper on the common scale. Two observed sets
+can be compared directly by the ratio \\\alpha_s/\alpha_t\\. The partial
+credit model holds within each frame in its natural unit; dichotomous
+items are the one-threshold case.
 
 Use this model when variation in the unit is part of the measurement
 account. Poor fit to an equal-unit model is not by itself evidence for a
@@ -70,7 +71,7 @@ fit <- rasch_efrm(
 fit
 #> rasch extended frame of reference analysis: 16 items in 2 set(s) x 2 group(s) = 4 frames, 300 persons
 #> Within-frame pairwise conditional ML: converged in 10 iterations
-#> PSI 0.781, power of fit: reasonable
+#> PSI 0.781, separation quality: reasonable
 #> 
 #> Person group units (phi):
 #>  group   phi se_log_phi
@@ -314,8 +315,8 @@ inv$locations
 inv$discrimination
 ```
 
-A person-within-frame bootstrap includes uncertainty in the fitted
-units:
+A whole-person bootstrap within person group retains each sampled row’s
+item-set response pattern and includes uncertainty in the fitted units:
 
 ``` r
 

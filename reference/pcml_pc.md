@@ -44,7 +44,8 @@ A list with the threshold table `thr` (columns `id`, `item`, `k`, `tau`,
 `NA` where an item's rank does not support that component), the
 threshold covariance matrix `cov_tau`, the pairwise conditional
 log-likelihood, the iteration count, a convergence flag, and the
-max-score vector `m`.
+max-score vector `m`. If estimation does not converge, the function
+warns and all standard errors and covariance entries are `NA`.
 
 ## References
 

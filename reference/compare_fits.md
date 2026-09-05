@@ -28,7 +28,9 @@ compare_fits(..., reference = 1)
   same comparison data (same objects, comparisons, and judges) support
   the likelihood columns – e.g. free versus principal-component
   thresholds, with and without a position effect or within-judge
-  dependence.
+  dependence. Row order, arbitrary person or judge labels, and expansion
+  versus count compression do not change data identity; allocation to
+  independent persons or judges does.
 
 - reference:
 
@@ -62,12 +64,14 @@ nest, and are `NA` (with the reason in the printed note) for MFRM and
 EFRM fits, which do not carry their Godambe matrices.
 
 Across different data preparations (subtests, splits, facet or frame
-structures) the likelihoods are not comparable. The table retains
-descriptive context: total trait chi-square per degree of freedom,
-calibration and person fit-residual SDs (ideal 1), PSI, and alpha where
-applicable (OSI for paired comparisons). Alpha is `NA` when an MFRM or
-EFRM item is represented by several response cells. These columns do not
-provide a formal selection test across different response data.
+structures), or different allocations of response rows to persons, the
+likelihood-based criteria are not comparable and are withheld. The table
+retains descriptive context: total trait chi-square per degree of
+freedom, calibration and person fit-residual SDs (ideal 1), PSI, and
+alpha where applicable (OSI for paired comparisons). Alpha is `NA` when
+an MFRM or EFRM item is represented by several response cells. These
+columns do not provide a formal selection test across different response
+data.
 
 ## Examples
 
@@ -95,5 +99,5 @@ compare_fits(PCM = rasch(X, model = "PCM"),
 #>         0.884       0.600         0.837 0.743 0.784
 #> (further columns on the object: loglik, parameters, same_data)
 #> 
-#> cl_aic and cl_bic are composite-likelihood information criteria (Varin & Vidoni 2005; Gao & Song 2010): -2 cl penalised by the effective parameter count tr(H^-1 J), which absorbs the pairwise over-counting that the nominal count would not; smaller is better, valid across models of the same data. two_delta_ll is the raw composite difference against the reference, descriptive only. Across different data preparations, chisq_per_df, the fit residual SDs and separation/reliability columns provide descriptive context rather than a formal selection criterion.
+#> cl_aic and cl_bic are composite-likelihood information criteria (Varin & Vidoni 2005; Gao & Song 2010): -2 cl penalised by the effective parameter count tr(H^-1 J), which absorbs the pairwise over-counting that the nominal count would not; smaller is better, valid across models of the same data. Information criteria and two_delta_ll are withheld when the response data or independent-unit allocation differ from the reference. two_delta_ll is the raw composite difference against the reference, descriptive only. Across different data preparations, chisq_per_df, the fit residual SDs and separation/reliability columns provide descriptive context rather than a formal selection criterion.
 ```

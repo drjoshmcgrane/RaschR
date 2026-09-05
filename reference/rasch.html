@@ -96,8 +96,11 @@ scale).</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
-<dd><p>Optional name of an ID column in <code>data</code>, or a vector of IDs;
-carried through to the person estimates.</p></dd>
+<dd><p>Optional name of an ID column in <code>data</code>, or a vector of IDs.
+Repeated values cluster the item-parameter sandwich covariance and define
+the person unit in repeated-measures DIF. The ordinary item-fit reference
+distributions are row-based, so their probabilities are withheld when an
+ID occurs on more than one response row.</p></dd>
 
 
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
@@ -125,7 +128,8 @@ at most 10, at least 2. The resolved value is stored in
 columns <code>item</code>, <code>k</code>, and <code>tau</code>, and optionally
 <code>average = TRUE</code> for average item anchoring; see
 <code><a href="pcml.html">pcml</a></code>. Column names must be unique. Anchors determine the
-scale origin.</p></dd>
+scale origin. Anchor values are treated as fixed, so their uncertainty
+is not included in the fitted standard errors.</p></dd>
 
 
 <dt id="arg-na-codes">na_codes<a class="anchor" aria-label="anchor" href="#arg-na-codes"></a></dt>
@@ -161,7 +165,9 @@ tolerance of the pairwise conditional estimation.</p></dd>
   and estimation details. The component <code>summary_stats</code> contains the
   distribution summaries, fit-location correlations, and the cell
   degrees-of-freedom factor. The item summary carries a <code>disc</code>
-  column described below.</p>
+  column described below. If estimation does not converge, locations and
+  residual patterns are retained for diagnosis, but standard errors,
+  separation indices and inferential probabilities are <code>NA</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -216,7 +222,10 @@ raw and Holm-adjusted probabilities as descriptive diagnostics. Each
 adjustment retains the full item family when one probability is
 unavailable.
 <code><a href="fit_bootstrap.html">fit_bootstrap</a></code> re-estimates every replicate and should be used
-for item-level inference where it is available.</p>
+for item-level inference where it is available. With repeated IDs, the
+ordinary asymptotic probabilities are withheld and <code><a href="fit_bootstrap.html">fit_bootstrap()</a></code>
+is unavailable because neither reference models within-person dependence;
+the residuals and fit statistics remain descriptive.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

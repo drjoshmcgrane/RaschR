@@ -45,7 +45,7 @@ simulate_mfrm(
 - erratic_raters:
 
   Proportion of raters who rate at random (feeds the rater fit
-  residual).
+  residual). Erratic and halo raters are disjoint.
 
 - interaction:
 
@@ -57,7 +57,8 @@ simulate_mfrm(
 
   Proportion of raters showing a halo effect: they rate by the person's
   overall level and barely differentiate items (feeds the rater fit
-  residual and the item-by-rater interaction).
+  residual and the item-by-rater interaction). Its requested count must
+  fit among the non-erratic raters.
 
 - seed:
 

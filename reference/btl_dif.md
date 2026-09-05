@@ -81,8 +81,9 @@ and complete-design cell); `sizes` (per object, term and marginal or
 interaction contrast: difference in logits, judge support for both
 sides, SE, t, degrees of freedom, adjusted p, significance and practical
 flags); `effects`, `factors`, `alpha`, `p_adjust`, `flag_logits`, and
-`notes`. `summary_factors` retains the factor membership of each
-displayed term.
+`notes`. `size_family_n` records the complete planned resolved-contrast
+family, including unavailable comparisons. `summary_factors` retains the
+factor membership of each displayed term.
 
 ## Details
 
@@ -121,7 +122,10 @@ remaining objects. With DIF in several objects, this can induce
 compensating apparent DIF in invariant objects (Andrich and Hagquist
 2012, 2015). An externally anchored object is not resolved: fixing each
 of its copies at the same anchor would define their difference as zero.
-Anchors on the other objects are retained in the joint refit.
+Anchors on the other objects are retained in the joint refit. If a
+resolved-location covariance is unavailable or not positive
+semidefinite, the locations and differences remain descriptive but their
+uncertainty and tests are withheld.
 
 ## References
 
@@ -160,7 +164,7 @@ btl_dif(f, grp, objects = "C")
 #>  nonuniform_DIF
 #>                
 #> 
-#> Resolved locations (logits; holm over 1 comparison(s); practical 0.50)
+#> Resolved locations (logits; holm over 1 planned comparison(s); practical 0.50)
 #>  object  term level_a level_b difference n_judges_a n_judges_b
 #>       C group      g2      g1     -1.121         10         10
 #>  effective_judges_a effective_judges_b    se      t     df   p_adj significant

@@ -5,11 +5,11 @@ to condition on, so the reference is the consensus object scale (the
 pooled locations). For the nominated judge, each object it met is given
 a standardised residual oriented to the object – how much more (`z > 0`,
 over-rated) or less (`z < 0`, under-rated) that judge favoured it than
-its consensus location predicts. A surprise is an object the judge
-treated against its standing: a strong object under-rated, or a weak
-object over-rated (residual opposite in sign to the location), beyond
-`flag_z` and seen at least `min_n` times. The fitted model must have
-converged.
+its consensus location predicts. Approximate two-sided normal
+probabilities are adjusted by Holm across the objects meeting `min_n`. A
+surprise is an eligible object treated against its standing (residual
+opposite in sign to the location) whose adjusted probability passes the
+level represented by `flag_z`. The fitted model must have converged.
 
 ## Usage
 
@@ -35,15 +35,16 @@ judge_surprise(fit, judge, min_n = 2L, flag_z = 1.96)
 
 - flag_z:
 
-  Absolute residual at or beyond which a contrary judgement is flagged
-  unexpected.
+  Absolute normal-residual threshold defining the familywise flagging
+  level; 1.96 corresponds to an adjusted two-sided probability of
+  approximately 0.05.
 
 ## Value
 
 A list of class `"rasch_btl_judge"`: `objects` (per object met:
-location, times met `n`, residual `z`, `surprise` flag and its `type`);
-`all_locations` (every object, for orientation); the `judge` and
-settings.
+location, times met `n`, residual `z`, approximate `p`, Holm-adjusted
+`p_adj`, `surprise` flag and its `type`); `all_locations` (every object,
+for orientation); the `judge` and settings.
 
 ## Examples
 

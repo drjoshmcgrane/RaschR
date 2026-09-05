@@ -145,24 +145,25 @@ Values below 1 produce flatter responses and positive fit residuals.</p></dd>
 <dd><p><code>NULL</code>, or <code>list(items=, rho=)</code>: the named items
 load on a second trait whose realised sample correlation with the first
 is <code>rho</code>. At least three persons are needed unless <code>rho</code> is
--1 or 1.</p></dd>
+-1 or 1. Each item is named once.</p></dd>
 
 
 <dt id="arg-dependence">dependence<a class="anchor" aria-label="anchor" href="#arg-dependence"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(pairs=, strength=)</code>: each pair's
 second item responds partly to the first. This departure feeds the
-residual-dependence diagnostics.</p></dd>
+residual-dependence diagnostics. Each directed pair is listed once.</p></dd>
 
 
 <dt id="arg-dif">dif<a class="anchor" aria-label="anchor" href="#arg-dif"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(items=, uniform=, nonuniform=)</code>: the
 named items function differently for the last person group: a location
 shift (<code>uniform</code>) and/or a slope change (<code>nonuniform</code>). Needs
-<code>n_groups &gt;= 2</code>.</p></dd>
+<code>n_groups &gt;= 2</code>; each item is named once.</p></dd>
 
 
 <dt id="arg-careless">careless<a class="anchor" aria-label="anchor" href="#arg-careless"></a></dt>
-<dd><p>Proportion of persons who answer at random.</p></dd>
+<dd><p>Proportion of persons who answer at random. Careless and
+response-style assignments are disjoint; their requested counts must fit.</p></dd>
 
 
 <dt id="arg-response-style">response_style<a class="anchor" aria-label="anchor" href="#arg-response-style"></a></dt>
@@ -175,7 +176,8 @@ log-probability scale (polytomous).</p></dd>
 
 <dt id="arg-speeded">speeded<a class="anchor" aria-label="anchor" href="#arg-speeded"></a></dt>
 <dd><p>Proportion not reached at the last item: a growing tail of
-missing responses over the final items.</p></dd>
+missing responses over the final items. These cells are kept distinct
+from any completely-at-random missing cells.</p></dd>
 
 
 <dt id="arg-disordered">disordered<a class="anchor" aria-label="anchor" href="#arg-disordered"></a></dt>
@@ -189,7 +191,9 @@ is added when &gt; 1, for DIF).</p></dd>
 
 
 <dt id="arg-missing">missing<a class="anchor" aria-label="anchor" href="#arg-missing"></a></dt>
-<dd><p>Proportion of responses set missing (completely at random).</p></dd>
+<dd><p>Proportion of responses set missing completely at random,
+drawn from cells not already missing through speededness. The requested
+count must fit among those cells and leave at least one observed response.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>

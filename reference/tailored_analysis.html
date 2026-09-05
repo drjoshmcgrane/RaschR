@@ -101,7 +101,8 @@ analysis than in the origin-equated one; the comparison table and
 <span>  chance <span class="op">=</span> <span class="fl">0.25</span>,</span>
 <span>  anchor_items <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  se_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"bootstrap"</span><span class="op">)</span>,</span>
-<span>  boot_reps <span class="op">=</span> <span class="fl">999L</span></span>
+<span>  boot_reps <span class="op">=</span> <span class="fl">999L</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -143,6 +144,11 @@ sign-count bootstrap p-value has resolution floor <code>2/(boot_reps
 + 1)</code>, so after the Holm adjustment across m items the smallest
 achievable adjusted p is <code>2m/(boot_reps + 1)</code>; a warning fires
 when that floor exceeds 0.05 (detection would be impossible).</p></dd>
+
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>Optional non-negative whole-number seed for the person
+bootstrap. The caller's random-number state is restored on exit.</p></dd>
 
 </dl></div>
     <div class="section level2">

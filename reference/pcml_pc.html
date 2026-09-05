@@ -104,7 +104,9 @@ unidentified, and dropped, at exactly 4 thresholds).</p></dd>
   errors, <code>NA</code> where an item's rank does not support that
   component), the threshold covariance matrix <code>cov_tau</code>, the
   pairwise conditional log-likelihood, the iteration count, a convergence
-  flag, and the max-score vector <code>m</code>.</p>
+  flag, and the max-score vector <code>m</code>. If estimation does not converge,
+  the function warns and all standard errors and covariance entries are
+  <code>NA</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

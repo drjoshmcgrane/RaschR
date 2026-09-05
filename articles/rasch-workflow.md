@@ -63,17 +63,16 @@ fit <- rasch(d, model = "PCM", id = "id", factors = "group")
 ## Overall summary and reliability
 
 The summary establishes whether estimation converged and gives the
-overall item–trait interaction, reliability, and the package’s
-qualitative assessment of the power of fit tests. It should be read
-before individual item or person results.
+overall item–trait interaction and reliability. It should be read before
+individual item or person results.
 
 ``` r
 
 fit
 #> rasch PCM analysis: 12 items, 600 persons
 #> Pairwise conditional ML (Zwinderman): converged in 5 iterations
-#> PSI 0.851 (no extremes 0.851), item SI 0.995, alpha 0.855, power of fit: good
-#> Approximate asymptotic total item-trait chi-square 101.760 on 108 df, p = 0.651
+#> PSI 0.851 (no extremes 0.851), item SI 0.995, alpha 0.855, separation quality: good
+#> Approximate asymptotic total item-trait chi-square 99.853 on 108 df, p = 0.700
 ```
 
 The person separation index (PSI) compares the observed variance of
@@ -88,16 +87,14 @@ removes persons with extreme scores and is useful when extremes inflate
 the observed spread. The separation ratio and number of strata express
 the same information on more interpretable scales.
 
-The power label is a screening judgement based on PSI, not a formal
-power calculation. Low reliability weakens the ordering of persons and
-the formation of distinct class intervals, so item–trait and DIF tests
-may fail to detect real departures. Power also depends on sample size,
-test length, targeting, category use, and trait spread. Conversely, a
-large sample can make a small departure statistically significant. Here
-the PSI is 0.85, which the package classifies as good; weak separation
-is therefore not an immediate explanation for a quiet fit test. Fit
-residuals, effect sizes, plots, and substantive importance remain
-necessary.
+The package describes the PSI in broad bands of separation quality. Here
+the PSI is 0.85, classified as good. This is not the statistical power
+of a fit test. Fit-test sensitivity also depends on sample size, test
+length, targeting, category use, trait spread, the test statistic and
+the departure being tested. Low reliability can weaken the ordering of
+persons and the formation of class intervals, whereas a large sample can
+make a small departure statistically significant. Fit residuals, effect
+sizes, plots and substantive importance remain necessary.
 
 ## Item estimates, fit, and thresholds
 
@@ -122,12 +119,12 @@ head(fit$items[item_order, c(
   "item", "location", "se", "fit_resid", "p_adj"
 )], 6)
 #>  item location    se fit_resid p_adj
-#>   I02   -1.246 0.079     1.548 1.000
-#>   I07    0.077 0.057     1.501 1.000
-#>   I06   -0.143 0.059     1.394 1.000
-#>   I01   -1.604 0.106    -1.103 1.000
-#>   I05   -0.509 0.059    -0.685 1.000
-#>   I04   -0.719 0.072    -0.335 1.000
+#>   I02   -1.244 0.079     1.482 1.000
+#>   I07    0.072 0.056     1.477 1.000
+#>   I06   -0.147 0.058     1.297 1.000
+#>   I01   -1.605 0.106    -1.121 1.000
+#>   I05   -0.511 0.059    -0.725 1.000
+#>   I09    0.685 0.061    -0.346 1.000
 ```
 
 ``` r
@@ -145,10 +142,18 @@ instead generates data under the fitted model and repeats the
 calibration. The default conditions on each observed raw score and
 missingness pattern. Use the adjusted bootstrap probabilities for item
 decisions; 999 replicates is a reasonable minimum for a final analysis,
-and a larger value may be needed when there are many items. Report
-`B_used`, `B_nonconverged`, and `B_errors`. A sparse polytomous
-calibration may be refused when too few replicated datasets can be
-fitted with the same model. For 30 or more requested replicates,
+and a larger value may be needed when there are many items. These
+references also assume one independent response row per person. When IDs
+repeat,
+[`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+retains the fit statistics as descriptive summaries but withholds their
+probabilities, and
+[`fit_bootstrap()`](https://drjoshmcgrane.github.io/rasch/reference/fit_bootstrap.md)
+is unavailable. Analyse occasions separately for item-fit inference;
+repeated-measures DIF remains available for testing specified occasion
+effects. Report `B_used`, `B_nonconverged`, and `B_errors`. A sparse
+polytomous calibration may be refused when too few replicated datasets
+can be fitted with the same model. For 30 or more requested replicates,
 inference is withheld unless at least 30 and 90% of the refits are
 usable. A maxT adjustment is unavailable for the complete family if one
 testable member lacks a usable joint null. Each simulated statistic is
@@ -210,12 +215,12 @@ head(fit$person[person_order, c(
   "id", "group", "raw", "theta", "se", "fit_resid"
 )], 6)
 #>     id group raw  theta    se fit_resid
-#>  P0486    g3  18 -0.042 0.381    -3.454
-#>  P0238    g1  23  0.691 0.395    -3.241
-#>  P0001    g1  18 -0.042 0.381    -3.163
-#>  P0031    g1  11 -1.062 0.397     2.999
-#>  P0493    g1  21  0.391 0.387    -2.912
-#>  P0327    g3  22  0.540 0.390    -2.742
+#>  P0486    g3  18 -0.039 0.377    -3.654
+#>  P0001    g1  18 -0.039 0.377    -3.349
+#>  P0238    g1  23  0.683 0.393    -3.308
+#>  P0031    g1  11 -1.036 0.393     3.051
+#>  P0493    g1  21  0.387 0.384    -3.022
+#>  P0327    g3  22  0.533 0.388    -2.818
 ```
 
 ``` r
@@ -242,8 +247,8 @@ head(boot$persons[order(boot$persons$fit_resid_p_boot_adj), c(
 
 An unexpected response pattern may reflect coding or data-entry errors,
 careless responding, a secondary trait, or a genuine but unusual person.
-It is not, by itself, a reason to remove the person. In this example, 7
-persons (1.2%) fall outside the displayed band; the plot reports the
+It is not, by itself, a reason to remove the person. In this example, 8
+persons (1.3%) fall outside the displayed band; the plot reports the
 same count and percentage. The `statistic` argument displays the
 standardised infit or outfit in place of the fit residual, under the
 same band. Fit residuals are unavailable for extreme response patterns
@@ -261,19 +266,19 @@ principal reliability indices.
 
 fit$targeting
 #> $person_mean
-#> [1] -0.01154
+#> [1] -0.0148
 #> 
 #> $person_sd
-#> [1] 1.066
+#> [1] 1.059
 #> 
 #> $person_mean_noext
-#> [1] -0.01154
+#> [1] -0.0148
 #> 
 #> $item_mean
-#> [1] 0
+#> [1] -5.204e-17
 #> 
 #> $threshold_range
-#> [1] -3.184  2.893
+#> [1] -3.179  2.894
 #> 
 #> $prop_below
 #> [1] 0.003333
@@ -346,14 +351,14 @@ average off-diagonal value.
 
 q3 <- residual_correlations(fit)
 q3$average
-#> [1] -0.08639
+#> [1] -0.0866
 head(q3$pairs[, c("item_a", "item_b", "q3", "q3_star")], 5)
-#>   item_a item_b         q3 q3_star
-#> 1    I10    I11  0.1266703 0.21306
-#> 2    I02    I05  0.0045201 0.09091
-#> 3    I01    I04 -0.0009814 0.08541
-#> 4    I06    I07 -0.0173825 0.06901
-#> 5    I02    I03 -0.0244845 0.06190
+#>   item_a item_b        q3 q3_star
+#> 1    I10    I11  0.134107 0.22071
+#> 2    I02    I05  0.003793 0.09039
+#> 3    I01    I04 -0.014196 0.07241
+#> 4    I06    I07 -0.016938 0.06966
+#> 5    I04    I12 -0.020358 0.06624
 ```
 
 ``` r
@@ -417,11 +422,11 @@ plot_pca(fit)
 ![Loadings of items on the first residual
 component.](rasch-workflow_files/figure-html/trait-dependence-plot-1.png)
 
-Here, 3.2% of the person comparisons are significant (exact 95% interval
-1.9% to 5.0%). The test does not flag trait dependence, but one opposed
-subset contains only 18 score points. A quiet result from a short
-subtest is inconclusive rather than evidence that a secondary trait is
-absent.
+Here, 3.0% of the person comparisons are significant (Clopper–Pearson
+95% interval 1.8% to 4.8%). The test does not flag trait dependence, but
+one opposed subset contains only 18 score points. A quiet result from a
+short subtest is inconclusive rather than evidence that a secondary
+trait is absent.
 
 ## Differential item functioning
 
@@ -446,9 +451,9 @@ flagged_dif[, c(
   "F_nonuniform", "p_nonuniform_adj", "eta2_nonuniform"
 )]
 #>  item  term F_uniform p_uniform_adj eta2_uniform F_nonuniform p_nonuniform_adj
-#>   I08 group    20.043       < 0.001        0.067        1.578            1.000
+#>   I08 group    20.993       < 0.001        0.069        1.220            1.000
 #>  eta2_nonuniform
-#>            0.026
+#>            0.021
 ```
 
 ``` r
@@ -473,9 +478,9 @@ dif$posthoc[, c(
   "lower", "upper", "practical"
 )]
 #>  item contrast estimate    se   p_adj  lower upper practical
-#>   I08  g2 - g1   -0.039 0.139   0.777 -0.312 0.233          
-#>   I08  g3 - g1    0.705 0.148 < 0.001  0.415 0.995         *
-#>   I08  g3 - g2    0.745 0.147 < 0.001  0.457 1.032         *
+#>   I08  g2 - g1   -0.033 0.138   0.813 -0.304 0.238          
+#>   I08  g3 - g1    0.711 0.148 < 0.001  0.421 1.001         *
+#>   I08  g3 - g2    0.744 0.147 < 0.001  0.457 1.031         *
 ```
 
 The residual ANOVA is the primary DIF analysis. A bootstrap sensitivity

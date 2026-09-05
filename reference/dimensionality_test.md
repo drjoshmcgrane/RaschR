@@ -11,10 +11,10 @@ the person location, so
 standard normal and about `alpha` of the tests should reach
 significance. Persons with an extreme score on either subset are
 excluded (their weighted-likelihood estimates are most biased there).
-The proportion of significant tests is reported with an exact
-(Clopper-Pearson) binomial confidence interval. For a split fixed in
-advance, a lower bound above `alpha` signals multidimensionality. The
-test requires a converged calibration.
+The proportion of significant tests is reported with a Clopper–Pearson
+binomial confidence interval. For a split fixed in advance, a lower
+bound above `alpha` signals multidimensionality. The test requires a
+converged calibration and one response row per person.
 
 ## Usage
 
@@ -37,7 +37,10 @@ dimensionality_test(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
+  with one response row per person. Repeated identifiers are refused
+  because the person-level comparisons and their binomial count would
+  not be independent.
 
 - alpha:
 
@@ -85,21 +88,21 @@ dimensionality_test(
 
 ## Value
 
-A list with the proportion of significant tests, its exact confidence
-interval, the sample sizes (`n` used, `n_excluded_extreme`), the item
-split and its source, a `multidimensional` verdict, the corresponding
-uncalibrated `binomial_multidimensional` reading, a `caution` note when
-the subtests fall short of `min_score_points`, and `paired_t`, the
-paired t-test of the two subset means (the group-level comparison, which
-requires pairing because both estimates come from the same persons).
-With `B > 0` the list also carries `p_boot`, the bootstrap probability
-of a proportion at least as large as the observed one under the fitted
-unidimensional model; `prop_null`, the mean replicate proportion (the
-rate the split produces when nothing is there); and `bootstrap`, the
-replicate proportions with the counts requested, used, non-converged and
-failed. When the comparison itself is unavailable (undefined split,
-degenerate subsets, too few persons) the list carries a `note`
-explaining why and `multidimensional = NA`.
+A list with the proportion of significant tests, its Clopper–Pearson
+confidence interval, the sample sizes (`n` used, `n_excluded_extreme`),
+the item split and its source, a `multidimensional` verdict, the
+corresponding uncalibrated `binomial_multidimensional` reading, a
+`caution` note when the subtests fall short of `min_score_points`, and
+`paired_t`, the paired t-test of the two subset means (the group-level
+comparison, which requires pairing because both estimates come from the
+same persons). With `B > 0` the list also carries `p_boot`, the
+bootstrap probability of a proportion at least as large as the observed
+one under the fitted unidimensional model; `prop_null`, the mean
+replicate proportion (the rate the split produces when nothing is
+there); and `bootstrap`, the replicate proportions with the counts
+requested, used, non-converged and failed. When the comparison itself is
+unavailable (undefined split, degenerate subsets, too few persons) the
+list carries a `note` explaining why and `multidimensional = NA`.
 
 ## Details
 
@@ -112,8 +115,9 @@ bootstrap calibration the data-driven split therefore has no binary
 verdict: `multidimensional` is `NA`, while the interval and uncalibrated
 binomial reading remain available descriptively. Two inferential routes
 are available. A content-based split, named through `items_positive` and
-`items_negative`, keeps the binomial reading exact. Otherwise `B > 0`
-calibrates the data-driven split by a parametric bootstrap: each
+`items_negative`, supports the conventional fixed-split binomial rule
+without the selection induced by the residual-derived split. Otherwise
+`B > 0` calibrates the data-driven split by a parametric bootstrap: each
 replicate draws responses from the fitted model conditional on every
 person's raw score and missingness pattern, refits the calibration,
 repeats the residual-component split on its own residuals and recomputes

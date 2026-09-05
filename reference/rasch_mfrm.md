@@ -92,7 +92,9 @@ specification. Interactive fits also contain an omnibus test and the
 corresponding item-by-facet effects. The component `fit_resid` averages
 virtual-item residuals within a margin. Its response-weighted
 counterpart is `fit_resid_pooled`; its degrees of freedom are in
-`df_fit`.
+`df_fit`. A non-converged fit retains estimates and residual patterns
+for diagnosis but withholds standard errors and inferential
+probabilities.
 
 ## Details
 

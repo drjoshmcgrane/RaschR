@@ -184,11 +184,7 @@ be considered together.</p>
 <span><span class="op">]</span></span>
 <span><span class="fu"><a href="../reference/judge_surprise.html">judge_surprise</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">erratic_judge</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Judge J19: 49 comparisons over 8 objects</span></span>
-<span><span class="co">#&gt; Unexpected judgements:</span></span>
-<span><span class="co">#&gt;   O2     (loc -1.01): z = +2.46  [weak object over-rated]</span></span>
-<span><span class="co">#&gt;   O7     (loc +1.09): z = -2.46  [strong object under-rated]</span></span>
-<span><span class="co">#&gt;   O6     (loc +0.45): z = -2.32  [strong object under-rated]</span></span>
-<span><span class="co">#&gt;   O1     (loc -1.29): z = +2.05  [weak object over-rated]</span></span>
+<span><span class="co">#&gt; No object judged against its consensus standing.</span></span>
 <span><span class="fu"><a href="../reference/btl_information.html">btl_information</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Paired-comparison design information: 8 objects, total 418.83</span></span>
 <span><span class="co">#&gt; One-comparison Fisher information about the location gap (dichotomous: P(1 - P))</span></span>
@@ -362,14 +358,15 @@ v_k=\alpha_s\beta_k+\kappa_s.
 has logit <span class="math inline">\(\phi_g(\beta_A-\beta_B)\)</span>;
 a cross-set comparison has logit <span class="math inline">\(\phi_g(v_A-v_B)\)</span>. As in Humphry and
 Andrich (2008, eq. 15), <span class="math inline">\(\phi_g\)</span> and
-<span class="math inline">\(\alpha_s\)</span> are unit ratios — the
-reference unit over the frame’s own, each against a reference fixed at
-one, a value above one meaning the finer unit and steeper comparisons —
-and “unit” names that ratio for short throughout. Cross-set comparisons
-identify the set units and origins. The cross-set likelihood holds the
-within-set locations and panel units fixed. It estimates the set
-transformations directly from the comparison outcomes and does not use
-the finite-grid person-distribution link in
+<span class="math inline">\(\alpha_s\)</span> are unit ratios: the
+common reference unit over the frame’s own unit. The panel units <span class="math inline">\(\phi_g\)</span> have geometric mean one. For the
+linked item sets, the first set fixes <span class="math inline">\(\alpha_1=1\)</span> and <span class="math inline">\(\kappa_1=0\)</span>, defining the unit and origin
+of the common scale; the remaining set transformations are estimated
+relative to it. A value above one denotes a finer unit and steeper
+comparisons. Cross-set comparisons identify the set units and origins.
+The cross-set likelihood holds the within-set locations and panel units
+fixed. It estimates the set transformations directly from the comparison
+outcomes and does not use the finite-grid person-distribution link in
 <code><a href="../reference/rasch_efrm.html">rasch_efrm()</a></code>.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">de</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl_efrm.html">simulate_btl_efrm</a></span><span class="op">(</span></span>

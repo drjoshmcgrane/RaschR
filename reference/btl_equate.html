@@ -80,7 +80,7 @@ requires the joint location covariance as a square matrix in
 object), unless the bank is treated as fixed with zero SEs. A bank whose
 covariance was estimated from a finite number of independent sampling
 units may carry their residual degrees of freedom in
-<code>attr(fit2, "df_location")</code>. For a polytomous
+<code>attr(fit2, "df_location")</code> as one positive numeric value. For a polytomous
 fit the bank must carry
 <code>attr(bank, "m")</code> matching the number of fitted score steps.</p></dd>
 
@@ -115,7 +115,9 @@ calibrations require a joint or paired bootstrap for inference.</p></dd>
   number of common objects
   <code>n_common</code>; the number usable for inference <code>n_inference</code>;
   whether inference was available <code>inferential</code>; <code>alpha</code>;
-  <code>p_adjust</code>; and <code>notes</code>.</p>
+  <code>p_adjust</code>; and <code>notes</code>.
+  A drift probability is withheld when its contrast has zero estimated
+  uncertainty. Such an object remains in the multiplicity family.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -129,9 +131,13 @@ descriptive fallback and recorded in <code>shift_method</code>.
 Each object is tested using its shifted difference \(d_j-\hat s\). The
 covariance calculation retains the dependence induced by the sum-zero
 constraints. Drift tests require independent calibrations and at least
-three common objects with usable covariance information. Two common objects
-identify a descriptive origin shift, but do not support an object-drift
-test.</p>
+three common objects with usable, positive-semidefinite covariance
+information. Two common objects identify a descriptive origin shift, but
+do not support an object-drift test.
+A judge-clustered ordinary BTL covariance, or a BTL–EFRM covariance from
+the judge bootstrap, uses finite judge-cluster degrees of freedom. A
+conditional or comparison-level parametric-bootstrap BTL–EFRM covariance
+uses the asymptotic normal reference instead.</p>
 <p>The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and
 stable objects can appear to drift. In that case, repeat the equating with a

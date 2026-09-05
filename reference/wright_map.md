@@ -79,7 +79,8 @@ item-by-frame response columns. For EFRM fits,
 frame design; both may be specified together. A single person panel has
 no heading by default. When several person panels are requested, their
 panel labels are printed above the distributions. The plot has no
-overall title unless one is supplied through `main.title`.
+overall title unless one is supplied through `main.title`. The fitted
+calibration must have converged.
 
 ## References
 

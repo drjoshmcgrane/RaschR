@@ -209,15 +209,14 @@ uses person-level differencing for within-person questions.
 
 dif_size(fit, "I03", by = "group")
 #> DIF size for I03 by group (resolved locations, logits)
-#>  level location se weak   n
-#>      A   -0.518       0 320
-#>      B    0.227       0 320
-#>  level_a level_b difference se z p p_adj lower upper significant practical
-#>        A       B     -0.745                                        >= 0.50
-#>  p_beyond_A p_beyond_A_adj  ets signed_area
-#>                            <NA>            
+#>  level location    se weak   n
+#>      A   -0.518 0.129    0 320
+#>      B    0.227 0.128    0 320
+#>  level_a level_b difference    se      z       p   p_adj  lower  upper
+#>        A       B     -0.745 0.203 -3.673 < 0.001 < 0.001 -1.143 -0.348
+#>  significant practical p_beyond_A p_beyond_A_adj ets signed_area
+#>            *   >= 0.50      0.058          0.058  B-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits
-#> notes: person identifiers repeat across response rows: resolved point differences remain descriptive, but sampling SEs, confidence intervals and Wald tests are withheld; use dif_contrasts for person-level inference or a whole-person bootstrap
 dc <- dif_contrasts(fit, items = c("I03", "I06"), within = "occasion")
 dc$table
 #>  item                         contrast within estimate se statistic      df
@@ -263,11 +262,12 @@ residual contrast scores with the same design-cell weights as the
 resolved estimate. Other fitted factors are averaged equally over their
 complete cells, including when their sample sizes differ, and the
 independent between-person cells use a Welch–Satterthwaite reference.
-The resolved logit difference remains the magnitude, but its
-row-independent calibration covariance is not a repeated-measures
-standard error; the package therefore withholds the logit SE and
-interval in this case. The fitted person identifier is used unless `id`
-is supplied explicitly.
+The resolved logit difference remains the magnitude. Its standard error
+uses the person-clustered calibration covariance, whereas
+[`dif_contrasts()`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
+tests a nominated within-person comparison directly from person-level
+contrasts. The fitted person identifier is used unless `id` is supplied
+explicitly.
 
 For a many-facet fit, follow-ups may name the underlying item; its
 virtual facet cells are pooled with common weights so facet severity
