@@ -105,7 +105,9 @@ An object of classes \code{"rasch_efrm"} and \code{"rasch"}.
   vignette for their interpretation. If the within-frame calibration does
   not converge, its standard errors and all later inferential probabilities
   are withheld. Failure of only a set link does not invalidate the already
-  converged within-frame calibration or group-unit estimates.
+  converged within-frame calibration or group-unit estimates, but
+  common-unit item, frame and person uncertainty is withheld because it
+  depends on that link.
 }
 \description{
 Fits Humphry's extended frame of reference model, in which the unit can
@@ -140,6 +142,14 @@ linked pair of sets. For sets \eqn{a} and \eqn{b}, it maximises
 where the masses of each observed group's \eqn{F_g}, the scale ratio
 \eqn{r} and the offset \eqn{c} are estimated jointly on a fixed grid. This
 avoids prescribing a normal or common person distribution across groups.
+A link whose scale or offset reaches the numerical search boundary is
+refused rather than reported as a finite estimate. So is a link whose
+grid truncates the person distribution: persons with a finite location
+in at least one set may place no more than two per cent of their
+posterior mass on the ends of the grid. Persons at the minimum or maximum
+score in both sets remain in the likelihood but do not count towards this
+check; their likelihood rises towards one end of any finite grid and
+carries no information about the link.
 The conditional thresholds and group units are held fixed in this step;
 only \eqn{r}, \eqn{c}, and the nuisance masses are estimated. The linked
 parameters are then

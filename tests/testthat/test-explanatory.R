@@ -54,6 +54,49 @@ test_that("Kent calibration refuses singular or indefinite uncertainty", {
     rasch:::.kent_calibration(4, C, diag(2), asymmetric)$chisq))
 })
 
+test_that("failed explanatory calibration withholds covariance inference", {
+  d <- sim_lltm(n = 250, seed = 4110)
+  M <- ncol(d$X)
+  B <- rbind(diag(M - 1L), rep(-1, M - 1L))
+  colnames(B) <- paste0("b", seq_len(ncol(B)))
+  real_solve <- rasch:::.pcml_solve
+  z <- testthat::with_mocked_bindings(
+    rasch:::.pcml_design(d$X, B, colnames(B)),
+    .pcml_solve = function(...) {
+      ans <- real_solve(...)
+      ans$converged <- FALSE
+      ans
+    },
+    .package = "rasch")
+  expect_false(z$converged)
+  expect_true(all(is.na(z$thr$se)))
+  expect_true(all(is.na(z$cov_tau)))
+  expect_true(all(is.na(z$cov_beta)))
+  expect_true(all(is.na(z$coefficients$se)))
+  expect_true(all(is.na(z$coefficients$p)))
+  expect_true(all(is.na(z$coefficients$p_adj)))
+})
+
+test_that("explanatory CJ accepts predictors for set-aside boundary objects", {
+  pr <- t(utils::combn(LETTERS[1:4], 2L))
+  core <- do.call(rbind, lapply(seq_len(nrow(pr)), function(i)
+    data.frame(a = rep(pr[i, 1L], 2L), b = rep(pr[i, 2L], 2L),
+               winner = pr[i, ])))
+  # E and F occur in the observed comparisons but form an isolated
+  # undefeated/winless pair.  Neither can be extrapolated against the fitted
+  # core, so neither appears in the reported object table.
+  d <- rbind(core,
+             data.frame(a = rep("E", 4L), b = rep("F", 4L),
+                        winner = rep("E", 4L)))
+  predictors <- data.frame(object = LETTERS[1:6], x = seq_len(6L))
+  fit <- btl_explanatory(d, predictors, ~ x, "a", "b", winner = "winner")
+  expect_s3_class(fit, "rasch_btl_explanatory")
+  expect_setequal(fit$objects$object, LETTERS[1:4])
+  expect_true(all(c("E", "F") %in%
+    c(fit$observed_comparisons$object_a,
+      fit$observed_comparisons$object_b)))
+})
+
 test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   d <- sim_lltm()
   f <- rasch_explanatory(d$X, d$predictors,

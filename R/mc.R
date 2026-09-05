@@ -23,7 +23,12 @@
 .resolve_key <- function(key) {
   if (is.data.frame(key)) .check_column_names(key)
   if (is.data.frame(key) && all(c("item", "option", "score") %in% names(key))) {
-    key$item <- .role_text_values(key$item)
+    # Item values are column selectors. Preserve an exact, deliberately
+    # spaced column name; only response options are canonicalised for the
+    # case-insensitive matching used by .score_mc().
+    item_missing <- is.na(key$item)
+    key$item <- as.character(key$item)
+    key$item[item_missing | is.na(key$item)] <- NA_character_
     # a row with no item names no item: split() would file it under a
     # phantom group and the real item would be left unscored
     blank_item <- is.na(key$item) | !nzchar(trimws(key$item))
@@ -55,8 +60,10 @@
     if (!all(c("item", "key") %in% names(key)))
       stop("a key data frame needs columns item, key ",
            "(or item, option, score for polytomous option scoring)")
-    key <- setNames(.role_text_values(key$key),
-                    .role_text_values(key$item))
+    item_missing <- is.na(key$item)
+    item_names <- as.character(key$item)
+    item_names[item_missing | is.na(item_names)] <- NA_character_
+    key <- setNames(.role_text_values(key$key), item_names)
   }
   if (is.null(names(key))) stop("the key must be named by item")
   # a key entry that names no item scores no item: the real item would be
@@ -99,14 +106,24 @@
 # Score raw responses against the scoring maps. Observed options absent
 # from an item's map score 0; blank, NA, and missing-data codes become NA.
 .score_mc <- function(X, map) {
-  keyed <- intersect(names(map), colnames(X))
-  if (!length(keyed)) stop("no key item matches an item column")
-  # a key entry naming no item column is almost always a typo: surface it
-  # rather than drop it silently
-  unmatched <- setdiff(names(map), colnames(X))
-  if (length(unmatched))
+  supplied <- names(map)
+  idx <- match(supplied, colnames(X))
+  fallback <- is.na(idx)
+  if (any(fallback))
+    idx[fallback] <- match(.role_text_values(supplied[fallback]), colnames(X))
+  if (all(is.na(idx))) stop("no key item matches an item column")
+  # A key entry naming no item column is almost always a typo: surface it
+  # rather than drop it silently. Exact names win before surrounding
+  # whitespace is treated as selector syntax.
+  if (anyNA(idx))
     stop("key item(s) with no matching data column: ",
-         paste(unmatched, collapse = ", "), call. = FALSE)
+         paste(supplied[is.na(idx)], collapse = ", "), call. = FALSE)
+  keyed <- colnames(X)[idx]
+  if (anyDuplicated(keyed))
+    stop("key entries resolve to the same item column: ",
+         paste(unique(keyed[duplicated(keyed)]), collapse = ", "),
+         call. = FALSE)
+  names(map) <- keyed
   raw <- matrix(trimws(toupper(as.character(X[, keyed]))), nrow(X),
                 length(keyed), dimnames = list(NULL, keyed))
   raw[raw %in% c("", "NA", "-1")] <- NA
@@ -125,10 +142,11 @@
 #' Distractor analysis for multiple-choice items
 #'
 #' For every keyed item and response option: the count and proportion
-#' choosing it, the mean location of those persons, and the point-biserial
-#' correlation between choosing the option and the person measure. Locations
-#' and correlations use the rest measure (the person estimate from the other
-#' items), so the analysed item cannot credit its own takers. The keyed
+#' choosing it among respondents with a non-extreme rest measure, their mean
+#' location, and the point-biserial correlation between choosing the option
+#' and the person measure. These summaries use the rest measure (the person
+#' estimate from the other items), so the analysed item cannot credit its own
+#' takers. The keyed
 #' option should attract the ablest persons and carry the only positive
 #' point-biserial; a distractor whose takers are abler than the keyed
 #' option's (with at least \code{min_n} takers) is flagged as a possible
@@ -185,10 +203,14 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
   for (it in items) {
     r <- raw[, it]
     idx <- match(it, colnames(fit$X))
-    th <- .person_estimates(fit$X[, -idx, drop = FALSE],
-                            fit$tau_list[-idx])$theta   # rest measure
-    ok <- !is.na(r) & !is.na(th)
-    opts <- sort(unique(r[ok]))
+    rp <- .person_estimates(fit$X[, -idx, drop = FALSE],
+                            fit$tau_list[-idx])         # rest measure
+    th <- rp$theta
+    ok <- !is.na(r) & is.finite(th) & !rp$extreme
+    # Retain every observed option even when all of its takers have an
+    # extreme or unavailable rest score. Its rest-measure summaries are then
+    # honestly unavailable rather than the option silently disappearing.
+    opts <- sort(unique(r[!is.na(r)]))
     m <- map[[it]]
     sc <- unname(m[opts]); sc[is.na(sc)] <- 0L
     rows <- data.frame(item = it, option = opts, score = sc,
@@ -198,10 +220,13 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
     for (j in seq_along(opts)) {
       sel <- ok & r == opts[j]
       rows$n[j] <- sum(sel)
-      rows$prop[j] <- sum(sel) / sum(ok)
-      rows$mean_location[j] <- mean(th[sel])
+      rows$prop[j] <- if (any(ok)) sum(sel) / sum(ok) else NA_real_
+      rows$mean_location[j] <- if (any(sel)) mean(th[sel]) else NA_real_
       ind <- as.integer(r[ok] == opts[j])
-      rows$point_biserial[j] <- if (var(ind) > 0)
+      # var() is NA for a single usable rest measure.  That is insufficient
+      # to define a correlation, but it is not an analysis fault.
+      rows$point_biserial[j] <- if (length(ind) > 1L &&
+                                      isTRUE(stats::var(ind) > 0))
         cor(ind, th[ok]) else NA_real_
     }
     # nobody may have chosen the keyed option; max() then returns -Inf with
@@ -311,9 +336,10 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
 #'   distractor and the uncredited ones.
 #' @return A list of class \code{"rasch_rescore"}: \code{option_scores}, a
 #'   data frame (\code{item}, \code{option}, \code{score}) ready for
-#'   \code{rasch(key = )} and covering every observed option of the
-#'   examined items, and \code{evidence}, the distractor analysis with the
-#'   proposed scores and the separation z per option.
+#'   \code{rasch(key = )}, covering every observed option of the examined
+#'   items and retaining the existing scoring of other keyed items; and
+#'   \code{evidence}, the distractor analysis with the proposed scores and
+#'   the separation z per option.
 #' @references Andrich, D. and Styles, I. (2011). Distractors with
 #'   information in multiple choice items: A rationale based on the Rasch
 #'   model. Journal of Applied Measurement, 12, 67-95.
@@ -342,20 +368,27 @@ distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
   ev <- list(); os <- list()
   for (it in unique(da$item)) {
     d <- da[da$item == it, ]
-    if (!any(d$keyed %in% TRUE))
-      stop("item ", it, " has no observed full-credit option; a rescoring ",
-           "proposal cannot locate the keyed response on the rest-measure ",
-           "scale", call. = FALSE)
+    if (!any(d$n > 0L))
+      stop("item ", it, " has no non-extreme rest measures; a rescoring ",
+           "proposal cannot be estimated", call. = FALSE)
+    usable_key <- which(d$keyed %in% TRUE & d$n > 0L &
+                          is.finite(d$mean_location))
+    if (!length(usable_key))
+      stop("item ", it, " has no observed full-credit option with a ",
+           "non-extreme rest measure; a rescoring proposal cannot locate ",
+           "the keyed response on the rest-measure scale", call. = FALSE)
     idx <- match(it, colnames(fit$X))
-    th <- .person_estimates(fit$X[, -idx, drop = FALSE],
-                            fit$tau_list[-idx])$theta
-    r <- raw[, it]; ok <- !is.na(r) & !is.na(th)
+    rp <- .person_estimates(fit$X[, -idx, drop = FALSE],
+                            fit$tau_list[-idx])
+    th <- rp$theta
+    r <- raw[, it]
+    ok <- !is.na(r) & is.finite(th) & !rp$extreme
     # per-option SE of the mean rest location
     d$se_location <- vapply(d$option, function(o) {
       x <- th[ok & r == o]
       if (length(x) > 1) sd(x) / sqrt(length(x)) else NA_real_
     }, 0)
-    key_row <- which(d$keyed)[which.max(d$mean_location[d$keyed])]
+    key_row <- usable_key[which.max(d$mean_location[usable_key])]
     cand <- which(!d$keyed & d$n >= min_n)
     # the uncredited baseline: distractors not currently under consideration
     d$z_sep <- NA_real_
@@ -381,7 +414,18 @@ distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
     ev[[it]] <- d
     os[[it]] <- data.frame(item = it, option = d$option, score = d$proposed)
   }
-  out <- list(option_scores = do.call(rbind, os),
+  # A subset proposal must still be usable with the original raw matrix.
+  # Leaving the other character-valued item columns out of the key would
+  # leave them unscored and make the documented refit fail. Preserve their
+  # existing maps unchanged.
+  untouched <- setdiff(colnames(raw), names(os))
+  for (it in untouched) {
+    m <- fit$mc$map[[it]]
+    os[[it]] <- data.frame(item = it, option = names(m),
+                           score = as.integer(m))
+  }
+  item_order <- intersect(colnames(raw), names(os))
+  out <- list(option_scores = do.call(rbind, os[item_order]),
               evidence = do.call(rbind, ev))
   rownames(out$option_scores) <- rownames(out$evidence) <- NULL
   out <- .tag_tables(out)

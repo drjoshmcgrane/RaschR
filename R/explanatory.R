@@ -164,6 +164,14 @@
                      pairs = pairs, cluster = cluster)
   names(sol$beta) <- parameter_names
   dimnames(sol$cov_beta) <- list(parameter_names, parameter_names)
+  # Do not turn the curvature at an unfinished optimisation iterate into
+  # apparently valid coefficient or threshold inference.  Point estimates
+  # remain available to diagnose the failed fit.
+  if (!isTRUE(sol$converged)) {
+    sol$se_tau[] <- NA_real_
+    sol$cov_tau[,] <- NA_real_
+    sol$cov_beta[,] <- NA_real_
+  }
   thr$tau <- sol$tau
   thr$se <- sol$se_tau
   thr$anchored <- FALSE
@@ -413,7 +421,7 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
   if (!is.null(reference$objects$extreme))
     calibrated <- calibrated[!reference$objects$extreme %in% TRUE]
   design <- .btl_explanatory_design(predictors, formula, calibrated,
-                                    known = all_objects)
+                                    known = observed_objects)
   fit <- do.call(btl, c(list(data = data), args,
                         list(.object_design = design)))
   fit$reference_fit <- reference

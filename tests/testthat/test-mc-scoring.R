@@ -39,6 +39,11 @@ test_that("double keying credits every listed option", {
   expect_true(all(da$keyed[da$option %in% c("A", "C")]))
   expect_true(all(!da$keyed[da$option %in% c("B", "D")]))
   expect_equal(unname(fit$mc$key[1]), "A/C")
+  rp <- .person_estimates(fit$X[, -1L, drop = FALSE], fit$tau_list[-1L])
+  expect_true(any(rp$extreme))
+  expected_n <- sum(!is.na(fit$mc$raw[, 1L]) & is.finite(rp$theta) &
+                      !rp$extreme)
+  expect_equal(sum(da$n[da$item == "M1"]), expected_n)
 
   failed <- fit
   failed$est$converged <- FALSE
@@ -53,6 +58,10 @@ test_that("polytomous option scoring fits credited distractors as categories", {
     data.frame(item = it, option = c("A", "B"), score = c(2, 1))))
   fit <- rasch(s$raw, key = os)
   expect_true(all(fit$m == 2))
+  expect_true(any(grepl("polytomous option-score maps", fit$notes,
+                        fixed = TRUE)))
+  expect_false(any(grepl("scored 0/1 against the key", fit$notes,
+                         fixed = TRUE)))
   expect_equal(unname(fit$X[, 3]),
                unname(c(A = 2L, B = 1L, C = 0L, D = 0L)[s$raw[, 3]]))
   # the polytomous scoring recovers the trait better than binary scoring
@@ -86,6 +95,14 @@ test_that("distractor_rescore proposes credit for the informative distractor", {
   expect_true(is.finite(refit$psi$PSI))
   # evidence table carries the separation statistic
   expect_true(all(c("z_sep", "proposed", "se_location") %in% names(pr$evidence)))
+
+  # Reviewing one item still returns a complete key for the original raw
+  # dataset; items outside the review retain their fitted scoring.
+  one <- distractor_rescore(bin, items = "M1")
+  expect_setequal(unique(one$option_scores$item), colnames(s$raw))
+  expect_equal(one$option_scores$score[
+    one$option_scores$item == "M2" & one$option_scores$option == "A"], 1L)
+  expect_no_error(rasch(s$raw, key = one$option_scores))
 })
 
 test_that("distractor rescoring refuses an unobserved full-credit option", {
@@ -98,6 +115,28 @@ test_that("distractor rescoring refuses an unobserved full-credit option", {
   fit <- rasch(raw, key = key)
   expect_error(distractor_rescore(fit, min_n = 5),
                "no observed full-credit option")
+})
+
+test_that("a one-person rest-measure cell withholds its point-biserial", {
+  s <- sim_mc_partial(N = 300)
+  fit <- rasch(s$raw, key = setNames(rep("A", 6), colnames(s$raw)))
+  rp <- .person_estimates(fit$X[, -1L, drop = FALSE], fit$tau_list[-1L])
+  ie <- which(rp$extreme)[1L]
+  ii <- which(!rp$extreme & is.finite(rp$theta))[1L]
+  expect_true(all(is.finite(c(ie, ii))))
+  # A routed design can leave one option represented only by an extreme rest
+  # score and another by a single usable rest score. Neither point-biserial
+  # is defined, and the keyed option cannot anchor a rescoring proposal.
+  fit$mc$raw[, "M1"] <- NA_character_
+  fit$mc$raw[ie, "M1"] <- "A"
+  fit$mc$raw[ii, "M1"] <- "B"
+  out <- distractor_analysis(fit, "M1", min_n = 1)
+  expect_setequal(out$option, c("A", "B"))
+  expect_equal(out$n[out$option == "A"], 0L)
+  expect_equal(out$n[out$option == "B"], 1L)
+  expect_true(all(is.na(out$point_biserial)))
+  expect_error(distractor_rescore(fit, "M1", min_n = 1),
+               "no observed full-credit option with")
 })
 
 test_that("key validation guards remain informative", {
@@ -114,6 +153,29 @@ test_that("key validation guards remain informative", {
                "credits no option")
   expect_error(rasch(raw, key = data.frame(item = "M9", key = "A")),
                "no key item matches")
+})
+
+test_that("data-frame keys preserve literal item-column names", {
+  set.seed(95)
+  raw <- matrix(sample(c("A", "B"), 900, replace = TRUE), 300, 3,
+                dimnames = list(NULL, c(" M1 ", "M2", "M3")))
+  key <- data.frame(item = colnames(raw), key = rep("A", 3),
+                    check.names = FALSE)
+  fit <- rasch(raw, key = key)
+  expect_true(" M1 " %in% fit$items$item)
+
+  option_key <- data.frame(item = rep(colnames(raw), each = 2L),
+                           option = rep(c("A", "B"), 3L),
+                           score = rep(c(1L, 0L), 3L),
+                           check.names = FALSE)
+  fit2 <- rasch(raw, key = option_key)
+  expect_true(" M1 " %in% fit2$items$item)
+
+  ordinary <- raw
+  colnames(ordinary)[1L] <- "M1"
+  padded_key <- key
+  padded_key$item[1L] <- " M1 "
+  expect_true("M1" %in% rasch(ordinary, key = padded_key)$items$item)
 })
 
 test_that("a factor item selector is read by its label in distractor plots", {

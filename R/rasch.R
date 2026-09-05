@@ -142,21 +142,25 @@
 # Categories that occupy a non-zero interval on the upper envelope of the
 # partial-credit category logits. Evaluating a regular theta grid can miss a
 # genuinely modal category when two adjacent thresholds are close together.
-.modal_score_categories <- function(tau) {
-  score <- 0:length(tau)
-  intercept <- -c(0, cumsum(tau))
-  pair <- utils::combn(seq_along(score), 2L)
-  cuts <- (intercept[pair[1L, ]] - intercept[pair[2L, ]]) /
-    (score[pair[2L, ]] - score[pair[1L, ]])
-  cuts <- sort(unique(cuts[is.finite(cuts)]))
-  if (!length(cuts)) return(0L)
-  margin <- max(1, diff(range(cuts)))
-  probes <- c(cuts[1L] - margin,
-              if (length(cuts) > 1L)
-                (cuts[-length(cuts)] + cuts[-1L]) / 2,
-              cuts[length(cuts)] + margin)
-  sort(unique(vapply(probes, function(theta)
-    which.max(score * theta + intercept) - 1L, integer(1))))
+# Category k beats every lower category above the largest mean of the
+# thresholds leading up to it, and every higher category below the smallest
+# mean of the thresholds leading on from it; it is modal when that interval
+# has positive width. The tolerance folds floating-point noise: thresholds
+# that are equal by construction give crossing points that differ by an ulp,
+# and probing between them would report a category modal at a single point.
+.modal_score_categories <- function(tau, tol = 1e-9) {
+  m <- length(tau)
+  if (!m) return(0L)
+  cs <- c(0, cumsum(tau))
+  modal <- c(TRUE, vapply(seq_len(m - 1L), function(k) {
+    below <- seq_len(k) - 1L
+    above <- (k + 1L):m
+    lower <- max((cs[k + 1L] - cs[below + 1L]) / (k - below))
+    upper <- min((cs[above + 1L] - cs[k + 1L]) / (above - k))
+    is.finite(lower) && is.finite(upper) &&
+      upper - lower > tol * max(1, abs(lower), abs(upper))
+  }, logical(1)), TRUE)
+  which(modal) - 1L
 }
 
 # A category observed only in extreme response patterns -- every observed
@@ -632,8 +636,14 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   prep <- .prepare_X(X, na_codes = na_codes, model = model, anchors = anchors)
   X <- prep$X
   if (!is.null(mc)) {
-    prep$notes <- c(prep$notes,
-                    sprintf("%d item(s) scored 0/1 against the key", ncol(mc$raw)))
+    binary_key <- vapply(mc$map, function(z) max(z) == 1L, logical(1))
+    if (any(binary_key))
+      prep$notes <- c(prep$notes, sprintf(
+        "%d item(s) scored 0/1 against the key", sum(binary_key)))
+    if (any(!binary_key))
+      prep$notes <- c(prep$notes, sprintf(
+        "%d item(s) scored with polytomous option-score maps",
+        sum(!binary_key)))
     gone <- setdiff(colnames(mc$raw), colnames(X))
     if (length(gone)) mc$raw <- mc$raw[, setdiff(colnames(mc$raw), gone), drop = FALSE]
   }

@@ -85,6 +85,7 @@ test_that("ties, extremes, counts, and disconnection are handled", {
   expect_true(any(grepl("tie", ft_d$notes)))
   ft_h <- btl(d, "a", "b", "win", ties = "half")
   expect_gt(ft_h$n_comparisons, ft_d$n_comparisons)
+  expect_equal(sum(ft_h$observed_comparisons$weight), nrow(d))
   # The two half rows are one comparison for sandwich purposes. Giving every
   # original row its own judge reproduces that meat, apart from CR1.
   d$row_cluster <- sprintf("R%04d", seq_len(nrow(d)))
@@ -118,6 +119,10 @@ test_that("ties, extremes, counts, and disconnection are handled", {
   expect_true(is.na(e_row$se))
   expect_gt(e_row$location,
             max(ft3$objects$location[!ft3$objects$extreme]))
+  expect_true("E" %in% c(ft3$observed_comparisons$object_a,
+                         ft3$observed_comparisons$object_b))
+  expect_false("E" %in% c(ft3$comparisons$object_a,
+                          ft3$comparisons$object_b))
   # disconnected comparison graphs are refused with the components listed
   dd <- data.frame(a = c("A", "A", "C", "C"), b = c("B", "B", "D", "D"),
                    win = c("A", "B", "C", "D"))
@@ -541,6 +546,18 @@ test_that("fit_summary_table dispatches for paired-comparison fits", {
                "sandwich, clustered by judge")
   expect_true(any(grepl("Within-judge exposure", ft$statistic)))
   expect_true(any(grepl("Within-judge carry-over", ft$statistic)))
+  expect_true(all(grepl("Holm p", ft$value[
+    grepl("Within-judge", ft$statistic)])))
+  # An older or incomplete fit must not silently substitute an unadjusted
+  # probability on a surface whose decisions use the Holm family.
+  no_adjustment <- bt
+  no_adjustment$dependence$p_adj <- NULL
+  ft_unavailable <- fit_summary_table(no_adjustment)
+  dependence_rows <- grepl("Within-judge", ft_unavailable$statistic)
+  expect_true(all(grepl("Holm p unavailable",
+                        ft_unavailable$value[dependence_rows], fixed = TRUE)))
+  expect_false(any(grepl(" p = ", ft_unavailable$value[dependence_rows],
+                         fixed = TRUE)))
   # graded fit reports its category count and threshold structure
   d$grade <- vapply(seq_len(nrow(d)), function(r) {
     p <- item_moments(beta[d$a[r]] - beta[d$b[r]], c(-1, 0, 1))$P
@@ -1396,6 +1413,13 @@ test_that("a boundary object is reported at an extrapolated location", {
   expect_true(is.na(ext$se))
   expect_true(is.na(ext$fit_resid))
   expect_match(paste(f$notes, collapse = " "), "extrapolated location")
+  expect_true("O1" %in% c(f$observed_comparisons$object_a,
+                          f$observed_comparisons$object_b))
+  expect_setequal(f$observed_comparisons$judge, d$judge)
+  trn <- btl_transitivity(f)
+  expect_equal(trn$summary$n_objects, 8L)
+  expect_equal(trn$summary$n_pairs, choose(8L, 2L))
+  expect_true("O1" %in% trn$objects$object)
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off(), add = TRUE)
   expect_no_error(plot_btl_icc(f, " O2 ", min_n = 1))

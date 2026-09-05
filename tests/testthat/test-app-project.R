@@ -41,6 +41,19 @@ test_that("app formula and code symbols preserve exact source names", {
   ordinary <- structure(list(items = data.frame(item = c("I1", "I2"))),
                         class = "rasch")
   expect_identical(e$.app_dif_item_choices(ordinary), c("I1", "I2"))
+
+  expect_identical(e$.app_selected_row(NULL, 4L), 1L)
+  expect_identical(e$.app_selected_row(3L, 4L), 3L)
+  expect_identical(e$.app_selected_row(8L, 4L), 1L)
+  expect_identical(e$.app_selected_row(c(2L, 3L), 4L), 1L)
+  expect_error(e$.app_selected_row(1L, 0L), "positive whole row count")
+
+  expect_true(e$.app_equating_fit(ordinary))
+  mfrm <- ordinary
+  class(mfrm) <- c("rasch_mfrm", class(mfrm))
+  expect_false(e$.app_equating_fit(mfrm))
+  btl <- structure(list(), class = "rasch_btl")
+  expect_false(e$.app_equating_fit(btl))
 })
 
 test_that("sourcing the in-tree app reuses the active source namespace", {
@@ -96,6 +109,18 @@ test_that("saved app analyses make a validated round trip", {
   expect_identical(restored$kept_fit_code, project$kept_fit_code)
   expect_identical(restored$settings, project$settings)
   expect_identical(restored$resources, project$resources)
+
+  # Comparison fits are active analysis objects after reopening and therefore
+  # receive the same structural validation as the base and history fits.
+  malformed_kept <- project
+  malformed_kept$kept_fits$reference$items <- NULL
+  malformed_kept <- .seal_app_project(malformed_kept)
+  expect_error(.validate_app_project(malformed_kept),
+               "kept fit 'reference'.*item calibration")
+  unnamed_kept <- project
+  names(unnamed_kept$kept_fits) <- NULL
+  unnamed_kept <- .seal_app_project(unnamed_kept)
+  expect_error(.validate_app_project(unnamed_kept), "kept-fit names")
 
   # Schema-2 projects written with the earlier text signature remain valid
   # across the LF/CRLF boundary.
@@ -362,8 +387,15 @@ test_that("opening a project retains results tied to its active fit", {
     settings = list(model_type = "rasch", id_col = "(none)",
                     factor_cols = character(0), item_cols = colnames(X),
                     thr_structure = "pcm", ng_auto = FALSE, ng = "6",
-                    maxit = 75, tol = 1e-7),
-    resources = list(anchors = NULL, key = NULL), simulation = list(),
+                    maxit = 75, tol = 1e-7,
+                    exp_type_1 = "ordinal", exp_order_1 = "low,high",
+                    exp_type_2 = "categorical", exp_ref_2 = "B"),
+    resources = list(
+      anchors = NULL, key = NULL,
+      predictors = data.frame(item = colnames(X),
+        stage = rep(c("low", "high"), length.out = ncol(X)),
+        family = rep(c("A", "B"), length.out = ncol(X)))),
+    simulation = list(),
     results = list(lr = list(marker = 17L))))
   path <- tempfile(fileext = ".rasch")
   on.exit(unlink(path), add = TRUE)
@@ -382,6 +414,11 @@ test_that("opening a project retains results tied to its active fit", {
     expect_match(src, "dat <- project[$]data")
     expect_identical(restored_project_settings(), project$settings)
     expect_identical(restored_project_resources(), project$resources)
+    p <- exp_predictors_raw()
+    expect_identical(exp_predictor_type(p, "stage"), "ordinal")
+    expect_identical(exp_level_order(p, "stage"), c("low", "high"))
+    expect_identical(exp_predictor_type(p, "family"), "categorical")
+    expect_identical(exp_category_levels(p, "family"), c("B", "A"))
     html <- paste(as.character(output$data_main), collapse = " ")
     expect_false(grepl("Welcome to rasch", html, fixed = TRUE))
     expect_match(html, "Data preview", fixed = TRUE)

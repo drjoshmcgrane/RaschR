@@ -25,10 +25,11 @@ defaults to every nominated factor.}
 
 \item{p_adjust}{Multiplicity adjustment across items each round.}
 
-\item{min_n}{Minimum responders required in every item-by-factor cell before
-an automatic split is allowed. The omnibus DIF test determines whether a
-split is needed; pairwise follow-ups describe where the difference lies
-but are not a second significance gate.}
+\item{min_n}{Minimum distinct responders required in every item-by-factor
+cell before an automatic split is allowed. Repeated response rows from
+one person count once within a cell. The omnibus DIF test determines
+whether a split is needed; pairwise follow-ups describe where the
+difference lies but are not a second significance gate.}
 
 \item{min_anchors}{Minimum number of original items to leave unsplit as the
 internal reference set. The procedure stops before this set becomes

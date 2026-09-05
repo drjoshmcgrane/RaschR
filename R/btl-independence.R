@@ -59,7 +59,9 @@
 #' A circular-triad rate of one quarter is the benchmark for a random
 #' tournament. It is not the expected rate under a fitted BTL model with
 #' unequal object locations, so this function is a descriptive consistency
-#' measure rather than a calibrated goodness-of-fit test.
+#' measure rather than a calibrated goodness-of-fit test. Comparisons involving
+#' an undefeated or winless object remain part of this observed-data summary,
+#' although that object is set aside from finite maximum-likelihood estimation.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param min_triples A judge is reported only if this many complete triples
@@ -84,10 +86,13 @@
 btl_transitivity <- function(fit, min_triples = 5L) {
   if (!inherits(fit, "rasch_btl")) stop("not a paired-comparison (btl) fit")
   min_triples <- .check_whole(min_triples, "min_triples", 1)
-  tab <- fit$objects
-  if ("extreme" %in% names(tab)) tab <- tab[!(tab$extreme %in% TRUE), ]
-  objs <- tab$object; K <- length(objs); m <- fit$m
-  cmp <- fit$comparisons
+  # Transitivity is a property of the observed tournament, not of the finite
+  # calibration. New fits retain the otherwise usable rows that preceded
+  # boundary-object removal; saved older fits fall back to their fitted rows.
+  cmp <- fit$observed_comparisons %||% fit$comparisons
+  objs <- sort(unique(c(as.character(cmp$object_a),
+                        as.character(cmp$object_b))))
+  K <- length(objs); m <- fit$m
   ia <- match(cmp$object_a, objs); ib <- match(cmp$object_b, objs)
   notes <- paste(
     "the 0.25 chance rate is a random-tournament benchmark, not the fitted",

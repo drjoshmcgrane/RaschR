@@ -33,7 +33,9 @@ when judges are available.
 A circular-triad rate of one quarter is the benchmark for a random
 tournament. It is not the expected rate under a fitted BTL model with
 unequal object locations, so this function is a descriptive consistency
-measure rather than a calibrated goodness-of-fit test.
+measure rather than a calibrated goodness-of-fit test. Comparisons involving
+an undefeated or winless object remain part of this observed-data summary,
+although that object is set aside from finite maximum-likelihood estimation.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

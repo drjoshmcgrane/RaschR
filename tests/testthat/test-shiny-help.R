@@ -64,7 +64,7 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   # btl_efrm(): each case is stopped before the frame fit is called.
   for (text in c("uses external anchors", "uses aggregated count weights",
                  "has ordered response categories", "assigns half a win to ties",
-                 "includes within-judge order effects"))
+                 "includes order or position effects"))
     expect_match(src, text, fixed = TRUE)
 
   expect_match(src, 'if (inherits(f, "rasch_efrm")) f$item_arbitrary',

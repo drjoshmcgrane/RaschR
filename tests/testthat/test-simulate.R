@@ -213,6 +213,19 @@ test_that("BTL-EFRM simulator unit arguments are plain vectors", {
   expect_error(
     simulate_btl_efrm(n_sets = 2, set_origins = matrix(c(0, 0.2), 1)),
     "set_origins")
+  expect_error(
+    simulate_btl_efrm(n_sets = 2, set_units = c(1e-300, 1e300)),
+    "numerically representable")
+  expect_error(
+    simulate_btl_efrm(n_sets = 2, set_origins = c(-1e308, 1e308)),
+    "numerically representable")
+})
+
+test_that("EFRM simulator normalises very small ratios without underflow", {
+  d <- simulate_efrm(n_per_group = 2, items_per_set = 2, n_sets = 2,
+                     n_groups = 1, set_unit_ratio = 1e-300, seed = 713)
+  expect_true(all(is.finite(attr(d, "truth")$alpha)))
+  expect_true(all(attr(d, "truth")$alpha > 0))
 })
 
 test_that("planted-misfit selectors are plain vectors", {

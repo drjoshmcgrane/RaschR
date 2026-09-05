@@ -172,6 +172,72 @@
     if (!is.null(project[[field]]) && !is.list(project[[field]]))
       fail(sprintf("the analysis file has an invalid %s field", field))
 
+  # Current app fits retain the exact data, controls and uploaded metadata
+  # used for their base calibration. The enclosing project must reproduce
+  # that source. Older projects have no such attribute and remain readable.
+  fit_source <- attr(project$base_fit, "rasch_app_source", exact = TRUE)
+  if (!is.null(fit_source)) {
+    source_ok <- is.list(fit_source) && is.data.frame(fit_source$data) &&
+      nrow(fit_source$data) > 0L && ncol(fit_source$data) > 0L &&
+      is.list(fit_source$settings) && is.list(fit_source$resources) &&
+      is.list(fit_source$simulation)
+    if (!source_ok)
+      fail("the saved base fit has invalid app run metadata")
+    source_names <- colnames(fit_source$data)
+    if (is.null(source_names) || anyNA(source_names) ||
+        any(!nzchar(trimws(source_names))) || anyDuplicated(source_names))
+      fail("the saved base fit has invalid source-data column names")
+    if (!identical(fit_source$data,
+                   as.data.frame(project$data, check.names = FALSE)))
+      fail("the saved base fit does not belong to the source dataset")
+
+    validate_source_names <- function(x, what) {
+      if (!length(x)) return(invisible(NULL))
+      nm <- names(x)
+      if (is.null(nm) || anyNA(nm) || any(!nzchar(trimws(nm))) ||
+          anyDuplicated(nm))
+        fail(sprintf("the saved base fit has invalid %s names", what))
+      invisible(NULL)
+    }
+    validate_source_names(fit_source$settings, "run-setting")
+    validate_source_names(fit_source$resources, "run-resource")
+    validate_source_names(fit_source$simulation, "simulation-metadata")
+
+    for (nm in names(fit_source$settings))
+      if (!nm %in% names(project$settings) ||
+          !identical(project$settings[[nm]], fit_source$settings[[nm]]))
+        fail(sprintf(paste("the saved base fit's `%s` setting does not",
+                           "match the analysis file"), nm))
+    for (nm in names(fit_source$resources))
+      if (!nm %in% names(project$resources) ||
+          !identical(project$resources[[nm]], fit_source$resources[[nm]]))
+        fail(sprintf(paste("the saved base fit's `%s` resource does not",
+                           "match the analysis file"), nm))
+    if (!identical(project$simulation %||% list(), fit_source$simulation))
+      fail(paste("the saved base fit's simulation metadata does not match",
+                 "the analysis file"))
+  }
+
+  # Kept fits are used directly by comparison and equating after a project is
+  # reopened. Validate each one here rather than allowing a malformed entry to
+  # fail later inside a table or plot. Names are part of the selector state and
+  # therefore must be stable and unambiguous.
+  kept <- project$kept_fits %||% list()
+  if (length(kept)) {
+    kept_names <- names(kept)
+    if (is.null(kept_names) || anyNA(kept_names) ||
+        any(!nzchar(trimws(kept_names))) || anyDuplicated(kept_names))
+      fail("the analysis file has invalid kept-fit names")
+    for (i in seq_along(kept)) {
+      problem <- tryCatch({
+        .validate_app_fit(kept[[i]],
+                          sprintf("the kept fit '%s'", kept_names[i]))
+        NULL
+      }, error = function(e) conditionMessage(e))
+      if (!is.null(problem)) fail(problem)
+    }
+  }
+
   validate_history <- function(history, family, field) {
     if (!length(history)) return(invisible(NULL))
     for (i in seq_along(history)) {

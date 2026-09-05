@@ -174,6 +174,10 @@
 #'   former reports raw \code{p} and Holm-adjusted \code{p_adj}.
 #'   A non-converged fit retains estimates and residual patterns for diagnosis
 #'   but withholds standard errors, separation indices and probabilities.
+#'   \code{comparisons} contains the rows used by the fitted likelihood;
+#'   \code{observed_comparisons} retains all otherwise usable rows before
+#'   free boundary objects are set aside, for observed-data descriptions such
+#'   as transitivity.
 #'   An undefeated or winless object is set aside from estimation, as an
 #'   extreme person is in a Rasch calibration, and reported in
 #'   \code{objects} with \code{extreme = TRUE} at an extrapolated location:
@@ -734,6 +738,7 @@ plot_btl <- function(fit, band = 2.5) {
   # Their comparisons are kept so a reporting location can be
   # extrapolated against the calibrated scale after estimation.
   a0 <- a; b0 <- b; x0 <- x; w0 <- w; Z0 <- Z
+  jd0 <- jd; ord0 <- ord
   removed_ext <- character(0)
   removed_any <- FALSE
   repeat {
@@ -1524,6 +1529,12 @@ plot_btl <- function(fit, band = 2.5) {
     cov_beta[,] <- NA_real_
     if (length(anch_idx)) cov_beta[anch_idx, anch_idx] <- 0
   }
+  observed_comparisons <- data.frame(
+    object_a = a0, object_b = b0, response = x0, weight = w0,
+    judge = if (is.null(jd0)) NA_character_ else jd0,
+    stringsAsFactors = FALSE)
+  if (!is.null(ord0)) observed_comparisons$order <- ord0
+
   out <- list(objects = objects, thresholds = thresholds,
               components = components, thr_structure = thr,
               dependence = dependence, dependence_data = dependence_data,
@@ -1562,6 +1573,7 @@ plot_btl <- function(fit, band = 2.5) {
                   for (cn in colnames(Zfull)) cmp[[cn]] <- Zfull[, cn]
                 cmp
               },
+              observed_comparisons = observed_comparisons,
               # Row-aligned bookkeeping for the independent comparison
               # units.  Ordinarily each stored row is one unit repeated
               # `weight` times.  A half-scored tie instead has two stored

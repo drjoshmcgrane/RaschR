@@ -187,6 +187,12 @@ test_that("EFRM reports nuisance-mass non-convergence and bootstrap accounting",
   expect_identical(f$boot_reps_requested, 0L)
   expect_identical(f$boot_reps_used, 0L)
   expect_identical(f$boot_reps_failed, 0L)
+  expect_false(f$unit_support$alpha_inference)
+  expect_true(all(is.na(f$thresholds_arbitrary$se)))
+  expect_true(all(is.na(f$item_arbitrary$se)))
+  expect_true(all(is.na(f$frames$se_log_rho)))
+  expect_true(all(is.na(f$est$cov_tau)))
+  expect_match(paste(f$notes, collapse = " "), "common-unit uncertainty")
 })
 
 test_that("failed structural calibrations withhold their inferential fields", {
@@ -195,7 +201,11 @@ test_that("failed structural calibrations withhold their inferential fields", {
     dm, "person", "item", "score", facets = "rater", maxit = 1L))
   expect_false(fm$est$converged)
   expect_true(all(is.na(fm$items$se)))
+  expect_true(all(is.na(fm$item_thresholds$se)))
+  expect_true(all(is.na(fm$item_effects$se)))
   expect_true(all(is.na(fm$facet_effects$rater$se)))
+  expect_true(all(is.na(fm$est$thr$se)))
+  expect_true(all(is.na(fm$est$cov_tau)))
   expect_true(is.na(fm$psi$PSI))
 
   de <- simulate_efrm(n_per_group = 80, items_per_set = 5,

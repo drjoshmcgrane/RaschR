@@ -35,8 +35,10 @@ unadjusted.}
 \item{flag_logits}{Absolute difference flagged as practically
 significant.}
 
-\item{min_n}{Levels with fewer responders to the item are dropped (their
-resolved locations would be too unstable to compare), with a note.}
+\item{min_n}{Levels with fewer distinct responders to the item are dropped
+(their resolved locations would be too unstable to compare), with a note.
+When identifiers repeat, response rows from one person count once within
+each level.}
 }
 \value{
 A list of class \code{"rasch_dif_size"}. \code{levels} contains

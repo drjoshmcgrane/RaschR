@@ -50,8 +50,9 @@ unadjusted.}
 
 \item{flag_logits}{Absolute estimate flagged as practically significant.}
 
-\item{min_n}{Cells with fewer responders to an item are dropped from that
-item's resolution, with a note.}
+\item{min_n}{Cells with fewer distinct responders to an item are dropped
+from that item's resolution, with a note. When identifiers repeat,
+response rows from one person count once within each cell.}
 }
 \value{
 A list of class \code{"rasch_dif_contrasts"}: \code{table} (one row

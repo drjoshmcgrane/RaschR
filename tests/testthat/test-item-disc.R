@@ -78,8 +78,8 @@ test_that("frame_invariance results print without scientific notation", {
                                 "excluded", "alpha", "adjust", "se_method",
                                 "family_n", "boot_reps", "boot_reps_used",
                                 "boot_reps_nonconverged", "boot_reps_errors",
-                                "boot_minimum_usable", "seed",
-                                "fit_signature", "result_signature"))
+                                "boot_minimum_usable", "bootstrap_stratified",
+                                "seed", "fit_signature", "result_signature"))
 })
 
 test_that("a frame model's virtual item name resolves to its source item", {

@@ -138,6 +138,13 @@ test_that("modal-category diagnostics do not depend on a theta grid", {
   # Category 2 is modal only in the one-millionth-logit interval between the
   # two central thresholds. A regular plotting grid does not resolve it.
   expect_true(2L %in% modal(c(-1, 0.123, 0.123001, 2)))
+  # Equal thresholds leave only the extreme categories modal. Their crossing
+  # points differ by an ulp once cumulated, which must not become an interval.
+  expect_identical(modal(c(0.1, 0.1, 0.1)), c(0L, 3L))
+  tied <- 0.40785616827135612
+  expect_identical(modal(c(tied, tied + 5e-17, tied)), c(0L, 3L))
+  expect_identical(modal(0.5), 0:1)
+  expect_identical(modal(c(2, 1, 0)), c(0L, 3L))
 })
 
 test_that("lr_test prefers PCM when thresholds differ and RSM when they do not", {

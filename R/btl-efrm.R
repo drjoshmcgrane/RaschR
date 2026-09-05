@@ -1389,7 +1389,13 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     .btlef_stage1(match(a, objs_all), match(b, objs_all), y,
                   rep("all", length(a)), jd, length(objs_all), maxit, tol),
     error = function(e) NULL)
-  ll_single <- if (is.null(single)) NA_real_ else single$ll
+  # A finite objective left by a failed Newton solve is not the maximised
+  # equal-unit likelihood. Reporting it would make the descriptive difference
+  # look available even though its comparison fit failed.
+  single_ok <- !is.null(single) && isTRUE(single$converged) &&
+    isTRUE(single$rank_ok) && length(single$ll) == 1L &&
+    is.finite(single$ll)
+  ll_single <- if (single_ok) single$ll else NA_real_
   equal_unit <- list(
     loglik_frames = ll_frames, loglik_single = ll_single,
     difference = if (is.na(ll_single)) NA_real_ else ll_frames - ll_single,
@@ -1397,8 +1403,12 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       2 * (ll_frames - ll_single),
     parameters_frames = npar_frame,
     parameters_single = length(objs_all) - 1L,
-    note = paste("descriptive composite-likelihood difference;",
-                 "the omnibus Wald tests on the unit families carry the inference"))
+    note = if (single_ok)
+      paste("descriptive composite-likelihood difference;",
+            "the omnibus Wald tests on the unit families carry the inference")
+    else paste("descriptive composite-likelihood difference unavailable because",
+               "the equal-unit comparison did not converge or was rank-deficient;",
+               "the omnibus Wald tests on the unit families carry the inference"))
 
   # --- structural tables ----------------------------------------------------
   # Judge-bootstrap inference is limited by the judges who contribute to the

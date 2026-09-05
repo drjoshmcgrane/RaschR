@@ -3,6 +3,27 @@ simEF <- function(th, tau, r) {
   p <- exp(r * (x * th - c(0, cumsum(tau)))); p / sum(p)
 }
 
+test_that("EFRM group support follows the informative stage-one pairs", {
+  Xv <- matrix(NA_integer_, 4L, 4L)
+  # Row 1 has a cross-set pair only; row 2 has a same-set pair at its
+  # minimum total.  Neither contributes to the conditional likelihood.
+  Xv[1L, c(1L, 3L)] <- c(1L, 0L)
+  Xv[2L, 1:2] <- c(0L, 0L)
+  Xv[3L, 1:2] <- c(0L, 1L)
+  Xv[4L, ] <- c(0L, 1L, 1L, 0L)
+  vmap <- data.frame(group = rep("g", 4L),
+                     set = rep(c("A", "B"), each = 2L))
+  z <- rasch:::.efrm_group_support(Xv, vmap, rep(1L, 4L), "g")
+  expect_identical(z$n_persons, 2L)
+  # The informative pair loads are one and two, respectively.
+  expect_equal(z$effective_persons, 9 / 5)
+
+  # A maximum-total pair is a conditional-likelihood constant too.
+  Xv[3L, 1:2] <- c(1L, 1L)
+  z2 <- rasch:::.efrm_group_support(Xv, vmap, rep(1L, 4L), "g")
+  expect_identical(z2$n_persons, 1L)
+})
+
 test_that("EFRM unit tests do not discard indefinite covariance directions", {
   bad <- rasch:::.efrm_wald_zero(
     c(0.2, -0.2), diag(c(1, -0.5)), "unit")
@@ -136,11 +157,61 @@ test_that("EFRM withholds unit tests for a sparsely represented group", {
                     item_sets = list(all = colnames(X)), groups = "group",
                     boot_reps = 0)
   expect_false(fit$unit_support$phi_inference)
-  expect_equal(min(fit$unit_support$group$n_persons), 10)
+  # One of the ten small-group rows is an all-extreme within-set response and
+  # carries no pairwise-conditional information for the group unit.
+  expect_equal(min(fit$unit_support$group$n_persons), 9)
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_omnibus$p)))
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_omnibus$p_adj)))
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_tests$p)))
   expect_true(all(is.finite(fit$phi_table$phi)))
+})
+
+test_that("NPML set links at an optimiser boundary are refused", {
+  set.seed(1)
+  n <- 100L
+  u <- rnorm(n)
+  Xa <- cbind(rbinom(n, 1, plogis(u + 1)),
+              rbinom(n, 1, plogis(u - 1)))
+  Xb <- matrix(1L, n, 2L)
+  Xb[seq_len(3L), ] <- 0L
+  Xm <- cbind(Xa, Xb)
+  vmap <- data.frame(set = rep(c("a", "b"), each = 2L), group = "g")
+  z <- rasch:::.efrm_npml_pair(
+    Xm, vmap, tau_v = rep(0, 4L), disc_v = rep(1, 4L),
+    sets_u = c("a", "b"), a = 1L, b = 2L, idx = seq_len(n),
+    init_log_ratio = 0, init_offset = 0, min_link_persons = 5L,
+    grid_n = 31L)
+  expect_null(z)
+})
+
+test_that("persons extreme in both sets do not trip the grid-truncation check", {
+  set.seed(4)
+  n <- 300L
+  u <- rnorm(n)
+  d <- seq(-1.5, 1.5, length.out = 6L)
+  Xa <- sapply(d, function(dd) rbinom(n, 1L, plogis(u - dd)))
+  Xb <- sapply(d, function(dd) rbinom(n, 1L, plogis(1.5 * u - dd)))
+  Xm <- cbind(Xa, Xb)
+  vmap <- data.frame(set = rep(c("a", "b"), each = 6L), group = "g")
+  link <- function(X) rasch:::.efrm_npml_pair(
+    X, vmap, tau_v = rep(0, 12L), disc_v = rep(1, 12L),
+    sets_u = c("a", "b"), a = 1L, b = 2L, idx = seq_len(nrow(X)),
+    init_log_ratio = 0, init_offset = 0, min_link_persons = 5L)
+  z0 <- link(Xm)
+  expect_false(is.null(z0))
+  # A person at the maximum or minimum score in both sets has a likelihood
+  # that rises towards one end of the grid, so the masses explaining such
+  # persons sit on the edge. Appending 120 of them puts about three per cent
+  # of the fitted masses on the grid ends, which a check on the total edge
+  # mass would refuse as truncation. Those persons stay in the likelihood
+  # and carry no information about the link, so the estimate barely moves.
+  Xe <- rbind(Xm, matrix(1L, 80L, 12L), matrix(0L, 40L, 12L))
+  z1 <- link(Xe)
+  expect_false(is.null(z1))
+  expect_identical(z1$n, n + 120L)
+  expect_lt(z1$edge_mass, 1e-3)
+  expect_lt(abs(z1$log_ratio - z0$log_ratio), 0.02)
+  expect_lt(abs(z1$offset - z0$offset), 0.02)
 })
 
 test_that("a single frame reduces to the ordinary rasch fit", {

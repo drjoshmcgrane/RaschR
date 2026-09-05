@@ -93,6 +93,22 @@
   as.character(out)
 }
 
+# Number of independent respondents contributing to each resolved DIF cell.
+# A stacked design can contain several response rows from one person, possibly
+# in more than one within-person cell. Count that person once in every cell in
+# which they answered the item; counting rows would let replication satisfy a
+# minimum-sample rule without adding independent information.
+.dif_cell_n <- function(grp, observed, id = NULL) {
+  if (length(observed) != length(grp))
+    stop("internal DIF support mask has the wrong length", call. = FALSE)
+  keep <- !is.na(observed) & observed & !is.na(grp)
+  if (!any(keep)) return(stats::setNames(integer(0), character(0)))
+  g <- droplevels(factor(grp[keep]))
+  zid <- if (is.null(id)) as.character(which(keep)) else .dif_ids(id)[keep]
+  stats::setNames(vapply(levels(g), function(lv)
+    length(unique(zid[g == lv])), integer(1)), levels(g))
+}
+
 # Class intervals for a DIF analysis are set from the cells the analysis
 # actually uses: the residual ANOVA crosses trait intervals with group
 # levels (or with the factor-combination cells in the factorial), so the
@@ -1166,8 +1182,10 @@ print.rasch_dif <- function(x, ...) {
 #' @param alpha Significance level for the adjusted probabilities.
 #' @param flag_logits Absolute difference flagged as practically
 #'   significant.
-#' @param min_n Levels with fewer responders to the item are dropped (their
-#'   resolved locations would be too unstable to compare), with a note.
+#' @param min_n Levels with fewer distinct responders to the item are dropped
+#'   (their resolved locations would be too unstable to compare), with a note.
+#'   When identifiers repeat, response rows from one person count once within
+#'   each level.
 #' @return A list of class \code{"rasch_dif_size"}. \code{levels} contains
 #'   the resolved location, standard error and sample size for each level.
 #'   \code{pairs} contains logit differences, Wald statistics, confidence
@@ -1270,7 +1288,7 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
     rowSums(!is.na(fit$X[, fit$virtual_map$vkey[
       fit$virtual_map$item == item], drop = FALSE])) > 0L
   else !is.na(fit$X[, i])
-  n_lev <- table(grp[obs_i & !is.na(grp)])
+  n_lev <- .dif_cell_n(grp, obs_i, fit$person$id)
   thin <- names(n_lev)[n_lev < min_n]
   if (length(thin)) {
     notes <- c(notes, sprintf("level(s) dropped with fewer than %d responders: %s",
@@ -1347,7 +1365,7 @@ dif_size <- function(fit, item, by, p_adjust = "holm", alpha = 0.05,
       "the resolved-location covariance is unavailable or not positive",
       "semidefinite:", consequence))
   }
-  n_item <- as.integer(table(grp[obs_i & !is.na(grp)])[levs])
+  n_item <- as.integer(.dif_cell_n(grp, obs_i, fit$person$id)[levs])
   lev_se <- if (vloc_ok) sqrt(pmax(diag(vloc), 0)) else
     rep(NA_real_, length(levs))
   lev_se[weak_lev] <- NA_real_
@@ -1477,7 +1495,7 @@ print.rasch_dif_size <- function(x, ...) {
     notes <- paste0(item, ": resolved at the virtual-item level, pooled ",
                     "over its facet cells (facet structure not reimposed)")
     obs <- rowSums(!is.na(fit$X[, cols, drop = FALSE])) > 0L
-    n_lev <- table(grp[obs & !is.na(grp)])
+    n_lev <- .dif_cell_n(grp, obs, fit$person$id)
     thin <- names(n_lev)[n_lev < min_n]
     if (length(thin)) {
       notes <- c(notes, sprintf(
@@ -1602,7 +1620,7 @@ print.rasch_dif_size <- function(x, ...) {
   i <- .item_idx(fit, item)
   item <- fit$items$item[i]
   notes <- character(0)
-  n_lev <- table(grp[!is.na(fit$X[, i]) & !is.na(grp)])
+  n_lev <- .dif_cell_n(grp, !is.na(fit$X[, i]), fit$person$id)
   thin <- names(n_lev)[n_lev < min_n]
   if (length(thin)) {
     notes <- c(notes, sprintf(
@@ -1933,8 +1951,9 @@ print.rasch_dif_size <- function(x, ...) {
 #'   unadjusted.
 #' @param alpha Significance level for the adjusted probabilities.
 #' @param flag_logits Absolute estimate flagged as practically significant.
-#' @param min_n Cells with fewer responders to an item are dropped from that
-#'   item's resolution, with a note.
+#' @param min_n Cells with fewer distinct responders to an item are dropped
+#'   from that item's resolution, with a note. When identifiers repeat,
+#'   response rows from one person count once within each cell.
 #' @return A list of class \code{"rasch_dif_contrasts"}: \code{table} (one row
 #'   per item and contrast: estimate in logits, SE, statistic, df where a t
 #'   test was used, raw and adjusted p, 95 per cent interval,
@@ -2222,7 +2241,9 @@ dif_contrasts <- function(fit, factors = NULL, items = NULL, within = NULL,
 #' @param alpha Significance level for adjusted probabilities.
 #' @param flag_logits Absolute logit magnitude flagged as practically
 #'   important.
-#' @param min_n Minimum responders required in a resolved design cell.
+#' @param min_n Minimum distinct responders required in a resolved design
+#'   cell. When identifiers repeat, response rows from one person count once
+#'   within each cell.
 #' @return An object of class \code{"rasch_dif_posthoc"}, extending the
 #'   \code{\link{dif_contrasts}} result. Its \code{table} contains the pairwise
 #'   marginal differences or interaction contrasts, with logit estimates,

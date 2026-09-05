@@ -248,6 +248,55 @@
        converged = conv, gidx = gidx)
 }
 
+# Refit the within-frame conditional likelihood under equal group units.  This
+# is a separate optimiser from the EFRM calibration, so its likelihood is a
+# usable comparison only when this solve itself reaches an identified optimum.
+.efrm_equal_fit <- function(dtil, A_D, drow, thr_v, pairs, m_v,
+                            maxit = 25L, tol = 1e-7) {
+  B <- A_D[drow, , drop = FALSE]
+  beta <- qr.coef(qr(A_D), dtil)
+  beta[is.na(beta)] <- 0
+  glh <- .pcml_glh(drop(B %*% beta), thr_v, pairs, m_v)
+  iterations <- 0L
+  for (it in seq_len(maxit)) {
+    iterations <- it
+    gb <- drop(crossprod(B, glh$g))
+    Hb <- crossprod(B, glh$H %*% B)
+    step <- tryCatch(solve(Hb, gb), error = function(e)
+      tryCatch(solve(Hb - diag(1e-8, nrow(Hb)), gb),
+               error = function(e2) NULL))
+    if (is.null(step) || any(!is.finite(step))) break
+    lam <- 1
+    moved <- FALSE
+    for (half in seq_len(30L)) {
+      candidate <- beta - lam * step
+      next_glh <- .pcml_glh(drop(B %*% candidate), thr_v, pairs, m_v)
+      if (is.finite(next_glh$ll) && next_glh$ll >= glh$ll - 1e-12) {
+        beta <- candidate
+        glh <- next_glh
+        moved <- TRUE
+        break
+      }
+      lam <- lam / 2
+    }
+    if (!moved || max(abs(lam * step)) < tol) break
+  }
+
+  gb <- drop(crossprod(B, glh$g))
+  Hb <- crossprod(B, glh$H %*% B)
+  rc <- tryCatch(rcond(Hb), error = function(e) 0)
+  rank_ok <- is.finite(rc) && rc > 1e-12
+  move <- if (rank_ok)
+    tryCatch(drop(solve(Hb, gb)), error = function(e) rep(Inf, length(gb)))
+  else rep(Inf, length(gb))
+  move_tol <- min(20 * tol, 1e-6)
+  converged <- is.finite(glh$ll) && rank_ok && all(is.finite(gb)) &&
+    (max(abs(gb)) < 1e-4 ||
+       (all(is.finite(move)) && max(abs(move)) < move_tol))
+  list(loglik = glh$ll, converged = converged, rank_ok = rank_ok,
+       iterations = iterations, score = gb, newton_move = move)
+}
+
 # Per-person correction moments for the set-unit linking. For each
 # missing-data pattern the WLE score map W and the model score
 # distribution are exact, so the mean g(u) and variance w(u) of W(R) over
@@ -480,8 +529,9 @@
       A <- add_weights(La + Lbz, logw); mx <- apply(A, 1L, max)
       -sum(count * (mx + log(rowSums(exp(A - mx)))))
     }
+    lower <- c(log(0.1), -20); upper <- c(log(10), 20)
     op <- stats::optim(par, objective, method = "L-BFGS-B",
-                       lower = c(log(0.1), -20), upper = c(log(10), 20),
+                       lower = lower, upper = upper,
                        control = list(maxit = 30L, factr = 1e7))
     par <- op$par
     last_step <- max(abs(par - old))
@@ -502,7 +552,26 @@
   ll <- sum(count * (mx + log(rowSums(exp(A - mx)))))
   converged <- (converged || (!is.null(op) && op$convergence == 0L &&
                               last_step < 1e-3)) && isTRUE(ew$converged)
-  edge_mass_by_group <- w[, 1L] + w[, ncol(w)]
+  # Mass piled on the ends of the grid signals a truncated person
+  # distribution only when persons with a finite location put it there. A
+  # person at the minimum or maximum score in both sets has a likelihood that
+  # rises monotonically towards one end of the grid, so the masses explaining
+  # such persons sit on the edge of any finite box and carry no information
+  # about the link. The truncation check therefore uses the posterior edge
+  # mass of the remaining persons. The extreme persons stay in the
+  # likelihood: dropping them would condition on the realised responses
+  # without including that selection in the likelihood.
+  post <- exp(A - mx)
+  post_edge <- (post[, 1L] + post[, ncol(post)]) / rowSums(post)
+  max_a <- rowSums(sweep(oa, 2L, da * lengths(tau_v[ca]), "*"))
+  max_b <- rowSums(sweep(ob, 2L, db * lengths(tau_v[cb]), "*"))
+  score_tol <- 1e-8
+  extreme_both <- (score_a <= score_tol | score_a >= max_a - score_tol) &
+    (score_b <= score_tol | score_b >= max_b - score_tol)
+  informative <- count * !extreme_both
+  edge_mass_by_group <- rowsum(informative * post_edge, mix_idx) /
+    rowsum(informative, mix_idx)
+  edge_mass_by_group[!is.finite(edge_mass_by_group)] <- 0
   edge_mass <- max(edge_mass_by_group)
   if (isTRUE(getOption("rasch.efrm_link_debug", FALSE)))
     message("EFRM NPML: step=", signif(last_step, 4),
@@ -510,8 +579,18 @@
             ", mass loglik step=", signif(ew$loglik_step, 4),
             ", mass iterations=", ew$iterations,
             ", optim=", op$convergence,
-            ", max group edge mass=", signif(edge_mass, 4))
-  if (!all(is.finite(par)) || !is.finite(ll) || edge_mass > 0.02) return(NULL)
+            ", max group edge mass=", signif(edge_mass, 4),
+            ", total edge mass=",
+            signif(max(w[, 1L] + w[, ncol(w)]), 4),
+            ", persons extreme in both sets=", sum(count[extreme_both]))
+  # L-BFGS-B regards an optimum on its artificial search boundary as a
+  # successful fit. Such a value says only that the data want a ratio or
+  # offset beyond the numerical box; it is not a finite interior estimate.
+  boundary_tol <- 1e-6
+  on_boundary <- any(par <= lower + boundary_tol |
+                       par >= upper - boundary_tol)
+  if (!all(is.finite(par)) || !is.finite(ll) || edge_mass > 0.02 ||
+      on_boundary) return(NULL)
   list(log_ratio = par[1L], offset = par[2L], n = sum(count),
        converged = converged, edge_mass = edge_mass, loglik = ll)
 }
@@ -983,6 +1062,36 @@
              weighted_score = W, theta = theta, se = se, extreme = extreme)
 }
 
+# Person support for group-unit inference.  The stage-one likelihood uses
+# same-set pairs only, and a pair at its minimum or maximum total has just one
+# feasible allocation.  Count precisely those within-set comparisons that
+# can inform the group unit; counting all co-observed virtual cells would
+# include both cross-set pairs and conditional-likelihood constants.
+.efrm_group_support <- function(Xv, vmap, m_v, glevs) {
+  do.call(rbind, lapply(glevs, function(g) {
+    load <- numeric(nrow(Xv))
+    for (s in unique(vmap$set[vmap$group == g])) {
+      cc <- which(vmap$group == g & vmap$set == s)
+      if (length(cc) < 2L) next
+      ij <- utils::combn(cc, 2L)
+      for (k in seq_len(ncol(ij))) {
+        i <- ij[1L, k]; j <- ij[2L, k]
+        xi <- Xv[, i]; xj <- Xv[, j]
+        informative <- !is.na(xi) & !is.na(xj) &
+          !(xi == 0 & xj == 0) &
+          !(xi == m_v[i] & xj == m_v[j])
+        informative[is.na(informative)] <- FALSE
+        load <- load + informative
+      }
+    }
+    ww <- load[load > 0]
+    data.frame(group = g, n_persons = length(ww),
+               effective_persons = if (length(ww))
+                 sum(ww)^2 / sum(ww^2) else 0,
+               stringsAsFactors = FALSE)
+  }))
+}
+
 .efrm_wald_zero <- function(est, Sigma, term) {
   if (length(est) < 2L) return(NULL)
   unavailable <- function() data.frame(
@@ -1042,6 +1151,14 @@
 #' where the masses of each observed group's \eqn{F_g}, the scale ratio
 #' \eqn{r} and the offset \eqn{c} are estimated jointly on a fixed grid. This
 #' avoids prescribing a normal or common person distribution across groups.
+#' A link whose scale or offset reaches the numerical search boundary is
+#' refused rather than reported as a finite estimate. So is a link whose
+#' grid truncates the person distribution: persons with a finite location
+#' in at least one set may place no more than two per cent of their
+#' posterior mass on the ends of the grid. Persons at the minimum or maximum
+#' score in both sets remain in the likelihood but do not count towards this
+#' check; their likelihood rises towards one end of any finite grid and
+#' carries no information about the link.
 #' The conditional thresholds and group units are held fixed in this step;
 #' only \eqn{r}, \eqn{c}, and the nuisance masses are estimated. The linked
 #' parameters are then
@@ -1152,7 +1269,9 @@
 #'   vignette for their interpretation. If the within-frame calibration does
 #'   not converge, its standard errors and all later inferential probabilities
 #'   are withheld. Failure of only a set link does not invalidate the already
-#'   converged within-frame calibration or group-unit estimates.
+#'   converged within-frame calibration or group-unit estimates, but
+#'   common-unit item, frame and person uncertainty is withheld because it
+#'   depends on that link.
 #' @references
 #' Andrich, D. (1982). An extension of the Rasch model for ratings providing
 #' both location and dispersion parameters. Psychometrika, 47(1), 105--113.
@@ -1698,25 +1817,15 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   }
   phi <- sol$phi; dtil <- sol$dtilde
 
-  # equal-unit comparison on the same conditional information
-  B0 <- A_D[drow, , drop = FALSE]
-  bd0 <- qr.coef(qr(A_D), dtil); bd0[is.na(bd0)] <- 0
-  glh0 <- .pcml_glh(drop(B0 %*% bd0), thr_v, pairs, m_v)
-  for (it0 in 1:25) {
-    gb <- drop(crossprod(B0, glh0$g)); Hb <- crossprod(B0, glh0$H %*% B0)
-    step <- tryCatch(solve(Hb, gb), error = function(e)
-      solve(Hb - diag(1e-8, nrow(Hb)), gb))
-    lam <- 1; moved <- FALSE
-    for (half in 1:30) {
-      cand <- bd0 - lam * step
-      g2 <- .pcml_glh(drop(B0 %*% cand), thr_v, pairs, m_v)
-      if (is.finite(g2$ll) && g2$ll >= glh0$ll - 1e-12) {
-        bd0 <- cand; glh0 <- g2; moved <- TRUE; break
-      }
-      lam <- lam / 2
-    }
-    if (!moved || max(abs(lam * step)) < 1e-7) break
-  }
+  # Equal-unit comparison on the same conditional information.  It has its
+  # own optimiser and therefore its own convergence/rank decision; a finite
+  # objective left at an unfinished iterate is not a maximised likelihood.
+  equal_fit <- .efrm_equal_fit(dtil, A_D, drow, thr_v, pairs, m_v,
+                               maxit = 25L, tol = tol)
+  if (!isTRUE(equal_fit$converged))
+    notes <- c(notes, paste(
+      "the equal-group-unit conditional refit did not converge or was",
+      "rank-deficient, so its descriptive likelihood difference is unavailable"))
 
   # --- person-side linking (alpha, mu) ----------------------------------------
   # one builder for every linking path (point estimate, calibration-redraw
@@ -1980,15 +2089,7 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   # size inflation at 10--30 persons and nominal behaviour at 100; 50 is the
   # prespecified minimum for inferential use.
   min_unit_persons <- 50L
-  group_support <- do.call(rbind, lapply(glevs, function(g) {
-    cc <- which(vmap$group == g)
-    nr <- rowSums(!is.na(Xv[, cc, drop = FALSE]))
-    ww <- choose(nr[nr >= 2L], 2L)
-    data.frame(group = g, n_persons = length(ww),
-               effective_persons = if (length(ww))
-                 sum(ww)^2 / sum(ww^2) else 0,
-               stringsAsFactors = FALSE)
-  }))
+  group_support <- .efrm_group_support(Xv, vmap, m_v, glevs)
   phi_ok <- all(group_support$n_persons >= min_unit_persons &
     group_support$effective_persons >=
       min_unit_persons - sqrt(.Machine$double.eps))
@@ -1999,7 +2100,8 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     set_support$n_common_persons[set_support$set == ss] <-
       if (length(ee)) min(ee) else 0
   }
-  alpha_ok <- S == 1L || all(set_support$n_common_persons >= min_unit_persons)
+  alpha_ok <- link_converged &&
+    (S == 1L || all(set_support$n_common_persons >= min_unit_persons))
   fit$unit_support <- list(group = group_support, set = set_support,
                            minimum_persons = min_unit_persons,
                            phi_inference = phi_ok,
@@ -2007,9 +2109,12 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
   if (!phi_ok) fit$notes <- unique(c(fit$notes, paste0(
     "group-unit probabilities are withheld because at least one group has ",
     "fewer than 50 persons or effective persons contributing within-frame pairs")))
-  if (!alpha_ok) fit$notes <- unique(c(fit$notes, paste0(
-    "set-unit probabilities are withheld because at least one set-link edge ",
-    "has fewer than 50 common persons")))
+  if (!alpha_ok) fit$notes <- unique(c(fit$notes,
+    if (!link_converged)
+      paste("set-unit probabilities and common-unit uncertainty are withheld",
+            "because at least one fitted set link did not converge")
+    else paste0("set-unit probabilities are withheld because at least one ",
+                "set-link edge has fewer than 50 common persons")))
   # factorial decomposition of the cell units: generalised least squares
   # of log phi_cell on sum-coded main effects (and the interaction when
   # every cell is observed), using the JOINT covariance of the cell
@@ -2238,8 +2343,11 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
                        cov_log_alpha = Sig_alpha,
                        cov_joint = sol$cov_joint,
                        cov_log_alpha_phi = link$cov_alpha_phi)
-  fit$efrm_vs_rasch <- list(ll_efrm = sol$loglik, ll_equal = glh0$ll,
-                            two_delta_ll = 2 * (sol$loglik - glh0$ll),
+  ll_equal <- if (isTRUE(equal_fit$converged)) equal_fit$loglik else NA_real_
+  fit$efrm_vs_rasch <- list(ll_efrm = sol$loglik, ll_equal = ll_equal,
+                            two_delta_ll = if (is.finite(ll_equal))
+                              2 * (sol$loglik - ll_equal) else NA_real_,
+                            equal_converged = equal_fit$converged,
                             extra_parameters = G - 1L,
                             informative_for = if (G > 1L) "group units (phi)"
                               else "nothing: single group, set units are identified person-side",
@@ -2313,6 +2421,17 @@ rasch_efrm <- function(data, item_sets, groups, id = NULL, factors = NULL,
     maxit = maxit, tol = tol, min_link_persons = min_link_persons,
     se_method = se_method, boot_reps = boot_reps, workers = workers,
     seed = seed)
+  if (!link_converged) {
+    # The within-frame dtilde/phi calibration is still valid, but alpha and
+    # mu define the transformation to the common unit.  A covariance using
+    # only dtilde while that transformation failed would look precise by
+    # silently treating the uncertain link as fixed.
+    fit$est$thr$se[] <- NA_real_
+    fit$est$cov_tau[,] <- NA_real_
+    fit$thresholds_arbitrary$se[] <- NA_real_
+    fit$item_arbitrary$se[] <- NA_real_
+    fit$frames$se_log_rho[] <- NA_real_
+  }
   if (!isTRUE(sol$converged)) {
     # A failed stage-one calibration invalidates every later uncertainty
     # calculation. Set-link non-convergence is different: the stage-one

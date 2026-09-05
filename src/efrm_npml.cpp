@@ -9,6 +9,20 @@ using namespace Rcpp;
 
 namespace {
 
+void require_finite_vector(const NumericVector& x, const char* what,
+                           bool positive = false) {
+  for (R_xlen_t i = 0; i < x.size(); ++i) {
+    if (!R_finite(x[i]) || (positive && x[i] <= 0.0))
+      stop("%s must contain %sfinite values", what,
+           positive ? "positive " : "");
+  }
+}
+
+void require_finite_matrix(const NumericMatrix& x, const char* what) {
+  for (R_xlen_t i = 0; i < x.size(); ++i)
+    if (!R_finite(x[i])) stop("%s must contain finite values", what);
+}
+
 NumericMatrix efrm_likelihood_impl(const NumericVector& u,
                                    const LogicalMatrix& obs,
                                    const NumericVector& score,
@@ -17,13 +31,26 @@ NumericMatrix efrm_likelihood_impl(const NumericVector& u,
   const int n = obs.nrow();
   const int J = obs.ncol();
   const int K = u.size();
-  if (score.size() != n || taus.size() != J || discs.size() != J)
+  if (n < 1 || J < 1 || K < 1 || score.size() != n ||
+      taus.size() != J || discs.size() != J)
     stop("incompatible EFRM likelihood inputs");
+  require_finite_vector(u, "EFRM latent grid");
+  require_finite_vector(score, "EFRM weighted scores");
+  require_finite_vector(discs, "EFRM discriminations", true);
+  for (int j = 0; j < J; ++j) {
+    NumericVector tt = taus[j];
+    if (tt.size() < 1) stop("every EFRM item needs at least one threshold");
+    require_finite_vector(tt, "EFRM thresholds");
+  }
 
   NumericMatrix out(n, K);
-  for (int i = 0; i < n; ++i)
-    for (int q = 0; q < K; ++q)
+  for (int i = 0; i < n; ++i) {
+    for (int q = 0; q < K; ++q) {
       out(i, q) = score[i] * u[q];
+      if (!R_finite(out(i, q)))
+        stop("EFRM likelihood inputs are outside the numerically representable range");
+    }
+  }
 
   std::unordered_map<std::string, std::vector<double> > cache;
   cache.reserve(static_cast<std::size_t>(n));
@@ -41,15 +68,20 @@ NumericMatrix efrm_likelihood_impl(const NumericVector& u,
         NumericVector tt = taus[j];
         const int m = tt.size();
         std::vector<double> cumulative(static_cast<std::size_t>(m + 1), 0.0);
-        for (int x = 1; x <= m; ++x)
+        for (int x = 1; x <= m; ++x) {
           cumulative[static_cast<std::size_t>(x)] =
             cumulative[static_cast<std::size_t>(x - 1)] + tt[x - 1];
+          if (!R_finite(cumulative[static_cast<std::size_t>(x)]))
+            stop("EFRM cumulative thresholds are outside the numerically representable range");
+        }
 
         for (int q = 0; q < K; ++q) {
           double mx = R_NegInf;
           for (int x = 0; x <= m; ++x) {
             const double lp = discs[j] *
               (u[q] * x - cumulative[static_cast<std::size_t>(x)]);
+            if (!R_finite(lp))
+              stop("EFRM category logits are outside the numerically representable range");
             if (lp > mx) mx = lp;
           }
           double sum_exp = 0.0;
@@ -86,8 +118,24 @@ List efrm_fit_weights_cpp(NumericMatrix L, NumericMatrix logw,
   const int n = L.nrow();
   const int K = L.ncol();
   const int H = logw.nrow();
-  if (logw.ncol() != K || mix_idx.size() != n || count.size() != n)
+  if (n < 1 || K < 1 || H < 1 || logw.ncol() != K ||
+      mix_idx.size() != n || count.size() != n)
     stop("incompatible EFRM mixture inputs");
+  if (maxit < 1) stop("EFRM mixture maxit must be positive");
+  if (!R_finite(tol) || tol < 0.0)
+    stop("EFRM mixture tolerance must be finite and non-negative");
+  require_finite_matrix(L, "EFRM log likelihood");
+  require_finite_matrix(logw, "EFRM log masses");
+  require_finite_vector(count, "EFRM pattern counts", true);
+  std::vector<bool> group_seen(static_cast<std::size_t>(H), false);
+  for (int i = 0; i < n; ++i) {
+    if (mix_idx[i] == NA_INTEGER || mix_idx[i] < 1 || mix_idx[i] > H)
+      stop("invalid EFRM mixture-group index");
+    group_seen[static_cast<std::size_t>(mix_idx[i] - 1)] = true;
+  }
+  for (int h = 0; h < H; ++h)
+    if (!group_seen[static_cast<std::size_t>(h)])
+      stop("empty EFRM mixture group");
   NumericMatrix current = clone(logw);
 
   bool converged = false;
@@ -180,22 +228,34 @@ double efrm_negloglik_cpp(NumericVector z, NumericVector grid,
                           NumericMatrix La, NumericMatrix logw,
                           IntegerVector mix_idx, NumericVector count) {
   if (z.size() != 2) stop("the EFRM link needs scale and origin parameters");
+  require_finite_vector(z, "EFRM link parameters");
+  require_finite_vector(grid, "EFRM latent grid");
   NumericVector u(grid.size());
   const double ratio = std::exp(z[0]);
-  for (int q = 0; q < grid.size(); ++q)
+  if (!R_finite(ratio) || ratio <= 0.0)
+    stop("EFRM link scale is outside the numerically representable range");
+  for (int q = 0; q < grid.size(); ++q) {
     u[q] = ratio * grid[q] + z[1];
+    if (!R_finite(u[q]))
+      stop("EFRM transformed grid is outside the numerically representable range");
+  }
   NumericMatrix Lb = efrm_likelihood_impl(u, obs, score, taus, discs);
   const int n = La.nrow();
   const int K = La.ncol();
-  if (Lb.nrow() != n || Lb.ncol() != K || mix_idx.size() != n ||
+  if (n < 1 || K < 1 || Lb.nrow() != n || Lb.ncol() != K ||
+      logw.ncol() != K || logw.nrow() < 1 || mix_idx.size() != n ||
       count.size() != n)
     stop("incompatible EFRM objective inputs");
+  require_finite_matrix(La, "EFRM first-set likelihood");
+  require_finite_matrix(logw, "EFRM log masses");
+  require_finite_vector(count, "EFRM pattern counts", true);
 
   double ll = 0.0;
   for (int i = 0; i < n; ++i) {
-    const int h = mix_idx[i] - 1;
-    if (h < 0 || h >= logw.nrow())
+    if (mix_idx[i] == NA_INTEGER || mix_idx[i] < 1 ||
+        mix_idx[i] > logw.nrow())
       stop("invalid EFRM mixture-group index");
+    const int h = mix_idx[i] - 1;
     double mx = R_NegInf;
     for (int q = 0; q < K; ++q)
       mx = std::max(mx, La(i, q) + Lb(i, q) + logw(h, q));
@@ -204,5 +264,7 @@ double efrm_negloglik_cpp(NumericVector z, NumericVector grid,
       sum_exp += std::exp(La(i, q) + Lb(i, q) + logw(h, q) - mx);
     ll += count[i] * (mx + std::log(sum_exp));
   }
+  if (!R_finite(ll))
+    stop("EFRM objective is outside the numerically representable range");
   return -ll;
 }

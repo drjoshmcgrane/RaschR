@@ -4,7 +4,14 @@
 \alias{btl_equate}
 \title{Equate two paired-comparison calibrations through their common objects}
 \usage{
-btl_equate(fit1, fit2, alpha = 0.05, p_adjust = "holm", independent = NULL)
+btl_equate(
+  fit1,
+  fit2,
+  alpha = 0.05,
+  p_adjust = "holm",
+  independent = NULL,
+  shift = c("mean", "none")
+)
 }
 \arguments{
 \item{fit1}{A fitted object from \code{\link{btl}}: the calibration whose
@@ -15,9 +22,10 @@ columns \code{object}, \code{location}, and optionally \code{se}; object
 names and column names must be unique. Numeric fields may be numeric
 columns, numeric text, or factors with numeric labels; other column
 classes are refused. Locations must be finite. Bank-based drift inference
-requires the joint location covariance as a square matrix in
+with an estimated mean shift requires the joint location covariance as a square matrix in
 \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
-object), unless the bank is treated as fixed with zero SEs. A bank whose
+object), unless the bank is treated as fixed with zero SEs. Marginal
+standard errors are sufficient with \code{shift = "none"}. A bank whose
 covariance was estimated from a finite number of independent sampling
 units may carry their residual degrees of freedom in
 \code{attr(fit2, "df_location")} as one positive numeric value. For a polytomous
@@ -35,6 +43,11 @@ comparisons. For two fitted objects the default \code{NULL} withholds
 drift tests until independence is stated explicitly. Bank tables are
 treated as independent unless \code{FALSE} is supplied. Dependent
 calibrations require a joint or paired bootstrap for inference.}
+
+\item{shift}{\code{"mean"} (default) estimates the origin shift from the
+common objects; \code{"none"} compares raw locations when both
+calibrations have already been placed on the same externally anchored
+scale.}
 }
 \value{
 A list of class \code{"rasch_btl_equate"}: the comparison
@@ -47,7 +60,7 @@ A list of class \code{"rasch_btl_equate"}: the comparison
   number of common objects
   \code{n_common}; the number usable for inference \code{n_inference};
   whether inference was available \code{inferential}; \code{alpha};
-  \code{p_adjust}; and \code{notes}.
+  \code{p_adjust}; the requested \code{shift_setting}; and \code{notes}.
   A drift probability is withheld when its contrast has zero estimated
   uncertainty. Such an object remains in the multiplicity family.
 }
@@ -58,18 +71,21 @@ calibration may be a fitted model or an object bank.
 }
 \details{
 Let \eqn{d_j} be the location difference for common object \eqn{j} and
-\eqn{v_j} its marginal variance. The origin shift is the precision-weighted
-mean
+\eqn{v_j} its marginal variance. With \code{shift = "mean"}, the origin
+shift is the precision-weighted mean
 \deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j}.}
 If fewer than two common objects have usable variances but at least two have
 finite locations, their unweighted mean difference is returned as a
 descriptive fallback and recorded in \code{shift_method}.
 Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
 covariance calculation retains the dependence induced by the sum-zero
-constraints. Drift tests require independent calibrations and at least
-three common objects with usable, positive-semidefinite covariance
+constraints. Drift tests then require independent calibrations and at least
+three common objects with usable, positive-semidefinite joint covariance
 information. Two common objects identify a descriptive origin shift, but
-do not support an object-drift test.
+do not support an object-drift test. With \code{shift = "none"}, the origin
+is fixed before the comparison and each object's variance is the sum of its
+two marginal variances; joint covariance information and a three-object
+link are unnecessary.
 A judge-clustered ordinary BTL covariance, or a BTL--EFRM covariance from
 the judge bootstrap, uses finite judge-cluster degrees of freedom. A
 conditional or comparison-level parametric-bootstrap BTL--EFRM covariance

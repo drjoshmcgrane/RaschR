@@ -245,9 +245,9 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
         tailored_analysis(fb, chance = chance,
                           anchor_items = anchor_requested,
                           se_method = "none")), error = function(e) NULL)
-      if (!is.null(tb) && setequal(tb$table$item, tab$item))
-        draws[[length(draws) + 1L]] <-
-          tb$table$shift[match(tab$item, tb$table$item)]
+      shift_b <- .tailored_boot_shift(tb, tab$item)
+      if (!is.null(shift_b))
+        draws[[length(draws) + 1L]] <- shift_b
       else boot_errors <- boot_errors + 1L
     }
     minimum_usable <- .fit_min_boot_success(boot_reps)
@@ -298,6 +298,23 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   out <- .tag_tables(out)
   class(out) <- "rasch_tailored"
   out
+}
+
+# A completed refit is a usable bootstrap replicate only when it yields the
+# complete finite shift vector. Letting NA/Inf enter the draw matrix makes its
+# standard errors, percentile intervals and sign-count probabilities NA while
+# falsely recording the replicate as successful.
+.tailored_boot_shift <- function(result, items) {
+  if (is.null(result) || !is.list(result) || !is.data.frame(result$table) ||
+      !all(c("item", "shift") %in% names(result$table)) ||
+      anyDuplicated(result$table$item) ||
+      !setequal(as.character(result$table$item), as.character(items)))
+    return(NULL)
+  shift <- result$table$shift[match(as.character(items),
+                                    as.character(result$table$item))]
+  if (!is.numeric(shift) || length(shift) != length(items) ||
+      any(!is.finite(shift))) return(NULL)
+  unname(shift)
 }
 
 #' @export

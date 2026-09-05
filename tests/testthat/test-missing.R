@@ -95,6 +95,26 @@ test_that("available-case item-rest correlations exclude empty rest sets", {
                cor(fit$X[use, 1], rest_prop[use]), tolerance = 1e-12)
 })
 
+test_that("sparse available-case CTT reports the complete-case denominator", {
+  set.seed(2103)
+  X <- matrix(rbinom(120 * 4, 1, 0.5), 120, 4,
+              dimnames = list(NULL, paste0("I", 1:4)))
+  fit <- rasch(X)
+  # Exercise the deliberate low-information return without asking the Rasch
+  # estimator to calibrate a response matrix that has only two observations
+  # per item.
+  fit$X[,] <- NA_integer_
+  fit$X[1:2, 1] <- c(0L, 1L)
+  fit$X[3:4, 2] <- c(0L, 1L)
+  fit$X[5:6, 3] <- c(0L, 1L)
+  fit$X[7:8, 4] <- c(0L, 1L)
+
+  ct <- ctt_table(fit, missing = "available")
+  expect_equal(ct$n, 0L)
+  expect_equal(ct$n_range, c(2L, 2L))
+  expect_match(ct$note, "fewer than 3 usable responses")
+})
+
 test_that("an unmatched winner is missing, not a tie", {
   set.seed(4)
   beta <- c(A = -1, B = 0, C = 1)

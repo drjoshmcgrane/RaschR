@@ -6,12 +6,14 @@
 # in different years -- each fix their own origin by the sum-zero constraint.
 # Because the two constraints are imposed over DIFFERENT object sets, the two
 # origins do not coincide even when the objects are unchanged: each scale is
-# centred on the mean of a different collection. Equating therefore estimates
-# the scale shift between the origins (the precision-weighted mean difference
-# over the common objects) and then tests each common object against the
-# shifted identity line. Its variance includes both the covariance induced by
-# each sum-zero calibration and estimation of the shift from those same
-# objects; it is not the naive sum of two marginal variances.
+# centred on the mean of a different collection. Equating therefore normally
+# estimates the scale shift between the origins (the precision-weighted mean
+# difference over the common objects) and then tests each common object against
+# the shifted identity line. Its variance includes both the covariance induced
+# by each sum-zero calibration and estimation of the shift from those same
+# objects; it is not the naive sum of two marginal variances. When external
+# anchors have already fixed a shared origin, shift = "none" instead tests the
+# raw differences and uses their marginal variances.
 #
 # Objects that survive define the equating link and carry the second panel's
 # whole scale onto the first; objects that fail show drift -- a script the two
@@ -115,18 +117,21 @@
 #'
 #' @details
 #' Let \eqn{d_j} be the location difference for common object \eqn{j} and
-#' \eqn{v_j} its marginal variance. The origin shift is the precision-weighted
-#' mean
+#' \eqn{v_j} its marginal variance. With \code{shift = "mean"}, the origin
+#' shift is the precision-weighted mean
 #' \deqn{\hat s=\frac{\sum_j d_j/v_j}{\sum_j 1/v_j}.}
 #' If fewer than two common objects have usable variances but at least two have
 #' finite locations, their unweighted mean difference is returned as a
 #' descriptive fallback and recorded in \code{shift_method}.
 #' Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
 #' covariance calculation retains the dependence induced by the sum-zero
-#' constraints. Drift tests require independent calibrations and at least
-#' three common objects with usable, positive-semidefinite covariance
+#' constraints. Drift tests then require independent calibrations and at least
+#' three common objects with usable, positive-semidefinite joint covariance
 #' information. Two common objects identify a descriptive origin shift, but
-#' do not support an object-drift test.
+#' do not support an object-drift test. With \code{shift = "none"}, the origin
+#' is fixed before the comparison and each object's variance is the sum of its
+#' two marginal variances; joint covariance information and a three-object
+#' link are unnecessary.
 #' A judge-clustered ordinary BTL covariance, or a BTL--EFRM covariance from
 #' the judge bootstrap, uses finite judge-cluster degrees of freedom. A
 #' conditional or comparison-level parametric-bootstrap BTL--EFRM covariance
@@ -144,9 +149,10 @@
 #'   names and column names must be unique. Numeric fields may be numeric
 #'   columns, numeric text, or factors with numeric labels; other column
 #'   classes are refused. Locations must be finite. Bank-based drift inference
-#'   requires the joint location covariance as a square matrix in
+#'   with an estimated mean shift requires the joint location covariance as a square matrix in
 #'   \code{attr(fit2, "cov_location")}, ordered like the bank rows (or named by
-#'   object), unless the bank is treated as fixed with zero SEs. A bank whose
+#'   object), unless the bank is treated as fixed with zero SEs. Marginal
+#'   standard errors are sufficient with \code{shift = "none"}. A bank whose
 #'   covariance was estimated from a finite number of independent sampling
 #'   units may carry their residual degrees of freedom in
 #'   \code{attr(fit2, "df_location")} as one positive numeric value. For a polytomous
@@ -161,6 +167,10 @@
 #'   drift tests until independence is stated explicitly. Bank tables are
 #'   treated as independent unless \code{FALSE} is supplied. Dependent
 #'   calibrations require a joint or paired bootstrap for inference.
+#' @param shift \code{"mean"} (default) estimates the origin shift from the
+#'   common objects; \code{"none"} compares raw locations when both
+#'   calibrations have already been placed on the same externally anchored
+#'   scale.
 #' @return A list of class \code{"rasch_btl_equate"}: the comparison
 #'   \code{table} (per common object: object, both locations and standard
 #'   errors, their \code{difference}, the \code{shifted_difference} against the
@@ -171,7 +181,7 @@
 #'   number of common objects
 #'   \code{n_common}; the number usable for inference \code{n_inference};
 #'   whether inference was available \code{inferential}; \code{alpha};
-#'   \code{p_adjust}; and \code{notes}.
+#'   \code{p_adjust}; the requested \code{shift_setting}; and \code{notes}.
 #'   A drift probability is withheld when its contrast has zero estimated
 #'   uncertainty. Such an object remains in the multiplicity family.
 #' @references Bramley, T. (2007). Paired comparison methods. In P. Newton,
@@ -192,7 +202,8 @@
 #' eq$table
 #' @export
 btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
-                       independent = NULL) {
+                       independent = NULL, shift = c("mean", "none")) {
+  shift <- match.arg(shift)
   .check_prob(alpha, "alpha")
   if (!is.character(p_adjust) || length(p_adjust) != 1L ||
       !is.null(dim(p_adjust)) || !is.null(oldClass(p_adjust)) ||
@@ -272,17 +283,24 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   usable <- is.finite(d) & is.finite(v)
   independent_ok <- if (is.null(independent)) !inherits(fit2, "rasch_btl")
                     else isTRUE(independent)
-  joint_cov_1 <- !is.null(fit1$cov_beta) || all(a$se[usable] == 0)
-  joint_cov_2 <- if (inherits(fit2, "rasch_btl"))
+  estimates_shift <- identical(shift, "mean")
+  joint_cov_1 <- !estimates_shift || !is.null(fit1$cov_beta) ||
+    all(a$se[usable] == 0)
+  joint_cov_2 <- if (!estimates_shift) TRUE else if (inherits(fit2, "rasch_btl"))
     !is.null(fit2$cov_beta) || all(b$se[usable] == 0)
   else
     !is.null(bank_cov) || all(b$se[usable] == 0)
   joint_cov_ok <- joint_cov_1 && joint_cov_2
-  inferential <- independent_ok && sum(usable) >= 3L && joint_cov_ok
+  min_inference <- if (estimates_shift) 3L else 1L
+  inferential <- independent_ok && sum(usable) >= min_inference && joint_cov_ok
   # Two stable objects identify an origin shift; three are required only to
   # distinguish individual drift from that estimated shift. Do not let the
   # inferential threshold replace the documented link estimator.
-  if (sum(usable) >= 2L) {
+  if (!estimates_shift) {
+    w <- numeric(0)
+    c0 <- 0
+    shift_method <- "none"
+  } else if (sum(usable) >= 2L) {
     w <- .inverse_variance_weights(v[usable])
     # precision-weighted mean difference: the shift between the two sum-zero
     # origins, best estimated where both calibrations are most certain
@@ -315,11 +333,28 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
       }
     }
   }
-  shift_se <- NA_real_; se_diff <- t <- df <- p <- p_adj <-
+  shift_se <- if (estimates_shift) NA_real_ else 0
+  se_diff <- t <- df <- p <- p_adj <-
     rep(NA_real_, length(common)); drifting <- rep(NA, length(common))
   testable <- rep(FALSE, length(common))
   covariance_invalid <- FALSE
-  if (inferential) {
+  if (inferential && !estimates_shift) {
+    se_diff[usable] <- sqrt(pmax(v[usable], 0))
+    t[usable] <- .wald_ratio(d[usable], se_diff[usable])
+    df1 <- .btl_equate_cov_df(fit1)
+    df2 <- .btl_equate_cov_df(fit2)
+    v1 <- a$se[usable]^2
+    v2 <- b$se[usable]^2
+    den <- if (is.finite(df1)) v1^2 / df1 else rep(0, length(v1))
+    if (is.finite(df2)) den <- den + v2^2 / df2
+    dfs <- ifelse(den > 0, (v1 + v2)^2 / den, Inf)
+    df[usable] <- dfs
+    p[usable] <- 2 * stats::pt(-abs(t[usable]), df = dfs)
+    testable <- usable & is.finite(p)
+    if (any(testable)) p_adj[testable] <- p.adjust(
+      p[testable], method = p_adjust, n = length(common))
+    drifting[testable] <- p_adj[testable] < alpha
+  } else if (inferential) {
     u <- w / sum(w)
     S1all <- tryCatch(covsub(fit1, common), error = function(e) NULL)
     S1 <- if (is.null(S1all)) diag(a$se[usable]^2, sum(usable))
@@ -384,9 +419,11 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
                         location = ref$location + c0,
                         se = ref$se, stringsAsFactors = FALSE)
   rownames(equated) <- NULL
-  notes <- sprintf(paste0("Origins differ because each calibration is sum-zero ",
-                          "over its own object set; a shift of %.3f logits ",
-                          "aligns fit2 to fit1."), c0)
+  notes <- if (estimates_shift) sprintf(paste0(
+    "Origins differ because each calibration is sum-zero over its own object ",
+    "set; a shift of %.3f logits aligns fit2 to fit1."), c0) else
+      paste("The calibrations were compared on their fixed common origin;",
+            "no common-object shift was estimated.")
   if (covariance_invalid)
     notes <- c(notes, paste(
       "Drift tests are withheld because a fitted object-location covariance",
@@ -401,8 +438,9 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
         "because their standard errors were unavailable: ",
         paste(common[no_se], collapse = ", "), "."))
   } else if (any(!usable)) {
-    notes <- c(notes, paste0(
-      "Objects excluded from the precision-weighted shift and drift tests ",
+    notes <- c(notes, paste0(if (estimates_shift)
+      "Objects excluded from the precision-weighted shift and drift tests " else
+      "Drift tests unavailable for common objects ",
       "because their locations or standard errors were unavailable: ",
       paste(common[!usable], collapse = ", "), "."))
   }
@@ -428,17 +466,19 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     notes <- c(notes, paste(
       "Drift tests withheld for dependent calibrations because cross-fit",
       "covariance is unavailable; use a joint or paired bootstrap."))
-  if (independent_ok && sum(usable) >= 3L && !joint_cov_ok)
+  if (independent_ok && sum(usable) >= min_inference && !joint_cov_ok)
     notes <- c(notes, paste(
       "Drift tests withheld because every calibration with non-zero",
       "marginal SEs needs its joint object-location covariance; marginal",
       "SEs do not carry the calibration-origin covariance. For a bank,",
       "supply this in attr(fit2, 'cov_location'). Frame-dependent fits",
       "supply it when bootstrap standard errors are used."))
-  if (independent_ok && sum(usable) < 3L)
-    notes <- c(notes, paste(
+  if (independent_ok && sum(usable) < min_inference)
+    notes <- c(notes, if (estimates_shift) paste(
       "Drift tests withheld because at least three common objects with",
-      "standard errors are required."))
+      "standard errors are required.") else paste(
+        "Drift tests withheld because no common object has locations and",
+        "standard errors in both calibrations."))
   if (any(drifting %in% TRUE))
     notes <- c(notes, sprintf(
       "%d common object(s) drift beyond the shifted link: %s",
@@ -449,7 +489,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
                  shift_se = shift_se,
                  equated = equated, n_common = length(common),
                  n_inference = sum(testable), inferential = inferential,
-                 alpha = alpha, p_adjust = p_adjust, notes = notes))
+                 alpha = alpha, p_adjust = p_adjust, shift_setting = shift,
+                 notes = notes))
 }
 
 #' Plot a paired-comparison equating comparison

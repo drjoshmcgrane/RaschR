@@ -23,7 +23,10 @@ adjusted probabilities are returned.}
 
 \item{se_method}{\code{"conditional"} treats the estimated frame units as
 fixed; \code{"bootstrap"} refits the complete analysis to whole-person
-resamples within person group, preserving item-set response patterns.}
+resamples, preserving each person's response rows and item-set patterns.
+Conditional inference is unavailable when a person appears in more than
+one frame because the separate calibrations' cross-covariance is then
+unknown; use the bootstrap method in that design.}
 
 \item{boot_reps}{Number of bootstrap replicates. At least 30 are required.
 At least 90 per cent, and no fewer than 30, must yield the complete set
@@ -43,6 +46,8 @@ An object of class \code{"rasch_frame_invariance"}. The
   The remaining components record the multiplicity and uncertainty settings,
   including the declared comparison-family size \code{family_n}, and the
   requested, usable, non-converged and other-failure bootstrap counts.
+  \code{bootstrap_stratified} records whether persons were resampled within
+  group rather than globally.
 }
 \description{
 Calibrates each frame separately and compares the locations and
@@ -68,9 +73,12 @@ divided by \eqn{\sqrt{2}}, together with fitted slopes and their ratio.
 These quantities are descriptive under the conditional method; it does not
 report discrimination probabilities.
 
-With \code{se_method = "bootstrap"}, whole person rows are resampled
-within person group, retaining each sampled row's item-set response pattern,
-and the EFRM and separate frame calibrations are refitted. Location tests
+With \code{se_method = "bootstrap"}, whole persons are resampled,
+retaining all response rows and item-set response patterns for each sampled
+person, and the EFRM and separate frame calibrations are refitted. Persons
+observed in one group are resampled within group; when a person appears in
+more than one group, persons are resampled globally so their observations
+stay together. Location tests
 then use the empirical covariance of the centred differences. The
 discrimination test uses the bootstrap standard error of the log slope
 ratio. This includes uncertainty in the fitted frame units but is more

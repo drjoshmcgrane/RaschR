@@ -1099,8 +1099,16 @@ simulate_efrm <- function(n_per_group = 300, items_per_set = 8, n_sets = 2,
            "is a comparison between groups, so none can be planted")
     group_unit_ratio <- 1
   }
-  # set and group units span the ratio geometrically, normalised to mean 1
-  gspan <- function(ratio, n) { u <- exp(seq(0, log(ratio), length.out = n)); u / exp(mean(log(u))) }
+  # Set and group units span the ratio geometrically, normalised to mean one.
+  # Centre on the log scale before exponentiating: normalising an already
+  # exponentiated sequence can underflow for a valid positive finite ratio.
+  gspan <- function(ratio, n) {
+    lu <- seq(0, log(ratio), length.out = n)
+    u <- exp(lu - mean(lu))
+    if (any(!is.finite(u)) || any(u <= 0))
+      stop("the requested unit ratio is outside the numerically representable range")
+    u
+  }
   alpha <- gspan(set_unit_ratio, S)
   phi <- gspan(group_unit_ratio, G)
   set_items <- lapply(seq_len(S), function(s) sprintf("S%dI%02d", s, seq_len(K)))
@@ -1664,9 +1672,18 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
   if (S == 1L && !isTRUE(all.equal(kappa, 0)))
     stop("`set_origins` must be 0 when `n_sets` is 1: an origin is relative ",
          "to the other sets, so none can be planted")
-  phi <- phi / exp(mean(log(phi)))                    # geometric mean one
-  alpha <- alpha / alpha[1]                            # alpha_1 = 1
+  # Normalise on the log scale. Direct division can overflow even though all
+  # supplied units are positive and finite (for example 1e-300 versus 1e300).
+  lphi <- log(phi); phi <- exp(lphi - mean(lphi))       # geometric mean one
+  lalpha <- log(alpha) - log(alpha[1])                  # alpha_1 = 1
+  alpha <- exp(lalpha)
   kappa <- kappa - kappa[1]                            # kappa_1 = 0
+  if (any(!is.finite(phi)) || any(phi <= 0))
+    stop("the relative `panel_units` are outside the numerically representable range")
+  if (any(!is.finite(alpha)) || any(alpha <= 0))
+    stop("the relative `set_units` are outside the numerically representable range")
+  if (any(!is.finite(kappa)))
+    stop("the relative `set_origins` are outside the numerically representable range")
 
   set_nm <- sprintf("set%d", seq_len(S))
   panel_nm <- sprintf("panel%d", seq_len(G))
@@ -1679,6 +1696,8 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
   }
   set_of <- setNames(rep(seq_len(S), each = Kp), unlist(objs_by_set))
   v <- alpha[set_of] * beta + kappa[set_of]
+  if (any(!is.finite(v)))
+    stop("the requested units, origins and object spread produce common-scale values outside the numerically representable range")
 
   judges <- sprintf("J%03d", seq_len(G * Jp))
   panel_of <- setNames(panel_nm[rep(seq_len(G), each = Jp)], judges)
@@ -1741,6 +1760,8 @@ simulate_btl_efrm <- function(n_objects_per_set = 8, n_sets = 2,
   same <- set_of[aa] == set_of[bb]
   lp <- ifelse(same, phi[match(pan, panel_nm)] * (beta[aa] - beta[bb]),
                phi[match(pan, panel_nm)] * (v[aa] - v[bb]))
+  if (any(!is.finite(lp)))
+    stop("the requested units and object values produce logits outside the numerically representable range")
   win_a <- stats::runif(R) < stats::plogis(lp)
   bad <- jd %in% erratic
   if (any(bad)) win_a[bad] <- sample(c(FALSE, TRUE), sum(bad), replace = TRUE)

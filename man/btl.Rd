@@ -90,6 +90,10 @@ A \code{"rasch_btl"} object. Principal components are
   former reports raw \code{p} and Holm-adjusted \code{p_adj}.
   A non-converged fit retains estimates and residual patterns for diagnosis
   but withholds standard errors, separation indices and probabilities.
+  \code{comparisons} contains the rows used by the fitted likelihood;
+  \code{observed_comparisons} retains all otherwise usable rows before
+  free boundary objects are set aside, for observed-data descriptions such
+  as transitivity.
   An undefeated or winless object is set aside from estimation, as an
   extreme person is in a Rasch calibration, and reported in
   \code{objects} with \code{extreme = TRUE} at an extrapolated location:

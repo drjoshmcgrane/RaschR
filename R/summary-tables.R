@@ -226,15 +226,17 @@ targeting_table <- function(fit) {
                                      "principal components (spread)"
                                    else "free symmetric")
   if (!is.null(fit$dependence)) {
-    use_adj <- !is.null(fit$dependence$p_adj)
     for (r in seq_len(nrow(fit$dependence))) {
-      shown_p <- if (use_adj) fit$dependence$p_adj[r] else fit$dependence$p[r]
+      shown_p <- if (is.numeric(fit$dependence$p_adj) &&
+                     length(fit$dependence$p_adj) >= r &&
+                     is.finite(fit$dependence$p_adj[r]))
+        paste0("Holm p = ", .fmt_p(fit$dependence$p_adj[r])) else
+          "Holm p unavailable"
       rows[[length(rows) + 1L]] <- c(
         sprintf("Within-judge %s (logits)",
                 gsub("_", "-", fit$dependence$effect[r])),
-        sprintf("%s (SE %s, %s = %s)", num(fit$dependence$estimate[r]),
-                num(fit$dependence$se[r]), if (use_adj) "Holm p" else "p",
-                .fmt_p(shown_p)))
+        sprintf("%s (SE %s, %s)", num(fit$dependence$estimate[r]),
+                num(fit$dependence$se[r]), shown_p))
     }
   }
   out <- data.frame(statistic = vapply(rows, `[`, "", 1),

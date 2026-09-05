@@ -16,10 +16,16 @@
 # threshold covariance (recentred parameterisation), which carries the
 # negative correlations induced by the identification constraint. A bank
 # table contributes its attached joint covariance. Marginal standard errors
-# alone cannot recover the correlations induced by its calibration origin;
-# they are retained for weighting, but drift inference is then withheld.
+# alone cannot recover the correlations needed when the origin shift is
+# estimated from the common items. They are sufficient for shift = "none",
+# where every item is tested on an origin fixed before this comparison.
 .equate_loc_cov <- function(obj, items) {
-  if (inherits(obj, "rasch") && !is.null(obj$est$cov_tau)) {
+  if (inherits(obj, "rasch")) {
+    # A fitted calibration needs its joint threshold covariance here. Do not
+    # silently reconstruct a diagonal matrix from marginal SEs: that loses
+    # the centring covariance induced by the fitted origin and understates or
+    # overstates the variance after estimating the common-item shift.
+    if (is.null(obj$est$cov_tau)) return(NULL)
     thr <- obj$est$thr
     # thr$item holds integer item positions in column order, which is the
     # order of obj$items: the match below is by position, not name
@@ -109,10 +115,13 @@
 #' If fewer than two common items have usable variances but at least two have
 #' finite locations, the function returns their unweighted mean difference as
 #' a descriptive fallback and records \code{shift_method = "unweighted"}.
-#' Drift inference requires
-#' independent calibrations and at least three common items with usable,
-#' positive-semidefinite joint covariance information. Otherwise the function
-#' returns a descriptive link.
+#' When the shift is estimated, drift inference requires independent
+#' calibrations and at least three common items with usable,
+#' positive-semidefinite joint covariance information. With
+#' \code{shift = "none"}, the origin is fixed before the comparison and each
+#' item's variance is the sum of its two marginal variances; joint covariance
+#' information and a three-item link are then unnecessary. Otherwise the
+#' function returns a descriptive link.
 #' Fitted calibrations must have converged.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
@@ -120,10 +129,12 @@
 #'   columns \code{item}, \code{location}, and optionally \code{se}. Item
 #'   names and column names must be unique. Numeric fields may be numeric
 #'   columns, numeric text, or factors with numeric labels; other column
-#'   classes are refused. Locations must be finite. For bank-based drift inference,
-#'   attach the bank's joint item-location covariance as a square matrix in
-#'   \code{attr(reference, "cov_location")}, ordered like the bank rows (or
-#'   named by item); marginal SEs alone do not carry the centring covariance.
+#'   classes are refused. Locations must be finite. For bank-based drift inference
+#'   with an estimated mean shift, attach the bank's joint item-location
+#'   covariance as a square matrix in \code{attr(reference, "cov_location")},
+#'   ordered like the bank rows (or named by item); marginal SEs alone do not
+#'   carry the centring covariance. They are sufficient with
+#'   \code{shift = "none"}.
 #'   A bank treated as fixed may instead have zero SEs. A polytomous bank must
 #'   also include \code{max}, the maximum item score.
 #' @param shift \code{"mean"} (default) allows a scale shift between the two
@@ -261,8 +272,10 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
   }
   independent_ok <- if (is.null(independent)) !inherits(reference, "rasch")
                     else isTRUE(independent)
-  joint_cov_ok <- inherits(reference, "rasch") || !is.null(bank_cov) ||
-    all(b$se[usable] == 0)
+  estimates_shift <- identical(shift, "mean")
+  joint_cov_ok <- !estimates_shift || inherits(reference, "rasch") ||
+    !is.null(bank_cov) || all(b$se[usable] == 0)
+  min_inference <- if (estimates_shift) 3L else 1L
   if (is.null(independent) && inherits(reference, "rasch"))
     notes <- c(notes, paste(
       "drift tests withheld because independence between the two fitted",
@@ -272,23 +285,32 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
     notes <- c(notes, paste(
       "drift tests withheld for dependent calibrations because cross-fit",
       "covariance is not available; use a joint or paired bootstrap"))
-  if (independent_ok && sum(usable) >= 3L && !joint_cov_ok)
+  if (independent_ok && sum(usable) >= min_inference && !joint_cov_ok)
     notes <- c(notes, paste(
       "drift tests withheld because a bank with non-zero marginal SEs needs",
       "its joint item-location covariance in attr(reference, 'cov_location');",
       "marginal SEs do not carry the calibration-origin covariance"))
-  if (independent_ok && sum(usable) < 3L)
-    notes <- c(notes, paste(
+  if (independent_ok && sum(usable) < min_inference) {
+    notes <- c(notes, if (estimates_shift) paste(
       "drift tests withheld because at least three common items with",
-      "standard errors are needed to distinguish item drift from the link"))
-  inferential <- independent_ok && sum(usable) >= 3L && joint_cov_ok
+      "standard errors are needed to distinguish item drift from the link")
+    else paste(
+      "drift tests withheld because no common item has locations and",
+      "standard errors in both calibrations"))
+  }
+  inferential <- independent_ok && sum(usable) >= min_inference && joint_cov_ok
   # the shift c0 is estimated from the same common items the drift tests
   # then examine, and each calibration's locations are correlated through
   # its identification constraint: the drift denominators use
   # Var(d_i - c0) = [(I - 1u') Sigma (I - u 1')]_ii over the usable items,
   # with Sigma the sum of the two calibrations' item-location covariances
   var_d <- rep(NA_real_, length(common))
-  if (inferential) {
+  if (inferential && !estimates_shift) {
+    # The origin was fixed outside this comparison. No common-item shift is
+    # estimated, so cross-item covariance cannot enter an individual drift
+    # contrast; its variance is simply Var(delta_1) + Var(delta_2).
+    var_d[usable] <- pmax(v[usable], 0)
+  } else if (inferential) {
     S1 <- tryCatch(.equate_loc_cov(fit, common), error = function(e) NULL)
     S2 <- tryCatch(.equate_loc_cov(reference, common),
                    error = function(e) NULL)
@@ -301,13 +323,11 @@ equate_tests <- function(fit, reference, shift = c("mean", "none"),
         "unavailable or not positive semidefinite"))
     } else {
       Sg <- S1 + S2
-      if (shift == "mean") {
-        u <- w / sum(w)
-        Suu <- Sg[usable, usable, drop = FALSE]
-        Su <- drop(Suu %*% u)
-        var_d[usable] <- pmax(diag(Suu) - 2 * Su +
-                                drop(t(u) %*% Su), 0)
-      } else var_d[usable] <- pmax(diag(Sg)[usable], 0)
+      u <- w / sum(w)
+      Suu <- Sg[usable, usable, drop = FALSE]
+      Su <- drop(Suu %*% u)
+      var_d[usable] <- pmax(diag(Suu) - 2 * Su +
+                              drop(t(u) %*% Su), 0)
     }
   }
   t <- if (inferential) .wald_ratio(d - c0, sqrt(var_d)) else

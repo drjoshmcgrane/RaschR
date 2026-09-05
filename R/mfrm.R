@@ -468,6 +468,16 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
             " iterations; increase maxit or inspect the design",
             call. = FALSE)
 
+  # A finite inverse Hessian at the final iterate is not an uncertainty
+  # estimate when optimisation has not converged.  Keep the point estimates
+  # for diagnosis, but withhold every covariance-derived quantity just as
+  # pcml() does for an unsuccessful calibration.
+  if (!isTRUE(sol$converged)) {
+    sol$se_tau[] <- NA_real_
+    sol$cov_tau[,] <- NA_real_
+    sol$cov_beta[,] <- NA_real_
+  }
+
   thr_v$tau <- sol$tau; thr_v$se <- sol$se_tau; thr_v$anchored <- FALSE
   # a virtual item threshold resting on a near-empty category is a boundary
   # artefact: flag it and report its SE as NA, the same honesty rasch()/

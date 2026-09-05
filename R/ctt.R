@@ -72,7 +72,8 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
                       max = fit$m, facility = NA_real_, item_total = NA_real_,
                       item_rest = NA_real_, di = NA_real_,
                       alpha_drop = NA_real_)
-    out <- list(table = tab, alpha = NA_real_, n = nrow(X),
+    out <- list(table = tab, alpha = NA_real_,
+                n = sum(stats::complete.cases(X)),
                 n_range = range(n_i), mean = NA_real_, sd = NA_real_,
                 sem = NA_real_, missing = missing,
                 note = if (missing == "complete")

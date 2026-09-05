@@ -47,9 +47,12 @@
 #' These quantities are descriptive under the conditional method; it does not
 #' report discrimination probabilities.
 #'
-#' With \code{se_method = "bootstrap"}, whole person rows are resampled
-#' within person group, retaining each sampled row's item-set response pattern,
-#' and the EFRM and separate frame calibrations are refitted. Location tests
+#' With \code{se_method = "bootstrap"}, whole persons are resampled,
+#' retaining all response rows and item-set response patterns for each sampled
+#' person, and the EFRM and separate frame calibrations are refitted. Persons
+#' observed in one group are resampled within group; when a person appears in
+#' more than one group, persons are resampled globally so their observations
+#' stay together. Location tests
 #' then use the empirical covariance of the centred differences. The
 #' discrimination test uses the bootstrap standard error of the log slope
 #' ratio. This includes uncertainty in the fitted frame units but is more
@@ -86,7 +89,10 @@
 #'   adjusted probabilities are returned.
 #' @param se_method \code{"conditional"} treats the estimated frame units as
 #'   fixed; \code{"bootstrap"} refits the complete analysis to whole-person
-#'   resamples within person group, preserving item-set response patterns.
+#'   resamples, preserving each person's response rows and item-set patterns.
+#'   Conditional inference is unavailable when a person appears in more than
+#'   one frame because the separate calibrations' cross-covariance is then
+#'   unknown; use the bootstrap method in that design.
 #' @param boot_reps Number of bootstrap replicates. At least 30 are required.
 #'   At least 90 per cent, and no fewer than 30, must yield the complete set
 #'   of comparisons.
@@ -102,6 +108,8 @@
 #'   The remaining components record the multiplicity and uncertainty settings,
 #'   including the declared comparison-family size \code{family_n}, and the
 #'   requested, usable, non-converged and other-failure bootstrap counts.
+#'   \code{bootstrap_stratified} records whether persons were resampled within
+#'   group rather than globally.
 #' @references
 #' Humphry, S. M. (2005). \emph{Maintaining a Common Arbitrary Unit in Social
 #' Measurement}. PhD thesis, Murdoch University.
@@ -140,6 +148,7 @@ NULL
       if (!any(vr)) next
       rows <- !is.na(grp) & as.character(grp) == g
       Xg <- fit$X[rows, vm$vkey[vr], drop = FALSE]
+      idg <- fit$person$id[rows]
       colnames(Xg) <- vm$item[vr]
       Xg <- Xg[, colSums(!is.na(Xg)) > 0L, drop = FALSE]
       if (ncol(Xg) < 2L) {
@@ -151,7 +160,7 @@ NULL
       names(category_signature) <- colnames(Xg)
       fit_error <- NULL
       f <- tryCatch(do.call(rasch, list(
-        data = Xg, model = "PCM", n_groups = spec$n_groups,
+        data = Xg, model = "PCM", id = idg, n_groups = spec$n_groups,
         maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7)),
         error = function(e) {
           fit_error <<- conditionMessage(e)
@@ -324,6 +333,59 @@ NULL
     use.names = FALSE)
 }
 
+# Cluster bootstrap for frame invariance. Repeated rows from one person must
+# be sampled together and must keep one bootstrap ID; otherwise both the
+# structural EFRM refit and its separate-frame refits treat those rows as
+# independent. Where person IDs are nested in groups, stratification retains
+# the observed number of persons per group. A person observed in more than
+# one group makes that impossible, so sample people globally and retain all
+# their group-specific rows.
+.frame_cluster_resample <- function(id, group) {
+  if (is.null(id) || length(id) != length(group))
+    stop("internal frame bootstrap IDs must give one value per response row",
+         call. = FALSE)
+  cid <- .dif_ids(id)
+  grp <- .role_text_values(group)
+  clusters <- split(seq_along(cid), cid, drop = TRUE)
+  cluster_group <- vapply(clusters, function(ii) {
+    z <- unique(grp[ii][!is.na(grp[ii]) & nzchar(grp[ii])])
+    if (length(z) == 1L) z else NA_character_
+  }, character(1))
+  nested <- all(!is.na(cluster_group))
+  if (nested) {
+    strata <- split(seq_along(clusters), cluster_group, drop = TRUE)
+    selected <- unlist(lapply(strata, function(ii)
+      ii[sample.int(length(ii), size = length(ii), replace = TRUE)]),
+      use.names = FALSE)
+  } else {
+    selected <- sample.int(length(clusters), size = length(clusters),
+                           replace = TRUE)
+  }
+  blocks <- unname(clusters[selected])
+  list(
+    rows = unlist(blocks, use.names = FALSE),
+    id = rep(sprintf("P%06d", seq_along(blocks)), lengths(blocks)),
+    stratified = nested)
+}
+
+.frame_ids_cross_groups <- function(id, group) {
+  if (is.null(id) || length(id) != length(group)) return(FALSE)
+  cid <- .dif_ids(id)
+  grp <- .role_text_values(group)
+  any(vapply(split(grp, cid, drop = TRUE), function(z) {
+    z <- unique(z[!is.na(z) & nzchar(z)])
+    length(z) > 1L
+  }, logical(1)))
+}
+
+.frame_person_support <- function(informative, id) {
+  if (length(informative) != length(id))
+    stop("internal frame support mask has the wrong length", call. = FALSE)
+  informative <- !is.na(informative) & informative
+  if (!any(informative)) return(0L)
+  length(unique(.dif_ids(id)[informative]))
+}
+
 # Form a normal-reference statistic only when its estimated uncertainty is
 # positive. A constant bootstrap column otherwise turns a non-zero observed
 # contrast into Inf and a spurious p = 0.
@@ -378,6 +440,12 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
          "with one group each item appears in a single frame, and item sets ",
          "partition the items, so use the item fit statistics within each ",
          "set instead")
+  if (identical(se_method, "conditional") &&
+      .frame_ids_cross_groups(fit$person$id, grp))
+    .refuse("conditional frame-invariance inference is unavailable because ",
+            "at least one person appears in more than one frame and the ",
+            "cross-frame covariance between separate calibrations is unknown; ",
+            "use se_method = \"bootstrap\" to resample whole persons")
 
   # A separate-frame calibration supplies the covariance used by every item
   # comparison. Small frames produced valid-looking but unstable normal tests
@@ -391,7 +459,9 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
     cc <- which(vm$set == fr$set[i] & vm$group == fr$group[i] &
                   vm$vkey %in% colnames(fit$X))
     if (length(cc) < 2L) return(FALSE)
-    sum(rowSums(!is.na(fit$X[, vm$vkey[cc], drop = FALSE])) >= 2L) < 50L
+    informative <- rowSums(!is.na(
+      fit$X[, vm$vkey[cc], drop = FALSE])) >= 2L
+    .frame_person_support(informative, fit$person$id) < 50L
   }, logical(1))
   if (any(sparse)) stop(
     "frame-invariance inference needs at least 50 persons with two or more ",
@@ -423,7 +493,6 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
       set.seed(seed)
     }
     source <- .efrm_source_matrix(fit)
-    strata <- split(seq_len(nrow(source)), as.character(grp), drop = TRUE)
     key4 <- function(x) .factor_keys(
       x[, c("set", "frame_1", "frame_2", "item"), drop = FALSE])
     lk <- key4(cmp)
@@ -432,10 +501,11 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
     ba <- matrix(NA_real_, boot_reps, nrow(dsc))
     status <- rep("error", boot_reps)
     for (b in seq_len(boot_reps)) {
-      ii <- .frame_stratified_resample(strata)
+      sample_b <- .frame_cluster_resample(fit$person$id, grp)
+      ii <- sample_b$rows
       fb <- tryCatch(.efrm_refit(
         fit, source[ii, , drop = FALSE], fit$set_of, boot_reps = 0,
-        ids = sprintf("B%04dP%06d", b, seq_along(ii)),
+        ids = paste0("B", sprintf("%04d", b), sample_b$id),
         factors = fit$factors[ii, , drop = FALSE], se_method = "hybrid"),
         error = function(e) NULL)
       if (is.null(fb)) next
@@ -527,6 +597,9 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
                           boot_reps_nonconverged = reps_nonconverged,
                           boot_reps_errors = reps_errors,
                           boot_minimum_usable = minimum_usable,
+                          bootstrap_stratified = if (se_method == "bootstrap")
+                            !.frame_ids_cross_groups(fit$person$id, grp) else
+                            NA,
                           seed = seed,
                           fit_signature = .fit_boot_signature(fit)))
   out$result_signature <- .fit_boot_md5(out)
@@ -566,6 +639,15 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
        any(unlist(invariance[counts]) != 0)))
     stop("`invariance` has inconsistent bootstrap accounting; recompute it ",
          "with frame_invariance()")
+  stratified_ok <- "bootstrap_stratified" %in% names(invariance) &&
+    is.logical(invariance$bootstrap_stratified) &&
+    length(invariance$bootstrap_stratified) == 1L &&
+    if (identical(invariance$se_method, "bootstrap"))
+      !is.na(invariance$bootstrap_stratified) else
+      is.na(invariance$bootstrap_stratified)
+  if (!stratified_ok)
+    stop("`invariance` has inconsistent bootstrap resampling provenance; ",
+         "recompute it with frame_invariance()")
   expected_family <- nrow(invariance$locations) + nrow(invariance$excluded) +
     if (identical(invariance$se_method, "bootstrap"))
       nrow(invariance$discrimination) + nrow(invariance$excluded) else 0L
@@ -583,7 +665,9 @@ print.rasch_frame_invariance <- function(x, ...) {
   rule <- if (adj == "holm") "Holm-adjusted" else "unadjusted, screening"
   cat("Item invariance across frames (each frame calibrated separately)\n\n")
   cat("Uncertainty:", if (identical(x$se_method, "bootstrap"))
-    sprintf(paste0("whole-person bootstrap within person group ",
+    sprintf(paste0(if (isTRUE(x$bootstrap_stratified))
+                     "whole-person bootstrap within person group " else
+                     "whole-person bootstrap across persons ",
                    "(%d/%d usable; ",
                    "%d non-converged; %d other failures)"),
             x$boot_reps_used, x$boot_reps, x$boot_reps_nonconverged,

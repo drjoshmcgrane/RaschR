@@ -48,7 +48,9 @@ unadjusted.}
 \item{flag_logits}{Absolute logit magnitude flagged as practically
 important.}
 
-\item{min_n}{Minimum responders required in a resolved design cell.}
+\item{min_n}{Minimum distinct responders required in a resolved design
+cell. When identifiers repeat, response rows from one person count once
+within each cell.}
 }
 \value{
 An object of class \code{"rasch_dif_posthoc"}, extending the

@@ -231,8 +231,9 @@ print.rasch_dependence <- function(x, ...) {
 #' Applied to the superitems recorded by \code{\link{combine_items}}. The
 #' binomial bound applies only when every component was dichotomous; a
 #' composite containing a polytomous item is shown but its bound and verdict
-#' are withheld. The input calibration and the principal-components refit
-#' must both converge.
+#' are withheld. When person identifiers repeat, the spread refit's sandwich
+#' covariance clusters the score contributions by person. The input
+#' calibration and the principal-components refit must both converge.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param maxit,tol Passed to the \code{\link{pcml_pc}} refit.
@@ -293,7 +294,12 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
     class(out) <- c("rasch_spread", "data.frame")
     return(out)
   }
-  pc <- pcml_pc(fit$X, maxit = maxit, tol = tol)
+  # pcml_pc() is also a public stand-alone estimator and therefore has no
+  # person-ID argument. Here the source fit supplies those IDs: pass them to
+  # the same internal fit so repeated observations contribute one clustered
+  # sandwich score per person rather than masquerading as independent rows.
+  pc <- .pcml_pc_fit(fit$X, maxit = maxit, tol = tol,
+                     cluster = .dif_ids(fit$person$id))
   if (!isTRUE(pc$converged))
     stop("the principal-components refit did not converge; the spread test is unavailable")
   cmp <- pc$components

@@ -113,11 +113,12 @@ test_that("spread_test flags a dependent subtest by the LUB", {
   expect_lt(st$spread[dep_row], 0.3)
   expect_true(all(st$spread[ind_rows] > st$spread[dep_row]))
 
+  # spread_test() reaches the internal fit directly so it can pass person IDs
   pc_zero <- pcml_pc(fit2$X)
   pc_zero$components$spread_se[1] <- 0
   st_zero <- testthat::with_mocked_bindings(
     spread_test(fit2),
-    pcml_pc = function(...) pc_zero,
+    .pcml_pc_fit = function(...) pc_zero,
     .package = "rasch")
   expect_true(is.na(st_zero$z[1]))
   expect_true(is.na(st_zero$p_adj[1]))

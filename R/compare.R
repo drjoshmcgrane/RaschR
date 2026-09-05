@@ -71,6 +71,11 @@
   c(eff = eff, aic = -2 * ll + 2 * eff, bic = -2 * ll + log(n) * eff)
 }
 
+.compare_person_count <- function(f) {
+  if (is.null(f$person$id)) return(nrow(f$X))
+  length(unique(.dif_ids(f$person$id)))
+}
+
 #' Compare fitted Rasch models
 #'
 #' Builds a comparison table for two or more fits from \code{\link{rasch}},
@@ -347,7 +352,7 @@ compare_fits <- function(..., reference = 1) {
         model = if (inherits(f, "rasch_explanatory"))
           f$explanatory_model else f$model,
         converged = conv,
-        persons = nrow(f$X), items = n_items(f),
+        persons = .compare_person_count(f), items = n_items(f),
         parameters = if (is.null(f$est$n_parameters)) NA_integer_
                      else f$est$n_parameters,
         loglik = if (conv) f$est$loglik else NA_real_,

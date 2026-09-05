@@ -52,8 +52,9 @@ reports dependence.
 Applied to the superitems recorded by \code{\link{combine_items}}. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict
-are withheld. The input calibration and the principal-components refit
-must both converge.
+are withheld. When person identifiers repeat, the spread refit's sandwich
+covariance clusters the score contributions by person. The input
+calibration and the principal-components refit must both converge.
 }
 \examples{
 set.seed(1); N <- 600

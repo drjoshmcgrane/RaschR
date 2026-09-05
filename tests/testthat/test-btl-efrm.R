@@ -73,6 +73,33 @@ test_that("a non-converged BTL-EFRM fit retains no inferential fields", {
   expect_match(paste(fit$notes, collapse = " "), "probabilities withheld")
 })
 
+test_that("a failed equal-unit refit cannot supply a likelihood difference", {
+  d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                         n_judges_per_panel = 10, reps_within = 20,
+                         reps_cross = 20, seed = 381)
+  original <- rasch:::.btlef_stage1
+  testthat::local_mocked_bindings(
+    .btlef_stage1 = function(ia, ib, y, panel, judge, K, maxit, tol,
+                             rho_fixed = NULL) {
+      z <- original(ia, ib, y, panel, judge, K, maxit, tol,
+                    rho_fixed = rho_fixed)
+      if (length(unique(panel)) == 1L && identical(unique(panel), "all"))
+        z$converged <- FALSE
+      z
+    },
+    .package = "rasch"
+  )
+  fit <- btl_efrm(d, "object_a", "object_b", winner = "winner",
+                  judge = "judge", panels = "panel",
+                  object_sets = attr(d, "truth")$object_sets,
+                  se_method = "conditional")
+  expect_true(fit$converged)
+  expect_true(is.na(fit$equal_unit$loglik_single))
+  expect_true(is.na(fit$equal_unit$difference))
+  expect_true(is.na(fit$equal_unit$two_delta_ll))
+  expect_match(fit$equal_unit$note, "unavailable")
+})
+
 test_that("conditional panel units are recovered but inference is withheld", {
   phi_true <- c(0.7, 1.0, 1.43); phi_true <- phi_true / exp(mean(log(phi_true)))
   d <- simulate_btl_efrm(n_objects_per_set = 8, n_sets = 1, n_panels = 3,

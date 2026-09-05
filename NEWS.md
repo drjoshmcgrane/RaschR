@@ -101,6 +101,18 @@
 * The threshold diagnostic now determines exactly which partial-credit
   categories are modal over a non-zero interval. It no longer depends on a
   finite plotting grid that could miss a very narrow category region.
+  Thresholds that are equal by construction now leave only the extreme
+  categories modal; their crossing points differ by rounding, and that gap
+  was previously reported as an interval.
+* The semiparametric EFRM set link now judges grid truncation from the
+  persons with a finite location in at least one set. Persons at the minimum
+  or maximum score in both sets remain in the likelihood but no longer count
+  towards the two per cent edge-mass rule, since the masses explaining them
+  sit on the end of any finite grid. The rule refused about one person
+  resample in twelve on an ordinary design, so a bootstrap
+  `frame_invariance()` rarely reached its usable-replicate minimum and its
+  usable replicates under-represented the resamples richest in extreme
+  scores. The rule is now documented.
 * Paired-comparison EFRM simulation now requires plain vectors for panel
   units, set units and set origins instead of silently flattening matrices.
 * Anchor-table columns must now contain one plain value per row. Matrix-valued

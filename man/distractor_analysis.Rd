@@ -22,10 +22,11 @@ A data frame with one row per item-option: \code{item},
 }
 \description{
 For every keyed item and response option: the count and proportion
-choosing it, the mean location of those persons, and the point-biserial
-correlation between choosing the option and the person measure. Locations
-and correlations use the rest measure (the person estimate from the other
-items), so the analysed item cannot credit its own takers. The keyed
+choosing it among respondents with a non-extreme rest measure, their mean
+location, and the point-biserial correlation between choosing the option
+and the person measure. These summaries use the rest measure (the person
+estimate from the other items), so the analysed item cannot credit its own
+takers. The keyed
 option should attract the ablest persons and carry the only positive
 point-biserial; a distractor whose takers are abler than the keyed
 option's (with at least \code{min_n} takers) is flagged as a possible
