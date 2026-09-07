@@ -25,7 +25,7 @@
     z <- .role_text_values(v)
     ifelse(is.na(z), "N;", paste0("S", nchar(z, type = "bytes"), ":", z, ";"))
   })
-  do.call(paste0, parts)
+  do.call(paste0, unname(parts))
 }
 
 .factor_cells <- function(x, sep = ":") {
@@ -34,13 +34,28 @@
   fs <- lapply(x, function(v) {
     if (is.factor(v)) droplevels(v) else factor(v)
   })
-  code <- rep(1, nrow(x)); mult <- 1
-  for (f in fs) {
-    code <- code + (as.integer(f) - 1) * mult
-    mult <- mult * max(nlevels(f), 1)
+  sizes <- vapply(fs, function(f) max(nlevels(f), 1L), 1L)
+  if (sum(log2(sizes)) >= 53) {
+    # Doubles cannot distinguish every integer in a larger Cartesian product.
+    # Keep exact tuples of integer factor codes, with the same first-factor-
+    # fastest ordering as the ordinary path below.
+    parts <- unname(lapply(fs, as.integer))
+    keys <- do.call(paste, c(parts, list(sep = ":")))
+    complete <- Reduce(`&`, lapply(parts, function(z) !is.na(z)))
+    ord <- do.call(order, rev(parts))
+    first <- ord[complete[ord] & !duplicated(keys[ord])]
+    present <- seq_along(first)
+    code <- match(keys, keys[first])
+    code[!complete] <- NA_integer_
+  } else {
+    code <- rep(1, nrow(x)); mult <- 1
+    for (f in fs) {
+      code <- code + (as.integer(f) - 1) * mult
+      mult <- mult * max(nlevels(f), 1)
+    }
+    present <- sort(unique(code[!is.na(code)]))
+    first <- match(present, code)
   }
-  present <- sort(unique(code[!is.na(code)]))
-  first <- match(present, code)
   labels <- vapply(first, function(i)
     paste(vapply(fs, function(f) as.character(f[i]), ""), collapse = sep), "")
   clash <- duplicated(labels) | duplicated(labels, fromLast = TRUE)
@@ -56,10 +71,12 @@
 # before it is dereferenced: an empty or multiple name otherwise fails with
 # a base subscript error that names neither the argument nor the problem.
 .check_reshape_column <- function(data, x, name) {
-  if (!is.atomic(x) || !is.null(dim(x)) || length(x) != 1L || is.na(x) ||
-      !(is.character(x) || is.numeric(x)))
-    stop("`", name, "` must name exactly one column", call. = FALSE)
-  x <- as.character(x)
+  # Callers dereference the supplied selector directly. A numeric value
+  # would select a position, not the name validated here.
+  if (!is.character(x) || !is.null(dim(x)) || !is.null(oldClass(x)) ||
+      length(x) != 1L || is.na(x))
+    stop("`", name, "` must name exactly one column using a character string",
+         call. = FALSE)
   if (!x %in% names(data)) stop("column not found: ", x, call. = FALSE)
   invisible(x)
 }

@@ -134,8 +134,8 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
 
   if (is.matrix(panels) || is.data.frame(panels)) {
     ans <- as.matrix(panels)
-    if (!is.numeric(ans))
-      stop("A person-panel matrix must contain numeric estimates.", call. = FALSE)
+    if (!is.numeric(ans) || is.complex(ans))
+      stop("A person-panel matrix must contain real numeric estimates.", call. = FALSE)
     if (!nrow(ans) || !ncol(ans))
       stop("person_panels must contain at least one panel of estimates.",
            call. = FALSE)
@@ -157,7 +157,7 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
       stop("Person-panel variables must be distinct.", call. = FALSE)
     gdat <- fit$person[panels]
     group <- if (ncol(gdat) == 1L) gdat[[1L]] else
-      interaction(gdat, drop = TRUE, sep = " x ")
+      .factor_cells(gdat, sep = " x ")
   } else {
     if (length(panels) != n)
       stop("person_panels must have one value per person.", call. = FALSE)
@@ -250,7 +250,7 @@ wright_map <- function(fit, type = c("thresholds", "locations"),
              call. = FALSE)
       values <- lapply(fields, function(x) as.character(map[[x]]))
       panels <- if (length(values) == 1L) values[[1L]] else
-        interaction(values, drop = TRUE, sep = " x ")
+        .factor_cells(values, sep = " x ")
     }
   }
 

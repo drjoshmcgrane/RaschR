@@ -14,7 +14,10 @@ Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
 Caterpillar plot of panel units \code{phi_g} and set units \code{alpha_s}
-on the log scale, with 95 per cent intervals and unit one marked.
+on the log scale, with 95 per cent intervals and unit one marked. Intervals
+use each unit's reported reference degrees of freedom; they are omitted
+where inference is unavailable. Fits from an earlier release without a
+\code{df} column use the limiting normal reference.
 }
 \examples{
 \donttest{

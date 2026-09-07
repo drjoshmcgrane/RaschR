@@ -16,7 +16,8 @@ Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
 Expected total score against person location. Structural fits draw one
-curve for each administrable frame or facet design.
+curve for each observed item pattern within the frame or facet design,
+as defined by \code{\link{test_information}}.
 }
 \examples{
 set.seed(1)

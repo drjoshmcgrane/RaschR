@@ -89,8 +89,11 @@
   lapply(setNames(trimws(toupper(as.character(key))), names(key)),
          function(k) {
            opts <- trimws(strsplit(k, "/", fixed = TRUE)[[1]])
-           opts <- opts[nzchar(opts)]
-           if (!length(opts)) stop("empty key entry")
+           if (startsWith(k, "/") || endsWith(k, "/") ||
+               any(!nzchar(opts)))
+             stop("empty credited option within an item key")
+           if (anyDuplicated(opts))
+             stop("each credited option must be named once within an item key")
            setNames(rep(1L, length(opts)), opts)
          })
 }
@@ -105,7 +108,8 @@
 
 # Score raw responses against the scoring maps. Observed options absent
 # from an item's map score 0; blank, NA, and missing-data codes become NA.
-.score_mc <- function(X, map) {
+.score_mc <- function(X, map, na_codes = -1) {
+  .check_na_codes(na_codes)
   supplied <- names(map)
   idx <- match(supplied, colnames(X))
   fallback <- is.na(idx)
@@ -126,7 +130,15 @@
   names(map) <- keyed
   raw <- matrix(trimws(toupper(as.character(X[, keyed]))), nrow(X),
                 length(keyed), dimnames = list(NULL, keyed))
-  raw[raw %in% c("", "NA", "-1")] <- NA
+  codes <- trimws(toupper(as.character(na_codes)))
+  codes <- codes[!is.na(codes)]
+  raw_num <- suppressWarnings(as.numeric(raw))
+  code_num <- suppressWarnings(as.numeric(codes))
+  missing <- is.na(raw) | raw %in% c("", "NA") | raw %in% codes |
+    (!is.na(raw_num) & raw_num < 0)
+  if (any(is.finite(code_num)))
+    missing <- missing | (!is.na(raw_num) & raw_num %in% code_num[is.finite(code_num)])
+  raw[missing] <- NA_character_
   scored <- matrix(NA_integer_, nrow(raw), ncol(raw),
                    dimnames = dimnames(raw))
   for (j in seq_along(keyed)) {
@@ -147,10 +159,12 @@
 #' and the person measure. These summaries use the rest measure (the person
 #' estimate from the other items), so the analysed item cannot credit its own
 #' takers. The keyed
-#' option should attract the ablest persons and carry the only positive
-#' point-biserial; a distractor whose takers are abler than the keyed
-#' option's (with at least \code{min_n} takers) is flagged as a possible
-#' miskey.
+#' option should attract able persons and usually carry a positive
+#' point-biserial; a distractor whose takers are abler than the pooled takers
+#' of the full-credit option or options (with at least \code{min_n} takers) is
+#' flagged as a possible
+#' miskey. The analysis requires one response row per person; repeated rows
+#' do not supply independent taker counts or rest measures.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} run with a \code{key}.
 #' @param items Optional subset of item names; defaults to every keyed item.
@@ -180,6 +194,10 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
   if (!.efrm_link_converged(fit))
     stop("the fitted set-unit link did not converge; rest-measure distractor analysis is unavailable",
          call. = FALSE)
+  if (.has_repeated_residual_units(fit))
+    .refuse("distractor analysis needs one response row per person; repeated ",
+            "identifiers would inflate option counts and treat dependent ",
+            "rest measures as independent")
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
   min_n <- .check_whole(min_n, "min_n", 1)
   raw <- fit$mc$raw; map <- fit$mc$map
@@ -226,13 +244,17 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
       # var() is NA for a single usable rest measure.  That is insufficient
       # to define a correlation, but it is not an analysis fault.
       rows$point_biserial[j] <- if (length(ind) > 1L &&
-                                      isTRUE(stats::var(ind) > 0))
+                                      isTRUE(stats::var(ind) > 0) &&
+                                      isTRUE(stats::var(th[ok]) > 0))
         cor(ind, th[ok]) else NA_real_
     }
-    # nobody may have chosen the keyed option; max() then returns -Inf with
-    # a warning that says nothing the flag column does not already say
-    key_mean <- suppressWarnings(
-      max(rows$mean_location[rows$keyed], na.rm = TRUE))
+    # Several options can share full credit. They form one scored response
+    # category, so compare a distractor with their pooled takers rather than
+    # selecting whichever keyed option happened to have the highest sample
+    # mean.
+    keyed_options <- rows$option[rows$keyed]
+    key_values <- th[ok & r %in% keyed_options]
+    key_mean <- if (length(key_values)) mean(key_values) else NA_real_
     rows$flag <- if (is.finite(key_mean))
       !rows$keyed & rows$n >= min_n & rows$mean_location > key_mean
     else rep(FALSE, nrow(rows))
@@ -247,13 +269,15 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
 #'
 #' The proportion choosing each response option across class intervals of the
 #' rest measure (the person estimate from the other items), with the keyed
-#' option drawn solid and bold. The keyed option should rise with the trait
-#' and every distractor should fall; a rising distractor is the graphical
-#' signature of a miskey or an ambiguous option.
+#' option drawn solid and bold. The curves are descriptive. Under ordered
+#' option scoring, higher-scored options should tend to occur at higher rest
+#' measures; an intermediate-credit option may peak in the middle.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} run with a \code{key}.
 #' @param item Keyed item name.
-#' @param n_groups Number of class intervals.
+#' @param n_groups Number of class intervals. By default, use the fit's
+#'   count, with at least two requested intervals. Tied locations may
+#'   produce fewer intervals.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1); Np <- 400
@@ -266,13 +290,17 @@ distractor_analysis <- function(fit, items = NULL, min_n = 10) {
 #' fit <- rasch(raw, key = setNames(rep("A", 6), colnames(raw)))
 #' plot_distractors(fit, "M3")
 #' @export
-plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
+plot_distractors <- function(fit, item, n_groups = NULL) {
   .check_response_display_fit(fit, "rest-measure distractor plots")
+  if (.has_repeated_residual_units(fit))
+    .refuse("distractor plots need one response row per person; repeated ",
+            "identifiers would give dependent rows equal weight")
   if (!is.atomic(item) || !is.null(dim(item)) ||
       length(item) != 1L || is.na(item))
     stop("`item` must name exactly one item")
   item <- as.character(item)
-  n_groups <- .check_whole(n_groups, "n_groups", 2)
+  n_groups <- if (is.null(n_groups)) max(2L, fit$n_groups)
+              else .check_whole(n_groups, "n_groups", 2)
   if (is.null(fit$mc)) stop("the fit has no key: run rasch(..., key = )")
   if (!item %in% colnames(fit$mc$raw)) stop("no such keyed item: ", item)
   r <- fit$mc$raw[, item]
@@ -309,7 +337,7 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
   .rr_legend("right", labs,
              lwd = ifelse(keyed_v, 3.2, ifelse(sc > 0, 2.4, 1.8)),
              lty = ifelse(keyed_v, 1, ifelse(sc > 0, 2, 5)),
-             col = .rr$pal[seq_along(opts)])
+             col = .rr$pal[(seq_along(opts) - 1L) %% length(.rr$pal) + 1L])
   invisible(NULL)
 }
 
@@ -320,7 +348,7 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
 #' credit (Andrich and Styles 2011). This function proposes such a scoring
 #' from the rest-measure distractor analysis: within each keyed item, a
 #' distractor qualifies for credit when it attracts at least \code{min_n}
-#' takers, its takers' mean rest location exceeds that of the uncredited
+#' takers, its takers' mean rest location exceeds that of the pooled remaining
 #' distractors by more than \code{z} standard errors of the difference,
 #' and it remains below the keyed option. Qualifying distractors are
 #' ranked by mean location and scored 1, 2, ... below the keyed option's
@@ -333,7 +361,7 @@ plot_distractors <- function(fit, item, n_groups = fit$n_groups) {
 #' @param items Optional subset of keyed item names.
 #' @param min_n Minimum takers for a distractor to be considered.
 #' @param z Required separation, in standard errors, between a credited
-#'   distractor and the uncredited ones.
+#'   distractor and the pooled remaining distractors.
 #' @return A list of class \code{"rasch_rescore"}: \code{option_scores}, a
 #'   data frame (\code{item}, \code{option}, \code{score}) ready for
 #'   \code{rasch(key = )}, covering every observed option of the examined
@@ -388,13 +416,19 @@ distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
       x <- th[ok & r == o]
       if (length(x) > 1) sd(x) / sqrt(length(x)) else NA_real_
     }, 0)
-    key_row <- usable_key[which.max(d$mean_location[usable_key])]
+    key_options <- d$option[d$keyed]
+    key_values <- th[ok & r %in% key_options]
+    key_mean <- if (length(key_values)) mean(key_values) else NA_real_
     cand <- which(!d$keyed & d$n >= min_n)
     # the uncredited baseline: distractors not currently under consideration
     d$z_sep <- NA_real_
     credited <- integer(0)
     for (j in cand) {
-      others <- setdiff(cand, j)
+      # min_n governs whether the nominated option is stable enough to
+      # receive credit. The comparison group is the documented pool of all
+      # other non-keyed options; requiring each of those options separately
+      # to meet min_n can leave a single eligible candidate with no baseline.
+      others <- setdiff(which(!d$keyed), j)
       if (!length(others)) next
       base <- th[ok & r %in% d$option[others]]
       xj <- th[ok & r == d$option[j]]
@@ -405,7 +439,7 @@ distractor_rescore <- function(fit, items = NULL, min_n = 20, z = 1.96) {
       if (!is.finite(den) || den <= 0) next
       sep <- (mean(xj) - mean(base)) / den
       d$z_sep[j] <- sep
-      if (sep > z && mean(xj) < d$mean_location[key_row]) credited <- c(credited, j)
+      if (sep > z && mean(xj) < key_mean) credited <- c(credited, j)
     }
     credited <- credited[order(d$mean_location[credited])]
     d$proposed <- 0L

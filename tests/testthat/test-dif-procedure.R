@@ -119,7 +119,8 @@ test_that("dif_size withholds inference from an invalid resolved covariance", {
               dimnames = list(NULL, paste0("I", 1:6)))
   grp <- factor(rep(c("a", "b"), each = n / 2))
   fit <- rasch(data.frame(X, grp = grp), factors = "grp")
-  bad_refit <- split_items(fit, "I2", by = fit$factors$grp)
+  valid_refit <- split_items(fit, "I2", by = fit$factors$grp)
+  bad_refit <- valid_refit
   split_rows <- grep("^I2 \\(", bad_refit$items$item)
   split_ids <- bad_refit$thresholds$id[
     bad_refit$thresholds$item %in% split_rows]
@@ -135,6 +136,22 @@ test_that("dif_size withholds inference from an invalid resolved covariance", {
   expect_true(all(is.na(guarded$pairs$significant)))
   expect_true(all(is.finite(guarded$pairs$difference)))
   expect_true(any(grepl("not positive semidefinite", guarded$notes)))
+
+  unsupported_refit <- valid_refit
+  unsupported_refit$est$cluster_support <- list(
+    repeated = FALSE, n = 16L, effective = 16)
+  unsupported_refit$est$cluster_inference <- FALSE
+  unsupported <- testthat::with_mocked_bindings(
+    dif_size(fit, "I2", by = "grp"),
+    .rasch_refit = function(...) unsupported_refit,
+    .package = "rasch")
+  expect_true(all(is.na(unsupported$levels$se)))
+  expect_true(all(is.na(unsupported$pairs$se)))
+  expect_true(all(is.na(unsupported$pairs$df)))
+  expect_true(all(is.na(unsupported$pairs$p)))
+  expect_true(all(is.finite(unsupported$pairs$difference)))
+  expect_match(paste(unsupported$notes, collapse = " "),
+               "independent-person support")
 })
 
 test_that("multi-level factors get familywise pairwise comparisons in logits", {
@@ -222,6 +239,33 @@ test_that("factorial procedure: interaction post-hocs and sizes for significant 
   expect_true(any(sz$practical))
   # clean items produce no size rows
   expect_false(any(fa$sizes$item == "I5"))
+})
+
+test_that("automatic DIF follow-ups use one pooled adjusted family", {
+  set.seed(912)
+  n <- 900L
+  group <- factor(rep(c("A", "B", "C"), each = n / 3L))
+  theta <- rnorm(n)
+  difficulty <- seq(-1, 1, length.out = 5L)
+  shift <- matrix(0, n, length(difficulty))
+  shift[group == "B", 1L] <- 1.8
+  shift[group == "C", 2L] <- -1.8
+  X <- vapply(seq_along(difficulty), function(j)
+    rbinom(n, 1L, plogis(theta - difficulty[j] - shift[, j])), integer(n))
+  colnames(X) <- paste0("I", seq_len(ncol(X)))
+  fit <- rasch(data.frame(X, group), items = colnames(X), factors = "group")
+  out <- dif_anova(fit, sizes = TRUE)
+
+  opened <- out$terms$significant & !out$terms$superseded &
+    !vapply(out$term_ids, function(term) "ci" %in% .term_vars(term),
+            logical(1))
+  expect_gt(sum(opened), 1L)
+  expect_identical(out$posthoc_family_n, 3L * sum(opened))
+  expect_equal(out$posthoc$p_adj,
+               p.adjust(out$posthoc$p, "holm", n = out$posthoc_family_n))
+  expect_equal(out$posthoc$significant,
+               is.finite(out$posthoc$p_adj) & out$posthoc$p_adj < out$alpha)
+  expect_equal(out$sizes, out$posthoc)
 })
 
 test_that("dif_size guards: thin levels dropped, unknown factor errors", {
@@ -484,6 +528,36 @@ test_that("resolve_dif splits DIF items by effect size and protects anchors", {
   rpp <- resolve_dif(spp, min_anchors = 8)
   expect_lte(rpp$n_splits, 1L)
   expect_gte(.n_unsplit_sources(.split_source_map(rpp$fit)), 8L)
+})
+
+test_that("resolve_dif does not report a failed final assessment as zero DIF", {
+  d <- simulate_rasch(200, 6, n_groups = 2, seed = 9723)
+  fit <- rasch(d, id = "id", factors = "group")
+  calls <- 0L
+  expect_error(with_mocked_bindings(
+    resolve_dif(fit),
+    dif_anova = function(...) {
+      calls <<- calls + 1L
+      if (calls == 3L) stop("forced final diagnostic failure")
+      list(summary = data.frame(item = fit$items$item,
+        uniform_DIF = FALSE, nonuniform_DIF = FALSE, superseded = FALSE),
+        summary_factors = rep(list("group"), nrow(fit$items)))
+    }, .package = "rasch"),
+    "final DIF assessment failed: forced final diagnostic failure")
+  expect_identical(calls, 3L)
+})
+
+test_that("DIF splitting refuses within-group conditional category collapse", {
+  d <- simulate_rasch(200, 4, model = "PCM", n_categories = 3,
+                      n_groups = 2, seed = 9789)
+  k <- d$group == "g1" & d$I01 == 2
+  d[k, sprintf("I%02d", 2:4)] <- 2
+  fit <- rasch(d, id = "id", factors = "group")
+  expect_true(all(fit$m == 2L))
+  expect_identical(sort(unique(fit$X[d$group == "g1", "I01"])), 0:2)
+  expect_error(split_items(fit, "I01", by = "group"),
+    "split refit cannot preserve the fitted score structure for I01 (g1)",
+    fixed = TRUE)
 })
 
 test_that("resolve_dif leaves non-uniform DIF visible", {

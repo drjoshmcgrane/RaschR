@@ -19,7 +19,9 @@ dimensionality_test(
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}} with one response row
 per person. Repeated identifiers are refused because the person-level
-comparisons and their binomial count would not be independent.}
+comparisons and their binomial count would not be independent.
+Fully anchored scoring fits require \code{B = 0}; bootstrap refitting is
+not supported for these fits.}
 
 \item{alpha}{Nominal significance level for the per-person t-tests.}
 
@@ -65,7 +67,8 @@ A list with the proportion of significant tests, its
   bootstrap probability of a proportion at least as large as the observed
   one under the fitted unidimensional model; \code{prop_null}, the mean
   replicate proportion (the rate the split produces when nothing is
-  there); and \code{bootstrap}, the replicate proportions with the
+  there); \code{bootstrap_resolution}, the smallest attainable bootstrap
+  probability; and \code{bootstrap}, the replicate proportions with the
   counts requested, used, non-converged and failed. When the comparison
   itself is unavailable (undefined split, degenerate subsets, too few
   persons) the list carries a \code{note} explaining why and
@@ -108,6 +111,10 @@ the proportion, so the bootstrap probability \code{p_boot} carries the
 same selection the observed proportion carries. With \code{B > 0} the
 verdict is \code{p_boot <= alpha}; the binomial interval is still reported,
 as a description of the observed proportion rather than a test of it.
+A one-sided bootstrap probability cannot be smaller than
+\code{1/(B_used + 1)}. If that floor exceeds \code{alpha}, a data-driven
+split has no rejection region and its verdict is withheld. A split fixed
+in advance retains its binomial verdict in that case.
 }
 \examples{
 set.seed(1)

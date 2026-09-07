@@ -394,7 +394,7 @@ chisq_detail <- function(fit, item) {
     }
   }
   it_row <- fit$item_trait[i, ]
-  item_p <- if (.has_repeated_person_ids(fit$person$id)) NA_real_ else it_row$p
+  item_p <- if (.has_repeated_residual_units(fit)) NA_real_ else it_row$p
   list(item = fit$items$item[i], location = fit$items$location[i],
        intervals = iv, categories = cats, ave = mean(x, na.rm = TRUE),
        chisq = it_row$chisq, df = it_row$df, p = item_p)
@@ -492,9 +492,8 @@ chisq_detail <- function(fit, item) {
 
 # Administrable virtual-item blocks of a fit: one per design a person
 # could actually take. Ordinary fits: the whole test. EFRM: one block per
-# person group AND per item-set administration pattern observed in that
-# group. MFRM: one block per set of facet conditions observed together for
-# a person. Shared by
+# person group AND exact observed item pattern in that group. MFRM: one
+# block per observed item-by-facet pattern for a person. Shared by
 # test_information() and the test-level curve plots so they cannot
 # disagree.
 .design_blocks <- function(fit) {
@@ -506,7 +505,7 @@ chisq_detail <- function(fit, item) {
     # one set, a linking subsample takes several). Summing all the group's
     # sets would describe a form nobody in the majority sub-population
     # ever took, understating their SEM -- so split each group by the
-    # distinct set-administration patterns actually observed
+    # distinct item-administration patterns actually observed
     vm <- fit$virtual_map
     blocks <- list(); labels <- character(0)
     for (g in unique(vm$group)) {
@@ -514,25 +513,23 @@ chisq_detail <- function(fit, item) {
       grows <- rowSums(!is.na(fit$X[, gcols, drop = FALSE])) > 0
       if (!any(grows)) next
       sets_of_col <- vm$set[gcols]
-      # per person: which of the group's sets they answered at all
+      # Keep the exact observed items, including partial sets. Set membership
+      # is used only for labels, not to enlarge a person's administration.
       gsets <- sort(unique(sets_of_col))
       answered <- !is.na(fit$X[grows, gcols, drop = FALSE])
-      present <- vapply(gsets, function(s)
-        rowSums(answered[, sets_of_col == s, drop = FALSE]) > 0L,
-        logical(sum(grows)))
-      # vapply drops to a vector with one person: the matrix is persons x
-      # sets, and reshaping it as one column would transpose it, so a single
-      # respondent's pattern would name the wrong sets
-      present <- matrix(present, nrow = sum(grows), ncol = length(gsets))
-      pat <- .factor_keys(as.data.frame(present, check.names = FALSE))
+      pat <- .factor_keys(as.data.frame(answered, check.names = FALSE))
       for (p in unique(pat)) {
         first <- match(p, pat)
-        psets <- gsets[present[first, ]]
+        cols <- which(answered[first, ])
+        psets <- gsets[gsets %in% sets_of_col[cols]]
+        partial <- any(!answered[first, sets_of_col %in% psets])
         key <- .factor_keys(data.frame(group = g, pattern = p,
                                        stringsAsFactors = FALSE))
-        blocks[[key]] <- gcols[sets_of_col %in% psets]
+        blocks[[key]] <- gcols[cols]
         labels[key] <- paste0("group=", g, if (length(unique(vm$set)) > 1L)
-          paste0(", sets=", paste(psets, collapse = "+")) else "")
+          paste0(", sets=", paste(psets, collapse = "+")) else "",
+          if (partial) paste0(", items=", paste(vm$item[gcols[cols]],
+                                                collapse = "+")) else "")
       }
     }
     # Readable labels are for display only. If literal group or set names make
@@ -542,7 +539,7 @@ chisq_detail <- function(fit, item) {
       dup <- duplicated(lab) | duplicated(lab, fromLast = TRUE)
       lab[dup] <- paste0(lab[dup], " [design ", seq_along(lab)[dup], "]")
     }
-    names(blocks) <- lab
+    names(blocks) <- make.unique(lab)
   } else if (inherits(fit, "rasch_mfrm")) {
     vm <- fit$virtual_map
     fs <- fit$facet_spec
@@ -554,28 +551,29 @@ chisq_detail <- function(fit, item) {
             collapse = ", ")
     }, ""), cells)
     observed <- !is.na(fit$X)
-    present <- vapply(cells, function(k)
-      rowSums(observed[, cell == k, drop = FALSE]) > 0L,
-      logical(nrow(fit$X)))
-    # persons x cells, whatever vapply simplified it to (see above)
-    present <- matrix(present, nrow = nrow(fit$X), ncol = length(cells))
-    pattern <- .factor_keys(as.data.frame(present, check.names = FALSE))
+    pattern <- .factor_keys(as.data.frame(observed, check.names = FALSE))
+    patterns <- unique(pattern[rowSums(observed) > 0L])
     blocks <- list()
-    for (p in unique(pattern)) {
+    for (p in patterns) {
       first <- match(p, pattern)
-      active <- cells[present[first, ]]
-      blocks[[p]] <- which(cell %in% active)
+      blocks[[p]] <- which(observed[first, ])
     }
-    labs <- vapply(unique(pattern), function(p) {
+    labs <- vapply(patterns, function(p) {
       first <- match(p, pattern)
-      active <- cells[present[first, ]]
-      paste(unname(cell_lab[active]), collapse = " + ")
+      active <- cells[cells %in% cell[observed[first, ]]]
+      parts <- vapply(active, function(k) {
+        ii <- which(cell == k)
+        jj <- ii[observed[first, ii]]
+        paste0(cell_lab[[k]], if (length(jj) < length(ii))
+          paste0(" [items=", paste(vm$item[jj], collapse = "+"), "]") else "")
+      }, "")
+      paste(parts, collapse = " + ")
     }, "")
     if (anyDuplicated(labs)) {
       dup <- duplicated(labs) | duplicated(labs, fromLast = TRUE)
       labs[dup] <- paste0(labs[dup], " [design ", seq_along(labs)[dup], "]")
     }
-    names(blocks) <- labs
+    names(blocks) <- make.unique(labs)
   }
   blocks
 }
@@ -584,13 +582,15 @@ chisq_detail <- function(fit, item) {
 #'
 #' Fisher information over a grid of person locations, with the corresponding
 #' standard error of measurement. Ordinary Rasch fits return one whole-test
-#' curve. EFRM fits return one curve per person group and per item-set
+#' curve. EFRM fits return one curve per person group and per item
 #' administration pattern actually observed within that group (in a linking
 #' design, persons who took only the core set get a core-only curve, and the
-#' linking subsample gets the pooled one). MFRM fits return one curve per set
-#' of facet conditions observed together for a person, so ratings that jointly
+#' linking subsample gets the pooled one). MFRM fits return one curve per
+#' observed item-by-facet pattern for a person, so ratings that jointly
 #' inform the same person measure are added and mutually exclusive designs
-#' remain separate.
+#' remain separate. Partly answered sets or facet conditions contribute only
+#' their observed items; a missing response is not treated as an administered
+#' item when defining these patterns.
 #'
 #' @details
 #' For an administrable block \eqn{\mathcal A}, the information and standard
@@ -648,12 +648,13 @@ test_information <- function(fit, grid = NULL, items = NULL) {
   if (!is.null(items) && (!is.atomic(items) || !is.null(dim(items))))
     stop("`items` must be a vector of item names or indices")
   keep <- if (is.null(items)) seq_len(L)
-          else if (is.numeric(items)) {
-            if (any(!is.finite(items)) || any(items != floor(items)))
+          else if (is.numeric(items) || is.complex(items)) {
+            if (is.complex(items) || any(!is.finite(items)) ||
+                any(items != floor(items)))
               stop("`items` indices must be whole numbers")
-            ki <- as.integer(items)
-            if (any(ki < 1L) || any(ki > L))
+            if (any(items < 1L) || any(items > L))
               stop("`items` indices must lie in 1..", L)
+            ki <- as.integer(items)
             if (anyDuplicated(ki))
               stop("item indices must not name the same item more than once")
             ki

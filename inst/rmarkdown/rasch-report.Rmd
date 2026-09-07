@@ -35,6 +35,9 @@ if (!is_btl && is.null(reported_subtest))
                                  note = conditionMessage(e),
                                  multidimensional = NA))
 reported_invariance <- attr(fit, "report_invariance")
+reported_person_weights <- attr(fit, "report_person_weights")
+reported_tailored <- attr(fit, "report_tailored")
+reported_distractors <- .distractors_or_note(fit)
 show_table <- function(x, n = 250L, digits = 3L) {
   if (is.null(x) || !NROW(x)) return(invisible(NULL))
   x <- as.data.frame(x)
@@ -58,7 +61,8 @@ show_table <- function(x, n = 250L, digits = 3L) {
     p_nonuniform_adj = "non-uniform p",
     eta2_nonuniform = "non-uniform eta2", se_log_rho = "SE log(rho)",
     se_log_phi = "SE log(phi)", se_log_alpha = "SE log(alpha)",
-    n_responses = "responses", two_delta_loglik = "2 delta logLik"
+    n_responses = "responses", two_delta_loglik = "2 delta logLik",
+    p_alpha_adj = "adjusted p (alpha)", p_kappa_adj = "adjusted p (kappa)"
   )
   hit <- intersect(names(labels), names(x))
   names(x)[match(hit, names(x))] <- unname(labels[hit])
@@ -71,6 +75,24 @@ show_table <- function(x, n = 250L, digits = 3L) {
 report_columns <- function(x, columns) {
   if (is.null(x)) return(NULL)
   x[, intersect(columns, names(x)), drop = FALSE]
+}
+# Text inserted with results='asis' must not become Markdown or raw HTML.
+# Tables are escaped by knitr::kable(); this covers headings, notes and other
+# prose assembled from uploaded names or fitted-object messages.
+report_text <- function(x) {
+  x <- enc2utf8(as.character(x))
+  # A line break can start a new Markdown block even when every inline marker
+  # is escaped (for example, a line containing only hyphens). Headings and
+  # prose derived from fitted names therefore stay on one logical line.
+  x <- gsub("[\r\n]+", " ", x, perl = TRUE)
+  x <- gsub("&", "&amp;", x, fixed = TRUE)
+  x <- gsub("<", "&lt;", x, fixed = TRUE)
+  x <- gsub(">", "&gt;", x, fixed = TRUE)
+  marks <- c("\\", "`", "*", "_", "{", "}", "[", "]", "(", ")",
+             "#", "+", "!", "|")
+  vapply(strsplit(x, "", fixed = TRUE), function(chars)
+    paste0(ifelse(chars %in% marks, paste0("\\", chars), chars),
+           collapse = ""), character(1))
 }
 # `what` names the missing display: knitr drops a figure identical to the
 # one before it, so two refusals with the same message need distinct text
@@ -102,14 +124,15 @@ show_table(fit_summary_table(fit))
 
 ```{r notes, results='asis'}
 if (length(fit$notes))
-  cat("\n", paste("*", fit$notes, collapse = "\n"), "\n")
+  cat("\n", paste("*", report_text(fit$notes), collapse = "\n"), "\n")
 ```
 
 ```{r rasch-results, results='asis'}
 if (!is_btl) {
   if (inherits(fit, "rasch_explanatory")) {
     cat("\n# Explanatory model\n\n")
-    cat("Formula: `", fit$explanatory$formula_text, "`\n\n", sep = "")
+    cat("Formula: ", report_text(fit$explanatory$formula_text), "\n\n",
+        sep = "")
     cat("\n## Comparison with free calibration\n\n")
     print(show_table(explanatory_test(fit)))
     cat("\n## Predictor effects\n\n")
@@ -124,12 +147,12 @@ if (!is_btl) {
   cat("\n# Item estimates\n\n")
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
     if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
-  if (.has_repeated_person_ids(fit$person$id))
+  if (.has_repeated_residual_units(fit))
     for (nm in intersect(c("p", "p_adj", "p_bonf", "p_anova",
                            "p_anova_adj", "p_anova_bonf"), names(item_tab)))
       item_tab[[nm]][] <- NA_real_
   if ("p_adj" %in% names(item_tab)) {
-    if (.has_repeated_person_ids(fit$person$id))
+    if (.has_repeated_residual_units(fit))
       cat("Item-fit probabilities are withheld because person IDs repeat and the available references assume independent response rows. The fit statistics remain descriptive.\n\n")
     else
       cat("The `p_adj` column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.\n\n")
@@ -161,13 +184,19 @@ if (!is_btl) {
   print(show_table(targeting_table(fit)))
   cat("\n# Unidimensionality t-test\n\n")
   if (!is.null(reported_subtest$note)) {
-    cat("Not available: ", reported_subtest$note, "\n\n", sep = "")
+    cat("Not available: ", report_text(reported_subtest$note), "\n\n",
+        sep = "")
   } else {
+    resolution_limited <- grepl(
+      "resolution insufficient", reported_subtest$verdict_method %||% "",
+      fixed = TRUE)
     verdict <- if (isTRUE(reported_subtest$multidimensional))
       "evidence against unidimensionality" else
       if (identical(reported_subtest$multidimensional, FALSE))
         "consistent with unidimensionality" else
-          "withheld for the data-driven split"
+          if (resolution_limited)
+            "withheld because the bootstrap resolution is insufficient" else
+            "withheld for the data-driven split"
     print(show_table(data.frame(
       split = reported_subtest$split,
       significant_percent = 100 * reported_subtest$prop_significant,
@@ -175,19 +204,53 @@ if (!is_btl) {
       upper_95_percent = 100 * reported_subtest$ci[2],
       verdict = verdict,
       bootstrap_p = reported_subtest$p_boot %||% NA_real_,
+      bootstrap_resolution = reported_subtest$bootstrap_resolution %||%
+        NA_real_,
       stringsAsFactors = FALSE)))
-    if (is.na(reported_subtest$multidimensional))
+    if (is.na(reported_subtest$multidimensional) && resolution_limited) {
+      cat(sprintf(paste0(
+        "The smallest attainable bootstrap p is %.3f. Increase B for an ",
+        "inferential verdict at alpha %.3f.\n\n"),
+        reported_subtest$bootstrap_resolution, reported_subtest$alpha))
+    } else if (is.na(reported_subtest$multidimensional)) {
       cat("The residual-derived split is descriptive until it is calibrated",
           "by bootstrap or replaced by item subsets fixed in advance.\n\n")
+    }
   }
   cat("\n# Person estimates\n\n")
   print(show_table(report_columns(fit$person,
     c("id", "raw", "max_raw", "theta", "se", "extreme", "fit_resid"))))
+  if (!is.null(reported_person_weights)) {
+    cat("\n# Externally weighted secondary person measures\n\n")
+    cat("These measures use the supplied relative item or item-set weights.",
+        "They do not replace the ordinary person estimates used elsewhere",
+        "in the analysis.\n\n")
+    print(show_table(reported_person_weights$table))
+    cat("\n## Resolved external weights\n\n")
+    print(show_table(attr(reported_person_weights$table, "weighting",
+                          exact = TRUE)))
+  }
+  if (!is.null(reported_tailored)) {
+    cat("\n# Tailored analysis for guessing\n\n")
+    cat(sprintf(paste0("%d responses with fitted probability below chance ",
+                       "%.2f were set to missing. The common origin uses: %s.\n\n"),
+                reported_tailored$n_removed, reported_tailored$chance,
+                report_text(paste(reported_tailored$anchor_items,
+                                  collapse = ", "))))
+    if (identical(reported_tailored$se_method, "bootstrap"))
+      cat(sprintf(paste0("Person bootstrap: %d of %d replicates usable; ",
+                         "probabilities are Holm-adjusted over items.\n\n"),
+                  reported_tailored$boot_reps_used,
+                  reported_tailored$boot_reps))
+    else
+      cat("Item shifts are descriptive; no bootstrap uncertainty was requested.\n\n")
+    print(show_table(reported_tailored$table))
+  }
 
   if (inherits(fit, "rasch_mfrm")) {
     cat("\n# Facets\n\n")
     for (nm in names(fit$facet_effects)) {
-      cat("\n## ", nm, "\n\n", sep = "")
+      cat("\n## ", report_text(nm), "\n\n", sep = "")
       print(show_table(report_columns(fit$facet_effects[[nm]],
         c("level", "severity", "se", "n", "fit_resid", "infit_ms",
           "outfit_ms"))))
@@ -197,8 +260,8 @@ if (!is_btl) {
       cat("The omnibus test assesses the complete interaction. Cell rows are",
           " Holm-adjusted follow-ups.\n\n")
       print(show_table(fit$interaction_test))
-      print(show_table(report_columns(fit$interaction_effects,
-        c("item", "level", "gamma", "se", "z", "p_adj",
+       print(show_table(report_columns(fit$interaction_effects,
+        c("item", "level", "gamma", "se", "t", "df", "z", "p_adj",
           "significant"))))
     }
   }
@@ -235,8 +298,8 @@ if (!is_btl) {
       tryCatch(frame_invariance(fit), error = function(e) e)
     cat("\n## Item invariance across frames\n\n")
     if (inherits(inv, "error")) {
-      cat("Frame invariance was unavailable: ", conditionMessage(inv), "\n",
-          sep = "")
+      cat("Frame invariance was unavailable: ",
+          report_text(conditionMessage(inv)), "\n", sep = "")
     } else {
       inv_bootstrap <- identical(inv$se_method, "bootstrap")
       if (inv_bootstrap)
@@ -309,7 +372,7 @@ if (!is_btl) {
         cat("\n## DIF magnitude\n\n")
         print(show_table(report_columns(da$sizes,
           c("item", "term", "level_a", "level_b", "difference", "se",
-            "df", "p_adj", "practical"))))
+            "t", "z", "df", "p_adj", "practical"))))
       }
     }
     db <- attr(fit, "report_dif_bootstrap")
@@ -331,6 +394,18 @@ if (!is_btl) {
           "p_nonuniform_boot_adj", "nonuniform_DIF_boot"))))
     }
   }
+  if (!is.null(reported_distractors)) {
+    cat("\n# Distractor analysis\n\n")
+    if (!is.null(reported_distractors$note))
+      cat("Not available: ", report_text(reported_distractors$note),
+          "\n\n", sep = "")
+    else {
+      cat("Locations use the rest measure. A distractor chosen by respondents",
+          " with higher mean locations than the keyed option's respondents",
+          " is flagged as a possible miskey.\n\n")
+      print(show_table(reported_distractors$table))
+    }
+  }
 }
 ```
 
@@ -338,7 +413,8 @@ if (!is_btl) {
 if (is_btl) {
   if (inherits(fit, "rasch_btl_explanatory")) {
     cat("\n# Explanatory model\n\n")
-    cat("Formula: `", fit$explanatory$formula_text, "`\n\n", sep = "")
+    cat("Formula: ", report_text(fit$explanatory$formula_text), "\n\n",
+        sep = "")
     cat("\n## Comparison with free calibration\n\n")
     print(show_table(explanatory_test(fit)))
     cat("\n## Predictor effects\n\n")
@@ -398,7 +474,7 @@ if (is_btl) {
       cat("\n## DIF magnitude\n\n")
       print(show_table(report_columns(da$sizes,
         c("object", "term", "level_a", "level_b", "difference", "se",
-          "df", "p_adj", "practical"))))
+          "t", "z", "df", "p_adj", "practical"))))
     }
   }
   db <- attr(fit, "report_dif_bootstrap")
@@ -446,8 +522,8 @@ if (is_btl) {
       fit$alpha_table[, c("set", "alpha", "se_log_alpha", "p_adj")],
       fit$kappa_table[, c("set", "kappa", "se_kappa", "p_adj")],
       by = "set", sort = FALSE)
-    names(au)[names(au) == "p_adj.x"] <- "adjusted p (alpha)"
-    names(au)[names(au) == "p_adj.y"] <- "adjusted p (kappa)"
+    names(au)[names(au) == "p_adj.x"] <- "p_alpha_adj"
+    names(au)[names(au) == "p_adj.y"] <- "p_kappa_adj"
     print(show_table(au))
     cat("\n## Frame fit\n\n")
     print(show_table(report_columns(fit$frames,
@@ -463,7 +539,8 @@ if (is_btl) {
     print(show_table(reported_dimensionality$bimensions))
   } else if (!is.null(dimensionality_refusal)) {
     cat("\n# Residual dimensionality\n\n")
-    cat("Not available: ", dimensionality_refusal, "\n\n", sep = "")
+    cat("Not available: ", report_text(dimensionality_refusal), "\n\n",
+        sep = "")
   }
 }
 ```

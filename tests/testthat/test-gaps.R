@@ -140,10 +140,46 @@ test_that("interactive facet mode recovers a planted item-by-rater effect", {
   expect_equal(top$gamma, 0.9 * (1 - 1/4 - 1/4 + 1/16), tolerance = 0.2)
   expect_equal(fit$interaction_test$df, (4 - 1) * (4 - 1))
   expect_true(is.finite(fit$interaction_test$p))
-  expect_true(all(c("p_adj", "significant") %in%
+  expect_true(all(c("t", "df", "p_adj", "significant") %in%
                     names(fit$interaction_effects)))
+  expect_false("z" %in% names(fit$interaction_effects))
   expect_error(rasch_mfrm(d, "person", "item", "score", facets = "rater",
                           interaction = "nope"), "must name one of the facets")
+})
+
+test_that("MFRM retains independent-person sandwich support metadata", {
+  d <- simulate_mfrm(8, 3, 2, n_categories = 2, seed = 1)
+  fit <- suppressWarnings(
+    rasch_mfrm(d, "person", "item", "score", facets = "rater"))
+  expect_true(fit$est$converged)
+  expect_false(fit$est$cluster_support$repeated)
+  expect_false(fit$est$cluster_inference)
+  expect_true(all(is.na(fit$est$cov_beta)))
+  expect_true(all(is.na(fit$item_effects$se)))
+  expect_match(paste(fit$notes, collapse = " "),
+               "fewer than 10 independent person units")
+})
+
+test_that("MFRM interaction inference also needs calibration support", {
+  d <- simulate_mfrm(35, 6, 6, n_categories = 2, seed = 913)
+  fit <- suppressWarnings(rasch_mfrm(
+    d, "person", "item", "score", facets = "rater",
+    interaction = "rater"))
+  expect_true(all(fit$interaction_support$n_persons >=
+                    fit$interaction_support$minimum_required))
+  expect_false(fit$est$cluster_inference)
+  expect_true(all(is.na(fit$interaction_effects$df)))
+  expect_true(all(is.na(fit$interaction_effects$p)))
+  expect_false(fit$interaction_test$inference_available)
+  expect_true(is.na(fit$interaction_test$p))
+  printed <- capture.output(print(fit))
+  expect_true(any(grepl("omnibus test: inference unavailable", printed,
+                        fixed = TRUE)))
+  expect_true(any(grepl("exploratory cell probabilities unavailable", printed,
+                        fixed = TRUE)))
+  expect_false(any(grepl("p = $", printed)))
+  expect_match(paste(fit$notes, collapse = " "),
+               "underlying item-parameter sandwich covariance")
 })
 
 test_that("factorial DIF: full table, logit follow-ups, main-effects mode", {
@@ -596,7 +632,7 @@ test_that("inverse-variance link weights have no absolute numerical floor", {
   expect_equal(.inverse_variance_weights(c(0, 0, 1)), c(1, 1, 0))
 })
 
-test_that("equating withholds drift tests with zero contrast uncertainty", {
+test_that("equating refuses zero estimated variance as an exact anchor", {
   set.seed(221)
   X <- matrix(rbinom(800 * 6, 1, 0.5), 800, 6,
               dimnames = list(NULL, paste0("I", 1:6)))
@@ -605,9 +641,11 @@ test_that("equating withholds drift tests with zero contrast uncertainty", {
   f$items$se <- 0
   eq <- equate_tests(f, f, independent = TRUE)
   expect_false(eq$inferential)
+  expect_equal(eq$n, 0L)
+  expect_equal(eq$n_common, 6L)
   expect_true(all(is.na(eq$table$t)))
   expect_true(all(is.na(eq$table$p_adj)))
-  expect_match(eq$note, "zero contrast uncertainty")
+  expect_match(eq$note, "zero pooled estimated variance but without exact anchors")
 
   d <- simulate_btl(n_objects = 6, n_judges = 30,
                     reps_per_pair = 20, seed = 222)
@@ -616,10 +654,12 @@ test_that("equating withholds drift tests with zero contrast uncertainty", {
   bt$objects$se <- 0
   be <- btl_equate(bt, bt, independent = TRUE)
   expect_false(be$inferential)
+  expect_equal(be$n_inference, 0L)
+  expect_equal(be$n_common, 6L)
   expect_true(all(is.na(be$table$t)))
   expect_true(all(is.na(be$table$p_adj)))
   expect_match(paste(be$notes, collapse = " "),
-               "zero contrast uncertainty")
+               "zero pooled estimated variance but without exact anchors")
 })
 
 test_that("DIF identifiers keep every unknown row distinct", {
@@ -1632,6 +1672,11 @@ test_that("derived fits keep the controls they were built from", {
   sn <- "I1+I2+I3+I4+I5"
   expect_equal(sum(is.na(cb$X[, sn])), 0L)
   expect_true(any(grepl("missing-data code", cb$notes)))
+  fp_text <- rasch(Xp, model = "PCM", na_codes = "09")
+  cb_text <- combine_items(fp_text,
+                           list(c("I1", "I2", "I3", "I4", "I5")))
+  expect_equal(cb_text$X[, sn], cb$X[, sn])
+  expect_true(any(grepl("missing-data code", cb_text$notes)))
 
   # the class-interval detail reconciles with the item table it quotes
   cd <- chisq_detail(fd, "I4")
@@ -1889,6 +1934,24 @@ test_that("curves, styles and selectors follow the design they describe", {
   mx <- tapply(sc$expected_score, paste0(sc$group, ":", sc$design), max)
   expect_lt(mx[["g1:set1"]], mx[["g1:set1 + set2"]])
 
+  # A partial form within one set is its exact scored-item pattern, not the
+  # whole set.  These two forms each contribute three items to their curve.
+  dp <- simulate_efrm(n_per_group = 120, items_per_set = 5, n_sets = 1,
+                      n_groups = 2, seed = 311)
+  ip <- attr(dp, "truth")$item_sets[[1]]
+  form_a <- rep(c(TRUE, FALSE), length.out = nrow(dp))
+  dp[form_a, ip[4:5]] <- NA
+  dp[!form_a, ip[1:2]] <- NA
+  fp <- rasch_efrm(dp, item_sets = list(core = ip), groups = "group",
+                   id = "id", boot_reps = 0)
+  sp <- fp$score_curves
+  expect_equal(length(unique(paste(sp$group, sp$design))), 4L)
+  expect_true(all(grepl("^core \\[", unique(sp$design))))
+  expect_equal(unique(sp$n_persons), 60)
+  hi <- stats::aggregate(expected_score ~ group + design, sp, max)
+  ph <- stats::setNames(fp$phi_table$phi, fp$phi_table$group)
+  expect_true(all(hi$expected_score <= 3 * ph[hi$group] + 1e-8))
+
   # a response style redraws from the probabilities the response was drawn
   # under, so planted local dependence survives it
   d1 <- simulate_rasch(800, 8, model = "PCM", n_categories = 3,
@@ -2077,7 +2140,7 @@ test_that("defaults, reserved names and generated names behave", {
   invisible(suppressWarnings(report_html(fe, rp)))
   h <- paste(readLines(rp, warn = FALSE), collapse = " ")
   expect_false(grepl("Pairwise conditional estimation", h))
-  expect_true(grepl("set-link", h))
+  expect_true(grepl("semiparametric set linking", h, fixed = TRUE))
 
   # a batch target is one path
   f <- rasch(X)
@@ -2332,6 +2395,7 @@ test_that("unknown identifiers and blank key items do not stand in for data", {
   expect_false(any(grepl("repeat across response rows",
                          ds$notes %||% character(0))))
   expect_true(all(is.finite(ds$pairs$se)))
+  expect_true(all(is.infinite(ds$pairs$df)))
   # a genuinely repeated design uses person-clustered Wald inference
   dd <- data.frame(pid = rep(sprintf("P%03d", 1:200), 2),
                    t = rep(1:2, each = 200))
@@ -2342,6 +2406,52 @@ test_that("unknown identifiers and blank key items do not stand in for data", {
   ds_rep <- dif_size(fs, "Q2", by = "time")
   expect_true(all(is.finite(ds_rep$levels$se)))
   expect_true(all(is.finite(ds_rep$pairs$se)))
+  cluster_df <- length(unique(fs$person$id)) - 1L
+  expect_equal(ds_rep$pairs$df, cluster_df)
+  expect_equal(ds_rep$pairs$p,
+               2 * stats::pt(-abs(ds_rep$pairs$t), df = cluster_df))
+  expect_equal(ds_rep$pairs$lower,
+               ds_rep$pairs$difference -
+                 stats::qt(0.975, cluster_df) * ds_rep$pairs$se)
+  expect_equal(ds_rep$pairs$p_beyond_A,
+               .ets_p_beyond(ds_rep$pairs$difference,
+                             ds_rep$pairs$se, cluster_df))
+  # Repetition is defined by the rows that contribute conditional pair
+  # information, not by duplicate identifiers on unusable rows.
+  nonrepeated_support <- fs
+  nonrepeated_support$est$cluster_support$repeated <- FALSE
+  expect_identical(.dif_refit_df(nonrepeated_support), Inf)
+  nonrepeated_support$est$cluster_inference <- FALSE
+  expect_true(is.na(.dif_refit_df(nonrepeated_support)))
+  legacy <- fs
+  legacy$est$cluster_support <- NULL
+  expect_true(is.na(.dif_refit_df(legacy)))
+
+  # Duplicate IDs and apparent factor changes confined to empty rows do not
+  # create a repeated-person DIF design. This holds for the fitted identifier
+  # and for an explicitly supplied analysis identifier.
+  set.seed(404)
+  Ni <- 180L; Li <- 6L
+  Xi <- matrix(rbinom(Ni * Li, 1L, 0.5), Ni, Li,
+               dimnames = list(NULL, paste0("D", seq_len(Li))))
+  gi <- rep(c("A", "B"), each = Ni / 2L)
+  Xi <- rbind(Xi, matrix(NA_integer_, 2L, Li,
+                         dimnames = list(NULL, colnames(Xi))))
+  idi <- c(sprintf("I%03d", seq_len(Ni)), "empty", "empty")
+  fi <- rasch(data.frame(Xi, group = c(gi, "A", "B")),
+              id = idi, factors = "group", items = colnames(Xi))
+  expect_false(fi$est$cluster_support$repeated)
+  dai <- dif_anova(fi, factors = "group", n_groups = 3L)
+  expect_length(dai$within, 0L)
+  expect_error(dif_anova(fi, factors = "group", n_groups = 3L,
+                         within = "group"),
+               "within-subject factors need repeated person ids")
+  expect_false(dif_contrasts(fi, factors = "group",
+                             items = "D2")$paired)
+  expect_false(dif_contrasts(fi, factors = "group", items = "D2",
+                             id = idi)$paired)
+  expect_false(dif_posthoc(fi, "D2", term = "group",
+                           factors = "group")$paired)
 
   # a declared model type is a character scalar, not a factor code
   f0 <- rasch(X)

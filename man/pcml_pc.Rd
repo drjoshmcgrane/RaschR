@@ -30,7 +30,8 @@ A list with the threshold table \code{thr} (columns \code{id},
   pairwise conditional log-likelihood, the iteration count, a convergence
   flag, and the max-score vector \code{m}. If estimation does not converge,
   the function warns and all standard errors and covariance entries are
-  \code{NA}.
+  \code{NA}. The independent-person and effective-support conditions
+  described for \code{\link{pcml}} also apply.
 }
 \description{
 Re-expresses each item's thresholds as orthogonal polynomial components:

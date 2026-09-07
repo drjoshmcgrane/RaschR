@@ -27,7 +27,8 @@ A list of class \code{"rasch_ctt"}: the per-item \code{table}
 }
 \description{
 The classical companion table conventionally reported alongside a Rasch
-analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
+analysis (Andrich and Marais 2019, chs. 3-5), on complete cases by default:
+per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
 upper third of total scores minus the lower third). Equal total scores
@@ -36,7 +37,13 @@ when three distinct score groups cannot be formed. The table also gives
 alpha if the item is deleted; the summary gives coefficient alpha, the
 raw-score mean, SD, and the
 classical standard error of measurement \eqn{s\sqrt{1 - \alpha}}, which
-unlike the Rasch SE is one value for all persons.
+unlike the Rasch SE is one value for all persons. The SEM is withheld when
+alpha is negative, since a negative coefficient is not a usable reliability
+estimate. With missing responses, available-case mode also withholds SEM:
+its pairwise alpha and complete-case score SD describe different samples.
+Use complete-case mode to estimate SEM on a consistent sample.
+Alpha if deleted is checked separately for each retained item set; it can
+be available even when the full-scale covariance matrix is incomplete.
 }
 \examples{
 set.seed(1)

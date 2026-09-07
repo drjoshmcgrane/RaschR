@@ -32,6 +32,9 @@ Plots the expected response for one object against opponent location, with
 the observed mean response against each sufficiently observed opponent.
 For dichotomous fits the curve is the win probability; for ordered fits it
 is the expected response.
+With fitted position or history effects, model values are weighted means
+of the fitted expectations for each observed opponent, joined in location
+order. Judge-group overlays use each group's own comparison context.
 }
 \examples{
 set.seed(1)

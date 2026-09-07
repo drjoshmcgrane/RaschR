@@ -33,6 +33,8 @@ underdog. Approximate two-sided normal probabilities are adjusted by Holm
 across matchups meeting \code{min_n}. A surprise is an eligible matchup
 with a negative residual whose adjusted probability passes the level
 represented by \code{flag_z}. The fitted model must have converged.
+An adequately sampled matchup with unavailable residual inference remains
+in the adjustment family.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

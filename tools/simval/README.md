@@ -12,6 +12,174 @@ with `Rscript`, loading the in-tree package via `pkgload::load_all(".")`.
 
 ## Layout
 
+- `tests/testthat/test-btl-dimensionality-availability.R` checks that
+  incomplete pair coverage and shared-order confounding withhold the whole
+  CJ dimensionality reference, not just its categorical flag. It covers
+  ordinary and extended-frame comparisons, printed output, plots and stale
+  saved results. Descriptive decompositions and completed draws are retained.
+  The conditional simulation method is unchanged; previously displayed
+  probabilities from these unsupported designs should not be interpreted.
+  `test-btl-dimensionality-project-migration.R` checks authenticated omission
+  of the affected saved references without losing data, models or history.
+  Supported older references remain usable; tampered bundles and results
+  bound to a different fit are refused.
+- `tests/testthat/test-explanatory-coefficient-labels.R` checks coincident
+  model-matrix labels and fixed-departure names against equivalent models
+  with unambiguous predictor names. Rasch and CJ estimates, diagnostics and
+  nested-model comparisons agree. This changes naming, not estimation.
+- `tests/testthat/test-app-cj-dif-code.R` executes the app's emitted CJ DIF
+  code after judge metadata edits and after reopening a saved analysis.
+  It must reproduce the completed run's factor maps and summary, even when
+  the calibration's source data contain earlier judge metadata.
+  Reopened DIF runs retain the corrected assignments without changing the
+  calibration data; a new upload can replace the restored metadata.
+- `tests/testthat/test-legacy-refit-restrictions.R` checks that structural
+  refits, tailored analysis and bootstrap procedures cannot release anchor or
+  principal-component restrictions when replay settings are unavailable.
+  It includes average anchoring, unchanged supported refits and recovery on
+  the identified origin. These are model-preservation checks; estimators and
+  generators are unchanged. Analyses previously recalibrated from such older
+  constrained fits should be rerun from the source data and original settings.
+- `tests/testthat/test-lr-fitted-restrictions.R` checks that missing replay
+  settings cannot remove an older fit's anchor or principal-component
+  restrictions from the `lr_test()` eligibility check. Unrestricted legacy
+  fits retain the same comparison. The comparison method and its simulation
+  calibration are unchanged.
+- `tests/testthat/test-app-export-selected-dif.R` exercises the app's actual
+  report and archive handlers when the requested factorial DIF analysis is
+  unavailable. No default main-effects result may replace it. Valid analyses
+  retain their selected specification. The same check applies to custom
+  dimensionality requests and rejects stale results after an unsuccessful run.
+  Project files can still save settings without a computed result. These are
+  export conformance checks.
+- `tests/testthat/test-recovery-estimands.R` checks response-scale agreement
+  before Rasch, EFRM and MFRM recovery comparisons. Its sparse PCM example
+  verifies refusal after category compression. BTL-EFRM checks align a valid
+  change of reference origin and refuse a reference with a generating unit
+  other than one. Generators and estimators are unchanged; these checks
+  prevent comparison of different estimands. Earlier recovery summaries with
+  compressed categories or a changed reference must be reviewed separately.
+  Older MFRM simulations without a recorded category count retain an explicit
+  note that response-scale equivalence cannot be verified.
+- `tests/testthat/test-varying-person-units.R` checks mixed-category EFRM
+  and externally weighted person scoring against their score equations and
+  SE formulas after changes of unit. It includes missing responses, extreme
+  scores, unequal and zero external weights, and equal-weight reduction to
+  EFRM scoring. `test-weighted-project-migration.R` checks authenticated
+  migration of both earlier weighted solvers and rejects changed results.
+  These numerical conformance checks do not change the estimators. Historical
+  calibration studies using ordinary units remain applicable; person scoring
+  from unusually rescaled calibrations should be rerun.
+- `tests/testthat/test-distractor-report-refusal.R` checks that a valid keyed
+  calibration with repeated IDs can export CSVs, figures and reports while
+  recording the intentional refusal of distractor analysis. Unexpected
+  calculation failures still stop the export. This changes reporting, not
+  the repeated-person inference policy.
+  `test-report-probability-format.R` checks the actual document formatter's
+  handling of very small adjusted BTL-EFRM unit probabilities.
+- `tests/testthat/test-btl-information-tails.R` checks dichotomous CJ
+  information against category probabilities in both pair orientations,
+  its nonzero tail values, targeting-plot refusal without graphics changes,
+  and a polytomous case whose information does not peak at a zero gap.
+  These are information and display conformance checks; CJ estimation and
+  its historical calibration studies are unchanged.
+- `tests/testthat/test-mfrm-factor-collapse.R` compares named-column and
+  data-frame person factors for long and wide MFRM data, including partial
+  missingness, row reordering, conflicting values and DIF results.
+  `test-person-scoring-units.R` checks equivalent common-unit WLE and MLE
+  locations and SEs, extreme-score extrapolation and the WLE score equation
+  after changes of unit. These are conformance checks, not new calibration
+  studies. Historical studies with fully observed person factors and ordinary
+  measurement units do not need rerunning for these corrections.
+- `tests/testthat/test-scored-missing-codes.R` compares keyed scoring with
+  manually prepared data when raw missing codes overlap generated scores.
+  It covers binary and polytomous keys, mixed keyed/numeric data, anchors,
+  explanatory models, and item removal, splitting and superitem refits.
+  An EFRM refit also checks preservation of renumbered scores. Comparisons
+  include response matrices, likelihoods, person estimates and calibration
+  covariance. `test-combine-model-request.R` checks model selection for
+  superitem refits, including refusal of unsupported explanatory RSM requests.
+  These are conformance checks, not new Type I error estimates. Historical
+  studies using numeric scores and the default negative missing code are
+  unaffected; analyses with overlapping raw missing codes need to be rerun.
+- `tests/testthat/test-interval-policy.R` checks that same-data bootstrap
+  refits reproduce item chi-squares under both automatic and explicit interval
+  rules. Its missing-response design has six intervals for six items and two
+  for two less-exposed items. It also checks tied-score refits, plots, exports
+  and saved-result handling. These are conformance checks, not Type I error
+  estimates. Historical Rasch item-fit bootstrap results for missing responses
+  with automatic intervals are superseded by the study below; their
+  original files and provenance are retained. The CJ bootstrap is unchanged.
+- `studies/item-fit-bootstrap-intervals.R` repeats the 100-dataset linked-booklet
+  null with the historical seeds and 600 bootstrap draws per dataset. A
+  second 100-dataset null uses eight items, with two answered by 120 of 400
+  persons, and 399 draws per dataset. The summary, per-dataset accounting
+  and item-level probabilities are stored under the same stem in `results/`.
+  Each row identifies the study, harness and package source state. Marginal
+  rates are means of dataset-level item proportions, with Monte Carlo SEs
+  calculated across datasets. A partially unavailable family is omitted from
+  that metric's denominator and counted separately, not treated as no rejection.
+  After completion, `Rscript tools/simval/check-item-fit-intervals.R` independently
+  reconstructs the rates and Monte Carlo SEs, checks bootstrap resolution,
+  and verifies the accounting and source hashes.
+- `tests/testthat/test-tailored-fixed-calibration.R` checks the final tailored
+  scoring fit's anchor contract and refusal of unsupported structural, item-fit,
+  DIF and dimensionality refits. Older fits without refit metadata receive the
+  same protection; observed diagnostics and person scoring remain available.
+  These are conformance checks, not a new simulation study. The tailored
+  item-shift bootstrap and its historical validation results are unchanged.
+- `tests/testthat/test-explanatory-formula-offsets.R` checks explicit refusal
+  of unsupported formula offsets in item- and threshold-level Rasch and CJ
+  models. Ordinary predictors named `offset` remain valid. This is a formula
+  conformance check; supported estimators and historical simulations are unchanged.
+- `tests/testthat/test-compare-ic.R` checks that generic EFRM likelihood
+  differences are withheld despite identical response data, while the matched
+  group-unit comparison is retained. CJ comparisons distinguish declared
+  response supports but retain same-scale threshold-model comparisons.
+  These are conformance checks; estimators and historical simulation results
+  are unchanged.
+- `tests/testthat/test-explanatory-mc-refits.R` checks keyed-response alignment
+  after person subsetting and reordering, and keeps observed answer options
+  out of simulated refits. With one blank row among 200 respondents, the
+  keyed and numeric-score scree analyses both use 20 of 20 replicates and
+  produce identical reference curves and probabilities under the same seed.
+  `test-explanatory-item-names.R` checks exact and unambiguous
+  whitespace-normalised item matching, including threshold-level metadata
+  and item relaxation. These are conformance checks, not coverage studies;
+  historical simulation results were not regenerated.
+- `tests/testthat/test-explanatory-unused-predictors.R` checks that unused
+  ordinal metadata leaves Rasch and CJ estimates, covariance and diagnostic
+  probabilities unchanged. Selected ordinal predictors retain adjacent
+  contrasts and must have sufficient observed levels. These are conformance
+  checks; no estimator or simulation results changed.
+- `tests/testthat/test-explanatory-offsets.R` checks additive offsets of
+  +/-1e12 in explanatory Rasch and CJ models. Estimates, covariance, likelihoods
+  and diagnostic probabilities must remain unchanged for `~ x`. Separate
+  checks retain the weighted threshold origin, refuse genuinely constant
+  columns and preserve interaction-only formulas. These are conformance
+  checks, not additional simulations of inferential calibration.
+- `tests/testthat/test-explanatory-units.R` (under the package root) checks
+  predictor-unit invariance for LLTM, LPCM and dichotomous and graded CJ.
+  Rescalings from 1e-12 to 1e9 must preserve locations, likelihoods, covariance,
+  adjusted coefficient probabilities, Kent comparisons and composite
+  information criteria, with coefficient uncertainty transformed back to the
+  supplied units. The LPCM case includes repeated-person covariance; graded
+  CJ includes judge clustering and a position effect. Deliberately unfinished
+  fits must still withhold inference. These are numerical conformance checks,
+  not new coverage studies; the historical simulations below were not rerun.
+- `results/equating-shift-covariance.csv` checks CJ equated-location uncertainty
+  against the full linear covariance transformation in 20 pairs of fitted
+  calibrations, including a non-common object (maximum difference 1.7e-16).
+  Twenty fixed-bank links also reproduce the shared shift variance exactly.
+  The script is `studies/equating-shift-covariance.R`. These are numerical
+  conformance checks with fitted weights held fixed, not coverage studies.
+- `results/dimensionality-matched-sample.csv` checks reliability sample
+  handling in 100 datasets: complete null and bifactor data, random missing
+  responses, ability-related missingness, and partial-credit data with missing
+  responses. Both PSI values agree with a separate calculation on the shared
+  complete-response sample to within 1.2e-16. Complete-data results are unchanged.
+  This is numerical conformance, not a study of magnitude bias or coverage.
+  The reproducible script is `studies/dimensionality-matched-sample.R`.
 - `round1/` — the August 2026 battery (rasch 1.14.2): one directory per
   model/diagnostic family (`dichotomous`, `pcm_rsm`, `mfrm`, `efrm`, `btl`,
   `btl-efrm`, `equating`, `dif`, `dimensionality`, `mc`, `tailored`), each
@@ -144,13 +312,13 @@ files used. `btl-efrm-current.csv` and `btl-efrm-bias-sweep.csv` were rerun on
 2026-08-27 after the reconciled-panel refit; both carry R-tree hash
 `dc534f567649`. Their current results are described below.
 
-The DIF-bootstrap studies regenerated on 2026-09-01 and 2026-09-02 carry
-R-tree hash `067abd31b102`: `dif-bootstrap-public-conformance.csv`,
-`dif-bootstrap-model-conformance.csv`, `dif-bootstrap-structural-null.csv`,
-`dif-bootstrap-structural-followup.csv`,
-`dif-bootstrap-structural-alternative.csv`, and
-`dif-bootstrap-repeated.csv`. The execution state was `bee6523+dirty`; the
-R-tree and script hashes identify the exact estimator and study sources used.
+The structural-null, structural-alternative and repeated-measures DIF
+bootstrap studies run on 2026-09-01 and 2026-09-02 used the earlier raw-F
+marginal reference and its floor on the adjusted result. Their R-tree hash is
+`067abd31b102`. They remain in the repository as an execution record, but
+their bootstrap rates are not presented as validation of the current
+reference-probability calculation. The current conformance and paired
+transition results are identified below by their own R-tree and script hashes.
 
 The DIF bootstrap implementation is checked through two independent public
 refit studies. `studies/dif-bootstrap-public-conformance.R` covers ordinary
@@ -165,7 +333,16 @@ paired-comparison design were preserved as appropriate, and the independently
 orchestrated F and reference-probability matrices agreed exactly with
 `dif_bootstrap()`. The result rows record the executed R-tree and script hashes.
 
-Null calibration of the structural extensions is in
+`studies/dif-bootstrap-reference-transition.R` compares the earlier raw-F
+calculation with the current reference-probability calculation on the same
+observed analyses and the same retained conditional draws. Its incomplete
+four-occasion design is the setting in which Greenhouse--Geisser references
+and sparse class intervals make raw F values least safely comparable. The
+result table reports current marginal calibration, current and earlier
+familywise rejection, and the frequency with which the two calculations
+change a decision.
+
+The earlier null-calibration screen of the structural extensions is in
 `studies/dif-bootstrap-structural-null.R`; the two elevated 50-dataset cells
 were followed by 150 fresh datasets in
 `studies/dif-bootstrap-structural-followup.R`. Combined minimum-p FWER was
@@ -177,18 +354,20 @@ follow-up, 12 observed links failed, one fit did not converge, and 11 of 137
 otherwise fitted analyses retained fewer than 90 of 99 complete-family
 refits. Performance is conditional on the 126 analysed datasets. The result
 file includes the attempted, usable, non-converged and other-failure counts,
-including work done inside a refused bootstrap.
+including work done inside a refused bootstrap. These numerical bootstrap
+rates describe the pre-reference-probability implementation and are retained
+as historical results, not current calibration claims.
 
-Partial-alternative power and invariant-unit error are examined in
+The corresponding earlier partial-alternative screen is in
 `studies/dif-bootstrap-structural-alternative.R` for explanatory Rasch,
 Multiple Ratings, Extended Frames and Comparative Judgement. Each condition
 plants one uniform-DIF member at two magnitudes and records affected-member
 power separately from familywise error among the remaining invariant members.
 This distinction is required because the bootstrap adjustment describes the
 fitted global invariant null rather than strong control under every partial
-alternative.
+alternative. Its bootstrap rates are likewise historical.
 
-The mixed-design extension is examined separately in
+The earlier mixed-design screen is in
 `studies/dif-bootstrap-repeated.R`. It crosses a between-person group with
 four observations of a within-person occasion factor. Under an exact balanced
 Rasch null, primary and bootstrap familywise error were 6.86% and 4.86% over
@@ -200,7 +379,9 @@ than 4.0%. Adjusted power for non-uniform occasion DIF was weak: 2.4/2.4% for
 a slope increment of 0.80 and 5.6/4.8% for an increment of 1.50. This was not
 a bootstrap-specific loss; the primary residual analysis was also insensitive
 after adjustment over the complete 42-test family. Every conditional refit was
-usable in all seven conditions.
+usable in all seven conditions. Those exact bootstrap rates predate the
+reference-probability marginal calculation; the current paired transition
+study replaces them as release evidence for the revised algorithm.
 
 The explanatory-model study run on 2026-08-23 is in
 `studies/explanatory-models.R`, with results in
@@ -259,6 +440,22 @@ other errors, carries `B`, `B_used`, `B_nonconverged` and `B_errors`, and
 treats an entirely unavailable adjusted family as unavailable rather than as
 no rejection. The existing CSV retains its original script hash and is not
 presented as a rerun of that accounting revision.
+
+The missing-response rerun is in `results/item-fit-bootstrap-intervals.csv`,
+with all 200 attempts and 2,300 item rows in the corresponding `-attempts`
+and `-items` files. In the 100-dataset booklet condition, item-wise chi-square
+rejection was 5.33% (MCSE 0.53 percentage points), and Holm familywise rejection
+was 7% for chi-square and 6% for fit residuals (MCSE 2.56 and 2.39 points).
+The 100-dataset unequal-exposure condition gave 3.63% item-wise chi-square
+rejection (MCSE 0.69 points) and 3% for both Holm families (MCSE 1.71 points).
+The exact 95% familywise intervals are 2.86--13.89% and 2.23--12.60% for the
+booklets, and 0.62--8.52% for each unequal-exposure family. These studies do
+not establish tight error-rate bounds beyond the designs tested.
+All 99,900 bootstrap refits were usable, with no outer refusals,
+non-convergence, other errors or unavailable metrics. Same-data refits
+reproduced the observed item chi-squares exactly in all 200 datasets.
+The independent checker verified the complete accounting, per-item-to-summary
+calculations, Holm resolution, and study, harness and R-source hashes.
 
 The score-conditional person-fit and fitted-design comparative-judgement
 bootstraps are checked in `studies/person-cj-fit-bootstrap.R`. The supported
@@ -387,16 +584,15 @@ granularity deliberately).
   efficiency cost for HC3 when the classical assumptions hold exactly (5,000
   paired replicates per condition).
 - `results/dif-conditional-bootstrap.csv` — a conditional Rasch null bootstrap
-  that preserves each raw score and refits the model 199 times per dataset. In
-  the balanced null, item-wise rejection was 4.79% versus 4.96% for uniform DIF
-  and 4.04% versus 4.00% for non-uniform DIF (current hybrid versus bootstrap);
-  familywise rejection was 6.33% for both. With 1:4 group sizes and a
-  0.8-logit ability difference, the corresponding rates were 4.75% versus
-  4.42%, 4.46% versus 4.08%, and 7.0% versus 6.0%. The bootstrap reduced power
-  from 29.7% to 24.3% for a 0.6-logit uniform shift. Adjusted power against a
-  centred 0.7 slope departure was low for both procedures (5.7% versus 4.3%).
-  These results do not support replacing the current hybrid (300 datasets per
-  condition).
+  that preserves each raw score and refits the model 199 times per dataset.
+  Its single-step minimum-p rows already used replicated reference
+  probabilities and remain applicable: familywise rejection was 6.33% for
+  both procedures in the balanced null and 7.0% versus 6.0% with 1:4 group
+  sizes and a 0.8-logit ability difference. Adjusted power was 29.7% versus
+  24.3% for a 0.6-logit uniform shift and 5.7% versus 4.3% for a centred 0.7
+  slope departure (hybrid versus bootstrap; 300 datasets per condition).
+  Its item-wise bootstrap rows used the superseded raw-F calculation and are
+  retained only as historical output.
 - `results/dif-conditional-bootstrap-extended.csv` — the same comparison for
   four-category PCM and RSM data, a three-level group, and two correlated
   person factors. For a response vector \(x\) with raw score \(r\), the
@@ -407,30 +603,30 @@ granularity deliberately).
   bootstrap was usually a little more conservative and a little less
   powerful than the hybrid analysis. It did not remove artificial flags on
   invariant items when another item truly had DIF (100 datasets and 99
-  bootstrap refits per condition).
+  bootstrap refits per condition). These statements concern its unchanged
+  minimum-p rows; its marginal bootstrap rows used raw F and are historical.
 - `results/dif-conditional-bootstrap-confirm.csv` — fresh-seed confirmation
   with 200 datasets and 199 bootstrap refits. Under the imbalanced global
   null, Holm familywise rejection was 3.0% versus 2.5% for the PCM and 4.0%
   versus 2.5% for the RSM (hybrid versus bootstrap). With a 1.4 slope
   departure on one item, false flags among the other five items occurred in
   19.0% versus 13.5% of PCM datasets and 14.5% versus 11.0% of RSM datasets.
-  The bootstrap attenuates score contamination but does not solve it. The
-  public result also requires its adjusted probability to be no smaller than
-  its marginal empirical probability. This floor can only remove flags from
-  the study implementation: the reported null and unaffected-item rates are
-  upper bounds for the public rule, and the reported power is likewise an
-  upper bound.
+  The bootstrap attenuates score contamination but does not solve it. These
+  adjusted rows used the same minimum-reference-p calculation as the current
+  public result. The file's marginal rows use the earlier raw-F comparison
+  and are not current validation evidence.
 - `results/dif-bootstrap-public-conformance.csv` — direct conformance of the
   exported `dif_bootstrap()` result to a separately orchestrated refit loop.
   The check covers a correlated multifactor design, a mixed repeated-measures
   design, PCM and RSM. It verifies the complete F matrix, marginal empirical
-  probabilities, minimum-p familywise probabilities, raw-score
+  reference probabilities, minimum-p familywise probabilities, raw-score
   preservation and missingness preservation. All discrepancies and failure
   counts were zero over 49 conditional refits per design. This connects the
   public implementation to the operating-characteristic studies above; it is
   not a further estimate of size or power.
 - `results/dif-bootstrap-structural-null.csv` and
-  `results/dif-bootstrap-structural-followup.csv` — global-null calibration
+  `results/dif-bootstrap-structural-followup.csv` — historical global-null
+  calibration from the pre-reference-probability implementation
   for explanatory Rasch, Multiple Ratings, Extended Frames and Comparative
   Judgement, including a judge-heterogeneity stress condition and a separate
   top-up of the two initially elevated cells. The follow-up separates losses
@@ -438,7 +634,8 @@ granularity deliberately).
 - `results/dif-bootstrap-structural-alternative.csv` — affected-member power
   and invariant-member familywise error under two uniform-DIF magnitudes in
   each supported structural model family (100 attempted datasets per cell,
-  B = 99). For effects of 0.5 and 0.9 logits, primary/bootstrap power was
+  B = 99). This is also a historical pre-change screen. For effects of 0.5
+  and 0.9 logits, primary/bootstrap power was
   5/8% and 51/49% for explanatory Rasch, 23/23% and 78/74% for Multiple
   Ratings, and 7/8% and 15/17% for Comparative Judgement. Corresponding
   invariant-member FWER was 3/2% and 8/5%, 10/9% and 23/20%, and 5/6% and
@@ -449,10 +646,17 @@ granularity deliberately).
   bootstrap is a sensitivity analysis: it can reduce artificial flags, but
   does not provide strong control after one member departs.
 - `results/dif-bootstrap-repeated.csv` — familywise error and affected-item
-  power for a four-occasion mixed DIF design. It includes an exact balanced
+  power from the earlier raw-F-floor implementation for a four-occasion mixed
+  DIF design. It includes an exact balanced
   null, a local-dependence stress condition, group-dependent panel loss, and
   uniform and non-uniform alternatives at two magnitudes. Each row records
   Greenhouse--Geisser epsilon and complete inner-refit accounting.
+- `results/dif-bootstrap-reference-transition.csv` — current paired
+  transition check for an incomplete four-occasion null design. Both
+  calculations use each observed dataset's same 99 conditional refits. It
+  reports marginal and familywise rejection under the reference-probability
+  calculation, the corresponding historical calculations, and changed
+  decisions. This is the current release evidence for the algorithm change.
 - `results/dif-score-purification.csv` — an initial comparison of leave-one-out,
   fixed-anchor, and iterative matching scores. Leave-one-out testing was
   rejected because null familywise error reached 28--34%. Re-estimating the
@@ -507,6 +711,18 @@ granularity deliberately).
   independent 12-judge panels. Welch--Satterthwaite probabilities with Holm
   adjustment gave 4.4% familywise rejection over 1,000 null replicates; the
   superseded normal reference gave 7.4% on the same fitted samples.
+- `results/pcml-cluster-cr1-screen.csv` — seed-paired comparison of the
+  repeated-person PCML covariance as fitted with the same covariance
+  multiplied by G/(G-1), retaining the Welch--Satterthwaite reference.
+  Across 10, 12, 20 and 50 person clusters, the current dichotomous Holm
+  familywise rates were 4.6%, 4.6%, 5.8% and 5.0%; the scaled rates were
+  3.8%, 2.0%, 5.2% and 4.6%. A five-item PCM cell at 20 clusters gave 6.3%
+  and 5.5% (Monte Carlo SE about one percentage point). The correction
+  slightly improved pooled unadjusted rejection in some cells, but did not
+  improve the declared Holm family consistently and was markedly conservative
+  at 12 clusters. It was therefore not added to ordinary PCML (500 replicates
+  per condition; four dichotomous datasets were withheld by the support guard,
+  and five PCM datasets had an unavailable item contrast).
 - `results/btl-btm-agreement.csv` — `btl()` against `sirt::btm` on shared
   dichotomous comparisons with eps = 0 and fixed home advantage: identical
   likelihood, mean max-difference 1.1e-15 and worst 3.1e-15 over 23 clean
@@ -1049,6 +1265,21 @@ adjusted (300 replicates per condition).
   familywise error was 3.0%. At two planted items, power was 96.3% for a
   one-logit location shift and 9.6% for a 1.5-fold discrimination change over
   120 replicates. The latter comparison is valid but weak at this design.
+  This was a supported complete-category design rather than a screen of
+  changing comparison sets; the probability and SE calculations are
+  unchanged when the comparison family is retained. A sparse polytomous
+  regression test separately fixes the boundary: a
+  resample that gains or loses a comparison is counted as an other failure
+  rather than being centred on a different set of items.
+  The subsequent support-guard correction counts distinct persons with an
+  informative conditional pair in each set and frame. Its regression tests
+  (`test-frame-invariance-support.R`) cover mixed categories, missing responses,
+  repeated IDs, and extreme-response padding for dichotomous and polytomous
+  data, including frames missing a lowest or highest category. Support is
+  checked after the separate calibration's item removal and category recoding;
+  the minimum is not reapplied to select bootstrap replicates.
+  These are conformance checks; the simulation results above have not
+  been rerun under the revised guard.
 - `results/frame-invariance-power.csv` — the conditional location study,
   with 1,000 null and 400 departure replicates at 500, 1,000 and 2,000
   persons per frame. Empirical-SD/mean-SE ratios were 0.908--0.916, coverage
@@ -1066,6 +1297,72 @@ adjusted (300 replicates per condition).
   hashes remain directly verifiable.
 
 ## Conventions
+
+### Repeated-person explanatory calibration (September 2026)
+
+`results/explanatory-repeated-person.csv` records 4,500 runs with the
+linearised delete-one-person covariance. Balanced null conditions rejected
+5.2%, 3.4% and 6.0% of tests (1,000, 500 and 500 runs). With twenty persons
+contributing alternating one and four rows, rejection was 6.35% over 2,000
+runs (Monte Carlo SE 0.55 percentage points), and 95% coverage was 93.65%.
+The correction therefore remains mildly liberal in this small, unbalanced
+condition. The 500-run coefficient-power condition gave 70.6% power.
+
+`results/explanatory-cluster-jackknife.csv` compares covariance methods on
+the same draws. The linearised and full delete-one-person methods both
+rejected 5.0% in its independent 500-run unbalanced null condition; their
+empirical-SD/mean-SE ratios were 1.028 and 1.026. This supports the numerical
+approximation, not a claim of exact small-sample calibration.
+
+Earlier tailored-bootstrap results predate retention of no-tailoring draws
+as zero shifts. They remain a record of the previous algorithm, not validation
+of the revised bootstrap. Focused regression checks cover zero draws, retained
+item structure and non-convergence accounting; updated operating-characteristic
+studies are still needed for the revision.
+`results/tailored-zero-draws.csv` checks that boundary directly: 130 of 200
+draws at 35 persons and 95 of 200 at 150 persons required no tailoring and
+were retained as zero changes. Total usable counts were 193 and 198; the
+remaining 7 and 2 were other failures. These are accounting checks, not
+Type I error estimates. The main and top-up scripts now seed the inner bootstrap
+explicitly, so future results do not depend on the worker's starting RNG state;
+their earlier results predate that reproducibility fix.
+
+### Structural refit scoring (September 2026)
+
+`results/structural-score-preservation.csv` checks the structural-refit guard
+against explicit PCM and EFRM refits over 80 randomised input designs. All
+40 control designs retained their scores and remained usable. All 40 boundary
+designs lost a category during the explicit refit and were refused by the
+structural wrapper. There were no setup errors or disagreements. This is an
+algorithm-conformance check, not a Type I error or coverage study. Regression
+tests also cover explanatory item dropping, dependence resolution, superitem
+formation and a supported EFRM single-group boundary where no rescoring occurs.
+
+### CJ information and comparison context (September 2026)
+
+`results/btl-information-context.csv` checks design information against
+numerical likelihood curvature in 120 fits: dichotomous and four-category
+comparisons, each with true position effects of -1.2, zero and 1.2. The
+largest absolute difference was 6.2e-8. Omitting the fitted position effect
+overstated total information by 16.9--18.1% on average in the non-zero
+conditions. This checks the information calculation, not Type I error or
+coverage. Regression tests separately check history-conditioned information,
+observed-opponent response curves and position-adjusted recommendations.
+
+### Partial frame and facet information (September 2026)
+
+`results/structural-information-patterns.csv` checks 50 EFRM and 50 MFRM
+response-pattern designs against independently computed numerical likelihood
+curvature. Each uses eight response cells with mixed category counts and
+40 missingness patterns; EFRM also uses unequal set units. Every curve retains
+exactly its observed items. The largest absolute information discrepancy was
+2.1e-7. These are fixed-calibration conformance checks, not coverage or Type I
+error studies. Regression tests also check SEM, item selection, plotted expected
+totals and agreement with an estimated EFRM's stored score curves.
+Person-item map tests also check that selecting a subgroup excludes response
+patterns found only outside that subgroup, without changing the calibration.
+
+### General reporting
 
 - True generating parameters are held fixed across replicates within a
   scenario; only responses (and persons, where stated) are redrawn.

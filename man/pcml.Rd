@@ -48,6 +48,11 @@ A list containing the threshold table \code{thr}, covariance matrix
   fewer than three responses. Standard errors for weak thresholds are
   reported as \code{NA}. If estimation does not converge, the function
   warns and all standard errors and covariance entries are \code{NA}.
+  Sandwich uncertainty is also withheld when fewer than 10 independent
+  persons, fewer than 8 effective persons, no more effective persons than
+  fitted parameters, or a rank-deficient person-score covariance cannot
+  support inference. Effective support is based on informative conditional
+  item-pair contributions; point estimates and exact anchors remain.
 }
 \description{
 Estimates PCM or RSM thresholds by Newton--Raphson maximisation of the

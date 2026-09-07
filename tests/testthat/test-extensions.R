@@ -187,6 +187,25 @@ test_that("the -1 missing-data code matches NA exactly", {
   expect_equal(sum(is.na(f_keep$X)), length(miss))
 })
 
+test_that("text missing codes are removed before score conversion", {
+  set.seed(19)
+  X <- matrix(rbinom(360 * 6, 1, .5), 360, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  hit <- c(11L, 208L, 907L)
+  Xna <- X
+  Xna[hit] <- NA
+  Xcode <- matrix(as.character(X), nrow(X), dimnames = dimnames(X))
+  Xcode[hit] <- c("09", ".", "1.5")
+
+  f_na <- rasch(Xna)
+  f_code <- rasch(Xcode, na_codes = c("09", ".", "1.5"))
+  expect_equal(f_code$X, f_na$X)
+  expect_equal(f_code$items$location, f_na$items$location,
+               tolerance = 1e-10)
+  expect_true(any(grepl("3 cell(s) with a missing-data code",
+                        f_code$notes, fixed = TRUE)))
+})
+
 test_that("MFRM honours the -1 missing code", {
   set.seed(2)
   simP <- function(th, tau) { x <- 0:length(tau); p <- exp(x * th - c(0, cumsum(tau))); p / sum(p) }
@@ -204,6 +223,37 @@ test_that("MFRM honours the -1 missing code", {
   f_code <- rasch_mfrm(d_code, "person", "item", "score", facets = "rater")
   expect_equal(f_na$facet_effects$rater$severity,
                f_code$facet_effects$rater$severity, tolerance = 1e-8)
+})
+
+test_that("MFRM honours text missing codes in long and wide data", {
+  d <- simulate_mfrm(45, 3, 3, seed = 29)
+  hit <- c(4L, 57L, 211L)
+  d_na <- d
+  d_na$score[hit] <- NA
+  d_code <- d
+  d_code$score <- as.character(d_code$score)
+  d_code$score[hit] <- c("09", ".", "1.5")
+  f_na <- rasch_mfrm(d_na, "person", "item", "score", facets = "rater")
+  f_code <- rasch_mfrm(d_code, "person", "item", "score", facets = "rater",
+                       na_codes = c("09", ".", "1.5"))
+  expect_equal(f_code$facet_effects$rater$severity,
+               f_na$facet_effects$rater$severity, tolerance = 1e-8)
+
+  wide <- reshape(d, idvar = c("person", "rater"), timevar = "item",
+                  direction = "wide")
+  names(wide) <- sub("^score\\.", "", names(wide))
+  item_names <- paste0("I", 1:3)
+  wide_na <- wide
+  wide_na[1L, item_names[1L]] <- NA
+  wide_code <- wide
+  wide_code[[item_names[1L]]] <- as.character(wide_code[[item_names[1L]]])
+  wide_code[1L, item_names[1L]] <- "."
+  fw_na <- rasch_mfrm(wide_na, person = "person", facets = "rater",
+                      items = item_names)
+  fw_code <- rasch_mfrm(wide_code, person = "person", facets = "rater",
+                        items = item_names, na_codes = ".")
+  expect_equal(fw_code$facet_effects$rater$severity,
+               fw_na$facet_effects$rater$severity, tolerance = 1e-8)
 })
 
 test_that("Guttman reproducibility is high for near-deterministic data", {

@@ -23,10 +23,17 @@
 # and naming the wrong one in an exported table contradicts the panel the
 # download sits beside.
 .estimation_label <- function(fit) {
+  if (inherits(fit, "rasch") &&
+      (isTRUE(fit$refit_spec$fixed_calibration) ||
+       isTRUE(fit$est$n_parameters == 0L)))
+    return("fixed item calibration; person scoring")
   if (!is.null(fit$estimation) && nzchar(fit$estimation)) return(fit$estimation)
-  if (inherits(fit, "rasch_efrm")) "semiparametric set-link ML"
-  else if (inherits(fit, "rasch_mfrm")) "conditional ML over response cells"
-  else if (inherits(fit, "rasch_explanatory")) "conditional ML over the design"
+  if (inherits(fit, "rasch_efrm") && length(unique(fit$set_of)) > 1L)
+    "pairwise conditional calibration + semiparametric set linking"
+  else if (inherits(fit, c("rasch_efrm", "rasch_mfrm")))
+    "pairwise conditional ML over response cells"
+  else if (inherits(fit, "rasch_explanatory"))
+    "pairwise conditional ML over the explanatory design"
   else "pairwise conditional ML"
 }
 
@@ -64,7 +71,7 @@ fit_summary_table <- function(fit) {
   trait_unit <- if (structural) "response-cell" else "item"
   dis <- names(which(vapply(fit$thresholds_diag, function(d)
     !d$ordered && length(d$thresholds) > 1, TRUE)))
-  repeated_ids <- .has_repeated_person_ids(fit$person$id)
+  repeated_ids <- .has_repeated_residual_units(fit)
   item_p <- if (repeated_ids) rep(NA_real_, nrow(fit$items))
     else fit$items$p_adj
   item_inference <- .inference_count(item_p)
@@ -209,7 +216,9 @@ targeting_table <- function(fit) {
       else "sandwich"),
     c("Pairwise chi-square", num(fit$total_chisq, 2)),
     c("Degrees of freedom", as.character(fit$total_df)),
-    c("Pairwise fit probability", .fmt_p(fit$total_p)),
+    c("Pairwise fit probability", if (is.finite(fit$total_p))
+      .fmt_p(fit$total_p) else if (framed || isTRUE(fit$clustered))
+        "unavailable (judge clustering)" else "unavailable"),
     c("Object separation index", num(fit$osi$PSI)),
     c("Separation", num(fit$osi$separation)),
     c("Log-likelihood", num(fit$loglik, 2)))
@@ -232,9 +241,12 @@ targeting_table <- function(fit) {
                      is.finite(fit$dependence$p_adj[r]))
         paste0("Holm p = ", .fmt_p(fit$dependence$p_adj[r])) else
           "Holm p unavailable"
+      effect_label <- if (identical(fit$dependence$effect[r], "position"))
+        "First-position advantage" else
+          sprintf("Within-judge %s",
+                  gsub("_", "-", fit$dependence$effect[r]))
       rows[[length(rows) + 1L]] <- c(
-        sprintf("Within-judge %s (logits)",
-                gsub("_", "-", fit$dependence$effect[r])),
+        sprintf("%s (logits)", effect_label),
         sprintf("%s (SE %s, %s)", num(fit$dependence$estimate[r]),
                 num(fit$dependence$se[r]), shown_p))
     }

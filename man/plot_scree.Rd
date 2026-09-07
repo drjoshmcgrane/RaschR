@@ -16,7 +16,8 @@ plot_scree(
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}}. A simulated reference
 requires one response row per person; with repeated identifiers, use
-\code{parallel = FALSE} to display the observed eigenvalues alone.}
+\code{parallel = FALSE} to display the observed eigenvalues alone.
+Fully anchored scoring fits also require \code{parallel = FALSE}.}
 
 \item{n_components}{Number of leading components to display. The familywise
 adjustment covers these components.}

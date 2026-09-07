@@ -11,7 +11,8 @@
 #' Traditional (classical test theory) statistics
 #'
 #' The classical companion table conventionally reported alongside a Rasch
-#' analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
+#' analysis (Andrich and Marais 2019, chs. 3-5), on complete cases by default:
+#' per item the facility (mean score over
 #' maximum), the item-total and corrected item-rest correlations, the
 #' discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
 #' upper third of total scores minus the lower third). Equal total scores
@@ -20,7 +21,13 @@
 #' alpha if the item is deleted; the summary gives coefficient alpha, the
 #' raw-score mean, SD, and the
 #' classical standard error of measurement \eqn{s\sqrt{1 - \alpha}}, which
-#' unlike the Rasch SE is one value for all persons.
+#' unlike the Rasch SE is one value for all persons. The SEM is withheld when
+#' alpha is negative, since a negative coefficient is not a usable reliability
+#' estimate. With missing responses, available-case mode also withholds SEM:
+#' its pairwise alpha and complete-case score SD describe different samples.
+#' Use complete-case mode to estimate SEM on a consistent sample.
+#' Alpha if deleted is checked separately for each retained item set; it can
+#' be available even when the full-scale covariance matrix is incomplete.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} whose columns form one
 #'   administered item set. Expanded EFRM and MFRM response-cell matrices are
@@ -133,12 +140,16 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
       if (sum(hi) >= 2 && sum(lo) >= 2)
         tab$di[i] <- mean(x[hi]) / fit$m[i] - mean(x[lo]) / fit$m[i]
     }
-    if (L > 2 && C_ok) {
+    if (L > 2) {
       Cr <- C[-i, -i, drop = FALSE]
-      sr <- sum(Cr, na.rm = TRUE)
-      if (is.finite(sr) && sr > 0.05 * sum(diag(Cr)))
+      sr <- sum(Cr)
+      # Deleting an item may remove the only unobserved covariance. Check
+      # this retained scale, not the full matrix; never replace missing
+      # covariances by zero in the reduced calculation.
+      if (all(is.finite(Cr)) && .covariance_is_psd(Cr) &&
+          is.finite(sr) && sr > 0.05 * sum(diag(Cr)))
         tab$alpha_drop[i] <- (L - 1) / (L - 2) *
-          (1 - sum(diag(Cr), na.rm = TRUE) / sr)
+          (1 - sum(diag(Cr)) / sr)
     }
   }
   rownames(tab) <- NULL
@@ -148,7 +159,12 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
               n_range = range(n_i),
               mean = if (sum(cc) >= 3) mean(tot_cc) else NA_real_,
               sd = if (sum(cc) >= 3) stats::sd(tot_cc) else NA_real_,
-              sem = if (is.finite(alpha) && alpha <= 1 && sum(cc) >= 3)
+              # A negative alpha is a diagnostic of incompatible item
+              # covariance, not a usable reliability coefficient. Substituting
+              # it in s * sqrt(1 - alpha) would present an impossible error
+              # variance greater than the observed variance as an ordinary SEM.
+              sem = if (!anyNA(X) && is.finite(alpha) && alpha >= 0 &&
+                        alpha <= 1 && sum(cc) >= 3)
                 stats::sd(tot_cc) * sqrt(1 - alpha) else NA_real_,
               missing = missing,
               note = {
@@ -156,10 +172,16 @@ ctt_table <- function(fit, missing = c("complete", "available")) {
                   if (missing == "available") paste(
                     "available-case item statistics are exploratory; persons",
                     "answering different item sets are not necessarily comparable"),
+                  if (missing == "available" && anyNA(X)) paste(
+                    "SEM withheld: pairwise alpha and complete-case score SD",
+                    "use different samples; use missing = \"complete\" for SEM"),
                   if (missing == "available" && !C_ok) paste(
                     "alpha withheld: the pairwise covariance under this",
                     "missingness is not a valid (positive semidefinite,",
-                    "non-degenerate) covariance matrix"))
+                    "non-degenerate) covariance matrix"),
+                  if (is.finite(alpha) && alpha < 0) paste(
+                    "SEM withheld: coefficient alpha is negative and is not",
+                    "a usable reliability estimate"))
                 if (length(nt)) paste(nt, collapse = "; ") else NULL
               })
   out <- .tag_tables(out)
@@ -199,7 +221,8 @@ print.rasch_ctt <- function(x, ...) {
 #' occasions; \code{row_id} uniquely identifies each person-occasion row.
 #'
 #' @param data A long data frame with one measurement per row.
-#' @param person,time Names of distinct person and time-point columns.
+#' @param person,time Character strings naming distinct person and time-point
+#'   columns, not numeric column positions.
 #' @param items Character vector naming the item columns.
 #' @return \code{rack_data}: a wide data frame with one row per person and
 #'   \code{length(items) * n_times} item columns. \code{stack_data}: a data

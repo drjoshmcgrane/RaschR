@@ -30,7 +30,8 @@ threshold. Column names must be unique.}
 
 \item{formula}{One-sided explanatory formula. For example,
 \code{~ format + operation + format:operation}. The reserved
-\code{threshold} factor permits threshold-specific effects.}
+\code{threshold} factor permits threshold-specific effects.
+Formula offsets (\code{offset()}) are not supported.}
 
 \item{level}{Whether \code{predictors} contains one row per \code{"item"}
 or per \code{"threshold"}. Item rows are expanded over their thresholds.}
@@ -40,7 +41,9 @@ An object of class \code{"rasch_explanatory"} inheriting from
   \code{"rasch"}. Standard item, person, fit and diagnostic components use
   the explanatory thresholds. The \code{explanatory} component contains the
   formula, metadata and design matrices; \code{reference_fit} is the free
-  PCM calibration.
+  PCM calibration. \code{est$coefficients} reports the estimates, standard
+  errors, \eqn{t} statistics, reference degrees of freedom, raw
+  probabilities and Holm-adjusted probabilities.
 }
 \description{
 Fits the linear logistic test model (LLTM) for dichotomous responses or
@@ -62,10 +65,26 @@ between adjacent levels. Character predictors are converted to unordered
 factors. The reserved factor
 \code{threshold} identifies the within-item threshold number;
 \code{threshold_number} supplies its integer value.
+Design columns are centred and rescaled internally for numerical stability; reported
+coefficients and standard errors use the supplied predictor units.
+Coincident coefficient labels receive numeric suffixes; this does not
+change the predictor design.
 
 A free PCM reference is fitted to the same prepared responses and retained
 on the object. \code{\link{explanatory_test}} applies the first-order Kent
-calibration required for the pairwise composite likelihood.
+calibration required for the pairwise composite likelihood. When an
+identifier occurs on more than one response row, coefficient covariance is
+clustered by person. A linearised delete-one-person correction accounts for
+finite-cluster leverage without refitting the model once per person.
+Supported repeated-person fits use a \eqn{t} reference
+with degrees of freedom equal to the number of person clusters contributing
+conditional information minus one; inference
+is withheld when the calibration lacks enough independent information.
+Supported fits without repeated identifiers use the limiting normal
+reference. Holm adjustment covers the coefficient family.
+With few persons and unequal numbers of response rows, these approximate
+tests can still be mildly liberal; the correction does not guarantee nominal
+coverage in small samples.
 }
 \examples{
 set.seed(1)

@@ -192,17 +192,28 @@ test_that("the dimensionality bootstrap withholds a depleted null", {
   expect_equal(refused$B_nonconverged, 6L)
   expect_equal(refused$B_errors, 5L)
   # enough to form the null, but thinned: said out loud
-  expect_warning(
-    thinned <- with_mocked_bindings(
+  seen <- character()
+  thinned <- withCallingHandlers(
+    with_mocked_bindings(
       dimensionality_test(fit, min_score_points = 2, B = 20, seed = 1),
       .rasch_boot_apply = fake(12L, 5L, 3L), .package = "rasch"),
-    "not lost at random")
+    warning = function(w) {
+      seen <<- c(seen, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  expect_true(any(grepl("not lost at random", seen, fixed = TRUE)))
+  expect_true(any(grepl("smallest attainable", seen, fixed = TRUE)))
   expect_equal(thinned$bootstrap$B_used, 12L)
   expect_equal(thinned$bootstrap$B_nonconverged, 5L)
   expect_equal(thinned$bootstrap$B_errors, 3L)
   expect_equal(thinned$prop_null, 0.05)
   expect_equal(thinned$p_boot,
                .boot_p(thinned$prop_significant, rep(0.05, 12), "upper"))
+  expect_equal(thinned$bootstrap_resolution, 1 / 13)
+  expect_true(is.na(thinned$multidimensional))
+  expect_match(thinned$verdict_method, "resolution insufficient")
+  expect_match(paste(capture.output(print(thinned)), collapse = "\n"),
+               "bootstrap resolution is insufficient")
 })
 
 test_that("Q3 binary flags require an explicit heuristic", {
@@ -504,4 +515,52 @@ test_that("simulated upper-tail decisions use finite familywise probabilities", 
           apply(training, 2, stats::sd))
   }, numeric(1))
   expect_equal(out$max_null, manual_max)
+})
+
+test_that("the scree null retains the observed category structure", {
+  set.seed(103)
+  X <- matrix(
+    sample(0:2, 300 * 5, replace = TRUE), 300, 5,
+    dimnames = list(NULL, paste0("P", 1:5))
+  )
+  fit <- rasch(X, model = "PCM")
+  shortened <- fit
+  shortened$m[1L] <- shortened$m[1L] - 1L
+  refused <- tryCatch(testthat::with_mocked_bindings(
+    rasch:::.scree_reference(fit, k = 2L, reps = 20L, seed = 1L),
+    rasch = function(...) shortened,
+    .package = "rasch"
+  ), error = identity)
+  expect_s3_class(refused, "rasch_fit_bootstrap_refusal")
+  expect_match(conditionMessage(refused),
+               "only 0 of 20.*retained the fitted response structure")
+  expect_identical(refused$B, 20L)
+  expect_identical(refused$B_used, 0L)
+  expect_identical(refused$B_nonconverged, 0L)
+  expect_identical(refused$B_errors, 20L)
+})
+
+test_that("the scree null retains enough draws for its finite reference", {
+  set.seed(104)
+  X <- matrix(
+    sample(0:1, 300 * 5, replace = TRUE), 300, 5,
+    dimnames = list(NULL, paste0("D", 1:5))
+  )
+  fit <- rasch(X)
+  shortened <- fit
+  shortened$m[1L] <- 0L
+  calls <- 0L
+  refused <- tryCatch(testthat::with_mocked_bindings(
+    rasch:::.scree_reference(fit, k = 2L, reps = 20L, seed = 2L),
+    rasch = function(...) {
+      calls <<- calls + 1L
+      if (calls == 1L) shortened else fit
+    },
+    .package = "rasch"
+  ), error = identity)
+  expect_s3_class(refused, "rasch_fit_bootstrap_refusal")
+  expect_match(conditionMessage(refused), "only 19 of 20")
+  expect_identical(refused$B, 20L)
+  expect_identical(refused$B_used, 19L)
+  expect_identical(refused$B_errors, 1L)
 })

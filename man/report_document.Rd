@@ -14,7 +14,9 @@ report_document(
   dif_bootstrap = NULL,
   dimensionality = NULL,
   invariance = NULL,
-  subtest = NULL
+  subtest = NULL,
+  tailored = NULL,
+  person_weights = NULL
 )
 }
 \arguments{
@@ -42,6 +44,13 @@ from an EFRM fit.}
 
 \item{subtest}{Optional computed \code{\link{dimensionality_test}} result
 from this fit.}
+
+\item{tailored}{Optional computed \code{\link{tailored_analysis}} result
+from this ordinary dichotomous fit.}
+
+\item{person_weights}{Optional table returned by
+\code{\link{weighted_person_estimates}}. An explicit table takes
+precedence over a compatible result retained by the application.}
 }
 \value{
 Invisibly, the output path.
@@ -51,7 +60,11 @@ Renders the active Rasch or paired-comparison fit as a self-contained HTML
 document, an editable Word document, or a PDF. The report contains the
 principal estimates, model-specific tables, diagnostic figures, and
 software provenance. Complete machine-readable results remain available
-from \code{\link{save_outputs}}.
+from \code{\link{save_outputs}}. Reports downloaded from the application
+retain compatible tailored item shifts and externally weighted secondary
+person measures.
+For keyed fits with repeated person IDs, the report explains why distractor
+analysis is unavailable and retains the other model outputs.
 }
 \details{
 Word and HTML output require Pandoc, supplied with RStudio and

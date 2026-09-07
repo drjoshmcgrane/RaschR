@@ -22,8 +22,9 @@ A data frame with one row per recorded superitem: \code{item},
   \code{m}, whether the binomial bound is \code{eligible}, the
   \code{spread} estimate and its \code{se}, the bound \code{lub}
   (available for dichotomous-component subtests with maximum scores 2 to
-  8), \code{z} = (spread - lub)/se, the one-sided \code{p} and adjusted
-  \code{p_adj}, \code{below_bound} for the point-estimate comparison, and
+  8), \code{t} = (spread - lub)/se, reference \code{df}, the one-sided
+  \code{p} and adjusted \code{p_adj}, \code{below_bound} for the
+  point-estimate comparison, and
   \code{dependent} for adjusted evidence at \code{alpha}.
   Items not formed by \code{combine_items()} are omitted.
   The result retains \code{alpha} and \code{p_adjust} as attributes.
@@ -53,8 +54,10 @@ Applied to the superitems recorded by \code{\link{combine_items}}. The
 binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and verdict
 are withheld. When person identifiers repeat, the spread refit's sandwich
-covariance clusters the score contributions by person. The input
-calibration and the principal-components refit must both converge.
+covariance clusters the score contributions by person and probabilities use
+a t reference with the number of independent person clusters minus one
+degree of freedom. Independent rows retain the asymptotic normal reference.
+The input calibration and the principal-components refit must both converge.
 }
 \examples{
 set.seed(1); N <- 600

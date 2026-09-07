@@ -34,8 +34,12 @@ test_that("the auto family follows the factor structure and finds planted DIF", 
   # are rounded to 2 dp for display, hence the loose tolerance)
   expect_true(all(abs(vapply(strsplit(dc$family$cells, ", "), function(cc)
     sum(abs(as.numeric(sub("^.* ", "", cc)))), 0) - 2) < 0.05))
-  # z-statistics equal estimate/se in the independent-rows case
+  # The independent-row calibration uses the limiting normal reference.
   expect_equal(t$statistic, t$estimate / t$se, tolerance = 1e-10)
+  expect_true(all(is.infinite(t$df)))
+  expect_equal(t$p, 2 * stats::pt(-abs(t$statistic), df = t$df))
+  expect_equal(t$lower,
+               t$estimate - stats::qt(0.975, df = t$df) * t$se)
 })
 
 test_that("planned DIF contrasts withhold Wald inference from invalid covariance", {
@@ -60,6 +64,21 @@ test_that("planned DIF contrasts withhold Wald inference from invalid covariance
   expect_true(all(is.na(guarded$table$p)))
   expect_false(any(guarded$table$significant))
   expect_true(any(grepl("not positive semidefinite", guarded$notes)))
+
+  supported_refit <- split_items(fit, "I2", by = fit$factors$grp)
+  supported_refit$est$cluster_support <- list(
+    repeated = FALSE, n = 16L, effective = 16)
+  supported_refit$est$cluster_inference <- FALSE
+  unsupported <- testthat::with_mocked_bindings(
+    dif_contrasts(fit, items = "I2"),
+    .rasch_refit = function(...) supported_refit,
+    .package = "rasch")
+  expect_true(all(is.finite(unsupported$table$estimate)))
+  expect_true(all(is.na(unsupported$table$se)))
+  expect_true(all(is.na(unsupported$table$df)))
+  expect_true(all(is.na(unsupported$table$p)))
+  expect_match(paste(unsupported$notes, collapse = " "),
+               "independent-person support")
 })
 
 test_that("stacked designs use person-level scores and detect drift over time", {
@@ -110,6 +129,34 @@ test_that("stacked designs use person-level scores and detect drift over time", 
   expect_equal(auto$table$df[auto$table$contrast == "time: 2 - 1"], w4$df)
   expect_error(dif_contrasts(fit, items = "I4", within = "time",
                              id = seq_len(10)), "one value per")
+})
+
+test_that("planned contrasts validate the declared within-person structure", {
+  set.seed(901)
+  n <- 80L
+  X <- matrix(rbinom(n * 5L, 1L, 0.5), n, 5L,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  between <- factor(rep(c("A", "B"), each = n / 2L))
+  ordinary <- rasch(data.frame(X, group = between), factors = "group")
+  expect_error(
+    dif_contrasts(ordinary, items = "I1", within = "group"),
+    "need repeated person ids")
+  expect_error(
+    dif_posthoc(ordinary, "I1", "group", within = "group"),
+    "need repeated person ids")
+
+  id <- rep(sprintf("P%03d", seq_len(n)), 2L)
+  occasion <- factor(rep(c("T1", "T2"), each = n))
+  group <- rep(between, 2L)
+  stacked <- rasch(
+    data.frame(rbind(X, X), occasion = occasion, group = group),
+    id = id, factors = c("occasion", "group"))
+  expect_error(
+    dif_contrasts(stacked, items = "I1", within = "group"),
+    "declared within-subject never vary")
+  expect_error(
+    dif_contrasts(stacked, items = "I1", within = character(0)),
+    "vary within persons but are not declared")
 })
 
 test_that("within-person follow-ups marginalise nuisance cells consistently", {

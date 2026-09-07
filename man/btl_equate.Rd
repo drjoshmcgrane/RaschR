@@ -77,6 +77,8 @@ shift is the precision-weighted mean
 If fewer than two common objects have usable variances but at least two have
 finite locations, their unweighted mean difference is returned as a
 descriptive fallback and recorded in \code{shift_method}.
+An exact common anchor determines the shift even when it is the only
+common object with usable uncertainty.
 Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
 covariance calculation retains the dependence induced by the sum-zero
 constraints. Drift tests then require independent calibrations and at least
@@ -85,11 +87,34 @@ information. Two common objects identify a descriptive origin shift, but
 do not support an object-drift test. With \code{shift = "none"}, the origin
 is fixed before the comparison and each object's variance is the sum of its
 two marginal variances; joint covariance information and a three-object
-link are unnecessary.
+link are unnecessary. One common object is sufficient for that fixed-origin
+comparison; estimating a shift still requires at least two.
 A judge-clustered ordinary BTL covariance, or a BTL--EFRM covariance from
 the judge bootstrap, uses finite judge-cluster degrees of freedom. A
-conditional or comparison-level parametric-bootstrap BTL--EFRM covariance
-uses the asymptotic normal reference instead.
+contrast involving only fixed external anchors has exact zero covariance
+from that calibration and therefore uses infinite degrees of freedom even
+when inference for its estimated objects is unavailable. A
+BTL--EFRM location outside the reference set is also limited by the
+weakest edge on its strongest supported path to that reference. A
+comparison-level parametric-bootstrap BTL--EFRM covariance uses the
+asymptotic normal reference instead. Conditional frame errors are
+preliminary and do not support drift inference, including comparisons on
+a fixed origin.
+Binary fits have no threshold parameters, so their recorded threshold
+structure does not affect compatibility. Polytomous fits must use the
+same category scale and threshold structure.
+
+The \code{equated} table includes uncertainty in the estimated shift.
+For independent calibrations, with \eqn{y_j=b_j+\hat s},
+\deqn{\operatorname{Var}(y_j)=\operatorname{Var}(b_j)+
+\operatorname{Var}(\hat s)+2\operatorname{Cov}(b_j,\hat s).}
+These SEs are withheld if joint uncertainty is unavailable. A fixed shift
+(\code{shift = "none"} or an exact common anchor) leaves supported original
+SEs unchanged. SEs from a conditional frame reference are withheld in the
+equated bank. When available, the table carries its full covariance in
+\code{attr(equated, "cov_location")} and conservative finite sampling-unit
+degrees of freedom in \code{attr(equated, "df_location")}. An equated bank
+is not independent of either calibration used to construct it.
 
 The common-object set should contain a stable majority. If most common
 objects move in the same direction, the estimated shift follows them and

@@ -48,7 +48,7 @@
 # planted; the two crossed judge factors are null and remain above the
 # inference boundary. Keeping residual dimensionality out of this dataset
 # prevents it from being mistaken for a history effect.
-.demo_btl <- function(seed = 1, reps = 84) {
+.demo_btl <- function(seed = 2, reps = 84) {
   d <- simulate_btl(
     n_objects = 8,
     n_judges = 48,

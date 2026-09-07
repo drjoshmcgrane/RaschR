@@ -23,7 +23,9 @@ A one-row data frame containing the raw and Kent-calibrated
 Tests explanatory item, threshold or object restrictions against the
 corresponding free calibration of the same responses. The inferential
 result uses the first-order Kent calibration for the fitted likelihood and
-sandwich covariance. The calibration coefficient of determination is
+sandwich covariance. This multivariate comparison is asymptotic; unlike
+the individual coefficient tests, it has no finite-person-cluster \eqn{t}
+correction. The calibration coefficient of determination is
 \deqn{R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
 \hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
 \bar\eta^{free})^2},}

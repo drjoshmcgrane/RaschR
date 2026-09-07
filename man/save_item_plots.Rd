@@ -9,7 +9,7 @@ save_item_plots(
   what = c("icc", "ccc", "tpc", "cfreq"),
   file,
   items = NULL,
-  n_groups = fit$n_groups,
+  n_groups = NULL,
   grid = NULL,
   observed = TRUE,
   width = 8,
@@ -28,7 +28,8 @@ save_item_plots(
 
 \item{items}{Item names or indices; all items by default.}
 
-\item{n_groups}{Class intervals for observed overlays.}
+\item{n_groups}{Class intervals for observed overlays; \code{NULL} retains
+the fit's allocation for each item.}
 
 \item{grid}{Logit grid for the curves.}
 

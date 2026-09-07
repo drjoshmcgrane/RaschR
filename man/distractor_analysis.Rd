@@ -27,10 +27,12 @@ location, and the point-biserial correlation between choosing the option
 and the person measure. These summaries use the rest measure (the person
 estimate from the other items), so the analysed item cannot credit its own
 takers. The keyed
-option should attract the ablest persons and carry the only positive
-point-biserial; a distractor whose takers are abler than the keyed
-option's (with at least \code{min_n} takers) is flagged as a possible
-miskey.
+option should attract able persons and usually carry a positive
+point-biserial; a distractor whose takers are abler than the pooled takers
+of the full-credit option or options (with at least \code{min_n} takers) is
+flagged as a possible
+miskey. The analysis requires one response row per person; repeated rows
+do not supply independent taker counts or rest measures.
 }
 \examples{
 set.seed(1); Np <- 400

@@ -11,19 +11,19 @@ resolve_dif(
   p_adjust = "holm",
   min_n = 20L,
   min_anchors = NULL,
-  max_splits = NULL
+  max_splits = NULL,
+  effects = c("main", "factorial")
 )
 }
 \arguments{
-\item{fit}{A fitted object from \code{\link{rasch}} carrying person
-factors.}
+\item{fit}{A fitted object from \code{\link{rasch}}.}
 
 \item{factors}{Person factors to test, as in \code{\link{dif_anova}};
 defaults to every nominated factor.}
 
 \item{alpha}{Significance level for the adjusted probabilities.}
 
-\item{p_adjust}{Multiplicity adjustment across items each round.}
+\item{p_adjust}{Multiplicity adjustment for the DIF tests in each round.}
 
 \item{min_n}{Minimum distinct responders required in every item-by-factor
 cell before an automatic split is allowed. Repeated response rows from
@@ -38,21 +38,27 @@ smaller; pervasive DIF is not artificial DIF. Default
 
 \item{max_splits}{Hard cap on the number of splits. Default: the number
 of items.}
+
+\item{effects}{\code{"main"} fits the factors additively;
+\code{"factorial"} also tests their interactions. The same model is
+used at every round and in the final DIF assessment.}
 }
 \value{
 A list of class \code{"rasch_resolve_dif"}: the final resolved
   \code{fit}, the \code{splits} performed (order, item, factor, partial
   eta-squared, source item, DIF magnitude in logits), the \code{stopped}
   reason, the residual \code{dif} table, and the number of distinct source
-  items that still show DIF in the final fit.
+  items that still show DIF in the final fit. \code{effects} records the
+  factor model used.
 }
 \description{
 Splits items with uniform DIF one at a time, beginning with the largest
 estimated effect,
 and refits after each split. This order addresses the artificial DIF that a
 large departure can induce in otherwise invariant items (Andrich and
-Hagquist 2012, 2015). Each split gives the item a separate location and
-threshold structure in every factor cell. A location split does not model a
+Hagquist 2012, 2015). Each split gives the item a separate location in every
+factor cell. A PCM also estimates the split copies' thresholds separately;
+an RSM retains its common rating-scale threshold structure. A location split does not model a
 group-specific discrimination, so items with non-uniform DIF are left for
 review rather than being made untestable by a split. The procedure stops
 when no resolvable uniform DIF remains or the remaining unsplit reference

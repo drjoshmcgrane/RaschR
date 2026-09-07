@@ -11,7 +11,8 @@
 # design actually contains gives a DESIGN information for every object -- the
 # paired-comparison counterpart of an item's contribution to test
 # information, and the quantity a naive (independent-trials) standard error
-# would invert. Because information peaks at gap zero, close pairs are the
+# would invert. For dichotomous comparisons without a position effect,
+# information peaks at gap zero, so close pairs are the
 # informative ones: the same fact that makes an adaptive design spend its
 # comparisons on near-neighbours (Pollitt 2012). The recommender here is that
 # adaptive step, made honest about its two well-known hazards -- it is a
@@ -27,11 +28,40 @@
 # comparison carries the same information about each of its two objects.
 .btl_info_of_d <- function(d, m, tau) {
   if (m == 1L) {
-    p <- stats::plogis(d)
-    p * (1 - p)
+    # Work from the small tail so neither 1 - plogis(d) cancellation nor
+    # exp(abs(d)) overflow destroys representable information.
+    tail <- exp(-abs(d))
+    tail / (1 + tail)^2
   } else {
     vapply(d, function(z) item_moments(z, tau)$V, 0)
   }
+}
+
+.btl_information_history <- function(fit) {
+  is.data.frame(fit$dependence) &&
+    any(fit$dependence$effect != "position")
+}
+
+.btl_information_position <- function(fit) {
+  z <- if (is.data.frame(fit$dependence))
+    fit$dependence$estimate[fit$dependence$effect == "position"] else numeric(0)
+  if (!length(z)) return(0)
+  if (length(z) != 1L || !is.finite(z))
+    stop("the fitted position effect is unavailable; refit the model")
+  unname(z)
+}
+
+.btl_fitted_score_moments <- function(fit) {
+  P <- fit$fitted_prob
+  m <- fit$m
+  if (!is.matrix(P) || !is.numeric(P) ||
+      !identical(dim(P), c(nrow(fit$comparisons), as.integer(m + 1L))) ||
+      any(!is.finite(P)) || any(P < 0 | P > 1) ||
+      any(abs(rowSums(P) - 1) > 1e-8))
+    stop("row-aligned fitted probabilities are unavailable; refit the model")
+  expected <- drop(P %*% (0:m))
+  list(E = expected,
+       V = rowSums(P * (rep(0:m, each = nrow(P)) - expected)^2))
 }
 
 #' Information and targeting of a paired-comparison design
@@ -43,6 +73,8 @@
 #' For an ordered comparison, the contribution is the variance of the response
 #' score. Information is summed over the comparisons involving each object,
 #' including replication counts.
+#' Observed-design information retains the fitted position and dependence
+#' effects; it is conditional on the recorded comparison history.
 #'
 #' \code{se_naive = 1/sqrt(information)} treats each object's comparisons in
 #' isolation. It is a description of the design, not the fitted standard error
@@ -83,7 +115,6 @@ btl_information <- function(fit) {
   beta <- setNames(tab$location, objs)
   se <- setNames(tab$se, objs)
   m <- fit$m
-  tau <- if (m > 1L) fit$thresholds$tau else NULL
   cmp <- fit$comparisons
   ia <- match(cmp$object_a, objs); ib <- match(cmp$object_b, objs)
   w <- cmp$weight
@@ -93,9 +124,14 @@ btl_information <- function(fit) {
   # within-set comparison its slope is phi/alpha; for a cross-set comparison
   # it is phi. Recomputing information from v_a - v_b alone would discard both
   # units and send the active frame calibration back to an equal-unit model.
-  I_row <- if (inherits(fit, "rasch_btl_efrm") &&
-               "information" %in% names(cmp)) cmp$information
-           else .btl_info_of_d(d, m, tau)
+  I_row <- if (inherits(fit, "rasch_btl_efrm")) {
+             if (!is.numeric(cmp$information) ||
+                 length(cmp$information) != nrow(cmp) ||
+                 any(!is.finite(cmp$information)) || any(cmp$information < 0))
+               stop("row-aligned frame information is unavailable; refit the model")
+             cmp$information
+           }
+           else .btl_fitted_score_moments(fit)$V
   Iw <- w * I_row                             # weighted contribution to design
 
   # per-object design information: the sum of weighted per-comparison
@@ -179,10 +215,14 @@ print.rasch_btl_info <- function(x, ...) {
 #' pooled Fisher information of the comparisons it took part in), the dot
 #' sized by how many comparisons that is. For an equal-unit fit, a reference
 #' curve on the right axis traces the information a single \emph{new}
-#' comparison would carry against an opponent at each location. It peaks at
-#' gap zero and explains why adaptive designs favour near neighbours. A frame
+#' comparison would carry against an opponent at each location. For a
+#' dichotomous fit without a position effect, it peaks at gap zero. Ordered
+#' response thresholds and position effects can change where it peaks. A frame
 #' fit has no single reference curve because the information also depends on
 #' the fitted panel and set units.
+#' The reference curve is also omitted for history-dependent fits. With a
+#' position effect only, it represents the median-location object presented
+#' first against each opponent location.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param grid Optional location grid for the equal-unit reference curve.
@@ -204,14 +244,16 @@ plot_btl_targeting <- function(fit, grid = NULL) {
   m <- fit$m
   tau <- if (m > 1L) fit$thresholds$tau else NULL
 
-  if (inherits(fit, "rasch_btl_efrm")) {
+  if (inherits(fit, "rasch_btl_efrm") || .btl_information_history(fit)) {
     if (is.null(grid)) {
       rng <- range(o$location) + c(-1, 1)
       grid <- seq(rng[1], rng[2], length.out = 201)
     }
     ymax <- max(o$information) * 1.15
     op <- .rr_canvas(range(grid), c(0, ymax),
-                     "Common-scale object location (logits)",
+                     if (inherits(fit, "rasch_btl_efrm"))
+                       "Common-scale object location (logits)" else
+                       "Object location (logits)",
                      "Observed-design information")
     on.exit(par(op))
     nc <- o$n_comparisons
@@ -225,13 +267,17 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 
   # reference curve: information one new comparison carries against an
   # opponent at location x, anchored at the centre of the scale so gap =
-  # anchor - x and the curve peaks at gap 0
+  # anchor - x before any fitted position effect is added
   anchor <- stats::median(o$location)
   if (is.null(grid)) {
     rng <- range(o$location) + c(-1, 1)
     grid <- seq(rng[1], rng[2], length.out = 201)
   }
-  refI <- .btl_info_of_d(anchor - grid, m, tau)
+  refI <- .btl_info_of_d(anchor - grid + .btl_information_position(fit), m, tau)
+  ref_max <- max(refI)
+  if (!is.finite(ref_max) || ref_max <= 0)
+    stop("the requested grid contains no numerically measurable comparison ",
+         "information; use a grid closer to the fitted locations", call. = FALSE)
 
   ymax <- max(o$information) * 1.15
   op <- .rr_canvas(range(grid), c(0, ymax),
@@ -240,12 +286,13 @@ plot_btl_targeting <- function(fit, grid = NULL) {
   on.exit(par(op))
 
   # the reference curve carries its own (single-comparison) scale on axis 4
-  scl <- ymax * 0.9 / max(refI)
+  ref_height <- ymax * 0.9
   abline(v = anchor, col = .rr$soft, lty = 3)
-  lines(grid, refI * scl, lwd = 2.2, col = .rr$red, lty = 5)
-  ref_ticks <- pretty(c(0, max(refI)))
-  ref_ticks <- ref_ticks[ref_ticks * scl <= ymax]
-  axis(4, at = ref_ticks * scl, labels = ref_ticks, col = .rr$grid,
+  lines(grid, (refI / ref_max) * ref_height, lwd = 2.2, col = .rr$red, lty = 5)
+  ref_ticks <- pretty(c(0, ref_max))
+  ref_at <- (ref_ticks / ref_max) * ref_height
+  keep <- is.finite(ref_at) & ref_at <= ymax
+  axis(4, at = ref_at[keep], labels = ref_ticks[keep], col = .rr$grid,
        col.ticks = .rr$soft, col.axis = .rr$red, cex.axis = 0.8)
   mtext("Information per comparison", side = 4, line = 2.3, col = .rr$red,
         cex = 0.85)
@@ -271,13 +318,19 @@ plot_btl_targeting <- function(fit, grid = NULL) {
 #' Ranks candidate object pairs by the information expected from one additional
 #' comparison at the current estimates (Pollitt 2012). By default, priority is
 #' the one-step reduction in total location variance from a rank-one covariance
-#' update. This favours close pairs and objects measured with less precision.
+#' update. This favours informative comparisons and objects measured with
+#' less precision. For dichotomous comparisons without a position effect,
+#' information is greatest between objects with similar locations.
 #'
 #' The procedure is a greedy, one-step ranking rather than a jointly optimal
 #' design. Applied to a sandwich covariance, the update ranks pairs but does
 #' not give an exact variance reduction. Adaptive selection can also inflate a
 #' separation reliability calculated from the same comparisons (Bramley 2015).
 #' The fitted model must have converged.
+#' A fitted position effect is included with the stronger object presented
+#' first, as returned in \code{object_a}. History-dependent fits require a
+#' specified judge and comparison history for a new comparison; recommendations
+#' are therefore unavailable for those fits.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param n Number of pairs to return.
@@ -320,6 +373,10 @@ btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
          "and object set in which each new comparison will be made; use the ",
          "observed-design information table, or undo the frame adjustment ",
          "before requesting equal-unit recommendations")
+  if (.btl_information_history(fit))
+    stop("next-pair recommendations for a history-dependent fit require ",
+         "the judge and comparison history; use btl_information() for the ",
+         "observed design")
   tab <- fit$objects
   # an extrapolated boundary row has no calibrated location or covariance;
   # recommendations are made over the calibrated objects
@@ -343,7 +400,7 @@ btl_next_pairs <- function(fit, n = 10, weight_se = TRUE) {
   hi <- ifelse(beta[i] >= beta[j], i, j)
   loo <- ifelse(hi == i, j, i)
   gap <- unname(beta[hi] - beta[loo])
-  eI <- .btl_info_of_d(gap, m, tau)
+  eI <- .btl_info_of_d(gap + .btl_information_position(fit), m, tau)
   # priority = the one-step reduction in TOTAL location variance from one
   # added comparison of the pair: with information I on the contrast
   # v = e_hi - e_lo, Sherman-Morrison gives I ||Sigma v||^2 / (1 + I v'Sigma v)

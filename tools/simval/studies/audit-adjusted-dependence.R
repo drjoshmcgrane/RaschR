@@ -216,7 +216,7 @@ for (effect in c("position", "exposure", "carry_over")) {
 # component is projected off the primary locations. Exercise short and long
 # object sets, negative and positive correlations, and several seeds.
 corr_error <- numeric(0)
-for (k in c(3L, 5L, 8L, 15L)) for (rho in c(-0.8, -0.3, 0, 0.4, 0.9, 1)) {
+for (k in c(3L, 5L, 8L, 15L)) for (rho in c(-1, -0.8, -0.3, 0, 0.4, 0.9)) {
   for (seed in seq_len(50L)) {
     d <- simulate_btl(k, 8, 2, second_attribute = list(rho = rho),
                       seed = 4100000L + k * 1000L + seed)

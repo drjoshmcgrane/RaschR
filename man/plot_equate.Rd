@@ -23,7 +23,8 @@ Called for its plotting side effect; invisibly the
 }
 \description{
 Scatter of the two calibrations' common-item locations with the shifted
-identity line and per-item 95 per cent bands; drifting items
+identity line, per-item 95 per cent contrast intervals, and a dotted guide
+band at their average half-width; drifting items
 (Holm-adjusted) are highlighted and labelled.
 }
 \examples{

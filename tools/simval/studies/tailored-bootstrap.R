@@ -128,7 +128,8 @@ run_one <- function(N, diff, guess_vec, theta_mean, theta_sd, chance,
   floor_warned <- FALSE
   ta <- withCallingHandlers(
     tryCatch(tailored_analysis(fit0, chance = chance, se_method = "bootstrap",
-                               boot_reps = boot_reps), error = function(e) e),
+                               boot_reps = boot_reps,
+                               seed = seed + 1000000L), error = function(e) e),
     warning = function(w) {
       if (grepl("smallest achievable", conditionMessage(w))) floor_warned <<- TRUE
       invokeRestart("muffleWarning")

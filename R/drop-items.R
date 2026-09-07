@@ -58,6 +58,20 @@
   invisible(TRUE)
 }
 
+.require_fitted_score_structure <- function(fit, maxima,
+                                            context = "the structural refit") {
+  if (!length(maxima)) return(invisible(TRUE))
+  actual <- fit$m[match(names(maxima), fit$items$item)]
+  changed <- is.na(actual) | actual != maxima
+  if (any(changed))
+    stop(context, " cannot preserve the fitted score structure for ",
+         paste(names(maxima)[changed], collapse = ", "),
+         "; a category or item lacks conditional information after the change. ",
+         "Leave the change unresolved or rescore explicitly before refitting",
+         call. = FALSE)
+  invisible(TRUE)
+}
+
 .efrm_source_maxima <- function(fit) {
   vm <- fit$virtual_map
   if (is.null(vm) || !all(c("item", "vkey") %in% names(vm)))
@@ -123,25 +137,38 @@
     if (is.null(reps) || !is.finite(reps))
       reps <- if (any(is.finite(fit$alpha_table$se_log_alpha))) NULL else 0L
   }
-  do.call(rasch_efrm, list(
+  out <- do.call(rasch_efrm, list(
     data = d, item_sets = split(names(set_of), unname(set_of)),
     groups = group_vars, id = id_name,
     factors = if (length(extra)) extra else NULL, items = colnames(source),
-    n_groups = spec$n_groups %||% fit$n_groups,
-    na_codes = spec$na_codes %||% -1,
+    n_groups = .refit_n_groups(fit),
+    # Source scores are reconstructed from the fitted response matrix; raw
+    # missing codes have already been removed, and may now be valid scores.
+    na_codes = integer(0),
     maxit = spec$maxit %||% 50, tol = spec$tol %||% 1e-7,
     min_link_persons = spec$min_link_persons %||% 30,
     se_method = se_method %||% spec$se_method %||% fit$se_method,
     boot_reps = reps, workers = spec$workers %||% 1L,
     seed = spec$seed %||% NULL))
+  # A global maximum cannot detect category collapse confined to one frame.
+  # Reconstruct the scored source so every observed response must retain its
+  # score and frame-specific missingness after refitting.
+  actual <- .efrm_source_matrix(out, colnames(source))
+  if (!isTRUE(all.equal(unname(actual), unname(as.matrix(source)),
+                       check.attributes = FALSE, tolerance = 0)))
+    stop("the EFRM structural refit cannot preserve the fitted score structure; ",
+         "a category or item lacks conditional information within a frame. ",
+         "Leave the change unresolved or rescore explicitly before refitting",
+         call. = FALSE)
+  out
 }
 
 .rasch_refit <- function(fit, source, model = NULL, key_extra = NULL,
-                         require_anchor = TRUE, na_codes = NULL,
+                         require_anchor = TRUE,
                          score_max = NULL) {
+  .require_refittable_calibration(fit)
   spec <- fit$refit_spec
   if (is.null(spec)) spec <- list()
-  if (!is.null(na_codes)) spec$na_codes <- na_codes
   source <- as.data.frame(source, check.names = FALSE,
                           stringsAsFactors = FALSE)
   keep <- names(source)
@@ -150,10 +177,13 @@
     score_max <- stats::setNames(fit$m[match(same, fit$items$item)], same)
   }
   .require_score_structure(source, score_max, "the structural refit")
-  if (inherits(fit, "rasch_explanatory") && all(keep %in% colnames(fit$X)))
-    return(.explanatory_refit_modified(
+  if (inherits(fit, "rasch_explanatory") && all(keep %in% colnames(fit$X))) {
+    out <- .explanatory_refit_modified(
       fit, source,
-      inherit = stats::setNames(keep, keep)))
+      inherit = stats::setNames(keep, keep))
+    .require_fitted_score_structure(out, score_max)
+    return(out)
+  }
   key <- spec$key
   if (!is.null(fit$mc) && !is.null(key)) {
     raw_items <- intersect(colnames(fit$mc$raw), keep)
@@ -180,14 +210,19 @@
            "fitted scale origin; retain an anchor or refit explicitly")
     if (!nrow(anchors)) anchors <- NULL
   }
-  do.call(rasch, list(
+  out <- do.call(rasch, list(
     data = source, model = model %||% spec$model %||% fit$model,
     id = fit$person$id,
-    factors = fit$factors, n_groups = spec$n_groups %||% fit$n_groups,
+    factors = fit$factors, n_groups = .refit_n_groups(fit),
     anchors = anchors,
-    na_codes = spec$na_codes %||% -1, key = key,
+    # Both the prepared scores and retained raw keyed answers already use
+    # NA for missing responses. Applying the source file's codes again can
+    # delete a valid score introduced when its categories were renumbered.
+    na_codes = integer(0), key = key,
     pc_components = spec$pc_components,
     maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8))
+  .require_fitted_score_structure(out, score_max)
+  out
 }
 
 .rasch_refit_after_drop <- function(fit, keep) {
@@ -213,6 +248,10 @@
 #' if it would remove an externally anchored item, empty an item set or leave
 #' the model unidentified. To change the anchor set, refit explicitly; this
 #' prevents an item-removal comparison from silently changing its scale.
+#' Older anchored or component-constrained fits without their original refit
+#' settings must first be refitted from the source data.
+#' A refit is also refused if it drops or rescores a retained item because a
+#' response category no longer contributes conditional information.
 #'
 #' Item removal changes both the item calibration and the person estimates.
 #' For an EFRM it can also change the estimated frame units. Compare the
@@ -241,6 +280,7 @@
 drop_items <- function(fit, items, boot_reps = NULL) {
   if (!inherits(fit, "rasch"))
     stop("drop_items needs a fit from rasch() or rasch_efrm()")
+  .require_refittable_calibration(fit)
   if (inherits(fit, "rasch_mfrm"))
     stop("remove the item's rows from the long-format data and refit ",
          "rasch_mfrm() instead")

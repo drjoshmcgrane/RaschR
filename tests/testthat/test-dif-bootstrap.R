@@ -36,6 +36,12 @@ test_that("conditional DIF bootstrap repeats the complete declared family", {
     sum(!da$term_ids %in% c("Residuals", "ci")))
   expect_identical(dim(db$replicates$F), c(3L, db$family_n))
   expect_identical(dim(db$replicates$p), c(3L, db$family_n))
+  expect_identical(db$algorithm, "reference-minp-1")
+  family <- !da$term_ids %in% c("Residuals", "ci")
+  expected_marginal <- vapply(seq_len(db$family_n), function(j)
+    (1 + sum(db$replicates$p[, j] <= da$terms$p[family][j])) /
+      (db$B_used + 1), numeric(1))
+  expect_equal(db$terms$p_boot[family], expected_marginal)
   expect_true(all(is.finite(db$terms$p_boot[db$terms$n_boot > 0L])))
   expect_true(all(db$terms$p_boot_adj[db$terms$n_boot > 0L] >=
                   db$terms$p_boot[db$terms$n_boot > 0L]))
@@ -215,6 +221,24 @@ test_that("Extended Frames DIF retains crossed frame cells", {
   expect_equal(db$B_used, 1L)
 })
 
+test_that("a structural one-level frame does not block another DIF factor", {
+  set.seed(5122)
+  n <- 120L
+  X <- matrix(rbinom(n * 6L, 1L, 0.5), n, 6L,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  d <- data.frame(id = sprintf("P%03d", seq_len(n)), X,
+                  frame = "all",
+                  site = rep(c("A", "B"), each = n / 2L),
+                  check.names = FALSE)
+  fit <- rasch_efrm(
+    d, item_sets = list(core = colnames(X)), groups = "frame", id = "id",
+    factors = "site", boot_reps = 0L, n_groups = 2L)
+  expect_no_error(da <- dif_anova(fit, n_groups = 2L))
+  expect_identical(da$factor_names, "site")
+  expect_match(paste(da$notes, collapse = " "),
+               "frame factor.*excluded")
+})
+
 test_that("Comparative Judgement DIF uses the fitted-outcome null", {
   d <- simulate_btl(n_objects = 5, n_judges = 20, reps_per_pair = 40,
                     seed = 5117)
@@ -268,7 +292,7 @@ test_that("Comparative Judgement DIF uses the fitted-outcome null", {
 })
 
 test_that("Comparative Judgement DIF retains category and history models", {
-  d <- simulate_btl(5, 24, reps_per_pair = 8, model = "polytomous",
+  d <- simulate_btl(5, 24, reps_per_pair = 12, model = "polytomous",
                     n_categories = 4, seed = 5122)
   d$response <- ordered(d$response, levels = 0:3)
   fit <- btl(d, "object_a", "object_b", response = "response",
@@ -282,7 +306,7 @@ test_that("Comparative Judgement DIF retains category and history models", {
   expect_equal(db$B_used, 1L)
 
   h <- simulate_btl(
-    5, 30, reps_per_pair = 8,
+    5, 30, reps_per_pair = 12,
     dependence = list(exposure = .2, carry_over = .1), seed = 5124)
   hf <- btl(h, "object_a", "object_b", winner = "winner", judge = "judge",
             order = "order", position = TRUE)
@@ -327,6 +351,24 @@ test_that("DIF bootstrap travels only with its DIF analysis and active fit", {
     results = list(dif = da,
       dif_bootstrap = list(db = db, B = 1L, seed = 8L))))
   expect_no_error(.validate_app_project(project))
+
+  old_db <- db
+  old_db$algorithm <- NULL
+  unsigned_db <- unclass(old_db)
+  unsigned_db$result_signature <- NULL
+  old_db$result_signature <- .fit_boot_md5(unsigned_db)
+  old_project <- project
+  old_project$results$dif_bootstrap$db <- old_db
+  old_project <- .seal_app_project(old_project)
+  old_path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(old_path), add = TRUE)
+  saveRDS(old_project, old_path)
+  expect_warning(restored_old <- .read_app_project(old_path),
+                 "earlier raw-F marginal")
+  expect_null(restored_old$results$dif_bootstrap)
+  expect_match(attr(restored_old, "rasch_project_legacy_dropped"),
+               "raw-F marginal")
+  expect_no_error(.validate_app_project(restored_old))
 
   missing_primary <- project
   missing_primary$results$dif <- NULL
@@ -396,6 +438,8 @@ test_that("DIF bootstrap integrity is checked before restore or export", {
   broken$bad_kind$model_kind <- "btl"
   broken$bad_adjustment <- db
   broken$bad_adjustment$adjustment <- "Holm"
+  broken$old_algorithm <- db
+  broken$old_algorithm$algorithm <- NULL
   broken$bad_excluded_flag <- db
   excluded <- da$term_ids %in% c("Residuals", "ci")
   broken$bad_excluded_flag$terms$significant_boot[which(excluded)[1L]] <- NA

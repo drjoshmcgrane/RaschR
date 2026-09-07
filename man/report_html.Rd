@@ -14,7 +14,9 @@ report_html(
   dif_bootstrap = NULL,
   dimensionality = NULL,
   invariance = NULL,
-  subtest = NULL
+  subtest = NULL,
+  tailored = NULL,
+  person_weights = NULL
 )
 }
 \arguments{
@@ -43,13 +45,24 @@ from an EFRM fit.}
 \item{subtest}{Optional computed \code{\link{dimensionality_test}} result
 from this fit. Supplying it keeps the item split and bootstrap calibration
 used in the analysis.}
+
+\item{tailored}{Optional computed \code{\link{tailored_analysis}} result
+from this ordinary dichotomous fit.}
+
+\item{person_weights}{Optional table returned by
+\code{\link{weighted_person_estimates}}. An explicit table takes
+precedence over a compatible result retained by the application.}
 }
 \value{
 Invisibly, \code{file}.
 }
 \description{
 Writes one HTML file containing the summary statistics, diagnostic tables,
-and test-level plots. Images and styles are embedded in the file.
+and test-level plots. Images and styles are embedded in the file. Computed
+tailored item shifts and externally weighted secondary person measures can
+be included with the fitted-model results.
+For keyed fits with repeated person IDs, the report explains why distractor
+analysis is unavailable; the other model outputs remain available.
 }
 \examples{
 set.seed(1)

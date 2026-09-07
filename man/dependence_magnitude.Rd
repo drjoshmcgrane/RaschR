@@ -15,7 +15,8 @@ score (the formalisation requires it).}
 }
 \value{
 A list of class \code{"rasch_dependence"}: the estimate \code{d},
-  its \code{se}, \code{z} and \code{p} for the hypothesis \eqn{d = 0},
+  its \code{se}, \code{t}, reference \code{df} and \code{p} for the
+  hypothesis \eqn{d = 0},
   the per-threshold table \code{thresholds} (columns \code{k},
   \code{delta_lo}, \code{delta_hi}, \code{d_k}, \code{se_k}), and the
   resolved \code{refit}.
@@ -38,6 +39,10 @@ items and are therefore correlated. The standard error of \eqn{\hat d} is
 calculated from their full sandwich covariance. If that covariance is
 unavailable or not positive semidefinite, the point estimate is retained
 as a descriptive magnitude and Wald inference is withheld.
+When repeated person identifiers contribute to the refit, probabilities use
+a t reference with the number of independent person clusters minus one
+degree of freedom. Independent response rows retain the asymptotic normal
+reference, represented by infinite degrees of freedom.
 }
 \details{
 Polytomous resolution requires an unconstrained partial credit model so
@@ -51,6 +56,8 @@ frames are mutually exclusive and must first be reduced to an observable
 frame or linked design block. For an explanatory fit, the remaining items
 retain their explanatory restrictions and the resolved copies receive free
 fixed departures.
+Resolution is refused if any retained item or resolved copy loses its
+original score categories during calibration.
 }
 \examples{
 set.seed(1); N <- 700

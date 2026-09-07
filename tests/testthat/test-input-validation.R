@@ -39,6 +39,13 @@ test_that("fractional scores error instead of silently truncating", {
   Xf <- as.data.frame(X)
   Xf$I3[5] <- 1.9
   expect_error(rasch(Xf), "non-integer score\\(s\\) in: I3.*1\\.9")
+  # A fractional-looking character code declared missing must not be quoted as
+  # the offending score when another cell is genuinely fractional.
+  Xc <- matrix(as.character(X), nrow(X), dimnames = dimnames(X))
+  Xc[1, 1] <- "1.5"
+  Xc[2, 2] <- "1.9"
+  expect_error(rasch(Xc, na_codes = "1.5"),
+               "non-integer score\\(s\\) in: I2.*1\\.9")
   # integer-valued doubles ("2.0") are fine
   Xd <- as.data.frame(X * 1.0)
   expect_s3_class(rasch(Xd), "rasch")
@@ -60,6 +67,22 @@ test_that("role names are resolved by content and colliding external factors are
   external <- data.frame(I1 = rep(c("A", "B"), 20))
   expect_error(rasch(d, factors = external),
                "share item-data names but contain different values")
+})
+
+test_that("DIF entry points reject a one-level factor before model construction", {
+  set.seed(9061)
+  X <- matrix(rbinom(1200L, 1L, 0.5), 200L, 6L,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  fit <- rasch(data.frame(X, group = "only"), factors = "group")
+
+  expect_error(dif_anova(fit),
+               "DIF factor.*fewer than two observed levels.*group")
+  expect_error(dif_contrasts(fit),
+               "DIF factor.*fewer than two observed levels.*group")
+  expect_error(dif_size(fit, "I1", "group"),
+               "DIF factor.*fewer than two observed levels.*group")
+  expect_error(dif_posthoc(fit, "I1", "group"),
+               "DIF factor.*fewer than two observed levels.*group")
 })
 
 test_that("scores outside the integer storage range are refused", {
@@ -262,6 +285,12 @@ test_that("item_moments is overflow-stable and person_wle survives wide items", 
   expect_true(all(is.finite(w$theta)))
 })
 
+test_that("dif_anova refuses an unrelated object before reading fit fields", {
+  expect_error(dif_anova(1), "needs a rasch fit")
+  expect_error(dif_anova(structure(list(), class = "rasch_btl")),
+               "needs a rasch fit")
+})
+
 test_that("secondary simulated trait keeps the requested mean and sd", {
   d <- simulate_rasch(n_persons = 20000, n_items = 6, theta_mean = 2,
                       theta_sd = 1, second_dim = list(items = 4:6, rho = 0.5),
@@ -394,6 +423,9 @@ test_that("simulators reject malformed counts, effects, and dependence pairs", {
     dependence = list(pairs = list("I01"), strength = 1)),
     "two different items")
   expect_error(simulate_rasch(50, 6,
+    dependence = list(pairs = list(), strength = 1)),
+    "at least one directed item pair")
+  expect_error(simulate_rasch(50, 6,
     dependence = list(pairs = list(c("I01", "I02")), strength = Inf)),
     "finite value")
   expect_error(simulate_rasch(50, 6,
@@ -455,6 +487,8 @@ test_that("sim_apply counts non-scalar results as failed replicates", {
   expect_equal(attr(out, "n_failed"), 2L)
   expect_true(all(is.na(out)))
   expect_match(attr(out, "failure_messages"), "one atomic scalar")
+  expect_error(sim_apply(data.frame(x = 1:2), identity),
+               "list of simulated datasets")
 })
 
 test_that("fits saved before the t rename still print their dependence", {
@@ -862,9 +896,30 @@ test_that("EFRM requires one response row per person", {
   d <- data.frame(id = c("p1", "p1", "p2", "p3"),
                   I1 = c(0, 1, 0, 1), I2 = c(1, 0, 1, 0),
                   group = c("a", "a", "b", "b"))
-  expect_error(rasch_efrm(d, list(core = c("I1", "I2")), "group",
-                          id = "id", boot_reps = 0),
-               "one response row per person")
+  for (spec in list(
+      list(se_method = "hybrid", boot_reps = 0),
+      list(se_method = "hybrid", boot_reps = 30),
+      list(se_method = "bootstrap", boot_reps = 30))) {
+    expect_error(do.call(rasch_efrm, c(list(
+      data = d, item_sets = list(core = c("I1", "I2")),
+      groups = "group", id = "id", workers = 1), spec)),
+      "one response row per person.*person bootstrap")
+  }
+
+  set.seed(927)
+  N <- 120L; L <- 6L
+  X <- matrix(rbinom(N * L, 1L, 0.5), N, L,
+              dimnames = list(NULL, paste0("A", 1:L)))
+  id <- sprintf("P%03d", seq_len(N))
+  id[2:3] <- NA_character_
+  id[4:5] <- ""
+  ok <- rasch_efrm(data.frame(id, X, group = "all"),
+                   list(core = colnames(X)), "group",
+                   id = "id", boot_reps = 0)
+  expect_true(ok$est$converged)
+  expect_false(ok$repeated_ids)
+  informative <- rowSums(X) > 0L & rowSums(X) < L
+  expect_identical(ok$est$cluster_support$n, as.integer(sum(informative)))
 })
 
 test_that("BTL-EFRM bootstrap counts are valid before estimation", {
@@ -931,7 +986,17 @@ test_that("available-case ctt alpha is withheld when the covariance is invalid",
   expect_lt(min(eigen(C2, symmetric = TRUE, only.values = TRUE)$values), 0)
   ct2 <- ctt_table(rasch(X2), missing = "available")
   expect_true(is.na(ct2$alpha))
-  expect_true(all(is.na(ct2$table$alpha_drop)))
+  # Deleting an item can leave a valid covariance matrix even when the
+  # full matrix is indefinite. Check each reduction on its own support.
+  expected_drop <- vapply(seq_len(p), function(j) {
+    Cr <- C2[-j, -j, drop = FALSE]
+    if (min(eigen(Cr, symmetric = TRUE, only.values = TRUE)$values) < 0 ||
+        sum(Cr) <= 0) return(NA_real_)
+    (p - 1) / (p - 2) * (1 - sum(diag(Cr)) / sum(Cr))
+  }, 0)
+  expect_true(any(is.na(expected_drop)))
+  expect_true(any(is.finite(expected_drop)))
+  expect_equal(ct2$table$alpha_drop, expected_drop, tolerance = 1e-12)
   expect_match(ct2$note, "alpha withheld")
 })
 

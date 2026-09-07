@@ -184,7 +184,9 @@ one_replicate <- function(seed, sc) {
   }
   if (got < NBOOT) return(NULL)
 
-  p_boot_raw <- (1 + colSums(sweep(fb, 2L, obs$F, ">="))) / (NBOOT + 1)
+  # Use each refit's upper-tail reference probability because sparse class
+  # intervals can change the term degrees of freedom between replicates.
+  p_boot_raw <- (1 + colSums(sweep(pb, 2L, obs$p, "<="))) / (NBOOT + 1)
   min_p <- apply(pb, 1L, min)
   p_boot_family <- (1 + vapply(obs$p, function(p) sum(min_p <= p), 0L)) /
     (NBOOT + 1)

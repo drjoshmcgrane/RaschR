@@ -9,7 +9,8 @@ plot_btl_categories(fit, grid = seq(-4, 4, 0.05))
 \arguments{
 \item{fit}{A polytomous fit from \code{\link{btl}} (with \code{response}).}
 
-\item{grid}{Difference grid, in logits.}
+\item{grid}{Difference grid, in logits; the full linear-predictor grid for
+history-dependent fits.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
@@ -20,6 +21,9 @@ category as a function of the location difference
 \code{beta_a - beta_b}, with the symmetric threshold structure marked.
 The display is the paired-comparison counterpart of the category
 probability curves of a polytomous item.
+A fitted position effect is included for object a presented first. For a
+history-dependent fit, the horizontal axis is the full linear predictor,
+including position and history terms, rather than the object difference alone.
 }
 \examples{
 set.seed(1)

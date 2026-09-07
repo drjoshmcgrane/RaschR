@@ -239,6 +239,7 @@
 # from the person location, then form the same class-interval display used by
 # an ordinary ICC. No facet cell is privileged as the graphical reference.
 .plot_mfrm_item_icc <- function(fit, item, group, n_groups, grid, observed) {
+  item <- as.character(item)
   vm <- fit$virtual_map
   rows <- which(vm$item == item)
   if (!length(rows)) stop("no such item: ", item)
@@ -257,7 +258,9 @@
   }
   if (!is.null(group) && length(group) != nrow(fit$X))
     stop("group must have one value per person")
-  if (is.null(n_groups)) n_groups <- fit$n_groups
+  if (is.null(n_groups))
+    n_groups <- if (is.null(group)) fit$n_groups else
+      .dif_n_groups(fit, group)
   stacked <- lapply(cols, function(j) {
     tau_j <- fit$tau_list[[j]]
     if (length(tau_j) != length(base_tau)) return(NULL)
@@ -367,11 +370,16 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
       stop("`group` must name fitted factor(s) or give one value per ",
            "person (", nrow(fit$X), ")")
   }
-  if (inherits(fit, "rasch_mfrm") && is.character(item) &&
+  if (inherits(fit, "rasch_mfrm") &&
+      (is.character(item) || is.factor(item)) &&
       length(item) == 1L && !item %in% fit$items$item &&
-      item %in% fit$virtual_map$item)
-    return(.plot_mfrm_item_icc(fit, item, group, n_groups, grid, observed))
-  i <- unique(.item_idx(fit, item))
+      as.character(item) %in% fit$virtual_map$item)
+    return(.plot_mfrm_item_icc(fit, as.character(item), group, n_groups,
+                               grid, observed))
+  i <- .item_idx(fit, item)
+  if (anyDuplicated(i))
+    stop("An item characteristic curve cannot name the same item more than once",
+         call. = FALSE)
   if (!length(i) || anyNA(i) || any(i < 1L | i > nrow(fit$items)))
     stop("Every item must name a fitted item", call. = FALSE)
   if (length(i) > 8L)
@@ -397,8 +405,8 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
       lines(grid, curve, lwd = 2.6, col = cols[j])
       if (isTRUE(observed)) {
         x <- fit$X[, ij]
-        ci_full <- .class_intervals(ifelse(is.na(x), NA_real_, th), ex,
-                                    n_groups)
+        ci_full <- .fit_class_intervals(
+          fit, ij, x, th, ex, n_groups, n_groups_given)
         ok <- !is.na(ci_full)
         ci <- ci_full[ok]
         obs_th <- tapply(th[ok], ci, mean)
@@ -452,7 +460,7 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
     .rr_legend("topleft", c("Model", "Observed"),
                lwd = c(3, NA), pch = c(NA, 21), pt.bg = c(NA, .rr$blue),
                col = c(.rr$ink, "white"), pt.cex = 1.4)
-  } else if (!is.null(group)) {
+  } else if (!is.null(group) && isTRUE(observed)) {
     g <- factor(group)[ok]
     levs <- levels(droplevels(g))
     for (li in seq_along(levs)) {
@@ -463,9 +471,9 @@ plot_icc <- function(fit, item, group = NULL, n_groups = NULL,
       lines(obsTh, obsX, col = colr, lwd = 1.4, lty = 3)
       points(obsTh, obsX, pch = 21, bg = colr, col = "white", cex = 1.5, lwd = 1.2)
     }
+    legend_cols <- .rr$pal[(seq_along(levs) - 1L) %% length(.rr$pal) + 1L]
     .rr_legend("topleft", levs, lwd = 1.4, lty = 3, pch = 21,
-               pt.bg = .rr$pal[seq_along(levs)],
-               col = .rr$pal[seq_along(levs)], pt.cex = 1.3)
+               pt.bg = legend_cols, col = legend_cols, pt.cex = 1.3)
   }
   invisible(NULL)
 }
@@ -500,8 +508,8 @@ plot_ccc <- function(fit, item, grid = NULL, observed = FALSE,
   .check_flag(observed, "observed")
   grid <- .model_grid(fit, grid)
   n_groups_given <- !is.null(n_groups)
-  n_groups <- .check_whole(if (is.null(n_groups)) fit$n_groups else n_groups,
-                           "n_groups", 2)
+  n_groups <- if (n_groups_given) .check_whole(n_groups, "n_groups", 2)
+              else fit$n_groups
   i <- .item_idx(fit, item); tau_i <- fit$tau_list[[i]]; mmax <- length(tau_i)
   P <- vapply(grid, function(th)
     item_moments(th, tau_i, disc = .disc_of(fit, i))$P, numeric(mmax + 1))
@@ -574,8 +582,8 @@ plot_threshold_prob <- function(fit, item, grid = NULL,
   grid <- .model_grid(fit, grid)
   .check_flag(observed, "observed")
   n_groups_given <- !is.null(n_groups)
-  n_groups <- .check_whole(if (is.null(n_groups)) fit$n_groups else n_groups,
-                           "n_groups", 2)
+  n_groups <- if (n_groups_given) .check_whole(n_groups, "n_groups", 2)
+              else fit$n_groups
   i <- .item_idx(fit, item); tau_i <- fit$tau_list[[i]]
   op <- .rr_canvas(range(grid), c(0, 1), "Person location (logits)",
                    "Threshold probability",
@@ -606,8 +614,10 @@ plot_threshold_prob <- function(fit, item, grid = NULL,
              bg = colr)
     }
   }
-  .rr_legend("topleft", sprintf("threshold %d (%.3f)", seq_along(tau_i), tau_i),
-             lwd = 2.6, col = .rr$pal[seq_along(tau_i)])
+  .rr_legend(
+    "topleft", sprintf("threshold %d (%.3f)", seq_along(tau_i), tau_i),
+    lwd = 2.6,
+    col = .rr$pal[(seq_along(tau_i) - 1L) %% length(.rr$pal) + 1L])
   invisible(NULL)
 }
 
@@ -638,7 +648,8 @@ plot_threshold_prob <- function(fit, item, grid = NULL,
 #'   items. The selection is named in the legend, so a restricted map
 #'   cannot be read as the whole instrument. The information curve follows
 #'   the same item selection; for an extended-frame fit it also follows the
-#'   response cells occupied by the selected person group.
+#'   response cells occupied by the selected person group. For EFRM and
+#'   MFRM, only response patterns present in that person group are shown.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -740,7 +751,14 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
     # a set-restricted map carrying the full instrument's information, or a
     # one-group EFRM map carrying every group's curves, would read as
     # precision the selection does not have
-    ti <- test_information(fit, grid, items = info_idx)
+    information_fit <- fit
+    if (structural && !is.null(group)) {
+      # Retain the calibration, but identify administrations only among the
+      # selected persons. Restricting frame columns alone cannot distinguish
+      # subgroups who answered different items within the same frame.
+      information_fit$X <- fit$X[keep_p %in% TRUE, , drop = FALSE]
+    }
+    ti <- test_information(information_fit, grid, items = info_idx)
     des <- if ("design" %in% names(ti)) unique(ti$design) else "Test information"
     cols <- rep_len(c(.rr$teal, .rr$purple, .rr$red, .rr$soft), length(des))
     imax <- max(ti$info, na.rm = TRUE)
@@ -839,8 +857,11 @@ plot_pimap <- function(fit, bins = 35, xlim = NULL, information = FALSE,
   else fitted_nm
   base_nm[is.na(base_nm)] <- fitted_nm[is.na(base_nm)]
   if (is.null(items)) return(rep(TRUE, length(fitted_nm)))
-  if (!is.character(items) || !length(items) || anyNA(items))
+  if (!is.character(items) || !length(items) || anyNA(items) ||
+      any(!nzchar(trimws(items))))
     stop("`items` must name item(s), or one item set", call. = FALSE)
+  if (anyDuplicated(items))
+    stop("`items` must not name the same item more than once", call. = FALSE)
   sets <- fit$set_of
   if (length(items) == 1L && !is.null(sets) &&
       items %in% as.character(sets))
@@ -1016,7 +1037,8 @@ plot_threshold_map <- function(fit, order_by_location = TRUE) {
 #' Plot the test characteristic curve
 #'
 #' Expected total score against person location. Structural fits draw one
-#' curve for each administrable frame or facet design.
+#' curve for each observed item pattern within the frame or facet design,
+#' as defined by \code{\link{test_information}}.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param grid Logit grid.
@@ -1340,7 +1362,8 @@ plot_resid_cor <- function(fit, stat = c("q3star", "q3"), cap = 0.5) {
 #' @export
 plot_pca <- function(fit, component = 1) {
   component <- .check_whole(component, "component", 1)
-  pc <- residual_pca(fit); k <- as.integer(component)
+  k <- as.integer(component)
+  pc <- residual_pca(fit, n_components = k)
   cn <- paste0("PC", k)
   if (!cn %in% names(pc$loadings_matrix))
     stop("component ", k, " is not available (", ncol(pc$loadings_matrix) - 1L,
@@ -1428,6 +1451,7 @@ plot_pca_biplot <- function(fit) {
 #' plot_catfreq(rasch(X), "P01")
 #' @export
 plot_catfreq <- function(fit, item) {
+  .check_response_display_fit(fit, "category-frequency plots")
   if (length(item) != 1L) stop("`item` must name exactly one item")
   i <- .item_idx(fit, item)
   cnt <- fit$thresholds_diag[[i]]$category_counts
@@ -1542,7 +1566,9 @@ plot_pcc <- function(fit, person, n_groups = 5, grid = NULL) {
 #' @param person Row number of the person, or an ID matching
 #'   \code{fit$person$id}.
 #' @param level Confidence level of the band around the person location used
-#'   to mark unexpected responses.
+#'   to mark unexpected responses. The selected person must have a positive,
+#'   finite standard error; without it the band and the unexpected-response
+#'   classification are unavailable.
 #' @param bins Number of vertical bins used to stack the threshold labels.
 #' @param xlim Optional logit range; thresholds outside it are omitted.
 #' @param cex_labels Character expansion for the threshold labels.
@@ -1566,10 +1592,13 @@ plot_kidmap <- function(fit, person, level = 0.95, bins = 35, xlim = NULL,
   .check_cex(cex_labels)
   n <- .person_row(fit, person)
   th <- fit$person$theta[n]
-  if (is.na(th)) stop("no estimate for this person")
+  if (!is.finite(th)) stop("no finite estimate for this person")
   se <- fit$person$se[n]
+  if (!is.finite(se) || se <= 0)
+    stop("no positive finite standard error for this person; the kidmap confidence band is unavailable",
+         call. = FALSE)
   z <- stats::qnorm(1 - (1 - level) / 2)
-  band <- if (is.na(se)) 0 else z * se
+  band <- z * se
   x <- fit$X[n, ]
   thr <- fit$thresholds
   obs <- !is.na(x[thr$item])

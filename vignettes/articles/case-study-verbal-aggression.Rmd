@@ -134,7 +134,7 @@ corresponding main effect.
 ```{r coefficients}
 effects <- fit_explanatory$est$coefficients
 effects[effects$p_adj < .05,
-        c("term", "estimate", "se", "z", "p", "p_adj")]
+        c("term", "estimate", "se", "t", "df", "p", "p_adj")]
 ```
 
 For example, the positive coefficients for `behaviourScold` and

@@ -329,8 +329,24 @@ test_that("a non-converged replicate is not admitted to the null", {
   d <- simulate_rasch(250, 8, model = "PCM", n_categories = 4, seed = 1)
   f <- suppressWarnings(rasch(d, id = "id", model = "PCM"))
   z <- suppressWarnings(.fit_refit(
-    f$X, f$model, f$n_groups, anchors = NULL, maxit = 1L, tol = 1e-12))
+    f$X, f$model, f$n_groups, anchors = NULL, expected_m = f$m,
+    maxit = 1L, tol = 1e-12))
   expect_identical(.fit_boot_status(z), "nonconverged")
+})
+
+test_that("a replicate with a shortened item scale is not admitted", {
+  d <- simulate_rasch(30, 4, model = "PCM", n_categories = 3, seed = 2)
+  fit <- rasch(d, id = "id", model = "PCM")
+  set.seed(12001)
+  xb <- .fit_gen_conditional(fit$X, fit$tau_list, NULL)
+  expect_false(identical(
+    apply(xb, 2L, max, na.rm = TRUE), as.integer(fit$m)
+  ))
+  z <- suppressWarnings(.fit_refit(
+    xb, fit$model, fit$n_groups, anchors = NULL, expected_m = fit$m,
+    maxit = 60L, tol = 1e-8
+  ))
+  expect_identical(.fit_boot_status(z), "error")
 })
 
 
@@ -345,18 +361,18 @@ test_that("an anchored fit is bootstrapped under its own anchors", {
   expect_true(all(bs$items$n_boot > 0))
 })
 
-test_that("polytomous fits bootstrap without losing their replicates", {
+test_that("polytomous fits retain an adequate same-scale bootstrap null", {
   for (mod in c("PCM", "RSM")) {
     d <- simulate_rasch(400, 6, model = mod, n_categories = 4, seed = 21)
-    # a short run can still lose the odd replicate and say so; what matters
-    # is that it is the odd one, not a third of them
+    # A short exploratory run may lose a replicate whose category scale is no
+    # longer the fitted scale. It must account for those draws and retain the
+    # documented minimum rather than admitting the shorter model.
     bs <- suppressWarnings(
       fbq(rasch(d, id = "id", model = mod), B = 29, seed = 2))
     expect_true(all(bs$items$chisq_p_boot > 0 & bs$items$chisq_p_boot <= 1))
     expect_true(all(is.finite(bs$items$fit_resid_p_boot)))
-    # the shipped scheme generates at the observed spread, so replicates are
-    # not lost to items whose extreme category goes unvisited
-    expect_gte(bs$B_used, 26L)
+    expect_equal(bs$B_used + bs$B_failed, bs$B)
+    expect_gte(bs$B_used, bs$minimum_usable)
   }
 })
 
@@ -372,6 +388,21 @@ test_that("a thinned null is reported rather than left to be inferred", {
       w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
     })
   expect_true(any(grepl("were unusable", w)))
+})
+
+test_that("normal bootstrap generation does not revert to noisy estimates", {
+  theta <- c(-2, -1, 0, 1, 2)
+  zero <- rasch:::.fit_theta(
+    "normal", theta,
+    list(var_theta = stats::var(theta),
+         mean_error_var = stats::var(theta) + 1),
+    n = 40L)
+  expect_identical(zero, rep(mean(theta), 40L))
+  expect_error(
+    rasch:::.fit_theta(
+      "normal", theta,
+      list(var_theta = NA_real_, mean_error_var = NA_real_), n = 5L),
+    "error-corrected person variance is unavailable")
 })
 
 test_that("a depleted or statistic-specific null is withheld", {

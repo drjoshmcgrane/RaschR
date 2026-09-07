@@ -96,12 +96,18 @@
 #' (Ford 1957). Boundary objects are removed when this leaves an identified
 #' model; otherwise fitting stops.
 #'
-#' Standard errors use the Godambe sandwich covariance. When \code{judge} is
-#' supplied, the covariance is clustered by judge. Clustered inference is
-#' withheld when there are fewer than ten judges, fewer than eight effective
-#' judges, or no residual cluster degrees of freedom. A caution is attached
+#' Standard errors use the Godambe sandwich covariance. Inference is withheld
+#' if the empirical sampling-unit score covariance does not identify every
+#' fitted direction. When \code{judge} is supplied, the covariance is
+#' clustered by judge and inference is also withheld when there are fewer
+#' than ten judges, fewer than eight effective judges, or no residual cluster
+#' degrees of freedom. A caution is attached
 #' when the effective count is below 9.5 or one judge supplies more than 20
 #' per cent of the comparisons.
+#' The pairwise chi-square remains descriptive when judges are identified
+#' because its row-based chi-square reference does not model within-judge
+#' dependence. \code{\link{fit_bootstrap}} supplies a parametric calibration
+#' under the fitted response model.
 #'
 #' Dichotomous data may be supplied as a winner, with ties dropped or divided
 #' equally between the two outcomes. Ordered data may instead be supplied
@@ -571,8 +577,11 @@ print.rasch_btl <- function(x, ...) {
   cat(sprintf("Conditional ML: %s in %d iterations; sandwich SEs%s\n",
               if (x$converged) "converged" else "NOT converged", x$iterations,
               if (x$clustered) " clustered by judge" else ""))
-  cat(sprintf("Object separation index %.3f; pairwise chi-square %.2f on %d df, p = %s\n",
-              x$osi$PSI, x$total_chisq, x$total_df, .fmt_p(x$total_p)))
+  fit_probability <- if (is.finite(x$total_p))
+    paste0("p = ", .fmt_p(x$total_p)) else "probability unavailable"
+  cat(sprintf(paste0("Object separation index %.3f; pairwise chi-square ",
+                     "%.2f on %d df, %s\n"),
+              x$osi$PSI, x$total_chisq, x$total_df, fit_probability))
   if (!is.null(x$anchors))
     cat(sprintf("Anchored at %d object(s) (se = 0): %s\n",
                 length(x$anchors), paste(names(x$anchors), collapse = ", ")))
@@ -594,12 +603,14 @@ print.rasch_btl <- function(x, ...) {
       } else {
         st_lab <- "z"; st_r <- x$dependence$z[r]
       }
-      use_adj <- !is.null(x$dependence$p_adj)
-      shown_p <- if (use_adj) x$dependence$p_adj[r] else x$dependence$p[r]
-      cat(sprintf("%s: %.3f logits (SE %.3f, %s = %.2f, %s = %s)\n",
+      p_label <- if (!is.null(x$dependence$p_adj) &&
+                       length(x$dependence$p_adj) >= r &&
+                       is.finite(x$dependence$p_adj[r]))
+        paste0("Holm p = ", .fmt_p(x$dependence$p_adj[r])) else
+          "Holm p unavailable"
+      cat(sprintf("%s: %.3f logits (SE %.3f, %s = %.2f, %s)\n",
                   lab, x$dependence$estimate[r], x$dependence$se[r],
-                  st_lab, st_r, if (use_adj) "Holm p" else "p",
-                  .fmt_p(shown_p)))
+                  st_lab, st_r, p_label))
     }
   }
   if (!is.null(x$thresholds)) {
@@ -627,8 +638,12 @@ print.rasch_btl <- function(x, ...) {
 
 #' Plot Bradley-Terry-Luce object locations
 #'
-#' Caterpillar plot of object locations with 95 per cent error bars. Objects
-#' beyond the specified fit-residual band are marked.
+#' Caterpillar plot of object locations with 95 per cent error bars. The
+#' intervals use the reference degrees of freedom carried by the fitted
+#' covariance: a t reference for judge-based uncertainty and the limiting
+#' normal reference otherwise. An interval is omitted when its covariance
+#' does not support inference. Objects beyond the specified fit-residual band
+#' are marked.
 #'
 #' @param fit An object from \code{\link{btl}}.
 #' @param band Absolute fit-residual value beyond which an object is
@@ -649,7 +664,14 @@ plot_btl <- function(fit, band = 2.5) {
   .check_band(band)
   d <- fit$objects[order(fit$objects$location), ]
   k <- nrow(d)
-  xerr <- c(d$location - 1.96 * d$se, d$location + 1.96 * d$se, d$location)
+  ref_df <- vapply(d$object, function(object)
+    .btl_equate_cov_df(fit, object), numeric(1))
+  critical <- stats::qt(0.975, df = ref_df)
+  has_se <- is.finite(d$se) & is.finite(critical)
+  lower <- upper <- rep(NA_real_, k)
+  lower[has_se] <- d$location[has_se] - critical[has_se] * d$se[has_se]
+  upper[has_se] <- d$location[has_se] + critical[has_se] * d$se[has_se]
+  xerr <- c(lower[has_se], upper[has_se], d$location)
   xlim <- if (any(is.finite(xerr))) range(xerr, na.rm = TRUE)
           else range(d$location)
   op <- .rr_canvas(xlim + c(-0.15, 0.15) * diff(xlim), c(0.5, k + 0.5),
@@ -657,9 +679,7 @@ plot_btl <- function(fit, band = 2.5) {
                    yaxis = FALSE)
   on.exit(par(op))
   mis <- !is.na(d$fit_resid) & abs(d$fit_resid) > band
-  has_se <- is.finite(d$se)
-  segments(d$location[has_se] - 1.96 * d$se[has_se], which(has_se),
-           d$location[has_se] + 1.96 * d$se[has_se], which(has_se),
+  segments(lower[has_se], which(has_se), upper[has_se], which(has_se),
            col = ifelse(mis[has_se], .rr$red, .rr$soft), lwd = 2.2)
   points(d$location, seq_len(k), pch = 21, cex = 1.6, lwd = 1.2,
          bg = ifelse(mis, .rr$red, .rr$blue), col = "white")
@@ -881,8 +901,10 @@ plot_btl <- function(fit, band = 2.5) {
       stop("the internal explanatory object offset must be named")
     beta0 <- as.numeric(beta0[objs])
     if (anyNA(beta0)) stop("the explanatory object offset is incomplete")
-    if (!ncol(Bmat) || qr(Bmat, tol = 1e-10)$rank < ncol(Bmat) ||
-        qr(cbind(1, Bmat), tol = 1e-10)$rank < ncol(Bmat) + 1L)
+    Bcheck <- if (ncol(Bmat))
+      sweep(Bmat, 2L, .design_column_scale(Bmat), `/`) else Bmat
+    if (!ncol(Bmat) || qr(Bcheck, tol = 1e-10)$rank < ncol(Bmat) ||
+        qr(cbind(1, Bcheck), tol = 1e-10)$rank < ncol(Bmat) + 1L)
       stop("the explanatory object design is not identified after data preparation")
     if (ncol(Bmat) > K - 1L)
       stop("the explanatory object design has more parameters than the free calibration")
@@ -915,6 +937,11 @@ plot_btl <- function(fit, band = 2.5) {
     notes <- c(notes, sprintf(
       "%d object(s) anchored; scale origin from anchors", length(anch)))
   }
+  # Keep the public design in its supplied units, but fit with bounded
+  # columns so damping, convergence and rank checks do not depend on them.
+  Bmat_original <- Bmat
+  object_scale <- .design_column_scale(Bmat)
+  Bmat <- sweep(Bmat, 2L, object_scale, `/`)
   nb <- ncol(Bmat)
   pz <- if (is.null(Z)) 0L else ncol(Z)
   Zfull <- Z                         # all effect columns, for the diagnostic table
@@ -1039,12 +1066,14 @@ plot_btl <- function(fit, band = 2.5) {
       # trust-region damp: an undamped Newton step of many logits overshoots
       # into the flat logistic tails (seen with distant anchors); inert for
       # ordinary fits, whose steps are far smaller
-      ms <- max(abs(step))
+      location_step <- drop(Bmat %*% step[seq_len(nb)])
+      ms <- max(abs(c(location_step, step[-seq_len(nb)])))
       if (is.finite(ms) && ms > 5) step <- step * (5 / ms)
       beta <- beta + drop(Bmat %*% step[1:nb])
       if (q) tfree <- tfree + step[(nb + 1L):(nb + q)]
       if (pz) dep <- dep + step[(nb + q + 1L):np]
-      if (max(abs(step)) < tol) break
+      if (max(abs(c(drop(Bmat %*% step[seq_len(nb)]),
+                    step[-seq_len(nb)]))) < tol) break
     }
     # a dependence effect running to a boundary is separation: its informative
     # comparisons all point one way, so the data are evidence of an infinite
@@ -1067,8 +1096,8 @@ plot_btl <- function(fit, band = 2.5) {
   loglik <- sum(w * log(pmax(mo$P[cbind(seq_along(x), x + 1L)], 1e-300)))
   gh <- gH(mo)
   resE <- gh$resE
-  # scale-free convergence: gradient per (count-weighted) comparison, so
-  # duplicated or very large data cannot flag a converged fit as unconverged
+  # The gradient uses bounded design columns and is per count-weighted
+  # comparison: neither predictor units nor replication sets this tolerance.
   converged <- isTRUE(max(abs(gh$g)) < 1e-6 * sum(w))
   if (!converged)
     warning("btl estimation did NOT converge in ", it, " iterations: ",
@@ -1129,8 +1158,15 @@ plot_btl <- function(fit, band = 2.5) {
   #      it as non-convergence with the affected SEs withheld, per the
   #      standard remedy for a boundary estimate.
   rc <- tryCatch(rcond(H), error = function(e) 0)
-  if (!(is.finite(rc) && rc > 1e-8))
-    stop("the information matrix is singular (reciprocal condition number ",
+  h_values <- tryCatch(eigen((H + t(H)) / 2, symmetric = TRUE,
+                             only.values = TRUE)$values,
+                       error = function(e) NA_real_)
+  h_scale <- if (all(is.finite(h_values)) && length(h_values))
+    max(abs(h_values)) else NA_real_
+  h_positive <- is.finite(h_scale) && h_scale > 0 &&
+    min(h_values) > sqrt(.Machine$double.eps) * h_scale
+  if (!(is.finite(rc) && rc > 1e-8) || !h_positive)
+    stop("the information matrix is singular or not positive definite (reciprocal condition number ",
          format(rc, digits = 3), "): an object location is not identified ",
          "-- typically duplicate objects or a comparison design with a ",
          "zero-information direction. Add comparisons that place the ",
@@ -1142,7 +1178,18 @@ plot_btl <- function(fit, band = 2.5) {
   # fitted parameters, retain the point estimates and descriptive fit but
   # withhold covariance-based inference.
   cr1 <- if (!is.null(jd) && nc > 1L) nc / (nc - 1) else 1
-  rank_deficient <- !is.null(jd) && nc <= np
+  # The number of sampling units is only a necessary rank condition. Judges,
+  # or independent rows, can supply repeated score vectors, in which case
+  # the empirical meat still has no variance in some fitted directions.
+  # Assess the actual score matrix in the free-parameter space. The relative
+  # sqrt(eps) tolerance matches the positive-definiteness guard above and
+  # treats numerically vanishing score directions as unavailable inference.
+  sval <- tryCatch(svd(Gm, nu = 0L, nv = 0L)$d,
+                    error = function(e) NA_real_)
+  score_rank <- if (!length(sval) || any(!is.finite(sval)) ||
+                    max(sval) <= 0) 0L
+                else sum(sval > max(sval) * sqrt(.Machine$double.eps))
+  rank_deficient <- score_rank < np
   # effective number of clusters under unequal allocation: the inverse
   # Simpson index of each judge's share of the comparisons. The clustered
   # sandwich is calibrated when the work spreads across judges but not when
@@ -1172,11 +1219,19 @@ plot_btl <- function(fit, band = 2.5) {
   # is no covariance worth measuring, only fabrication.
   guard_off <- isTRUE(getOption("rasch.btl_guard_override", FALSE))
   eff_underparam <- !is.null(jd) && nc_eff <= np
-  cluster_inference <- is.null(jd) ||
-    (nc >= 10L && !rank_deficient &&
-     (guard_off || (nc_eff >= 8 && !eff_underparam)))
-  if (!cluster_inference)
-    notes <- c(notes, sprintf(
+  cluster_inference <- !rank_deficient && (is.null(jd) ||
+    (nc >= 10L && nc > np &&
+     (guard_off || (nc_eff >= 8 && !eff_underparam))))
+  if (!cluster_inference) {
+    if (is.null(jd)) {
+      notes <- c(notes, sprintf(
+        paste0("the empirical independent-comparison score covariance has ",
+               "rank %d for %d fitted parameters; sandwich uncertainty and ",
+               "covariance-based inference are withheld, while point ",
+               "estimates and fit summaries remain descriptive"),
+        score_rank, np))
+    } else {
+      notes <- c(notes, sprintf(
       paste0("%d judge clusters (%.1f effective) for %d parameters: ",
              "cluster-robust inference is withheld%s; point estimates and ",
              "fit summaries remain descriptive -- use at least 10 judges ",
@@ -1185,11 +1240,13 @@ plot_btl <- function(fit, band = 2.5) {
              "judges than fitted parameters, or a design-level bootstrap"),
       nc, nc_eff, np,
       if (rank_deficient) " because the empirical covariance is rank-deficient"
-      else if (nc < 10L) " because the cluster count is too small"
+      else if (nc < 10L || nc <= np) " because the cluster count is too small"
       else if (eff_underparam) paste0(" because the effective cluster count ",
         "does not exceed the parameter count (a concentration heuristic, ",
         "not a statement of mathematical rank deficiency)")
       else " because the comparison allocation concentrates on too few judges"))
+    }
+  }
   max_share <- if (!is.null(jd)) {
     shr <- tapply(w, jd, sum); max(shr) / sum(shr)
   } else 0
@@ -1203,18 +1260,20 @@ plot_btl <- function(fit, band = 2.5) {
   covth <- Hi %*% (crossprod(Gm) * cr1) %*% Hi
   # composite-likelihood information ingredients: tr(H^-1 J) = tr(covth H)
   # is the effective parameter count of the Godambe penalty (Varin & Vidoni
-  # 2005); abs() makes it sign-convention free (the eigenvalues of H^-1 J
-  # share one sign). Independent units are judges when clustered, else the
-  # count-weighted comparisons.
+  # 2005). H is the positive sensitivity checked above, so a negative trace
+  # is invalid rather than a sign convention to hide with abs(). Independent
+  # units are judges when clustered, else the count-weighted comparisons.
   # when clustered inference is withheld (few clusters), the Godambe meat
   # is rank-deficient by construction, so the effective parameter count --
   # and any information criterion built on it -- is withheld with it,
   # exactly as the documentation states
-  cl_info <- list(eff_params = if (cluster_inference)
-                    abs(sum(diag(covth %*% H))) else NA_real_,
+  eff_params <- if (cluster_inference) sum(diag(covth %*% H)) else NA_real_
+  if (!is.finite(eff_params) || eff_params < 0) eff_params <- NA_real_
+  cl_info <- list(eff_params = eff_params,
                   n_units = if (is.null(jd)) sum(w) else length(ucl),
                   n_units_effective = if (is.null(jd)) NA_real_ else nc_eff,
                   n_parameters = np,
+                  score_rank = score_rank,
                   inference_available = cluster_inference)
   # anchored objects have a zero row in Bmat, so their location variance is
   # structurally zero (se == 0): the location is a fixed constant, not an estimate
@@ -1289,10 +1348,11 @@ plot_btl <- function(fit, band = 2.5) {
     zi <- (nb + q + 1L):np
     dse <- sqrt(pmax(diag(covth)[zi], 0))
     if (!cluster_inference) dse[] <- NA_real_
-    # clustered: the z statistics get a t reference with G - 1 degrees of
+    # Clustered Wald statistics get a t reference with G - 1 degrees of
     # freedom (the standard few-cluster correction) rather than normal
     # theory, so five judges give honestly wide p-values
-    t_df <- if (!is.null(jd)) max(nc - 1L, 1L) else Inf
+    t_df <- if (!cluster_inference) NA_real_ else if (!is.null(jd))
+      max(nc - 1L, 1L) else Inf
     dep_stat <- .wald_ratio(dep, dse)
     dependence <- data.frame(
       effect = colnames(Z), estimate = dep, se = dse,
@@ -1445,11 +1505,13 @@ plot_btl <- function(fit, band = 2.5) {
 
   object_coefficients <- NULL
   if (!is.null(object_design)) {
-    bhat <- drop(solve(crossprod(Bmat), crossprod(Bmat, beta - beta0)))
-    bse <- sqrt(pmax(diag(covth)[seq_len(nb)], 0))
+    bhat <- drop(solve(crossprod(Bmat), crossprod(Bmat, beta - beta0))) /
+      object_scale
+    bse <- sqrt(pmax(diag(covth)[seq_len(nb)], 0)) / object_scale
     if (!cluster_inference) bse[] <- NA_real_
     stat <- .wald_ratio(bhat, bse)
-    ref_df <- if (!is.null(jd)) max(nc - 1L, 1L) else Inf
+    ref_df <- if (!cluster_inference) NA_real_ else if (!is.null(jd))
+      max(nc - 1L, 1L) else Inf
     prob <- 2 * stats::pt(-abs(stat), df = ref_df)
     object_coefficients <- data.frame(
       term = object_parameter_names, estimate = bhat, se = bse,
@@ -1497,6 +1559,12 @@ plot_btl <- function(fit, band = 2.5) {
   total_chisq <- sum(pairs$chisq[used])
   total_df <- sum(used) - np
   if (total_df < 1L) { total_chisq <- NA_real_; total_df <- NA_integer_ }
+  if (!is.null(jd))
+    notes <- c(notes, paste(
+      "the pairwise chi-square probability is withheld because its row-based",
+      "reference does not model within-judge dependence; the statistic remains",
+      "descriptive, and fit_bootstrap() provides calibration under the fitted",
+      "response model"))
   osi <- if (!cluster_inference)
     list(PSI = NA_real_, separation = NA_real_, strata = NA_real_,
          var_theta = NA_real_, mean_error_var = NA_real_, n = 0L)
@@ -1527,7 +1595,12 @@ plot_btl <- function(fit, band = 2.5) {
   if (!cluster_inference) {
     if (!is.null(components)) components$se[] <- NA_real_
     cov_beta[,] <- NA_real_
-    if (length(anch_idx)) cov_beta[anch_idx, anch_idx] <- 0
+    if (length(anch_idx)) {
+      # Fixed anchors have zero covariance with themselves and every free
+      # estimate. Only the unsupported free-by-free block is unavailable.
+      cov_beta[anch_idx, ] <- 0
+      cov_beta[, anch_idx] <- 0
+    }
   }
   observed_comparisons <- data.frame(
     object_a = a0, object_b = b0, response = x0, weight = w0,
@@ -1541,17 +1614,22 @@ plot_btl <- function(fit, band = 2.5) {
               pairs = pairs,
               judges = judges, m = m, categories = cats,
               total_chisq = total_chisq, total_df = total_df,
-              total_p = if (isTRUE(converged) && is.finite(total_df))
+              total_p = if (isTRUE(converged) && isTRUE(cluster_inference) &&
+                             is.null(jd) && is.finite(total_df))
                 pchisq(total_chisq, total_df, lower.tail = FALSE) else NA_real_,
               osi = osi, loglik = loglik, iterations = it,
               converged = converged, n_comparisons = n_rows,
               clustered = !is.null(jd), cov_beta = cov_beta, cl = cl_info,
-              location_design = Bmat, location_offset = beta0,
-              object_design = if (is.null(object_design)) NULL else Bmat,
+              location_design = Bmat_original, location_offset = beta0,
+              object_design = if (is.null(object_design)) NULL else Bmat_original,
               object_offset = if (is.null(object_design)) NULL else beta0,
               object_coefficients = object_coefficients,
-              sensitivity = H,
-              cov_parameters = if (isTRUE(converged)) covth else {
+              sensitivity = H * outer(c(object_scale, rep(1, q + pz)),
+                                      c(object_scale, rep(1, q + pz))),
+              cov_parameters = if (isTRUE(converged) &&
+                                    isTRUE(cluster_inference))
+                covth / outer(c(object_scale, rep(1, q + pz)),
+                              c(object_scale, rep(1, q + pz))) else {
                 z <- covth; z[,] <- NA_real_; z
               },
               fitted_prob = mo$P,
@@ -1599,9 +1677,13 @@ plot_btl <- function(fit, band = 2.5) {
 #' \code{beta_a - beta_b}, with the symmetric threshold structure marked.
 #' The display is the paired-comparison counterpart of the category
 #' probability curves of a polytomous item.
+#' A fitted position effect is included for object a presented first. For a
+#' history-dependent fit, the horizontal axis is the full linear predictor,
+#' including position and history terms, rather than the object difference alone.
 #'
 #' @param fit A polytomous fit from \code{\link{btl}} (with \code{response}).
-#' @param grid Difference grid, in logits.
+#' @param grid Difference grid, in logits; the full linear-predictor grid for
+#'   history-dependent fits.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
 #' @examples
 #' set.seed(1)
@@ -1619,11 +1701,15 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
   if (is.null(fit$m) || fit$m < 2L)
     stop("category curves need a polytomous fit (three or more categories)")
   tau <- fit$thresholds$tau
-  P <- vapply(grid, function(d) item_moments(d, tau)$P, numeric(fit$m + 1L))
+  history <- .btl_information_history(fit)
+  position <- if (history) 0 else .btl_information_position(fit)
+  P <- vapply(grid, function(d) item_moments(d + position, tau)$P,
+              numeric(fit$m + 1L))
   op <- .rr_canvas(range(grid), c(0, 1),
-                   "Location difference (logits)", "Category probability")
+                   if (history) "Full linear predictor (logits)" else
+                     "Location difference (logits)", "Category probability")
   on.exit(par(op))
-  abline(v = tau, lty = 3, col = .rr$soft)
+  abline(v = tau - position, lty = 3, col = .rr$soft)
   labs <- if (!is.null(fit$categories)) fit$categories else
     as.character(0:fit$m)
   for (cat in 0:fit$m)
@@ -1640,6 +1726,9 @@ plot_btl_categories <- function(fit, grid = seq(-4, 4, 0.05)) {
 #' the observed mean response against each sufficiently observed opponent.
 #' For dichotomous fits the curve is the win probability; for ordered fits it
 #' is the expected response.
+#' With fitted position or history effects, model values are weighted means
+#' of the fitted expectations for each observed opponent, joined in location
+#' order. Judge-group overlays use each group's own comparison context.
 #'
 #' @param fit An object from \code{\link{btl}}.
 #' @param object Object name.
@@ -1697,6 +1786,8 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
   }
   Ecurve <- vapply(grid, function(t) item_moments(b_o - t, tau)$E, 0)
   cm <- fit$comparisons
+  conditional_curve <- is.data.frame(fit$dependence) && nrow(fit$dependence) > 0L
+  expected_row <- if (conditional_curve) .btl_fitted_score_moments(fit)$E else NULL
   gv <- NULL
   if (!is.null(group)) {
     gv <- if (!is.null(names(group))) {
@@ -1721,28 +1812,41 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
         stop("`group` must have one entry per comparison or be named by judge")
       .role_text_values(group)
     }
+    gv[!is.na(gv) & !nzchar(gv)] <- NA_character_
+    if (!any(!is.na(gv)))
+      stop("`group` has no observed judge-group values in the fitted comparisons")
   }
   sel_a <- cm$object_a == object
   sel_b <- cm$object_b == object
   opp <- c(cm$object_b[sel_a], cm$object_a[sel_b])
   resp <- c(cm$response[sel_a], m - cm$response[sel_b])
+  expected <- if (conditional_curve)
+    c(expected_row[sel_a], m - expected_row[sel_b]) else NULL
   wt <- c(cm$weight[sel_a], cm$weight[sel_b])
   gg <- if (is.null(gv)) NULL else c(gv[sel_a], gv[sel_b])
   keep <- opp %in% ob$object
   if (!is.null(gg)) keep <- keep & !is.na(gg)
   opp <- opp[keep]; resp <- resp[keep]; wt <- wt[keep]
-  if (!is.null(gg)) gg <- gg[keep]
+  if (conditional_curve) expected <- expected[keep]
+  if (!is.null(gg)) {
+    gg <- gg[keep]
+    if (!length(gg))
+      stop("`group` has no observed judge-group values for object '", object,
+           "' against a calibrated opponent")
+  }
   obs <- data.frame(
     opponent = tapply(opp, opp, `[`, 1),
     loc = ob$location[match(names(tapply(wt, opp, sum)), ob$object)],
     mean = as.numeric(tapply(wt * resp, opp, sum) / tapply(wt, opp, sum)),
     n = as.numeric(tapply(wt, opp, sum)))
+  if (conditional_curve)
+    obs$model <- as.numeric(tapply(wt * expected, opp, sum) / tapply(wt, opp, sum))
   op <- .rr_canvas(range(grid), c(0, m), "Opponent location (logits)",
                    if (m == 1L) "Probability preferred" else
                      "Expected polytomous response",
                    sprintf("%s  (location %.3f)", object, b_o))
   on.exit(par(op))
-  lines(grid, Ecurve, lwd = 3, col = .rr$ink)
+  if (!conditional_curve) lines(grid, Ecurve, lwd = 3, col = .rr$ink)
   abline(v = b_o, lty = 3, col = .rr$soft)
   if (is.null(gg)) {
     # a comparator is shown only when the object met it enough times for the
@@ -1750,6 +1854,11 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
     # unbalanced designs) are omitted rather than plotted as noise
     shown <- obs[obs$n >= min_n, , drop = FALSE]
     n_omit <- nrow(obs) - nrow(shown)
+    if (conditional_curve && nrow(shown)) {
+      oo <- order(shown$loc)
+      lines(shown$loc[oo], shown$model[oo], lwd = 3, col = .rr$ink)
+      points(shown$loc, shown$model, pch = 3, col = .rr$ink)
+    }
     if (nrow(shown)) {
       points(shown$loc, shown$mean, pch = 21, bg = .rr$blue,
              col = "white", cex = 1.5, lwd = 1.2)
@@ -1778,15 +1887,29 @@ plot_btl_icc <- function(fit, object, group = NULL, grid = NULL,
       ol <- ob$location[match(names(om), ob$object)]
       colr <- .rr$pal[(li - 1L) %% length(.rr$pal) + 1L]
       oo <- order(ol)
+      if (conditional_curve) {
+        em <- tapply(wt[sel] * expected[sel], opp[sel], sum) / nn
+        em <- em[names(om)]
+        lines(ol[oo], em[oo], col = colr, lwd = 2.2)
+        points(ol, em, pch = 3, col = colr)
+      }
       lines(ol[oo], om[oo], col = colr, lwd = 1.4, lty = 3)
       points(ol, om, pch = 21, bg = colr, col = "white", cex = 1.4,
              lwd = 1.1)
     }
-    .rr_legend("topright", c("Model", levs), lwd = c(3, rep(1.4, length(levs))),
+    if (conditional_curve) {
+      .rr_legend("topright", levs, lwd = rep(2.2, length(levs)),
+                 col = .rr$pal[(seq_along(levs) - 1L) %% length(.rr$pal) + 1L])
+      .rr_legend("bottomleft", c("Model", "Observed"),
+                 lwd = c(2.2, 1.4), lty = c(1, 3), pch = c(3, 21),
+                 col = c(.rr$ink, .rr$ink), pt.bg = c(NA, .rr$blue))
+    } else .rr_legend("topright", c("Model", levs), lwd = c(3, rep(1.4, length(levs))),
                lty = c(1, rep(3, length(levs))),
                pch = c(NA, rep(21, length(levs))),
-               pt.bg = c(NA, .rr$pal[seq_along(levs)]),
-               col = c(.rr$ink, .rr$pal[seq_along(levs)]), pt.cex = 1.2)
+               pt.bg = c(NA, .rr$pal[(seq_along(levs) - 1L) %%
+                                     length(.rr$pal) + 1L]),
+               col = c(.rr$ink, .rr$pal[(seq_along(levs) - 1L) %%
+                                       length(.rr$pal) + 1L]), pt.cex = 1.2)
   }
   # the opponents actually drawn (ungrouped display), for inspection and tests
   invisible(if (is.null(gg)) obs[obs$n >= min_n, "opponent"] else NULL)
@@ -1896,15 +2019,13 @@ plot_btl_dependence <- function(fit, effect = c("exposure", "carry_over"),
   lab <- gsub("_", "-", effect)
   yl <- range(c(ob, fb, 0), na.rm = TRUE); yl <- yl + c(-1, 1) * 0.08 * (diff(yl) + 1e-6)
   xr <- range(xb); xl <- xr + c(-1, 1) * (0.12 * diff(xr) + 0.05)
-  use_adj <- "p_adj" %in% names(eff)
-  shown_p <- if (use_adj) eff$p_adj else eff$p
+  p_label <- if ("p_adj" %in% names(eff) && is.finite(eff$p_adj))
+    paste0("Holm p = ", .fmt_p(eff$p_adj)) else "Holm p unavailable"
   op <- .rr_canvas(xl, yl, sprintf("%s covariate", lab),
                    if (m == 1L) "Observed - expected win probability"
                    else "Observed - expected response",
-                   sprintf("%s dependence: %.3f logits (SE %.3f, %s = %s)",
-                           lab, eff$estimate, eff$se,
-                           if (use_adj) "Holm p" else "p",
-                           .fmt_p(shown_p)),
+                   sprintf("%s dependence: %.3f logits (SE %.3f, %s)",
+                           lab, eff$estimate, eff$se, p_label),
                    grid_x = TRUE)
   on.exit(par(op))
   abline(h = 0, lty = 3, col = .rr$soft)
@@ -2075,8 +2196,9 @@ btl_dif <- function(fit, factors, objects = NULL,
   if (!isTRUE(fit$cl$inference_available))
     stop("the base fit does not support cluster-robust inference; btl_dif ",
          "requires at least 10 judges, at least 8 effective judges, and ",
-         "more effective judges than fitted parameters; spread comparisons ",
-         "across judges or simplify the fitted model")
+         "more effective judges than fitted parameters, with full empirical ",
+         "score-covariance rank; spread comparisons across judges or simplify ",
+         "the fitted model, and inspect fit$notes for the failed condition")
   # a single grouping is promoted to a one-factor list; several judge factors
   # are modelled jointly (main effects by default, interactions if asked)
   if (!is.list(factors)) factors <- list(group = factors)
@@ -2153,6 +2275,9 @@ btl_dif <- function(fit, factors, objects = NULL,
       toks[is.na(i) & toks == "band"] <- "(opponent band)"
     paste(toks, collapse = ":")
   }, character(1), USE.NAMES = FALSE)
+  planned_dif_terms <- setdiff(attr(stats::terms(stats::as.formula(
+    paste("z ~ (", paste(safe, collapse = op), ") * band"))),
+    "term.labels"), "band")
 
   m <- if (is.null(fit$m)) 1L else fit$m
   cats <- if (!is.null(fit$categories)) fit$categories else c("0", "1")
@@ -2367,6 +2492,28 @@ btl_dif <- function(fit, factors, objects = NULL,
       caution_count))
   if (!length(term_rows)) stop("no object yielded an estimable DIF ANOVA")
   terms <- do.call(rbind, term_rows); rownames(terms) <- NULL
+  # Fix the object-by-term family before item-specific support and opponent
+  # banding are inspected. Sparse or aliased questions remain as explicit NA
+  # rows, rather than disappearing and reducing the Holm denominator for all
+  # other objects.
+  wanted <- expand.grid(
+    object = its, term = planned_dif_terms,
+    KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+  wanted_key <- .factor_keys(wanted)
+  observed_key <- .factor_keys(terms[c("object", "term")])
+  missing_family <- !wanted_key %in% observed_key
+  n_unavailable_terms <- sum(missing_family)
+  if (n_unavailable_terms) {
+    absent <- wanted[missing_family, , drop = FALSE]
+    absent$df <- absent$sum_sq <- absent$df_denom <- absent$F_value <-
+      absent$p <- absent$min_judges <- absent$min_effective_judges <-
+      absent$resid_ss <- NA_real_
+    absent$inference_available <- FALSE
+    terms <- rbind(terms, absent[names(terms)])
+    notes <- c(notes, sprintf(
+      "%d requested object-term test(s) were not estimable and remain in the adjusted-probability family",
+      n_unavailable_terms))
+  }
   terms$eta2_partial <- terms$sum_sq / (terms$sum_sq + terms$resid_ss)
   terms$resid_ss <- NULL
   # Uniform and non-uniform flags feed one reported DIF decision, so the
@@ -2456,6 +2603,17 @@ btl_dif <- function(fit, factors, objects = NULL,
     ob <- summary_tab$object[r]; tt <- summary_tab$term[r]; ttd <- relab(tt)
     jf <- match(tvars(tt), safe)
     target <- fnames[jf]
+    # Fix every follow-up question opened by this significant term before
+    # inspecting the object-specific cell counts. If no cell survives min_n,
+    # all questions are unavailable but still belong to the family that also
+    # adjusts the other resolved terms.
+    planned_n <- prod(vapply(target, function(fn)
+      choose(nlevels(full_factors[[fn]]), 2L), numeric(1)))
+    new_family_n <- size_family_n + planned_n
+    if (!is.finite(new_family_n) || new_family_n > .Machine$integer.max)
+      stop("the planned paired-comparison DIF follow-up family is too large to adjust",
+           call. = FALSE)
+    size_family_n <- as.integer(new_family_n)
     cell <- as.character(full_cell)
     inv <- ok & (cm$object_a == ob | cm$object_b == ob)
     # cell sizes in comparisons (count-weighted), not rows
@@ -2463,8 +2621,10 @@ btl_dif <- function(fit, factors, objects = NULL,
     use_lev <- names(lev_n)[lev_n >= min_n]
     if (length(use_lev) < 2) {
       notes <- c(notes, sprintf(
-        "%s [%s]: fewer than two cells with %d+ comparisons; not resolved",
-        ob, ttd, min_n))
+        paste0("%s [%s]: fewer than two cells with %d+ comparisons; not ",
+               "resolved, and its %d unavailable follow-up question(s) ",
+               "remain in the multiplicity family"),
+        ob, ttd, min_n, planned_n))
       next
     }
     if (length(use_lev) < length(lev_n))
@@ -2484,7 +2644,20 @@ btl_dif <- function(fit, factors, objects = NULL,
                                 conditionMessage(fam)))
       next
     }
-    size_family_n <- size_family_n + length(fam$family)
+    if (!identical(as.integer(fam$planned_n), as.integer(planned_n)))
+      stop("internal paired-comparison DIF family size changed during resolution",
+           call. = FALSE)
+    if (!length(fam$family)) {
+      notes <- c(notes, sprintf(
+        "%s [%s]: no complete nuisance-factor cells support a post-hoc contrast; the unavailable questions remain in the multiplicity family",
+        ob, ttd))
+      next
+    }
+    unavailable <- setdiff(fam$planned, names(fam$family))
+    if (length(unavailable))
+      notes <- c(notes, sprintf(
+        "%s [%s]: post-hoc contrast(s) without a complete nuisance-factor stratum were not estimated but remain in the multiplicity family: %s",
+        ob, ttd, paste(unavailable, collapse = ", ")))
     if (!is.null(fit$anchors) && ob %in% names(fit$anchors)) {
       notes <- c(notes, sprintf(
         "%s [%s]: the object is externally anchored and cannot be resolved; fixing every copy at the anchor would define its DIF as zero",

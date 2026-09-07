@@ -8,7 +8,8 @@ dif_bootstrap(fit, dif = NULL, B = 999, workers = 4L, seed = NULL)
 }
 \arguments{
 \item{fit}{A fitted Rasch, Multiple Ratings, Extended Frames,
-explanatory Rasch or ordinary Comparative Judgement model.}
+explanatory Rasch or ordinary Comparative Judgement model.
+Fully anchored scoring fits are not supported by this refitting procedure.}
 
 \item{dif}{A current \code{\link{dif_anova}} or \code{\link{btl_dif}}
 result from \code{fit}. For person-by-item models it may be omitted and
@@ -58,12 +59,12 @@ they do not supply fitted outcome probabilities for the required null.
 
 A replicate contributes only when its calibration converges and every
 member of the declared item- or object-by-DIF-term family is estimable.
-Marginal
-probabilities compare each observed F statistic with its replicated null.
+Marginal probabilities compare each observed term's F-reference probability
+with the corresponding replicated probabilities. This puts refits whose
+numerator or denominator degrees of freedom differ on the same tail scale.
 Familywise probabilities use the single-step distribution of the smallest
 term-wise F-reference probability in each replicate. The same transformation
-is applied to the observed and replicated statistics, while the corresponding
-marginal empirical probability provides a conservative floor. These
+is applied to the observed and replicated statistics. These
 adjustments describe the fitted global invariant null. They do not guarantee
 familywise error control among otherwise invariant items or objects when
 another member has DIF, because that departure can affect the fitted

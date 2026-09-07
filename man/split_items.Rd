@@ -25,8 +25,9 @@ A new \code{\link{rasch}} fit in which each split item appears as
 Replaces each nominated item with one item per estimable level of a person
 factor, each carrying that level's responses only (other levels missing).
 A level must contain every score from zero to the fitted item maximum;
-levels that cannot retain the fitted scoring structure are omitted and
-recorded in the notes. Every retained
+levels missing a score are omitted and recorded in the notes. The split
+is refused if calibration subsequently merges a category lacking conditional
+information within a retained group. Every retained
 group then receives its own item location, which resolves the invariance
 violation flagged by \code{\link{dif_anova}}; the distance between the
 split locations estimates the DIF size. The model is refitted with the

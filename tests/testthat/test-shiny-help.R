@@ -54,6 +54,10 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   app <- testthat::test_path("..", "..", "inst", "shiny", "app.R")
   if (!file.exists(app)) app <- system.file("shiny", "app.R", package = "rasch")
   src <- paste(readLines(app, warn = FALSE), collapse = "\n")
+  expect_match(src, "output.active_btlef != true && output.btl_history_model != true",
+               fixed = TRUE)
+  expect_match(src, "Pair recommendations require a specified judge and comparison history",
+               fixed = TRUE)
 
   expect_match(src, '"Multiple Ratings \\(MFRM\\)" = "mfrm"')
   expect_match(src, '"Extended Frames \\(EFRM\\)" = "efrm"')
@@ -79,6 +83,26 @@ test_that("the app retains the agreed model labels and frame safeguards", {
                fixed = TRUE)
   expect_match(src, 'if (!"se" %in% names(a)) a$se <- NA_real_',
                fixed = TRUE)
+  expect_match(src,
+               'anchors$item <- ifelse(is.na(anchors$item), NA_character_',
+               fixed = TRUE)
+  expect_match(src,
+               'bt_anchors$object <- ifelse(is.na(bt_anchors$object)',
+               fixed = TRUE)
+  expect_match(src, 'tmp <- tempfile("rasch-results-")', fixed = TRUE)
+  expect_match(src,
+               'on.exit(unlink(tmp, recursive = TRUE, force = TRUE), add = TRUE)',
+               fixed = TRUE)
+  expect_false(grepl('paste0("rasch_", as.integer(Sys.time()))', src,
+                     fixed = TRUE))
+  expect_match(src, "save_outputs(f, tmp", fixed = TRUE)
+  expect_match(src, "for which save_outputs() has no", fixed = TRUE)
+  expect_match(src, "tailored = tailored", fixed = TRUE)
+  expect_false(grepl("r$run_boot_reps, seed_arg", src, fixed = TRUE))
+  expect_false(grepl("r$run_seed) else", src, fixed = TRUE))
+  expect_match(src, 'attr(f, "report_person_weights") <- z', fixed = TRUE)
+  expect_match(src, 'is.null(r$anchor_items_requested)', fixed = TRUE)
+  expect_match(src, "externally weighted secondary", fixed = TRUE)
   expect_match(src, 'identical(r$shift_method, "unweighted")',
                fixed = TRUE)
   expect_match(src,
@@ -116,6 +140,10 @@ test_that("the app retains the agreed model labels and frame safeguards", {
   expect_match(src, '.classical_design_applicable <-', fixed = TRUE)
   expect_false(grepl('rasch:::.classical_design_applicable', src,
                      fixed = TRUE))
+  expect_match(src, 'equating_rasch_on <- rasch_on && .app_equating_fit(f)',
+               fixed = TRUE)
+  expect_match(src, 'show("p_equating", equating_rasch_on || btl_on)',
+               fixed = TRUE)
   expect_match(src, 'pkgload::load_all(dirname(source_dir), quiet = TRUE)',
                fixed = TRUE)
   expect_match(src, 'persons_with_boot <- function()', fixed = TRUE)
@@ -193,6 +221,17 @@ test_that("the app uses structurally stable responsive control layouts", {
   e <- new.env(parent = globalenv())
   suppressWarnings(sys.source(app, envir = e))
   doc <- xml2::read_html(htmltools::renderTags(e$ui)$html)
+  ids <- xml2::xml_attr(xml2::xml_find_all(doc, "//*[@id]"), "id")
+  expect_false(anyDuplicated(ids) > 0L,
+               info = paste("duplicate DOM ids:",
+                            paste(unique(ids[duplicated(ids)]),
+                                  collapse = ", ")))
+  expect_false(any(grepl("^bslib-card-[0-9]+$", ids)),
+               info = "a full-screen card still relies on bslib's random id")
+  expect_false(any(grepl("^bslib-accordion-panel-[0-9]+$", ids)),
+               info = "an accordion panel still relies on bslib's random id")
+  expect_false(any(grepl("^bslib-accordion-[0-9]+$", ids)),
+               info = "an accordion still relies on bslib's random id")
   bad <- xml2::xml_find_all(doc,
     "//*[contains(concat(' ',normalize-space(@class),' '),' bslib-sidebar-layout ')]")
   expect_length(bad, 0L)
@@ -272,7 +311,7 @@ test_that("bundled app examples are exactly reconstructible", {
   cj_data <- simulate_btl(
     n_objects = 8, n_judges = 48, reps_per_pair = 84,
     erratic_judges = 2 / 48,
-    dependence = list(exposure = 0.7, carry_over = 0), seed = 1)
+    dependence = list(exposure = 0.7, carry_over = 0), seed = 2)
   cj_number <- as.integer(sub("^J", "", cj_data$judge))
   cj_data$panel <- factor(ifelse(cj_number %% 2L,
                                  "panel A", "panel B"))
@@ -305,6 +344,10 @@ test_that("tailored bootstrap controls are validated and reproducible", {
                perl = TRUE)
   expect_match(txt, "seed_raw != floor\\(seed_raw\\)", perl = TRUE)
   expect_match(txt, "boot_reps = boot_reps, seed = boot_seed", fixed = TRUE)
-  expect_match(txt, 'paste0\\(", seed = ", r\\$run_seed\\)', perl = TRUE)
+  expect_match(txt, 'paste0\\(", seed = ", r\\$seed\\)', perl = TRUE)
   expect_false(grepl("as.integer(input$guess_boot_reps", txt, fixed = TRUE))
+  expect_match(txt, "else 999L", fixed = TRUE)
+  expect_match(txt, "Too few usable draws to detect significance after Holm adjustment",
+               fixed = TRUE)
+  expect_match(txt, "showNotification(conditionMessage(w)", fixed = TRUE)
 })

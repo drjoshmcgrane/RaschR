@@ -22,6 +22,12 @@ sim_mc_partial <- function(N = 800, L = 6, seed = 4) {
 }
 
 test_that("double keying credits every listed option", {
+  expect_error(
+    .resolve_key(c(M1 = "A/a")),
+    "each credited option must be named once"
+  )
+  expect_error(.resolve_key(c(M1 = "A/")), "empty credited option")
+  expect_error(.resolve_key(c(M1 = "A//C")), "empty credited option")
   set.seed(9); N <- 400
   th <- rnorm(N)
   raw <- sapply(seq(-1, 1, length.out = 5), function(d) {
@@ -45,11 +51,40 @@ test_that("double keying credits every listed option", {
                       !rp$extreme)
   expect_equal(sum(da$n[da$item == "M1"]), expected_n)
 
+  # Full-credit options are one scored category. The miskey reference is
+  # therefore their pooled takers, not the highest of their separate means.
+  ok <- !is.na(fit$mc$raw[, "M1"]) & is.finite(rp$theta) & !rp$extreme
+  pooled <- mean(rp$theta[ok & fit$mc$raw[, "M1"] %in% c("A", "C")])
+  expected_flag <- with(da[da$item == "M1", ],
+    !keyed & n >= 10L & mean_location > pooled)
+  expect_identical(da$flag[da$item == "M1"], expected_flag)
+
   failed <- fit
   failed$est$converged <- FALSE
   expect_error(distractor_analysis(failed), "did not converge")
   expect_error(distractor_rescore(failed), "did not converge")
   expect_error(plot_distractors(failed, "M1"), "did not converge")
+})
+
+test_that("multiple-choice scoring honours declared and negative missing codes", {
+  set.seed(96)
+  raw <- matrix(sample(c("A", "B"), 900, replace = TRUE), 300, 3,
+                dimnames = list(NULL, paste0("M", 1:3)))
+  raw[c(1, 4), 1] <- c("9", "09")
+  raw[2, 2] <- "-2"
+  fit <- rasch(raw, key = setNames(rep("A", 3), colnames(raw)),
+               na_codes = 9)
+
+  expect_true(all(is.na(fit$mc$raw[cbind(c(1, 4, 2), c(1, 1, 2))])))
+  expect_true(all(is.na(fit$X[cbind(c(1, 4, 2), c(1, 1, 2))])))
+  expect_false(any(fit$mc$raw == "9", na.rm = TRUE))
+
+  expect_error(rasch(raw, key = setNames(rep("A", 3), colnames(raw)),
+                     na_codes = matrix(9)), "plain numeric or character")
+  expect_error(rasch(raw, key = setNames(rep("A", 3), colnames(raw)),
+                     na_codes = 9.5), "integer score values")
+  expect_error(rasch(raw, key = setNames(rep("A", 3), colnames(raw)),
+                     na_codes = NA_character_), "without missing values")
 })
 
 test_that("polytomous option scoring fits credited distractors as categories", {
@@ -103,6 +138,38 @@ test_that("distractor_rescore proposes credit for the informative distractor", {
   expect_equal(one$option_scores$score[
     one$option_scores$item == "M2" & one$option_scores$option == "A"], 1L)
   expect_no_error(rasch(s$raw, key = one$option_scores))
+})
+
+test_that("rescoring uses all other non-keyed options as the baseline", {
+  set.seed(190)
+  n <- 300L
+  ability <- seq(-2.5, 2.5, length.out = n)
+  raw <- matrix("B", n, 6L,
+                dimnames = list(NULL, paste0("M", seq_len(6L))))
+  ord <- order(ability, decreasing = TRUE)
+  raw[ord[seq_len(90L)], "M1"] <- "A"
+  raw[ord[91:170], "M1"] <- "B"
+  raw[ord[171:235], "M1"] <- "C"
+  raw[ord[236:300], "M1"] <- "D"
+  difficulty <- seq(-1, 1, length.out = 5L)
+  for (j in 2:6)
+    raw[, j] <- ifelse(runif(n) < plogis(ability - difficulty[j - 1L]),
+                         "A", "B")
+  fit <- rasch(raw, key = setNames(rep("A", 6L), colnames(raw)))
+  proposal <- distractor_rescore(fit, items = "M1", min_n = 75L, z = 1)
+  expect_gt(proposal$option_scores$score[
+    proposal$option_scores$item == "M1" &
+      proposal$option_scores$option == "B"], 0L)
+})
+
+test_that("distractor summaries refuse dependent repeated rows", {
+  s <- sim_mc_partial(N = 250)
+  raw <- rbind(s$raw, s$raw)
+  fit <- rasch(raw, id = rep(seq_len(nrow(s$raw)), 2L),
+               key = setNames(rep("A", ncol(raw)), colnames(raw)))
+  expect_error(distractor_analysis(fit), "one response row per person")
+  expect_error(plot_distractors(fit, "M1"), "one response row per person")
+  expect_error(distractor_rescore(fit), "one response row per person")
 })
 
 test_that("distractor rescoring refuses an unobserved full-credit option", {
@@ -191,4 +258,19 @@ test_that("a factor item selector is read by its label in distractor plots", {
   plot_distractors(fit, factor("M3"))
   expect_true(any(grepl("^C", labels)))
   expect_false(any(grepl("^B", labels)))
+})
+
+test_that("distractor legend colours cycle with more options than the palette", {
+  s <- sim_mc_partial(N = 400)
+  fit <- rasch(s$raw, key = setNames(rep("A", 6), colnames(s$raw)))
+  fit$mc$raw[, "M3"] <- rep(LETTERS[1:10], length.out = nrow(fit$mc$raw))
+  legend_cols <- NULL
+  testthat::local_mocked_bindings(
+    .rr_legend = function(pos, ...) legend_cols <<- list(...)$col,
+    .package = "rasch")
+  grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
+  plot_distractors(fit, "M3")
+  expect_length(legend_cols, 10L)
+  expect_false(anyNA(legend_cols))
+  expect_identical(legend_cols[9L], legend_cols[1L])
 })

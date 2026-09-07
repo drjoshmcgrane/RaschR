@@ -100,17 +100,111 @@ test_that("BTL covariance inference and CL-ICs are withheld with few judges", {
   expect_true(is.na(f$osi$PSI))
   cmp <- compare_fits(a = f, b = f)
   expect_true(all(is.na(cmp$cl_aic)) && all(is.na(cmp$cl_bic)))
-  expect_match(attr(cmp, "note"), "too few independent clusters")
+  expect_match(attr(cmp, "note"), "without sufficient sampling-unit support")
 })
 
-test_that("mixtures are refused; MFRM fits get NA ICs with the reason noted", {
+test_that("generic likelihood comparison is withheld for two-stage BTL-EFRM", {
+  d <- simulate_btl_efrm(
+    n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+    n_judges_per_panel = 12, reps_within = 5, reps_cross = 5,
+    set_units = c(1, 1.3), seed = 321)
+  frames <- btl_efrm(
+    d, "object_a", "object_b", "winner", "judge", "panel",
+    attr(d, "truth")$object_sets, se_method = "conditional")
+  single <- btl(d, "object_a", "object_b", "winner", judge = "judge")
+
+  from_single <- compare_fits(single = single, frames = frames)
+  expect_true(from_single$same_data[2L])
+  expect_true(is.na(from_single$cl_aic[2L]))
+  expect_true(is.na(from_single$cl_bic[2L]))
+  expect_true(is.na(from_single$two_delta_ll[2L]))
+  expect_match(attr(from_single, "note"), "two-stage estimator")
+  expect_match(attr(from_single, "note"), "equal_unit", fixed = TRUE)
+
+  from_frames <- compare_fits(frames = frames, single = single)
+  expect_true(from_frames$same_data[2L])
+  expect_true(is.na(from_frames$two_delta_ll[2L]))
+  expect_true(is.finite(frames$equal_unit$two_delta_ll))
+
+  # Older frame fits need not carry the newer direct parameter count. Exact
+  # `cl` extraction must return NULL, not partially match their `clustered`
+  # flag and attempt `$n_parameters` on a logical value.
+  old_frames <- frames
+  old_frames$n_parameters <- NULL
+  old_cmp <- compare_fits(frames = old_frames, copy = old_frames)
+  expect_true(all(is.na(old_cmp$parameters)))
+})
+
+test_that("generic Rasch EFRM differences do not compare unmatched pair sets", {
+  d <- simulate_efrm(n_per_group = 250, items_per_set = 4, n_sets = 2,
+                     n_groups = 1, seed = 603)
+  frames <- rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
+                       groups = "group", id = "id", boot_reps = 0)
+  single <- rasch(frames$X, id = frames$person$id)
+  expect_true(frames$est$converged)
+  expect_true(single$est$converged)
+  pairs <- .pair_counts(frames$X, frames$m)
+  expect_length(pairs, 28L)
+  expect_length(.efrm_filter_pairs(pairs, frames$virtual_map), 12L)
+  # Response identity alone must not authorise a difference of these sums.
+  for (ref in c("single", "frames")) {
+    cmp <- compare_fits(single = single, frames = frames, reference = ref)
+    expect_true(all(cmp$same_data))
+    expect_true(all(is.na(cmp$two_delta_ll)))
+    expect_true(all(is.na(cmp$delta_parameters)))
+    expect_true(is.na(cmp$cl_aic[2L]))
+    expect_true(is.na(cmp$cl_bic[2L]))
+    expect_match(attr(cmp, "note"), "within-set")
+    expect_match(attr(cmp, "note"), "fit$efrm_vs_rasch", fixed = TRUE)
+  }
+  expect_true(is.finite(frames$efrm_vs_rasch$two_delta_ll))
+  # Even two frame fits use the dedicated stage-specific comparison route.
+  expect_true(all(is.na(compare_fits(frames, frames)$two_delta_ll)))
+})
+
+test_that("BTL comparisons require matching declared score support", {
+  set.seed(601)
+  pp <- t(combn(LETTERS[1:5], 2))
+  d <- data.frame(a = rep(pp[, 1], each = 60),
+                  b = rep(pp[, 2], each = 60))
+  x <- sample(0:2, nrow(d), TRUE)
+  d$r <- ordered(x, levels = 0:2)
+  three <- btl(d, "a", "b", response = "r")
+  d$r <- ordered(x, levels = 0:3)
+  four <- btl(d, "a", "b", response = "r")
+  expect_true(three$converged)
+  expect_true(four$converged)
+  expect_equal(c(three$m, four$m), c(2L, 3L))
+  expect_equal(three$comparisons$response, four$comparisons$response)
+  for (ref in c("three", "four")) {
+    cmp <- compare_fits(three = three, four = four, reference = ref)
+    other <- cmp$label != ref
+    expect_false(cmp$same_data[other])
+    expect_true(is.na(cmp$cl_aic[other]))
+    expect_true(is.na(cmp$cl_bic[other]))
+    expect_true(all(is.na(cmp$two_delta_ll)))
+    expect_true(all(is.na(cmp$delta_parameters)))
+  }
+  # Labels are presentation; threshold restrictions are model parameters.
+  # Neither should prevent comparison when the declared support is unchanged.
+  d$r <- ordered(x, levels = 0:3, labels = letters[1:4])
+  pc <- btl(d, "a", "b", response = "r", thresholds = "pc")
+  cmp <- compare_fits(free = four, pc = pc)
+  expect_true(pc$converged)
+  expect_true(all(cmp$same_data))
+  expect_true(all(is.finite(cmp$cl_aic)))
+  expect_true(all(is.finite(cmp$cl_bic)))
+  expect_true(is.finite(cmp$two_delta_ll[2L]))
+})
+
+test_that("mixtures are refused; MFRM structural fits get Godambe ICs", {
   X <- gen_pcm(150, seq(-1, 1, length.out = 5),
                matrix(rep(c(-0.5, 0.5), each = 5), 5, 2), 9)
   f <- rasch(X)
   d <- sim_btl_pos(0, 11)
   b <- btl(d, "object_a", "object_b", "winner")
   expect_error(compare_fits(f, b), "not a mixture")
-  # MFRM: no Godambe matrices on the assembled est -> NA ICs, note says why
+  # MFRM now preserves the structural calibration's Godambe ingredients.
   long <- data.frame(person = rep(sprintf("P%03d", 1:120), each = 4),
                      rater = rep(c("R1", "R2"), 240),
                      item = rep(rep(c("A", "B"), each = 2), 120))
@@ -119,8 +213,23 @@ test_that("mixtures are refused; MFRM fits get NA ICs with the reason noted", {
   mf <- rasch_mfrm(long, person = "person", item = "item", score = "score",
                    facets = "rater")
   cmp <- compare_fits(a = mf, b = mf)
-  expect_true(all(is.na(cmp$cl_aic)))
-  expect_match(attr(cmp, "note"), "MFRM/EFRM")
+  expect_true(all(cmp$same_data))
+  expect_true(all(is.finite(cmp$eff_params)))
+  expect_true(all(is.finite(cmp$cl_aic)))
+  expect_true(all(is.finite(cmp$cl_bic)))
+
+  # The same response cells under two structural MFRM designs remain directly
+  # comparable; adding an item-by-rater interaction changes the design rather
+  # than the observed data or independent-person allocation.
+  dm <- simulate_mfrm(n_persons = 120, n_items = 4, n_raters = 3, seed = 241)
+  additive <- rasch_mfrm(dm, "person", "item", "score", facets = "rater")
+  interacted <- rasch_mfrm(dm, "person", "item", "score", facets = "rater",
+                           interaction = "rater")
+  structures <- compare_fits(additive = additive, interaction = interacted)
+  expect_true(all(structures$same_data))
+  expect_true(all(is.finite(structures$eff_params)))
+  expect_true(all(is.finite(structures$cl_aic)))
+  expect_true(all(is.finite(structures$cl_bic)))
 })
 
 test_that("compare_fits withholds ICs for an unconverged fit", {

@@ -93,6 +93,60 @@ test_that("frame invariance withholds Wald probabilities at zero uncertainty", {
   expect_equal(z$p[3], 2 * pnorm(-3))
 })
 
+test_that("frame bootstrap comparisons keep the observed centring family", {
+  observed <- data.frame(
+    set = "S", frame_1 = "A", frame_2 = "B", item = c("I1", "I2"),
+    difference = c(.2, -.2), disc_ratio = c(1.1, .9))
+  key <- .factor_keys(observed[c("set", "frame_1", "frame_2", "item")])
+  expect_equal(
+    .frame_invariance_boot_vector(observed[2:1, ], key, "difference"),
+    observed$difference)
+  expect_equal(
+    .frame_invariance_boot_vector(observed[2:1, ], key, "disc_ratio", log),
+    log(observed$disc_ratio))
+  expect_null(.frame_invariance_boot_vector(
+    observed[1, ], key, "difference"))
+  expect_null(.frame_invariance_boot_vector(
+    rbind(observed, transform(observed[1, ], item = "I3")),
+    key, "difference"))
+  expect_null(.frame_invariance_boot_vector(
+    rbind(observed[1, ], observed[1, ]), key, "difference"))
+})
+
+test_that("a sparse polytomous bootstrap cannot enlarge the frame family", {
+  d <- simulate_efrm(n_per_group = 80, items_per_set = 6, n_sets = 1,
+                     n_groups = 2, n_categories = 3, seed = 2026)
+  truth <- attr(d, "truth")
+  fit <- rasch_efrm(d, item_sets = truth$item_sets, groups = "group",
+                    id = "id", boot_reps = 0)
+  observed <- .frame_invariance_conditional(fit)
+  recovered <- observed
+  recovered$locations <- rbind(
+    recovered$locations,
+    transform(recovered$locations[1L, ], item = "sparse recovered item"))
+  recovered$discrimination <- rbind(
+    recovered$discrimination,
+    transform(recovered$discrimination[1L, ],
+              item = "sparse recovered item"))
+  calls <- 0L
+  conditional <- function(...) {
+    calls <<- calls + 1L
+    if (calls == 2L) recovered else observed
+  }
+  result <- testthat::with_mocked_bindings(
+    frame_invariance(
+      fit, se_method = "bootstrap", boot_reps = 40, seed = 11),
+    .frame_invariance_conditional = conditional,
+    .efrm_refit = function(...) fit,
+    .package = "rasch")
+  expect_identical(result$boot_reps_used, 39L)
+  expect_identical(result$boot_reps_nonconverged, 0L)
+  expect_identical(result$boot_reps_errors, 1L)
+  expect_identical(result$algorithm,
+                   "frame-invariance-complete-family-1")
+  expect_no_error(.validate_frame_invariance(result, fit))
+})
+
 test_that("frame-invariance bootstrap refits the units and controls one family", {
   skip_on_cran()
   d <- simulate_efrm(n_per_group = 160, items_per_set = 6, n_sets = 1,

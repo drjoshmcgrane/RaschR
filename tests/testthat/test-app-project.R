@@ -48,12 +48,37 @@ test_that("app formula and code symbols preserve exact source names", {
   expect_identical(e$.app_selected_row(c(2L, 3L), 4L), 1L)
   expect_error(e$.app_selected_row(1L, 0L), "positive whole row count")
 
+  current_wald <- e$.app_wald_reference(list(t = 2.25, df = 17, z = 99))
+  expect_identical(current_wald$statistic, "t")
+  expect_identical(current_wald$label, "t(17)")
+  expect_equal(current_wald$value, 2.25)
+  expect_identical(e$.app_wald_columns(
+    data.frame(t = 2.25, df = 17, z = 99)), c("t", "df"))
+  legacy_wald <- e$.app_wald_reference(list(z = -1.75))
+  expect_identical(legacy_wald$statistic, "z")
+  expect_identical(legacy_wald$label, "z")
+  expect_equal(legacy_wald$value, -1.75)
+  expect_identical(legacy_wald$df, Inf)
+  expect_identical(e$.app_wald_columns(data.frame(z = -1.75)), "z")
+
   expect_true(e$.app_equating_fit(ordinary))
   mfrm <- ordinary
   class(mfrm) <- c("rasch_mfrm", class(mfrm))
   expect_false(e$.app_equating_fit(mfrm))
   btl <- structure(list(), class = "rasch_btl")
   expect_false(e$.app_equating_fit(btl))
+  explanatory <- ordinary
+  class(explanatory) <- c("rasch_explanatory", class(explanatory))
+  expect_false(e$.app_equating_fit(explanatory))
+
+  position_only <- structure(list(
+    dependence_data = data.frame(position = rep(1, 3))),
+    class = "rasch_btl")
+  ordered <- structure(list(
+    dependence_data = data.frame(exposure = c(0, 1), carry_over = c(0, .5))),
+    class = "rasch_btl")
+  expect_false(e$.app_has_btl_history(position_only))
+  expect_true(e$.app_has_btl_history(ordered))
 })
 
 test_that("sourcing the in-tree app reuses the active source namespace", {
@@ -109,6 +134,27 @@ test_that("saved app analyses make a validated round trip", {
   expect_identical(restored$kept_fit_code, project$kept_fit_code)
   expect_identical(restored$settings, project$settings)
   expect_identical(restored$resources, project$resources)
+
+  weights <- stats::setNames(c(2, 1, 1, 0.5, 0.5), colnames(fit$X))
+  weighted <- list(
+    table = weighted_person_estimates(fit, weights), weights = weights,
+    by = "item", sets = NULL, filename = "weights.csv",
+    fit_signature = .fit_boot_signature(fit))
+  weighted$result_signature <- .fit_boot_md5(weighted)
+  with_weights <- project
+  with_weights$results$person_weights <- weighted
+  with_weights <- .seal_app_project(with_weights)
+  expect_no_error(.validate_app_project(with_weights))
+
+  stale_weights <- with_weights
+  stale_weights$results$person_weights$table$theta[1L] <-
+    stale_weights$results$person_weights$table$theta[1L] + 0.1
+  stale_weights$results$person_weights$result_signature <- NULL
+  stale_weights$results$person_weights$result_signature <- .fit_boot_md5(
+    stale_weights$results$person_weights)
+  stale_weights <- .seal_app_project(stale_weights)
+  expect_error(.validate_app_project(stale_weights),
+               "table does not reproduce")
 
   # Comparison fits are active analysis objects after reopening and therefore
   # receive the same structural validation as the base and history fits.
@@ -217,11 +263,15 @@ test_that("schema-2 projects omit superseded frame-invariance inference", {
   X <- matrix(rbinom(600, 1, .5), 120, 5,
               dimnames = list(NULL, paste0("I", 1:5)))
   fit <- rasch(X)
-  # The earlier result shape predates the complete accounting fields. The
-  # project seal is valid, so the reader should migrate the derived result
-  # rather than reject the whole analysis file.
+  # This result has complete accounting and resampling provenance but predates
+  # the exact-comparison-family algorithm identifier. The project seal is
+  # valid, so the reader should migrate the derived result rather than reject
+  # the whole analysis file.
   old_invariance <- structure(list(
     boot_reps = 100L, boot_reps_used = 85L,
+    boot_reps_nonconverged = 10L, boot_reps_errors = 5L,
+    boot_minimum_usable = 51L, family_n = 1L,
+    bootstrap_stratified = TRUE,
     fit_signature = .fit_boot_signature(fit),
     result_signature = "legacy-result"),
     class = c("rasch_frame_invariance", "list"))
@@ -388,10 +438,13 @@ test_that("opening a project retains results tied to its active fit", {
                     factor_cols = character(0), item_cols = colnames(X),
                     thr_structure = "pcm", ng_auto = FALSE, ng = "6",
                     maxit = 75, tol = 1e-7,
+                    eq_source = "csv", eq_shift = "mean",
+                    eq_csv_independent = TRUE,
                     exp_type_1 = "ordinal", exp_order_1 = "low,high",
                     exp_type_2 = "categorical", exp_ref_2 = "B"),
     resources = list(
       anchors = NULL, key = NULL,
+      eq_reference = fit$items[, c("item", "location", "se", "max")],
       predictors = data.frame(item = colnames(X),
         stage = rep(c("low", "high"), length.out = ncol(X)),
         family = rep(c("A", "B"), length.out = ncol(X)))),
@@ -414,6 +467,8 @@ test_that("opening a project retains results tied to its active fit", {
     expect_match(src, "dat <- project[$]data")
     expect_identical(restored_project_settings(), project$settings)
     expect_identical(restored_project_resources(), project$resources)
+    expect_identical(eq_ref(), project$resources$eq_reference)
+    expect_s3_class(eq_res(), "rasch_equate")
     p <- exp_predictors_raw()
     expect_identical(exp_predictor_type(p, "stage"), "ordinal")
     expect_identical(exp_level_order(p, "stage"), c("low", "high"))
@@ -484,10 +539,12 @@ test_that("CJ results and background work remain tied to their launching fit", {
     # results, even when the replacement is another CJ calibration.
     bdif_res(list(marker = 12L))
     btlef_res(list(marker = 11L))
+    person_weight_state(list(marker = 10L))
     complete_fit(bt2, "bt <- btl(dat)", character(0), "dat <- replacement")
     session$flushReact()
     expect_null(bdif_res())
     expect_null(btlef_res())
+    expect_null(person_weight_state())
 
     # The fit observer must not erase results serialised with a reopened fit.
     session$setInputs(project_file = list(
@@ -626,6 +683,9 @@ test_that("the app calculates and restores external person weights", {
     z <- person_weight_state()
     expect_equal(nrow(z$table), nrow(current$X))
     expect_identical(z$by, "item")
+    expect_true(.fit_boot_signature_matches(z$fit_signature, current))
+    unsigned <- z; unsigned$result_signature <- NULL
+    expect_true(.fit_boot_hash_matches(z$result_signature, unsigned))
     expect_match(person_weight_code(), "weighted_person_estimates")
   })
 })
@@ -665,6 +725,22 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
                      "~ exposure + type + exposure:type")
     expect_true(any(grepl("fixed explanatory departure",
                           attr(regenerated, "truth")$planted)))
+    expect_identical(attr(regenerated, "truth")$departure_types,
+                     "a fixed explanatory item departure")
+    expect_true(attr(regenerated, "truth")$explanatory_departure$target %in%
+                  attr(regenerated, "predictors")$item)
+
+    # Item-specific slope departures need at least one reference item. If all
+    # items carry the same non-unit slope, that is only a change of logit unit
+    # and must not be presented as planted item misfit.
+    previous_generation <- sim_gen()
+    previous_code <- sim_code_val()
+    session$setInputs(sr_over = 5, sr_under = 1, sr_items = 6,
+                      sim_go = 2.5)
+    session$flushReact()
+    expect_identical(sim_gen(), previous_generation)
+    expect_identical(sim_code_val(), previous_code)
+    session$setInputs(sr_over = 0, sr_under = 0)
 
     bundle <- tempfile(fileext = ".zip")
     unpacked <- tempfile("rasch-simulation-test-")
@@ -682,12 +758,38 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
                      "rasch")
     expect_equal(nrow(read.csv(file.path(unpacked, "predictors.csv"))), 6L)
 
+    # Erratic raters are generated from R1 upwards. The app must place a
+    # simultaneous item-by-rater bias on a rater whose model-based responses
+    # have not been replaced by random ratings.
+    session$setInputs(
+      sim_layout = "mfrm", sim_seed = 18,
+      sm_persons = 30, sm_items = 4, sm_raters = 6, sm_cats = 4,
+      sm_thsd = 1.2, sm_itemsd = 1, sm_sev = 0.6,
+      sm_erratic = 0.4, sm_halo = 0, sm_int = TRUE, sim_go = 3)
+    session$flushReact()
+    regenerated_mfrm <- eval(parse(text = sim_code_val()))
+    expect_identical(attr(regenerated_mfrm, "truth")$erratic,
+                     c("R1", "R2"))
+    expect_match(sim_code_val(), 'rater = "R3"', fixed = TRUE)
+    expect_true(any(grepl("R3 on I2", attr(regenerated_mfrm, "truth")$planted,
+                          fixed = TRUE)))
+
+    # Fail closed if a future control range permits every rater to be made
+    # erratic. There is then no model-based rater on which an interaction can
+    # be planted, and the successful simulation already loaded must survive.
+    previous_generation <- sim_gen()
+    previous_code <- sim_code_val()
+    session$setInputs(sm_erratic = 1, sm_int = TRUE, sim_go = 4)
+    session$flushReact()
+    expect_identical(sim_gen(), previous_generation)
+    expect_identical(sim_code_val(), previous_code)
+
     session$setInputs(
       sim_layout = "btl_efrm", sim_seed = 18,
       sbf_objects = 4, sbf_sets = 2, sbf_judges = 4, sbf_panels = 2,
       sbf_within = 5, sbf_cross = 5, sbf_objsd = 1,
       sbf_setratio = 1.3, sbf_panelratio = 1.2, sbf_origin = 0.5,
-      sbf_erratic = 0.25, sim_go = 3)
+      sbf_erratic = 0.25, sim_go = 5)
     session$flushReact()
     regenerated <- eval(parse(text = sim_code_val()))
     tr <- attr(regenerated, "truth")
@@ -696,13 +798,27 @@ test_that("the app simulator preserves explanatory metadata and frame calls", {
 
     # Recovery must use the active frame-adjusted comparison fit, not the
     # equal-unit base fit. A truth-valued stand-in isolates that app routing
-    # from the estimator, which is covered by test-simulate.R.
+    # from the estimator, which is covered by test-simulate.R. Retain the
+    # exact comparison and panel allocation so sim_recovery() can enforce its
+    # fitted-data identity check rather than treating this as an unverified
+    # reporting object.
+    comparisons <- data.frame(
+      object_a = regenerated$object_a,
+      object_b = regenerated$object_b,
+      response = as.numeric(regenerated$winner == regenerated$object_a),
+      weight = 1,
+      judge = regenerated$judge,
+      panel = regenerated$panel,
+      stringsAsFactors = FALSE)
     framed <- structure(list(
       converged = TRUE,
+      m = 1L,
+      comparisons = comparisons,
       objects = data.frame(object = names(tr$v), v = unname(tr$v)),
       phi_table = data.frame(panel = names(tr$phi), phi = unname(tr$phi)),
       alpha_table = data.frame(set = names(tr$alpha), alpha = unname(tr$alpha)),
-      kappa_table = data.frame(set = names(tr$kappa), kappa = unname(tr$kappa))),
+      kappa_table = data.frame(set = names(tr$kappa), kappa = unname(tr$kappa)),
+      set_of = stats::setNames(paste0("set", tr$set_of), names(tr$set_of))),
       class = c("rasch_btl_efrm", "rasch_btl"))
     btl_fit(framed)
     fitted_sim_gen(sim_gen())
@@ -874,4 +990,209 @@ test_that("app BTL DIF refuses a factor that varies within judge", {
     maps <- bdif_factor_maps()
     expect_identical(unname(maps$group["J01"]), "G1")
   })
+})
+
+test_that("app captions escape item names and table decisions use strict cuts", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  set.seed(903)
+  X <- matrix(rbinom(600, 1, .5), 120, 5,
+              dimnames = list(NULL, c("<em>Injected</em>",
+                                      paste0("I", 2:5))))
+  f <- rasch(X)
+
+  shiny::testServer(e$server, {
+    fit_val(f)
+    session$flushReact()
+    html <- paste(as.character(output$chisq_caption), collapse = "")
+    expect_false(grepl("<em>Injected</em>", html, fixed = TRUE))
+    expect_match(html, "&lt;em&gt;Injected&lt;/em&gt;", fixed = TRUE)
+    expect_match(as.character(colour_if("x<0.05")), "x<0.05", fixed = TRUE)
+    expect_match(as.character(weight_if("x<0.05")), "x<0.05", fixed = TRUE)
+    expect_match(as.character(colour_if("x<0.05")), "value===null",
+                 fixed = TRUE)
+    expect_match(as.character(colour_if("Math.abs(x)>=0.5")),
+                 "Math.abs(x)>=0.5", fixed = TRUE)
+  })
+})
+
+test_that("uploaded equating and Wright-map code reproduces input normalisation", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  bank_path <- tempfile(fileext = ".csv")
+  map_path <- tempfile(fileext = ".csv")
+  on.exit(unlink(c(bank_path, map_path)), add = TRUE)
+  write.csv(data.frame(object = c(" O1 ", "O2"), location = c(-.2, .2),
+                       se = c(.1, .1), m = c("2", "2")), bank_path,
+            row.names = FALSE)
+  write.csv(data.frame(item = c(" I1 ", "I2"), panel = c(" A ", "B")),
+            map_path, row.names = FALSE)
+  f <- rasch(matrix(rbinom(400, 1, .5), 100, 4,
+                    dimnames = list(NULL, paste0("I", 1:4))))
+
+  shiny::testServer(e$server, {
+    fit_val(f)
+    session$setInputs(
+      bt_eq_file = list(datapath = bank_path, name = bank_path,
+                        size = file.info(bank_path)$size, type = "text/csv"),
+      wright_renderer = "wrightmap", wright_type = "thresholds",
+      wright_person_panels = "", wright_item_panels = "uploaded",
+      wright_item_map = list(datapath = map_path, name = map_path,
+                             size = file.info(map_path)$size, type = "text/csv"),
+      wright_person_style = "histogram", tg_bins = 35,
+      tg_axis_mode = "standard")
+    session$flushReact()
+
+    parsed_bank <- bt_eq_bank()
+    expect_identical(parsed_bank$object, c("O1", "O2"))
+    expect_identical(attr(parsed_bank, "m"), 2L)
+    code_env <- new.env(parent = globalenv())
+    eval(parse(text = bt_eq_reference_code()), envir = code_env)
+    expect_identical(code_env$bank$object, parsed_bank$object)
+    expect_identical(attr(code_env$bank, "m"), 2L)
+    expect_match(bt_eq_reference_code(), "[.]Machine[$]integer[.]max")
+
+    parsed_map <- wright_item_arg()
+    expect_identical(parsed_map, c(I1 = "A", I2 = "B"))
+    code_env$fit <- f
+    code_env$wright_map <- function(..., item_panels) item_panels
+    generated_map <- eval(parse(text = wright_code()), envir = code_env)
+    expect_identical(generated_map, parsed_map)
+  })
+})
+
+test_that("changed dimensionality controls invalidate a restored t-test", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  set.seed(904)
+  X <- matrix(rbinom(720, 1, .5), 120, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  f <- rasch(X)
+  saved <- dimensionality_test(
+    f, items_positive = colnames(X)[1:3],
+    items_negative = colnames(X)[4:6], min_score_points = 2)
+
+  shiny::testServer(e$server, {
+    fit_val(f)
+    session$flushReact()
+    restored_subtest(saved)
+    expect_identical(dim_res()$result_signature, saved$result_signature)
+    session$setInputs(pca_component = 2)
+    session$flushReact()
+    expect_null(restored_subtest())
+    expect_error(dim_res(), "press Run t-test")
+  })
+})
+
+test_that("opening a project retains its dimensionality specification", {
+  skip_on_cran()
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("DT")
+  skip_if_not_installed("bsicons")
+
+  e <- new.env(parent = globalenv())
+  suppressWarnings(sys.source(.app_test_path(), envir = e))
+  set.seed(9041)
+  X <- matrix(rbinom(840, 1, .5), 140, 6,
+              dimnames = list(NULL, paste0("I", 1:6)))
+  f <- rasch(X)
+  saved <- dimensionality_test(f, component = 2, min_score_points = 2)
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = f,
+    rasch_steps = list(), btl_steps = list(), kept_fits = list(),
+    kept_fit_code = list(), simulation = list(),
+    settings = list(model_type = "rasch", pca_component = "2",
+                    dim_boot_B = 0, dim_workers = "1", dim_boot_seed = 1),
+    resources = list(), results = list(subtest = saved)))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+  .save_app_project(project, path)
+
+  shiny::testServer(e$server, {
+    session$setInputs(project_file = list(
+      datapath = path, name = "dimensionality.rasch",
+      size = file.info(path)$size, type = "application/octet-stream"))
+    session$flushReact()
+    session$flushReact()
+    expect_false(is.null(restored_subtest()))
+    expect_identical(dim_res()$result_signature, saved$result_signature)
+  })
+})
+
+test_that("saved analyses retain uploaded equating and item-panel resources", {
+  set.seed(905)
+  X <- matrix(rbinom(600, 1, .5), 120, 5,
+              dimnames = list(NULL, paste0("I", 1:5)))
+  f <- rasch(X)
+  reference <- f$items[, c("item", "location", "se", "max")]
+  panels <- data.frame(item = c("I1", "I2"), panel = c("A", "B"))
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(X), model_type = "rasch", base_fit = f,
+    rasch_steps = list(), btl_steps = list(), kept_fits = list(),
+    kept_fit_code = list(), simulation = list(), results = list(),
+    settings = list(eq_source = "csv", eq_shift = "mean",
+                    eq_csv_independent = TRUE,
+                    wright_item_panels = "uploaded"),
+    resources = list(eq_reference = reference, wright_item_map = panels)))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+  expect_no_error(.save_app_project(project, path))
+  restored <- .read_app_project(path)
+  expect_identical(restored$resources$eq_reference, reference)
+  expect_identical(restored$resources$wright_item_map, panels)
+
+  bad <- project
+  bad$resources$wright_item_map$item[2] <- " I1 "
+  bad <- .seal_app_project(bad)
+  expect_error(.validate_app_project(bad), "invalid Wright-map item panel map")
+})
+
+test_that("saved CJ analyses retain a polytomous equating bank", {
+  d <- simulate_btl(4, 8, 3, model = "polytomous", n_categories = 3,
+                    seed = 906)
+  fit <- btl(d, "object_a", "object_b", response = "response",
+             judge = "judge")
+  bank <- fit$objects[, c("object", "location", "se")]
+  attr(bank, "m") <- fit$m
+  project <- .seal_app_project(list(
+    format = "rasch-shiny-project", schema = 2L,
+    data = as.data.frame(d), model_type = "btl", base_fit = fit,
+    rasch_steps = list(), btl_steps = list(), kept_fits = list(),
+    kept_fit_code = list(), simulation = list(), results = list(),
+    settings = list(bt_eq_independent = TRUE),
+    resources = list(bt_eq_bank = bank)))
+  path <- tempfile(fileext = ".rasch")
+  on.exit(unlink(path), add = TRUE)
+
+  expect_no_error(.save_app_project(project, path))
+  restored <- .read_app_project(path)
+  expect_identical(restored$resources$bt_eq_bank, bank)
+  expect_identical(attr(restored$resources$bt_eq_bank, "m"), fit$m)
+
+  wrong_scale <- project
+  attr(wrong_scale$resources$bt_eq_bank, "m") <- fit$m + 1L
+  wrong_scale <- .seal_app_project(wrong_scale)
+  expect_error(.validate_app_project(wrong_scale),
+               "response-scale metadata do not match")
 })

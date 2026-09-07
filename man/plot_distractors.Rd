@@ -4,14 +4,16 @@
 \alias{plot_distractors}
 \title{Plot multiple-choice option curves}
 \usage{
-plot_distractors(fit, item, n_groups = fit$n_groups)
+plot_distractors(fit, item, n_groups = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}} run with a \code{key}.}
 
 \item{item}{Keyed item name.}
 
-\item{n_groups}{Number of class intervals.}
+\item{n_groups}{Number of class intervals. By default, use the fit's
+count, with at least two requested intervals. Tied locations may
+produce fewer intervals.}
 }
 \value{
 Called for its plotting side effect; invisibly \code{NULL}.
@@ -19,9 +21,9 @@ Called for its plotting side effect; invisibly \code{NULL}.
 \description{
 The proportion choosing each response option across class intervals of the
 rest measure (the person estimate from the other items), with the keyed
-option drawn solid and bold. The keyed option should rise with the trait
-and every distractor should fall; a rising distractor is the graphical
-signature of a miskey or an ambiguous option.
+option drawn solid and bold. The curves are descriptive. Under ordered
+option scoring, higher-scored options should tend to occur at higher rest
+measures; an intermediate-credit option may peak in the middle.
 }
 \examples{
 set.seed(1); Np <- 400

@@ -24,6 +24,23 @@ test_that("EFRM group support follows the informative stage-one pairs", {
   expect_identical(z2$n_persons, 1L)
 })
 
+test_that("EFRM set support follows the strongest path to the graph root", {
+  sets <- c("A", "B", "C", "D")
+  chain <- data.frame(
+    set_a = c("A", "B", "A", "C"),
+    set_b = c("B", "C", "C", "D"),
+    n = c(80, 40, 10, 70))
+  z <- rasch:::.efrm_set_path_support(sets, chain, chain$n)
+  # C and D cannot borrow the strong terminal edge across the B--C bottleneck;
+  # the weak direct A--C edge is redundant and does not reduce that path.
+  expect_equal(unname(z), c(Inf, 80, 40, 40))
+
+  stronger <- chain
+  stronger$n[stronger$set_a == "A" & stronger$set_b == "C"] <- 60
+  z2 <- rasch:::.efrm_set_path_support(sets, stronger, stronger$n)
+  expect_equal(unname(z2), c(Inf, 80, 60, 60))
+})
+
 test_that("EFRM unit tests do not discard indefinite covariance directions", {
   bad <- rasch:::.efrm_wald_zero(
     c(0.2, -0.2), diag(c(1, -0.5)), "unit")
@@ -111,6 +128,13 @@ test_that("EFRM recovers item-set units from common persons (polytomous)", {
   est <- setNames(fit$item_arbitrary$location, fit$item_arbitrary$item)
   expect_gt(cor(est[names(loc_true)], loc_true), 0.97)
   expect_gt(cor(fit$person$theta, th, use = "complete.obs"), 0.9)
+  expect_true(all(is.na(fit$thresholds_arbitrary$se)))
+  expect_true(all(is.na(fit$item_arbitrary$se)))
+  expect_true(all(is.na(fit$unit_cov$cov_delta)))
+  expect_identical(fit$unit_cov$method, "stage-one-only")
+  expect_false(fit$unit_support$alpha_inference)
+  expect_match(paste(fit$notes, collapse = " "),
+               "set-link uncertainty was omitted")
 })
 
 test_that("EFRM recovers the full unit grid (two sets x two groups)", {
@@ -164,6 +188,14 @@ test_that("EFRM withholds unit tests for a sparsely represented group", {
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_omnibus$p_adj)))
   expect_true(all(is.na(fit$efrm_vs_rasch$unit_tests$p)))
   expect_true(all(is.finite(fit$phi_table$phi)))
+  interval_drawn <- FALSE
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  testthat::with_mocked_bindings(
+    plot_frames(fit),
+    segments = function(...) interval_drawn <<- TRUE,
+    .package = "rasch")
+  expect_false(interval_drawn)
 })
 
 test_that("NPML set links at an optimiser boundary are refused", {
@@ -184,7 +216,7 @@ test_that("NPML set links at an optimiser boundary are refused", {
   expect_null(z)
 })
 
-test_that("persons extreme in both sets do not trip the grid-truncation check", {
+test_that("same-tail extremes do not inflate EFRM link support", {
   set.seed(4)
   n <- 300L
   u <- rnorm(n)
@@ -199,8 +231,8 @@ test_that("persons extreme in both sets do not trip the grid-truncation check", 
     init_log_ratio = 0, init_offset = 0, min_link_persons = 5L)
   z0 <- link(Xm)
   expect_false(is.null(z0))
-  # A person at the maximum or minimum score in both sets has a likelihood
-  # that rises towards one end of the grid, so the masses explaining such
+  # A person at the same extreme tail in both sets has a likelihood that
+  # rises towards one end of the grid, so the masses explaining such
   # persons sit on the edge. Appending 120 of them puts about three per cent
   # of the fitted masses on the grid ends, which a check on the total edge
   # mass would refuse as truncation. Those persons stay in the likelihood
@@ -208,10 +240,73 @@ test_that("persons extreme in both sets do not trip the grid-truncation check", 
   Xe <- rbind(Xm, matrix(1L, 80L, 12L), matrix(0L, 40L, 12L))
   z1 <- link(Xe)
   expect_false(is.null(z1))
-  expect_identical(z1$n, n + 120L)
+  expect_identical(z1$n, z0$n)
   expect_lt(z1$edge_mass, 1e-3)
   expect_lt(abs(z1$log_ratio - z0$log_ratio), 0.02)
   expect_lt(abs(z1$offset - z0$offset), 0.02)
+})
+
+test_that("opposing set extremes remain informative to an EFRM link", {
+  score_a <- c(0, 2, 0, 2, 1)
+  score_b <- c(0, 2, 2, 0, 1)
+  same_tail <- rasch:::.efrm_same_tail_extreme(
+    score_a, rep(2, 5), score_b, rep(2, 5))
+
+  expect_identical(same_tail, c(TRUE, TRUE, FALSE, FALSE, FALSE))
+
+  # Classification is invariant to the fitted unit. In particular, a small
+  # discrimination must not make an interior score look like a minimum.
+  expect_identical(
+    rasch:::.efrm_same_tail_extreme(
+      c(5e-13, 0), c(1e-12, 1e-12), c(5e-13, 0), c(1e-12, 1e-12)),
+    c(FALSE, TRUE))
+
+  # The outer linking stage must not discard an otherwise supported
+  # likelihood edge merely because too few persons have finite WLE starts.
+  # The pair likelihood is responsible for deciding whether the raw response
+  # patterns provide the requested support.
+  n <- 30L
+  u <- matrix(NA_real_, n, 2L)
+  w <- g <- matrix(NA_real_, n, 2L)
+  pair_calls <- 0L
+  pair_link <- function(a, b, idx, init_ls, init_off) {
+    pair_calls <<- pair_calls + 1L
+    expect_equal(c(init_ls, init_off), c(0, 0))
+    list(log_ratio = 0, offset = 0, n = n, converged = TRUE,
+         edge_mass = 0, loglik = -10)
+  }
+  linked <- rasch:::.efrm_link_sets(
+    u, w, g, c("A", "B"), min_link_persons = n,
+    boot_reps = 0L, pair_link = pair_link)
+  expect_equal(pair_calls, 1L)
+  expect_equal(unname(linked$alpha), c(1, 1))
+})
+
+test_that("concordant extremes cannot satisfy EFRM link support", {
+  set.seed(41)
+  n <- 180L
+  u <- rnorm(n)
+  d <- seq(-1.5, 1.5, length.out = 6L)
+  Xa <- sapply(d, function(dd) rbinom(n, 1L, plogis(u - dd)))
+  Xb <- sapply(d, function(dd) rbinom(n, 1L, plogis(1.2 * u - dd)))
+  Xm <- cbind(Xa, Xb)
+  vmap <- data.frame(set = rep(c("a", "b"), each = 6L), group = "g")
+  link <- function(min_n) rasch:::.efrm_npml_pair(
+    Xm, vmap, tau_v = rep(0, 12L), disc_v = rep(1, 12L),
+    sets_u = c("a", "b"), a = 1L, b = 2L, idx = seq_len(n),
+    init_log_ratio = 0, init_offset = 0, min_link_persons = min_n,
+    grid_n = 31L)
+  z <- link(5L)
+  expect_false(is.null(z))
+
+  # Same-tail rows remain in the likelihood but cannot manufacture the
+  # minimum number of persons that identify the transformation.
+  Xe <- rbind(Xm, matrix(1L, 50L, 12L), matrix(0L, 50L, 12L))
+  expect_null(rasch:::.efrm_npml_pair(
+    Xe, vmap, tau_v = rep(0, 12L), disc_v = rep(1, 12L),
+    sets_u = c("a", "b"), a = 1L, b = 2L, idx = seq_len(nrow(Xe)),
+    init_log_ratio = 0, init_offset = 0,
+    min_link_persons = z$n + 1L, grid_n = 31L))
 })
 
 test_that("a single frame reduces to the ordinary rasch fit", {
@@ -250,6 +345,10 @@ test_that("EFRM fits the same cleaned frame labels that it validates", {
                     boot_reps = 0)
   expect_identical(as.character(fit$phi_table$group), "A")
   expect_identical(unique(as.character(fit$factors$g)), "A")
+  # With only one set there is no estimated set link to omit, so the
+  # supported stage-one threshold covariance remains available.
+  expect_true(any(is.finite(fit$thresholds_arbitrary$se)))
+  expect_identical(fit$unit_cov$method, "stage-one")
 
   set_map <- stats::setNames(rep(" core ", L), colnames(X))
   fit_map <- rasch_efrm(d, item_sets = set_map, groups = "g", boot_reps = 0)
@@ -526,6 +625,26 @@ test_that("EFRM standard error methods are coherent", {
   expect_identical(fb$full_boot_reps_attempted, 50L)
   expect_identical(fb$full_boot_reps_used, fb$boot_reps_used)
   expect_identical(fb$full_boot_reps_failed, fb$boot_reps_failed)
+  expect_identical(fb$unit_cov$method, "bootstrap")
+  expect_equal(sqrt(diag(fb$unit_cov$cov_log_phi)),
+               fb$phi_table$se_log_phi, tolerance = 1e-12)
+  expect_equal(sqrt(diag(fb$unit_cov$cov_log_alpha)),
+               fb$alpha_table$se_log_alpha, tolerance = 1e-12)
+  K <- nrow(fb$unit_cov$cov_dtilde)
+  G <- nrow(fb$unit_cov$cov_log_phi)
+  expect_equal(fb$unit_cov$cov_joint[seq_len(K), seq_len(K), drop = FALSE],
+               fb$unit_cov$cov_dtilde, tolerance = 1e-12)
+  expect_equal(
+    fb$unit_cov$cov_joint[K + seq_len(G), K + seq_len(G), drop = FALSE],
+    fb$unit_cov$cov_log_phi, tolerance = 1e-12)
+  fr <- fb$frames[1L, ]
+  ia <- match(fr$set, fb$alpha_table$set)
+  ig <- match(fr$group, fb$phi_table$group)
+  expect_equal(fr$se_log_rho^2,
+               fb$unit_cov$cov_log_alpha[ia, ia] +
+                 fb$unit_cov$cov_log_phi[ig, ig] +
+                 2 * fb$unit_cov$cov_log_alpha_phi[ia, ig],
+               tolerance = 1e-10)
   # the two methods agree on scale (well within a factor of two)
   ratio <- median(fit$thresholds_arbitrary$se / fb$thresholds_arbitrary$se)
   expect_gt(ratio, 0.5); expect_lt(ratio, 2)
@@ -685,6 +804,10 @@ test_that("rasch.efrm_link_draws is validated and blockdiag is simulation-only",
   expect_error(rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
                           groups = "group", boot_reps = 40),
                "whole number")
+  options(rasch.efrm_link_draws = 1)
+  expect_error(rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
+                          groups = "group", boot_reps = 40),
+               "between 30")
   options(rasch.efrm_link_draws = NULL, rasch.efrm_link_blockdiag = TRUE)
   fit_bd <- rasch_efrm(d, item_sets = attr(d, "truth")$item_sets,
                        groups = "group", boot_reps = 60)

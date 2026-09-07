@@ -271,6 +271,37 @@ test_that("plot_btl_units draws without error", {
   expect_error(plot_btl_units(failed), "did not converge")
 })
 
+test_that("plot_btl_units uses each unit's inferential reference", {
+  d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
+                         reps_within = 25, reps_cross = 25, seed = 404)
+  fit <- befit(d, "object_a", "object_b", winner = "winner", judge = "judge",
+               panels = "panel", object_sets = attr(d, "truth")$object_sets)
+  fit$phi_table$phi <- 1
+  fit$phi_table$se_log_phi <- 1
+  fit$phi_table$df <- c(4, Inf)
+  fit$alpha_table$alpha <- 1
+  fit$alpha_table$se_log_alpha <- 1
+  fit$alpha_table$df <- c(NA, 9)
+  widths <- NULL
+  testthat::local_mocked_bindings(
+    segments = function(x0, y0, x1, y1, ...)
+      widths <<- (x1 - x0) / 2,
+    .package = "rasch")
+  grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
+  plot_btl_units(fit)
+  expect_equal(sort(widths),
+               sort(stats::qt(0.975, c(4, Inf, 9))), tolerance = 1e-12)
+
+  # Saved objects from before the df field used the normal reference.
+  fit$phi_table$df <- NULL
+  fit$alpha_table$df <- NULL
+  widths <- NULL
+  plot_btl_units(fit)
+  expect_length(widths, nrow(fit$phi_table) + nrow(fit$alpha_table))
+  expect_equal(widths, rep(stats::qnorm(0.975), length(widths)),
+               tolerance = 1e-12)
+})
+
 test_that("frame estimates propagate through paired-comparison diagnostics", {
   d <- simulate_btl_efrm(n_objects_per_set = 6, n_sets = 2, n_panels = 2,
                          n_judges_per_panel = 10, reps_within = 30,
@@ -296,12 +327,19 @@ test_that("frame estimates propagate through paired-comparison diagnostics", {
   expect_equal(info$total, sum(cmp$information), tolerance = 1e-10)
   expect_equal(sum(info$objects$information), 2 * info$total,
                tolerance = 1e-10)
+  expect_true(is.finite(fit$total_chisq))
+  expect_true(is.finite(fit$total_df))
+  expect_true(is.na(fit$total_p))
+  expect_match(paste(fit$notes, collapse = " "),
+               "row-based probability is withheld")
   expect_no_error(judge_surprise(fit, fit$judges$judge[1]))
   expect_no_error(btl_dimensionality(fit, reps = 20))
   expect_error(btl_next_pairs(fit), "panel and object set")
 
   tab <- fit_summary_table(fit)
   expect_equal(tab$value[tab$statistic == "Object sets"], "2")
+  expect_identical(tab$value[tab$statistic == "Pairwise fit probability"],
+                   "unavailable (judge clustering)")
   pdf(NULL); on.exit(dev.off())
   expect_silent(plot_btl_icc(fit, fit$objects$object[1]))
   expect_silent(plot_btl_targeting(fit))
@@ -407,6 +445,94 @@ test_that("judge-bootstrap unit tests respect panel-specific judge support", {
   expect_true(all(is.finite(fit$phi_table$phi)))
   expect_false(any(grepl("set-unit and set-origin inference is withheld",
                          fit$notes, fixed = TRUE)))
+})
+
+test_that("set-unit df follow the support path to the reference set", {
+  skip_on_cran()
+  d <- simulate_btl_efrm(
+    n_objects_per_set = 4, n_sets = 3, n_judges_per_panel = 30,
+    n_panels = 1, reps_within = 40, reps_cross = 40, seed = 181
+  )
+  os <- attr(d, "truth")$object_sets
+  set_of <- setNames(rep(names(os), lengths(os)), unlist(os))
+  sa <- unname(set_of[d$object_a])
+  sb <- unname(set_of[d$object_b])
+  lo <- pmin(sa, sb)
+  hi <- pmax(sa, sb)
+  same <- sa == sb
+  keep <- same |
+    (lo == "set1" & hi == "set2" &
+       d$judge %in% sprintf("J%03d", 1:9)) |
+    (lo == "set2" & hi == "set3" &
+       d$judge %in% sprintf("J%03d", 1:20))
+
+  fit <- btl_efrm(
+    d[keep, ], "object_a", "object_b", "winner", "judge", "panel", os,
+    se_method = "judge_bootstrap", boot_reps = 30, workers = 1, seed = 20
+  )
+  edge <- fit$unit_support$edge
+  weak <- edge$effective_judges[
+    edge$set_a == "set1" & edge$set_b == "set2"
+  ]
+  support <- setNames(
+    fit$unit_support$set$effective_judges,
+    fit$unit_support$set$set
+  )
+  dfs <- setNames(fit$alpha_table$df, fit$alpha_table$set)
+
+  expect_equal(unname(support[c("set2", "set3")]), rep(weak, 2))
+  expect_equal(unname(dfs[c("set2", "set3")]), rep(floor(weak) - 1, 2))
+  # The sole panel unit is fixed at one and is not a hypothesis. It must not
+  # enlarge the Holm family for the four free set-unit/origin questions.
+  free_set <- fit$alpha_table$set != fit$reference_set
+  follow_p <- c(fit$alpha_table$p[free_set],
+                fit$kappa_table$p[free_set])
+  follow_adj <- c(fit$alpha_table$p_adj[free_set],
+                  fit$kappa_table$p_adj[free_set])
+  expect_true(all(is.finite(follow_p)))
+  expect_equal(follow_adj, p.adjust(follow_p, "holm"))
+  expect_true(is.na(fit$phi_table$p_adj))
+  set3_objects <- fit$objects$object[fit$objects$set == "set3"]
+  expect_equal(.btl_equate_cov_df(fit, set3_objects), floor(weak) - 1)
+})
+
+test_that("set pairs below min_link do not enter the linking fit", {
+  d <- simulate_btl_efrm(
+    n_objects_per_set = 3, n_sets = 3, n_judges_per_panel = 8,
+    n_panels = 2, reps_within = 20, reps_cross = 3, seed = 44
+  )
+  os <- attr(d, "truth")$object_sets
+  set_of <- setNames(rep(names(os), lengths(os)), unlist(os))
+  sa <- unname(set_of[d$object_a])
+  sb <- unname(set_of[d$object_b])
+  lo <- pmin(sa, sb)
+  hi <- pmax(sa, sb)
+  weak_edge <- lo == "set1" & hi == "set3"
+  keep <- !weak_edge
+  keep[which(weak_edge)[1L]] <- TRUE
+  sparse <- d[keep, ]
+
+  with_weak <- btl_efrm(
+    sparse, "object_a", "object_b", "winner", "judge", "panel", os,
+    min_link = 20, se_method = "conditional", boot_reps = 0
+  )
+  without_weak <- btl_efrm(
+    sparse[!(unname(set_of[sparse$object_a]) %in% c("set1", "set3") &
+               unname(set_of[sparse$object_b]) %in% c("set1", "set3") &
+               unname(set_of[sparse$object_a]) !=
+                 unname(set_of[sparse$object_b])), ],
+    "object_a", "object_b", "winner", "judge", "panel", os,
+    min_link = 20, se_method = "conditional", boot_reps = 0
+  )
+
+  expect_equal(with_weak$alpha_table$alpha, without_weak$alpha_table$alpha)
+  expect_equal(with_weak$kappa_table$kappa, without_weak$kappa_table$kappa)
+  expect_equal(with_weak$objects$location, without_weak$objects$location)
+  expect_false(with_weak$n_cross$used[
+    with_weak$n_cross$set_a == "set1" & with_weak$n_cross$set_b == "set3"
+  ])
+  expect_true(any(grepl("omitted from estimation", with_weak$notes,
+                        fixed = TRUE)))
 })
 
 test_that("bootstrap SEs are calibrated on the chain-linked design", {

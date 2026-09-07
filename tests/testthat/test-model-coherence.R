@@ -141,6 +141,15 @@ test_that("ETS decisions use adjusted probabilities throughout", {
   beyond_adj <- p.adjust(.ets_p_beyond(difference, se), method = "holm")
   expect_identical(.ets_category(difference, se, p_adj, 0.05, beyond_adj),
                    rep("A", 3))
+
+  # A cluster-based magnitude uses the same finite reference for the ETS
+  # interval-null test as for its ordinary Wald probability.
+  a_cut <- 1 / ETS_DELTA_PER_LOGIT
+  finite_ref <- .ets_p_beyond(0.8, 0.3, df = 9)
+  expect_equal(finite_ref,
+               stats::pt((-a_cut - 0.8) / 0.3, 9) +
+                 stats::pt((a_cut - 0.8) / 0.3, 9))
+  expect_gt(finite_ref, .ets_p_beyond(0.8, 0.3))
 })
 
 test_that("Rasch anchors name their required columns at the boundary", {

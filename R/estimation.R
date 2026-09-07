@@ -500,6 +500,21 @@ threshold_index <- function(m) {
   list(ll = ll, g = g, H = H)
 }
 
+# Convert response-row identifiers to cluster indices. Missing identifiers are
+# unknown people, not one shared cluster, so each receives its own index.
+.pcml_cluster_index <- function(cluster, N) {
+  if (!is.atomic(cluster) || !is.null(dim(cluster)) || length(cluster) != N)
+    stop("internal calibration clusters must give one plain identifier per response row",
+         call. = FALSE)
+  z <- .role_text_values(cluster)
+  missing <- is.na(z) | !nzchar(z)
+  known <- unique(z[!missing])
+  group <- match(z, known)
+  if (any(missing))
+    group[missing] <- length(known) + seq_len(sum(missing))
+  as.integer(group)
+}
+
 # Godambe sandwich covariance for the pairwise pseudo-likelihood. The naive
 # inverse information overstates precision because every response enters
 # L - 1 overlapping pairs; the sandwich H^-1 J H^-1 with J the empirical
@@ -509,6 +524,11 @@ threshold_index <- function(m) {
   cum <- lapply(seq_along(m), function(i) cumsum(tau[thr$item == i]))
   ids <- lapply(seq_along(m), function(i) thr$id[thr$item == i])
   S <- matrix(0, N, M)
+  # Count only conditional item-pair observations whose total admits at
+  # least two response allocations. This is design information, rather than
+  # the realised score magnitude: an informative cluster may legitimately
+  # have a score vector that cancels to zero at the fitted parameters.
+  pair_load <- integer(N)
   for (pc in pairs) {
     i <- pc$i; j <- pc$j; mi <- m[i]; mj <- m[j]
     Li <- c(0, cum[[i]]); Lj <- c(0, cum[[j]])
@@ -528,23 +548,184 @@ threshold_index <- function(m) {
     }
     both <- which(!is.na(X[, i]) & !is.na(X[, j]))
     if (!length(both)) next
+    total <- X[both, i] + X[both, j]
+    informative <- pmin(mi, total) > pmax(0, total - mj)
+    if (any(informative))
+      pair_load[both[informative]] <- pair_load[both[informative]] + 1L
     cell <- X[both, i] * (mj + 1L) + X[both, j] + 1L
     S[both, idx] <- S[both, idx] + V[cell, , drop = FALSE]
   }
-  if (!is.null(cluster)) {
-    if (!is.atomic(cluster) || !is.null(dim(cluster)) ||
-        length(cluster) != N)
-      stop("internal calibration clusters must give one plain identifier per response row",
-           call. = FALSE)
-    z <- .role_text_values(cluster)
-    missing <- is.na(z) | !nzchar(z)
-    known <- unique(z[!missing])
-    group <- match(z, known)
-    if (any(missing))
-      group[missing] <- length(known) + seq_len(sum(missing))
-    S <- rowsum(S, group = group, reorder = FALSE)
+  # Rows are the independent units unless an ID joins repeated rows from the
+  # same person. Build support for both cases: even without repeated IDs, a
+  # sandwich over fewer independent people than fitted directions is singular
+  # and cannot provide inferential covariance.
+  group_all <- if (is.null(cluster)) seq_len(N) else
+    .pcml_cluster_index(cluster, N)
+  contributes <- pair_load > 0L
+  group_raw <- group_all[contributes]
+  if (length(group_raw)) {
+    group <- match(group_raw, unique(group_raw))
+    cluster_load <- as.numeric(rowsum(pair_load[contributes], group,
+                                      reorder = FALSE))
+    S <- rowsum(S[contributes, , drop = FALSE], group = group,
+                reorder = FALSE)
+  } else {
+    cluster_load <- numeric(0)
+    S <- matrix(0, 0L, ncol(S))
   }
-  crossprod(S)
+  repeated <- anyDuplicated(group_raw) > 0L
+  # With repeated rows, the empirical meat is formed from a finite number of
+  # person clusters. Apply the same leading CR1 correction used for clustered
+  # comparative judgements. The t reference used by explanatory coefficient
+  # tests addresses the reference distribution; it does not replace this
+  # degrees-of-freedom correction to the covariance itself.
+  cr1 <- if (repeated && length(cluster_load) > 1L)
+    length(cluster_load) / (length(cluster_load) - 1L) else 1
+  cluster_support <- list(
+    repeated = repeated,
+    n = length(cluster_load),
+    effective = if (length(cluster_load))
+      sum(cluster_load)^2 / sum(cluster_load^2) else 0,
+    informative_rows = sum(contributes),
+    pair_contributions = sum(pair_load),
+    cr1 = cr1
+  )
+  out <- cr1 * crossprod(S)
+  attr(out, "cluster_support") <- cluster_support
+  out
+}
+
+# Linearised delete-one-cluster covariance for a restricted PCML fit.  The
+# ordinary cluster sandwich is first-order unbiased only as the number of
+# clusters grows.  In a small repeated-person explanatory analysis, clusters
+# with different numbers of response occasions can have appreciably different
+# leverage.  For cluster g, solve (A - A_g)d_g = s_g, where A_g and s_g are its
+# sensitivity and score contributions at the full-data estimate, then apply
+# the usual delete-one-cluster jackknife covariance to the d_g.  This is the
+# CR3/bias-reduced linearisation of an actual leave-one-person refit, without
+# fitting the model G additional times.
+.pcml_linearised_cluster_cov <- function(X, thr, m, tau, pairs, B, H_beta,
+                                         cluster) {
+  parameter_scale <- .design_column_scale(B)
+  scale_outer <- outer(parameter_scale, parameter_scale)
+  B <- sweep(B, 2L, parameter_scale, `/`)
+  H_beta <- H_beta / scale_outer
+  N <- nrow(X); P <- ncol(B)
+  group_all <- .pcml_cluster_index(cluster, N)
+  G_all <- max(group_all)
+  S <- matrix(0, N, P)
+  A_g <- array(0, c(G_all, P, P))
+  pair_load <- integer(N)
+  cum <- lapply(seq_along(m), function(i) cumsum(tau[thr$item == i]))
+  ids <- lapply(seq_along(m), function(i) thr$id[thr$item == i])
+
+  for (pc in pairs) {
+    i <- pc$i; j <- pc$j; mi <- m[i]; mj <- m[j]
+    Li <- c(0, cum[[i]]); Lj <- c(0, cum[[j]])
+    idx <- c(ids[[i]], ids[[j]])
+    B_pair <- B[idx, , drop = FALSE]
+    score_cell <- matrix(0, (mi + 1L) * (mj + 1L), P)
+    info_total <- vector("list", mi + mj + 1L)
+    for (r in seq_len(mi + mj - 1L)) {
+      ks <- max(0L, r - mj):min(mi, r)
+      if (length(ks) < 2L) next
+      lp <- -(Li[ks + 1L] + Lj[r - ks + 1L])
+      lp <- lp - max(lp); prob <- exp(lp) / sum(exp(lp))
+      U <- cbind(-outer(ks, seq_len(mi), ">="),
+                 -outer(r - ks, seq_len(mj), ">="))
+      storage.mode(U) <- "double"
+      Ub <- U %*% B_pair
+      mean_u <- drop(crossprod(Ub, prob))
+      centred <- sweep(Ub, 2L, mean_u)
+      score_cell[ks * (mj + 1L) + (r - ks) + 1L, ] <- centred
+      info_total[[r + 1L]] <- crossprod(centred, prob * centred)
+    }
+    both <- which(!is.na(X[, i]) & !is.na(X[, j]))
+    if (!length(both)) next
+    total <- X[both, i] + X[both, j]
+    informative <- pmin(mi, total) > pmax(0, total - mj)
+    if (any(informative)) {
+      rows <- both[informative]
+      pair_load[rows] <- pair_load[rows] + 1L
+      for (h in which(informative)) {
+        g <- group_all[both[h]]
+        A_g[g, , ] <- A_g[g, , ] + info_total[[total[h] + 1L]]
+      }
+    }
+    cell <- X[both, i] * (mj + 1L) + X[both, j] + 1L
+    S[both, ] <- S[both, , drop = FALSE] +
+      score_cell[cell, , drop = FALSE]
+  }
+
+  contributes <- pair_load > 0L
+  used <- unique(group_all[contributes])
+  G <- length(used)
+  if (G < 2L) return(NULL)
+  group <- match(group_all[contributes], used)
+  S_g <- rowsum(S[contributes, , drop = FALSE], group, reorder = FALSE)
+  A_g <- A_g[used, , , drop = FALSE]
+  A <- apply(A_g, c(2L, 3L), sum)
+  if (!is.matrix(A)) A <- matrix(A, P, P)
+  target <- -H_beta
+  scale <- max(1, max(abs(target)))
+  if (any(!is.finite(A)) || max(abs(A - target)) > 1e-7 * scale)
+    stop("internal cluster sensitivity decomposition did not reproduce the fitted information",
+         call. = FALSE)
+
+  delta <- matrix(NA_real_, G, P)
+  for (g in seq_len(G)) {
+    Ag <- matrix(A_g[g, , , drop = FALSE], P, P)
+    keep_A <- A - Ag
+    rc <- tryCatch(rcond(keep_A), error = function(e) 0)
+    if (!is.finite(rc) || rc <= 1e-12) return(NULL)
+    delta[g, ] <- tryCatch(solve(keep_A, S_g[g, ]),
+                            error = function(e) rep(NA_real_, P))
+  }
+  if (any(!is.finite(delta))) return(NULL)
+  delta <- sweep(delta, 2L, colMeans(delta))
+  (G - 1) / G * crossprod(delta) / scale_outer
+}
+
+# Decide whether an empirical composite-score meat can support every fitted
+# parameter direction. The same rules apply wherever the PCML score sandwich
+# is used: ordinary calibrations, explanatory restrictions and EFRM stage one.
+# The point estimate comes from the conditional likelihood and remains useful
+# when this guard withholds its empirical covariance.
+.pcml_covariance_support <- function(Jb, p, support) {
+  if (is.null(support))
+    return(list(inference = TRUE, note = NULL, rank_deficient = FALSE))
+  rank_j <- tryCatch(qr(Jb, tol = 1e-10)$rank,
+                     error = function(e) NA_integer_)
+  rank_deficient <- !is.finite(rank_j) || rank_j < p
+  inference <- is.numeric(support$n) && length(support$n) == 1L &&
+    is.finite(support$n) && is.numeric(support$effective) &&
+    length(support$effective) == 1L && is.finite(support$effective) &&
+    support$n >= 10L && support$effective >= 8 &&
+    support$effective > p && !rank_deficient
+  if (inference)
+    return(list(inference = TRUE, note = NULL,
+                rank_deficient = FALSE))
+
+  unit <- if (isTRUE(support$repeated))
+    "person clusters" else "independent person units"
+  reason <- if (!is.numeric(support$n) || length(support$n) != 1L ||
+      !is.finite(support$n) || support$n < 10L)
+    paste("fewer than 10", unit)
+  else if (rank_deficient)
+    paste("a rank-deficient", if (isTRUE(support$repeated))
+      "person-cluster" else "person-unit", "score covariance")
+  else if (!is.numeric(support$effective) ||
+      length(support$effective) != 1L || !is.finite(support$effective) ||
+      support$effective < 8)
+    paste("fewer than 8 effective", unit)
+  else
+    paste0("the effective count of ", unit,
+           " does not exceed the number of fitted parameters")
+  note <- sprintf(paste0(
+    "item-parameter uncertainty withheld: %d %s (%.1f effective) ",
+    "support %d fitted parameters, with %s; point estimates remain available"),
+    support$n, unit, support$effective, p, reason)
+  list(inference = FALSE, note = note, rank_deficient = rank_deficient)
 }
 
 # A PCM threshold next to a category that no informative response pattern
@@ -575,6 +756,17 @@ threshold_index <- function(m) {
   invisible(NULL)
 }
 
+# Bound design columns without squaring their entries to obtain the scale.
+.design_column_scale <- function(B) {
+  z <- apply(abs(B), 2L, max)
+  if (any(!is.finite(z))) stop("the design contains non-finite values")
+  z[z == 0] <- 1
+  if (any(!is.finite(z^2) | z^2 == 0))
+    stop("the predictor units are outside the representable covariance range; ",
+         "rescale the predictors", call. = FALSE)
+  z
+}
+
 # Newton-Raphson on tau = offset + B beta, where B removes the location
 # indeterminacy, imposes the rating scale or facet structure, or restricts
 # estimation to the unanchored thresholds (offset carrying the anchors).
@@ -582,7 +774,12 @@ threshold_index <- function(m) {
                         pairs = NULL, cluster = NULL) {
   if (is.null(pairs)) pairs <- .pair_counts(X, m)
   if (!length(pairs)) stop("no informative item pairs: check the data")
-  beta <- beta0
+  # Work in bounded design columns. Predictor units must not determine the
+  # Newton stopping rule, information rank or covariance support. Restore the
+  # caller's coefficient coordinates, including both covariance axes, below.
+  parameter_scale <- .design_column_scale(B)
+  B <- sweep(B, 2L, parameter_scale, `/`)
+  beta <- beta0 * parameter_scale
   glh <- .pcml_glh(drop(offset + B %*% beta), thr, pairs, m)
   it <- 0L
   for (it in seq_len(maxit)) {
@@ -599,7 +796,7 @@ threshold_index <- function(m) {
       lam <- lam / 2
     }
     if (!ok) break
-    done <- max(abs(lam * step)) < tol
+    done <- max(abs(B %*% (lam * step))) < tol
     beta <- cand; glh <- g2
     if (done) break
   }
@@ -622,24 +819,45 @@ threshold_index <- function(m) {
   # The projected score is an extensive quantity and therefore grows with
   # sample size. At large N it can remain just above a fixed absolute cutoff
   # after the parameter estimates and log likelihood have stopped changing.
-  # Accept either a small score or a small full Newton move on the parameter
-  # scale; the latter remains comparable across sample sizes. The information
+  # Accept either a small score in the bounded design or a small full Newton
+  # move on the threshold scale, independent of predictor units. The information
   # rank check above prevents a small move in an unidentified direction from
   # being mistaken for convergence. Cap that allowance so an extremely loose
   # user tolerance cannot certify a visibly unfinished fit.
   newton_move <- drop(Hinv %*% gb_final)
   move_tol <- min(20 * tol, 1e-6)
   converged <- max(abs(gb_final)) < 1e-4 ||
-    max(abs(newton_move)) < move_tol
+    max(abs(B %*% newton_move)) < move_tol
   J  <- .pcml_sandwich(X, thr, m, drop(offset + B %*% beta), pairs,
                        cluster = cluster)
   Jb <- crossprod(B, J %*% B)
   covb <- Hinv %*% Jb %*% Hinv
   covt <- B %*% covb %*% t(B)
-  list(tau = drop(offset + B %*% beta), beta = beta, cov_beta = covb,
-       cov_tau = covt, se_tau = sqrt(pmax(diag(covt), 0)), H_beta = Hb,
+  cluster_support <- attr(J, "cluster_support", exact = TRUE)
+  support_guard <- .pcml_covariance_support(Jb, ncol(B), cluster_support)
+  cluster_inference <- support_guard$inference
+  cluster_note <- support_guard$note
+  if (!cluster_inference) {
+      # A cluster sandwich with insufficient independent support can collapse
+      # to zero (one cluster) or be rank-deficient while still looking
+      # numerical. Keep exact fixed thresholds at zero and withhold every
+      # estimated covariance entry instead of presenting false precision.
+      fixed <- rowSums(abs(B)) == 0
+      covb[,] <- NA_real_
+      covt[,] <- NA_real_
+      if (any(fixed)) {
+        covt[fixed, ] <- 0
+        covt[, fixed] <- 0
+      }
+  }
+  scale_outer <- outer(parameter_scale, parameter_scale)
+  list(tau = drop(offset + B %*% beta), beta = beta / parameter_scale,
+       cov_beta = covb / scale_outer,
+       cov_tau = covt, se_tau = sqrt(pmax(diag(covt), 0)),
+       H_beta = Hb * scale_outer,
        loglik = glh$ll, iterations = it,
-       converged = converged)
+       converged = converged, cluster_inference = cluster_inference,
+       cluster_support = cluster_support, cluster_note = cluster_note)
 }
 
 .pcml_anchor_k <- function(k) {
@@ -739,6 +957,11 @@ threshold_index <- function(m) {
 #'   fewer than three responses. Standard errors for weak thresholds are
 #'   reported as \code{NA}. If estimation does not converge, the function
 #'   warns and all standard errors and covariance entries are \code{NA}.
+#'   Sandwich uncertainty is also withheld when fewer than 10 independent
+#'   persons, fewer than 8 effective persons, no more effective persons than
+#'   fitted parameters, or a rank-deficient person-score covariance cannot
+#'   support inference. Effective support is based on informative conditional
+#'   item-pair contributions; point estimates and exact anchors remain.
 #' @references
 #' Zwinderman, A. H. (1995). Pairwise parameter estimation in Rasch models.
 #' Applied Psychological Measurement, 19(4), 369--375.
@@ -898,7 +1121,10 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
                 loglik = sol$loglik, iterations = sol$iterations,
                 converged = sol$converged, m = m, anchors = anchors,
                 n_parameters = ncol(B), B = B, cov_beta = sol$cov_beta,
-                H_beta = sol$H_beta, notes = weak$notes))
+                H_beta = sol$H_beta,
+                notes = c(weak$notes, sol$cluster_note),
+                cluster_inference = sol$cluster_inference,
+                cluster_support = sol$cluster_support))
   }
 
   if (model == "RSM") {
@@ -969,7 +1195,9 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
        converged = sol$converged, m = m,
        anchors = if (average) anchors else NULL,
        n_parameters = ncol(B), B = B, cov_beta = sol$cov_beta,
-       H_beta = sol$H_beta, notes = weak$notes)
+       H_beta = sol$H_beta, notes = c(weak$notes, sol$cluster_note),
+       cluster_inference = sol$cluster_inference,
+       cluster_support = sol$cluster_support)
 }
 
 # ---------------------------------------------------------------------------
@@ -1057,7 +1285,8 @@ pcml <- function(X, model = c("PCM", "RSM"), anchors = NULL,
 #'   pairwise conditional log-likelihood, the iteration count, a convergence
 #'   flag, and the max-score vector \code{m}. If estimation does not converge,
 #'   the function warns and all standard errors and covariance entries are
-#'   \code{NA}.
+#'   \code{NA}. The independent-person and effective-support conditions
+#'   described for \code{\link{pcml}} also apply.
 #' @references
 #' Andrich, D. and Luo, G. (2003). Conditional pairwise estimation in the
 #' Rasch model for ordered response categories using principal components.
@@ -1165,5 +1394,8 @@ pcml_pc <- function(X, n_components = 4, maxit = 60, tol = 1e-8) {
        components = comp, cov_tau = sol$cov_tau, loglik = sol$loglik,
        iterations = sol$iterations, converged = sol$converged, m = m,
        anchors = NULL, n_parameters = ncol(B), B = B,
-       cov_beta = sol$cov_beta, H_beta = sol$H_beta)
+       cov_beta = sol$cov_beta, H_beta = sol$H_beta,
+       notes = sol$cluster_note,
+       cluster_inference = sol$cluster_inference,
+       cluster_support = sol$cluster_support)
 }

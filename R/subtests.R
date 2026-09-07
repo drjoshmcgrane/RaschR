@@ -51,12 +51,17 @@
 #' to examine item groups identified by \code{\link{residual_correlations}}.
 #' Every total from zero to the sum of the component maxima must be observed;
 #' otherwise the refit is refused rather than renumbering the superitem score.
+#' The refit is also refused if calibration merges an observed category that
+#' lacks conditional information, or changes a retained item's scoring.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param groups A list of character vectors, each naming two or more items to
 #'   combine; a single vector is also accepted.
 #' @param model Model for the re-analysis; defaults to \code{"PCM"}, which is
 #'   almost always required because subtests change the maximum scores.
+#'   Explanatory fits retain their predictor restrictions on unchanged items
+#'   and freely estimate the new superitems. They require \code{"PCM"}; an
+#'   RSM restriction cannot be added through this argument.
 #' @return A new \code{\link{rasch}} fit on the combined structure, with the
 #'   combinations recorded in its notes. Person and item estimates are
 #'   recalculated. Fit grouping, external anchors on unchanged items, keyed
@@ -81,6 +86,16 @@
 #' @export
 combine_items <- function(fit, groups, model = "PCM") {
   if (!inherits(fit, "rasch")) stop("combine_items needs a rasch fit")
+  .require_refittable_calibration(fit)
+  if (!is.character(model) || length(model) != 1L ||
+      !is.null(dim(model)) || !is.null(oldClass(model)) || is.na(model))
+    stop("`model` must name one model: \"PCM\" or \"RSM\"", call. = FALSE)
+  model <- match.arg(model, c("PCM", "RSM"))
+  if (inherits(fit, "rasch_explanatory") && model != "PCM")
+    stop("combine_items() retains the explanatory design; model = \"RSM\" ",
+         "is not supported for explanatory fits. Use model = \"PCM\", ",
+         "or refit the combined scores explicitly with rasch(..., model = \"RSM\")",
+         call. = FALSE)
   if (is.character(groups) && length(groups)) groups <- list(groups)
   if (!is.list(groups) || !length(groups) ||
       any(!vapply(groups, length, 0L)))
@@ -139,10 +154,9 @@ combine_items <- function(fit, groups, model = "PCM") {
     sum(fit$m[match(g, fit$items$item)]), 0)
   smax <- max(group_max)
   all_codes <- (fit$refit_spec %||% list())$na_codes %||% -1
-  dropped_codes <- all_codes[is.finite(smax) & all_codes >= 0 &
-                             all_codes <= smax]
-  sub_codes <- setdiff(all_codes, dropped_codes)
-  if (!length(sub_codes)) sub_codes <- -1
+  numeric_codes <- suppressWarnings(as.numeric(as.character(all_codes)))
+  dropped_codes <- all_codes[is.finite(smax) & is.finite(numeric_codes) &
+                             numeric_codes >= 0 & numeric_codes <= smax]
   super_names <- vapply(groups, paste, "", collapse = "+")
   if (anyDuplicated(super_names) || any(super_names %in% keep))
     stop("the generated subtest names duplicate an existing item name")
@@ -162,10 +176,11 @@ combine_items <- function(fit, groups, model = "PCM") {
                  stats::setNames(vapply(groups, `[`, "", 1L), super_names))
     .explanatory_refit_modified(fit, Xn, inherit = inherit,
                                 fully_relaxed = super_names)
-  } else .rasch_refit(fit, Xn, model = model, na_codes = sub_codes,
+  } else .rasch_refit(fit, Xn, model = model,
                       score_max = score_max)
   if (!isTRUE(refit$est$converged))
     stop("the subtest calibration did not converge; the combined analysis is unavailable")
+  .require_fitted_score_structure(refit, score_max, "the subtest refit")
   if (length(dropped_codes))
     refit$notes <- c(refit$notes, paste0(
       "missing-data code(s) ", paste(dropped_codes, collapse = ", "),
@@ -199,8 +214,9 @@ combine_items <- function(fit, groups, model = "PCM") {
 #' Replaces each nominated item with one item per estimable level of a person
 #' factor, each carrying that level's responses only (other levels missing).
 #' A level must contain every score from zero to the fitted item maximum;
-#' levels that cannot retain the fitted scoring structure are omitted and
-#' recorded in the notes. Every retained
+#' levels missing a score are omitted and recorded in the notes. The split
+#' is refused if calibration subsequently merges a category lacking conditional
+#' information within a retained group. Every retained
 #' group then receives its own item location, which resolves the invariance
 #' violation flagged by \code{\link{dif_anova}}; the distance between the
 #' split locations estimates the DIF size. The model is refitted with the
@@ -230,6 +246,7 @@ combine_items <- function(fit, groups, model = "PCM") {
 #' @export
 split_items <- function(fit, items, by) {
   if (!inherits(fit, "rasch")) stop("split_items needs a rasch fit")
+  .require_refittable_calibration(fit)
   if (inherits(fit, "rasch_mfrm"))
     stop("split items in the long-format data and refit rasch_mfrm instead")
   if (inherits(fit, "rasch_efrm"))
@@ -310,6 +327,19 @@ split_items <- function(fit, items, by) {
   } else .rasch_refit(fit, Xn, key_extra = key_extra)
   if (!isTRUE(refit$est$converged))
     stop("the split-item calibration did not converge; the resolved analysis is unavailable")
+  # Observing every category before fitting is not sufficient: a category
+  # confined to extreme patterns within one group can be merged in preparation.
+  # The split must retain each copy's original score scale after calibration.
+  expected_max <- c(stats::setNames(fit$m[match(keep, fit$items$item)], keep),
+    unlist(lapply(items, function(it) stats::setNames(
+      rep(fit$m[match(it, fit$items$item)], length(made[[it]])), made[[it]]))))
+  retained_max <- refit$m[match(names(expected_max), refit$items$item)]
+  changed <- is.na(retained_max) | retained_max != expected_max
+  if (any(changed))
+    stop("the split refit cannot preserve the fitted score structure for ",
+         paste(names(expected_max)[changed], collapse = ", "),
+         "; a category lacks conditional information within a group. ",
+         "Pool the affected group or leave this split unresolved", call. = FALSE)
   if (length(fit$subtest_map)) {
     sm <- fit$subtest_map[intersect(names(fit$subtest_map), keep)]
     sb <- fit$subtest_binary[intersect(names(fit$subtest_binary), keep)]
@@ -345,20 +375,20 @@ split_items <- function(fit, items, by) {
 #' estimated effect,
 #' and refits after each split. This order addresses the artificial DIF that a
 #' large departure can induce in otherwise invariant items (Andrich and
-#' Hagquist 2012, 2015). Each split gives the item a separate location and
-#' threshold structure in every factor cell. A location split does not model a
+#' Hagquist 2012, 2015). Each split gives the item a separate location in every
+#' factor cell. A PCM also estimates the split copies' thresholds separately;
+#' an RSM retains its common rating-scale threshold structure. A location split does not model a
 #' group-specific discrimination, so items with non-uniform DIF are left for
 #' review rather than being made untestable by a split. The procedure stops
 #' when no resolvable uniform DIF remains or the remaining unsplit reference
 #' set reaches \code{min_anchors}. Items fixed by external anchors are not
 #' split.
 #'
-#' @param fit A fitted object from \code{\link{rasch}} carrying person
-#'   factors.
+#' @param fit A fitted object from \code{\link{rasch}}.
 #' @param factors Person factors to test, as in \code{\link{dif_anova}};
 #'   defaults to every nominated factor.
 #' @param alpha Significance level for the adjusted probabilities.
-#' @param p_adjust Multiplicity adjustment across items each round.
+#' @param p_adjust Multiplicity adjustment for the DIF tests in each round.
 #' @param min_n Minimum distinct responders required in every item-by-factor
 #'   cell before an automatic split is allowed. Repeated response rows from
 #'   one person count once within a cell. The omnibus DIF test determines
@@ -370,11 +400,15 @@ split_items <- function(fit, items, by) {
 #'   \code{max(3, items / 4)}.
 #' @param max_splits Hard cap on the number of splits. Default: the number
 #'   of items.
+#' @param effects \code{"main"} fits the factors additively;
+#'   \code{"factorial"} also tests their interactions. The same model is
+#'   used at every round and in the final DIF assessment.
 #' @return A list of class \code{"rasch_resolve_dif"}: the final resolved
 #'   \code{fit}, the \code{splits} performed (order, item, factor, partial
 #'   eta-squared, source item, DIF magnitude in logits), the \code{stopped}
 #'   reason, the residual \code{dif} table, and the number of distinct source
-#'   items that still show DIF in the final fit.
+#'   items that still show DIF in the final fit. \code{effects} records the
+#'   factor model used.
 #' @references Andrich, D., & Hagquist, C. (2012). Real and artificial
 #'   differential item functioning. \emph{Journal of Educational and
 #'   Behavioral Statistics}, 37(3), 387-416.
@@ -391,12 +425,15 @@ split_items <- function(fit, items, by) {
 #'   \code{\link{dif_anova}} for the test it resolves.
 #' @export
 resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
-                        min_n = 20L, min_anchors = NULL, max_splits = NULL) {
+                        min_n = 20L, min_anchors = NULL, max_splits = NULL,
+                        effects = c("main", "factorial")) {
+  effects <- match.arg(effects)
   .check_dif_args(alpha, p_adjust, min_n = min_n)
   if (!inherits(fit, "rasch") || inherits(fit, c("rasch_mfrm", "rasch_efrm")))
     stop("resolve_dif needs an ordinary rasch fit with person factors")
   fac0 <- .dif_factors(fit, factors)
   fnames <- names(fac0)
+  if (!length(fnames)) stop("`factors` must include at least one person factor")
   source_map <- .split_source_map(fit)
   L0 <- length(unique(unname(source_map)))
   if (L0 < 3L) stop("DIF resolution needs at least three fitted items")
@@ -420,9 +457,11 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
   # significant, non-superseded group terms of the current fit, with the
   # factors to split by and the partial eta-squared to rank on
   flagged <- function(cur, resolvable_only = TRUE) {
-    keep <- intersect(fnames, names(cur$factors))
-    if (!length(keep)) return(NULL)
-    da <- dif_anova(cur, factors = keep, p_adjust = p_adjust, alpha = alpha)
+    # Splitting preserves response rows. Retain the supplied factor values,
+    # including external metadata and replacements for a stored factor,
+    # instead of silently reselecting columns from the original fit.
+    da <- dif_anova(cur, factors = fac0, effects = effects,
+                    p_adjust = p_adjust, alpha = alpha)
     s <- da$summary
     # Splitting supplies cell-specific locations and thresholds, not
     # cell-specific slopes. Restrict automatic resolution to uniform-only DIF;
@@ -478,8 +517,8 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
       break
     }
     by_vars <- pick_vars
-    grp <- if (length(by_vars) == 1L) cur$factors[[by_vars]] else
-      .factor_cells(cur$factors[by_vars], sep = ":")
+    grp <- if (length(by_vars) == 1L) fac0[[by_vars]] else
+      .factor_cells(fac0[by_vars], sep = ":")
     grp <- factor(grp)
     external <- cur$refit_spec$anchors
     if (!is.null(external) &&
@@ -510,7 +549,7 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
     # magnitude. Its significance does not decide whether the split proceeds.
     dp <- tryCatch(dif_posthoc(
       cur, pick$item, term = by_vars,
-      factors = intersect(fnames, names(cur$factors)),
+      factors = fac0,
       p_adjust = p_adjust, alpha = alpha, min_n = min_n),
       error = function(e) NULL)
     # DIF magnitude in logits, over the trustworthy (non-weak) pairs only
@@ -538,7 +577,8 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
                base_item = character(), eta2 = numeric(), magnitude = numeric())
   rownames(split_df) <- NULL
   final_dif <- tryCatch(flagged(cur, resolvable_only = FALSE),
-                        error = function(e) NULL)
+    error = function(e) stop("the final DIF assessment failed: ",
+                             conditionMessage(e), call. = FALSE))
   remaining_items <- if (is.null(final_dif) || !nrow(final_dif)) {
     character(0)
   } else {
@@ -551,8 +591,10 @@ resolve_dif <- function(fit, factors = NULL, alpha = 0.05, p_adjust = "holm",
   if (length(skipped_anchor)) notes <- c(notes,
     sprintf("%d externally anchored item-factor(s) not split (%s)",
             length(skipped_anchor), paste(skipped_anchor, collapse = "; ")))
-  out <- list(fit = cur, splits = split_df, n_splits = nrow(split_df),
+  out <- list(algorithm = "factor-design-resolution-1",
+              fit = cur, splits = split_df, n_splits = nrow(split_df),
               stopped = stopped, dif = final_dif, notes = notes,
+              effects = effects,
               n_remaining_dif = length(remaining_items),
               n_nonuniform = if (is.null(final_dif)) 0L else
                 sum(final_dif$nonuniform %in% TRUE))

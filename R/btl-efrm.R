@@ -503,8 +503,11 @@
   list(objects = objects, judges = judges, pairs = pairs,
        comparisons = comparisons, total_chisq = total_chisq,
        total_df = total_df,
-       total_p = if (is.finite(total_chisq))
-         stats::pchisq(total_chisq, total_df, lower.tail = FALSE) else NA_real_)
+       # Comparisons are clustered within judges. The Pearson sum remains a
+       # useful descriptive lack-of-fit index, but its row-independent
+       # chi-square reference is not an inferential probability for this
+       # design.
+       total_p = NA_real_)
 }
 
 # Omnibus test of one predeclared unit family. A missing coordinate or
@@ -592,19 +595,26 @@
 #' preliminary inspection. Its unit probabilities and omnibus tests are
 #' withheld because it does not propagate stage-one uncertainty. Bootstrap
 #' failures and boundary estimates are reported in \code{notes}.
+#' The total pairwise chi-square and its nominal degrees of freedom are retained
+#' as descriptive summaries. Its row-based chi-square probability is withheld
+#' because judges are the sampling units and contribute repeated comparisons.
 #'
 #' With one set, the model contains panel units only. With one set and one
 #' panel, it reduces to \code{\link{btl}}. Omnibus Wald probabilities are
 #' Holm-adjusted across the panel-unit, set-unit and set-origin families.
-#' Individual contrasts form a separate Holm-adjusted follow-up family across
-#' all three parameter types. An unavailable unit remains in its predeclared
+#' Individual estimated units form a separate Holm-adjusted follow-up family
+#' across all three parameter types. Structurally fixed reference coordinates
+#' are not hypotheses. An unavailable estimated unit remains in its predeclared
 #' family; an omnibus is withheld rather than reduced when one of its
 #' requested coordinates is unavailable.
 #' Judge-bootstrap probabilities require at least six judges and 5.5 effective
-#' judges in every contributing panel, and eight of each on a set link. The
-#' support is returned in \code{unit_support}; estimates remain descriptive
-#' when a probability is withheld. Fits with fewer than eight effective judges
-#' per panel or 9.5 per set link retain probabilities but report a caution.
+#' judges in every contributing panel. Each non-reference set also requires
+#' eight judges and eight effective judges along a supported path to the
+#' reference set. With redundant links, the path with the strongest bottleneck
+#' is used. The support is returned in \code{unit_support}; estimates remain
+#' descriptive when a probability is withheld. Fits with fewer than eight
+#' effective judges per panel or 9.5 along a set's reference path retain
+#' probabilities but report a caution.
 #' Set-unit estimates can also be attenuated when each object pair has little
 #' comparison information. In simulation, log-unit bias declined from about
 #' -0.11 with 10 repetitions per pair to less than -0.01 with 100 repetitions.
@@ -623,7 +633,9 @@
 #'   panel.
 #' @param object_sets A named list mapping set names to character vectors of
 #'   object names. Set names must be unique, and every compared object must
-#'   occur exactly once in exactly one set.
+#'   occur exactly once in exactly one set. The alphabetically first set is
+#'   the reference, with \eqn{\alpha=1} and \eqn{\kappa=0}. Changing this
+#'   reference can change the cross-set unit restriction, not just the labels.
 #' @param response Not supported: this first implementation fits dichotomous
 #'   winner data only. Supplying it raises an informative error.
 #' @param ties \code{"drop"} (default, removed with a note) or \code{"error"}.
@@ -659,8 +671,13 @@
 #' @return An object of class \code{"rasch_btl_efrm"}. It contains the object
 #'   estimates, group- and set-unit tables, origin shifts, omnibus unit tests,
 #'   unit-specific judge support, frame definitions, convergence information,
-#'   and analysis notes. \code{boot_reps_requested}, \code{boot_reps_used}
+#'   and analysis notes. \code{n_cross} records each set-pair count and whether
+#'   it met \code{min_link} and entered the fit. \code{boot_reps_requested},
+#'   \code{boot_reps_used}
 #'   and \code{boot_reps_failed} report the bootstrap accounting.
+#'   \code{total_chisq} and \code{total_df} describe the pooled pair residuals;
+#'   \code{total_p} is \code{NA} because the corresponding row-independent
+#'   chi-square reference is not valid for repeated comparisons by judges.
 #'   A non-converged fit retains its final estimates and residual patterns for
 #'   diagnosis but withholds standard errors and inferential probabilities.
 #' @references Andrich, D. (1978). Relationships between the Thurstone and
@@ -949,7 +966,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   }
   cross <- which(!within)
   n_cross <- data.frame(set_a = character(0), set_b = character(0),
-                        n = integer(0), stringsAsFactors = FALSE)
+                        n = integer(0), used = logical(0),
+                        stringsAsFactors = FALSE)
   if (S > 1L) {
     if (!length(cross))
       stop("no cross-set comparisons: the sets cannot be linked to a common ",
@@ -962,6 +980,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                           n = as.integer(tab), stringsAsFactors = FALSE)
     rownames(n_cross) <- NULL
     used <- n_cross$n >= min_link
+    n_cross$used <- used
     edges <- cbind(match(n_cross$set_a[used], sets_u),
                    match(n_cross$set_b[used], sets_u))
     comp <- .btlef_components(S, edges)
@@ -971,16 +990,34 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
            "' through cross-set pairs with at least min_link = ", min_link,
            " comparisons: ", paste(sets_u[comp != ref_comp], collapse = ", "),
            " (increase the cross-set data or lower min_link)")
+    link_cross <- cross[key %in% names(tab)[used]]
     # a set's UNIT alpha is identified by how its internal spread shows in
     # cross-set outcomes: cross-set comparisons touching only one of its
     # objects identify the origin kappa but leave alpha riding on nothing
     for (s in sets_u[-1]) {
-      touched <- unique(c(a[cross][sa[cross] == s], b[cross][sb[cross] == s]))
+      touched <- unique(c(a[link_cross][sa[link_cross] == s],
+                          b[link_cross][sb[link_cross] == s]))
       if (length(touched) < 2L)
         stop("cross-set comparisons touch only ", length(touched),
              " object(s) of set '", s, "': its unit (alpha) is ",
              "unidentified -- add cross-set comparisons involving at ",
              "least two of its objects")
+    }
+    omitted_cross <- setdiff(cross, link_cross)
+    if (length(omitted_cross)) {
+      omitted_pairs <- n_cross[!n_cross$used, , drop = FALSE]
+      notes <- c(notes, paste0(
+        sum(omitted_pairs$n), " cross-set comparison(s) omitted from ",
+        "estimation because their set pair had fewer than min_link = ",
+        min_link, ": ",
+        paste0(omitted_pairs$set_a, "--", omitted_pairs$set_b,
+               " (", omitted_pairs$n, ")", collapse = ", ")))
+      keep_link <- !(seq_along(a) %in% omitted_cross)
+      a <- a[keep_link]; b <- b[keep_link]; y <- y[keep_link]
+      jd <- jd[keep_link]; pan <- pan[keep_link]
+      sa <- set_of[a]; sb <- set_of[b]
+      within <- sa == sb
+      cross <- which(!within)
     }
   }
   # within each set, the object comparison graph must be connected, or the
@@ -1437,14 +1474,40 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   if (is.null(edge_support)) edge_support <- data.frame(
     set_a = character(), set_b = character(), n_judges = numeric(),
     effective_judges = numeric())
-  set_support <- do.call(rbind, lapply(sets_u, function(s) {
-    rr <- edge_support$set_a == s | edge_support$set_b == s
-    data.frame(set = s,
-      n_judges = if (any(rr)) min(edge_support$n_judges[rr]) else 0,
-      effective_judges = if (any(rr))
-        min(edge_support$effective_judges[rr]) else 0,
-      stringsAsFactors = FALSE)
-  }))
+  # Alpha and kappa place every non-reference set relative to sets_u[1].
+  # Support at a set is therefore the bottleneck over a path to that
+  # reference, not merely the support on an edge incident to the set. With
+  # redundant paths, use the path whose weakest edge is strongest (the usual
+  # widest-path criterion). Otherwise a well-supported terminal edge can lend
+  # its df to a parameter whose route to the reference crosses a weak link.
+  widest_from_reference <- function(weight) {
+    cap <- setNames(rep(0, S), sets_u)
+    cap[sets_u[1L]] <- Inf
+    done <- setNames(rep(FALSE, S), sets_u)
+    repeat {
+      candidates <- which(!done)
+      if (!length(candidates)) break
+      u <- candidates[which.max(cap[candidates])]
+      if (cap[u] <= 0) break
+      done[u] <- TRUE
+      rr <- which(edge_support$set_a == sets_u[u] |
+                    edge_support$set_b == sets_u[u])
+      for (e in rr) {
+        v_name <- if (edge_support$set_a[e] == sets_u[u])
+          edge_support$set_b[e] else edge_support$set_a[e]
+        v <- match(v_name, sets_u)
+        candidate <- min(cap[u], weight[e])
+        if (!done[v] && candidate > cap[v]) cap[v] <- candidate
+      }
+    }
+    unname(cap)
+  }
+  set_support <- data.frame(
+    set = sets_u,
+    n_judges = widest_from_reference(edge_support$n_judges),
+    effective_judges = widest_from_reference(edge_support$effective_judges),
+    stringsAsFactors = FALSE
+  )
   panel_ok <- panel_support$n_judges >= 6L &
     panel_support$effective_judges >= 5.5 - sqrt(.Machine$double.eps)
   set_ok <- set_support$n_judges >= 8L &
@@ -1459,7 +1522,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     notes <- c(notes, paste0(
       "set-unit and set-origin inference is withheld because a contributing ",
       "panel has fewer than six judges or 5.5 effective judges, or a link ",
-      "has fewer than eight"))
+      "on the path to the reference set has fewer than eight"))
   if (se_method == "judge_bootstrap") {
     pc <- panel_ok & panel_support$effective_judges < 8
     sc <- set_ok & set_support$effective_judges < 9.5 &
@@ -1468,7 +1531,7 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
       "panel(s) ", paste(panel_support$panel[pc], collapse = ", "),
       " have 5.5--7.9 effective judges; interpret unit inference cautiously"))
     if (any(sc)) notes <- c(notes, paste0(
-      "set link(s) ", paste(set_support$set[sc], collapse = ", "),
+      "set reference path(s) ", paste(set_support$set[sc], collapse = ", "),
       " have 8.0--9.4 effective judges; interpret unit inference cautiously"))
   }
   # Judge-resampling inference uses a finite-sample t reference because the
@@ -1506,7 +1569,10 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
   unit_tables <- list(phi_table, alpha_table, kappa_table)
   all_p <- unlist(lapply(unit_tables, `[[`, "p"), use.names = FALSE)
   all_adj <- rep(NA_real_, length(all_p))
-  family_member <- c(rep(TRUE, nrow(phi_table)),
+  # With a single panel phi is fixed at one by identification, so there is no
+  # panel-unit hypothesis to include in the follow-up family. With multiple
+  # panels each reported phi tests a genuine (albeit constrained) coordinate.
+  family_member <- c(rep(G > 1L, nrow(phi_table)),
                      alpha_table$set %in% free,
                      kappa_table$set %in% free)
   usable <- is.finite(all_p) & family_member
@@ -1619,6 +1685,9 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
     a, b, y, jd, pan, sa, sb, fit0$p_all, phi, alpha_use,
     objects, n_parameters = npar_frame)
   objects <- diag_frame$objects
+  notes <- c(notes, paste0(
+    "the total pairwise chi-square is descriptive; its row-based probability ",
+    "is withheld because judges contribute repeated comparisons"))
   if (!isTRUE(fit0$converged)) {
     # The locations and residuals remain useful for diagnosing a stalled
     # fit, but neither the curvature nor probabilities at its final iterate
@@ -1673,7 +1742,8 @@ btl_efrm <- function(data, object_a, object_b, winner, judge, panels,
                                   set = set_support,
                                   minimum_panel_judges = 6L,
                                   minimum_panel_effective_judges = 5.5,
-                                  minimum_link_judges = 8L),
+                                  minimum_link_judges = 8L,
+                                  minimum_link_effective_judges = 8),
               frames = frames, equal_unit = equal_unit, n_cross = n_cross,
               sets = sets_u, panels = panels_u, reference_set = sets_u[1],
               n_comparisons = length(a),
@@ -1831,7 +1901,10 @@ print.rasch_btl_efrm <- function(x, ...) {
 #' Plot the frame units of a paired-comparison EFRM fit
 #'
 #' Caterpillar plot of panel units \code{phi_g} and set units \code{alpha_s}
-#' on the log scale, with 95 per cent intervals and unit one marked.
+#' on the log scale, with 95 per cent intervals and unit one marked. Intervals
+#' use each unit's reported reference degrees of freedom; they are omitted
+#' where inference is unavailable. Fits from an earlier release without a
+#' \code{df} column use the limiting normal reference.
 #'
 #' @param fit A fitted object from \code{\link{btl_efrm}}.
 #' @return Called for its plotting side effect; invisibly \code{NULL}.
@@ -1845,16 +1918,27 @@ plot_btl_units <- function(fit) {
     stop("plot_btl_units needs a rasch_btl_efrm fit")
   .check_btl_display_fit(fit)
   ph <- fit$phi_table; al <- fit$alpha_table
+  reference_df <- function(tab) {
+    if ("df" %in% names(tab)) as.numeric(tab[["df"]])
+    else rep(Inf, nrow(tab))
+  }
   rows <- rbind(
     data.frame(label = paste0("panel: ", ph$panel), kind = "panel",
-               est = log(ph$phi), se = ph$se_log_phi, stringsAsFactors = FALSE),
+               est = log(ph$phi), se = ph$se_log_phi,
+               df = reference_df(ph), stringsAsFactors = FALSE),
     if (nrow(al) > 1L)
       data.frame(label = paste0("set: ", al$set), kind = "set",
                  est = log(al$alpha), se = al$se_log_alpha,
+                 df = reference_df(al),
                  stringsAsFactors = FALSE))
   rows <- rows[order(rows$kind, rows$est), ]
   n <- nrow(rows)
-  lo <- rows$est - 1.96 * rows$se; hi <- rows$est + 1.96 * rows$se
+  df_ok <- (is.finite(rows$df) & rows$df > 0) |
+    (is.infinite(rows$df) & rows$df > 0)
+  critical <- rep(NA_real_, n)
+  critical[df_ok] <- stats::qt(0.975, df = rows$df[df_ok])
+  lo <- rows$est - critical * rows$se
+  hi <- rows$est + critical * rows$se
   colr <- ifelse(rows$kind == "panel", .rr$blue, .rr$purple)
   op <- par(mar = c(4.2, 9, 3.2, 1.5), mgp = c(2.5, 0.7, 0), tcl = -0.25,
             las = 1, col.axis = .rr$ink, col.lab = .rr$ink, col.main = .rr$ink,
@@ -1868,7 +1952,7 @@ plot_btl_units <- function(fit) {
   .rr_axis(1)
   axis(2, at = seq_len(n), labels = rows$label, cex.axis = 0.75,
        col = .rr$grid, col.ticks = NA)
-  hs <- is.finite(rows$se)
+  hs <- is.finite(lo) & is.finite(hi)
   segments(lo[hs], which(hs), hi[hs], which(hs), lwd = 2.2,
            col = .rr$soft)
   points(rows$est, seq_len(n), pch = 21, cex = 1.5, bg = colr,

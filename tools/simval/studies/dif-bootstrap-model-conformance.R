@@ -6,6 +6,8 @@
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")
 
+dif_source_md5 <- unname(tools::md5sum("R/dif-bootstrap.R"))
+
 B <- as.integer(Sys.getenv("SV_BOOT", "19"))
 workers <- max(1L, as.integer(Sys.getenv("SV_CORES", "1")))
 
@@ -187,13 +189,27 @@ for (j in seq_along(cases)) {
   public <- suppressWarnings(dif_bootstrap(
     case$fit, case$dif, B = B, workers = workers, seed = seed))
   manual <- manual_run(case, seed, kind)
+  family <- if (identical(kind, "btl")) case$dif$term_ids != "band" else
+    !case$dif$term_ids %in% c("Residuals", "ci")
+  observed <- case$dif$terms[family, , drop = FALSE]
+  min_p <- apply(manual$p, 1L, min)
+  current_adj <- vapply(observed$p, function(p)
+    (1 + sum(min_p <= p)) / (nrow(manual$p) + 1), numeric(1))
+  legacy_raw <- vapply(seq_len(ncol(manual$F)), function(k)
+    (1 + sum(manual$F[, k] >= observed$F_value[k])) /
+      (nrow(manual$F) + 1), numeric(1))
+  legacy_adj <- pmax(legacy_raw, current_adj)
   vals <- c(
     max_abs_F_difference = if (identical(dim(public$replicates$F),
       dim(manual$F))) max(abs(public$replicates$F - manual$F)) else Inf,
     max_abs_reference_p_difference = if (identical(dim(public$replicates$p),
       dim(manual$p))) max(abs(public$replicates$p - manual$p)) else Inf,
     retained_replicate_difference = public$B_used - manual$used,
-    sufficient_score_or_design_failures = manual$preservation_failures)
+    sufficient_score_or_design_failures = manual$preservation_failures,
+    legacy_to_reference_adjusted_max_change = max(abs(
+      legacy_adj - current_adj)),
+    legacy_to_reference_flag_changes = sum(
+      (legacy_adj < case$dif$alpha) != (current_adj < case$dif$alpha)))
   rows[[j]] <- do.call(rbind, lapply(names(vals), function(q)
     sv_row(study = "dif-bootstrap-model-conformance", scenario = kind,
       quantity = q, n_reps = 1L, n_attempted = 1L,
@@ -202,6 +218,7 @@ for (j in seq_along(cases)) {
       n_boot_nonconv = public$B_nonconverged,
       n_boot_errors = public$B_errors, bias = unname(vals[q]),
       notes = paste("public result versus independently orchestrated public",
-                    "fit; exact family and generated-design check"))))
+                    "fit; exact family and generated-design check;",
+                    "R/dif-bootstrap.R md5", dif_source_md5))))
 }
 sv_write(do.call(rbind, rows), "dif-bootstrap-model-conformance")

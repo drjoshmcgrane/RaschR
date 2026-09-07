@@ -14,6 +14,8 @@ test_that("dependence_magnitude recovers a simulated dichotomous d", {
   dm <- dependence_magnitude(fit, dependent = "I5", independent = "I4")
   expect_lt(abs(dm$d - d_true), 0.35)
   expect_lt(dm$p, 0.001)
+  expect_true(is.infinite(dm$df))
+  expect_equal(dm$p, 2 * stats::pt(-abs(dm$t), dm$df))
   expect_equal(nrow(dm$thresholds), 1)
   # resolved items replace the originals in the refit
   expect_false(any(c("I4", "I5") %in% dm$refit$items$item))
@@ -68,6 +70,34 @@ test_that("dependence_magnitude withholds inference from an invalid covariance",
   expect_true(is.na(guarded$p))
   expect_true(all(is.na(guarded$thresholds$se_k)))
   expect_match(guarded$note, "not positive semidefinite")
+
+  # A clustered resolved covariance must carry its finite reference through
+  # the public magnitude object and probability.
+  clustered_refit <- good$refit
+  clustered_refit$est$cluster_support <- list(
+    repeated = TRUE, n = 11L, effective = 10.5)
+  clustered_refit$est$cluster_inference <- TRUE
+  clustered <- testthat::with_mocked_bindings(
+    dependence_magnitude(fit, dependent = "I6", independent = "I5"),
+    .rasch_refit = function(...) clustered_refit,
+    .package = "rasch")
+  expect_equal(clustered$df, 10)
+  expect_equal(clustered$p,
+               2 * stats::pt(-abs(clustered$t), df = clustered$df))
+
+  unsupported_refit <- good$refit
+  unsupported_refit$est$cluster_support <- list(
+    repeated = FALSE, n = 16L, effective = 16)
+  unsupported_refit$est$cluster_inference <- FALSE
+  unsupported <- testthat::with_mocked_bindings(
+    dependence_magnitude(fit, dependent = "I6", independent = "I5"),
+    .rasch_refit = function(...) unsupported_refit,
+    .package = "rasch")
+  expect_true(is.na(unsupported$se))
+  expect_true(is.na(unsupported$t))
+  expect_true(is.na(unsupported$p))
+  expect_true(all(is.na(unsupported$thresholds$se_k)))
+  expect_match(unsupported$note, "independent.*support")
 })
 
 test_that("dependence resolution retains controls and refuses constrained polytomous thresholds", {
@@ -102,7 +132,8 @@ test_that("spread_test flags a dependent subtest by the LUB", {
   expect_true(all(st$eligible))
   expect_equal(st$lub, rep(0.55, 3))
   expect_equal(st$below_bound, st$spread < st$lub)
-  expect_equal(st$p, pnorm(st$z), tolerance = 1e-12)
+  expect_true(all(is.infinite(st$df)))
+  expect_equal(st$p, stats::pt(st$t, df = st$df), tolerance = 1e-12)
   expect_equal(st$p_adj, p.adjust(st$p, method = "holm"))
   expect_equal(st$dependent, st$p_adj < 0.05)
   expect_equal(attr(st, "alpha"), 0.05)
@@ -120,8 +151,38 @@ test_that("spread_test flags a dependent subtest by the LUB", {
     spread_test(fit2),
     .pcml_pc_fit = function(...) pc_zero,
     .package = "rasch")
-  expect_true(is.na(st_zero$z[1]))
+  expect_true(is.na(st_zero$t[1]))
   expect_true(is.na(st_zero$p_adj[1]))
+
+  pc_cluster <- pc_zero
+  pc_cluster$components$spread_se[1] <- 0.2
+  pc_cluster$cluster_support <- list(
+    repeated = TRUE, n = 12L, effective = 11.5)
+  pc_cluster$cluster_inference <- TRUE
+  st_cluster <- testthat::with_mocked_bindings(
+    spread_test(fit2),
+    .pcml_pc_fit = function(...) pc_cluster,
+    .package = "rasch")
+  expect_equal(st_cluster$df[st_cluster$eligible],
+               rep(11, sum(st_cluster$eligible)))
+  expect_equal(st_cluster$p[st_cluster$eligible],
+               stats::pt(st_cluster$t[st_cluster$eligible], 11))
+
+  pc_unsupported <- pc_zero
+  pc_unsupported$components$spread_se[1] <- 0.2
+  pc_unsupported$cluster_support <- list(
+    repeated = FALSE, n = 16L, effective = 16)
+  pc_unsupported$cluster_inference <- FALSE
+  st_unsupported <- testthat::with_mocked_bindings(
+    spread_test(fit2),
+    .pcml_pc_fit = function(...) pc_unsupported,
+    .package = "rasch")
+  expect_true(all(is.na(st_unsupported$df[st_unsupported$eligible])))
+  expect_true(all(is.na(st_unsupported$se)))
+  expect_true(all(is.na(st_unsupported$t)))
+  expect_true(all(is.na(st_unsupported$p[st_unsupported$eligible])))
+  expect_match(attr(st_unsupported, "note"),
+               "independent-person support")
 
   pcm <- rasch(simulate_rasch(400, 5, model = "PCM", n_categories = 3,
                               seed = 52), id = "id")
@@ -161,6 +222,24 @@ test_that("dimensionality_magnitude reproduces the Andrich (2016) block", {
   # guard: every item must be assigned
   expect_error(dimensionality_magnitude(fit, list(paste0("I", 1:6))),
                "at least two")
+})
+
+test_that("dimensionality magnitude withholds an unusable reliability ratio", {
+  fit <- rasch(simulate_rasch(300, 8, seed = 121), id = "id")
+  fit$alpha$alpha <- -0.1
+  refit <- fit
+  refit$alpha$alpha <- 0.5
+  out <- testthat::with_mocked_bindings(
+    dimensionality_magnitude(
+      fit, list(sprintf("I%02d", 1:4), sprintf("I%02d", 5:8))),
+    combine_items = function(...) refit,
+    .package = "rasch"
+  )
+  alpha_row <- out$table$index == "alpha"
+  expect_true(all(is.na(unlist(
+    out$table[alpha_row, c("c2", "c", "rho", "A")], use.names = FALSE))))
+  expect_true(all(is.finite(unlist(
+    out$table[!alpha_row, c("c2", "c", "rho", "A")], use.names = FALSE))))
 })
 
 test_that("tailored_analysis shows the guessing signature", {
@@ -210,6 +289,11 @@ test_that("tailored_analysis shows the guessing signature", {
 })
 
 test_that("tailored_analysis bootstrap repeats the complete procedure", {
+  # At equality the package's strict p_adj < .05 rule still has no rejection
+  # region; 40m, rather than 40m - 1, is the first usable request.
+  expect_equal(rasch:::.tailored_boot_floor(79L, 2L), 0.05)
+  expect_lt(rasch:::.tailored_boot_floor(80L, 2L), 0.05)
+
   set.seed(812)
   N <- 220L
   d0 <- seq(-1.5, 1.8, length.out = 6)
@@ -291,6 +375,22 @@ test_that("ctt_table reports the classical companions", {
   expect_error(guttman_table(virtual), "several frame or facet response cells")
 })
 
+test_that("a negative alpha is not used as reliability for the CTT SEM", {
+  set.seed(122)
+  N <- 1000L
+  X <- matrix(0L, N, 4L,
+              dimnames = list(NULL, paste0("I", 1:4)))
+  chosen <- sample.int(4L, N, replace = TRUE)
+  X[cbind(seq_len(N), chosen)] <- 1L
+  noisy <- runif(N) < 0.1
+  X[noisy, ] <- matrix(rbinom(sum(noisy) * 4L, 1L, 0.5), sum(noisy), 4L)
+  fit <- structure(list(X = X, m = rep(1L, 4L)), class = "rasch")
+  out <- ctt_table(fit)
+  expect_lt(out$alpha, 0)
+  expect_true(is.na(out$sem))
+  expect_match(out$note, "SEM withheld.*alpha is negative")
+})
+
 test_that("rack_data and stack_data reshape repeated measurements", {
   d <- expand.grid(pid = 1:50, t = 1:3)
   d$Q1 <- rbinom(150, 1, 0.6); d$Q2 <- rbinom(150, 2, 0.5)
@@ -312,8 +412,8 @@ test_that("rack_data and stack_data reshape repeated measurements", {
   expect_error(rack_data(d, "pid", "pid", c("Q1", "Q2")), "distinct")
   expect_error(stack_data(d, "pid", "pid", c("Q1", "Q2")), "distinct")
   dn <- d; names(dn)[1L] <- "1"
-  expect_error(rack_data(dn, 1, "1", c("Q1", "Q2")), "distinct")
-  expect_error(stack_data(dn, 1, "1", c("Q1", "Q2")), "distinct")
+  expect_error(rack_data(dn, 1, "1", c("Q1", "Q2")), "character string")
+  expect_error(stack_data(dn, 1, "1", c("Q1", "Q2")), "character string")
   expect_error(rack_data(d, "pid", "t", factor(c("Q1", "Q2"))),
                "at least one item column")
   expect_error(stack_data(d, "pid", "t", factor(c("Q1", "Q2"))),

@@ -86,7 +86,26 @@
 # BTL fit has judges as its independent sampling units. An external bank may
 # supply the corresponding value explicitly; otherwise its covariance is
 # treated as asymptotically normal.
-.btl_equate_cov_df <- function(x) {
+.btl_equate_cov_df <- function(x, objects = NULL) {
+  # These linking errors condition on estimated stage-one quantities. A
+  # fixed origin removes shift uncertainty, not the omitted frame-parameter
+  # uncertainty. They therefore cannot become full sampling errors merely
+  # because shift = "none" needs only marginal variances.
+  if (inherits(x, "rasch_btl_efrm") &&
+      identical(x$se_method, "conditional")) return(NA_real_)
+  if (inherits(x, "rasch_btl") && !inherits(x, "rasch_btl_efrm")) {
+    requested <- as.character(objects)
+    fixed <- names(x$anchors)
+    # A named external anchor is a constant, not an estimate. Its variance
+    # and covariance are exactly zero even when the free sandwich is
+    # unsupported, so an all-anchor contrast has the limiting (exact) df.
+    if (length(requested) && length(fixed) &&
+        all(!is.na(requested) & requested %in% fixed))
+      return(Inf)
+    cl <- x[["cl"]]
+    if (!is.null(cl) && identical(cl$inference_available, FALSE))
+      return(NA_real_)
+  }
   # Ordinary BTL covariance is judge-clustered when a judge role was fitted.
   # A BTL-EFRM fit always records judges, but only the judge bootstrap treats
   # them as the sampling units. Its parametric bootstrap is comparison-level,
@@ -96,9 +115,37 @@
     identical(x$se_method, "judge_bootstrap") else
       inherits(x, "rasch_btl") && isTRUE(x$clustered)
   if (judge_based && !is.null(x$comparisons$judge) &&
-      any(!is.na(x$comparisons$judge)))
-    return(max(length(unique(x$comparisons$judge[!is.na(x$comparisons$judge)])) -
-                 1L, 1L))
+      any(!is.na(x$comparisons$judge))) {
+    df <- max(length(unique(
+      x$comparisons$judge[!is.na(x$comparisons$judge)]
+    )) - 1L, 1L)
+    if (inherits(x, "rasch_btl_efrm") &&
+        identical(x$se_method, "judge_bootstrap")) {
+      # Common-scale locations outside the reference set inherit alpha and
+      # kappa uncertainty along that set's path to the reference. They cannot
+      # use more denominator information in equating than the fit allowed for
+      # those unit parameters. Panel support also enters every stage-one fit.
+      if (!is.null(x$phi_table$df)) {
+        panel_df <- unique(x$phi_table$df)
+        if (anyNA(panel_df)) return(NA_real_)
+        df <- min(df, panel_df)
+      }
+      if (!is.null(objects) && length(objects) &&
+          all(c("object", "set") %in% names(x$objects)) &&
+          all(c("set", "df") %in% names(x$alpha_table))) {
+        object_set <- x$objects$set[match(objects, x$objects$object)]
+        reference <- x$alpha_table$set[1L]
+        linked <- unique(object_set[!is.na(object_set) &
+                                      object_set != reference])
+        if (length(linked)) {
+          set_df <- x$alpha_table$df[match(linked, x$alpha_table$set)]
+          if (anyNA(set_df)) return(NA_real_)
+          df <- min(df, set_df)
+        }
+      }
+    }
+    return(as.numeric(df))
+  }
   z <- attr(x, "df_location", exact = TRUE)
   if (is.null(z)) return(Inf)
   if (!is.numeric(z) || is.complex(z) || length(z) != 1L ||
@@ -123,6 +170,8 @@
 #' If fewer than two common objects have usable variances but at least two have
 #' finite locations, their unweighted mean difference is returned as a
 #' descriptive fallback and recorded in \code{shift_method}.
+#' An exact common anchor determines the shift even when it is the only
+#' common object with usable uncertainty.
 #' Each object is tested using its shifted difference \eqn{d_j-\hat s}. The
 #' covariance calculation retains the dependence induced by the sum-zero
 #' constraints. Drift tests then require independent calibrations and at least
@@ -131,11 +180,34 @@
 #' do not support an object-drift test. With \code{shift = "none"}, the origin
 #' is fixed before the comparison and each object's variance is the sum of its
 #' two marginal variances; joint covariance information and a three-object
-#' link are unnecessary.
+#' link are unnecessary. One common object is sufficient for that fixed-origin
+#' comparison; estimating a shift still requires at least two.
 #' A judge-clustered ordinary BTL covariance, or a BTL--EFRM covariance from
 #' the judge bootstrap, uses finite judge-cluster degrees of freedom. A
-#' conditional or comparison-level parametric-bootstrap BTL--EFRM covariance
-#' uses the asymptotic normal reference instead.
+#' contrast involving only fixed external anchors has exact zero covariance
+#' from that calibration and therefore uses infinite degrees of freedom even
+#' when inference for its estimated objects is unavailable. A
+#' BTL--EFRM location outside the reference set is also limited by the
+#' weakest edge on its strongest supported path to that reference. A
+#' comparison-level parametric-bootstrap BTL--EFRM covariance uses the
+#' asymptotic normal reference instead. Conditional frame errors are
+#' preliminary and do not support drift inference, including comparisons on
+#' a fixed origin.
+#' Binary fits have no threshold parameters, so their recorded threshold
+#' structure does not affect compatibility. Polytomous fits must use the
+#' same category scale and threshold structure.
+#'
+#' The \code{equated} table includes uncertainty in the estimated shift.
+#' For independent calibrations, with \eqn{y_j=b_j+\hat s},
+#' \deqn{\operatorname{Var}(y_j)=\operatorname{Var}(b_j)+
+#' \operatorname{Var}(\hat s)+2\operatorname{Cov}(b_j,\hat s).}
+#' These SEs are withheld if joint uncertainty is unavailable. A fixed shift
+#' (\code{shift = "none"} or an exact common anchor) leaves supported original
+#' SEs unchanged. SEs from a conditional frame reference are withheld in the
+#' equated bank. When available, the table carries its full covariance in
+#' \code{attr(equated, "cov_location")} and conservative finite sampling-unit
+#' degrees of freedom in \code{attr(equated, "df_location")}. An equated bank
+#' is not independent of either calibration used to construct it.
 #'
 #' The common-object set should contain a stable majority. If most common
 #' objects move in the same direction, the estimated shift follows them and
@@ -234,10 +306,13 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
            "understated standard errors", call. = FALSE)
   }
   if (inherits(fit2, "rasch_btl")) {
+    # Binary fits have no threshold parameters. Ordinary BTL records "free",
+    # whereas a frame fit records
+    # "dichotomous"; those labels do not change the binary response model.
     if (!identical(fit1$m, fit2$m) ||
         !identical(as.character(fit1$categories),
                    as.character(fit2$categories)) ||
-        !identical(fit1$thr_structure, fit2$thr_structure))
+        (fit1$m > 1L && !identical(fit1$thr_structure, fit2$thr_structure)))
       stop("the paired-comparison calibrations use incompatible response ",
            "scales or threshold structures; shift-only equating requires ",
            "the same model and category scale")
@@ -262,8 +337,13 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   # would let the same bank switch reference distribution across analyses.
   if (!inherits(fit2, "rasch_btl")) invisible(.btl_equate_cov_df(fit2))
   common <- intersect(cur$object, ref$object)
-  if (length(common) < 2)
-    stop("need at least two common objects to equate paired-comparison scales")
+  min_common <- if (identical(shift, "mean")) 2L else 1L
+  if (length(common) < min_common)
+    stop(if (identical(shift, "mean"))
+      paste("need at least two common objects to estimate an origin shift",
+            "between paired-comparison scales") else
+      paste("need at least one common object for a fixed-origin",
+            "paired-comparison comparison"))
   a <- cur[match(common, cur$object), ]
   b <- ref[match(common, ref$object), ]
   bank_cov <- if (inherits(fit2, "rasch_btl")) NULL else
@@ -280,7 +360,20 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   d <- a$location - b$location
   v <- a$se^2 + b$se^2
   finite_loc <- is.finite(d)
-  usable <- is.finite(d) & is.finite(v)
+  exact1 <- !inherits(fit1, "rasch_btl_efrm") &
+    common %in% names(fit1$anchors)
+  exact2 <- if (inherits(fit2, "rasch_btl"))
+    !inherits(fit2, "rasch_btl_efrm") & common %in% names(fit2$anchors)
+  else is.finite(b$se) & b$se == 0
+  exact_pair <- exact1 & exact2
+  # A zero sandwich diagonal is not an exact calibration. It can enter the
+  # link with zero pooled variance only when both object locations were
+  # explicitly fixed; otherwise it is excluded from weighting and testing.
+  usable <- is.finite(d) & is.finite(v) & (v > 0 | exact_pair)
+  zero_not_exact <- is.finite(d) & is.finite(v) & v == 0 & !exact_pair
+  .check_exact_equating_origin(d, exact_pair,
+                               estimates_shift = identical(shift, "mean"),
+                               label = "object")
   independent_ok <- if (is.null(independent)) !inherits(fit2, "rasch_btl")
                     else isTRUE(independent)
   estimates_shift <- identical(shift, "mean")
@@ -292,7 +385,15 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     !is.null(bank_cov) || all(b$se[usable] == 0)
   joint_cov_ok <- joint_cov_1 && joint_cov_2
   min_inference <- if (estimates_shift) 3L else 1L
-  inferential <- independent_ok && sum(usable) >= min_inference && joint_cov_ok
+  df1 <- .btl_equate_cov_df(fit1, common[usable])
+  df2 <- .btl_equate_cov_df(fit2, common[usable])
+  conditional1 <- inherits(fit1, "rasch_btl_efrm") &&
+    identical(fit1$se_method, "conditional")
+  conditional2 <- inherits(fit2, "rasch_btl_efrm") &&
+    identical(fit2$se_method, "conditional")
+  df_available <- !is.na(df1) && !is.na(df2)
+  inferential <- independent_ok && sum(usable) >= min_inference &&
+    joint_cov_ok && df_available
   # Two stable objects identify an origin shift; three are required only to
   # distinguish individual drift from that estimated shift. Do not let the
   # inferential threshold replace the documented link estimator.
@@ -300,7 +401,7 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     w <- numeric(0)
     c0 <- 0
     shift_method <- "none"
-  } else if (sum(usable) >= 2L) {
+  } else if (sum(usable) >= 2L || any(exact_pair & usable)) {
     w <- .inverse_variance_weights(v[usable])
     # precision-weighted mean difference: the shift between the two sum-zero
     # origins, best estimated where both calibrations are most certain
@@ -333,7 +434,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
       }
     }
   }
-  shift_se <- if (estimates_shift) NA_real_ else 0
+  exact_link <- estimates_shift && any(exact_pair & usable)
+  shift_se <- if (!estimates_shift || exact_link) 0 else NA_real_
   se_diff <- t <- df <- p <- p_adj <-
     rep(NA_real_, length(common)); drifting <- rep(NA, length(common))
   testable <- rep(FALSE, length(common))
@@ -341,8 +443,6 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
   if (inferential && !estimates_shift) {
     se_diff[usable] <- sqrt(pmax(v[usable], 0))
     t[usable] <- .wald_ratio(d[usable], se_diff[usable])
-    df1 <- .btl_equate_cov_df(fit1)
-    df2 <- .btl_equate_cov_df(fit2)
     v1 <- a$se[usable]^2
     v2 <- b$se[usable]^2
     den <- if (is.finite(df1)) v1^2 / df1 else rep(0, length(v1))
@@ -388,8 +488,6 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
       # Each shifted contrast h = e_i - u receives the finite-judge
       # contribution from each panel separately; a non-clustered fit or
       # fixed/external bank has infinite df and contributes no denominator.
-      df1 <- .btl_equate_cov_df(fit1)
-      df2 <- .btl_equate_cov_df(fit2)
       Hc <- diag(length(u)) - matrix(u, nrow = length(u), ncol = length(u),
                                     byrow = TRUE)
       v1 <- pmax(diag(Hc %*% S1 %*% t(Hc)), 0)
@@ -414,20 +512,80 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
                     p = p, p_adj = p_adj,
                     drifting = drifting, stringsAsFactors = FALSE)
   rownames(tab) <- NULL
-  # the second calibration, whole, carried onto fit1's scale
+  # Re-expression changes uncertainty as well as location. Under independent
+  # calibrations, Cov(b_j, shift) = -Cov(b_j, b_common) u. A marginal-SE-only
+  # bank cannot supply this cross term, even for its non-common objects.
+  known_shift <- !estimates_shift || exact_link
+  reference_df <- .btl_equate_cov_df(fit2, ref$object)
+  reference_cov <- tryCatch(covsub(fit2, ref$object), error = function(e) NULL)
+  if (is.null(reference_cov) && all(is.finite(ref$se) & ref$se == 0) &&
+      (!inherits(fit2, "rasch_btl") || all(ref$object %in% names(fit2$anchors))))
+    reference_cov <- matrix(0, nrow(ref), nrow(ref))
+  full_cov_ok <- !is.na(reference_df) && all(is.finite(ref$se)) &&
+    .covariance_supports_wald(reference_cov, nrow(ref))
+  equated_cov <- NULL
+  equated_se <- if (known_shift && !conditional2) ref$se else
+    rep(NA_real_, nrow(ref))
+  if (known_shift && full_cov_ok) {
+    equated_cov <- reference_cov
+  } else if (!known_shift && independent_ok && is.finite(shift_se) &&
+             full_cov_ok && length(w)) {
+    u <- w / sum(w)
+    k <- drop(reference_cov[, match(common[usable], ref$object), drop = FALSE] %*% u)
+    candidate <- reference_cov + shift_se^2 - outer(k, rep(1, length(k))) -
+      outer(rep(1, length(k)), k)
+    candidate <- (candidate + t(candidate)) / 2
+    if (.covariance_supports_wald(candidate, nrow(ref))) {
+      equated_cov <- candidate
+      equated_se <- sqrt(pmax(diag(candidate), 0))
+    }
+  }
   equated <- data.frame(object = ref$object,
                         location = ref$location + c0,
-                        se = ref$se, stringsAsFactors = FALSE)
+                        se = equated_se, stringsAsFactors = FALSE)
   rownames(equated) <- NULL
+  if (!is.null(equated_cov)) {
+    dimnames(equated_cov) <- list(ref$object, ref$object)
+    attr(equated, "cov_location") <- equated_cov
+  }
+  equated_df <- if (known_shift) reference_df else min(df1, reference_df)
+  if (is.finite(equated_df) && any(is.finite(equated_se)))
+    attr(equated, "df_location") <- equated_df
+  if (fit1$m > 1L) attr(equated, "m") <- fit1$m
   notes <- if (estimates_shift) sprintf(paste0(
     "Origins differ because each calibration is sum-zero over its own object ",
     "set; a shift of %.3f logits aligns fit2 to fit1."), c0) else
       paste("The calibrations were compared on their fixed common origin;",
             "no common-object shift was estimated.")
+  if (exact_link)
+    notes <- c(notes, "Exact common anchors determine the origin shift.")
+  if (conditional1 || conditional2)
+    notes <- c(notes, paste(
+      "Drift tests are withheld because conditional frame errors do not",
+      "propagate all estimation uncertainty; use bootstrap errors for inference."))
+  if (conditional2)
+    notes <- c(notes, paste(
+      "Equated location standard errors are withheld because the reference",
+      "has preliminary conditional frame errors. Original conditional SEs",
+      "remain in the input calibration."))
+  if (!conditional2 && !known_shift && anyNA(equated_se))
+    notes <- c(notes, paste(
+      "Equated location standard errors are withheld because the estimated",
+      "shift and reference locations lack supported joint uncertainty.",
+      "Original-scale standard errors remain in the input calibration."))
+  if (any(zero_not_exact))
+    notes <- c(notes, paste0(
+      "Objects with zero pooled estimated variance but without exact anchors ",
+      "were excluded from weighting and drift tests: ",
+      paste(common[zero_not_exact], collapse = ", "), "."))
   if (covariance_invalid)
     notes <- c(notes, paste(
       "Drift tests are withheld because a fitted object-location covariance",
       "is unavailable or not positive semidefinite."))
+  if (!df_available && !(conditional1 || conditional2))
+    notes <- c(notes, paste(
+      "Drift tests are withheld because a contributing panel or set link",
+      "does not have enough independent-judge support for inference."))
   if (shift_method == "unweighted") {
     notes <- c(notes, paste(
       "Fewer than two common objects had usable variances; the reported",
@@ -435,13 +593,13 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
     no_se <- finite_loc & !usable
     if (any(no_se)) notes <- c(notes, paste0(
         "Objects included in the descriptive shift but excluded from drift tests ",
-        "because their standard errors were unavailable: ",
+        "because their uncertainty was unavailable or was a non-exact zero: ",
         paste(common[no_se], collapse = ", "), "."))
   } else if (any(!usable)) {
     notes <- c(notes, paste0(if (estimates_shift)
       "Objects excluded from the precision-weighted shift and drift tests " else
       "Drift tests unavailable for common objects ",
-      "because their locations or standard errors were unavailable: ",
+      "because their locations or uncertainty were unavailable or unusable: ",
       paste(common[!usable], collapse = ", "), "."))
   }
   if (any(!finite_loc))
@@ -496,8 +654,8 @@ btl_equate <- function(fit1, fit2, alpha = 0.05, p_adjust = "holm",
 #' Plot a paired-comparison equating comparison
 #'
 #' Scatter of the two calibrations' common-object locations with the shifted
-#' identity line, per-object 95 per cent error bars, and a dotted guide band
-#' at the average pooled precision; objects that drift (after
+#' identity line, per-object contrast intervals at the requested confidence
+#' level, and a dotted guide band at their average half-width; objects that drift (after
 #' the multiplicity adjustment) are highlighted and labelled. The counterpart
 #' of \code{\link{plot_equate}} for Bradley-Terry-Luce scales.
 #'
@@ -540,17 +698,16 @@ plot_btl_equate <- function(fit1, fit2, ...) {
                    grid_x = TRUE)
   on.exit(par(op))
   abline(eq$shift, 1, col = .rr$ink, lwd = 2)
-  band_rows <- paired & is.finite(tab$se_1) & is.finite(tab$se_2)
-  band <- if (any(band_rows))
-    1.96 * sqrt(mean(tab$se_1[band_rows]^2 + tab$se_2[band_rows]^2))
-  else NA_real_
+  half <- .equate_interval_halfwidth(tab, alpha = eq$alpha)
+  band_rows <- paired & is.finite(half)
+  band <- if (any(band_rows)) mean(half[band_rows]) else NA_real_
   if (is.finite(band)) {
     abline(eq$shift + band, 1, lty = 3, col = .rr$soft)
     abline(eq$shift - band, 1, lty = 3, col = .rr$soft)
   }
-  hs <- paired & is.finite(tab$se_1)
-  segments(tab$location_2[hs], tab$location_1[hs] - 1.96 * tab$se_1[hs],
-           tab$location_2[hs], tab$location_1[hs] + 1.96 * tab$se_1[hs],
+  hs <- paired & is.finite(half)
+  segments(tab$location_2[hs], tab$location_1[hs] - half[hs],
+           tab$location_2[hs], tab$location_1[hs] + half[hs],
            col = paste0(.rr$soft, "88"))
   points(tab$location_2[paired], tab$location_1[paired], pch = 21, cex = 1.6,
          bg = ifelse(tab$drifting[paired] %in% TRUE, .rr$red, .rr$blue),

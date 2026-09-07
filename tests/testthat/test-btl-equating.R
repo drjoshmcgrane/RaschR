@@ -125,7 +125,7 @@ test_that("BTL-EFRM equating df follows its uncertainty method", {
     clustered = TRUE), class = c("rasch_btl_efrm", "rasch_btl"))
   expect_identical(.btl_equate_cov_df(z), Inf)
   z$se_method <- "conditional"
-  expect_identical(.btl_equate_cov_df(z), Inf)
+  expect_true(is.na(.btl_equate_cov_df(z)))
   z$se_method <- "judge_bootstrap"
   expect_equal(.btl_equate_cov_df(z), 11)
 })

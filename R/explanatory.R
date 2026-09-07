@@ -13,6 +13,29 @@
   diag(M) - matrix(1, M, 1L) %*% t(a)
 }
 
+# Apply the origin constraint after constructing the model matrix. Subtract a
+# reference entry first, so an arbitrary large column offset is removed before
+# averaging. Do not centre the predictors before model.matrix(): that could
+# change a formula containing interactions without their main effects.
+.explanatory_centre <- function(mm, weights = rep(1 / nrow(mm), nrow(mm))) {
+  relative <- sweep(mm, 2L, mm[1L, ], `-`)
+  out <- sweep(relative, 2L, drop(crossprod(weights, relative)), `-`)
+  if (any(!is.finite(out)))
+    stop("the centred explanatory design is outside the representable range; ",
+         "rescale the predictors", call. = FALSE)
+  out
+}
+
+# model.matrix() can give different design columns the same label: for
+# example factor x's level B and a numeric predictor called xB. Retain the
+# design, but give every coefficient an unambiguous stored name. New fixed
+# departures also avoid names already present in the active model.
+.explanatory_unique_columns <- function(B, previous = character()) {
+  if (ncol(B))
+    colnames(B) <- utils::tail(make.unique(c(previous, colnames(B))), ncol(B))
+  B
+}
+
 .explanatory_ordinal_contrasts <- function(x) {
   k <- nlevels(x)
   if (k < 2L) stop("an ordinal predictor needs at least two observed levels")
@@ -25,6 +48,21 @@
     "adjacent_", seq_len(k - 1L), "_",
     make.names(levels(x)[-1L]), "_vs_", make.names(levels(x)[-k]))
   out
+}
+
+# Item names are response-column selectors, not labels to canonicalise.
+.explanatory_match_items <- function(x, items) {
+  missing <- is.na(x)
+  x <- as.character(x)
+  x[missing | is.na(x)] <- NA_character_
+  vapply(x, function(nm) {
+    if (is.na(nm) || nm %in% items) return(nm)
+    hit <- items[trimws(items) == trimws(nm)]
+    if (length(hit) > 1L)
+      stop("ambiguous item name: ", nm, "; use the exact response-column name",
+           call. = FALSE)
+    if (length(hit) == 1L) hit else nm
+  }, character(1), USE.NAMES = FALSE)
 }
 
 .explanatory_metadata <- function(predictors, formula, X,
@@ -43,8 +81,8 @@
   index <- data.frame(item = items[thr$item],
                       threshold_number = thr$k,
                       stringsAsFactors = FALSE)
-  predictors$item <- .role_text_values(predictors$item)
-  if (anyNA(predictors$item) || any(!nzchar(predictors$item)))
+  predictors$item <- .explanatory_match_items(predictors$item, items)
+  if (anyNA(predictors$item) || any(!nzchar(trimws(predictors$item))))
     stop("predictor item names must be non-missing and non-empty")
   unknown <- setdiff(unique(predictors$item), items)
   if (length(unknown))
@@ -101,26 +139,31 @@
     # all-zero column and makes an identified design look rank-deficient
     else if (is.factor(meta[[nm]])) meta[[nm]] <- droplevels(meta[[nm]])
   }
-  model_meta <- meta
-  for (nm in setdiff(names(model_meta), reserved))
-    if (is.ordered(model_meta[[nm]]))
-      contrasts(model_meta[[nm]]) <-
-        .explanatory_ordinal_contrasts(model_meta[[nm]])
-  mf <- tryCatch(stats::model.frame(formula, data = model_meta,
+  mf <- tryCatch(stats::model.frame(formula, data = meta,
                                     na.action = stats::na.fail),
                  error = function(e) stop("cannot construct the explanatory ",
                    "model: ", conditionMessage(e), call. = FALSE))
+  # model.matrix() omits offsets; no fixed contribution is carried through
+  # explanatory estimation or its refits, so accepting one would change the
+  # requested model silently. Inspect terms rather than predictor names.
+  if (length(attr(attr(mf, "terms"), "offset")))
+    stop("formula offsets are not supported by explanatory models; remove offset() terms",
+         call. = FALSE)
+  # Unused metadata must not constrain the requested model.
+  for (nm in setdiff(names(mf), reserved))
+    if (is.ordered(mf[[nm]]))
+      contrasts(mf[[nm]]) <- .explanatory_ordinal_contrasts(mf[[nm]])
   mm <- tryCatch(stats::model.matrix(formula, data = mf),
                  error = function(e) stop("cannot construct the explanatory ",
                    "model matrix: ", conditionMessage(e), call. = FALSE))
   if (!ncol(mm)) stop("the explanatory formula produced no predictors")
   if (any(!is.finite(mm)))
     stop("the explanatory predictors produce non-finite model-matrix values")
+  mm <- .explanatory_unique_columns(mm)
 
   A <- .explanatory_projector(m, thr)
-  B0 <- A %*% mm
-  norms <- sqrt(colSums(B0^2))
-  zero <- norms < 1e-10
+  B0 <- .explanatory_centre(mm, 1 / (length(m) * m[thr$item]))
+  zero <- colSums(B0 != 0) == 0L
   if (any(zero & colnames(mm) != "(Intercept)"))
     stop("predictor(s) have no estimable variation after fixing the scale ",
          "origin: ", paste(colnames(mm)[zero &
@@ -128,7 +171,7 @@
   B <- B0[, !zero, drop = FALSE]
   mm_keep <- mm[, !zero, drop = FALSE]
   if (!ncol(B)) stop("the explanatory formula contains only an intercept")
-  qb <- qr(B, tol = 1e-10)
+  qb <- qr(sweep(B, 2L, .design_column_scale(B), `/`), tol = 1e-10)
   if (qb$rank < ncol(B)) {
     aliased <- colnames(B)[qb$pivot[seq.int(qb$rank + 1L, ncol(B))]]
     stop("the explanatory design is not identified; aliased term(s): ",
@@ -151,17 +194,45 @@
   inames <- colnames(X) %||% paste0("V", seq_len(L))
   if (!is.matrix(B) || nrow(B) != M)
     stop("the explanatory design must have one row per fitted threshold")
-  if (!ncol(B) || qr(B, tol = 1e-10)$rank < ncol(B))
+  if (!ncol(B))
+    stop("the explanatory design matrix is not full column rank")
+  bs <- .design_column_scale(B)
+  B_work <- sweep(B, 2L, bs, `/`)
+  if (qr(B_work, tol = 1e-10)$rank < ncol(B))
     stop("the explanatory design matrix is not full column rank")
   pairs <- .pair_counts(X, m)
   .pcml_check_connected(pairs, L, inames)
   weak <- .pcml_weak_thresholds(X, m, thr, inames)
   st <- .start_tau(X, thr)
-  beta0 <- tryCatch(qr.solve(B, st, tol = 1e-10), error = function(e)
-    rep(0, ncol(B)))
+  beta0 <- tryCatch(qr.solve(B_work, st, tol = 1e-10) / bs,
+                    error = function(e) rep(0, ncol(B)))
   beta0[!is.finite(beta0)] <- 0
   sol <- .pcml_solve(X, thr, m, B, beta0, maxit = maxit, tol = tol,
                      pairs = pairs, cluster = cluster)
+  repeated <- !is.null(sol$cluster_support) &&
+    isTRUE(sol$cluster_support$repeated)
+  if (isTRUE(sol$converged) && isTRUE(sol$cluster_inference) && repeated) {
+    cov_small <- .pcml_linearised_cluster_cov(
+      X, thr, m, sol$tau, pairs, B, sol$H_beta, cluster)
+    if (is.null(cov_small)) {
+      sol$cluster_inference <- FALSE
+      sol$cov_beta[,] <- NA_real_
+      sol$cov_tau[,] <- NA_real_
+      sol$se_tau[] <- NA_real_
+      sol$cluster_note <- paste(
+        "item-parameter uncertainty withheld: deleting at least one person",
+        "cluster leaves the explanatory calibration unidentified")
+      sol$cluster_support$correction <- "withheld"
+    } else {
+      sol$cov_beta <- cov_small
+      sol$cov_tau <- B %*% cov_small %*% t(B)
+      sol$se_tau <- sqrt(pmax(diag(sol$cov_tau), 0))
+      sol$cluster_support$correction <-
+        "linearised delete-one-person jackknife"
+    }
+  } else if (!is.null(sol$cluster_support)) {
+    sol$cluster_support$correction <- if (repeated) "CR1" else "none"
+  }
   names(sol$beta) <- parameter_names
   dimnames(sol$cov_beta) <- list(parameter_names, parameter_names)
   # Do not turn the curvature at an unfinished optimisation iterate into
@@ -178,9 +249,12 @@
   thr$weak <- weak$flag
   thr$se[thr$weak] <- NA_real_
   se <- sqrt(pmax(diag(sol$cov_beta), 0))
-  z <- .wald_ratio(sol$beta, se)
+  stat <- .wald_ratio(sol$beta, se)
+  ref_df <- if (!isTRUE(sol$cluster_inference)) NA_real_ else if (repeated)
+    sol$cluster_support$n - 1L else Inf
   coef <- data.frame(term = parameter_names, estimate = sol$beta, se = se,
-                     z = z, p = 2 * stats::pnorm(abs(z), lower.tail = FALSE),
+                     t = stat, df = ref_df,
+                     p = 2 * stats::pt(-abs(stat), df = ref_df),
                      stringsAsFactors = FALSE)
   coef$p_adj <- .p_adjust_family(coef$p, method = "holm")
   rownames(coef) <- coef$term
@@ -189,13 +263,18 @@
        converged = sol$converged, m = m, anchors = NULL,
        n_parameters = ncol(B), B = B, beta = sol$beta,
        coefficients = coef, cov_beta = sol$cov_beta,
-       H_beta = sol$H_beta, notes = weak$notes)
+       H_beta = sol$H_beta,
+       notes = c(weak$notes, sol$cluster_note),
+       cluster_inference = sol$cluster_inference,
+       cluster_support = sol$cluster_support)
 }
 
 .pcml_nested_test <- function(full, restricted) {
   if (!isTRUE(full$converged) || !isTRUE(restricted$converged))
     stop("both conditional calibrations must converge before comparison")
-  Bf <- full$B; Br <- restricted$B
+  sf <- .design_column_scale(full$B)
+  Bf <- sweep(full$B, 2L, sf, `/`)
+  Br <- sweep(restricted$B, 2L, .design_column_scale(restricted$B), `/`)
   if (nrow(Bf) != nrow(Br))
     stop("the compared models do not describe the same thresholds")
   M <- nrow(Bf)
@@ -212,10 +291,11 @@
                       chisq_kent = NA_real_, p_kent = NA_real_,
                       lambda = numeric(0)))
   C <- sa$u[, seq_len(r), drop = FALSE]
-  Hinv <- tryCatch(solve(-full$H_beta), error = function(e) NULL)
+  Hinv <- tryCatch(solve(-full$H_beta / outer(sf, sf)),
+                   error = function(e) NULL)
   kc <- if (is.null(Hinv))
     list(chisq = NA_real_, p = NA_real_, lambda = numeric(0)) else
-    .kent_calibration(W, C, full$cov_beta, Hinv)
+    .kent_calibration(W, C, full$cov_beta * outer(sf, sf), Hinv)
   list(chisq = W, df = r, p = stats::pchisq(W, r, lower.tail = FALSE),
        chisq_kent = kc$chisq, p_kent = kc$p, lambda = kc$lambda)
 }
@@ -249,30 +329,33 @@
     # a level no calibrated object carries would add an all-zero column
     else if (is.factor(meta[[nm]])) meta[[nm]] <- droplevels(meta[[nm]])
   }
-  model_meta <- meta
-  for (nm in setdiff(names(model_meta), "object"))
-    if (is.ordered(model_meta[[nm]]))
-      contrasts(model_meta[[nm]]) <-
-        .explanatory_ordinal_contrasts(model_meta[[nm]])
-  mf <- tryCatch(stats::model.frame(formula, data = model_meta,
+  mf <- tryCatch(stats::model.frame(formula, data = meta,
                                     na.action = stats::na.fail),
     error = function(e) stop("cannot construct the explanatory object model: ",
                              conditionMessage(e), call. = FALSE))
+  if (length(attr(attr(mf, "terms"), "offset")))
+    stop("formula offsets are not supported by explanatory models; remove offset() terms",
+         call. = FALSE)
+  # Unused metadata must not constrain the requested model.
+  for (nm in setdiff(names(mf), "object"))
+    if (is.ordered(mf[[nm]]))
+      contrasts(mf[[nm]]) <- .explanatory_ordinal_contrasts(mf[[nm]])
   mm <- tryCatch(stats::model.matrix(formula, data = mf),
     error = function(e) stop("cannot construct the explanatory object model ",
                              "matrix: ", conditionMessage(e), call. = FALSE))
   if (any(!is.finite(mm)))
     stop("the explanatory object predictors produce non-finite model-matrix values")
-  C <- diag(length(objects)) - 1 / length(objects)
-  B0 <- C %*% mm
-  keep <- sqrt(colSums(B0^2)) >= 1e-10
+  mm <- .explanatory_unique_columns(mm)
+  B0 <- .explanatory_centre(mm)
+  keep <- colSums(B0 != 0) > 0L
   bad <- colnames(mm)[!keep & colnames(mm) != "(Intercept)"]
   if (length(bad))
     stop("predictor(s) have no estimable variation after fixing the scale origin: ",
          paste(bad, collapse = ", "))
   B <- B0[, keep, drop = FALSE]
   if (!ncol(B)) stop("the explanatory formula contains only an intercept")
-  if (qr(B, tol = 1e-10)$rank < ncol(B))
+  if (qr(sweep(B, 2L, .design_column_scale(B), `/`),
+         tol = 1e-10)$rank < ncol(B))
     stop("the explanatory object design is not identified")
   rownames(B) <- objects
   list(B = B, offset = stats::setNames(numeric(length(objects)), objects),
@@ -286,7 +369,10 @@
   if (!identical(as.character(full$objects$object),
                  as.character(restricted$objects$object)))
     stop("the compared models do not contain the same objects")
-  Bf <- full$location_design; Br <- restricted$location_design
+  sf <- .design_column_scale(full$location_design)
+  Bf <- sweep(full$location_design, 2L, sf, `/`)
+  Br <- sweep(restricted$location_design, 2L,
+              .design_column_scale(restricted$location_design), `/`)
   K <- nrow(Bf)
   S <- cbind(Br, rep(1, K))
   ss <- svd(S); rs <- sum(ss$d > max(1e-10, max(ss$d) * 1e-8))
@@ -301,17 +387,21 @@
   C <- rbind(Cobj,
              matrix(0, nrow(full$sensitivity) - nrow(Cobj), r))
   available <- isTRUE(full$cl$inference_available)
+  sp <- c(sf, rep(1, nrow(full$sensitivity) - length(sf)))
+  scale_outer <- outer(sp, sp)
   Hinv <- if (available)
-    tryCatch(solve(full$sensitivity), error = function(e) NULL) else NULL
+    tryCatch(solve(full$sensitivity / scale_outer),
+             error = function(e) NULL) else NULL
   kc <- if (is.null(Hinv))
     list(chisq = NA_real_, p = NA_real_, lambda = numeric(0)) else
-    .kent_calibration(W, C, full$cov_parameters, Hinv)
+    .kent_calibration(W, C, full$cov_parameters * scale_outer, Hinv)
   list(chisq = W, df = r,
        p = stats::pchisq(W, r, lower.tail = FALSE),
        chisq_kent = kc$chisq, p_kent = kc$p, lambda = kc$lambda)
 }
 
 .btl_explanatory_refit <- function(fit, B, relaxations) {
+  B <- .explanatory_unique_columns(B)
   spec <- fit$explanatory$refit_spec
   design <- list(B = B,
                  offset = stats::setNames(numeric(nrow(B)), rownames(B)),
@@ -340,8 +430,12 @@
 #' are continuous, unordered factors are categorical, and ordered factors use
 #' successive contrasts between adjacent levels. Character predictors are
 #' converted to unordered factors. Selected
-#' interactions may be included in \code{formula}. A free calibration is
-#' retained for \code{explanatory_test()}. Standard errors use the same
+#' interactions may be included in \code{formula}.
+#' Design columns are centred and rescaled internally for numerical stability; reported
+#' coefficients and standard errors use the supplied predictor units.
+#' Coincident coefficient labels receive numeric suffixes; this does not
+#' change the predictor design.
+#' A free calibration is retained for \code{explanatory_test()}. Standard errors use the same
 #' sandwich covariance as \code{btl()}; when judges are identified, coefficient
 #' tests use the judge-clustered covariance and a \eqn{t} reference with
 #' judge-cluster degrees of freedom. Holm adjustment covers the coefficient
@@ -352,7 +446,7 @@
 #'   column, and the predictors named in \code{formula}. Column names must be
 #'   unique.
 #' @param formula One-sided explanatory formula, including selected
-#'   interactions if required.
+#'   interactions if required. Formula offsets (\code{offset()}) are not supported.
 #' @return An object of class \code{"rasch_btl_explanatory"}, inheriting from
 #'   \code{"rasch_btl"}.
 #' @references Bradley, R. A. and Terry, M. E. (1952). Rank analysis of
@@ -413,6 +507,10 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
     stop("the unrestricted comparative judgement calibration did not ",
          "converge; an explanatory restriction cannot be assessed against it",
          call. = FALSE)
+  usable_objects <- unique(c(
+    as.character(reference$observed_comparisons$object_a),
+    as.character(reference$observed_comparisons$object_b)))
+  usable_objects <- usable_objects[!is.na(usable_objects) & nzchar(usable_objects)]
   # objects set aside at a response boundary are not fitted, so centring the
   # design over them would leave the fitted locations off the sum-zero
   # origin the model and the reference fit both use
@@ -421,7 +519,7 @@ btl_explanatory <- function(data, predictors, formula, object_a, object_b,
   if (!is.null(reference$objects$extreme))
     calibrated <- calibrated[!reference$objects$extreme %in% TRUE]
   design <- .btl_explanatory_design(predictors, formula, calibrated,
-                                    known = observed_objects)
+                                    known = usable_objects)
   fit <- do.call(btl, c(list(data = data), args,
                         list(.object_design = design)))
   fit$reference_fit <- reference
@@ -530,10 +628,26 @@ print.rasch_btl_explanatory <- function(x, ...) {
 #' factors. The reserved factor
 #' \code{threshold} identifies the within-item threshold number;
 #' \code{threshold_number} supplies its integer value.
+#' Design columns are centred and rescaled internally for numerical stability; reported
+#' coefficients and standard errors use the supplied predictor units.
+#' Coincident coefficient labels receive numeric suffixes; this does not
+#' change the predictor design.
 #'
 #' A free PCM reference is fitted to the same prepared responses and retained
 #' on the object. \code{\link{explanatory_test}} applies the first-order Kent
-#' calibration required for the pairwise composite likelihood.
+#' calibration required for the pairwise composite likelihood. When an
+#' identifier occurs on more than one response row, coefficient covariance is
+#' clustered by person. A linearised delete-one-person correction accounts for
+#' finite-cluster leverage without refitting the model once per person.
+#' Supported repeated-person fits use a \eqn{t} reference
+#' with degrees of freedom equal to the number of person clusters contributing
+#' conditional information minus one; inference
+#' is withheld when the calibration lacks enough independent information.
+#' Supported fits without repeated identifiers use the limiting normal
+#' reference. Holm adjustment covers the coefficient family.
+#' With few persons and unequal numbers of response rows, these approximate
+#' tests can still be mildly liberal; the correction does not guarantee nominal
+#' coverage in small samples.
 #'
 #' @param data,items,id,factors,n_groups,na_codes,key,maxit,tol As in
 #'   \code{\link{rasch}}.
@@ -544,13 +658,16 @@ print.rasch_btl_explanatory <- function(x, ...) {
 #' @param formula One-sided explanatory formula. For example,
 #'   \code{~ format + operation + format:operation}. The reserved
 #'   \code{threshold} factor permits threshold-specific effects.
+#'   Formula offsets (\code{offset()}) are not supported.
 #' @param level Whether \code{predictors} contains one row per \code{"item"}
 #'   or per \code{"threshold"}. Item rows are expanded over their thresholds.
 #' @return An object of class \code{"rasch_explanatory"} inheriting from
 #'   \code{"rasch"}. Standard item, person, fit and diagnostic components use
 #'   the explanatory thresholds. The \code{explanatory} component contains the
 #'   formula, metadata and design matrices; \code{reference_fit} is the free
-#'   PCM calibration.
+#'   PCM calibration. \code{est$coefficients} reports the estimates, standard
+#'   errors, \eqn{t} statistics, reference degrees of freedom, raw
+#'   probabilities and Holm-adjusted probabilities.
 #' @references
 #' Fischer, G. H. (1973). The linear logistic test model as an instrument in
 #' educational research. Acta Psychologica, 37, 359--374.
@@ -615,7 +732,9 @@ rasch_explanatory <- function(data, predictors, formula, items = NULL,
 #' Tests explanatory item, threshold or object restrictions against the
 #' corresponding free calibration of the same responses. The inferential
 #' result uses the first-order Kent calibration for the fitted likelihood and
-#' sandwich covariance. The calibration coefficient of determination is
+#' sandwich covariance. This multivariate comparison is asymptotic; unlike
+#' the individual coefficient tests, it has no finite-person-cluster \eqn{t}
+#' correction. The calibration coefficient of determination is
 #' \deqn{R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
 #' \hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
 #' \bar\eta^{free})^2},}
@@ -748,12 +867,34 @@ explanatory_test <- function(fit) {
   qr(cbind(B, D), tol = 1e-10)$rank - qr(B, tol = 1e-10)$rank
 }
 
+# Keep a stable subset of a candidate block that adds exactly its remaining
+# directions to the active design. A predictor may already span only part of
+# a polytomous item's threshold block; appending the whole block would then
+# make the refit rank deficient even though a genuine departure remains.
+.explanatory_addition <- function(B, D) {
+  current <- B
+  current_rank <- qr(current, tol = 1e-10)$rank
+  keep <- integer(0)
+  for (j in seq_len(ncol(D))) {
+    candidate <- cbind(current, D[, j, drop = FALSE])
+    candidate_rank <- qr(candidate, tol = 1e-10)$rank
+    if (candidate_rank > current_rank) {
+      keep <- c(keep, j)
+      current <- candidate
+      current_rank <- candidate_rank
+    }
+  }
+  .explanatory_unique_columns(D[, keep, drop = FALSE], colnames(B))
+}
+
 #' Diagnose fixed departures from an explanatory model
 #'
 #' Fits each available item-location, polytomous threshold-structure or
 #' comparative-judgement object departure separately from the active model.
 #' Probabilities use Kent calibration and Holm adjustment over the complete
-#' candidate family.
+#' candidate family. The Kent departure tests are first-order asymptotic
+#' comparisons and do not use the finite-person-cluster correction applied to
+#' individual coefficients.
 #' A candidate with a withheld probability remains in that family.
 #'
 #' @param fit A fitted explanatory Rasch or comparative judgement model.
@@ -829,8 +970,9 @@ explanatory_diagnostics <- function(fit, p_adjust = "holm") {
   for (item in colnames(fit$X)) for (component in c("location", "thresholds")) {
     if (component == "thresholds" && fit$m[match(item, colnames(fit$X))] < 2L)
       next
-    D <- .explanatory_candidate(fit, item, component)
-    add <- .explanatory_addable(B, D)
+    D <- .explanatory_addition(
+      B, .explanatory_candidate(fit, item, component))
+    add <- ncol(D)
     if (!add) next
     candB <- cbind(B, D)
     est <- .pcml_design(fit$X, candB, colnames(candB),
@@ -887,10 +1029,12 @@ explanatory_diagnostics <- function(fit, p_adjust = "holm") {
 
 #' Relax a nominated explanatory restriction
 #'
-#' Adds either one fixed item-location departure or a fixed block describing
-#' an item's threshold structure, then repeats the complete conditional
-#' calibration and downstream Rasch analysis. The departure is fixed rather
-#' than random; raw-score sufficiency and the common discrimination remain.
+#' Adds either one fixed item-location departure or the part of an item's
+#' threshold-structure block not already represented by the predictor design,
+#' then repeats the complete conditional calibration and downstream Rasch
+#' analysis. The departure is fixed rather than random; raw-score sufficiency
+#' and the common discrimination remain.
+#' Earlier DIF splits and superitem definitions are retained.
 #'
 #' @param fit A fitted explanatory Rasch model.
 #' @param item Item name.
@@ -907,11 +1051,12 @@ relax_explanatory <- function(fit, item,
   if (!is.atomic(item) || !is.null(dim(item)) || length(item) != 1L ||
       is.na(item))
     stop("`item` must name exactly one item")
-  item <- .role_text_values(item)
-  if (!nzchar(item)) stop("`item` must name exactly one item")
+  item <- .explanatory_match_items(item, colnames(fit$X))
+  if (!nzchar(trimws(item))) stop("`item` must name exactly one item")
   component <- match.arg(component)
-  D <- .explanatory_candidate(fit, item, component)
-  add <- .explanatory_addable(fit$est$B, D)
+  D <- .explanatory_addition(
+    fit$est$B, .explanatory_candidate(fit, item, component))
+  add <- ncol(D)
   if (!add)
     stop("that departure is already represented by the active explanatory model")
   B <- cbind(fit$est$B, D)
@@ -927,9 +1072,10 @@ relax_explanatory <- function(fit, item,
                     parameters_added = add, stringsAsFactors = FALSE)
   rel <- rbind(rel, new)
   out <- .assemble_fit("PCM", fit$X, est, fit$person$id, fit$factors,
-                       fit$n_groups,
-                       c(fit$notes, sprintf("fixed explanatory departure: %s, %s",
-                         item, tolower(new$component))))
+                       .refit_n_groups(fit),
+                       unique(c(fit$notes, est$notes,
+                         sprintf("fixed explanatory departure: %s, %s",
+                                 item, tolower(new$component)))))
   out$explanatory_model <- fit$explanatory_model
   design <- list(B = fit$explanatory$base_B,
                  matrix = fit$explanatory$model_matrix,
@@ -938,21 +1084,32 @@ relax_explanatory <- function(fit, item,
                  threshold_index = fit$explanatory$threshold_index)
   out <- .explanatory_attach(out, fit$reference_fit, design,
                       fit$explanatory$formula, fit$explanatory$level, rel,
-                      n_groups_requested = fit$n_groups,
+                      n_groups_requested = .refit_n_groups(fit),
                       maxit = spec$maxit, tol = spec$tol)
   out$mc <- fit$mc
+  # Relaxation changes restrictions, not response columns or their history.
+  out$split_map <- fit$split_map
+  out$subtest_map <- fit$subtest_map
+  out$subtest_binary <- fit$subtest_binary
   out
 }
 
 .explanatory_inherit_mc <- function(fit, source, inherit,
-                                    exclude = character(0)) {
+                                    exclude = character(0),
+                                    person_rows = seq_len(nrow(source))) {
   if (is.null(fit$mc) || is.null(fit$mc$raw)) return(NULL)
   items <- colnames(source)
   old <- unname(inherit[items])
   keep <- items[old %in% colnames(fit$mc$raw) & !items %in% exclude]
   if (!length(keep)) return(NULL)
   raw <- vapply(keep, function(it) {
-    value <- fit$mc$raw[, unname(inherit[it])]
+    old_item <- unname(inherit[it])
+    old_score <- fit$X[person_rows, old_item]
+    observed <- !is.na(source[, it])
+    if (any(observed & (is.na(old_score) | source[, it] != old_score)))
+      stop("cannot inherit observed multiple-choice answers for changed ",
+           "scores; simulated refits must use inherit_mc = FALSE", call. = FALSE)
+    value <- fit$mc$raw[person_rows, old_item]
     value[is.na(source[, it])] <- NA_character_
     value
   }, character(nrow(source)))
@@ -967,8 +1124,9 @@ relax_explanatory <- function(fit, item,
 .explanatory_refit_modified <- function(fit, source, inherit = NULL,
                                         location_relaxed = character(0),
                                         fully_relaxed = character(0),
-                                        person_rows = NULL) {
+                                        person_rows = NULL, inherit_mc = TRUE) {
   source <- as.matrix(source)
+  .check_flag(inherit_mc, "inherit_mc")
   # a source holding a SUBSET of the fitted persons must carry the matching
   # identifiers and person factors: passing the full-length vectors would
   # fail on row alignment, and every caller catching that error would report
@@ -976,6 +1134,11 @@ relax_explanatory <- function(fit, item,
   if (is.null(person_rows)) person_rows <- seq_len(nrow(source))
   if (length(person_rows) != nrow(source))
     stop("`person_rows` must give one fitted row per row of `source`")
+  if (!is.numeric(person_rows) || is.complex(person_rows) ||
+      !is.null(dim(person_rows)) || !is.null(oldClass(person_rows)) ||
+      any(!is.finite(person_rows)) || any(person_rows != floor(person_rows)) ||
+      any(person_rows < 1L | person_rows > nrow(fit$X)))
+    stop("`person_rows` must contain valid fitted row indices")
   new_items <- colnames(source)
   old_items <- colnames(fit$X)
   if (is.null(inherit))
@@ -1017,8 +1180,13 @@ relax_explanatory <- function(fit, item,
     id = fit$person$id[person_rows],
     factors = if (is.null(fit$factors)) NULL else
       fit$factors[person_rows, , drop = FALSE],
-    n_groups = spec$n_groups %||% fit$n_groups, maxit = spec$maxit %||% 60,
+    n_groups = .refit_n_groups(fit), maxit = spec$maxit %||% 60,
     tol = spec$tol %||% 1e-8)
+  expected_max <- stats::setNames(fit$m[match(inherit[new_items], old_items)],
+                                  new_items)
+  expected_max[intersect(fully_relaxed, new_items)] <-
+    m_new[intersect(fully_relaxed, new_items)]
+  .require_fitted_score_structure(out, expected_max, "the explanatory refit")
 
   # Preserve prior analyst-approved departures on items that survive or are
   # replaced by inherited copies. A split copy receives the source item's
@@ -1050,8 +1218,10 @@ relax_explanatory <- function(fit, item,
         out <- relax_explanatory(out, it, "thresholds")
     }
   }
-  out$mc <- .explanatory_inherit_mc(
-    fit, source, inherit, exclude = unique(fully_relaxed))
+  # Simulated scores have no observed answer-option identities to inherit.
+  out$mc <- if (inherit_mc) .explanatory_inherit_mc(
+    fit, source, inherit, exclude = unique(fully_relaxed),
+    person_rows = person_rows) else NULL
   out
 }
 
@@ -1063,6 +1233,10 @@ print.rasch_explanatory <- function(x, ...) {
   cat(sprintf("Conditional calibration: %d explanatory parameter(s), %d fixed departure(s)\n",
               nrow(x$est$coefficients),
               nrow(x$explanatory$relaxations)))
+  if (!isTRUE(x$est$converged)) {
+    cat("Free calibration comparison: unavailable because the explanatory calibration did not converge\n")
+    return(invisible(x))
+  }
   tst <- explanatory_test(x)
   if (tst$df > 0L)
     cat(sprintf("Free calibration comparison: adjusted chi-square %.3f on %d df, p = %s\n",

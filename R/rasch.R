@@ -11,6 +11,39 @@
 # Map missing-data codes (and any negative score) to NA. Valid item scores
 # are non-negative integers from zero; by long-standing convention -1 marks a
 # missing response, so any value below zero is read as missing.
+.check_na_codes <- function(na_codes) {
+  if (!(is.numeric(na_codes) || is.character(na_codes)) ||
+      is.complex(na_codes) || !is.null(dim(na_codes)) ||
+      !is.null(oldClass(na_codes)) || anyNA(na_codes))
+    stop("`na_codes` must be a plain numeric or character vector without missing values",
+         call. = FALSE)
+  if (is.numeric(na_codes) &&
+      (any(!is.finite(na_codes)) || any(na_codes != floor(na_codes)) ||
+       any(abs(na_codes) > .Machine$integer.max)))
+    stop("numeric `na_codes` must be finite integer score values",
+         call. = FALSE)
+  if (is.character(na_codes) &&
+      any(!nzchar(trimws(na_codes))))
+    stop("character `na_codes` must be non-empty values", call. = FALSE)
+  invisible(na_codes)
+}
+
+# Match declared codes before numeric score validation. This preserves text
+# codes such as "." and "09", while also treating numerically equivalent
+# representations (9, "9", and "09") alike. Undeclared negative values are
+# handled separately because valid Rasch scores begin at zero.
+.missing_code_mask <- function(v, na_codes) {
+  .check_na_codes(na_codes)
+  txt <- as.character(v)
+  codes <- as.character(na_codes)
+  exact <- !is.na(v) & txt %in% codes
+  vn <- suppressWarnings(as.numeric(txt))
+  cn <- suppressWarnings(as.numeric(codes))
+  cn <- cn[is.finite(cn)]
+  numeric_match <- !is.na(vn) & is.finite(vn) & length(cn) > 0L & vn %in% cn
+  exact | numeric_match
+}
+
 .apply_na_codes <- function(v, na_codes) {
   v[v %in% na_codes | (!is.na(v) & v < 0)] <- NA
   v
@@ -20,8 +53,12 @@
 # categories, no constant items. Returns the matrix plus human-readable notes.
 # `anchors`, with item names already resolved, exempts the items whose every
 # threshold is fixed from the PCM category merge: nothing is estimated for
-# them, so they need no conditional information.
-.prepare_X <- function(X, na_codes = -1, model = "PCM", anchors = NULL) {
+# them, so they need no conditional information. `scored_items` have already
+# had their raw missing codes removed by keyed scoring; a generated score
+# must not be mistaken for a raw missing code with the same numeric value.
+.prepare_X <- function(X, na_codes = -1, model = "PCM", anchors = NULL,
+                        scored_items = character(0)) {
+  .check_na_codes(na_codes)
   notes <- character(0)
   X <- as.matrix(X)
   if (is.complex(X))
@@ -33,9 +70,12 @@
   if (anyDuplicated(colnames(X)))
     stop("item column names must be unique: ",
          paste(unique(colnames(X)[duplicated(colnames(X))]), collapse = ", "))
+  raw_code <- matrix(.missing_code_mask(as.vector(X), na_codes),
+                     nrow(X), ncol(X), dimnames = dimnames(X))
+  raw_code[, colnames(X) %in% scored_items] <- FALSE
   Xn <- suppressWarnings(apply(X, 2, function(col) as.numeric(as.character(col))))
   dim(Xn) <- dim(X); dimnames(Xn) <- dimnames(X)
-  too_large <- !is.na(Xn) & is.finite(Xn) &
+  too_large <- !raw_code & !is.na(Xn) & is.finite(Xn) &
     (Xn > .Machine$integer.max | Xn < -.Machine$integer.max)
   if (any(too_large))
     stop("score(s) outside the supported integer range in: ",
@@ -48,7 +88,7 @@
   # ordinary "non-numeric entries set to missing" path and silently removed it.
   # `NaN` is also `NA` in R, so test the converted values directly rather
   # than guarding the check with !is.na(X). Genuine NA is not NaN.
-  nonfinite <- is.infinite(Xn) | is.nan(Xn)
+  nonfinite <- !raw_code & (is.infinite(Xn) | is.nan(Xn))
   if (any(nonfinite))
     stop("non-finite score(s) in: ",
          paste(colnames(X)[colSums(nonfinite) > 0], collapse = ", "),
@@ -56,19 +96,24 @@
          call. = FALSE)
   # as.integer() TRUNCATES fractional values (1.9 -> 1) without a warning:
   # that silently alters response data, so it must be an error, not a note
-  frac <- colSums(!is.na(Xn) & !is.na(Xi) & Xn != Xi) > 0
+  fractional <- !raw_code & !is.na(Xn) & !is.na(Xi) & Xn != Xi
+  frac <- colSums(fractional) > 0
   if (any(frac))
     stop("non-integer score(s) in: ",
          paste(colnames(X)[frac], collapse = ", "),
-         " (e.g. ", format(Xn[!is.na(Xn) & !is.na(Xi) & Xn != Xi][1]),
+         " (e.g. ", format(Xn[fractional][1]),
          "); Rasch categories are integer counts -- round or rescore ",
          "explicitly before analysis")
-  bad_num <- colSums(!is.na(X) & is.na(Xi)) > 0
+  bad_num <- colSums(!is.na(X) & !raw_code & is.na(Xi)) > 0
   if (any(bad_num))
     notes <- c(notes, paste0("non-numeric entries set to missing in: ",
                              paste(colnames(X)[bad_num], collapse = ", ")))
-  n_na <- sum(!is.na(Xi) & (Xi %in% na_codes | Xi < 0))
-  Xi[] <- .apply_na_codes(Xi, na_codes)
+  n_na <- sum(raw_code | (!is.na(Xi) & Xi < 0))
+  Xi[raw_code] <- NA_integer_
+  # Declared codes were matched to the raw values above. At this point only
+  # the negative-score convention remains; reapplying positive codes would
+  # erase valid scores produced by a key.
+  Xi[] <- .apply_na_codes(Xi, integer(0))
   if (n_na > 0) {
     codes <- paste(unique(c(na_codes, "negative")), collapse = ", ")
     notes <- c(notes, sprintf("%d cell(s) with a missing-data code (%s) set to missing",
@@ -242,6 +287,15 @@
 #' designs and ignorable missingness; informative missingness can still bias
 #' the estimates.
 #'
+#' Item-parameter uncertainty uses the empirical Godambe sandwich over
+#' independent persons, or over person clusters when IDs repeat. It is
+#' withheld unless at least 10 contributing units, at least 8 effective units,
+#' more effective units than fitted parameters, and a full-rank score
+#' covariance support the fitted directions. Effective support reflects the
+#' number of informative conditional item pairs contributed by each unit;
+#' rows without one do not count. Point estimates and exact anchors remain
+#' available when uncertainty is withheld.
+#'
 #' The fit residual is the log-of-mean-square statistic described by Andrich
 #' and Marais (2019, ch. 23). Positive values indicate under-discrimination and
 #' negative values indicate over-discrimination. Its standard-normal reading,
@@ -266,7 +320,8 @@
 #'   Repeated values cluster the item-parameter sandwich covariance and define
 #'   the person unit in repeated-measures DIF. The ordinary item-fit reference
 #'   distributions are row-based, so their probabilities are withheld when an
-#'   ID occurs on more than one response row.
+#'   ID occurs on more than one response row. The support conditions described
+#'   above then apply to person clusters rather than response rows.
 #' @param factors Optional character vector of person-factor column names in
 #'   \code{data} (for DIF analysis), a data frame of factors, or one grouping
 #'   vector with one entry per data row.
@@ -284,9 +339,14 @@
 #'   \code{\link{pcml}}. Column names must be unique. Anchors determine the
 #'   scale origin. Anchor values are treated as fixed, so their uncertainty
 #'   is not included in the fitted standard errors.
-#' @param na_codes Values to read as missing. Defaults to \code{-1}, the
-#'   conventional missing-response code; any negative score is also treated as
-#'   missing, since valid category scores start at zero.
+#' @param na_codes Numeric or character values to read as missing. They are
+#'   matched before scores are converted to numbers, including numerically
+#'   equivalent labels (for example, \code{"09"} matches a score of 9).
+#'   Defaults to \code{-1}, the conventional missing-response code; any
+#'   negative score is also treated as missing, since valid category scores
+#'   start at zero. For keyed items, codes apply to raw answer options, not
+#'   to the scores assigned by the key. Structural refits use the prepared
+#'   scores and do not apply the original raw codes again.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence
 #'   tolerance of the pairwise conditional estimation.
 #' @param key Optional multiple-choice key: a named item-to-option vector, an
@@ -326,7 +386,11 @@
 #'   and estimation details. The component \code{summary_stats} contains the
 #'   distribution summaries, fit-location correlations, and the cell
 #'   degrees-of-freedom factor. The item summary carries a \code{disc}
-#'   column described below. If estimation does not converge, locations and
+#'   column described below. \code{repeated_ids} records whether a person
+#'   contributes more than one informative calibration row;
+#'   \code{repeated_residual_ids} records repetition among rows contributing
+#'   fitted residuals, which governs the row-based fit references. If estimation
+#'   does not converge, locations and
 #'   residual patterns are retained for diagnosis, but standard errors,
 #'   separation indices and inferential probabilities are \code{NA}.
 #' @references
@@ -605,7 +669,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   mc <- NULL
   if (!is.null(key)) {
     key <- .resolve_key(key)
-    sc <- .score_mc(X, key)
+    sc <- .score_mc(X, key, na_codes = na_codes)
     X[, colnames(sc$scored)] <- sc$scored
     mc <- list(key = sc$key, map = sc$map, raw = sc$raw)
   }
@@ -633,7 +697,9 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
                  collapse = ", "))
     anchors$item <- a_names
   }
-  prep <- .prepare_X(X, na_codes = na_codes, model = model, anchors = anchors)
+  prep <- .prepare_X(X, na_codes = na_codes, model = model, anchors = anchors,
+                     scored_items = if (is.null(mc)) character(0) else
+                       colnames(mc$raw))
   X <- prep$X
   if (!is.null(mc)) {
     binary_key <- vapply(mc$map, function(z) max(z) == 1L, logical(1))
@@ -675,7 +741,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
               cluster = id_vec)
   else .pcml_pc_fit(X, n_components = pc_components, maxit = maxit,
                     tol = tol, cluster = id_vec)
-  repeated_ids <- .has_repeated_person_ids(id_vec)
+  repeated_ids <- .est_has_repeated_calibration_units(est, id_vec)
   if (repeated_ids)
     prep$notes <- c(prep$notes, paste(
       "item-parameter sandwich covariance clustered by repeated person id;",
@@ -723,13 +789,50 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
 # estimation switches to the weighted-score routine and the score table is
 # replaced by per-unit score curves.
 .has_repeated_person_ids <- function(id) {
-  !is.null(id) && anyDuplicated(id[!is.na(id)]) > 0L
+  if (is.null(id)) return(FALSE)
+  z <- .role_text_values(id)
+  present <- !is.na(z) & nzchar(z)
+  anyDuplicated(z[present]) > 0L
+}
+
+# Row-based diagnostics have a different sampling-unit requirement from the
+# calibration sandwich. A row can carry a fitted residual even when it has no
+# informative conditional item pair, so it must still count when deciding
+# whether a row-independent fit reference or null generator is defensible.
+.has_repeated_residual_units <- function(fit) {
+  if (!is.list(fit) || is.null(fit$person$id) ||
+      !is.matrix(fit$residuals) ||
+      nrow(fit$residuals) != length(fit$person$id))
+    return(.has_repeated_person_ids(
+      if (is.list(fit) && !is.null(fit$person)) fit$person$id else NULL))
+  contributes <- rowSums(is.finite(fit$residuals)) > 0L
+  z <- .role_text_values(fit$person$id)
+  present <- contributes & !is.na(z) & nzchar(z)
+  anyDuplicated(z[present]) > 0L
+}
+
+# Whether more than one informative calibration row belongs to a person.
+# Current PCML fits record this after excluding rows with no informative
+# conditional item pair. Raw IDs are used only for legacy or structural fits
+# that do not carry this support record.
+.est_has_repeated_calibration_units <- function(est, id = NULL) {
+  support <- est$cluster_support
+  if (is.list(support) && is.logical(support$repeated) &&
+      length(support$repeated) == 1L && !is.na(support$repeated))
+    return(isTRUE(support$repeated))
+  .has_repeated_person_ids(id)
+}
+
+.has_repeated_calibration_units <- function(fit) {
+  if (!is.list(fit)) return(FALSE)
+  id <- if (!is.null(fit$person)) fit$person$id else NULL
+  .est_has_repeated_calibration_units(fit$est %||% list(), id)
 }
 
 .assemble_fit <- function(model, X, est, id_vec, fac_df, n_groups,
                           notes, disc = NULL) {
   m <- est$m; L <- ncol(X)
-  repeated_ids <- .has_repeated_person_ids(id_vec)
+  repeated_ids <- .est_has_repeated_calibration_units(est, id_vec)
   thr <- est$thr
   tau_list <- lapply(seq_len(L), function(i) thr$tau[thr$item == i])
   names(tau_list) <- colnames(X)
@@ -742,6 +845,11 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   mo <- .moment_arrays(person$theta, tau_list, disc = disc_v)
   Z <- (X - mo$E) / sqrt(mo$V)
   colnames(Z) <- colnames(X)
+  repeated_residual_ids <- {
+    z <- .role_text_values(id_vec)
+    present <- rowSums(is.finite(Z)) > 0L & !is.na(z) & nzchar(z)
+    anyDuplicated(z[present]) > 0L
+  }
 
   # --- fit statistics ------------------------------------------------------
   # an item scored at its floor or ceiling by every non-extreme person has
@@ -772,7 +880,7 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   else NULL
   it <- .item_trait(X, mo, ci, ci_list = ci_list)
   ia <- .item_anova(Z, ci, person$extreme, ci_list = ci_list)
-  if (repeated_ids) {
+  if (repeated_residual_ids) {
     for (nm in intersect(c("p", "p_adj", "p_bonf"), names(it)))
       it[[nm]][] <- NA_real_
     for (nm in intersect(c("p", "p_adj", "p_bonf"), names(ia)))
@@ -801,6 +909,23 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
   weak_thr <- if (is.null(thr$weak)) rep(FALSE, nrow(thr)) else thr$weak
   se_loc <- vapply(seq_len(L), function(i) {
     rows <- thr$id[thr$item == i]
+    anchored_i <- thr$anchored[thr$item == i]
+    # A location anchor fixes the mean of an item's thresholds exactly even
+    # when a sparse category makes their individual spread estimates weak.
+    # Preserve the exact zero variance of that mean; only the free threshold
+    # SEs are unavailable.  Checking weakness first would turn a known anchor
+    # into NA and remove it from fixed-origin equating downstream.
+    if (length(anchored_i) && all(anchored_i)) {
+      vloc <- mean(est$cov_tau[rows, rows])
+      if (is.finite(vloc)) return(sqrt(max(vloc, 0)))
+      # When repeated-person support is insufficient, the estimated
+      # covariance is deliberately unavailable. A location anchor nevertheless
+      # fixes this particular mean exactly; do not make the exact constraint
+      # look uncertain merely because its free threshold spread has no SE.
+      if (isTRUE(est$converged) && identical(est$cluster_inference, FALSE))
+        return(0)
+      return(NA_real_)
+    }
     # a weakly determined threshold (sparse adjacent category) makes the
     # ridged covariance block spuriously small: report NA, not a number
     if (any(weak_thr[thr$item == i])) return(NA_real_)
@@ -883,10 +1008,12 @@ rasch <- function(data, model = c("PCM", "RSM"), id = NULL, factors = NULL,
               alpha = alpha,
               targeting = .targeting(person, thr),
               repeated_ids = repeated_ids,
+              repeated_residual_ids = repeated_residual_ids,
               separation_quality = separation_quality,
               power_of_fit = separation_quality,
               total_chisq = total_chisq, total_df = total_df,
-              total_chisq_p = if (isTRUE(est$converged) && !repeated_ids &&
+              total_chisq_p = if (isTRUE(est$converged) &&
+                                    !repeated_residual_ids &&
                                     is.finite(total_chisq))
                 pchisq(total_chisq, total_df, lower.tail = FALSE) else NA_real_,
               item_fit_summary = .dist_stats(rf$items$fit_resid),
@@ -923,7 +1050,7 @@ print.rasch <- function(x, ...) {
               if (isFALSE(x$alpha$applicable))
                 sprintf(" [complete cases only, n = %d]", x$alpha$n) else "",
               separation_quality))
-  total_p <- if (.has_repeated_person_ids(x$person$id)) NA_real_
+  total_p <- if (.has_repeated_residual_units(x)) NA_real_
     else x$total_chisq_p
   cat(sprintf("Approximate asymptotic total item-trait chi-square %.3f on %d df, p = %s\n",
               x$total_chisq, x$total_df, .fmt_p(total_p)))
@@ -953,7 +1080,7 @@ summary.rasch <- function(object, ...) {
               x$summary_stats$cor_item_fit_location,
               x$summary_stats$cor_person_fit_location,
               x$summary_stats$df_factor))
-  item_p <- if (.has_repeated_person_ids(x$person$id))
+  item_p <- if (.has_repeated_residual_units(x))
     rep(NA_real_, nrow(x$items)) else x$items$p_adj
   inference <- .inference_count(item_p)
   cat(sprintf("%s with approximate asymptotic Holm p < 0.05: %s\n\n",

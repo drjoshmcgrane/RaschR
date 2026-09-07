@@ -112,6 +112,26 @@ test_that("person and item panels preserve their labels and ordering", {
     fit, person_panels = c("group", "group")), "distinct")
 })
 
+test_that("crossed WrightMap panels cannot merge colliding labels", {
+  fit <- rasch(simulate_rasch(100, 6, seed = 9911), id = "id")
+  fit$person$A <- rep(c("a x b", "a"), 50)
+  fit$person$B <- rep(c("c", "b x c"), 50)
+  persons <- .wright_person_panels(fit, c("A", "B"))
+  expect_identical(ncol(persons), 2L)
+  expect_false(anyDuplicated(colnames(persons)) > 0L)
+  expect_true(all(rowSums(!is.na(persons)) == 1L))
+  expect_equal(unname(colSums(!is.na(persons))), c(50, 50))
+  expect_error(.wright_person_panels(fit, matrix(1 + 2i, 2, 2)),
+               "real numeric")
+
+  class(fit) <- c("rasch_efrm", class(fit))
+  fit$virtual_map <- data.frame(vkey = fit$items$item,
+    set = rep(c("a x b", "a"), 3), group = rep(c("c", "b x c"), 3))
+  panels <- .wright_item_panels(fit, c("sets", "groups"), fit$items$item)
+  expect_identical(nlevels(panels), 2L)
+  expect_equal(unname(as.integer(table(panels))), c(3L, 3L))
+})
+
 test_that("EFRM maps recover person groups and item sets from the fitted design", {
   set.seed(73)
   d <- simulate_efrm(n_per_group = 55, items_per_set = 4, n_sets = 2,

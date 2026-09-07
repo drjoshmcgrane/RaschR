@@ -16,7 +16,8 @@ or \code{\link{btl_efrm}}).}
 \value{
 A list of class \code{"rasch_recovery"}: \code{summary} (per
   parameter type: n, correlation, RMSE, bias) and \code{pieces} (the true
-  and estimated values behind each).
+  and estimated values behind each). \code{note} identifies unrepresented
+  generating departures or an unverifiable original response scale.
 }
 \description{
 Compares fitted parameters with the generating values from a
@@ -29,11 +30,24 @@ and set origins for a paired-comparison frames fit. Locations are
 mean-centred where the model identifies them only up to an origin. An
 externally anchored Rasch or paired-comparison fit retains its identified
 origin, so recovery and bias are reported on the anchored scale.
-The fit must be from the simulated model family and must have converged.
+The fit must be from these simulated responses and model family, and must
+have converged. Row and item order do not matter; response values and the
+person, judge, facet and frame allocations do.
+Recovery is unavailable when fitting removes or merges generating response
+categories, because the fitted locations then describe a different scale.
 For a many-facet simulation, the planted rater facet must be identifiable
 uniquely by its name or level labels.
 EFRM set parameters are matched by their item or object membership, not by
 the spelling of the set labels; a different fitted partition is refused.
+Paired-comparison frames align generating origins to the fitted reference
+set. That set must have a generating unit of one: fixing another unit to
+one imposes a different cross-set restriction, so recovery is refused.
+A common generating discrimination changes only the logit unit, so ordinary
+Rasch recovery uses the equivalently rescaled item thresholds and person
+locations. When the generator includes a departure that the fitted model
+does not represent, the comparisons are labelled as descriptive rather
+than as recovery of a single correctly specified target. This includes,
+for example, heterogeneous item discriminations in an ordinary Rasch fit.
 }
 \examples{
 d <- simulate_rasch(500, 12, seed = 1)

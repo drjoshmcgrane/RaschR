@@ -31,14 +31,18 @@ margin in \code{n_categories} categories; an earlier development-era value
 
 \item{n_categories}{Categories for the polytomous model.}
 
-\item{object_sd}{Spread of the object locations (evenly spaced, sum-zero).}
+\item{object_sd}{Realised sample standard deviation of the object locations
+(evenly spaced and sum-zero).}
 
 \item{second_attribute}{\code{NULL}, or \code{list(rho=)}: half the judges
 rank by a second object attribute whose realised correlation with the
-first is \code{rho}.
+first is \code{rho}. It lies in [-1, 1); at 1 the attributes are identical
+and no second attribute is planted.
 This introduces residual dimensionality and possible intransitivity.}
 
-\item{erratic_judges}{Proportion of judges who choose at random.}
+\item{erratic_judges}{Proportion of judges who choose at random. At least
+one judge must retain model-based comparisons, in each camp when a
+second attribute is generated.}
 
 \item{dependence}{\code{NULL}, or \code{list(exposure=, carry_over=)}:
 within-judge order effects (a seen-before advantage and a pull from the

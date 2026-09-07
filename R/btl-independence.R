@@ -253,9 +253,10 @@ print.rasch_btl_transitivity <- function(x, ...) {
     s <- .btl_bimensions(rr)$strength
     if (length(s)) s[1] else 0
   }, 0)
-  inference <- .sim_upper_family(bm$strength[1], matrix(lead_ref, ncol = 1L))
-  ref_mean <- inference$mean[1L]
-  ref_p95 <- inference$critical[1L]
+  inference <- if (complete_pairs)
+    .sim_upper_family(bm$strength[1], matrix(lead_ref, ncol = 1L)) else NULL
+  ref_mean <- if (is.null(inference)) NA_real_ else inference$mean[1L]
+  ref_p95 <- if (is.null(inference)) NA_real_ else inference$critical[1L]
   nb <- length(bm$strength)
   prop <- 2 * bm$strength^2 / bm$total
   lead_flag <- if (complete_pairs) inference$significant[1L] else NA
@@ -273,16 +274,21 @@ print.rasch_btl_transitivity <- function(x, ...) {
   if (!complete_pairs)
     notes <- c(notes, sprintf(
       paste0("%d of %d pairs compared; unseen pairs contribute no residual ",
-             "information, so the categorical verdict is withheld"),
+             "information, so dimensionality inference is withheld"),
       n_seen, choose(K, 2)))
   out <- list(
     bimensions = bimensions, coords = coords,
     leading_structured = lead_flag,
-    reference = list(mean = ref_mean, p95 = ref_p95, p = inference$p[1L],
-                     p_adj = inference$p_adjusted[1L], reps = reps,
-                     n_used = inference$n_used, alpha = inference$alpha,
+    reference = list(mean = ref_mean, p95 = ref_p95,
+                     p = if (is.null(inference)) NA_real_ else inference$p[1L],
+                     p_adj = if (is.null(inference)) NA_real_ else
+                       inference$p_adjusted[1L], reps = reps,
+                     n_used = length(lead_ref),
+                     alpha = if (is.null(inference)) 0.05 else inference$alpha,
+                     inference_available = !is.null(inference),
                      draws = lead_ref,
-                     method = inference$method, seed = seed),
+                     method = if (is.null(inference)) NA_character_ else
+                       inference$method, seed = seed),
     residual_matrix = R, notes = notes)
   attr(out, "fit_signature") <- .fit_boot_signature(fit)
   class(out) <- "rasch_btl_dim"
@@ -290,7 +296,7 @@ print.rasch_btl_transitivity <- function(x, ...) {
   out
 }
 
-.validate_btl_dimensionality <- function(result, fit) {
+.authenticate_btl_dimensionality <- function(result, fit) {
   if (is.null(result)) return(invisible(NULL))
   signature <- attr(result, "result_signature")
   unsigned <- result
@@ -302,6 +308,87 @@ print.rasch_btl_transitivity <- function(x, ...) {
       !.fit_boot_signature_matches(attr(result, "fit_signature"), fit))
     stop("`dimensionality` must be a btl_dimensionality() result from this fitted model")
   invisible(result)
+}
+
+.validate_btl_dimensionality <- function(result, fit) {
+  if (is.null(result)) return(invisible(NULL))
+  .authenticate_btl_dimensionality(result, fit)
+  if (.btl_dimensionality_unsupported_reference(result, fit))
+    stop("`dimensionality` retains an inferential reference despite its ",
+         "unsupported comparison design; recompute it with btl_dimensionality()")
+  invisible(result)
+}
+
+.btl_dimensionality_has_inference <- function(x) {
+  (is.null(x$reference$inference_available) ||
+     isTRUE(x$reference$inference_available)) &&
+    length(x$leading_structured) == 1L && !is.na(x$leading_structured)
+}
+
+.btl_dimensionality_unsupported_reference <- function(result, fit) {
+  finite_reference <- any(is.finite(c(
+    result$reference$mean, result$reference$p95, result$reference$p,
+    result$reference$p_adj, result$bimensions$ref_mean,
+    result$bimensions$ref_p95)))
+  if (!finite_reference) return(FALSE)
+  if (!.btl_dimensionality_has_inference(result)) return(TRUE)
+  # Earlier frame results could retain a TRUE/FALSE flag despite unseen
+  # pairs. Check the actual retained-object design, not that legacy flag.
+  tab <- fit$objects
+  if (!inherits(fit, "rasch_btl_efrm") && "extreme" %in% names(tab))
+    tab <- tab[!(tab$extreme %in% TRUE), ]
+  objs <- tab$object
+  cmp <- fit$comparisons
+  S <- .btl_scores(match(cmp$object_a, objs), match(cmp$object_b, objs),
+                   cmp$response, cmp$weight, fit$m, length(objs))
+  seen <- sum(((S + t(S)) > 0)[upper.tri(S)])
+  seen != choose(length(objs), 2L)
+}
+
+# Diagnose whether comparison position varies across judges. Repeated
+# presentations of a pair within one judge are first reduced to that judge's
+# mean position; otherwise within-judge repetition can be mistaken for the
+# across-judge variation needed to separate order from object structure.
+.btl_order_variation <- function(dd, objs) {
+  ia <- match(dd$object_a, objs)
+  ib <- match(dd$object_b, objs)
+  pair <- .factor_keys(data.frame(lo = pmin(ia, ib), hi = pmax(ia, ib)))
+  judge <- as.character(dd$judge)
+  pos <- numeric(nrow(dd))
+  for (ix in split(seq_len(nrow(dd)), judge)) {
+    r <- rank(dd$order[ix], ties.method = "first")
+    pos[ix] <- if (length(ix) > 1L) (r - 1) / (length(ix) - 1) else 0
+  }
+  key <- .factor_keys(data.frame(pair = pair, judge = judge))
+  cells <- split(seq_len(nrow(dd)), key)
+  by_judge_pair <- do.call(rbind, lapply(cells, function(ix) data.frame(
+    pair = pair[ix[1L]], judge = judge[ix[1L]], position = mean(pos[ix]),
+    repetitions = length(ix), stringsAsFactors = FALSE)))
+  rownames(by_judge_pair) <- NULL
+  judge_n <- table(judge)
+  # Under a random permutation, the variance of the mean of r positions
+  # sampled without replacement from a sequence of length n is the discrete
+  # uniform variance divided by r, with its finite-population correction.
+  # Scaling the observed between-judge variance by that expectation prevents
+  # many repeats of one pair from looking like a shared order merely because
+  # their mean position is naturally more stable than a single position.
+  by_judge_pair$random_variance <- mapply(function(j, r) {
+    n <- unname(judge_n[j])
+    if (!is.finite(n) || n <= 1L || r >= n) return(0)
+    ((n + 1) / (12 * (n - 1))) / r * ((n - r) / (n - 1))
+  }, by_judge_pair$judge, by_judge_pair$repetitions)
+  pair_var <- tapply(by_judge_pair$position, by_judge_pair$pair, stats::var)
+  expected <- tapply(by_judge_pair$random_variance, by_judge_pair$pair, mean)
+  relative <- pair_var / expected
+  usable <- is.finite(relative) & expected > sqrt(.Machine$double.eps)
+  if (!any(usable))
+    return(list(shared = TRUE,
+                replicated = any(table(by_judge_pair$pair) > 1L),
+                variance = pair_var, expected = expected,
+                relative_variance = relative))
+  list(shared = mean(relative[usable]) < 0.25,
+       replicated = TRUE, variance = pair_var, expected = expected,
+       relative_variance = relative)
 }
 
 #' Experimental residual dimensionality of paired comparisons
@@ -319,11 +406,16 @@ print.rasch_btl_transitivity <- function(x, ...) {
 #' those effects through each judge's observed sequence. The fitted model must
 #' have converged.
 #'
-#' A categorical result is withheld if any object pair is unobserved, or if an
+#' Inference is withheld if any object pair is unobserved, or if an
 #' ordered analysis contains count-weighted rows whose within-row sequence is
 #' unavailable. It is also withheld when every judge receives essentially the
 #' same comparison sequence and an order effect is fitted, because order and
-#' residual structure are then confounded.
+#' residual structure are then confounded. The result is also withheld when
+#' no object pair has an observed position for more than one judge, because
+#' across-judge order variation cannot then be assessed. In these cases the
+#' observed decomposition remains available, but probabilities, critical
+#' values and the reference band are omitted. Any completed simulation draws
+#' are retained for descriptive inspection, not as an inferential reference.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}}.
 #' @param reps Model-simulated replicates for the noise reference; at least 20.
@@ -477,18 +569,17 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
   # verdict, since the design does not identify it. When the order varies
   # across judges the fixed-estimate reference is well calibrated.
   shared_order <- FALSE
-  if (!is.null(seq_sim)) {
+  replicated_order <- TRUE
+  # A static first-position term is not a sequence effect. Shared comparison
+  # order matters only when exposure or carry-over uses the preceding
+  # judgements; applying this guard to a position-only fit withholds an
+  # otherwise identified dimensionality result (and, without judges, there
+  # is no sequence to compare in the first place).
+  if (!is.null(seq_sim) && history_effects) {
     dd <- fit$dependence_data
-    pk <- paste(pmin(match(dd$object_a, objs), match(dd$object_b, objs)),
-                pmax(match(dd$object_a, objs), match(dd$object_b, objs)))
-    posfrac <- unlist(tapply(seq_along(dd$order), dd$judge, function(ix) {
-      o <- rank(dd$order[ix], ties.method = "first")
-      if (length(o) > 1L) (o - 1) / (length(o) - 1) else 0
-    }), use.names = FALSE)[order(order(dd$judge, dd$order))]
-    # a pair's position varies as ~Uniform(0,1) across judges under random
-    # order (variance ~1/12); near-zero variance means a shared fixed order
-    pv <- tapply(posfrac, pk, stats::var)
-    shared_order <- isTRUE(mean(pv, na.rm = TRUE) < (1 / 12) * 0.25)
+    ov <- .btl_order_variation(dd, objs)
+    shared_order <- ov$shared
+    replicated_order <- ov$replicated
   }
   lead_ref <- if (reference_unavailable) numeric(0) else
     vapply(seq_len(reps), function(r) {
@@ -509,7 +600,7 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
     s <- .btl_bimensions(Rr)$strength
     if (length(s)) s[1] else 0
   }, 0)
-  inference <- if (length(lead_ref))
+  inference <- if (length(lead_ref) && complete_pairs && !shared_order)
     .sim_upper_family(bm$strength[1], matrix(lead_ref, ncol = 1L)) else NULL
   ref_mean <- if (is.null(inference)) NA_real_ else inference$mean[1L]
   ref_p95 <- if (is.null(inference)) NA_real_ else inference$critical[1L]
@@ -526,14 +617,19 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
     ref_mean = c(ref_mean, rep(NA_real_, nb - 1L)),
     ref_p95 = c(ref_p95, rep(NA_real_, nb - 1L)),
     above_reference = c(lead_flag, rep(NA, nb - 1L)))
-  if (shared_order)
-    notes <- c(notes, paste0(
+  if (shared_order) {
+    order_note <- if (!replicated_order) paste0(
+      "no object pair has an observed position for more than one judge, so ",
+      "across-judge order variation cannot be assessed and the order effect ",
+      "cannot be separated from object structure") else paste0(
       "every judge shares (nearly) the same comparison order, so the ",
       "within-judge order effect is confounded with the object locations ",
-      "and a second dimension cannot be separated from it: the ",
-      "second-dimension verdict is withheld. Randomise the comparison ",
-      "order across judges to test dimensionality with an order effect ",
-      "present"))
+      "and a second dimension cannot be separated from it")
+    notes <- c(notes, paste0(
+      order_note, ": dimensionality inference is withheld. Randomise ",
+      "the comparison order across judges to test dimensionality with an ",
+      "order effect present"))
+  }
   if (reference_unavailable) {
     why <- if (history_effects)
       paste0("the ordered analysis contains aggregated or fractional rows; ",
@@ -542,7 +638,7 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
              "not identify a whole number of independent outcomes")
     notes <- c(notes, paste0(
       why, ", so a valid noise reference cannot be generated and the ",
-      "second-dimension verdict is withheld"))
+      "dimensionality inference is withheld"))
   }
 
   coords <- data.frame(object = objs, location = unname(beta),
@@ -550,7 +646,7 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
   if (!complete_pairs)
     notes <- c(notes, sprintf(
       paste0("%d of %d pairs compared; unseen pairs contribute no residual ",
-             "information, so the categorical verdict is withheld"),
+             "information, so dimensionality inference is withheld"),
       n_seen, choose(K, 2)))
 
   out <- list(bimensions = bimensions, coords = coords,
@@ -565,6 +661,7 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
                 reps = if (reference_unavailable) 0L else reps,
                 n_used = length(lead_ref),
                 alpha = if (is.null(inference)) 0.05 else inference$alpha,
+                inference_available = !is.null(inference),
                 draws = lead_ref,
                 method = if (is.null(inference)) NA_character_ else
                   inference$method, seed = seed),
@@ -578,19 +675,21 @@ btl_dimensionality <- function(fit, reps = 200L, seed = NULL) {
 #' @export
 print.rasch_btl_dim <- function(x, ...) {
   b <- x$bimensions
-  verdict <- if (is.na(x$leading_structured))
-    "categorical verdict withheld"
+  available <- .btl_dimensionality_has_inference(x)
+  verdict <- if (!available)
+    "inference withheld"
   else if (x$leading_structured) "above the conditional reference; investigate"
   else "within the conditional reference"
   cat(sprintf("Paired-comparison residual dimensionality: %d bimension(s)\n",
               nrow(b)))
-  p_ref <- x$reference[["p"]]
-  if (is.null(p_ref) && length(x$reference$draws))
-    p_ref <- (1 + sum(x$reference$draws >= b$strength[1])) /
-      (length(x$reference$draws) + 1)
-  if (is.finite(x$reference$p95)) {
+  # The categorical verdict is based on the maximum-statistic familywise
+  # probability. Display that same quantity; an older result that did not
+  # retain it cannot be repaired from the leading-component draws alone.
+  p_ref <- x$reference[["p_adj"]]
+  if (available && is.finite(x$reference$p95)) {
     probability <- if (length(p_ref) && is.finite(p_ref))
-      sprintf("; p = %.3f", p_ref) else ""
+      sprintf("; adjusted p = %.3f", p_ref) else
+        "; adjusted p unavailable"
     cat(sprintf("Leading bimension strength %.3f (%.0f%% of residual; reference 5%% upper limit: %.3f%s) -> %s\n",
                 b$strength[1], 100 * b$prop_residual[1], x$reference$p95,
                 probability, verdict))
@@ -685,7 +784,8 @@ plot_btl_scree <- function(x, ...) {
     stop("`x` must be a result from btl_dimensionality()", call. = FALSE)
   b <- x$bimensions; k <- nrow(b)
   ref_m <- x$reference$mean; ref_p <- x$reference$p95
-  has_ref <- is.finite(ref_m) && is.finite(ref_p)
+  has_ref <- .btl_dimensionality_has_inference(x) &&
+    is.finite(ref_m) && is.finite(ref_p)
   ymax <- max(c(b$strength, if (has_ref) ref_p), na.rm = TRUE) * 1.15
   op <- .rr_canvas(c(0.5, k + 0.5), c(0, ymax), "Bimension", "Strength",
                    grid_x = FALSE, xaxis = FALSE)
@@ -789,6 +889,8 @@ plot_btl_dim_map <- function(x, ...) {
 #' is an eligible object treated against its standing (residual opposite in
 #' sign to the location) whose adjusted probability passes the level
 #' represented by \code{flag_z}. The fitted model must have converged.
+#' An adequately sampled object with unavailable residual inference remains
+#' in the adjustment family.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}} with judges.
 #' @param judge The judge to profile (a value of the fit's judge column).
@@ -799,7 +901,10 @@ plot_btl_dim_map <- function(x, ...) {
 #' @return A list of class \code{"rasch_btl_judge"}: \code{objects} (per object
 #'   met: location, times met \code{n}, residual \code{z}, approximate
 #'   \code{p}, Holm-adjusted \code{p_adj}, \code{surprise} flag and its
-#'   \code{type}); \code{all_locations} (every object, for orientation);
+#'   \code{type}). Strong and weak refer to standing above or below the mean
+#'   calibrated-object location, so the classification is unchanged by the
+#'   arbitrary scale origin. \code{all_locations} contains every object for
+#'   orientation;
 #'   the \code{judge} and settings.
 #' @examples
 #' set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)
@@ -850,16 +955,26 @@ judge_surprise <- function(fit, judge, min_n = 2L, flag_z = 1.96) {
   # estimated. Holm control remains valid under the dependence among the
   # object residuals.
   o$p <- 2 * stats::pnorm(-abs(o$z))
-  eligible <- o$n >= min_n & is.finite(o$p)
+  # The family is declared by the workload rule, before inspecting whether a
+  # particular normal reference is available. Dropping an adequately sampled
+  # object because its probability is NA would make the remaining Holm
+  # probabilities less conservative merely because one question failed.
+  planned <- o$n >= min_n
+  eligible <- planned & is.finite(o$p)
   o$p_adj <- NA_real_
   if (any(eligible))
     o$p_adj[eligible] <- stats::p.adjust(o$p[eligible], method = "holm",
-                                         n = sum(eligible))
+                                         n = sum(planned))
   family_alpha <- 2 * stats::pnorm(-flag_z)
-  o$surprise <- eligible & o$z * o$location < 0 &
+  # An anchored BTL scale can be translated without changing a single fitted
+  # comparison.  Classify an object from its standing relative to the
+  # calibrated-object mean, not from the sign of its arbitrary reported
+  # origin; otherwise a pure translation changes the diagnostic verdict.
+  standing <- o$location - mean(unname(beta))
+  o$surprise <- eligible & o$z * standing < 0 &
     o$p_adj <= family_alpha
   o$type <- ifelse(!o$surprise, "",
-                   ifelse(o$location > 0, "strong object under-rated",
+                   ifelse(standing > 0, "strong object under-rated",
                           "weak object over-rated"))
   o <- o[order(-abs(o$z)), ]; rownames(o) <- NULL
   structure(list(judge = judge, objects = o, all_locations = beta,
@@ -894,6 +1009,8 @@ print.rasch_btl_judge <- function(x, ...) {
 #' across matchups meeting \code{min_n}. A surprise is an eligible matchup
 #' with a negative residual whose adjusted probability passes the level
 #' represented by \code{flag_z}. The fitted model must have converged.
+#' An adequately sampled matchup with unavailable residual inference remains
+#' in the adjustment family.
 #'
 #' @param fit A paired-comparison fit from \code{\link{btl}} with judges.
 #' @param judge The judge to profile.
@@ -960,11 +1077,14 @@ judge_pair_surprise <- function(fit, judge, min_n = 1L, flag_z = 1.96) {
   }
   p <- do.call(rbind, rows)
   p$p <- 2 * stats::pnorm(-abs(p$z))
-  eligible <- p$n >= min_n & is.finite(p$p)
+  # Retain every matchup that met the predeclared workload rule in the Holm
+  # denominator, including one whose approximate probability is unavailable.
+  planned <- p$n >= min_n
+  eligible <- planned & is.finite(p$p)
   p$p_adj <- NA_real_
   if (any(eligible))
     p$p_adj[eligible] <- stats::p.adjust(p$p[eligible], method = "holm",
-                                         n = sum(eligible))
+                                         n = sum(planned))
   family_alpha <- 2 * stats::pnorm(-flag_z)
   p$surprise <- eligible & p$z < 0 & p$p_adj <= family_alpha
   p <- p[order(p$z), ]; rownames(p) <- NULL

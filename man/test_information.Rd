@@ -23,13 +23,15 @@ A data frame with \code{theta}, \code{info}, and \code{sem}. For
 \description{
 Fisher information over a grid of person locations, with the corresponding
 standard error of measurement. Ordinary Rasch fits return one whole-test
-curve. EFRM fits return one curve per person group and per item-set
+curve. EFRM fits return one curve per person group and per item
 administration pattern actually observed within that group (in a linking
 design, persons who took only the core set get a core-only curve, and the
-linking subsample gets the pooled one). MFRM fits return one curve per set
-of facet conditions observed together for a person, so ratings that jointly
+linking subsample gets the pooled one). MFRM fits return one curve per
+observed item-by-facet pattern for a person, so ratings that jointly
 inform the same person measure are added and mutually exclusive designs
-remain separate.
+remain separate. Partly answered sets or facet conditions contribute only
+their observed items; a missing response is not treated as an administered
+item when defining these patterns.
 }
 \details{
 For an administrable block \eqn{\mathcal A}, the information and standard

@@ -43,11 +43,15 @@ each level.}
 \value{
 A list of class \code{"rasch_dif_size"}. \code{levels} contains
   the resolved location, standard error and sample size for each level.
-  \code{pairs} contains logit differences, Wald statistics, confidence
-  intervals, raw and adjusted probabilities, and practical flags. For
+  \code{pairs} contains logit differences, Wald \code{t} statistics,
+  confidence intervals, raw and adjusted probabilities, and practical
+  flags. For
   dichotomous items it also contains \code{ets}, together with the raw and
   adjusted probabilities for exceeding the ETS A boundary; for polytomous
   items it contains the descriptive \code{signed_area}.
+  \code{df} gives the reference degrees of freedom: infinite for independent
+  response rows and the independent person-cluster count minus one for a
+  supported repeated-person calibration.
   Sampling-uncertainty fields are \code{NA} when the resolved-location
   covariance cannot support Wald inference.
 }
@@ -71,9 +75,12 @@ locations. Wald probabilities are adjusted over the pairwise family. A
 comparison with withheld inference remains in that declared family.
 
 When person identifiers repeat, the resolved-location covariance uses the
-person-clustered calibration sandwich. This permits Wald inference for the
-logit difference while allowing response rows from the same person to be
-dependent. For a planned within-person question, \code{\link{dif_contrasts}}
+person-clustered calibration sandwich and a t reference with the number of
+independent person clusters minus one degree of freedom. The same reference
+is used for confidence intervals and the ETS interval-null probability.
+This permits inference for the logit difference while allowing response
+rows from the same person to be dependent. For a planned within-person
+question, \code{\link{dif_contrasts}}
 remains preferable because it tests the nominated contrast directly from
 person-level residual contrasts. Inference is withheld if the resolved-
 location covariance is unavailable or not positive semidefinite.

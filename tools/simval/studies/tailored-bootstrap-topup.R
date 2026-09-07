@@ -25,7 +25,8 @@ one <- function(r, guessing, seed0) {
     return(c(detection = NA, any_detection = NA, clean_any = NA,
              refused = 0, nonconv = 1))
   z <- tryCatch(suppressWarnings(tailored_analysis(
-    f, chance = 0.25, se_method = "bootstrap", boot_reps = B
+    f, chance = 0.25, se_method = "bootstrap", boot_reps = B,
+    seed = seed0 + 1000000L + r
   )), error = function(e) NULL)
   if (is.null(z))
     return(c(detection = NA, any_detection = NA, clean_any = NA,

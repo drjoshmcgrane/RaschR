@@ -259,12 +259,11 @@ residual_pca <- function(fit, n_components = 10) {
 }
 
 .scree_reference <- function(fit, k, reps, seed = NULL) {
+  .require_refittable_calibration(fit)
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     .refuse("parallel residual reference is not available for mutually exclusive ",
          "EFRM/MFRM virtual designs; fit and analyse an observable design block")
-  id_text <- .role_text_values(fit$person$id)
-  known_id <- id_text[!is.na(id_text) & nzchar(id_text)]
-  if (anyDuplicated(known_id))
+  if (.has_repeated_residual_units(fit))
     .refuse("parallel residual inference is not available when a person ",
             "identifier occurs on several response rows: the current null ",
             "generator treats rows as independent occasions and would not ",
@@ -295,9 +294,10 @@ residual_pca <- function(fit, n_components = 10) {
     # rasch() would compare observed eigenvalues against a freer model
     fr <- tryCatch(suppressWarnings(
       if (inherits(fit, "rasch_explanatory"))
-        .explanatory_refit_modified(fit, Xr, person_rows = which(keep))
+        .explanatory_refit_modified(fit, Xr, person_rows = which(keep),
+                                    inherit_mc = FALSE)
       else
-        rasch(Xr, model = fit$model, n_groups = fit$n_groups,
+        rasch(Xr, model = fit$model, n_groups = .refit_n_groups(fit),
               anchors = spec$anchors, pc_components = spec$pc_components,
               maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
       error = function(e) {
@@ -310,7 +310,13 @@ residual_pca <- function(fit, n_components = 10) {
       status[r] <<- "nonconverged"
       return(rep(NA_real_, k))
     }
-    if (ncol(fr$X) != L) {
+    # A sparse polytomous replicate can lose its highest observed category.
+    # rasch() then fits a shorter item without necessarily dropping its
+    # column, so a column-count check alone admits a different null model.
+    # Keep the reference conditional on successful refits of the observed
+    # score structure, as the item-fit and dimensionality bootstraps do.
+    if (ncol(fr$X) != L ||
+        !identical(as.integer(fr$m), as.integer(fit$m))) {
       status[r] <<- "error"
       return(rep(NA_real_, k))
     }
@@ -327,13 +333,21 @@ residual_pca <- function(fit, n_components = 10) {
   # value if a numerically failed refit returned an infinite value.
   complete <- rowSums(is.finite(sim)) == ncol(sim)
   status[!complete & status == "used"] <- "error"
-  minimum_usable <- .fit_min_boot_success(reps)
+  # The finite-simulation family below needs at least 20 rows to resolve a
+  # five-percent upper-tail probability.  The generic bootstrap guard is less
+  # demanding for small requested runs, so impose the inferential minimum
+  # here as well rather than returning an object that plot_scree() cannot use.
+  minimum_usable <- max(20L, .fit_min_boot_success(reps))
   if (sum(complete) < minimum_usable)
-    stop("only ", sum(complete), " of ", reps,
-         " full-refit scree replicates were estimable; at least ",
-         minimum_usable, " are needed for the 5% reference",
-         if (!is.null(first_error))
-           paste0("; the first replicate failed with: ", first_error) else "")
+    .fit_boot_refuse(
+      "only ", sum(complete), " of ", reps,
+      " full-refit scree replicates retained the fitted response structure; ",
+      "at least ", minimum_usable, " are needed for the 5% reference",
+      if (!is.null(first_error))
+        paste0("; the first replicate failed with: ", first_error) else "",
+      B = reps, B_used = sum(complete),
+      B_nonconverged = sum(status == "nonconverged"),
+      B_errors = sum(status == "error"))
   sim <- sim[complete, , drop = FALSE]
   # The plotted curve is completed once the observed eigenvalues are known.
   # Retain the full joint draws so plot_scree() can use their maximum
@@ -376,6 +390,7 @@ residual_pca <- function(fit, n_components = 10) {
 #' @param fit A fitted object from \code{\link{rasch}}. A simulated reference
 #'   requires one response row per person; with repeated identifiers, use
 #'   \code{parallel = FALSE} to display the observed eigenvalues alone.
+#'   Fully anchored scoring fits also require \code{parallel = FALSE}.
 #' @param n_components Number of leading components to display. The familywise
 #'   adjustment covers these components.
 #' @param parallel Draw the parallel-analysis reference band.
@@ -459,6 +474,7 @@ NULL
       !.fit_boot_hash_matches(signature, unsigned) ||
       !.fit_boot_signature_matches(attr(result, "fit_signature"), fit))
     stop("`result` must be a plot_scree() result from this fitted model")
+  if (isTRUE(attr(result, "parallel"))) .require_refittable_calibration(fit)
   invisible(result)
 }
 
@@ -546,10 +562,16 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #' same selection the observed proportion carries. With \code{B > 0} the
 #' verdict is \code{p_boot <= alpha}; the binomial interval is still reported,
 #' as a description of the observed proportion rather than a test of it.
+#' A one-sided bootstrap probability cannot be smaller than
+#' \code{1/(B_used + 1)}. If that floor exceeds \code{alpha}, a data-driven
+#' split has no rejection region and its verdict is withheld. A split fixed
+#' in advance retains its binomial verdict in that case.
 #'
 #' @param fit A fitted object from \code{\link{rasch}} with one response row
 #'   per person. Repeated identifiers are refused because the person-level
 #'   comparisons and their binomial count would not be independent.
+#'   Fully anchored scoring fits require \code{B = 0}; bootstrap refitting is
+#'   not supported for these fits.
 #' @param alpha Nominal significance level for the per-person t-tests.
 #' @param items_positive,items_negative Optional character vectors naming the
 #'   two item subsets; both must be given (disjoint, at least two items
@@ -586,7 +608,8 @@ plot_scree <- function(fit, n_components = 10, parallel = TRUE, reps = 50,
 #'   bootstrap probability of a proportion at least as large as the observed
 #'   one under the fitted unidimensional model; \code{prop_null}, the mean
 #'   replicate proportion (the rate the split produces when nothing is
-#'   there); and \code{bootstrap}, the replicate proportions with the
+#'   there); \code{bootstrap_resolution}, the smallest attainable bootstrap
+#'   probability; and \code{bootstrap}, the replicate proportions with the
 #'   counts requested, used, non-converged and failed. When the comparison
 #'   itself is unavailable (undefined split, degenerate subsets, too few
 #'   persons) the list carries a \code{note} explaining why and
@@ -618,9 +641,7 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
   if (!inherits(fit, "rasch")) stop("dimensionality_test needs a rasch fit")
   if (!isTRUE(fit$est$converged))
     stop("the fitted calibration did not converge; the dimensionality test is unavailable")
-  id_text <- .role_text_values(fit$person$id)
-  known_id <- id_text[!is.na(id_text) & nzchar(id_text)]
-  if (anyDuplicated(known_id))
+  if (.has_repeated_residual_units(fit))
     .refuse("the person-subset dimensionality test requires one response ",
             "row per person. Repeated identifiers make the person tests ",
             "dependent and the binomial interval invalid; analyse one ",
@@ -745,8 +766,24 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
                            workers = workers, seed = seed)
     out$p_boot <- .boot_p(out$prop_significant, boot$null, "upper")
     out$prop_null <- mean(boot$null)
-    out$multidimensional <- out$p_boot <= alpha
-    out$verdict_method <- "parametric bootstrap"
+    out$bootstrap_resolution <- 1 / (boot$B_used + 1)
+    if (out$bootstrap_resolution <= alpha) {
+      out$multidimensional <- out$p_boot <= alpha
+      out$verdict_method <- "parametric bootstrap"
+    } else {
+      # A p-value floor above alpha gives the bootstrap no rejection region.
+      # Do not turn that inability to test into evidence of fit. A manual
+      # split still has its pre-specified binomial test; a data-driven split
+      # has no fallback inferential verdict.
+      warning(sprintf(paste0(
+        "with %d usable replicates the smallest attainable bootstrap p is ",
+        "%.3f (> alpha %.3f); the bootstrap verdict is unavailable"),
+        boot$B_used, out$bootstrap_resolution, alpha), call. = FALSE)
+      out$multidimensional <- if (manual) binomial_verdict else NA
+      out$verdict_method <- if (manual)
+        "fixed-split binomial (bootstrap resolution insufficient)" else
+        "withheld: bootstrap resolution insufficient for data-driven split"
+    }
     out$bootstrap <- boot
   }
   .dimensionality_test_result(out, fit)
@@ -773,6 +810,7 @@ dimensionality_test <- function(fit, alpha = 0.05, items_positive = NULL,
       !.fit_boot_hash_matches(signature, unsigned) ||
       !.fit_boot_signature_matches(attr(result, "fit_signature"), fit))
     stop("`subtest` must be a dimensionality_test() result from this fitted model")
+  if (!is.null(result$bootstrap)) .require_refittable_calibration(fit)
   invisible(result)
 }
 
@@ -790,7 +828,10 @@ print.rasch_dimensionality_test <- function(x, ...) {
     "evidence against unidimensionality" else
     if (identical(x$multidimensional, FALSE))
       "consistent with unidimensionality" else
-        "withheld for the data-driven split"
+        if (grepl("resolution insufficient", x$verdict_method %||% "",
+                  fixed = TRUE))
+          "withheld because the bootstrap resolution is insufficient" else
+          "withheld for the data-driven split"
   cat("Verdict:", verdict, "\n")
   if (!is.null(x$p_boot))
     cat(sprintf("Bootstrap p: %s (%d of %d replicates used)\n",
@@ -845,6 +886,7 @@ print.rasch_dimensionality_test <- function(x, ...) {
 # unit and thresholds estimated directly, the same conditions as the item
 # fit bootstrap, and for the same reasons.
 .dim_bootstrap_check <- function(fit) {
+  .require_refittable_calibration(fit)
   if (inherits(fit, c("rasch_efrm", "rasch_mfrm", "rasch_explanatory")))
     .refuse("the dimensionality bootstrap generates from a single-facet ",
             "Rasch model; an extended-frame, many-facet or explanatory fit ",
@@ -880,6 +922,7 @@ print.rasch_dimensionality_test <- function(x, ...) {
 # thereby present in every replicate, and the comparison is like with like.
 .dim_bootstrap <- function(fit, pos, neg, manual, component, alpha, B,
                            workers, seed) {
+  .require_refittable_calibration(fit)
   workers <- min(as.integer(workers), .rasch_available_workers())
   if (!is.null(seed)) {
     seed <- .check_whole(seed, "seed", 0)
@@ -902,19 +945,17 @@ print.rasch_dimensionality_test <- function(x, ...) {
     on.exit(.sim_seed_restore(old_stream), add = TRUE)
     set.seed(seeds[b])
     Xb <- .fit_gen_conditional(X, tau_list, na_mask)
-    # a replicate can leave a rare category unvisited. It is then analysed
-    # as rasch() would analyse it, with the categories rescored, rather than
-    # discarded: the person comparison does not depend on the category
-    # count, and discarding would thin the null towards the more dispersed
-    # replicates. An item lost altogether, or a rescored anchored item,
-    # still fails the replicate.
+    # A replicate can leave a rare category unvisited. A refit on that shorter
+    # scale is not the observed model and must not enter its null reference.
+    # An item lost altogether, a shortened scale, or a rescored anchored item
+    # therefore fails the replicate and is included in failure accounting.
     prep <- tryCatch(.prepare_X(Xb, model = model, anchors = anchors),
                      error = function(e) NULL)
     if (is.null(prep) || ncol(prep$X) != ncol(X) ||
         .dim_anchor_rescored(prep$notes, anchors))
       return(.fit_boot_failure("error"))
     Xb <- prep$X
-    r <- .fit_refit_residuals(Xb, model, anchors, maxit, tol)
+    r <- .fit_refit_residuals(Xb, model, anchors, fit$m, maxit, tol)
     if (inherits(r, "rasch_fit_boot_failure")) return(r)
     split <- if (manual) list(pos = pos, neg = neg) else
       tryCatch(.dim_split(r$Z, component), error = function(e) NULL)
@@ -970,13 +1011,20 @@ print.rasch_dimensionality_test <- function(x, ...) {
 #' alpha versions are reported (Andrich and Marais 2019, ch. 24). Both the
 #' original and subtest calibrations must converge.
 #'
+#' Both reliability calculations use rows with responses to every item.
+#' PSI further requires a finite person estimate and standard error in both
+#' fits. The calibrations are retained; only the reliability sample changes.
+#' With missing responses, the result describes this complete-response sample,
+#' not necessarily the full population. The table reports rows used and excluded.
+#'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param subtests A list of character vectors assigning \emph{every} item
 #'   of the fit to one subscale (at least two subscales of two or more
 #'   items). The published magnitude formula requires equal subscale sizes.
 #' @return A list of class \code{"rasch_dim_magnitude"}: the comparison
 #'   \code{table} (rows PSI and alpha; columns \code{run1}, \code{subtest},
-#'   \code{c2}, \code{c}, \code{rho}, \code{A}), the subtest \code{refit},
+#'   \code{c2}, \code{c}, \code{rho}, \code{A}, \code{n},
+#'   \code{n_excluded}), the subtest \code{refit},
 #'   and the design constants \code{S} and \code{K}.
 #' @references Andrich, D. (2016). Components of variance of scales with a
 #'   bifactor subscale structure from two calculations of alpha.
@@ -1022,21 +1070,44 @@ dimensionality_magnitude <- function(fit, subtests) {
   refit <- combine_items(fit, subtests)
   if (!isTRUE(refit$est$converged))
     stop("the subtest calibration did not converge; dimensionality magnitude is unavailable")
+  # A partially answered subscale becomes missing when summed. Comparing the
+  # full original PSI with that refit's PSI would change both the response
+  # coverage and the person distribution, not just the subscale structure.
+  p <- fit$person
+  q <- refit$person
+  if (nrow(fit$X) != nrow(refit$X) || nrow(p) != nrow(fit$X) ||
+      nrow(q) != nrow(refit$X) ||
+      !identical(as.character(p$id), as.character(q$id)))
+    stop("the original and subtest response rows are not aligned")
+  complete <- stats::complete.cases(fit$X) & stats::complete.cases(refit$X)
+  keep <- complete & is.finite(p$theta) & is.finite(p$se) & p$se >= 0 &
+    is.finite(q$theta) & is.finite(q$se) & q$se >= 0
+  psi1 <- .psi(p$theta, p$se, keep = keep)
+  psi2 <- .psi(q$theta, q$se, keep = keep)
   ratio <- function(r1, r2) {
-    if (any(!is.finite(c(r1, r2))) || r2 <= 0) return(rep(NA_real_, 4))
+    # The variance decomposition is a ratio of reliabilities. A zero or
+    # negative coefficient is not a boundary estimate of c^2; it means the
+    # reliability decomposition itself is unavailable. Truncating the
+    # resulting negative ratio to c^2 = 0 would falsely report perfectly
+    # correlated subscales from an unusable reliability estimate.
+    if (any(!is.finite(c(r1, r2))) || r1 <= 0 || r2 <= 0)
+      return(rep(NA_real_, 4))
     c2 <- max(S * (r1 / r2 - 1) / g, 0)
     c(c2, sqrt(c2), 1 / (1 + c2), S / (S + c2))
   }
-  psi_row <- ratio(fit$psi$PSI, refit$psi$PSI)
+  psi_row <- ratio(psi1$PSI, psi2$PSI)
   alp_row <- ratio(fit$alpha$alpha, refit$alpha$alpha)
   tab <- data.frame(index = c("PSI", "alpha"),
-                    run1 = c(fit$psi$PSI, fit$alpha$alpha),
-                    subtest = c(refit$psi$PSI, refit$alpha$alpha),
+                    run1 = c(psi1$PSI, fit$alpha$alpha),
+                    subtest = c(psi2$PSI, refit$alpha$alpha),
                     c2 = c(psi_row[1], alp_row[1]),
                     c = c(psi_row[2], alp_row[2]),
                     rho = c(psi_row[3], alp_row[3]),
-                    A = c(psi_row[4], alp_row[4]))
+                    A = c(psi_row[4], alp_row[4]),
+                    n = c(sum(keep), sum(complete)),
+                    n_excluded = c(sum(!keep), sum(!complete)))
   out <- list(table = tab, refit = refit, S = S, K = K,
+              algorithm = "complete-panel-1",
               alpha_applicable = fit$alpha$applicable)
   out <- .tag_tables(out)
   class(out) <- "rasch_dim_magnitude"
@@ -1052,7 +1123,7 @@ print.rasch_dim_magnitude <- function(x, ...) {
   tab[num] <- lapply(tab[num], round, 3)
   print(tab, row.names = FALSE)
   cat("rho = latent correlation between subscales; A = proportion of common variance\n")
-  if (isFALSE(x$alpha_applicable))
-    cat("note: alpha computed on complete cases only (missing data present)\n")
+  if (any(x$table$n_excluded > 0))
+    cat("Reliabilities use matched complete-response rows; PSI also requires usable estimates in both fits.\n")
   invisible(x)
 }

@@ -31,7 +31,7 @@ column, and the predictors named in \code{formula}. Column names must be
 unique.}
 
 \item{formula}{One-sided explanatory formula, including selected
-interactions if required.}
+interactions if required. Formula offsets (\code{offset()}) are not supported.}
 
 \item{object_a, object_b}{Names of the columns holding the two objects
 compared. Columns used for the comparison roles must be distinct.}
@@ -96,8 +96,12 @@ The scale origin is fixed at mean object location zero. Numeric predictors
 are continuous, unordered factors are categorical, and ordered factors use
 successive contrasts between adjacent levels. Character predictors are
 converted to unordered factors. Selected
-interactions may be included in \code{formula}. A free calibration is
-retained for \code{explanatory_test()}. Standard errors use the same
+interactions may be included in \code{formula}.
+Design columns are centred and rescaled internally for numerical stability; reported
+coefficients and standard errors use the supplied predictor units.
+Coincident coefficient labels receive numeric suffixes; this does not
+change the predictor design.
+A free calibration is retained for \code{explanatory_test()}. Standard errors use the same
 sandwich covariance as \code{btl()}; when judges are identified, coefficient
 tests use the judge-clustered covariance and a \eqn{t} reference with
 judge-cluster degrees of freedom. Holm adjustment covers the coefficient

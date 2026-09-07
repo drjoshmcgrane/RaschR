@@ -77,6 +77,68 @@ test_that("failed explanatory calibration withholds covariance inference", {
   expect_true(all(is.na(z$coefficients$p_adj)))
 })
 
+test_that("explanatory coefficients use supported person-cluster inference", {
+  set.seed(991)
+  n_cluster <- 24L
+  repeats <- 3L
+  predictors <- data.frame(
+    item = paste0("I", 1:10),
+    operation = rep(0:1, each = 5),
+    format = rep(c("A", "B"), 5),
+    stringsAsFactors = FALSE)
+  theta <- rep(rnorm(n_cluster), each = repeats)
+  delta <- -0.5 + 0.7 * predictors$operation +
+    0.35 * (predictors$format == "B")
+  X <- sapply(delta, function(d)
+    rbinom(length(theta), 1, plogis(theta - d)))
+  colnames(X) <- predictors$item
+  id <- rep(sprintf("P%02d", seq_len(n_cluster)), each = repeats)
+
+  fit <- rasch_explanatory(
+    X, predictors, ~ operation + format, id = id)
+  cf <- fit$est$coefficients
+  expect_true(fit$est$cluster_support$repeated)
+  expect_true(fit$est$cluster_inference)
+  expect_identical(fit$est$cluster_support$n, n_cluster)
+  expect_equal(fit$est$cluster_support$cr1,
+               n_cluster / (n_cluster - 1L))
+  expect_identical(fit$est$cluster_support$correction,
+                   "linearised delete-one-person jackknife")
+  expect_equal(cf$df, rep(n_cluster - 1L, nrow(cf)))
+  expect_equal(cf$p, 2 * pt(-abs(cf$t), df = n_cluster - 1L),
+               tolerance = 1e-12)
+
+  # A fixed-departure refit repeats the calibration with the same independent
+  # person clusters and therefore retains the same coefficient reference.
+  relaxed <- relax_explanatory(fit, "I1", "location")
+  expect_identical(relaxed$est$cluster_support$n, n_cluster)
+  expect_true(relaxed$est$cluster_inference)
+  expect_identical(relaxed$est$cluster_support$correction,
+                   "linearised delete-one-person jackknife")
+  expect_equal(relaxed$est$coefficients$df,
+               rep(n_cluster - 1L, nrow(relaxed$est$coefficients)))
+
+  unsupported_id <- rep(sprintf("C%d", 1:6), length.out = nrow(X))
+  unsupported <- rasch_explanatory(
+    X, predictors, ~ operation + format, id = unsupported_id)
+  expect_false(unsupported$est$cluster_inference)
+  expect_identical(unsupported$est$cluster_support$n, 6L)
+  expect_true(all(is.na(unsupported$est$coefficients[c(
+    "se", "t", "df", "p", "p_adj")])))
+  expect_true(any(grepl("fewer than 10 person clusters",
+                        unsupported$est$notes, fixed = TRUE)))
+
+  low_X <- as.matrix(expand.grid(
+    I1 = 0:1, I2 = 0:1, I3 = 0:1, I4 = 0:1))[2:9, , drop = FALSE]
+  low_predictors <- data.frame(
+    item = colnames(low_X), x = c(-1, -0.3, 0.4, 1))
+  low <- rasch_explanatory(low_X, low_predictors, ~ x)
+  expect_false(low$est$cluster_support$repeated)
+  expect_false(low$est$cluster_inference)
+  expect_true(all(is.na(low$est$coefficients[c(
+    "se", "t", "df", "p", "p_adj")])))
+})
+
 test_that("explanatory CJ accepts predictors for set-aside boundary objects", {
   pr <- t(utils::combn(LETTERS[1:4], 2L))
   core <- do.call(rbind, lapply(seq_len(nrow(pr)), function(i)
@@ -97,6 +159,19 @@ test_that("explanatory CJ accepts predictors for set-aside boundary objects", {
       fit$observed_comparisons$object_b)))
 })
 
+test_that("explanatory CJ rejects predictors seen only in unusable rows", {
+  pairs <- rbind(c("A", "B"), c("A", "D"), c("B", "D"))
+  d <- do.call(rbind, lapply(seq_len(nrow(pairs)), function(i)
+    data.frame(a = rep(pairs[i, 1L], 20), b = rep(pairs[i, 2L], 20),
+               winner = rep(pairs[i, ], 10))))
+  d <- rbind(d, data.frame(a = "C", b = "A", winner = NA_character_))
+  predictors <- data.frame(object = c("A", "B", "C", "D"), x = 1:4)
+
+  expect_error(
+    btl_explanatory(d, predictors, ~ x, "a", "b", winner = "winner"),
+    "not present in the comparisons")
+})
+
 test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   d <- sim_lltm()
   f <- rasch_explanatory(d$X, d$predictors,
@@ -108,6 +183,9 @@ test_that("LLTM recovers item-feature effects and retains Rasch scoring", {
   expect_equal(f$est$n_parameters, 2L)
   expect_lt(abs(f$est$coefficients["operation", "estimate"] - 0.75), .25)
   expect_lt(abs(f$est$coefficients["formatB", "estimate"] - 0.35), .25)
+  expect_true(all(is.infinite(f$est$coefficients$df)))
+  expect_equal(f$est$coefficients$p,
+               2 * pnorm(-abs(f$est$coefficients$t)), tolerance = 1e-12)
   expect_equal(f$person$theta, f$score_table$theta[f$person$raw + 1L],
                tolerance = 1e-10)
 
@@ -181,6 +259,38 @@ test_that("LPCM accepts threshold effects and selected interactions", {
                     f$est$coefficients$term))
   expect_true(all(is.finite(f$est$coefficients$se)))
   expect_equal(nrow(f$explanatory$metadata), sum(f$m))
+})
+
+test_that("a partly represented threshold departure adds only new directions", {
+  d <- simulate_rasch(500, 6, model = "PCM", n_categories = 4, seed = 91)
+  items <- sprintf("I%02d", 1:6)
+  X <- as.data.frame(d[items])
+  predictors <- expand.grid(
+    threshold = 1:3, item = items, KEEP.OUT.ATTRS = FALSE,
+    stringsAsFactors = FALSE)
+  predictors <- predictors[
+    order(match(predictors$item, items), predictors$threshold), ]
+  predictors$x <- 0
+  predictors$x[predictors$item == "I01"] <- c(1, 0, -1)
+  predictors$trend <- rep(seq_along(items), each = 3)
+  fit <- rasch_explanatory(
+    X, predictors, ~ x + trend, level = "threshold")
+
+  full <- rasch:::.explanatory_candidate(fit, "I01", "thresholds")
+  addition <- rasch:::.explanatory_addition(fit$est$B, full)
+  expect_equal(ncol(full), 2L)
+  expect_equal(ncol(addition), 1L)
+  expect_equal(qr(cbind(fit$est$B, addition), tol = 1e-10)$rank,
+               ncol(fit$est$B) + 1L)
+
+  diagnostics <- explanatory_diagnostics(fit)
+  row <- diagnostics$item == "I01" &
+    diagnostics$component == "Threshold structure"
+  expect_true(any(row))
+  expect_equal(diagnostics$parameters_added[row], 1L)
+  relaxed <- relax_explanatory(fit, "I01", "thresholds")
+  expect_s3_class(relaxed, "rasch_explanatory")
+  expect_equal(tail(relaxed$explanatory$relaxations$parameters_added, 1L), 1L)
 })
 
 test_that("large-sample explanatory convergence is judged on parameter scale", {
@@ -317,6 +427,7 @@ test_that("diagnostics use one Holm family and fixed departures refit all output
                "exactly one item")
   failed <- f
   failed$est$converged <- FALSE
+  expect_output(print(failed), "comparison: unavailable")
   expect_error(explanatory_test(failed), "did not converge")
   expect_error(explanatory_diagnostics(failed), "did not converge")
   expect_error(relax_explanatory(failed, dg$item[1]), "did not converge")

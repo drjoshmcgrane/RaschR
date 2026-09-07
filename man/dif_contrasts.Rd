@@ -56,11 +56,12 @@ response rows from one person count once within each cell.}
 }
 \value{
 A list of class \code{"rasch_dif_contrasts"}: \code{table} (one row
-  per item and contrast: estimate in logits, SE, statistic, df where a t
-  test was used, raw and adjusted p, 95 per cent interval,
+  per item and contrast: estimate in logits, SE, statistic, reference df
+  (infinite for the normal limit), raw and adjusted p, 95 per cent interval,
   \code{significant}, \code{practical}, \code{within}), \code{family}
-  (the derived questions with their cell weights), the settings, and any
-  \code{notes}.
+  (the estimable questions with their cell weights), \code{family_n} and
+  \code{family_n_per_item} (the planned multiplicity counts), the settings,
+  and any \code{notes}.
 }
 \description{
 Tests a specified family of one-degree-of-freedom DIF contrasts. By default,
@@ -75,9 +76,17 @@ Each logit contrast is calculated from resolved item locations. Weights are
 scaled so their positive and negative parts each sum to one. With repeated
 persons, inference uses person-level residual contrast scores with the same
 cell weights as the resolved estimate. Nuisance-factor cells are averaged
-equally rather than in proportion to their sample sizes. Independent
-between-person cells are then combined with a Welch--Satterthwaite
-reference. The resolved logit estimate is retained, but its
+equally rather than in proportion to their sample sizes. In an incomplete
+factorial design, a contrast uses only nuisance strata containing all of
+its non-zero target cells; an unsupported planned contrast is not estimated
+but remains in the multiplicity count. Once these weights are defined,
+every weighted cell must meet \code{min_n} for the item; sparse cells are
+not dropped and the remaining weights are not renormalised. Independent between-person cells are
+then combined with a Welch--Satterthwaite reference. If a required between-
+person cell has fewer than two complete person scores, residual inference is
+withheld rather than changing the marginal contrast by dropping that cell.
+The resolved logit
+estimate is retained, but its
 calibration-based standard error is withheld because it does not include
 repeated-person dependence.
 

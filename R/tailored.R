@@ -31,6 +31,34 @@
        id = rep(seq_along(parts), lengths(parts)))
 }
 
+# Two-sided sign-count probability followed by Holm over m items. The strict
+# decision rule is p_adj < .05, so a floor equal to .05 is not resolvable.
+.tailored_boot_floor <- function(B, m) 2 * m / (B + 1)
+
+.tailored_nonconvergence <- function(message) {
+  stop(structure(list(message = message, call = NULL),
+    class = c("rasch_tailored_nonconvergence", "error", "condition")))
+}
+
+# No tailoring in a resample is a valid zero change. Keep the complete item
+# family before admitting that draw, since a dropped item is a different fit.
+.tailored_boot_refit <- function(fit, chance, anchor_items, items, maxima) {
+  if (!identical(as.character(fit$items$item), as.character(items)) ||
+      !identical(as.integer(fit$m), as.integer(maxima)))
+    return(.fit_boot_failure("error"))
+  cut <- !is.na(fit$X) & is.finite(fit$moments$E) &
+    fit$moments$E < chance
+  if (!any(cut)) return(rep(0, length(items)))
+  tryCatch({
+    result <- tailored_analysis(fit, chance = chance,
+      anchor_items = anchor_items, se_method = "none")
+    shift <- .tailored_boot_shift(result, items)
+    if (is.null(shift)) .fit_boot_failure("error") else shift
+  }, rasch_tailored_nonconvergence = function(e)
+    .fit_boot_failure("nonconverged"),
+    error = function(e) .fit_boot_failure("error"))
+}
+
 #' Tailored analysis for guessing
 #'
 #' Runs the four-step tailored procedure of Andrich, Marais and Humphry
@@ -64,13 +92,15 @@
 #'   complete four-step procedure, including automatic anchor selection, to
 #'   obtain standard errors, percentile intervals, and Holm-adjusted tests.
 #'   When a person identifier occurs on several rows, all of that person's
-#'   rows are resampled together.
+#'   rows are resampled together. A resample requiring no tailoring contributes
+#'   zero item shifts.
 #' @param boot_reps Person-bootstrap replicates when
 #'   \code{se_method = "bootstrap"}; at least 50, default 999. The
 #'   sign-count bootstrap p-value has resolution floor \code{2/(boot_reps
 #'   + 1)}, so after the Holm adjustment across m items the smallest
 #'   achievable adjusted p is \code{2m/(boot_reps + 1)}; a warning fires
-#'   when that floor exceeds 0.05 (detection would be impossible).
+#'   when that floor is at or above 0.05 (the procedure declares significance
+#'   only below 0.05, so detection would be impossible).
 #' @param seed Optional non-negative whole-number seed for the person
 #'   bootstrap. The caller's random-number state is restored on exit.
 #' @return A list of class \code{"rasch_tailored"}: \code{tailored},
@@ -80,7 +110,18 @@
 #'   requested), the number of
 #'   responses removed, the anchor items used, \code{se_method}, and bootstrap
 #'   accounting: requested, usable, non-converged, other failures, and the
-#'   minimum usable count.
+#'   minimum usable count. \code{anchor_items_requested} distinguishes anchors
+#'   supplied by the analyst from automatic anchor selection; it is
+#'   \code{NULL} for the latter. The algorithm identifier and fitted-model and
+#'   result signatures authenticate a saved result against the calibration
+#'   and procedure from which it was computed.
+#'   The final \code{anchored} component is a fixed-calibration scoring fit.
+#'   Its person estimates and observed diagnostics remain available, but
+#'   downstream item changes and refit-based bootstraps are not supported.
+#'   Returned fits retain keyed scoring and structural records. Raw option
+#'   data in the tailored fit exclude the responses removed by tailoring.
+#'   For item-shift uncertainty, use this function's person bootstrap on the
+#'   original calibration.
 #' @references Waller, M. I. (1989). Modeling guessing behavior: A
 #'   comparison of two IRT models. Applied Psychological Measurement, 13,
 #'   233-243. Andrich, D., Marais, I. and Humphry, S. (2012). Using a
@@ -102,6 +143,7 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
                               boot_reps = 999L, seed = NULL) {
   se_method <- match.arg(se_method)
   if (!inherits(fit, "rasch")) stop("tailored_analysis needs a rasch fit")
+  .require_refittable_calibration(fit)
   if (inherits(fit, "rasch_efrm") || inherits(fit, "rasch_mfrm"))
     stop("tailored_analysis currently requires an ordinary dichotomous Rasch fit")
   if (max(fit$m) > 1L)
@@ -143,10 +185,10 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     stop("no responses fall below the chance level; nothing to tailor")
   Xt[cut_cells] <- NA
   tailored <- rasch(Xt, model = fit$model, id = fit$person$id,
-                    factors = fit$factors, n_groups = fit$n_groups,
+                    factors = fit$factors, n_groups = .refit_n_groups(fit),
                     maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)
   if (!isTRUE(tailored$est$converged))
-    stop("the tailored calibration did not converge; the comparison is unavailable")
+    .tailored_nonconvergence("the tailored calibration did not converge; the comparison is unavailable")
   if (!identical(tailored$items$item, fit$items$item))
     stop("tailoring removed an item entirely; lower 'chance' or drop the item first")
 
@@ -175,11 +217,11 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   # other items against them
   a3 <- data.frame(item = anchor_items, k = NA, tau = ta_loc, average = TRUE)
   origin_equated <- rasch(fit$X, model = fit$model, id = fit$person$id,
-                          factors = fit$factors, n_groups = fit$n_groups,
+                          factors = fit$factors, n_groups = .refit_n_groups(fit),
                           anchors = a3, maxit = spec$maxit %||% 60,
                           tol = spec$tol %||% 1e-8)
   if (!isTRUE(origin_equated$est$converged))
-    stop("the common-origin calibration did not converge; the comparison is unavailable")
+    .tailored_nonconvergence("the common-origin calibration did not converge; the comparison is unavailable")
 
   # step 4: original data, every item fixed at its tailored value, persons
   # free. With no free item parameter there is nothing for pcml() to do, so
@@ -194,9 +236,38 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   # sample size: hard-coding NA left its item-trait statistics on a
   # different scale from its own siblings
   anchored <- .assemble_fit(fit$model, fit$X, est4, fit$person$id,
-                            fit$factors, fit$n_groups,
+                            fit$factors, .refit_n_groups(fit),
                             c(fit$notes,
                               "all item parameters anchored at their tailored values; persons re-estimated"))
+  anchored$refit_spec <- list(
+    model = fit$model, n_groups = .refit_n_groups(fit),
+    anchors = data.frame(item = colnames(fit$X)[thr4$item],
+                         k = thr4$k, tau = thr4$tau),
+    fixed_calibration = TRUE, calibration_source = "tailored",
+    na_codes = -1, key = NULL, pc_components = NULL,
+    maxit = spec$maxit %||% 60L, tol = spec$tol %||% 1e-8)
+
+  inherit_records <- function(out) {
+    out$split_map <- fit$split_map
+    out$subtest_map <- fit$subtest_map
+    out$subtest_binary <- fit$subtest_binary
+    out$mc <- fit$mc
+    out$refit_spec$key <- spec$key
+    if (!is.null(out$mc)) {
+      keyed_items <- colnames(out$mc$raw)
+      if (nrow(out$mc$raw) != nrow(out$X) ||
+          !all(keyed_items %in% colnames(out$X)))
+        stop("the keyed responses cannot be aligned with the tailored fit")
+      # Keep the option identities only where this fit retains the response.
+      # Copying the unmasked raw matrix would reinstate censored takers in
+      # distractor summaries and later keyed refits.
+      out$mc$raw[is.na(out$X[, keyed_items, drop = FALSE])] <- NA_character_
+    }
+    out
+  }
+  tailored <- inherit_records(tailored)
+  origin_equated <- inherit_records(origin_equated)
+  anchored <- inherit_records(anchored)
 
   idx_t <- match(fit$items$item, tailored$items$item)
   idx_o <- match(fit$items$item, origin_equated$items$item)
@@ -230,7 +301,7 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
       fb <- tryCatch(suppressWarnings(rasch(
         Xb, model = fit$model, id = bs$id,
         factors = if (is.null(fit$factors)) NULL else
-          fit$factors[take, , drop = FALSE], n_groups = fit$n_groups,
+          fit$factors[take, , drop = FALSE], n_groups = .refit_n_groups(fit),
         maxit = spec$maxit %||% 60, tol = spec$tol %||% 1e-8)),
         error = function(e) NULL)
       if (is.null(fb)) {
@@ -241,13 +312,13 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
         boot_nonconverged <- boot_nonconverged + 1L
         next
       }
-      tb <- tryCatch(suppressWarnings(
-        tailored_analysis(fb, chance = chance,
-                          anchor_items = anchor_requested,
-                          se_method = "none")), error = function(e) NULL)
-      shift_b <- .tailored_boot_shift(tb, tab$item)
-      if (!is.null(shift_b))
+      shift_b <- suppressWarnings(.tailored_boot_refit(
+        fb, chance, anchor_requested, tab$item, fit$m))
+      status <- .fit_boot_status(shift_b)
+      if (status == "ok")
         draws[[length(draws) + 1L]] <- shift_b
+      else if (status == "nonconverged")
+        boot_nonconverged <- boot_nonconverged + 1L
       else boot_errors <- boot_errors + 1L
     }
     minimum_usable <- .fit_min_boot_success(boot_reps)
@@ -271,21 +342,24 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
     tab$significant <- tab$p_adj < 0.05
     # the sign-count bootstrap p has resolution floor 2/(B+1); after the
     # Holm step the smallest achievable adjusted p is 2m/(B+1). If that
-    # floor sits above alpha, NO item could ever be flagged at these
+    # floor sits at or above alpha, NO item could ever be flagged at these
     # settings -- an inert test must say so, not sit quietly
-    floor_adj <- 2 * ncol(B) / (nrow(B) + 1)
-    if (floor_adj > 0.05)
+    floor_adj <- .tailored_boot_floor(nrow(B), ncol(B))
+    if (floor_adj >= 0.05)
       warning(sprintf(paste0(
         "with %d usable replicates and %d items the smallest achievable ",
-        "Holm-adjusted p is %.3f (> 0.05): no shift can reach significance ",
-        "at these settings -- use boot_reps >= %d"),
-        nrow(B), ncol(B), floor_adj, ceiling(2 * ncol(B) / 0.05) - 1L),
+        "Holm-adjusted p is %.3f (>= 0.05): no shift can reach significance ",
+        "at these settings; at least %d usable draws are needed, so request more if refits fail"),
+        nrow(B), ncol(B), floor_adj, 40L * ncol(B)),
         call. = FALSE)
   }
   out <- list(tailored = tailored, origin_equated = origin_equated,
               anchored = anchored, table = tab,
+              algorithm = "tailored-four-stage-2",
               n_removed = sum(cut_cells), chance = chance,
-              anchor_items = anchor_items, se_method = se_method,
+              anchor_items = anchor_items,
+              anchor_items_requested = anchor_requested,
+              se_method = se_method,
               seed = if (se_method == "bootstrap") seed else NULL,
               boot_reps = if (se_method == "bootstrap") boot_reps else NA_integer_,
               boot_reps_used = boot_used,
@@ -294,9 +368,11 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
               boot_reps_errors = if (se_method == "bootstrap")
                 boot_errors else NA_integer_,
               boot_minimum_usable = if (se_method == "bootstrap")
-                minimum_usable else NA_integer_)
+                minimum_usable else NA_integer_,
+              fit_signature = .fit_boot_signature(fit))
   out <- .tag_tables(out)
-  class(out) <- "rasch_tailored"
+  out$result_signature <- .fit_boot_md5(out)
+  class(out) <- c("rasch_tailored", "list")
   out
 }
 
@@ -315,6 +391,110 @@ tailored_analysis <- function(fit, chance = 0.25, anchor_items = NULL,
   if (!is.numeric(shift) || length(shift) != length(items) ||
       any(!is.finite(shift))) return(NULL)
   unname(shift)
+}
+
+.validate_tailored_result <- function(result, fit) {
+  if (is.null(result)) return(invisible(NULL))
+  fail <- function() stop(
+    "`tailored` is incomplete or internally inconsistent; recompute it with tailored_analysis()",
+    call. = FALSE)
+  required <- c(
+    "tailored", "origin_equated", "anchored", "table", "n_removed",
+    "algorithm", "chance", "anchor_items", "anchor_items_requested",
+    "se_method", "boot_reps", "boot_reps_used",
+    "boot_reps_nonconverged", "boot_reps_errors", "boot_minimum_usable",
+    "fit_signature", "result_signature")
+  if (!inherits(result, "rasch_tailored") ||
+      !all(required %in% names(result)) ||
+      !is.data.frame(result$table) ||
+      !all(c("item", "initial", "tailored", "origin_equated", "removed",
+             "shift", "se", "ci_low", "ci_high", "p", "p_adj",
+             "significant") %in% names(result$table)) ||
+      !is.character(result$result_signature) ||
+      length(result$result_signature) != 1L || is.na(result$result_signature))
+    fail()
+  if (!identical(result$algorithm, "tailored-four-stage-2") &&
+      !(identical(result$algorithm, "tailored-four-stage-1") &&
+        identical(result$se_method, "none"))) fail()
+  unsigned <- unclass(result)
+  unsigned$result_signature <- NULL
+  if (!.fit_boot_hash_matches(result$result_signature, unsigned)) fail()
+  if (!inherits(fit, "rasch") ||
+      !.fit_boot_signature_matches(result$fit_signature, fit))
+    stop("`tailored` was computed from a different fitted model", call. = FALSE)
+  if (!identical(result$se_method, "none") &&
+      !identical(result$se_method, "bootstrap")) fail()
+  numeric_fields <- c("initial", "tailored", "origin_equated", "removed",
+                      "shift", "se", "ci_low", "ci_high", "p", "p_adj")
+  if (any(!vapply(result$table[numeric_fields], is.numeric, logical(1))) ||
+      !inherits(result$tailored, "rasch") ||
+      !inherits(result$origin_equated, "rasch") ||
+      !inherits(result$anchored, "rasch")) fail()
+  if (!is.numeric(result$chance) || length(result$chance) != 1L ||
+      !is.finite(result$chance) || result$chance <= 0 || result$chance >= 1 ||
+      !is.numeric(result$n_removed) || length(result$n_removed) != 1L ||
+      !is.finite(result$n_removed) || result$n_removed < 1 ||
+      result$n_removed != floor(result$n_removed) ||
+      !is.character(result$anchor_items) || length(result$anchor_items) < 2L ||
+      anyNA(result$anchor_items) || any(!nzchar(trimws(result$anchor_items))) ||
+      anyDuplicated(result$anchor_items) ||
+      any(!result$anchor_items %in% fit$items$item) ||
+      !identical(as.character(result$table$item), as.character(fit$items$item)) ||
+      any(!is.finite(result$table$removed)) || any(result$table$removed < 0) ||
+      any(result$table$removed != floor(result$table$removed)) ||
+      sum(result$table$removed) != result$n_removed)
+    fail()
+  requested <- result$anchor_items_requested
+  if (!is.null(requested) &&
+      (!is.character(requested) || !length(requested) || anyNA(requested) ||
+       any(!nzchar(trimws(requested))) || anyDuplicated(requested) ||
+       !identical(requested, result$anchor_items))) fail()
+  aligned_location <- function(x)
+    x$items$location[match(result$table$item, x$items$item)]
+  same <- function(x, y) isTRUE(all.equal(
+    as.numeric(x), as.numeric(y), tolerance = 64 * .Machine$double.eps,
+    check.attributes = FALSE))
+  if (!same(result$table$initial, aligned_location(fit)) ||
+      !same(result$table$tailored, aligned_location(result$tailored)) ||
+      !same(result$table$origin_equated,
+            aligned_location(result$origin_equated)) ||
+      !same(result$table$shift,
+            result$table$tailored - result$table$origin_equated)) fail()
+  if (is.null(requested)) {
+    n_anchor <- max(2L, ceiling(nrow(result$table) / 3))
+    expected_anchor <- result$table$item[order(
+      result$table$removed, result$table$tailored)][seq_len(n_anchor)]
+    if (!identical(result$anchor_items, expected_anchor)) fail()
+  }
+  count_names <- c("boot_reps", "boot_reps_used", "boot_reps_nonconverged",
+                   "boot_reps_errors", "boot_minimum_usable")
+  whole <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x) &&
+    x >= 0 && x == floor(x)
+  if (identical(result$se_method, "bootstrap")) {
+    if (any(!vapply(result[count_names], whole, logical(1))) ||
+        result$boot_reps < 50L ||
+        result$boot_reps_used + result$boot_reps_nonconverged +
+          result$boot_reps_errors != result$boot_reps ||
+        result$boot_minimum_usable != .fit_min_boot_success(result$boot_reps) ||
+        result$boot_reps_used < result$boot_minimum_usable ||
+        any(!is.finite(unlist(result$table[c(
+          "se", "ci_low", "ci_high", "p", "p_adj")], use.names = FALSE))) ||
+        any(result$table$p < 0 | result$table$p > 1) ||
+        any(result$table$p_adj < 0 | result$table$p_adj > 1) ||
+        any(result$table$ci_low > result$table$ci_high) ||
+        !same(result$table$p_adj,
+              .p_adjust_family(result$table$p, method = "holm")) ||
+        anyNA(result$table$significant) ||
+        !identical(as.logical(result$table$significant),
+                   result$table$p_adj < 0.05)) fail()
+  } else {
+    if (any(!vapply(result[count_names], function(x)
+      is.numeric(x) && length(x) == 1L && is.na(x), logical(1))) ||
+        any(!is.na(unlist(result$table[c(
+          "se", "ci_low", "ci_high", "p", "p_adj")], use.names = FALSE))) ||
+        any(!is.na(result$table$significant))) fail()
+  }
+  invisible(result)
 }
 
 #' @export

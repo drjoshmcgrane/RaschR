@@ -39,7 +39,7 @@ run_one <- function(theta_true, model, weight_shape, varying_units = FALSE,
   colnames(X) <- names(tau)
   fit <- list(X = X, tau_list = tau, disc = disc,
               person = data.frame(id = sprintf("P%05d", seq_len(N))),
-              factors = NULL)
+              factors = NULL, est = list(converged = TRUE))
   class(fit) <- "rasch"
   z <- weighted_person_estimates(fit, stats::setNames(q, names(tau)))
   ok <- is.finite(z$theta) & is.finite(z$se) & z$se > 0

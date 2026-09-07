@@ -34,6 +34,10 @@ design, linking controls and uncertainty method. The operation is refused
 if it would remove an externally anchored item, empty an item set or leave
 the model unidentified. To change the anchor set, refit explicitly; this
 prevents an item-removal comparison from silently changing its scale.
+Older anchored or component-constrained fits without their original refit
+settings must first be refitted from the source data.
+A refit is also refused if it drops or rescores a retained item because a
+response category no longer contributes conditional information.
 
 Item removal changes both the item calibration and the person estimates.
 For an EFRM it can also change the estimated frame units. Compare the

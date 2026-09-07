@@ -4,14 +4,16 @@
 \alias{plot_icc_frames}
 \title{Plot an item's characteristic curves across frames}
 \usage{
-plot_icc_frames(fit, item, n_groups = fit$n_groups, grid = NULL, group = NULL)
+plot_icc_frames(fit, item, n_groups = NULL, grid = NULL, group = NULL)
 }
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch_efrm}}.}
 
 \item{item}{Underlying item name.}
 
-\item{n_groups}{Number of class intervals for the observed means.}
+\item{n_groups}{Number of class intervals for the observed means. By
+default, use the fit's count, with at least two requested intervals.
+Tied locations may produce fewer intervals.}
 
 \item{grid}{Logit grid.}
 

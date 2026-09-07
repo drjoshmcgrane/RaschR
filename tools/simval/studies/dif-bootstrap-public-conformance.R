@@ -8,6 +8,8 @@
 suppressWarnings(pkgload::load_all(".", quiet = TRUE))
 source("tools/simval/harness.R")
 
+dif_source_md5 <- unname(tools::md5sum("R/dif-bootstrap.R"))
+
 B <- as.integer(Sys.getenv("SV_BOOT", "49"))
 workers <- max(1L, as.integer(Sys.getenv("SV_CORES", "1")))
 
@@ -121,14 +123,17 @@ for (j in seq_along(cases)) {
   public <- suppressWarnings(dif_bootstrap(
     fit, dif, B = B, workers = workers, seed = seed))
   manual <- manual_run(fit, dif, seed)
-  F <- manual$F
+  F <- manual$F; P <- manual$P
   family <- !dif$term_ids %in% c("Residuals", "ci")
   obs <- dif$terms[family, , drop = FALSE]
-  p_raw <- vapply(seq_len(ncol(F)), function(k)
+  p_raw <- vapply(seq_len(ncol(P)), function(k)
+    (1 + sum(P[, k] <= obs$p[k])) / (B + 1), numeric(1))
+  minp <- apply(P, 1L, min)
+  p_adj <- vapply(obs$p, function(p)
+    (1 + sum(minp <= p)) / (B + 1), numeric(1))
+  legacy_raw <- vapply(seq_len(ncol(F)), function(k)
     (1 + sum(F[, k] >= obs$F_value[k])) / (B + 1), numeric(1))
-  minp <- apply(manual$P, 1L, min)
-  p_adj <- pmax(p_raw, vapply(obs$p, function(p)
-    (1 + sum(minp <= p)) / (B + 1), numeric(1)))
+  legacy_adj <- pmax(legacy_raw, p_adj)
 
   vals <- c(
     max_abs_F_difference = max(abs(public$replicates$F - F)),
@@ -136,6 +141,10 @@ for (j in seq_along(cases)) {
       public$terms$p_boot[family] - p_raw)),
     max_abs_adjusted_p_difference = max(abs(
       public$terms$p_boot_adj[family] - p_adj)),
+    legacy_to_reference_marginal_max_change = max(abs(legacy_raw - p_raw)),
+    legacy_to_reference_adjusted_max_change = max(abs(legacy_adj - p_adj)),
+    legacy_to_reference_flag_changes = sum(
+      (legacy_adj < dif$alpha) != (p_adj < dif$alpha)),
     score_preservation_failures = sum(!manual$score_ok),
     missingness_preservation_failures = sum(!manual$missing_ok))
   rows[[j]] <- do.call(rbind, lapply(names(vals), function(q)
@@ -146,6 +155,8 @@ for (j in seq_along(cases)) {
       n_boot_nonconv = public$B_nonconverged,
       n_boot_errors = public$B_errors, bias = unname(vals[q]),
       notes = paste("independent public-versus-manual orchestration;",
-                    "exact score, missingness, family and probability check"))))
+                    "exact score, missingness, family and reference-p",
+                    "probability check; R/dif-bootstrap.R md5",
+                    dif_source_md5))))
 }
 sv_write(do.call(rbind, rows), "dif-bootstrap-public-conformance")

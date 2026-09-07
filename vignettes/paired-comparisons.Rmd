@@ -48,7 +48,7 @@ d <- simulate_btl(
   reps_per_pair = 84,
   erratic_judges = 2 / 48,
   dependence = list(exposure = 0.7, carry_over = 0),
-  seed = 1
+  seed = 2
 )
 truth <- attr(d, "truth")
 judge_number <- as.integer(sub("^J", "", d$judge))
@@ -201,13 +201,19 @@ fitted calibrations, drift inference is withheld until independent judges and
 comparisons are stated explicitly. The shift is precision-weighted when at
 least two common objects have usable variances. If they do not, the function
 uses the unweighted mean location difference, labels it in `shift_method`, and
-keeps the link descriptive.
+keeps the link descriptive. An exact common anchor fixes the shift even when
+other common objects have unavailable SEs.
 
 ```{r equating-example, eval = FALSE}
 eq <- btl_equate(current_panel, reference_panel, independent = TRUE)
 eq$table
 eq$equated                 # reference panel on the current panel's origin
 ```
+
+The SEs in `eq$equated` include uncertainty in the shift and its covariance
+with the reference locations. They are withheld when that joint uncertainty
+is unavailable. The table retains its covariance and finite-sample degrees
+of freedom as attributes; it is not independent of either input calibration.
 
 A bank table may be used in place of `reference_panel`. Marginal object
 standard errors are not enough for drift tests because they omit the
@@ -266,6 +272,9 @@ bootstrap, omnibus probabilities are Holm-adjusted across the three unit
 families. Individual panel-unit, set-unit and set-origin contrasts form one
 separate Holm-adjusted follow-up family. Judge-bootstrap tests require at least six judges
 and 5.5 effective judges in every panel, and eight of each on a set link.
+The pooled pairwise chi-square is retained as a descriptive fit summary, but
+its row-based probability is not reported because judges contribute repeated
+comparisons.
 Judge resamples are distributed over four workers by default, or fewer where
 the system imposes a lower limit. Set `seed` to reproduce the resamples. The
 parametric bootstrap remains serial because its refits are inexpensive. In the

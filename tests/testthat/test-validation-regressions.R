@@ -30,7 +30,7 @@ test_that("structured simulator arguments fail at the public boundary", {
 })
 
 test_that("the BTL second attribute has its requested finite correlation", {
-  for (k in c(3L, 5L, 8L, 15L)) for (rho in c(-0.75, 0, 0.6, 1)) {
+  for (k in c(3L, 5L, 8L, 15L)) for (rho in c(-0.75, 0, 0.6, 0.9)) {
     reps <- max(2L, ceiling(8 / choose(k, 2)))
     d <- simulate_btl(n_objects = k, n_judges = 8, reps_per_pair = reps,
                       second_attribute = list(rho = rho), seed = 1300 + k)
@@ -42,10 +42,12 @@ test_that("the BTL second attribute has its requested finite correlation", {
   expect_error(simulate_btl(object_sd = 0,
                             second_attribute = list(rho = 0.5)),
                "positive spread")
+  expect_error(simulate_btl(second_attribute = list(rho = 1)),
+               "finite value in")
 })
 
 test_that("the Rasch second dimension has its requested finite correlation", {
-  for (n in c(3L, 5L, 20L, 500L)) for (rho in c(-0.75, 0, 0.5, 1)) {
+  for (n in c(3L, 5L, 20L, 500L)) for (rho in c(-0.75, 0, 0.5, 0.9)) {
     d <- simulate_rasch(n_persons = n, n_items = 4,
                         second_dim = list(items = "I01", rho = rho),
                         seed = 1350 + n)
@@ -58,6 +60,9 @@ test_that("the Rasch second dimension has its requested finite correlation", {
   expect_error(simulate_rasch(n_persons = 2, n_items = 3,
                               second_dim = list(items = "I01", rho = 0.5)),
                "at least three persons")
+  expect_error(simulate_rasch(
+    n_persons = 20, n_items = 4,
+    second_dim = list(items = "I01", rho = 1)), "primary trait")
   for (dist in c("uniform", "skew", "bimodal")) {
     d <- simulate_rasch(n_persons = 50, n_items = 4, theta_dist = dist,
                         second_dim = list(items = "I01", rho = 0.35),

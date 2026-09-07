@@ -89,7 +89,9 @@
 #' An item-by-facet interaction retains equal discrimination but allows facet
 #' differences to vary by item. The omnibus Wald test in
 #' \code{interaction_test} is the primary test; cell tests are Holm-adjusted
-#' follow-ups. Interaction probabilities require at least
+#' follow-ups. Each cell table reports a Wald \code{t} statistic and its
+#' denominator degrees of freedom, using the least effective item-by-level
+#' person support minus one. Interaction probabilities require at least
 #' \eqn{\max\{30,q+2\}} persons and effective persons in every observed
 #' item-by-level cell, where \eqn{q} is the omnibus degrees of freedom.
 #' The interaction covariance must also identify the omnibus contrast and
@@ -109,8 +111,10 @@
 #'   \code{NULL} (the default) applies the class-interval rule of Andrich and
 #'   Marais (2019, ch. 15) (at least 50
 #'   non-extreme persons per interval, at most 10 intervals, at least 2).
-#' @param na_codes Score values to read as missing (default \code{-1}); any
-#'   negative score is also treated as missing.
+#' @param na_codes Numeric or character score values to read as missing. They
+#'   are matched before scores are converted to numbers, including numerically
+#'   equivalent labels (for example, \code{"09"} matches a score of 9).
+#'   The default is \code{-1}; any negative score is also treated as missing.
 #' @param items Optional character vector of item score columns for data in
 #'   wide format: one row per person-by-facet combination (for example one
 #'   row per script per rater) with one column per item or criterion. The
@@ -120,13 +124,16 @@
 #'   (interactive facet mode). See Details.
 #' @param factors Optional person factors for DIF analysis: a character
 #'   vector naming columns constant within person, or a data frame with one
-#'   row per data row or unique person. Facets belong in \code{facets}, not
-#'   here.
+#'   row per data row or unique person. Within each person, observed factor
+#'   values must agree; missing entries do not override an observed value.
+#'   Facets belong in \code{facets}, not here.
 #' @param maxit,tol Newton-Raphson iteration cap and convergence tolerance.
 #' @return An object of classes \code{"rasch_mfrm"} and \code{"rasch"}.
 #'   Model-specific components describe the facets, items, thresholds, and
 #'   facet specification. Interactive fits also contain an omnibus test and
-#'   the corresponding item-by-facet effects. The component \code{fit_resid}
+#'   the corresponding item-by-facet effects, whose \code{t}, \code{df},
+#'   \code{p}, and Holm-adjusted \code{p_adj} columns use the finite-person
+#'   reference described in Details. The component \code{fit_resid}
 #'   averages virtual-item residuals within a margin. Its response-weighted
 #'   counterpart is \code{fit_resid_pooled}; its degrees of freedom are in
 #'   \code{df_fit}. A non-converged fit retains estimates and residual patterns
@@ -163,6 +170,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
                        na_codes = -1, interaction = NULL,
                        factors = NULL, maxit = 60, tol = 1e-8) {
   .check_controls(maxit, tol)
+  .check_na_codes(na_codes)
   if (!is.data.frame(data))
     stop("`data` must be a data frame in long or wide form", call. = FALSE)
   if (!is.null(n_groups))
@@ -230,12 +238,13 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       rep(items, each = nrow(data)),
       unlist(lapply(items, function(cn) {
         v0 <- as.character(data[[cn]])
-        v <- suppressWarnings(as.numeric(v0))
-        bad <- !is.na(v0) & is.na(v)
-        if (any(bad))
-          stop("non-numeric score(s) in item column ", cn, " (e.g. '",
-               v0[bad][1], "'); scores must be integer counts", call. = FALSE)
-        v
+        check <- v0
+        check[.missing_code_mask(v0, na_codes)] <- NA_character_
+        .check_integer_scores(check, paste0("item column ", cn))
+        # Keep the raw labels until the long-form path has applied the
+        # declared missing codes; converting here would lose distinctions
+        # such as "09" and turn a declared code into score 9.
+        v0
       })), check.names = FALSE,
       stringsAsFactors = FALSE)
     names(long) <- c(tmp_person, tmp_item, tmp_score)
@@ -306,9 +315,14 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
 
   pid <- .role_text_values(data[[person]])
   itm <- .role_text_values(data[[item]])
-  .check_integer_scores(data[[score]], "the score column")
-  sc <- suppressWarnings(as.integer(as.character(data[[score]])))
-  n_na <- sum(!is.na(sc) & (sc %in% na_codes | sc < 0))
+  raw_score <- as.character(data[[score]])
+  raw_code <- .missing_code_mask(data[[score]], na_codes)
+  checked_score <- raw_score
+  checked_score[raw_code] <- NA_character_
+  .check_integer_scores(checked_score, "the score column")
+  sc <- suppressWarnings(as.integer(checked_score))
+  n_na <- sum(raw_code | (!is.na(sc) & (sc %in% na_codes | sc < 0)))
+  sc[raw_code] <- NA_integer_
   sc[sc %in% na_codes | (!is.na(sc) & sc < 0)] <- NA
   if (n_na > 0)
     notes <- c(notes, sprintf("%d response(s) with a missing-data code (%s) set to missing",
@@ -489,7 +503,10 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   est <- list(model = "MFRM", thr = thr_v, cov_tau = sol$cov_tau,
               loglik = sol$loglik, iterations = sol$iterations,
               converged = sol$converged, m = m_v, anchors = NULL,
-              n_parameters = P)
+              n_parameters = P, B = B, cov_beta = sol$cov_beta,
+              H_beta = sol$H_beta, notes = sol$cluster_note,
+              cluster_inference = sol$cluster_inference,
+              cluster_support = sol$cluster_support)
 
   # person factors for DIF: columns of `data` (constant within person) or a
   # data frame keyed to the unique persons, carried through so dif_anova()
@@ -523,26 +540,33 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
       # a row-per-data-row frame is collapsed to one row per person: a
       # column that varies within a person has no person-level value, and
       # keeping the first row's would silently pick one occasion
-      .check_person_constant <- function(df, key) {
+      .collapse_person_factors <- function(df, key) {
+        out <- df[match(persons_u, key), , drop = FALSE]
         for (cn in names(df)) {
-          v <- .role_text_values(df[[cn]])
+          value <- .canonical_role_column(df[[cn]])
+          v <- .role_text_values(value)
           nvar <- tapply(v, key, function(x) length(unique(x[!is.na(x)])))
           if (any(nvar > 1L, na.rm = TRUE))
             stop("factor '", cn, "' varies within person(s) ",
                  paste(names(nvar)[which(nvar > 1L)], collapse = ", "),
                  ": person factors must be constant per person (a facet ",
                  "is not a person factor; see `interaction=`)")
+          # Missing entries do not contradict an observed person-level value.
+          # Choose that value separately for each column, as for named factors;
+          # taking the person's first response row can otherwise discard it.
+          observed <- which(!is.na(v))
+          chosen <- observed[match(persons_u, key[observed])]
+          out[[cn]] <- value[chosen]
         }
+        out
       }
       if (nrow(fac_df) == length(bad_id)) {
         # one row per ORIGINAL data row: rows dropped for missing
         # identifiers drop from the factors too, keeping them aligned
         fac_df <- fac_df[!bad_id, , drop = FALSE]
-        .check_person_constant(fac_df, pid)
-        fac_df <- fac_df[match(persons_u, pid), , drop = FALSE]
+        fac_df <- .collapse_person_factors(fac_df, pid)
       } else if (nrow(fac_df) == length(pid)) {
-        .check_person_constant(fac_df, pid)
-        fac_df <- fac_df[match(persons_u, pid), , drop = FALSE]
+        fac_df <- .collapse_person_factors(fac_df, pid)
       } else if (nrow(fac_df) != length(persons_u))
         stop("`factors` needs one row per data row or one per unique ",
              "person (", length(persons_u), ")")
@@ -550,7 +574,8 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     }
   }
   .check_factor_frame(fac_df)
-  fit <- .assemble_fit("MFRM", Xv, est, persons_u, fac_df, n_groups, notes)
+  fit <- .assemble_fit("MFRM", Xv, est, persons_u, fac_df, n_groups,
+                       c(notes, sol$cluster_note))
   # When an item is represented by several facet cells, the expanded
   # columns are not one administered item set. Alpha and a universal
   # raw-score conversion over those columns have no test-level interpretation.
@@ -670,11 +695,15 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     # showed ~13% rejection at nominal 5% under the chi-square reference).
     # Use the T-squared-style F reference with persons as the units, and a
     # t reference for the per-cell follow-ups.
-    fit$interaction_effects$z <- .wald_ratio(
+    calibration_ok <- isTRUE(sol$converged) &&
+      isTRUE(sol$cluster_inference)
+    cell_inference_ok <- support_ok && calibration_ok
+    cell_df <- if (cell_inference_ok) max(n_units - 1L, 1L) else NA_real_
+    fit$interaction_effects$t <- .wald_ratio(
       fit$interaction_effects$gamma, fit$interaction_effects$se)
-    fit$interaction_effects$p <- if (support_ok)
-      2 * stats::pt(-abs(fit$interaction_effects$z),
-                    df = max(n_units - 1L, 1L)) else NA_real_
+    fit$interaction_effects$df <- cell_df
+    fit$interaction_effects$p <- if (cell_inference_ok)
+      2 * stats::pt(-abs(fit$interaction_effects$t), df = cell_df) else NA_real_
     fit$interaction_effects$p_adj <- .p_adjust_family(
       fit$interaction_effects$p, method = "holm")
     fit$interaction_effects$significant <-
@@ -686,7 +715,8 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
                error = function(e) NA_real_) else NA_real_
     if (is.finite(Wg) && Wg < 0) Wg <- NA_real_
     q_int <- length(bg)
-    test_ok <- support_ok && is.finite(Wg) && n_units > q_int + 1L
+    test_ok <- cell_inference_ok && is.finite(Wg) &&
+      n_units > q_int + 1L
     if (test_ok) {
       Fg <- Wg * (n_units - q_int) / (q_int * (n_units - 1L))
       pg <- stats::pf(Fg, q_int, n_units - q_int, lower.tail = FALSE)
@@ -700,6 +730,12 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
     if (!support_ok) fit$notes <- unique(c(fit$notes, sprintf(
       "the %s interaction estimates are descriptive because at least one item-by-level cell has fewer than %d persons or effective persons; probabilities are withheld",
       interaction, min_required)))
+    if (support_ok && !calibration_ok) fit$notes <- unique(c(fit$notes,
+      sprintf(paste0(
+        "the %s interaction probabilities are withheld because the ",
+        "underlying item-parameter sandwich covariance lacks sufficient ",
+        "independent-person support"),
+      interaction)))
     if (support_ok && !test_ok) fit$notes <- unique(c(fit$notes, sprintf(
       "the %s interaction omnibus is unavailable because its estimated covariance is singular or does not leave positive denominator degrees of freedom",
       interaction)))
@@ -718,7 +754,7 @@ rasch_mfrm <- function(data, person, item = NULL, score = NULL, facets,
   if (!isTRUE(sol$converged)) {
     for (f in names(fit$facet_effects)) fit$facet_effects[[f]]$se[] <- NA_real_
     if (!is.null(fit$interaction_effects)) {
-      for (nm in intersect(c("se", "z", "p", "p_adj"),
+      for (nm in intersect(c("se", "t", "df", "p", "p_adj"),
                            names(fit$interaction_effects)))
         fit$interaction_effects[[nm]][] <- NA_real_
       fit$interaction_effects$significant[] <- NA
@@ -759,13 +795,25 @@ print.rasch_mfrm <- function(x, ...) {
   cat("(pooled fit residuals and their df on fit$facet_effects)\n")
   if (!is.null(x$interaction)) {
     it <- x$interaction_test
-    cat(sprintf("\nItem-by-%s omnibus test: Wald %.3f -> F(%d, %d) = %.3f, p = %s\n",
-                x$interaction, it$wald, it$df, it$df2,
-                if (is.finite(it$f)) it$f else NA, .fmt_p(it$p)))
-    big <- x$interaction_effects[x$interaction_effects$significant %in% TRUE,
-                                 , drop = FALSE]
-    cat(sprintf("Holm-adjusted exploratory cells: %d significant of %d\n",
-                nrow(big), nrow(x$interaction_effects)))
+    test_available <- if (!is.null(it$inference_available))
+      isTRUE(it$inference_available) else is.finite(it$p)
+    if (test_available && all(is.finite(c(it$wald, it$df, it$df2,
+                                          it$f, it$p))))
+      cat(sprintf(paste0("\nItem-by-%s omnibus test: Wald %.3f -> ",
+                         "F(%d, %d) = %.3f, p = %s\n"),
+                  x$interaction, it$wald, it$df, it$df2, it$f, .fmt_p(it$p)))
+    else
+      cat(sprintf("\nItem-by-%s omnibus test: inference unavailable; see notes\n",
+                  x$interaction))
+    big <- x$interaction_effects[FALSE, , drop = FALSE]
+    if (any(is.finite(x$interaction_effects$p_adj))) {
+      big <- x$interaction_effects[
+        x$interaction_effects$significant %in% TRUE, , drop = FALSE]
+      cat(sprintf("Holm-adjusted exploratory cells: %d significant of %d\n",
+                  nrow(big), nrow(x$interaction_effects)))
+    } else {
+      cat("Holm-adjusted exploratory cell probabilities unavailable\n")
+    }
     if (nrow(big)) print(big, digits = 3, row.names = FALSE)
   }
   if (length(x$notes)) cat("\nNotes:", paste(x$notes, collapse = "; "), "\n")

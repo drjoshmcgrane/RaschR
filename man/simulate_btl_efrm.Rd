@@ -40,12 +40,14 @@ is all one, and \code{alpha_1} is forced to one (the reference set).}
 \item{set_origins}{Set origins \code{kappa} (length \code{n_sets}); the
 default is all zero, and \code{kappa_1} is forced to zero.}
 
-\item{object_sd}{Spread of the within-set calibration locations.}
+\item{object_sd}{Realised sample standard deviation of the within-set
+calibration locations.}
 
 \item{seed}{Optional non-negative whole-number RNG seed.}
 
 \item{erratic_judges}{Proportion of judges who choose between the two
-objects at random.}
+objects at random. At least one judge in every panel must retain
+model-based comparisons.}
 }
 \value{
 A data frame of class \code{"rasch_sim"} with columns

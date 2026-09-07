@@ -46,11 +46,12 @@
 
 .validate_dif_bootstrap <- function(bootstrap, fit, dif = NULL) {
   if (is.null(bootstrap)) return(invisible(NULL))
+  .require_refittable_calibration(fit)
   fail <- function() stop(
     "`dif_bootstrap` is incomplete or internally inconsistent; recompute it with dif_bootstrap()",
     call. = FALSE)
   required <- c(
-    "summary", "terms", "replicates", "adjustment", "family_n", "B",
+    "summary", "terms", "replicates", "algorithm", "adjustment", "family_n", "B",
     "B_used", "B_failed", "B_nonconverged", "B_errors",
     "minimum_usable", "alpha", "null_method", "model_kind", "unit",
     "fit_signature", "dif_signature", "result_signature")
@@ -63,6 +64,7 @@
       length(bootstrap$result_signature) != 1L ||
       is.na(bootstrap$result_signature))
     fail()
+  if (!identical(bootstrap$algorithm, "reference-minp-1")) fail()
   unsigned <- unclass(bootstrap)
   unsigned$result_signature <- NULL
   if (!.fit_boot_hash_matches(bootstrap$result_signature, unsigned)) fail()
@@ -105,9 +107,8 @@
       !identical(bootstrap$unit, expected_unit) ||
       !identical(bootstrap$null_method, expected_null)) fail()
   expected_adjustment <- paste(
-    "single-step minimum-p over the complete",
-    paste0(expected_unit, "-by-DIF-term family, with the marginal"),
-    "bootstrap probability as a floor")
+    "single-step minimum reference-p over the complete",
+    paste0(expected_unit, "-by-DIF-term family"))
   if (!identical(bootstrap$adjustment, expected_adjustment)) fail()
 
   reps <- bootstrap$replicates
@@ -170,12 +171,12 @@
         !all(summary_cols %in% names(bootstrap$summary))) fail()
 
     p_boot <- vapply(seq_along(obs_key), function(j)
-      (1 + sum(reps$F[, j] >= obs$F_value[j])) /
+      (1 + sum(reps$p[, j] <= obs$p[j])) /
         (bootstrap$B_used + 1), numeric(1))
     p_min <- vapply(seq_along(obs_key), function(j)
       (1 + sum(reps$min_p <= obs$p[j])) /
         (bootstrap$B_used + 1), numeric(1))
-    p_adj <- pmax(p_boot, p_min)
+    p_adj <- p_min
     same_num <- function(x, y) is.numeric(x) && length(x) == length(y) &&
       isTRUE(all.equal(as.numeric(x), as.numeric(y),
                        tolerance = 64 * .Machine$double.eps,
@@ -232,11 +233,12 @@
 }
 
 .dif_boot_refit_ordinary <- function(X, fit, design) {
+  .require_refittable_calibration(fit)
   spec <- fit$refit_spec %||% list()
   bf <- tryCatch(
     rasch(
       X, model = fit$model, id = design$id, factors = design$factors,
-      n_groups = spec$n_groups %||% fit$n_groups,
+      n_groups = .refit_n_groups(fit),
       anchors = spec$anchors, maxit = spec$maxit %||% 60L,
       tol = spec$tol %||% 1e-8),
     error = function(e) .fit_boot_failure("error"))
@@ -263,7 +265,7 @@
 }
 
 .dif_boot_refit_explanatory <- function(X, fit, design) {
-  bf <- tryCatch(.explanatory_refit_modified(fit, X),
+  bf <- tryCatch(.explanatory_refit_modified(fit, X, inherit_mc = FALSE),
                  error = function(e) .fit_boot_failure("error"))
   if (inherits(bf, "rasch_fit_boot_failure")) return(bf)
   if (!isTRUE(bf$est$converged)) return(.fit_boot_failure("nonconverged"))
@@ -304,7 +306,7 @@
   for (f in facets) d[[f]] <- rep(as.character(vm[[f]]), each = N)
   bf <- tryCatch(rasch_mfrm(
     d, person = pn, item = itn, score = scn, facets = facets,
-    n_groups = spec$n_groups %||% fit$n_groups,
+    n_groups = .refit_n_groups(fit),
     interaction = spec$interaction %||% fit$interaction,
     factors = fit$factors,
     maxit = spec$maxit %||% 60L, tol = spec$tol %||% 1e-8),
@@ -371,7 +373,7 @@
   if (inherits(base, "rasch_fit_boot_failure")) return(base)
   bf <- tryCatch(rasch_efrm(
     base, item_sets = fit$set_of, groups = group, id = fit$person$id,
-    n_groups = spec$n_groups %||% fit$n_groups,
+    n_groups = .refit_n_groups(fit),
     maxit = spec$maxit %||% 50L, tol = spec$tol %||% 1e-7,
     min_link_persons = spec$min_link_persons %||% 30L,
     se_method = "hybrid", boot_reps = 0L, workers = 1L),
@@ -470,12 +472,12 @@
 #'
 #' A replicate contributes only when its calibration converges and every
 #' member of the declared item- or object-by-DIF-term family is estimable.
-#' Marginal
-#' probabilities compare each observed F statistic with its replicated null.
+#' Marginal probabilities compare each observed term's F-reference probability
+#' with the corresponding replicated probabilities. This puts refits whose
+#' numerator or denominator degrees of freedom differ on the same tail scale.
 #' Familywise probabilities use the single-step distribution of the smallest
 #' term-wise F-reference probability in each replicate. The same transformation
-#' is applied to the observed and replicated statistics, while the corresponding
-#' marginal empirical probability provides a conservative floor. These
+#' is applied to the observed and replicated statistics. These
 #' adjustments describe the fitted global invariant null. They do not guarantee
 #' familywise error control among otherwise invariant items or objects when
 #' another member has DIF, because that departure can affect the fitted
@@ -491,6 +493,7 @@
 #'
 #' @param fit A fitted Rasch, Multiple Ratings, Extended Frames,
 #'   explanatory Rasch or ordinary Comparative Judgement model.
+#'   Fully anchored scoring fits are not supported by this refitting procedure.
 #' @param dif A current \code{\link{dif_anova}} or \code{\link{btl_dif}}
 #'   result from \code{fit}. For person-by-item models it may be omitted and
 #'   the default DIF analysis is then computed. Comparative Judgement requires
@@ -531,6 +534,7 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
   if (!inherits(fit, "rasch") && !is_btl)
     stop("`fit` must be a fitted model from rasch(), rasch_mfrm(), ",
          "rasch_efrm(), rasch_explanatory(), or btl()")
+  .require_refittable_calibration(fit)
   if (inherits(fit, "rasch_btl_efrm"))
     .refuse("judge-group DIF is not defined after a BTL-EFRM frame ",
             "adjustment, so there is no corresponding DIF null to bootstrap")
@@ -679,8 +683,12 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
   if (!is.matrix(Fmat)) Fmat <- matrix(Fmat, nrow = B_used)
   if (!is.matrix(Pmat)) Pmat <- matrix(Pmat, nrow = B_used)
   colnames(Fmat) <- colnames(Pmat) <- obs_key
+  # Sparse class intervals and repeated-measures corrections can change the
+  # reference degrees of freedom between refits. Raw F values are then not
+  # exchangeable across replicates. Compare the corresponding upper-tail
+  # reference probabilities, as the minimum-p family adjustment below does.
   p_boot <- vapply(seq_len(K), function(j)
-    (1 + sum(Fmat[, j] >= obs$F_value[j])) / (B_used + 1), 0)
+    (1 + sum(Pmat[, j] <= obs$p[j])) / (B_used + 1), 0)
   # Each term's own F-reference probability puts unlike numerator and
   # denominator degrees of freedom onto a common monotone scale. The
   # bootstrap distribution of their minimum calibrates that transformation;
@@ -689,7 +697,7 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
   min_p <- apply(Pmat, 1L, min)
   p_min <- vapply(seq_len(K), function(j)
     (1 + sum(min_p <= obs$p[j])) / (B_used + 1), 0)
-  p_boot_adj <- pmax(p_boot, p_min)
+  p_boot_adj <- p_min
 
   terms <- dif$terms
   terms$p_boot <- terms$p_boot_adj <- NA_real_
@@ -731,9 +739,9 @@ dif_bootstrap <- function(fit, dif = NULL, B = 999, workers = 4L,
   out <- list(
     summary = sm, terms = terms,
     replicates = list(F = Fmat, p = Pmat, min_p = min_p),
-    adjustment = paste("single-step minimum-p over the complete",
-                       paste0(unit_label, "-by-DIF-term family, with the marginal"),
-                       "bootstrap probability as a floor"),
+    algorithm = "reference-minp-1",
+    adjustment = paste("single-step minimum reference-p over the complete",
+                       paste0(unit_label, "-by-DIF-term family")),
     family_n = K, B = B, B_used = B_used, B_failed = B - B_used,
     B_nonconverged = sum(status == "nonconverged"),
     B_errors = sum(status == "error"), minimum_usable = min_success,

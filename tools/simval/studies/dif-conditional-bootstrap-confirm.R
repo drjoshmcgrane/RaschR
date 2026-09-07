@@ -1,11 +1,11 @@
 # Fresh-seed confirmation of the extended conditional-bootstrap cells selected
-# by the 100 x 99 screen. The helper definitions are loaded from the immutable
-# screened study after verifying its exact content hash. In addition to each
+# by the 100 x 99 screen. The helper definitions are loaded only after
+# verifying their exact content hash. In addition to each
 # rate, this study records the paired current-minus-bootstrap difference and
 # its Monte Carlo standard error.
 
 helper <- "tools/simval/studies/dif-conditional-bootstrap-extended.R"
-helper_md5 <- "813c7f6af9cbb06cac9a2b8c24ab07e5"
+helper_md5 <- "9cd830f747e4d180bba7a6fca1c56929"
 if (!identical(unname(tools::md5sum(helper)), helper_md5))
   stop("extended-study helper hash does not match the screened version")
 ex <- parse(file = helper)

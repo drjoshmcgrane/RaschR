@@ -17,7 +17,9 @@ save_outputs(
   dif_bootstrap = NULL,
   dimensionality = NULL,
   invariance = NULL,
-  subtest = NULL
+  subtest = NULL,
+  tailored = NULL,
+  person_weights = NULL
 )
 }
 \arguments{
@@ -56,6 +58,13 @@ from an EFRM fit.}
 \item{subtest}{Optional computed \code{\link{dimensionality_test}} result
 from this fit. Supplying it keeps the nominated item split and bootstrap
 calibration used in the analysis.}
+
+\item{tailored}{Optional computed \code{\link{tailored_analysis}} result
+from this ordinary dichotomous fit.}
+
+\item{person_weights}{Optional table returned by
+\code{\link{weighted_person_estimates}}. An explicit table takes
+precedence over a compatible result retained by the application.}
 }
 \value{
 Invisibly, the vector of files written.
@@ -65,6 +74,11 @@ Writes the summary, estimates, diagnostic tables, person measures, and
 model-specific results as CSV. Plots are written as PNG and, optionally,
 PDF, together with a plain-text analysis summary. For MFRM and EFRM fits,
 item estimates and response-cell diagnostics are saved separately.
+Computed tailored item shifts and externally weighted secondary person
+measures can be retained with the fitted-model output; the latter include
+their resolved weights.
+For keyed fits with repeated person IDs, the export records why distractor
+analysis is unavailable and retains the other model outputs.
 }
 \examples{
 set.seed(1)

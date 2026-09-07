@@ -3,8 +3,8 @@
 # A modern bslib interface to the full rasch analysis: data upload with ID,
 # person-factor, and item column nomination; pairwise conditional ML
 # estimation (Zwinderman 1995); the complete test-of-fit suite;
-# every diagnostic plot with per-plot PNG and PDF downloads; and one-click
-# export of all tables and plots as a ZIP archive.
+# diagnostic plots with per-plot PNG and PDF downloads; and a ZIP archive of
+# the fitted-model outputs supported by save_outputs().
 # Launch with rasch::run_app(), or shiny::runApp() from this folder.
 # ---------------------------------------------------------------------------
 suppressPackageStartupMessages({
@@ -150,11 +150,47 @@ NONE_CH <- c(None = "(none)")
   as.integer(index)
 }
 
-# Common-item equating works with ordinary and explanatory Rasch
-# calibrations, not with response-cell calibrations or paired comparisons.
+# Wald results now carry a t statistic and its reference degrees of freedom.
+# Projects saved by earlier releases carry the same estimate as `z` without a
+# df field. Prefer the current schema whenever it is present, but keep the
+# legacy statistic readable after a project is restored.
+.app_wald_reference <- function(x) {
+  if (!is.list(x) && !is.data.frame(x))
+    stop("a Wald result must be a list or data frame", call. = FALSE)
+  nms <- names(x)
+  statistic <- if ("t" %in% nms) "t" else if ("z" %in% nms) "z" else NA_character_
+  value <- if (!is.na(statistic)) x[[statistic]] else NA_real_
+  if (!is.numeric(value) || length(value) != 1L) value <- NA_real_
+  df <- if (identical(statistic, "t") && "df" %in% nms) x[["df"]]
+        else if (identical(statistic, "z")) Inf else NA_real_
+  if (!is.numeric(df) || length(df) != 1L) df <- NA_real_
+  label <- statistic
+  if (identical(statistic, "t") && !is.na(df))
+    label <- sprintf("t(%s)", if (is.infinite(df)) "Inf" else
+      format(df, digits = 4L, trim = TRUE))
+  list(statistic = statistic, label = label, value = value, df = df)
+}
+
+.app_wald_columns <- function(x) {
+  nms <- names(x)
+  if ("t" %in% nms) intersect(c("t", "df"), nms)
+  else intersect("z", nms)
+}
+
+# Common-item equating works with unconstrained ordinary Rasch calibrations,
+# not with explanatory, response-cell, or paired-comparison calibrations.
 .app_equating_fit <- function(fit) {
   inherits(fit, "rasch") &&
-    !inherits(fit, c("rasch_btl", "rasch_mfrm", "rasch_efrm"))
+    !inherits(fit, c("rasch_explanatory", "rasch_btl", "rasch_mfrm",
+                    "rasch_efrm"))
+}
+
+# The Local page is for sequence-dependent exposure and carry-over. A static
+# first-position term also has row-level dependence_data, but no judgment
+# history to display on that page.
+.app_has_btl_history <- function(fit) {
+  inherits(fit, "rasch_btl") && !is.null(fit$dependence_data) &&
+    any(c("exposure", "carry_over") %in% names(fit$dependence_data))
 }
 
 # Launchers differ in what the app's environment can see: a development
@@ -176,6 +212,7 @@ NONE_CH <- c(None = "(none)")
 .validate_dif_bootstrap <- .rasch_internal(".validate_dif_bootstrap")
 .scree_analysis <- .rasch_internal(".scree_analysis")
 .validate_scree_result <- .rasch_internal(".validate_scree_result")
+.estimation_label <- .rasch_internal(".estimation_label")
 .validate_dimensionality_test <-
   .rasch_internal(".validate_dimensionality_test")
 .validate_btl_dimensionality <-
@@ -193,17 +230,22 @@ NONE_CH <- c(None = "(none)")
 .project_radio_inputs <- c(
   "model_type", "lp_layout", "lp_structure", "rasch_calibration",
   "thr_structure", "thr_mode", "exp_level", "bt_thr", "bt_ties",
-  "anchor_type", "btlef_se", "dif_effects", "bdif_effects", "inv_se")
+  "anchor_type", "btlef_se", "dif_effects", "bdif_effects", "inv_se",
+  "eq_source", "eq_shift")
 .project_select_inputs <- c(
   "id_col", "ef_id", "ef_group", "lp_person", "lp_item", "lp_score",
   "lp_interaction", "bt_a", "bt_b", "bt_win", "bt_judge", "bt_count",
   "pc_rank", "ng", "ef_se", "ef_workers", "btlef_panel",
-  "btlef_workers", "pca_component", "dim_workers")
+  "btlef_workers", "pca_component", "dim_workers", "wright_renderer",
+  "wright_type", "wright_person_panels", "wright_item_panels",
+  "wright_person_style")
 .project_selectize_inputs <- c(
   "factor_cols", "item_cols", "ef_items", "lp_facets", "lp_items_wide",
   "bt_margin", "bt_response", "bt_order", "bt_jfactors", "exp_main",
-  "exp_interactions", "bdif_factors", "dim_pos", "dim_neg")
-.project_checkbox_inputs <- c("ef_prefix", "bt_position", "ng_auto")
+  "exp_interactions", "bdif_factors", "dim_pos", "dim_neg", "eq_kept")
+.project_checkbox_inputs <- c(
+  "ef_prefix", "bt_position", "ng_auto", "eq_csv_independent",
+  "eq_kept_independent", "bt_eq_independent")
 .project_numeric_inputs <- c(
   "maxit", "tol", "ef_reps", "ef_seed", "btlef_boot",
   "btlef_seed", "dif_alpha", "dif_boot_B", "dif_boot_seed",
@@ -804,6 +846,7 @@ plotCard <- function(id, title = NULL, height = "560px", info = NULL,
   # CHANGES what is drawn -- and reveals further controls when switched --
   # belongs above a tall plot, or its consequences appear out of sight.
   card(
+    id = paste0("card_", id),
     full_screen = TRUE,
     `data-bs-theme` = "light",
     card_header_bar(title, info = info, buttons = tagList(
@@ -827,6 +870,7 @@ tableCard <- function(id, title = NULL, note = NULL, info = NULL,
                       footer = NULL, controls = NULL) {
   info <- app_help(id, info)
   card(
+    id = paste0("card_", id),
     full_screen = TRUE,
     card_header_bar(title, info = info, buttons = tagList(
       controls,
@@ -849,6 +893,7 @@ tableCard <- function(id, title = NULL, note = NULL, info = NULL,
 statCard <- function(id, title = NULL, info = NULL, footer = NULL) {
   info <- app_help(id, info)
   card(
+    id = paste0("card_", id),
     full_screen = TRUE,
     card_header_bar(title, info = info,
       buttons = downloadButton(paste0(id, "_csv"), "CSV",
@@ -858,6 +903,45 @@ statCard <- function(id, title = NULL, info = NULL, footer = NULL) {
               rcode_details(id),
               padding = 12, fillable = FALSE)
   )
+}
+
+# bslib otherwise gives a full-screen nav card a random four-digit DOM id.
+# A large app can then contain two cards with the same id, so retain the nav
+# input id and give the surrounding card its own deterministic id.
+stable_navset_card_underline <- function(..., id, header = NULL, footer = NULL,
+                                         full_screen = FALSE) {
+  out <- navset_card_underline(..., id = id, header = header, footer = footer,
+                               full_screen = full_screen)
+  if (isTRUE(full_screen)) out$attribs$id <- paste0("card_", id)
+  out
+}
+
+# bslib assigns accordions without an explicit id, and each accordion panel,
+# random four-digit DOM ids. With this many panels, collisions are plausible
+# and can link one heading to another panel's body. Keep bslib's markup while
+# replacing those ids deterministically.
+.accordion_counter <- 0L
+accordion <- function(..., id = NULL, open = NULL, multiple = TRUE,
+                      class = NULL, width = NULL, height = NULL) {
+  if (is.null(id)) {
+    .accordion_counter <<- .accordion_counter + 1L
+    id <- sprintf("rasch-accordion-%03d", .accordion_counter)
+  }
+  bslib::accordion(..., id = id, open = open, multiple = multiple,
+                   class = class, width = width, height = height)
+}
+
+.accordion_panel_counter <- 0L
+accordion_panel <- function(title, ..., value = title, icon = NULL) {
+  .accordion_panel_counter <<- .accordion_panel_counter + 1L
+  id <- sprintf("rasch-accordion-panel-%03d", .accordion_panel_counter)
+  out <- bslib::accordion_panel(title, ..., value = value, icon = icon)
+  button <- out$children[[1L]]$children[[1L]]
+  button$attribs[["data-bs-target"]] <- paste0("#", id)
+  button$attribs[["aria-controls"]] <- id
+  out$children[[1L]]$children[[1L]] <- button
+  out$children[[2L]]$attribs$id <- id
+  out
 }
 
 # compact header switch revealing every column of a curated table
@@ -1253,7 +1337,7 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
                              "cell; otherwise each row is an item. Marking uses",
                              "the displayed fit criteria as working guides."),
                 footer = uiOutput("items_note")),
-      navset_card_underline(
+      stable_navset_card_underline(
         id = "items_nav",
         # Keep the tab strip quiet. The selected item and plot explanation sit
         # above the result; display settings and batch downloads sit below it.
@@ -1359,6 +1443,7 @@ panel_items <- nav_panel("Items", value = "p_items", icon = bs_icon("list-check"
         plotCard("rdist_i")),
       accordion_panel("Traditional statistics", value = "items_ctt",
         card(
+          id = "card_ctt_tbl",
           full_screen = TRUE,
           card_header_bar(
             info = app_help("ctt_tbl"),
@@ -1568,7 +1653,7 @@ panel_targeting <- nav_panel("Targeting", value = "p_targeting", icon = bs_icon(
       layout_columns(col_widths = breakpoints(sm = 12, xl = c(6, 6)),
         tableCard("btl_info_tbl", "Design information"),
         plotCard("btl_targeting_plot", "Design information and targeting")),
-      conditionalPanel("output.active_btlef != true",
+      conditionalPanel("output.active_btlef != true && output.btl_history_model != true",
       accordion(class = "mt-3", open = FALSE,
         accordion_panel("Next most informative pairs", value = "btl_next_panel",
           layout_columns(col_widths = breakpoints(sm = 12, md = c(4, 8)),
@@ -1582,7 +1667,10 @@ panel_targeting <- nav_panel("Targeting", value = "p_targeting", icon = bs_icon(
                         "reduce total location uncertainty most (Pollitt 2012).")),
                 TRUE)),
             tableCard("btl_next_tbl", "Recommended comparisons",
-              info = "With weighting on, pairs are ranked by their estimated one-step reduction in total location variance. Without it, they are ranked by expected information. Reliability calculated from an adaptive sample can be optimistic (Bramley 2015)."))))),
+              info = "Ranks pairs by a variance-reduction approximation, or by information without weighting. The stronger object is presented first; fitted position effects are retained. Reliability from an adaptive sample can be optimistic (Bramley 2015)."))))),
+      conditionalPanel("output.active_btlef != true && output.btl_history_model == true",
+        div(class = "alert alert-light border mt-3",
+            "Pair recommendations require a specified judge and comparison history for this model. The observed-design information remains available.")),
       conditionalPanel("output.active_btlef == true",
         div(class = "alert alert-light border mt-3 d-flex align-items-center gap-2",
             bs_icon("info-circle"),
@@ -1695,7 +1783,8 @@ panel_dif <- nav_panel("DIF", value = "p_dif", icon = bs_icon("sliders"),
           h6(span("Resolve DIF",
                   info_icon(paste("Resolve selected splits a uniform-DIF item by",
                                   "the selected factor term. Automatic resolution",
-                                  "proceeds one item at a time while preserving a",
+                                  "uses the selected factor model and proceeds",
+                                  "one item at a time while preserving a",
                                   "viable anchor set. Non-uniform DIF requires item",
                                   "review because a location split does not fit a",
                                   "change in discrimination."),
@@ -1905,9 +1994,9 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
       app_layout_sidebar(
         sidebar = sidebar(width = 300, open = "desktop",
           fileInput("bt_eq_file", info_label("Reference calibration",
-                    paste("Common objects link by name. A CSV provides marginal",
-                          "uncertainty only, so drift inference needs a fixed bank",
-                          "or a retained fit with its joint covariance.")),
+                    paste("Common objects link by name. A CSV with marginal",
+                          "standard errors is descriptive unless the bank is",
+                          "fixed or carries its joint covariance.")),
                     accept = ".csv"),
           checkboxInput("bt_eq_independent",
                         "Independent judges/comparisons", TRUE),
@@ -1945,6 +2034,7 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
         downloadButton("dl_calib", "Save current calibration (CSV)",
                        class = "btn-outline-secondary w-100")),
       card(
+        id = "card_eq_tbl",
         full_screen = TRUE,
         card_header_bar("Common-item comparison",
           info = app_help("eq_tbl"),
@@ -1961,6 +2051,7 @@ panel_equating <- nav_panel("Equating", value = "p_equating", icon = bs_icon("ar
             DTOutput("eq_tbl"), rcode_details("eq_tbl")),
           padding = 12, fillable = FALSE)),
       card(
+        id = "card_eq_plot",
         full_screen = TRUE,
         `data-bs-theme` = "light",
         card_header_bar("Equating plot",
@@ -2034,7 +2125,7 @@ panel_frames <- nav_panel("Extended Frames", value = "p_frames", icon = bs_icon(
                 info = "Identified from the cross-set comparisons alone (no distributional assumption about the objects); the reference set is fixed at alpha = 1, kappa = 0."))),
           layout_columns(col_widths = breakpoints(sm = 12, lg = c(7, 5)),
             plotCard("btlef_units_plot", "Frame units", height = "460px",
-              info = "Caterpillar plot of the log units with 95% intervals; the reference (one) is marked."),
+              info = "Caterpillar plot of the log units with reference-appropriate 95% intervals; the reference (one) is marked."),
             tableCard("btlef_frames_tbl", "Frame fit",
               info = "Each judge-panel by object-set cell holding within-set comparisons: rho = phi / alpha is the cell's common-scale discrimination, n_comparisons the comparison count, and fit_resid the pooled fit residual.")),
           layout_columns(col_widths = breakpoints(sm = 12, lg = c(6, 6)),
@@ -2186,6 +2277,7 @@ panel_dim <- nav_panel("Trait", value = "p_dim", icon = bs_icon("diagram-3"),
           card(card_body(verbatimTextOutput("dim_txt"), rcode_details("dim"))))),
       accordion_panel("Magnitude of multidimensionality", value = "dim_magnitude",
         card(
+          id = "card_dm_tbl",
           full_screen = TRUE,
           card_header_bar(info = app_help("dm_tbl")),
           card_body(
@@ -2214,8 +2306,8 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
           "Nominate a judgment-order column in the Data roles to estimate within-judge dependence.")))),
       conditionalPanel("output.has_btl_dep == true",
         layout_columns(col_widths = breakpoints(sm = 12, lg = c(5, 7)),
-          tableCard("btl_dep_tbl", "Within-judge dependence",
-            info = "Exposure is the effect of having seen an object before. Carry-over is the effect of earlier verdicts involving that object. Both are estimated jointly with the object locations.",
+          tableCard("btl_dep_tbl", "Order effects",
+            info = "Exposure is the effect of having seen an object before. Carry-over is the effect of earlier verdicts involving that object. If fitted, first-position advantage is a static presentation effect rather than within-judge dependence. All effects are estimated jointly with the object locations.",
             note = "An effect estimated on few informative comparisons carries a wide standard error; the plot and the comparison table below show which comparisons drive it."),
           plotCard("btl_dep_plot", "Dependence effect",
             info = "Observed residual departures are binned by the history covariate and shown with the fitted effect. Bin counts show how much information supports the estimate.",
@@ -2250,6 +2342,7 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
           plotCard("rcor_q3s", height = "auto", hover = TRUE))),
       accordion_panel("Response dependence magnitude", value = "ld_dep",
         card(
+          id = "card_dep_tbl",
           full_screen = TRUE,
           card_header_bar(info = app_help("dep_tbl")),
           card_body(
@@ -2295,6 +2388,7 @@ panel_ld <- nav_panel("Local", value = "p_ld", icon = bs_icon("link-45deg"),
             uiOutput("subtest_status")))),
       accordion_panel("Spread test (LUB)", value = "ld_spread",
         card(
+          id = "card_spread_tbl",
           full_screen = TRUE,
           card_header_bar(info = app_help("spread_tbl")),
           card_body(
@@ -2334,7 +2428,8 @@ panel_guess <- nav_panel("Guessing", value = "p_guess", icon = bs_icon("question
                        options = list(placeholder = "automatic: least-affected third")),
         checkboxInput("guess_bootstrap", "Person-bootstrap inference", FALSE),
         conditionalPanel("input.guess_bootstrap == true",
-          numericInput("guess_boot_reps", "Bootstrap replicates", 200,
+          numericInput("guess_boot_reps", info_label("Bootstrap replicates",
+                       "Holm-adjusted tests need at least 40 usable draws per item. Allow more for failed refits; fewer draws give descriptive uncertainty only."), 999,
                        min = 50, step = 50),
           numericInput("guess_seed", "Random seed", 1, min = 0, step = 1)),
         input_task_button("run_guess", "Run tailored analysis",
@@ -2362,6 +2457,7 @@ panel_compare <- nav_panel("Compare", value = "p_compare", icon = bs_icon("colum
                              "compare fit, targeting and reliability descriptively.")), NULL,
                        options = list(placeholder = "keep at least two fits"))),
       card(
+        id = "card_cmp_tbl",
         full_screen = TRUE,
         card_header_bar("Model comparison",
           info = app_help("cmp_tbl"),
@@ -2402,14 +2498,17 @@ panel_export <- nav_panel("Export", value = "p_export", icon = bs_icon("download
                        selected = "html", inline = TRUE),
           downloadButton("dl_report", "Download report",
                          class = "btn-primary", icon = bs_icon("file-earmark-text")))),
-      card(info_header("Complete results archive",
-        "A ZIP containing the analysis tables as CSV, plots in the selected formats, and a plain-text summary. The optional item set adds one plot of each type for every item or object."),
+      card(info_header("Model results archive",
+        paste("A ZIP containing the model tables supported by save_outputs(),",
+              "plots in the selected formats, and a plain-text summary.",
+              "On-demand app analyses without an export format remain in the",
+              "saved .rasch analysis and in their table-specific downloads.")),
         card_body(
           checkboxGroupInput("exp_formats", "Plot formats",
                              c("PNG" = "png", "PDF" = "pdf"), selected = c("png", "pdf"),
                              inline = TRUE),
           checkboxInput("exp_items", "Include all item or object plots", TRUE),
-          downloadButton("dl_zip", "Download all results (ZIP)",
+          downloadButton("dl_zip", "Download model results (ZIP)",
                          class = "btn-primary")))
     )
   )
@@ -2486,7 +2585,7 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
           c("Winner" = "dichotomous", "Polytomous margin" = "polytomous")),
         conditionalPanel("input.sb_model == 'polytomous'",
           sliderInput("sb_cats", "Categories", 3, 6, 4, 1)),
-        sliderInput("sb_objsd", "Object-location spread", 0.5, 2.5, 1, 0.1),
+        sliderInput("sb_objsd", "Object-location SD", 0.5, 2.5, 1, 0.1),
         conditionalPanel("input.sim_layout == 'btl_exp'",
           accordion(open = FALSE, accordion_panel(
             title = "Explanatory structure", value = "sb_explanatory",
@@ -2510,10 +2609,10 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         sliderInput("sm_raters", "Raters", 3, 15, 6, 1),
         sliderInput("sm_cats", "Categories", 3, 6, 4, 1),
         sliderInput("sm_thsd", "Person SD (logits)", 0.5, 2.5, 1.2, 0.1),
-        sliderInput("sm_itemsd", "Item-difficulty spread", 0.3, 2, 1, 0.1),
+        sliderInput("sm_itemsd", "Item-difficulty SD", 0.3, 2, 1, 0.1),
         accordion(open = FALSE, accordion_panel(
           title = span(bs_icon("bug"), " Misfit to plant"), value = "misfit",
-          sliderInput("sm_sev", "Rater-severity spread", 0, 1.5, 0.6, 0.1),
+          sliderInput("sm_sev", "Rater-severity SD", 0, 1.5, 0.6, 0.1),
           sliderInput("sm_erratic", "Erratic raters", 0, 0.4, 0, 0.05),
           sliderInput("sm_halo", "Halo raters", 0, 0.4, 0, 0.05),
           checkboxInput("sm_int", "Rater-by-item interaction", FALSE)))),
@@ -2542,7 +2641,7 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         sliderInput("sbf_panels", "Judge panels", 2, 4, 2, 1),
         sliderInput("sbf_within", "Comparisons per within-set pair", 5, 40, 20, 5),
         sliderInput("sbf_cross", "Comparisons per cross-set pair", 5, 40, 20, 5),
-        sliderInput("sbf_objsd", "Object-location spread", 0.5, 2.5, 1, 0.1),
+        sliderInput("sbf_objsd", "Object-location SD", 0.5, 2.5, 1, 0.1),
         sliderInput("sbf_setratio", "Set-unit ratio", 1, 2, 1.3, 0.05),
         sliderInput("sbf_panelratio", "Panel-unit ratio", 1, 2, 1, 0.05),
         sliderInput("sbf_origin", "Set-origin span", 0, 2, 0.5, 0.1),
@@ -2562,12 +2661,14 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
     conditionalPanel("output.sim_ready == 'yes'", rcode_details("sim_truth")),
     conditionalPanel("output.sim_has_recovery == 'yes'",
       card(class = "mt-3", full_screen = TRUE,
-        card_header(span(bs_icon("bullseye"), " Parameter recovery",
+        id = "card_sim_recovery",
+        card_header(span(bs_icon("bullseye"), " Generating and fitted parameters",
                          info_icon(app_help("sim_recovery_tbl"),
                                    "About this table"))),
         card_body(
           p(class = "text-muted small mb-2",
-            "Planted and recovered values after estimation. Locations are mean-centred because the model fixes only the origin."),
+            "Planted and fitted values after estimation. Locations are mean-centred because the model fixes only the origin."),
+          uiOutput("sim_recovery_note"),
           DTOutput("sim_recovery_tbl"),
           plotOutput("sim_recovery_plot", height = "300px"),
           rcode_details("sim_recovery"), padding = 10))),
@@ -2576,6 +2677,7 @@ panel_simulate <- nav_panel("Simulate", value = "p_simulate", icon = bs_icon("di
         card_header(span(bs_icon("code-slash"), " Reproducible code")),
         card_body(verbatimTextOutput("sim_code"), padding = 10)),
       card(class = "mt-3", full_screen = TRUE,
+        id = "card_sim_preview",
         card_header_bar("Preview of the loaded data (first rows)",
           info = app_help("sim_preview"),
           buttons = div(class = "d-flex gap-1",
@@ -2754,6 +2856,9 @@ server <- function(input, output, session) {
       if (lay %in% c("rasch", "rasch_exp")) {
         I <- input$sr_items; disc <- rep(1, I)
         no <- min(input$sr_over, I); nu <- min(input$sr_under, I - no)
+        if (no + nu >= I && no + nu > 0)
+          stop("Over- and under-discriminating items must leave at least one ",
+               "item with the reference discrimination.")
         if (no > 0) disc[seq_len(no)] <- 2.8
         if (nu > 0) disc[no + seq_len(nu)] <- 0.4
         guess <- if (isTRUE(input$sr_guess) && input$sr_model == "dichotomous") {
@@ -2843,16 +2948,25 @@ server <- function(input, output, session) {
               "~ exposure + type + exposure:type" else "~ exposure + type",
             "\"\n",
             if ((input$sx_depart %||% 0) > 0) sprintf(
-              "  truth$planted <- c(truth$planted, \"fixed explanatory departure for %s (%.2f logits)\")\n",
-              depart_item, input$sx_depart) else "",
+              paste0(
+                "  truth$planted <- c(truth$planted, \"fixed explanatory departure for %s (%.2f logits)\")\n",
+                "  truth$departure_types <- c(truth$departure_types, \"a fixed explanatory item departure\")\n",
+                "  truth$explanatory_departure <- list(target = \"%s\", level = \"item\")\n"),
+              depart_item, input$sx_depart, depart_item) else "",
             "  attr(d, \"truth\") <- truth\n  d\n})")
           tr <- attr(out, "truth")
           tr$predictors <- predictors
           tr$explanatory_formula <- if (length(wanted_interactions))
             "~ exposure + type + exposure:type" else "~ exposure + type"
-          if ((input$sx_depart %||% 0) > 0) tr$planted <- c(tr$planted,
-            sprintf("fixed explanatory departure for %s (%.2f logits)",
-                    depart_item, input$sx_depart))
+          if ((input$sx_depart %||% 0) > 0) {
+            tr$planted <- c(tr$planted,
+              sprintf("fixed explanatory departure for %s (%.2f logits)",
+                      depart_item, input$sx_depart))
+            tr$departure_types <- c(tr$departure_types,
+                                    "a fixed explanatory item departure")
+            tr$explanatory_departure <- list(target = depart_item,
+                                             level = "item")
+          }
           attr(out, "truth") <- tr
           attr(out, "predictors") <- predictors
         } else sim_call <- base_call
@@ -2919,23 +3033,43 @@ server <- function(input, output, session) {
               "~ exposure + type + exposure:type" else "~ exposure + type",
             "\"\n",
             if ((input$sbe_depart %||% 0) > 0) sprintf(
-              "  truth$planted <- c(truth$planted, \"fixed explanatory departure for %s (%.2f logits)\")\n",
-              depart_object, input$sbe_depart) else "",
+              paste0(
+                "  truth$planted <- c(truth$planted, \"fixed explanatory departure for %s (%.2f logits)\")\n",
+                "  truth$departure_types <- c(truth$departure_types, \"a fixed explanatory object departure\")\n",
+                "  truth$explanatory_departure <- list(target = \"%s\", level = \"object\")\n"),
+              depart_object, input$sbe_depart, depart_object) else "",
             "  attr(d, \"truth\") <- truth\n  d\n})")
           tr <- attr(out, "truth")
           tr$predictors <- predictors
           tr$explanatory_formula <- if (length(wanted_interactions))
             "~ exposure + type + exposure:type" else "~ exposure + type"
-          if ((input$sbe_depart %||% 0) > 0) tr$planted <- c(tr$planted,
-            sprintf("fixed explanatory departure for %s (%.2f logits)",
-                    depart_object, input$sbe_depart))
+          if ((input$sbe_depart %||% 0) > 0) {
+            tr$planted <- c(tr$planted,
+              sprintf("fixed explanatory departure for %s (%.2f logits)",
+                      depart_object, input$sbe_depart))
+            tr$departure_types <- c(tr$departure_types,
+                                    "a fixed explanatory object departure")
+            tr$explanatory_departure <- list(target = depart_object,
+                                             level = "object")
+          }
           attr(out, "truth") <- tr
           attr(out, "predictors") <- predictors
         } else sim_call <- base_call
         out
       } else if (lay == "mfrm") {
+        # The simulator assigns erratic raters from R1 upwards. Plant the
+        # interaction on the first remaining rater so selecting both controls
+        # does not put a model-based bias on a rater whose responses are then
+        # replaced by random ratings.
+        n_erratic <- .sim_planted_count(input$sm_erratic %||% 0,
+                                        input$sm_raters)
+        non_erratic <- setdiff(sprintf("R%d", seq_len(input$sm_raters)),
+                               sprintf("R%d", seq_len(n_erratic)))
+        if (isTRUE(input$sm_int) && !length(non_erratic))
+          stop("a rater-by-item interaction needs at least one non-erratic rater")
+        interaction_rater <- if (length(non_erratic)) non_erratic[1L] else NA_character_
         intr <- if (isTRUE(input$sm_int))
-          list(rater = "R2", item = "I2", bias = 1.8) else NULL
+          list(rater = interaction_rater, item = "I2", bias = 1.8) else NULL
         out <- simulate_mfrm(input$sm_persons, input$sm_items, input$sm_raters,
           n_categories = input$sm_cats, theta_sd = input$sm_thsd %||% 1.2,
           item_sd = input$sm_itemsd %||% 1, rater_severity_sd = input$sm_sev,
@@ -2949,7 +3083,8 @@ server <- function(input, output, session) {
             sprintf(", erratic_raters = %s", input$sm_erratic) else "",
           if (input$sm_halo > 0) sprintf(", halo = %s", input$sm_halo) else "",
           if (isTRUE(input$sm_int))
-            ', interaction = list(rater = "R2", item = "I2", bias = 1.8)' else "",
+            sprintf(', interaction = list(rater = "%s", item = "I2", bias = 1.8)',
+                    interaction_rater) else "",
           seed)
         out
       } else if (lay == "efrm") {
@@ -3115,6 +3250,11 @@ server <- function(input, output, session) {
   output$sim_recovery_tbl <- renderDT({
     r <- sim_recovery_val(); req(!is.null(r)); num_dt(r$summary)
   })
+  output$sim_recovery_note <- renderUI({
+    r <- sim_recovery_val(); req(!is.null(r))
+    if (is.null(r$note)) return(NULL)
+    p(class = "text-warning-emphasis small mb-2", r$note)
+  })
   output$sim_recovery_plot <- renderPlot({
     r <- sim_recovery_val(); req(!is.null(r)); plot_recovery(r)
   }, res = 96)
@@ -3133,7 +3273,9 @@ server <- function(input, output, session) {
     if (!all(c("item", "k", "tau") %in% names(a)))
       stop("the anchor CSV needs columns item, k, tau", call. = FALSE)
     if (!nrow(a)) stop("the anchor CSV contains no anchor rows", call. = FALSE)
+    missing_item <- is.na(a$item)
     a$item <- trimws(as.character(a$item))
+    a$item[missing_item] <- NA_character_
     if (anyNA(a$item) || any(!nzchar(a$item)))
       stop("every anchor row needs a non-blank item name", call. = FALSE)
     a
@@ -3380,7 +3522,9 @@ server <- function(input, output, session) {
     if (!nrow(a))
       stop("the paired-comparison anchor CSV contains no anchor rows",
            call. = FALSE)
+    missing_object <- is.na(a$object)
     a$object <- trimws(as.character(a$object))
+    a$object[missing_object] <- NA_character_
     if (anyNA(a$object) || any(!nzchar(a$object)))
       stop("every paired-comparison anchor row needs a non-blank object name",
            call. = FALSE)
@@ -3456,7 +3600,8 @@ server <- function(input, output, session) {
     # empty choice = the "none" placeholder (clearable)
     updateSelectizeInput(session, "bt_order", choices = c("", nm),
                          selected = if (!is.na(g_o)) g_o else "")
-    updateSelectizeInput(session, "bt_jfactors", choices = nm,
+    saved_jf <- names(restored_project_resources()$btl_dif_factors$factors)
+    updateSelectizeInput(session, "bt_jfactors", choices = unique(c(nm, saved_jf)),
                          selected = g_f)
     # judge-panel column for the paired-comparison frames extension: the same
     # judge-constant candidates as the judge factors above, one of them chosen
@@ -3823,7 +3968,7 @@ server <- function(input, output, session) {
         "  reps_per_pair = 84,",
         "  erratic_judges = 2 / 48,",
         "  dependence = list(exposure = 0.7, carry_over = 0),",
-        "  seed = 1",
+        "  seed = 2",
         ")",
         "judge_number <- as.integer(sub(\"^J\", \"\", dat$judge))",
         "dat$panel <- factor(ifelse(judge_number %% 2L,",
@@ -3885,6 +4030,11 @@ server <- function(input, output, session) {
     clear_analysis_steps()
     clear_btl_analysis_steps()
     clear_btl_fit_results()
+    # A weighted person table belongs to one completed calibration.  Clear it
+    # here rather than relying only on the ordinary-fit observer: when a Rasch
+    # analysis is replaced by Comparative Judgement, fit() becomes unavailable
+    # before that observer can run and the old table would otherwise survive.
+    person_weight_state(NULL)
     fitted_sim_gen(simulation_stamp)
     if (inherits(fit, "rasch_btl")) {
       btl_fit(fit); fit_val(NULL)
@@ -4186,6 +4336,16 @@ server <- function(input, output, session) {
           bt_anchor_vec <- if (!is.null(bt_anc_df))
             setNames(bt_anc_df$location, bt_anc_df$object) else NULL
           run_source$resources["bt_anchors"] <- list(bt_anc_df)
+          if (!is.null(bt_anc_df)) {
+            code_notes <- c(code_notes,
+              if (!is.null(input$bt_anchor_file)) paste0(
+                "bt_anchors <- read.csv(", qstr(input$bt_anchor_file$name),
+                ", check.names = FALSE, stringsAsFactors = FALSE)") else
+                  "bt_anchors <- project$resources$bt_anchors",
+              paste0("bt_anchors$object <- ifelse(is.na(bt_anchors$object), ",
+                     "NA_character_, trimws(as.character(bt_anchors$object)))"),
+              "bt_anchor_values <- with(bt_anchors, setNames(location, object))")
+          }
           if (any(c(input$bt_a, input$bt_b) == NONE) ||
               (!bt_graded && identical(input$bt_win, NONE)))
             stop("nominate the object A, object B, and winner (or polytomous response) columns")
@@ -4196,7 +4356,7 @@ server <- function(input, output, session) {
             code_notes <- c(
               if (is.null(sim_predictors_val()) && !is.null(input$exp_predictors))
                 paste0("predictors <- read.csv(", qstr(input$exp_predictors$name),
-                       ", check.names = FALSE)")
+                       ", check.names = FALSE, stringsAsFactors = FALSE)")
               else if (!is.null(restored_project_resources()$predictors))
                 "predictors <- project$resources$predictors"
               else 'predictors <- attr(dat, "predictors")',
@@ -4217,11 +4377,7 @@ server <- function(input, output, session) {
               paste0("judge = ", qstr(input$bt_judge)),
             if (!is.null(bt_ord)) paste0("order = ", qstr(bt_ord)),
             if (bt_pos) "position = TRUE",
-            if (!is.null(bt_anchor_vec) && !is.null(input$bt_anchor_file))
-              paste0("anchors = with(read.csv(", qstr(input$bt_anchor_file$name),
-                     "), setNames(location, object))"),
-            if (!is.null(bt_anchor_vec) && is.null(input$bt_anchor_file))
-              "anchors = with(project$resources$bt_anchors, setNames(location, object))",
+            if (!is.null(bt_anchor_vec)) "anchors = bt_anchor_values",
             if (!is.null(bt_count)) paste0("count = ", qstr(bt_count)),
             if (!bt_graded && !bt_marg)
               paste0("ties = ", qstr(input$bt_ties %||% "drop")),
@@ -4307,7 +4463,7 @@ server <- function(input, output, session) {
               if (is.null(sim_predictors_val()) && !is.null(input$exp_predictors))
                 paste0("predictors <- read.csv(",
                        qstr(input$exp_predictors$name),
-                       ", check.names = FALSE)")
+                       ", check.names = FALSE, stringsAsFactors = FALSE)")
               else if (!is.null(restored_project_resources()$predictors))
                 "predictors <- project$resources$predictors"
               else 'predictors <- attr(dat, "predictors")',
@@ -4368,8 +4524,11 @@ server <- function(input, output, session) {
           }
           code_notes <- if (!is.null(anc)) c(
             if (!is.null(input$anchor_file))
-              paste0("anchors <- read.csv(", qstr(input$anchor_file$name), ")")
+              paste0("anchors <- read.csv(", qstr(input$anchor_file$name),
+                     ", check.names = FALSE, stringsAsFactors = FALSE)")
             else "anchors <- project$resources$anchors",
+            paste0("anchors$item <- ifelse(is.na(anchors$item), NA_character_, ",
+                   "trimws(as.character(anchors$item)))"),
             paste0("anchors <- anchors[as.character(anchors$item) %in% ",
                    qvec(cand), ", , drop = FALSE]"),
             if (anchor_type %in% c("average", "set_average")) c(
@@ -4496,6 +4655,7 @@ server <- function(input, output, session) {
     btl_on <- !is.null(bf)
     ordinary_rasch_on <- rasch_on &&
       !inherits(f, c("rasch_mfrm", "rasch_efrm"))
+    equating_rasch_on <- rasch_on && .app_equating_fit(f)
     # judge-factor DIF applies to a paired-comparison fit once judge
     # factors are nominated in the Data roles
     btl_dif_on <- btl_on &&
@@ -4513,7 +4673,7 @@ server <- function(input, output, session) {
     # ordinary person-by-item calibration; paired comparisons have their own
     # common-object method.
     show("p_targeting", rasch_on || btl_on)
-    show("p_equating", ordinary_rasch_on || btl_on)
+    show("p_equating", equating_rasch_on || btl_on)
     # the Trait tab now carries paired-comparison dimensionality too
     # (transitivity loops + the residual bimension swirl)
     show("p_dim", ordinary_rasch_on || btl_on)
@@ -4546,6 +4706,11 @@ server <- function(input, output, session) {
   outputOptions(output, "has_interaction", suspendWhenHidden = FALSE)
   output$is_btl <- reactive(!is.null(btl_fit()))
   outputOptions(output, "is_btl", suspendWhenHidden = FALSE)
+  output$btl_history_model <- reactive({
+    b <- tryCatch(bfit(), error = function(e) NULL)
+    is.data.frame(b$dependence) && any(b$dependence$effect != "position")
+  })
+  outputOptions(output, "btl_history_model", suspendWhenHidden = FALSE)
   output$has_expl_relaxations <- reactive({
     f <- tryCatch({
       b <- btl_fit()
@@ -4608,7 +4773,8 @@ server <- function(input, output, session) {
     if (identical(input$eq_source, "kept"))
       !is.null(input$eq_kept) && nzchar(input$eq_kept) &&
         input$eq_kept %in% names(kept_fits())
-    else !is.null(input$eq_file)
+    else !is.null(input$eq_file) ||
+      !is.null(restored_project_resources()[["eq_reference"]])
   })
   outputOptions(output, "has_eq", suspendWhenHidden = FALSE)
 
@@ -4680,6 +4846,9 @@ server <- function(input, output, session) {
     # restore is the exception: those results were serialised with that exact
     # fit and are reinstated later in the same flush cycle.
     if (!isTRUE(restoring_project())) {
+      # Allow a 10% refit-failure margin above the Holm resolution threshold.
+      updateNumericInput(session, "guess_boot_reps",
+                         value = max(999L, ceiling(40 * length(its) / 0.9)))
       lr_res(NULL); dep_res(NULL); spread_res(NULL); dm_res(NULL)
       guess_res(NULL); contr_res(NULL); rescore_res(NULL)
       person_weight_state(NULL)
@@ -4767,9 +4936,10 @@ server <- function(input, output, session) {
     run_factors <- names(fit()$factors)
     run_alpha <- dif_alpha()
     run_adjust <- "holm"
+    run_effects <- input$dif_effects %||% "main"
     rr <- tryCatch(
       resolve_dif(fit(), factors = run_factors, alpha = run_alpha,
-                  p_adjust = run_adjust),
+                  p_adjust = run_adjust, effects = run_effects),
       error = function(e) e)
     if (inherits(rr, "error")) {
       showNotification(paste("Automatic resolution failed:", conditionMessage(rr)),
@@ -4778,13 +4948,15 @@ server <- function(input, output, session) {
       rr$run_factors <- run_factors
       rr$run_alpha <- run_alpha
       rr$run_p_adjust <- run_adjust
+      rr$run_effects <- run_effects
       resolve_res(rr)
       push_analysis_step(
         "dif_auto", sprintf("Automatic DIF: %d split(s)", rr$n_splits),
         rr$fit, details = list(n_splits = rr$n_splits, stopped = rr$stopped),
         code = paste0(
           "dif_resolution <- resolve_dif(fit, factors = ", qvec(run_factors),
-          ", alpha = ", run_alpha, ", p_adjust = ", qstr(run_adjust), ")\n",
+          ", alpha = ", run_alpha, ", p_adjust = ", qstr(run_adjust),
+          ", effects = ", qstr(run_effects), ")\n",
           "fit <- dif_resolution$fit")
       )
       showNotification(
@@ -5083,7 +5255,7 @@ server <- function(input, output, session) {
                 "infit_ms", "outfit_ms", "fit_resid", "extreme"),
     btl_judge = c("judge", "n", "infit_ms", "outfit_ms", "fit_resid", "misfit"),
     equate = c("item", "location_1", "location_2", "adj_difference", "t",
-               "p_adj", "drift"),
+               "z", "df", "p_adj", "drift"),
     contrast = c("item", "contrast", "estimate", "se", "statistic", "p_adj"),
     frames = c("set", "group", "rho", "se_log_rho", "origin", "fit_resid",
                "n_responses"),
@@ -5153,22 +5325,29 @@ server <- function(input, output, session) {
   # still uses the raw value; detection runs on the ORIGINAL column names
   P_COL_RE <- "^p$|^p_|_p$|^prob$|p_anova|p_adj|p_bonf|p_uniform|p_nonuniform|p_boot"
   P_RENDER <- DT::JS("function(data,type,row){ if(type==='display'){ if(data===null||data==='') return ''; var x=Number(data); return x<0.001 ? '&lt;0.001' : x.toFixed(3);} return data; }")
+  # styleInterval() includes the cut point in its lower interval. That is the
+  # wrong boundary for p < alpha and makes symmetric fit bands asymmetric at
+  # their negative cut. Use the same strict decisions as the result objects.
+  colour_if <- function(condition) DT::JS(paste0(
+    "function(value){if(value===null||value==='')return 'inherit';",
+    "var x=Number(value);if(!Number.isFinite(x))return 'inherit';return ",
+    condition, "?'var(--bs-danger)':'inherit';}"))
+  weight_if <- function(condition) DT::JS(paste0(
+    "function(value){if(value===null||value==='')return 'normal';",
+    "var x=Number(value);if(!Number.isFinite(x))return 'normal';return ",
+    condition, "?'bold':'normal';}"))
   # fit flags, consistent across every model table: a fit residual beyond
   # |2.5|, an outfit mean square outside 0.7-1.3, and an infit mean square
   # outside the tighter 0.8-1.2 (infit is information-weighted, so it varies
   # less under fit; conventional working bands). `orig` is the ORIGINAL
   # column-name vector of the displayed frame (positions match the widget).
   flag_fit_cols <- function(dt, orig) {
-    redc <- "var(--bs-danger)"
     for (fc in which(orig == "fit_resid"))
-      dt <- formatStyle(dt, fc, color = styleInterval(
-        c(-2.5, 2.5), c(redc, "inherit", redc)))
+      dt <- formatStyle(dt, fc, color = colour_if("Math.abs(x)>2.5"))
     for (oc in which(orig == "outfit_ms"))
-      dt <- formatStyle(dt, oc, color = styleInterval(
-        c(0.7, 1.3), c(redc, "inherit", redc)))
+      dt <- formatStyle(dt, oc, color = colour_if("x<0.7||x>1.3"))
     for (ic in which(orig == "infit_ms"))
-      dt <- formatStyle(dt, ic, color = styleInterval(
-        c(0.8, 1.2), c(redc, "inherit", redc)))
+      dt <- formatStyle(dt, ic, color = colour_if("x<0.8||x>1.2"))
     dt
   }
   num_dt <- function(d, digits = 3, p_bold = NULL,
@@ -5216,7 +5395,7 @@ server <- function(input, output, session) {
     dt <- flag_fit_cols(dt, orig)
     for (pc in which(orig %in% p_bold))
       dt <- formatStyle(dt, pc,
-                        fontWeight = styleInterval(0.05, c("bold", "normal")))
+                        fontWeight = weight_if("x<0.05"))
     dt
   }
   # Lower-triangular display of a symmetric matrix: the redundant strictly-upper
@@ -5261,14 +5440,13 @@ server <- function(input, output, session) {
   # it crosses the threshold, leaving in-range values at the inherited text
   # colour. `d` is the DISPLAYED data frame, so column positions match the
   # rendered table; each helper is a no-op when the column is absent.
-  DANGER <- "var(--bs-danger)"
   style_lo_red <- function(dt, d, col, cut)     # red when value < cut (e.g. p)
     Reduce(function(x, j) formatStyle(x, j,
-      color = styleInterval(cut, c(DANGER, "inherit"))),
+      color = colour_if(sprintf("x<%.17g", cut))),
       which(names(d) == col), dt)
   style_mag_red <- function(dt, d, col, mag)    # red when |value| >= mag
     Reduce(function(x, j) formatStyle(x, j,
-      color = styleInterval(c(-mag, mag), c(DANGER, "inherit", DANGER))),
+      color = colour_if(sprintf("Math.abs(x)>=%.17g", mag))),
       which(names(d) == col), dt)
 
   # ------------------------------------------------ navbar status summary --
@@ -5354,7 +5532,7 @@ server <- function(input, output, session) {
                   if (inherits(f, c("rasch_mfrm", "rasch_efrm")))
                     "Approx. response-cell-trait p" else
                       "Approx. item-trait p",
-                  if (!.has_repeated_person_ids(f$person$id) &&
+                  if (!.has_repeated_residual_units(f) &&
                       finite1(f$total_chisq_p)) fmt_p(f$total_chisq_p) else "—",
                   icon = "chisq", status = "neutral"),
       metric_tile("metric_power", "Separation quality",
@@ -5378,7 +5556,7 @@ server <- function(input, output, session) {
   # (values read off the fit object directly); the CSV chips download the
   # COMPLETE fit_summary_table / targeting_table with raw column names.
   # The score-to-measure table stays available via score_table(fit) and the
-  # everything-ZIP; thresholds live on the Items explorer Thresholds tab.
+  # model-results ZIP; thresholds live on the Items explorer Thresholds tab.
   register_stat_box("fitsum_tbl",
     csv_fun = function() fit_summary_table(fit()),
     csv_name = "fit_summary.csv",
@@ -5396,11 +5574,8 @@ server <- function(input, output, session) {
         sprintf("converged in %d iterations", est$iterations)
       else span(class = "text-danger",
                 sprintf("did not converge in %d iterations", est$iterations))
-      method <- if (inherits(f, "rasch_efrm") &&
-                    length(unique(f$set_of)) > 1L)
-        "pairwise conditional calibration + semiparametric set linking"
-      else "pairwise conditional ML"
-      repeated_ids <- .has_repeated_person_ids(f$person$id)
+      method <- .estimation_label(f)
+      repeated_ids <- .has_repeated_residual_units(f)
       item_inference <- inference_count(if (repeated_ids)
         rep(NA_real_, nrow(f$items)) else f$items$p_adj)
       tagList(
@@ -5880,7 +6055,7 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     if (identical(kind, "rasch") && !inherits(f, "rasch_btl") &&
-        .has_repeated_person_ids(f$person$id)) {
+        .has_repeated_residual_units(f)) {
       showNotification(paste(
         "The item-fit bootstrap is unavailable when person IDs repeat because",
         "its reference distribution assumes independent response rows.",
@@ -6069,7 +6244,7 @@ server <- function(input, output, session) {
   # its CSV; a NULL boot leaves the asymptotic table untouched
   items_with_boot <- function() {
     d <- fit()$items
-    if (.has_repeated_person_ids(fit()$person$id))
+    if (.has_repeated_residual_units(fit()))
       for (nm in intersect(c("p", "p_adj", "p_bonf", "p_anova",
                              "p_anova_adj", "p_anova_bonf"), names(d)))
         d[[nm]][] <- NA_real_
@@ -6165,17 +6340,14 @@ server <- function(input, output, session) {
                  p_bold = operative_p)
     # fit residual, infit and outfit are flagged by num_dt; the operative
     # chi-square probability turns red at .05 as well (no single flag column)
-    for (j in which(names(d) %in% "chisq_p_boot_adj"))
-      dt <- formatStyle(dt, j, color = styleInterval(
-        0.05, c("var(--bs-danger)", "inherit")))
-    dt
+    style_lo_red(dt, d, "chisq_p_boot_adj", .05)
   }, code = function() {
     bv <- rasch_boot_val()
     if (is.null(bv)) return("fit$items")
     paste(sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
           "b <- bs$items[c(\"item\", \"chisq_p_boot\",",
           "  \"chisq_p_boot_adj\", \"n_boot_chisq\",",
-          "  \"fit_resid_p_boot_adj\", \"n_boot_fit_resid\")]",
+          "  \"fit_resid_p_boot\", \"fit_resid_p_boot_adj\", \"n_boot_fit_resid\")]",
           "j <- match(fit$items$item, b$item)",
           "cbind(fit$items, b[j, setdiff(names(b), \"item\"), drop = FALSE])",
           sep = "\n")
@@ -6185,9 +6357,14 @@ server <- function(input, output, session) {
   chisq_res <- reactive(chisq_detail(fit(), sel_item()))
   output$chisq_caption <- renderUI({
     cd <- chisq_res()
-    p(class = "small mb-2", HTML(sprintf(
-      "<b>%s</b> (location %.3f): total chi-square <b>%.3f</b> on %d df, p = %s; whole-sample mean = %.3f. Intervals with fewer than 2 responders carry no chi-square contribution.",
-      cd$item, cd$location, cd$chisq, cd$df, fmt_p(cd$p), cd$ave)))
+    p(class = "small mb-2",
+      tags$b(cd$item),
+      sprintf(" (location %.3f): total chi-square ", cd$location),
+      tags$b(sprintf("%.3f", cd$chisq)),
+      sprintf(paste0(" on %d df, p = %s; whole-sample mean = %.3f. ",
+                     "Intervals with fewer than 2 responders carry no ",
+                     "chi-square contribution."),
+              cd$df, fmt_p(cd$p), cd$ave))
   })
   output$chisq_int_tbl <- renderDT({
     d <- chisq_res()$intervals
@@ -6430,7 +6607,8 @@ server <- function(input, output, session) {
     bv <- rasch_boot_val()
     if (is.null(bv) || is.null(bv$bs$persons)) return("fit$person")
     paste(sprintf("bs <- fit_bootstrap(fit, B = %d, seed = %d)", bv$B, bv$seed),
-          "cbind(fit$person, bs$persons[setdiff(names(bs$persons), c('id', 'raw', 'theta', 'se'))])",
+          "cols <- grep('(_p_boot(_adj)?$|^n_boot_)', names(bs$persons), value = TRUE)",
+          "cbind(fit$person, bs$persons[cols])",
           sep = "\n")
   })
 
@@ -6481,8 +6659,11 @@ server <- function(input, output, session) {
       }
       if (anyNA(weights)) stop("weights must be numeric")
       tab <- weighted_person_estimates(f, weights, by = by, sets = sets)
-      list(table = tab, weights = weights, by = by, sets = sets,
-           filename = upload$name)
+      state <- list(table = tab, weights = weights, by = by, sets = sets,
+                    filename = upload$name,
+                    fit_signature = .fit_boot_signature(f))
+      state$result_signature <- .fit_boot_md5(state)
+      state
     }, error = function(e) e)
     if (inherits(parsed, "error")) {
       showNotification(paste("Weighted estimates failed:",
@@ -6625,28 +6806,35 @@ server <- function(input, output, session) {
     z <- input$wright_person_panels %||% ""
     if (nzchar(z)) z else NULL
   })
+  wright_item_map_data <- reactive({
+    d <- if (!is.null(input$wright_item_map))
+      tryCatch(read.csv(input$wright_item_map$datapath,
+                        check.names = FALSE, stringsAsFactors = FALSE),
+               error = function(e) NULL)
+    else restored_project_resources()[["wright_item_map"]]
+    validate(need(!is.null(d) && is.data.frame(d) &&
+                    all(c("item", "panel") %in% names(d)),
+                  "The item panel map needs columns named item and panel."))
+    validate(need(!anyDuplicated(names(d)),
+                  "The item panel map cannot have duplicate column names."))
+    validate(need(!anyNA(d$item) && !anyNA(d$panel) &&
+                    all(nzchar(trimws(as.character(d$item)))) &&
+                    all(nzchar(trimws(as.character(d$panel)))),
+                  "The item panel map cannot contain blank values."))
+    d$item <- trimws(as.character(d$item))
+    d$panel <- trimws(as.character(d$panel))
+    validate(need(!anyDuplicated(d$item),
+                  paste0("The item panel map names item(s) more than once: ",
+                         paste(unique(d$item[duplicated(d$item)]),
+                               collapse = ", "), ".")))
+    d[, c("item", "panel"), drop = FALSE]
+  })
   wright_item_arg <- reactive({
     z <- input$wright_item_panels %||% ""
     if (!nzchar(z)) return(NULL)
     if (identical(z, "uploaded")) {
-      validate(need(!is.null(input$wright_item_map),
-                    "Upload an item panel map with item and panel columns."))
-      d <- tryCatch(read.csv(input$wright_item_map$datapath,
-                             check.names = FALSE, stringsAsFactors = FALSE),
-                    error = function(e) NULL)
-      validate(need(!is.null(d) && all(c("item", "panel") %in% names(d)),
-                    "The item panel map needs columns named item and panel."))
-      validate(need(!anyNA(d$item) && !anyNA(d$panel) &&
-                      all(nzchar(trimws(as.character(d$item)))) &&
-                      all(nzchar(trimws(as.character(d$panel)))),
-                    "The item panel map cannot contain blank values."))
-      item <- trimws(as.character(d$item))
-      panel <- trimws(as.character(d$panel))
-      validate(need(!anyDuplicated(item),
-                    paste0("The item panel map names item(s) more than once: ",
-                           paste(unique(item[duplicated(item)]),
-                                 collapse = ", "), ".")))
-      return(stats::setNames(panel, item))
+      d <- wright_item_map_data()
+      return(stats::setNames(d$panel, d$item))
     }
     if (identical(z, "sets_groups")) c("sets", "groups") else z
   })
@@ -6684,10 +6872,17 @@ server <- function(input, output, session) {
       sprintf("min.l = %g", r[1]), sprintf("max.l = %g", r[2]),
       sprintf("breaks = %d", tg_bins()), "main.title = NULL")
     call <- paste0("wright_map(", paste(args, collapse = ", "), ")")
-    if (identical(input$wright_item_panels, "uploaded"))
-      paste0("item_panel_map <- read.csv(",
-             qstr(input$wright_item_map$name %||% "item_panels.csv"),
-             ")\n", call) else call
+    if (identical(input$wright_item_panels, "uploaded")) {
+      source <- if (!is.null(input$wright_item_map)) paste0(
+        "item_panel_map <- read.csv(",
+        qstr(input$wright_item_map$name %||% "item_panels.csv"),
+        ", check.names = FALSE, stringsAsFactors = FALSE)") else
+          'item_panel_map <- project$resources[["wright_item_map"]]'
+      paste(source,
+            "item_panel_map$item <- trimws(as.character(item_panel_map$item))",
+            "item_panel_map$panel <- trimws(as.character(item_panel_map$panel))",
+            call, sep = "\n")
+    } else call
   }
   register_plot("wright", draw_wright, h = 7.5, code = wright_code)
 
@@ -6948,11 +7143,17 @@ server <- function(input, output, session) {
       return(p(class = "text-muted small mb-2", conditionMessage(ph)))
     s <- dif_res()$summary[dif_sel_row(), , drop = FALSE]
     flagged <- isTRUE(s$uniform_DIF) || isTRUE(s$nonuniform_DIF)
-    p(class = paste("small mb-2", if (flagged) "text-body" else "text-muted"),
+    base <- p(
+      class = paste("small mb-2", if (flagged) "text-body" else "text-muted"),
       if (flagged)
         "The omnibus term is significant; use these adjusted comparisons to locate it."
       else
-        "The omnibus term is not significant; treat individual comparisons as exploratory.")
+        "The omnibus term is not significant; treat individual comparisons as exploratory."
+    )
+    extra <- if (length(ph$notes))
+      p(class = "text-muted small mb-2", paste(ph$notes, collapse = " "))
+    else NULL
+    tagList(base, extra)
   })
   output$dif_posthoc_tbl <- DT::renderDT({
     ph <- dif_posthoc_res(); req(!inherits(ph, "error"))
@@ -6994,8 +7195,9 @@ server <- function(input, output, session) {
   output$dif_size_tbl <- DT::renderDT({
     ds <- dif_size_res()
     req(!inherits(ds, "error"))
-    keep <- c("level_a", "level_b", "difference", "se", "z",
-              "lower", "upper", "p_adj", "ets", "signed_area")
+    keep <- c("level_a", "level_b", "difference", "se",
+              .app_wald_columns(ds$pairs), "lower", "upper", "p_adj",
+              "ets", "signed_area")
     d <- ds$pairs[, intersect(keep, names(ds$pairs))]
     for (nm in intersect(c("ets", "signed_area"), names(d)))
       if (all(is.na(d[[nm]]))) d[[nm]] <- NULL
@@ -7201,7 +7403,12 @@ server <- function(input, output, session) {
   }
   output$btl_boxes <- renderUI({
     f <- bfit(); bv <- btl_boot_val()
-    pair_p <- if (is.null(bv)) f$total_p else bv$bs$total$chisq_p_boot
+    framed <- inherits(f, "rasch_btl_efrm")
+    # BTL--EFRM requires repeated comparisons by judges. Its pooled Pearson
+    # statistic is descriptive, and no row-based or stale ordinary-BTL
+    # probability may be displayed for it.
+    pair_p <- if (framed) NA_real_ else if (is.null(bv)) f$total_p
+      else bv$bs$total$chisq_p_boot
     metric_grid(
       metric_tile("metric_objects", "Objects", nrow(f$objects), icon = "podium"),
       metric_tile("metric_comparisons", "Comparisons",
@@ -7214,20 +7421,22 @@ server <- function(input, output, session) {
                   status = if (!finite1(f$osi$PSI)) "neutral"
                     else if (f$osi$PSI >= 0.7) "good" else "bad"),
       metric_tile("metric_pair_fit", "Pairwise fit p",
-                  if (finite1(pair_p)) fmt_p(pair_p) else "—",
+                  if (finite1(pair_p)) fmt_p(pair_p) else "Unavailable",
                   icon = "chisq",
                   status = if (!finite1(pair_p)) "neutral" else
                     if (pair_p >= 0.05) "good" else "bad"))
   })
   register_code("btl_boxes", function() {
+    f <- bfit()
     bv <- btl_boot_val()
     paste(c(
-      if (!is.null(bv))
+      if (!inherits(f, "rasch_btl_efrm") && !is.null(bv))
         sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
       "list(",
       "  objects = nrow(bt$objects), comparisons = bt$n_comparisons,",
       "  judges = if (is.null(bt$judges)) NULL else nrow(bt$judges),",
-      if (is.null(bv))
+      if (inherits(f, "rasch_btl_efrm"))
+        "  object_separation = bt$osi$PSI, pairwise_fit_p = NA_real_  # unavailable with judge clustering" else if (is.null(bv))
         "  object_separation = bt$osi$PSI, pairwise_fit_p = bt$total_p" else
         "  object_separation = bt$osi$PSI, pairwise_fit_p = bs$total$chisq_p_boot",
       ")"), collapse = "\n")
@@ -7247,6 +7456,7 @@ server <- function(input, output, session) {
     csv_name = "fit_summary.csv",
     ui_fun = function() {
       f <- bfit(); bv <- btl_boot_val()
+      framed <- inherits(f, "rasch_btl_efrm")
       polytomous <- !is.null(f$m) && f$m > 1L
       model_lab <- if (inherits(f, "rasch_btl_efrm"))
         "Comparative Judgement with frame-dependent units"
@@ -7265,13 +7475,20 @@ server <- function(input, output, session) {
         if (!is.null(f$judges)) sprintf("%d judges", nrow(f$judges))),
         collapse = " · ")
       dep_rows <- if (!is.null(f$dependence)) {
-        use_adj <- !is.null(f$dependence$p_adj)
         lapply(seq_len(nrow(f$dependence)), function(r) {
-          inference <- if (use_adj)
+          has_adjusted <- !is.null(f$dependence$p_adj) &&
+            length(f$dependence$p_adj) >= r &&
+            is.finite(f$dependence$p_adj[r])
+          inference <- if (has_adjusted)
             paste("Holm-adjusted", p_lab(f$dependence$p_adj[r])) else
-              "adjusted p unavailable; refit"
-          stat_row(sprintf("Within-judge %s",
-                           gsub("_", "-", f$dependence$effect[r])),
+              if (is.null(f$dependence$p_adj))
+                "adjusted p unavailable; refit" else
+                  "adjusted p unavailable; see fit notes"
+          effect_label <- if (identical(f$dependence$effect[r], "position"))
+            "First-position advantage" else
+              sprintf("Within-judge %s",
+                      gsub("_", "-", f$dependence$effect[r]))
+          stat_row(effect_label,
                    sprintf("%.2f logits (%s)", f$dependence$estimate[r],
                            inference))
         })
@@ -7282,9 +7499,17 @@ server <- function(input, output, session) {
             if (isTRUE(f$clustered)) " · SEs clustered by judge"),
         stat_rows(
           stat_row("Pairwise chi-square",
-                   sprintf("%.2f on %d df, %s", f$total_chisq, f$total_df,
-                           p_lab(if (is.null(bv)) f$total_p else
-                             bv$bs$total$chisq_p_boot))),
+                   {
+                     pair_p <- if (framed) NA_real_ else if (is.null(bv))
+                       f$total_p else bv$bs$total$chisq_p_boot
+                     if (!finite1(pair_p))
+                       sprintf("%.2f on %d df; probability unavailable%s",
+                               f$total_chisq, f$total_df,
+                               if (isTRUE(f$clustered)) " (judge clustering)"
+                               else "")
+                     else sprintf("%.2f on %d df, %s", f$total_chisq,
+                                  f$total_df, p_lab(pair_p))
+                   }),
           stat_row("Design", design),
           stat_row("Object separation index",
                    if (finite1(f$osi$PSI)) sprintf("%.3f", f$osi$PSI)
@@ -7297,8 +7522,10 @@ server <- function(input, output, session) {
           dep_rows))
     },
     code = function() {
+      f <- bfit()
       bv <- btl_boot_val()
-      if (is.null(bv)) "fit_summary_table(bt)" else
+      if (inherits(f, "rasch_btl_efrm") || is.null(bv))
+        "fit_summary_table(bt)" else
         paste(sprintf("bs <- fit_bootstrap(bt, B = %d, seed = %d)", bv$B, bv$seed),
               "fit_summary_table(bt)",
               "bs$total  # bootstrap pairwise fit probability", sep = "\n")
@@ -7466,11 +7693,11 @@ server <- function(input, output, session) {
   # must still show the diagnostic table that explains why
   output$has_btl_dep <- reactive({
     b <- tryCatch(bfit(), error = function(e) NULL)
-    # either the per-comparison history covariates (order effects) OR an
-    # estimated dependence effect: a position-only fit carries a first-position
-    # effect in $dependence even when there is no order column to build
-    # $dependence_data from
-    !is.null(b) && (!is.null(b$dependence_data) || !is.null(b$dependence))
+    # This page concerns the exposure and carry-over history covariates. A
+    # position-only fit still retains row-level position data, but has no
+    # judgment sequence; report it in the fit summary instead of opening the
+    # history panel.
+    !is.null(b) && .app_has_btl_history(b)
   })
   outputOptions(output, "has_btl_dep", suspendWhenHidden = FALSE)
   register_table("btl_dep_tbl", function() {
@@ -7598,20 +7825,52 @@ server <- function(input, output, session) {
   # btl_equate() is carried as a value or an error so <2-common-object and
   # other failures surface as a message rather than a red crash
   bt_eq_bank <- reactive({
-    if (is.null(input$bt_eq_file)) return(NULL)
-    a <- tryCatch(read.csv(input$bt_eq_file$datapath, stringsAsFactors = FALSE),
-                  error = function(e) NULL)
-    if (is.null(a) || !all(c("object", "location") %in% names(a))) {
+    a <- if (!is.null(input$bt_eq_file))
+      tryCatch(read.csv(input$bt_eq_file$datapath, check.names = FALSE,
+                        stringsAsFactors = FALSE), error = function(e) NULL)
+    else restored_project_resources()[["bt_eq_bank"]]
+    if (is.null(a)) return(NULL)
+    if (!all(c("object", "location") %in% names(a))) {
       showNotification("Reference CSV needs columns object and location - ignored.",
                        type = "warning")
       return(NULL)
     }
+    if (anyDuplicated(names(a))) {
+      showNotification("Reference CSV has duplicate column names - ignored.",
+                       type = "warning")
+      return(NULL)
+    }
+    missing_object <- is.na(a$object)
+    a$object <- trimws(as.character(a$object))
+    a$object[missing_object] <- NA_character_
     if (!"se" %in% names(a)) a$se <- NA_real_
     if (is.logical(a$se) && all(is.na(a$se))) a$se <- NA_real_
-    if ("m" %in% names(a) && length(unique(a$m[is.finite(a$m)])) == 1L)
-      attr(a, "m") <- as.integer(unique(a$m[is.finite(a$m)]))
+    if ("m" %in% names(a)) {
+      m <- suppressWarnings(as.numeric(as.character(a$m)))
+      m <- unique(m[is.finite(m)])
+      if (length(m) == 1L && m >= 1L && m == floor(m) &&
+          m <= .Machine$integer.max)
+        attr(a, "m") <- as.integer(m)
+    }
     a
   })
+  bt_eq_reference_code <- function() {
+    source <- if (!is.null(input$bt_eq_file)) sprintf(
+      "bank <- read.csv(%s, check.names = FALSE, stringsAsFactors = FALSE)",
+      qstr(input$bt_eq_file$name %||% "reference.csv")) else
+        'bank <- project$resources[["bt_eq_bank"]]'
+    paste(source,
+          paste0("bank$object <- ifelse(is.na(bank$object), NA_character_, ",
+                 "trimws(as.character(bank$object)))"),
+          'if (!"se" %in% names(bank)) bank$se <- NA_real_',
+          'if ("m" %in% names(bank)) {',
+          '  bank_m <- suppressWarnings(as.numeric(as.character(bank$m)))',
+          '  bank_m <- unique(bank_m[is.finite(bank_m)])',
+          paste0('  if (length(bank_m) == 1L && bank_m >= 1L && ',
+                 'bank_m <= .Machine$integer.max && bank_m == floor(bank_m)) ',
+                 'attr(bank, "m") <- as.integer(bank_m)'),
+          '}', sep = "\n")
+  }
   bt_equate <- reactive({
     bank <- bt_eq_bank()
     validate(need(!is.null(bank),
@@ -7646,18 +7905,18 @@ server <- function(input, output, session) {
   }, function() {
     d <- bt_eq_ok()$table
     style_lo_red(num_dt(d), d, "p_adj", 0.05)
-  }, code = function()
-    sprintf('bank <- read.csv(%s)  # columns: object, location, se\nbtl_equate(bt, bank, independent = %s)$table',
-            qstr(input$bt_eq_file$name %||% "reference.csv"),
-            if (isTRUE(input$bt_eq_independent)) "TRUE" else "FALSE"))
+  }, code = function() paste0(
+    bt_eq_reference_code(), "\n",
+    sprintf('btl_equate(bt, bank, independent = %s)$table',
+            if (isTRUE(input$bt_eq_independent)) "TRUE" else "FALSE")))
   register_plot("btl_eq_plot", function() {
     bt_eq_ok()
     plot_btl_equate(bfit(), bt_eq_bank(),
                     independent = isTRUE(input$bt_eq_independent))
-  }, w = 8, h = 6, code = function()
-    sprintf('bank <- read.csv(%s)\nplot_btl_equate(bt, bank, independent = %s)',
-            qstr(input$bt_eq_file$name %||% "reference.csv"),
-            if (isTRUE(input$bt_eq_independent)) "TRUE" else "FALSE"))
+  }, w = 8, h = 6, code = function() paste0(
+    bt_eq_reference_code(), "\n",
+    sprintf('plot_btl_equate(bt, bank, independent = %s)',
+            if (isTRUE(input$bt_eq_independent)) "TRUE" else "FALSE")))
   # hover identification for the equating plot: only drifting objects are
   # text-labelled (see plot_btl_equate(), R/btl-equating.R); bt_equate()$table
   # is the exact table plot_btl_equate() draws from (same fit1/fit2, no extra
@@ -7687,7 +7946,17 @@ server <- function(input, output, session) {
     jd <- as.character(df[[jc]])
     judges <- unique(as.character(btl_fit()$comparisons$judge))
     judges <- judges[!is.na(judges)]
+    # The saved calibration data may predate a correction to judge metadata.
+    # Reuse the authenticated downstream maps after reopening, but only for
+    # that unchanged data, judge role and calibration. A fresh data source
+    # clears restored resources; changed metadata must take precedence.
+    restored <- restored_project_resources()$btl_dif_factors
+    saved_maps <- if (!is.null(restored) &&
+        identical(df, restored$data) && identical(jc, restored$judge_col) &&
+        .fit_boot_signature_matches(restored$fit_signature, btl_fit()))
+      restored$factors else list()
     setNames(lapply(fcs, function(fc) {
+      if (fc %in% names(saved_maps)) return(saved_maps[[fc]])
       if (!fc %in% names(df)) stop("column not found: ", fc)
       value <- as.character(df[[fc]])
       by_judge <- lapply(judges, function(j) {
@@ -7762,14 +8031,22 @@ server <- function(input, output, session) {
   }
   # quote source columns as R symbols in emitted code
   bq <- .app_quote_name
-  # Reproducible code for the displayed run. It repeats the app's constancy
-  # check instead of selecting whichever value happens to occur first.
+  # A completed run owns its judge-factor maps. The comparison source is
+  # frozen at calibration, but judge metadata may have been edited since
+  # then; rebuilding maps from `dat` need not reproduce the displayed DIF.
+  # Before a run, show the same constancy check used by the app.
   bdif_code_grp <- function() {
     r <- bdif_res()
-    fcs <- if (!is.null(r)) r$factors else (input$bdif_factors %||% "factor")
-    meta <- bdif_meta()
-    jc <- (if (!is.null(r) && !is.null(meta)) meta$judge_col else
-      input$bt_judge) %||% "judge"
+    if (!is.null(r)) {
+      maps <- r$bootstrap_design$factors
+      if (!is.list(maps) || !length(maps))
+        stop("the saved DIF analysis has no judge-factor maps; rerun it before reproducing its R code")
+      return(paste0("# Judge factors used in this DIF analysis\n",
+                    "factors <- ",
+                    paste(capture.output(dput(maps)), collapse = "\n")))
+    }
+    fcs <- input$bdif_factors %||% "factor"
+    jc <- input$bt_judge %||% "judge"
     one <- function(fc) sprintf("%s = judge_factor(dat$%s, %s)",
                                 bq(fc), bq(fc), qstr(fc))
     paste0(
@@ -7933,11 +8210,11 @@ server <- function(input, output, session) {
                   "Choose one or more judge factors in the sidebar and run the DIF analysis."))
     validate(need(!is.null(r$sizes),
                   "No object could be resolved (see the notes on the analysis-of-variance panel)."))
-    d <- r$sizes[, intersect(c("object", "term", "level_a", "level_b",
-                               "difference", "n_judges_a", "n_judges_b",
-                               "effective_judges_a", "effective_judges_b",
-                               "se", "t", "df", "p_adj"),
-                             names(r$sizes)), drop = FALSE]
+    keep <- c("object", "term", "level_a", "level_b", "difference",
+              "n_judges_a", "n_judges_b", "effective_judges_a",
+              "effective_judges_b", "se", .app_wald_columns(r$sizes),
+              "p_adj")
+    d <- r$sizes[, intersect(keep, names(r$sizes)), drop = FALSE]
     # no significant/practical flags: the difference turns red at 0.5 logits,
     # the adjusted p at the run's alpha
     dt <- style_mag_red(num_dt(d), d, "difference", 0.5)
@@ -8043,9 +8320,10 @@ server <- function(input, output, session) {
 
   # ----------------------------------------------------------------- equating --
   eq_ref <- reactive({
-    req(input$eq_file)
-    a <- tryCatch(read.csv(input$eq_file$datapath, stringsAsFactors = FALSE),
-                  error = function(e) NULL)
+    a <- if (!is.null(input$eq_file))
+      tryCatch(read.csv(input$eq_file$datapath, check.names = FALSE,
+                        stringsAsFactors = FALSE), error = function(e) NULL)
+    else restored_project_resources()[["eq_reference"]]
     validate(need(!is.null(a) && all(c("item", "location") %in% names(a)),
                   "The reference CSV needs columns item, location (and ideally se)."))
     a
@@ -8060,7 +8338,8 @@ server <- function(input, output, session) {
                     "Choose a kept fit in the sidebar."))
       k[[input$eq_kept]]
     } else {
-      validate(need(!is.null(input$eq_file),
+      validate(need(!is.null(input$eq_file) ||
+                      !is.null(restored_project_resources()[["eq_reference"]]),
                     "Upload a reference calibration (item, location, se) to equate against."))
       eq_ref()
     }
@@ -8068,9 +8347,13 @@ server <- function(input, output, session) {
   eq_independent <- reactive(if (identical(input$eq_source, "kept"))
     isTRUE(input$eq_kept_independent) else isTRUE(input$eq_csv_independent))
   eq_reference_code <- function() {
-    if (!identical(input$eq_source, "kept"))
-      return(sprintf("reference <- read.csv(%s)",
-                     qstr(input$eq_file$name %||% "reference.csv")))
+    if (!identical(input$eq_source, "kept")) {
+      if (!is.null(input$eq_file))
+        return(sprintf(paste0("reference <- read.csv(%s, check.names = FALSE, ",
+                              "stringsAsFactors = FALSE)"),
+                       qstr(input$eq_file$name %||% "reference.csv")))
+      return('reference <- project$resources[["eq_reference"]]')
+    }
     lab <- input$eq_kept
     z <- kept_fit_code()[[lab]]
     if (is.null(z)) return("reference <- kept_fit  # fit retained in this app session")
@@ -8680,7 +8963,7 @@ server <- function(input, output, session) {
       paste(deparse(split(r$objects$object, r$objects$set)), collapse = "\n    ")
     else "list(...)  # inferred from object-name prefixes, or the uploaded CSV"
     paste0(
-      "# dat: the comparison data; the judge-panel column is '", pcol, "'\n",
+      "# dat contains the comparison data\n",
       sprintf("panels <- setNames(as.character(dat$%s), dat$%s)[!duplicated(dat$%s)]\n",
               bq(pcol), bq(jc), bq(jc)),
       sprintf("object_sets <- %s\n", sets_txt),
@@ -8789,6 +9072,9 @@ server <- function(input, output, session) {
   dim_computed <- reactiveVal(NULL)
   observeEvent(input$dim_apply, {
     restored_subtest(NULL)
+    dim_computed(NULL)
+    dim_subsets(NULL)
+    dm_res(NULL)
     s <- NULL
     if (length(input$dim_pos) >= 2 && length(input$dim_neg) >= 2) {
       if (length(intersect(input$dim_pos, input$dim_neg))) {
@@ -8851,11 +9137,13 @@ server <- function(input, output, session) {
     dm_res(NULL)
     if (!isTRUE(restoring_project())) {
       dim_computed(NULL)
+      restored_subtest(NULL)
     }
   }, ignoreInit = TRUE)
   observeEvent(c(input$dim_boot_B, input$dim_workers, input$dim_boot_seed), {
     if (!isTRUE(restoring_project())) {
       dim_computed(NULL)
+      restored_subtest(NULL)
     }
   }, ignoreInit = TRUE)
   # the residual principal component that, when no manual subsets are named,
@@ -8883,11 +9171,15 @@ server <- function(input, output, session) {
     cat(sprintf("Significant person t-tests: %.1f%%  (Clopper-Pearson 95%% CI %.1f%% to %.1f%%, n = %d)\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2], dt$n))
     cat(sprintf("Persons excluded (extreme on a subset): %d\n", dt$n_excluded_extreme))
+    resolution_limited <- grepl(
+      "resolution insufficient", dt$verdict_method %||% "", fixed = TRUE)
     verdict <- if (isTRUE(dt$multidimensional))
       "evidence against unidimensionality" else
       if (identical(dt$multidimensional, FALSE))
         "consistent with unidimensionality" else
-          "withheld for the data-driven split"
+          if (resolution_limited)
+            "withheld because the bootstrap resolution is insufficient" else
+            "withheld for the data-driven split"
     cat(sprintf("Verdict: %s\n", verdict))
     if (!is.null(dt$p_boot))
       cat(sprintf("Bootstrap p: %s (%d of %d replicates used)\n",
@@ -8898,6 +9190,11 @@ server <- function(input, output, session) {
     if (dt$split != "manual" && is.null(dt$p_boot))
       cat("Note: the split was chosen from the residuals; name the subsets by",
           "content or use bootstrap calibration for an inferential verdict.\n")
+    if (isTRUE(resolution_limited))
+      cat(sprintf(paste0(
+        "Note: the smallest attainable bootstrap p is %.3f; increase B for ",
+        "an inferential verdict at alpha %.3f.\n"),
+        dt$bootstrap_resolution, dt$alpha))
     if (!is.null(dt$paired_t))
       cat(sprintf("Paired t-test of subset means: mean difference %.3f, t = %.2f (df %.0f), p = %s\n",
                   dt$paired_t$mean_difference, dt$paired_t$t,
@@ -9085,8 +9382,10 @@ server <- function(input, output, session) {
     r <- dep_res()
     validate(need(!is.null(r),
                   "Choose the dependent and independent items and press the button."))
-    cat(sprintf("Dependence of %s on %s: d = %.3f logits (se %.3f), z = %.2f, p = %s\n",
-                r$dependent, r$independent, r$d, r$se, r$z, fmt_p(r$p)))
+    ref <- .app_wald_reference(r)
+    cat(sprintf("Dependence of %s on %s: d = %.3f logits (se %.3f), %s = %.2f, p = %s\n",
+                r$dependent, r$independent, r$d, r$se,
+                ref$label, ref$value, fmt_p(r$p)))
   })
   output$dep_tbl <- renderDT({
     r <- dep_res()
@@ -9174,21 +9473,24 @@ server <- function(input, output, session) {
                        type = "warning", duration = 7)
       return(invisible(NULL))
     }
-    boot_reps <- if (do_boot) as.integer(boot_reps_raw) else 200L
+    boot_reps <- if (do_boot) as.integer(boot_reps_raw) else 999L
     boot_seed <- if (do_boot) as.integer(seed_raw) else NULL
     r <- withProgress(message = "Tailored analysis (three re-analyses)…",
                       value = 0.3,
-                      tryCatch(tailored_analysis(
+                      tryCatch(withCallingHandlers(tailored_analysis(
                         f, chance = ch, anchor_items = anc,
                         se_method = if (do_boot) "bootstrap" else "none",
                         boot_reps = boot_reps, seed = boot_seed),
+                        warning = function(w) {
+                          showNotification(conditionMessage(w), type = "warning",
+                                           duration = 15)
+                          invokeRestart("muffleWarning")
+                        }),
                                error = function(e) e))
     if (inherits(r, "error"))
       showNotification(paste("Tailored analysis failed:", conditionMessage(r)),
                        type = "error", duration = 10)
     else {
-      r$run_boot_reps <- boot_reps
-      r$run_seed <- boot_seed
       guess_res(r)
     }
   })
@@ -9206,6 +9508,8 @@ server <- function(input, output, session) {
       up <- sum(r$table$significant %in% TRUE & r$table$shift > 0)
       cat(sprintf("Holm-adjusted positive shifts: %d of %d (%d usable bootstrap draws)\n",
                   up, nrow(r$table), r$boot_reps_used))
+      if (2 * nrow(r$table) / (r$boot_reps_used + 1) >= 0.05)
+        cat("Too few usable draws to detect significance after Holm adjustment; increase the bootstrap replicates.\n")
     } else {
       cat("Item shifts are descriptive; enable the person bootstrap for uncertainty.\n")
     }
@@ -9213,11 +9517,14 @@ server <- function(input, output, session) {
   guess_code_call <- function(result) {
     r <- guess_res(); req(!is.null(r))
     seed_arg <- if (identical(r$se_method, "bootstrap"))
-      paste0(", seed = ", r$run_seed) else ""
+      paste0(", seed = ", r$seed) else ""
+    anchor_arg <- if (is.null(r$anchor_items_requested)) "NULL" else
+      qvec(r$anchor_items_requested)
     paste0(sprintf(paste0("ta <- tailored_analysis(fit, chance = %s, ",
                           "anchor_items = %s, se_method = %s, boot_reps = %d%s)"),
-                   r$chance, qvec(r$anchor_items), qstr(r$se_method),
-                   r$run_boot_reps, seed_arg), "\n", result)
+                   r$chance, anchor_arg, qstr(r$se_method),
+                   if (identical(r$se_method, "bootstrap")) r$boot_reps else
+                     999L, seed_arg), "\n", result)
   }
   register_table("guess_tbl", function() {
     r <- guess_res(); req(!is.null(r)); r$table
@@ -9360,6 +9667,15 @@ server <- function(input, output, session) {
       bt_anchors = tryCatch(bt_anchors_in(), error = function(e) NULL),
       key = tryCatch(key_in(), error = function(e) NULL),
       predictors = tryCatch(exp_predictors_raw(), error = function(e) NULL),
+      eq_reference = if (!identical(current_model, "btl") &&
+                           identical(input$eq_source %||% "csv", "csv"))
+        tryCatch(eq_ref(), error = function(e) NULL) else NULL,
+      bt_eq_bank = if (identical(current_model, "btl"))
+        tryCatch(bt_eq_bank(), error = function(e) NULL) else NULL,
+      wright_item_map = if (!identical(current_model, "btl") &&
+                              identical(input$wright_item_panels,
+                                        "uploaded"))
+        tryCatch(wright_item_map_data(), error = function(e) NULL) else NULL,
       ef_setmap = if (identical(current_model, "efrm"))
         tryCatch(ef_setmap(), error = function(e) NULL) else NULL,
       btlef_sets = if (identical(current_model, "btl"))
@@ -9441,13 +9757,28 @@ server <- function(input, output, session) {
 
   # exports carry the analysis as run in this session: the DIF model the
   # analyst configured and any bootstrap null, not default recomputations
-  app_dif_res <- function() {
+  app_dif_res <- function(strict = FALSE) {
     f <- if (!is.null(btl_fit())) tryCatch(bfit(), error = function(e) NULL)
       else fit_or_null()
     if (is.null(f)) return(NULL)
     if (inherits(f, "rasch_btl")) return(bdif_res())
-    if (is.null(f$factors)) return(NULL)
-    tryCatch(dif_res(), error = function(e) NULL)
+    # A frame-defining factor is not an eligible DIF factor. Its presence
+    # alone must not prevent an otherwise valid frame-model export.
+    eligible <- setdiff(names(f$factors), f$frame_group %||% character(0))
+    if (!length(eligible)) return(NULL)
+    result <- tryCatch(dif_res(), error = function(e) e)
+    if (inherits(result, "error")) {
+      if (isTRUE(strict))
+        stop("The selected DIF analysis is unavailable: ",
+             conditionMessage(result),
+             ". Revise the DIF specification before exporting; the report ",
+             "cannot substitute a different analysis.", call. = FALSE)
+      # Project files may retain the chosen settings without a computed
+      # result. Report writers interpret NULL as a request for defaults, so
+      # exports must use the strict path above.
+      return(NULL)
+    }
+    result
   }
   app_boot_res <- function() {
     bv <- boot_val()
@@ -9468,9 +9799,28 @@ server <- function(input, output, session) {
     tryCatch(if (!is.null(btl_fit())) btl_dim() else scree_diag(),
              error = function(e) NULL)
   }
-  app_subtest_res <- function() {
+  app_subtest_res <- function(strict = FALSE) {
     if (!is.null(btl_fit())) return(NULL)
-    tryCatch(dim_res(), error = function(e) NULL)
+    f <- fit_or_null()
+    # These designs have no app person-subset analysis. The report records
+    # the package's deliberate refusal rather than blocking other outputs.
+    if (is.null(f) || inherits(f, c("rasch_mfrm", "rasch_efrm")) ||
+        .has_repeated_residual_units(f)) return(NULL)
+    value <- tryCatch(dim_res(), error = function(e) e)
+    if (!inherits(value, "error")) return(value)
+    B <- suppressWarnings(as.numeric(input$dim_boot_B %||% 0))
+    selected <- !is.null(dim_subsets()) || length(input$dim_pos) > 0L ||
+      length(input$dim_neg) > 0L || pca_k() != 1L ||
+      length(B) != 1L || !is.finite(B) || B != 0
+    if (isTRUE(strict) && selected)
+      stop("The selected dimensionality t-test is unavailable: ",
+           conditionMessage(value),
+           " Run a supported t-test before exporting; the report cannot ",
+           "substitute its default item split or bootstrap settings.",
+           call. = FALSE)
+    # No optional t-test has been selected: the writer may use its usual
+    # descriptive default. Project saving also retains unfinished settings.
+    NULL
   }
   app_inv_res <- function() {
     f <- fit_or_null()
@@ -9523,7 +9873,22 @@ server <- function(input, output, session) {
     restoring_project(TRUE)
     withProgress(message = "Opening saved analysis…", value = 0.5, {
       restored_project_settings(p$settings %||% list())
-      restored_project_resources(p$resources %||% list())
+      resources <- p$resources %||% list()
+      # This runtime resource is reconstructed from the signed result, not
+      # accepted as an independent persisted override. It leaves all source
+      # columns intact, including factors also used in a comparison role.
+      saved_bdif <- p$results[["btl_dif"]]
+      saved_bdif_meta <- p$results[["btl_dif_meta"]]
+      resources$btl_dif_factors <- if (!is.null(saved_bdif) &&
+          !is.null(saved_bdif_meta)) list(
+        factors = saved_bdif$bootstrap_design$factors,
+        # The source calibration's role is restored on the Data page. The
+        # DIF run may have used another column containing the same judge IDs;
+        # the stored maps are already keyed to the fitted judges themselves.
+        judge_col = p$settings$bt_judge %||% saved_bdif_meta$judge_col,
+        data = as.data.frame(p$data, check.names = FALSE),
+        fit_signature = .fit_boot_signature(p$base_fit)) else NULL
+      restored_project_resources(resources)
       sim_data(as.data.frame(p$data, check.names = FALSE))
       sim_truth_val(p$simulation$truth %||% NULL)
       sim_code_val(p$simulation$code %||% NULL)
@@ -9548,9 +9913,13 @@ server <- function(input, output, session) {
       updateSelectizeInput(session, "cmp_ref", choices = names(k),
                            selected = if (length(k)) names(k)[1] else character(0))
       rasch_k <- names(k)[vapply(k, .app_equating_fit, logical(1))]
+      saved_eq <- p$settings$eq_kept %||% character(0)
       updateSelectizeInput(session, "eq_kept", choices = rasch_k,
-                           selected = if (length(rasch_k)) tail(rasch_k, 1)
-                           else character(0))
+                           selected = if (length(saved_eq) == 1L &&
+                                           !is.na(saved_eq) &&
+                                           saved_eq %in% rasch_k) saved_eq
+                             else if (length(rasch_k)) tail(rasch_k, 1)
+                             else character(0))
 
       rr <- p$results %||% list()
       resolve_res(rr$resolve %||% NULL); lr_res(rr$lr %||% NULL)
@@ -9593,6 +9962,11 @@ server <- function(input, output, session) {
   # The Export page offers HTML, Word and PDF. The navbar shortcut remains a
   # one-click HTML report. Comparative Judgement uses the R Markdown report;
   # the established self-contained HTML writer remains the richer Rasch path.
+  fit_with_app_results <- function(f) {
+    z <- person_weight_state()
+    if (!is.null(z)) attr(f, "report_person_weights") <- z
+    f
+  }
   report_content <- function(file, format = input$report_format %||% "html") {
     f <- if (!is.null(btl_fit())) bfit() else fit_or_null()
     if (is.null(f)) {
@@ -9600,19 +9974,22 @@ server <- function(input, output, session) {
                        type = "warning", duration = 8)
       stop("no fit to report")
     }
+    f <- fit_with_app_results(f)
+    tailored <- if (inherits(f, "rasch_btl")) NULL else guess_res()
     withProgress(message = paste("Building the", toupper(format), "report…"),
                  value = 0.4, {
       if (identical(format, "html") && !inherits(f, "rasch_btl"))
-        report_html(f, file, dif = app_dif_res(), bootstrap = app_boot_res(),
+        report_html(f, file, dif = app_dif_res(strict = TRUE), bootstrap = app_boot_res(),
                     dif_bootstrap = app_dif_boot_res(),
                     dimensionality = app_dim_res(),
-                    subtest = app_subtest_res(), invariance = app_inv_res())
+                    subtest = app_subtest_res(strict = TRUE), invariance = app_inv_res(),
+                    tailored = tailored)
       else report_document(f, file, format = format,
-                           dif = app_dif_res(), bootstrap = app_boot_res(),
+                           dif = app_dif_res(strict = TRUE), bootstrap = app_boot_res(),
                            dif_bootstrap = app_dif_boot_res(),
                            dimensionality = app_dim_res(),
-                           subtest = app_subtest_res(),
-                           invariance = app_inv_res())
+                           subtest = app_subtest_res(strict = TRUE),
+                           invariance = app_inv_res(), tailored = tailored)
     })
   }
   output$dl_report <- downloadHandler(
@@ -9626,20 +10003,46 @@ server <- function(input, output, session) {
     filename = function() format(Sys.time(), "rasch_results_%Y%m%d_%H%M.zip"),
     content = function(file) {
       f <- if (!is.null(btl_fit())) bfit() else fit()
-      tmp <- file.path(tempdir(), paste0("rasch_", as.integer(Sys.time())))
+      f <- fit_with_app_results(f)
+      tailored <- if (inherits(f, "rasch_btl")) NULL else guess_res()
+      tmp <- tempfile("rasch-results-")
+      dir.create(tmp)
+      on.exit(unlink(tmp, recursive = TRUE, force = TRUE), add = TRUE)
       withProgress(message = "Writing all tables and plots…", value = 0.4, {
         save_outputs(f, tmp,
                      formats = if (length(input$exp_formats)) input$exp_formats else "png",
                      item_plots = isTRUE(input$exp_items),
-                     dif = app_dif_res(), bootstrap = app_boot_res(),
+                     dif = app_dif_res(strict = TRUE), bootstrap = app_boot_res(),
                      dif_bootstrap = app_dif_boot_res(),
                      dimensionality = app_dim_res(),
-                     subtest = app_subtest_res(),
-                     invariance = app_inv_res())
+                     subtest = app_subtest_res(strict = TRUE),
+                     invariance = app_inv_res(), tailored = tailored)
       })
-      owd <- setwd(tmp); on.exit(setwd(owd), add = TRUE)
-      utils::zip(zipfile = file, files = list.files(".", recursive = TRUE),
-                 flags = "-r9Xq")
+      writeLines(c(
+        "rasch model results archive",
+        "",
+        paste("Included: fitted-model tables and plots, plus any compatible",
+              "DIF, fit-bootstrap, DIF-bootstrap, dimensionality, person-subset",
+              "dimensionality, frame-invariance, tailored guessing, and externally weighted secondary",
+              "person measures passed to save_outputs()."),
+        paste("Not included: app-only comparison, equating, rescoring, planned",
+              "contrast, dependence-magnitude, spread, and",
+              "other displays for which save_outputs() has no serialization contract."),
+        paste("Use the table-specific CSV downloads for those displays. Save the",
+              ".rasch analysis to retain the app state and reopen it later.")),
+        file.path(tmp, "README.txt"))
+      local({
+        old <- setwd(tmp)
+        on.exit(setwd(old))
+        files <- list.files(".", recursive = TRUE, all.files = TRUE,
+                            no.. = TRUE)
+        unlink(file)
+        status <- utils::zip(zipfile = file, files = files, flags = "-r9Xq")
+        if (!isTRUE(as.integer(status) == 0L) || !file.exists(file)) {
+          unlink(file)
+          stop("the model-results archive could not be created")
+        }
+      })
     })
 }
 

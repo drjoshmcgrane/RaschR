@@ -146,6 +146,18 @@ test_that("plot_btl draws and print method runs", {
   ft <- btl(sim_btl(beta, 40, seed = 5), "a", "b", "win")
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_btl(ft))
+  drawn <- NULL
+  testthat::with_mocked_bindings(
+    plot_btl(ft),
+    .btl_equate_cov_df = function(...) 4,
+    segments = function(x0, y0, x1, y1, ...) {
+      drawn <<- list(lower = x0, upper = x1)
+    },
+    .package = "rasch")
+  d <- ft$objects[order(ft$objects$location), ]
+  critical <- qt(0.975, 4)
+  expect_equal(drawn$lower, d$location - critical * d$se)
+  expect_equal(drawn$upper, d$location + critical * d$se)
   expect_output(print(ft), "Bradley-Terry-Luce")
 })
 
@@ -415,6 +427,12 @@ test_that("btl_dif finds a planted judge-group effect on the right object only",
   expect_true(any(grepl("not positive semidefinite",
                         invalid_covariance$notes)))
 
+  no_supported_cells <- btl_dif(f, grp, objects = "S06", min_n = 1000L)
+  expect_null(no_supported_cells$sizes)
+  expect_identical(no_supported_cells$size_family_n, 1L)
+  expect_match(paste(no_supported_cells$notes, collapse = " "),
+               "unavailable follow-up question(s)", fixed = TRUE)
+
   testthat::local_mocked_bindings(
     .btl_graded = function(...) {
       z <- old_graded(...)
@@ -544,6 +562,12 @@ test_that("fit_summary_table dispatches for paired-comparison fits", {
   expect_equal(ft$value[ft$statistic == "Objects"], "4")
   expect_equal(ft$value[ft$statistic == "Standard errors"],
                "sandwich, clustered by judge")
+  expect_identical(ft$value[ft$statistic == "Pairwise fit probability"],
+                   "unavailable (judge clustering)")
+  printed_fit <- capture.output(print(bt))
+  expect_true(any(grepl("probability unavailable", printed_fit,
+                        fixed = TRUE)))
+  expect_false(any(grepl("p = $", printed_fit)))
   expect_true(any(grepl("Within-judge exposure", ft$statistic)))
   expect_true(any(grepl("Within-judge carry-over", ft$statistic)))
   expect_true(all(grepl("Holm p", ft$value[
@@ -558,6 +582,13 @@ test_that("fit_summary_table dispatches for paired-comparison fits", {
                         ft_unavailable$value[dependence_rows], fixed = TRUE)))
   expect_false(any(grepl(" p = ", ft_unavailable$value[dependence_rows],
                          fixed = TRUE)))
+  printed_unavailable <- capture.output(print(no_adjustment))
+  printed_dependence <- printed_unavailable[
+    grepl("Within-judge|First-position", printed_unavailable)]
+  expect_true(any(grepl("Holm p unavailable", printed_dependence,
+                        fixed = TRUE)))
+  expect_false(any(grepl(" p = ", printed_dependence, fixed = TRUE)))
+  expect_no_error(plot_btl_dependence(no_adjustment, "exposure"))
   # graded fit reports its category count and threshold structure
   d$grade <- vapply(seq_len(nrow(d)), function(r) {
     p <- item_moments(beta[d$a[r]] - beta[d$b[r]], c(-1, 0, 1))$P
@@ -671,6 +702,41 @@ test_that("btl_dif tolerates adversarial factor names (band, f1)", {
   note <- paste(rs$notes, collapse = " ")
   expect_match(note, "cohort")
   expect_false(grepl("term\\(s\\) f1", note))
+})
+
+test_that("unavailable object DIF terms remain in the Holm family", {
+  set.seed(901)
+  objects <- LETTERS[1:5]
+  judges <- sprintf("J%02d", 1:20)
+  group <- setNames(rep(c("g1", "g2"), each = 10), judges)
+  beta <- setNames(seq(-1, 1, length.out = 5), objects)
+  pairs <- t(combn(objects, 2))
+  rows <- list()
+  for (i in seq_len(nrow(pairs))) {
+    # A is observed only in g1. The other objects retain both groups, so the
+    # requested family is usable but A's two questions are not estimable.
+    js <- if ("A" %in% pairs[i, ]) judges[1:10] else judges
+    for (r in 1:3) for (j in js)
+      rows[[length(rows) + 1L]] <- data.frame(
+        a = pairs[i, 1], b = pairs[i, 2], judge = j)
+  }
+  d <- do.call(rbind, rows)
+  d$win <- ifelse(runif(nrow(d)) < plogis(beta[d$a] - beta[d$b]),
+                  d$a, d$b)
+  fit <- btl(d, "a", "b", "win", judge = "judge")
+  out <- btl_dif(fit, list(group = group), min_n = 2)
+
+  unavailable <- out$terms$object == "A" &
+    out$terms$term %in% c("group", "group:band")
+  expect_equal(sum(unavailable), 2L)
+  expect_true(all(is.na(out$terms$p[unavailable])))
+  family <- out$terms$term != "band"
+  expect_equal(sum(family), 2L * length(objects))
+  usable <- family & is.finite(out$terms$p)
+  expect_equal(out$terms$p_adj[usable],
+               p.adjust(out$terms$p[usable], "holm", n = sum(family)))
+  expect_match(paste(out$notes, collapse = " "),
+               "remain in the adjusted-probability family")
 })
 
 test_that("btl stores per-comparison dependence covariates and plots them", {
@@ -878,14 +944,13 @@ test_that("btl_transitivity and btl_dimensionality read one-D vs a swirl", {
                  (length(d1$reference$draws) + 1))
   expect_equal(d1$reference$p_adj, d1$reference$p)
   expect_identical(d1$leading_structured, d1$reference$p_adj <= 0.05)
+  current_print <- capture.output(print(d1))
+  expect_true(any(grepl(sprintf("adjusted p = %.3f", d1$reference$p_adj),
+                        current_print, fixed = TRUE)))
   old_d1 <- d1
   old_d1$reference$p <- old_d1$reference$p_adj <- NULL
   old_print <- expect_no_error(capture.output(print(old_d1)))
-  expected_old_p <- (1 + sum(old_d1$reference$draws >=
-                               old_d1$bimensions$strength[1])) /
-    (length(old_d1$reference$draws) + 1)
-  expect_true(any(grepl(sprintf("p = %.3f", expected_old_p), old_print,
-                        fixed = TRUE)))
+  expect_true(any(grepl("adjusted p unavailable", old_print, fixed = TRUE)))
 
   # a cyclic swirl: leading bimension clears the reference, most of residual
   f2 <- mk(1.6, 2); d2 <- btl_dimensionality(f2, reps = 40)
@@ -932,6 +997,21 @@ test_that("judge_surprise flags a judge's systematic contrary judgements", {
   expect_gt(js$objects$z[js$objects$object == "O1"], 0)
   expect_equal(js$objects$type[js$objects$object == "O8"],
                "strong object under-rated")
+
+  # The scale origin is arbitrary. Anchoring two objects ten logits higher is
+  # a pure translation of this fit and must not change which judgements are
+  # surprising or how their direction is described.
+  anchors <- setNames(
+    f$objects$location[match(c("O1", "O8"), f$objects$object)] + 10,
+    c("O1", "O8"))
+  translated <- btl(d, "a", "b", "win", judge = "judge",
+                    anchors = anchors)
+  js_translated <- judge_surprise(translated, "J1")
+  ref <- js$objects[order(js$objects$object), ]
+  got <- js_translated$objects[order(js_translated$objects$object), ]
+  expect_equal(got$z, ref$z, tolerance = 1e-10)
+  expect_identical(got$surprise, ref$surprise)
+  expect_identical(got$type, ref$type)
   # a model-conforming judge shows no systematic surprise
   expect_equal(sum(judge_surprise(f, "J3")$objects$surprise), 0L)
 
@@ -975,6 +1055,39 @@ test_that("judge_pair_surprise flags the matchups a judge got against the grain"
   pdf(NULL); on.exit(dev.off())
   expect_no_error(plot_btl_judge_map(f, "J1"))
   expect_error(judge_pair_surprise(f, "nobody"), "no comparisons")
+})
+
+test_that("unavailable judge residuals remain in the Holm family", {
+  d <- simulate_btl(6, 6, reps_per_pair = 4, seed = 10041)
+  f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  judge <- f$comparisons$judge[1L]
+  real_moments <- rasch:::.btl_fitted_moments
+  unavailable <- function(fit, cmp) {
+    z <- real_moments(fit, cmp)
+    z$E[1L] <- NA_real_
+    z$V[1L] <- NA_real_
+    z
+  }
+
+  js <- testthat::with_mocked_bindings(
+    judge_surprise(f, judge, min_n = 1L),
+    .btl_fitted_moments = unavailable, .package = "rasch")
+  planned_object <- js$objects$n >= js$min_n
+  usable_object <- planned_object & is.finite(js$objects$p)
+  expect_true(any(planned_object & !usable_object))
+  expect_equal(
+    js$objects$p_adj[usable_object],
+    p.adjust(js$objects$p[usable_object], "holm", n = sum(planned_object)))
+
+  jp <- testthat::with_mocked_bindings(
+    judge_pair_surprise(f, judge, min_n = 1L),
+    .btl_fitted_moments = unavailable, .package = "rasch")
+  planned_pair <- jp$pairs$n >= jp$min_n
+  usable_pair <- planned_pair & is.finite(jp$pairs$p)
+  expect_true(any(planned_pair & !usable_pair))
+  expect_equal(
+    jp$pairs$p_adj[usable_pair],
+    p.adjust(jp$pairs$p[usable_pair], "holm", n = sum(planned_pair)))
 })
 
 test_that("btl_dimensionality is calibrated and powered on non-cyclic 2-D data", {
@@ -1121,6 +1234,11 @@ test_that("position bias: a first-position advantage is recovered", {
   expect_gt(fp$t, 2)
   # the print label is the positional one, not "Within-judge"
   expect_output(print(ff), "First-position advantage")
+  position_summary <- fit_summary_table(ff)
+  expect_true(any(grepl("First-position advantage",
+                        position_summary$statistic, fixed = TRUE)))
+  expect_false(any(grepl("Within-judge position",
+                         position_summary$statistic, fixed = TRUE)))
 })
 
 test_that("position effects are refused when confounded with object locations", {
@@ -1454,6 +1572,27 @@ test_that("the observed-ICC display survives a fully omitted comparator set", {
   # every opponent falls below the default min_n: the model curve and the
   # omission note still draw, with no visible points
   expect_no_error(plot_btl_icc(f, "O2"))
+})
+
+test_that("the grouped BTL ICC refuses an empty grouping display", {
+  d <- simulate_btl(n_objects = 8, n_judges = 30, reps_per_pair = 10,
+                    seed = 22)
+  f <- btl(d, "object_a", "object_b", winner = "winner", judge = "judge")
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  expect_error(plot_btl_icc(f, "O2", group = rep(NA_character_,
+                                                   nrow(f$comparisons))),
+               "no observed judge-group values")
+  blank <- stats::setNames(rep("  ", length(unique(f$comparisons$judge))),
+                           unique(f$comparisons$judge))
+  expect_error(plot_btl_icc(f, "O2", group = blank),
+               "no observed judge-group values")
+
+  group <- ifelse(f$comparisons$object_a == "O2" |
+                    f$comparisons$object_b == "O2", NA_character_, "g1")
+  expect_error(plot_btl_icc(f, "O2", group = group),
+               "for object 'O2'")
 })
 
 test_that("the dependence plot's baseline carries a fitted position effect", {

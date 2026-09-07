@@ -15,6 +15,86 @@ sim_btl_t <- function(beta, n_per_pair, seed = 1, judges = NULL) {
   d
 }
 
+test_that("design information retains dichotomous and graded position effects", {
+  for (m in c(1L, 3L)) {
+    set.seed(991 + m)
+    n <- 1200L
+    beta <- setNames(seq(-1, 1, length.out = 5), LETTERS[1:5])
+    a <- sample(names(beta), n, TRUE)
+    b <- vapply(a, function(z) sample(setdiff(names(beta), z), 1L), "")
+    tau <- if (m == 1L) 0 else c(-1.2, 0, 1.2)
+    d <- data.frame(a, b)
+    eta <- beta[a] - beta[b] + 1.3
+    d$response <- vapply(eta, function(z)
+      sample(0:m, 1L, prob = item_moments(z, tau)$P), 0L)
+    fit <- btl(d, "a", "b", response = "response", position = TRUE)
+    info <- btl_information(fit)
+    P <- fit$fitted_prob
+    E <- drop(P %*% (0:m))
+    expected <- drop(P %*% (0:m)^2) - E^2
+    expect_equal(info$comparisons$information, expected, tolerance = 1e-12)
+    expect_equal(info$total, sum(fit$comparisons$weight * expected))
+    expect_equal(sum(info$objects$information), 2 * info$total)
+    equal_unit <- .btl_info_of_d(info$comparisons$gap, m, tau =
+      if (m > 1L) fit$thresholds$tau else NULL)
+    expect_gt(max(abs(expected - equal_unit)), 0.05)
+
+    next_pairs <- btl_next_pairs(fit, weight_se = FALSE)
+    position <- fit$dependence$estimate[fit$dependence$effect == "position"]
+    expect_equal(next_pairs$expected_information,
+      .btl_info_of_d(next_pairs$gap + position, m,
+                    if (m > 1L) fit$thresholds$tau else NULL))
+    broken <- fit; broken$fitted_prob <- P[-1L, , drop = FALSE]
+    expect_error(btl_information(broken), "row-aligned fitted probabilities")
+    if (m == 3L) {
+      grid <- c(-1, 0, 1)
+      curves <- list()
+      grDevices::pdf(NULL)
+      testthat::with_mocked_bindings(plot_btl_categories(fit, grid),
+        lines = function(x, y, ...) curves[[length(curves) + 1L]] <<- y,
+        .package = "rasch")
+      grDevices::dev.off()
+      want <- vapply(grid, function(z)
+        item_moments(z + position, fit$thresholds$tau)$P, numeric(4L))
+      expect_equal(do.call(rbind, curves), want)
+    }
+  }
+})
+
+test_that("history-dependent design information is conditional on fitted history", {
+  d <- simulate_btl(5, 20, reps_per_pair = 50,
+    dependence = list(exposure = 0.7, carry_over = 0.4), seed = 993)
+  fit <- btl(d, "object_a", "object_b", "winner", judge = "judge", order = "order")
+  expect_true(.btl_information_history(fit))
+  P <- fit$fitted_prob[, 2L]
+  info <- btl_information(fit)
+  expect_equal(info$comparisons$information, P * (1 - P))
+  expect_error(btl_next_pairs(fit, weight_se = FALSE), "judge and comparison history")
+  grDevices::pdf(NULL); on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_error(plot_btl_targeting(fit))
+
+  object <- fit$objects$object[1L]
+  cm <- fit$comparisons
+  a <- cm$object_a == object; b <- cm$object_b == object
+  opp <- c(cm$object_b[a], cm$object_a[b])
+  weight <- c(cm$weight[a], cm$weight[b])
+  expectation <- c(P[a], 1 - P[b])
+  expected <- tapply(weight * expectation, opp, sum) / tapply(weight, opp, sum)
+  captured <- list()
+  testthat::with_mocked_bindings(
+    plot_btl_icc(fit, object, min_n = 1),
+    lines = function(x, y, ..., lwd = 1) {
+      if (lwd == 3) captured[[length(captured) + 1L]] <<- list(x = x, y = y)
+    }, .package = "rasch")
+  loc <- fit$objects$location[match(names(expected), fit$objects$object)]
+  expect_length(captured, 1L)
+  expect_equal(as.numeric(captured[[1L]]$y), as.numeric(expected[order(loc)]))
+
+  group <- setNames(rep(c("A", "B"), length.out = length(unique(cm$judge))),
+                     unique(cm$judge))
+  expect_no_error(plot_btl_icc(fit, object, group = group, min_n = 1))
+})
+
 test_that("dichotomous pair information falls with the location gap", {
   beta <- c(A = -2, B = -1, C = 0, D = 1, E = 2)
   d <- sim_btl_t(beta, 60, seed = 11)

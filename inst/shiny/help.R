@@ -56,10 +56,11 @@ APP_HELP <- c(
     "more reproducible object ordering."
   ),
   metric_pair_fit = paste(
-    "Probability for the overall pairwise fit statistic. After a fit bootstrap,",
-    "this uses the fitted-design bootstrap null. Small values indicate that",
-    "observed responses differ from the fitted object-pair expectations. The",
-    "bootstrap reference is the fitted global null."
+    "The overall pairwise fit probability. After a fit bootstrap, it uses the",
+    "fitted-design null. Small values indicate departure from the fitted",
+    "object-pair expectations. Without a bootstrap, it is unavailable when",
+    "judges contribute repeated comparisons. BTL–EFRM retains the statistic",
+    "descriptively but does not report a whole-fit probability."
   ),
   metric_item_misfit = paste(
     "Before bootstrapping, this is the number of items with an approximate",
@@ -111,7 +112,9 @@ APP_HELP <- c(
   btl_fitsum_tbl = paste(
     "Summarises fit of the comparative judgement model. Pairwise chi-square",
     "compares observed and expected responses for each object pair; the",
-    "object separation index describes reproducibility of the object ordering."
+    "object separation index describes reproducibility of the object ordering.",
+    "A row-based probability is unavailable when judges contribute repeated",
+    "comparisons; BTL–EFRM retains the chi-square only as a descriptive summary."
   ),
   change_est_tbl = paste(
     "Compares original and active item or object locations after a structural",
@@ -123,11 +126,13 @@ APP_HELP <- c(
   ),
   expl_test_tbl = paste(
     "Compares the active explanatory model with a free calibration of the same",
-    "responses. Use the Kent-adjusted probability for inference."
+    "responses. Use the first-order, asymptotic Kent-adjusted probability for",
+    "this multivariate comparison."
   ),
   expl_coef_tbl = paste(
     "Reports predictor effects on item, threshold or object location in logits, with",
-    "standard errors and Holm-adjusted probabilities."
+    "standard errors and Holm-adjusted probabilities. Repeated-person or",
+    "judge-clustered fits use their supported cluster degrees of freedom."
   ),
   expl_diag_tbl = paste(
     "Tests each available fixed item, threshold or object departure separately from",
@@ -219,26 +224,29 @@ APP_HELP <- c(
   # Targeting and equating -------------------------------------------------
   btl_info_tbl = paste(
     "Reports the Fisher information supplied by each object's observed",
-    "comparisons. Larger values indicate that the comparison design places",
-    "that object more precisely."
+    "comparisons, retaining fitted position, history and frame effects.",
+    "This describes the design; it is not the fitted standard error."
   ),
   btl_next_tbl = paste(
     "Ranks candidate comparisons by the information expected from one",
     "additional judgement. Priority weighting favours the pairs expected to",
-    "reduce total location uncertainty most."
+    "reduce total location uncertainty most. The stronger object is presented",
+    "first. History-dependent fits need a specified judge and history."
   ),
   btl_eq_tbl = paste(
     "Places two comparative judgement calibrations on a common origin using",
     "shared objects. The shift and object differences show agreement between",
     "the calibrations after linking. The shift is precision-weighted when",
     "usable standard errors are available; otherwise it is an unweighted",
-    "descriptive mean."
+    "descriptive mean. An exact common anchor fixes the shift."
   ),
   eq_tbl = paste(
     "Compares common-item locations after the selected origin alignment.",
     "The mean shift is precision-weighted when usable standard errors are",
-    "available and otherwise unweighted and descriptive. Where joint",
-    "uncertainty is available, adjusted tests identify item drift."
+    "available and otherwise unweighted and descriptive. An exact common",
+    "anchor fixes the shift. Where joint",
+    "uncertainty is available, adjusted t tests identify item drift and report",
+    "the applicable finite-cluster or limiting reference degrees of freedom."
   ),
   eq_plot = paste(
     "Plots the common-item calibrations against the aligned identity line.",
@@ -297,7 +305,8 @@ APP_HELP <- c(
     "Compares resolved interaction cells pairwise. Use these rows to locate the",
     "pattern after reading the interaction contrasts above. ETS letters apply",
     "to dichotomous items. Polytomous items report the PCM signed",
-    "expected-score area descriptively."
+    "expected-score area descriptively. Wald tests report their applicable",
+    "person-cluster degrees of freedom."
   ),
   resolve_tbl = paste(
     "Records each automatic item split, its triggering term and effect size.",
@@ -393,18 +402,21 @@ APP_HELP <- c(
   dm_tbl = paste(
     "Compares reliability when items are treated separately with a refit in",
     "which each item subset is a super-item. The resulting coefficients estimate",
-    "unique loading, correlation and common variance across the subsets."
+    "unique loading, correlation and common variance across the subsets.",
+    "Both use complete-response rows; PSI also requires usable estimates in",
+    "both fits. n and n_excluded count response rows used and excluded."
   ),
   dep_tbl = paste(
     "Reports threshold differences after the dependent item is resolved by the",
     "independent item's categories and the model is refitted. Their half-range",
-    "estimates the overall dependence magnitude in logits."
+    "estimates the overall dependence magnitude in logits. The Wald test uses",
+    "person-cluster degrees of freedom when response rows repeat."
   ),
   spread_tbl = paste(
     "Compares each recorded superitem's threshold spread with the binomial",
     "bound. The one-sided adjusted probability tests whether the spread is",
-    "below that bound; the point-estimate comparison is shown separately. The",
-    "bound is available only when the superitem contains dichotomous items."
+    "below that bound and reports the applicable person-cluster degrees of",
+    "freedom. The bound is available only for dichotomous-item superitems."
   ),
   cormat_q3_tbl = paste(
     "Shows Yen's Q3 residual correlations between items. Large positive values",
@@ -462,13 +474,15 @@ APP_HELP <- c(
   cmp_tbl = paste(
     "Compares fits retained during this session. Information criteria are",
     "comparable only for models using the same observations and response",
-    "definition; other rows support descriptive comparison. CL-BIC is the",
-    "stricter criterion; CL-AIC can prefer a model that adds a single",
-    "parameter in about one null dataset in six."
+    "scale; other rows support descriptive comparison. Generic EFRM",
+    "information criteria and likelihood differences are withheld; use its",
+    "dedicated model comparison. Smaller CL-AIC or CL-BIC is preferred."
   ),
   sim_recovery_tbl = paste(
-    "Compares planted and recovered parameters for the current simulated data.",
-    "Locations are aligned to the model's identifying origin."
+    "Compares generating and fitted parameters for the current simulated data.",
+    "Locations are aligned to the model's identifying origin. If the fitted",
+    "model does not represent a planted departure, the comparison is marked",
+    "as descriptive rather than parameter recovery."
   ),
   sim_preview = paste(
     "Shows the first rows of the simulated dataset currently loaded for analysis.",
@@ -593,11 +607,13 @@ APP_HELP <- c(
   ),
   btl_occ = paste(
     "Shows the selected object's expected response over opponent location, with",
-    "observed means for opponents supported by enough comparisons."
+    "observed means for opponents supported by enough comparisons. Position-",
+    "and history-adjusted fits use model expectations for those comparisons."
   ),
   btl_cats = paste(
     "Shows the probabilities of the ordered comparative judgement response",
-    "categories over the difference between object locations."
+    "categories. Position effects are included. For history-dependent fits,",
+    "the axis is the full linear predictor, including position and history terms."
   ),
   btl_judge_map = paste(
     "Shows one judge's observed comparison responses against their modelled",
@@ -614,7 +630,8 @@ APP_HELP <- c(
   btl_targeting_plot = paste(
     "Plots object location against design information, with point size showing",
     "comparison count. Equal-unit fits also show the information expected from",
-    "one new comparison; frame fits have no single reference curve."
+    "one new comparison; frame and history-dependent fits have no single",
+    "reference curve. A position-adjusted curve presents the reference object first."
   ),
   btl_eq_plot = paste(
     "Compares linked object locations from two comparative judgement calibrations.",
@@ -644,7 +661,8 @@ APP_HELP <- c(
   ),
   btlef_units_plot = paste(
     "Displays panel and set units with confidence intervals on the log scale.",
-    "The zero reference corresponds to a unit of one."
+    "Intervals use the reported reference degrees of freedom and are omitted",
+    "where inference is unavailable. Zero corresponds to a unit of one."
   )
 )
 

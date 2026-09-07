@@ -31,6 +31,10 @@
 #' calculated from their full sandwich covariance. If that covariance is
 #' unavailable or not positive semidefinite, the point estimate is retained
 #' as a descriptive magnitude and Wald inference is withheld.
+#' When repeated person identifiers contribute to the refit, probabilities use
+#' a t reference with the number of independent person clusters minus one
+#' degree of freedom. Independent response rows retain the asymptotic normal
+#' reference, represented by infinite degrees of freedom.
 #'
 #' Polytomous resolution requires an unconstrained partial credit model so
 #' that each resolved threshold can move independently. A rating scale or
@@ -43,13 +47,16 @@
 #' frame or linked design block. For an explanatory fit, the remaining items
 #' retain their explanatory restrictions and the resolved copies receive free
 #' fixed departures.
+#' Resolution is refused if any retained item or resolved copy loses its
+#' original score categories during calibration.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param dependent,independent Item names or indices: the item hypothesised
 #'   to depend, and the item it depends on. Both must share the same maximum
 #'   score (the formalisation requires it).
 #' @return A list of class \code{"rasch_dependence"}: the estimate \code{d},
-#'   its \code{se}, \code{z} and \code{p} for the hypothesis \eqn{d = 0},
+#'   its \code{se}, \code{t}, reference \code{df} and \code{p} for the
+#'   hypothesis \eqn{d = 0},
 #'   the per-threshold table \code{thresholds} (columns \code{k},
 #'   \code{delta_lo}, \code{delta_hi}, \code{d_k}, \code{se_k}), and the
 #'   resolved \code{refit}.
@@ -113,12 +120,16 @@ dependence_magnitude <- function(fit, dependent, independent) {
   # The resolution method requires every resolved threshold to be free. This
   # also routes an MFRM virtual-item analysis through the ordinary PCM rather
   # than handing the structural model label to rasch().
+  score_max <- c(stats::setNames(fit$m[match(keep, fit$items$item)], keep),
+                 stats::setNames(rep(mj, length(res_names)), res_names))
   refit <- if (inherits(fit, "rasch_explanatory")) {
     inherit <- c(stats::setNames(keep, keep),
                  stats::setNames(rep(nm_j, length(res_names)), res_names))
     .explanatory_refit_modified(fit, Xn, inherit = inherit,
                                 fully_relaxed = res_names)
-  } else .rasch_refit(fit, Xn, model = "PCM", require_anchor = FALSE)
+  } else .rasch_refit(fit, Xn, model = "PCM", require_anchor = FALSE,
+                      score_max = score_max)
+  .require_fitted_score_structure(refit, score_max, "the dependence refit")
   if (!isTRUE(refit$est$converged))
     stop("the resolved calibration did not converge; dependence magnitude is unavailable")
   if (!all(res_names %in% refit$items$item))
@@ -146,7 +157,8 @@ dependence_magnitude <- function(fit, dependent, independent) {
   w <- w / (2 * mj)
   d <- mean(tab$d_k)
   se <- if (cov_ok) sqrt(pmax(drop(crossprod(w, cv %*% w)), 0)) else NA_real_
-  z <- .wald_ratio(d, se)
+  statistic <- .wald_ratio(d, se)
+  df <- .dif_refit_df(refit)
   # a magnitude built on weakly identified resolved thresholds keeps its
   # descriptive value, but the covariance behind its standard error is not
   # trustworthy; inference is withheld, as it is for the thresholds
@@ -155,26 +167,32 @@ dependence_magnitude <- function(fit, dependent, independent) {
   weak_res <- isTRUE(any(res_thr$weak))
   note <- character(0)
   if (weak_res) {
-    se <- z <- NA_real_
+    se <- statistic <- df <- NA_real_
     note <- c(note, paste("resolved thresholds are weakly identified (sparse",
                          "resolved categories); the magnitude is descriptive and",
                          "inference is withheld"))
     tab$se_k <- NA_real_
   }
   if (!cov_ok) {
-    se <- z <- NA_real_
+    se <- statistic <- df <- NA_real_
     tab$se_k <- NA_real_
     note <- c(note, paste("the resolved-threshold covariance is unavailable or",
                          "not positive semidefinite; the magnitude is descriptive",
                          "and inference is withheld"))
-  } else if (!weak_res && !is.finite(z)) {
-    se <- NA_real_
+  } else if (!weak_res && !is.finite(statistic)) {
+    se <- statistic <- df <- NA_real_
     note <- c(note, paste("the resolved contrast has zero estimated uncertainty;",
                          "Wald inference is withheld"))
+  } else if (!weak_res && is.na(df)) {
+    se <- statistic <- NA_real_
+    tab$se_k <- NA_real_
+    note <- c(note, paste(
+      "the resolved calibration does not carry enough independent",
+      "person-cluster support for a reference distribution; inference is withheld"))
   }
-  out <- list(d = d, se = se, z = z,
-              p = if (!is.finite(z)) NA_real_ else
-                2 * pnorm(-abs(z)),
+  out <- list(d = d, se = se, t = statistic, df = df,
+              p = if (!is.finite(statistic) || is.na(df)) NA_real_ else
+                2 * stats::pt(-abs(statistic), df = df),
               thresholds = tab, dependent = nm_j, independent = nm_i,
               note = if (length(note)) paste(note, collapse = "; ") else NULL,
               refit = refit)
@@ -187,11 +205,15 @@ dependence_magnitude <- function(fit, dependent, independent) {
 print.rasch_dependence <- function(x, ...) {
   cat(sprintf("Response dependence of %s on %s (Andrich & Kreiner resolution)\n",
               x$dependent, x$independent))
-  if (is.na(x$se))
+  statistic <- x$t %||% x$z
+  if (is.na(x$se) || is.na(statistic) || is.na(x$p))
     cat(sprintf("  d = %.3f logits (descriptive; inference withheld)\n", x$d))
-  else
-    cat(sprintf("  d = %.3f logits (se %.3f), z = %.2f, p = %s\n",
-                x$d, x$se, x$z, .fmt_p(x$p)))
+  else {
+    df <- x$df %||% Inf
+    reference <- if (is.finite(df)) sprintf("t(%g)", df) else "z"
+    cat(sprintf("  d = %.3f logits (se %.3f), %s = %.2f, p = %s\n",
+                x$d, x$se, reference, statistic, .fmt_p(x$p)))
+  }
   if (!is.null(x$note)) cat("  Note:", x$note, "\n")
   if (nrow(x$thresholds) > 1) {
     cat("  per threshold:\n")
@@ -232,8 +254,10 @@ print.rasch_dependence <- function(x, ...) {
 #' binomial bound applies only when every component was dichotomous; a
 #' composite containing a polytomous item is shown but its bound and verdict
 #' are withheld. When person identifiers repeat, the spread refit's sandwich
-#' covariance clusters the score contributions by person. The input
-#' calibration and the principal-components refit must both converge.
+#' covariance clusters the score contributions by person and probabilities use
+#' a t reference with the number of independent person clusters minus one
+#' degree of freedom. Independent rows retain the asymptotic normal reference.
+#' The input calibration and the principal-components refit must both converge.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param maxit,tol Passed to the \code{\link{pcml_pc}} refit.
@@ -245,8 +269,9 @@ print.rasch_dependence <- function(x, ...) {
 #'   \code{m}, whether the binomial bound is \code{eligible}, the
 #'   \code{spread} estimate and its \code{se}, the bound \code{lub}
 #'   (available for dichotomous-component subtests with maximum scores 2 to
-#'   8), \code{z} = (spread - lub)/se, the one-sided \code{p} and adjusted
-#'   \code{p_adj}, \code{below_bound} for the point-estimate comparison, and
+#'   8), \code{t} = (spread - lub)/se, reference \code{df}, the one-sided
+#'   \code{p} and adjusted \code{p_adj}, \code{below_bound} for the
+#'   point-estimate comparison, and
 #'   \code{dependent} for adjusted evidence at \code{alpha}.
 #'   Items not formed by \code{combine_items()} are omitted.
 #'   The result retains \code{alpha} and \code{p_adjust} as attributes.
@@ -287,7 +312,7 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
   if (!any(eligible)) {
     out <- data.frame(item = sub_names, m = fit$m[idx_fit], eligible = FALSE,
                       spread = NA_real_, se = NA_real_, lub = NA_real_,
-                      z = NA_real_, p = NA_real_, p_adj = NA_real_,
+                      t = NA_real_, df = NA_real_, p = NA_real_, p_adj = NA_real_,
                       below_bound = NA, dependent = NA)
     attr(out, "alpha") <- alpha
     attr(out, "p_adjust") <- p_adjust
@@ -311,8 +336,17 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
                     spread = cmp$spread[idx_pc], se = cmp$spread_se[idx_pc],
                     lub = ifelse(eligible,
                       unname(.spread_lub[as.character(fit$m[idx_fit])]), NA_real_))
-  out$z <- .wald_ratio(out$spread - out$lub, out$se)
-  out$p <- ifelse(out$eligible & is.finite(out$z), stats::pnorm(out$z), NA_real_)
+  pc_refit <- list(est = pc, repeated_ids = fit$repeated_ids,
+                   person = fit$person)
+  reference_df <- .dif_refit_df(pc_refit)
+  out$t <- .wald_ratio(out$spread - out$lub, out$se)
+  out$df <- ifelse(out$eligible, reference_df, NA_real_)
+  if (is.na(reference_df)) {
+    out$se[] <- NA_real_
+    out$t[] <- NA_real_
+  }
+  out$p <- ifelse(out$eligible & is.finite(out$t) & !is.na(out$df),
+                  stats::pt(out$t, df = out$df), NA_real_)
   out$p_adj <- NA_real_
   use <- out$eligible & is.finite(out$p)
   out$p_adj[use] <- stats::p.adjust(
@@ -323,6 +357,10 @@ spread_test <- function(fit, maxit = 60, tol = 1e-8,
   rownames(out) <- NULL
   attr(out, "alpha") <- alpha
   attr(out, "p_adjust") <- p_adjust
+  if (is.na(reference_df)) attr(out, "note") <- paste(
+    "spread inference is withheld because the principal-components refit",
+    "does not carry enough independent-person support for its sandwich",
+    "covariance")
   class(out) <- c("rasch_spread", "data.frame")
   out
 }
@@ -335,5 +373,6 @@ print.rasch_spread <- function(x, ...) {
   d <- as.data.frame(x)
   names(d)[names(d) == "lub"] <- "bound"
   print(.fmt_df(d), row.names = FALSE)
+  if (!is.null(attr(x, "note"))) cat("Note:", attr(x, "note"), "\n")
   invisible(x)
 }

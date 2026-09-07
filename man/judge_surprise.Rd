@@ -21,7 +21,10 @@ of approximately 0.05.}
 A list of class \code{"rasch_btl_judge"}: \code{objects} (per object
   met: location, times met \code{n}, residual \code{z}, approximate
   \code{p}, Holm-adjusted \code{p_adj}, \code{surprise} flag and its
-  \code{type}); \code{all_locations} (every object, for orientation);
+  \code{type}). Strong and weak refer to standing above or below the mean
+  calibrated-object location, so the classification is unchanged by the
+  arbitrary scale origin. \code{all_locations} contains every object for
+  orientation;
   the \code{judge} and settings.
 }
 \description{
@@ -35,6 +38,8 @@ are adjusted by Holm across the objects meeting \code{min_n}. A surprise
 is an eligible object treated against its standing (residual opposite in
 sign to the location) whose adjusted probability passes the level
 represented by \code{flag_z}. The fitted model must have converged.
+An adequately sampled object with unavailable residual inference remains
+in the adjustment family.
 }
 \examples{
 set.seed(1); objs <- LETTERS[1:6]; beta <- setNames(seq(-1.5, 1.5, len = 6), objs)

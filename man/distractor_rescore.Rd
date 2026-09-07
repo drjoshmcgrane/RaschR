@@ -14,7 +14,7 @@ distractor_rescore(fit, items = NULL, min_n = 20, z = 1.96)
 \item{min_n}{Minimum takers for a distractor to be considered.}
 
 \item{z}{Required separation, in standard errors, between a credited
-distractor and the uncredited ones.}
+distractor and the pooled remaining distractors.}
 }
 \value{
 A list of class \code{"rasch_rescore"}: \code{option_scores}, a
@@ -30,7 +30,7 @@ that a distractor carrying information about the trait receives partial
 credit (Andrich and Styles 2011). This function proposes such a scoring
 from the rest-measure distractor analysis: within each keyed item, a
 distractor qualifies for credit when it attracts at least \code{min_n}
-takers, its takers' mean rest location exceeds that of the uncredited
+takers, its takers' mean rest location exceeds that of the pooled remaining
 distractors by more than \code{z} standard errors of the difference,
 and it remains below the keyed option. Qualifying distractors are
 ranked by mean location and scored 1, 2, ... below the keyed option's

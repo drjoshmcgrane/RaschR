@@ -132,7 +132,8 @@
   # same results appear to belong to a different fit during rendering.
   for (nm in c("report_dif", "report_bootstrap", "report_dif_bootstrap",
                "report_dimensionality", "report_subtest",
-               "report_invariance"))
+               "report_invariance", "report_person_weights",
+               "report_tailored"))
     attr(fit, nm) <- NULL
   fit
 }
@@ -182,7 +183,7 @@
 }
 
 .new_fit_bootstrap <- function(x, fit, kind) {
-  x$algorithm <- "loo-maxt-1"
+  x$algorithm <- if (kind == "btl") "loo-maxt-1" else "loo-maxt-2"
   x$model_kind <- kind
   x$fit_signature <- .fit_boot_signature(fit)
   x <- .tag_tables(x)
@@ -197,6 +198,7 @@
 
 .validate_fit_bootstrap <- function(bootstrap, fit) {
   if (is.null(bootstrap)) return(invisible(NULL))
+  .require_refittable_calibration(fit)
   fail <- function() stop(
     "`bootstrap` is incomplete or internally inconsistent; recompute it with fit_bootstrap()",
     call. = FALSE)
@@ -220,7 +222,8 @@
     c("model", "pairs", "objects", "judges", "adjustment") else
     c("items", "persons", "person_adjustment"))
   if (!all(required %in% names(bootstrap)) ||
-      !identical(bootstrap$algorithm, "loo-maxt-1") ||
+      !identical(bootstrap$algorithm,
+                 if (expected == "btl") "loo-maxt-1" else "loo-maxt-2") ||
       !is.list(bootstrap$total) || !is.list(bootstrap$replicates)) fail()
 
   whole <- function(x, lower = 0L)
@@ -455,7 +458,7 @@
 # The estimation chain a replicate shares with the observed fit: the item
 # calibration, the person estimates, and the standardised residuals. A
 # failure object stands in for a replicate that could not be estimated.
-.fit_refit_residuals <- function(X, model, anchors, maxit, tol) {
+.fit_refit_residuals <- function(X, model, anchors, expected_m, maxit, tol) {
   est <- tryCatch(pcml(X, model = model, anchors = anchors,
                        maxit = maxit, tol = tol),
                   error = function(e) .fit_boot_failure("error"))
@@ -464,6 +467,13 @@
   L <- ncol(X)
   tau_list <- lapply(seq_len(L), function(i) est$thr$tau[est$thr$item == i])
   if (!all(vapply(tau_list, function(t) length(t) && all(is.finite(t)), TRUE)))
+    return(.fit_boot_failure("error"))
+  # A sparse replicate can leave its highest category unvisited. pcml() then
+  # fits a shorter item without error, but that is a different model and its
+  # residual statistic cannot enter the null reference for the observed
+  # scale. Treat it like any other failed same-model refit.
+  if (!identical(vapply(tau_list, length, integer(1)),
+                 as.integer(expected_m)))
     return(.fit_boot_failure("error"))
   person <- .person_estimates(X, tau_list, disc = 1)
   if (all(is.na(person$theta))) return(.fit_boot_failure("error"))
@@ -476,11 +486,10 @@
 # Everything the item fit statistics need from a response matrix and nothing
 # else: the person tables, score curves and targeting that rasch() also builds
 # are not used here and would multiply the cost by the number of replicates.
-# The class-interval count is imposed rather than re-derived per replicate, so
-# every replicate computes the same statistic as the observed fit rather than
-# one on a neighbouring number of intervals.
-.fit_refit <- function(X, model, n_groups, anchors, maxit, tol) {
-  r <- .fit_refit_residuals(X, model, anchors, maxit, tol)
+# Repeat the requested allocation rule: NULL selects intervals automatically
+# (per item with missing responses), while a supplied count stays fixed.
+.fit_refit <- function(X, model, n_groups, anchors, expected_m, maxit, tol) {
+  r <- .fit_refit_residuals(X, model, anchors, expected_m, maxit, tol)
   if (inherits(r, "rasch_fit_boot_failure")) return(r)
   est <- r$est; tau_list <- r$tau_list; person <- r$person
   mo <- r$moments; Z <- r$Z
@@ -1067,8 +1076,11 @@
   switch(scheme,
     normal = {
       vt <- psi$var_theta; mse <- psi$mean_error_var
-      sd_c <- if (is.finite(vt) && is.finite(mse)) sqrt(max(vt - mse, 0)) else NA_real_
-      if (!is.finite(sd_c) || sd_c <= 0) resample_theta(theta, n)
+      if (!is.finite(vt) || !is.finite(mse))
+        .refuse("the error-corrected person variance is unavailable; ",
+                "`theta = \"normal\"` cannot be generated for this fit")
+      sd_c <- sqrt(max(vt - mse, 0))
+      if (sd_c <= sqrt(.Machine$double.eps)) rep(mean(theta), n)
       else stats::rnorm(n, mean(theta), sd_c)
     },
     resample = resample_theta(theta, n),
@@ -1085,9 +1097,12 @@
 #' observed data. For a person-by-item Rasch model, the default generator
 #' conditions on each person's observed raw score and missingness pattern.
 #' The person parameter then cancels by sufficiency. Item parameters and
-#' person locations are re-estimated in every replicate. The generator assumes
-#' independent response rows. A fit with repeated person IDs is therefore
-#' refused because this bootstrap does not reproduce within-person dependence.
+#' person locations are re-estimated in every replicate.
+#' The original class-interval rule is repeated, including automatic per-item
+#' allocation with missing responses. Tied locations remain in one interval.
+#' The generator assumes independent response rows. A fit with repeated person
+#' IDs is therefore refused because this bootstrap does not reproduce
+#' within-person dependence.
 #'
 #' Item chi-squares use the upper tail. Fit residuals, infit and outfit use
 #' equal-tailed probabilities. Holm adjustment is applied separately to each
@@ -1142,6 +1157,8 @@
 #' @param fit A fitted object from \code{\link{rasch}} or \code{\link{btl}}.
 #'   Extended-frame, many-facet and explanatory person-by-item fits are not
 #'   supported. Explanatory paired-comparison fits are supported.
+#'   Fully anchored scoring fits are not supported by this refitting procedure.
+#'   An older anchored fit must retain its original anchor settings.
 #' @param B Positive whole number of bootstrap replicates.
 #' @param theta Generator for a person-by-item fit. \code{"conditional"}
 #'   retains each observed raw score and missingness pattern. \code{"resample"}
@@ -1200,12 +1217,12 @@ fit_bootstrap <- function(fit, B = 200,
   }
   if (!inherits(fit, "rasch"))
     stop("`fit` must be a fitted model from rasch()")
+  .require_refittable_calibration(fit)
   if (inherits(fit, c("rasch_efrm", "rasch_mfrm", "rasch_explanatory")))
     .refuse("the item fit bootstrap generates from a single-facet Rasch ",
             "model; an extended-frame, many-facet or explanatory fit has a ",
             "generating structure this function does not reproduce")
-  ids <- fit$person$id
-  if (.has_repeated_person_ids(ids))
+  if (.has_repeated_residual_units(fit))
     .refuse("the item fit bootstrap assumes independent response rows and ",
             "does not reproduce within-person dependence; fit the occasions ",
             "separately or use the repeated-measures DIF procedures")
@@ -1264,7 +1281,7 @@ fit_bootstrap <- function(fit, B = 200,
             .fit_theta(theta, th, fit$psi, n = nrow(X)))
   seeds <- sample.int(.Machine$integer.max, B)
   tau_list <- fit$tau_list; item_names <- colnames(X)
-  model <- fit$model; ng <- fit$n_groups; anchors <- spec$anchors
+  model <- fit$model; ng <- .refit_n_groups(fit); anchors <- spec$anchors
   maxit <- spec$maxit %||% 60L; tol <- spec$tol %||% 1e-8
   one <- function(b) {
     old_stream <- .sim_seed_capture()
@@ -1272,7 +1289,7 @@ fit_bootstrap <- function(fit, B = 200,
     set.seed(seeds[b])
     Xb <- if (is.null(th_b)) .fit_gen_conditional(X, tau_list, na_mask)
           else .fit_gen(th_b[[b]], tau_list, na_mask, item_names)
-    .fit_refit(Xb, model, ng, anchors, maxit, tol)
+    .fit_refit(Xb, model, ng, anchors, fit$m, maxit, tol)
   }
   reps <- .rasch_boot_apply(B, one, workers = workers,
                             label = "item fit bootstrap")

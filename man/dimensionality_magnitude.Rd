@@ -16,7 +16,8 @@ items). The published magnitude formula requires equal subscale sizes.}
 \value{
 A list of class \code{"rasch_dim_magnitude"}: the comparison
   \code{table} (rows PSI and alpha; columns \code{run1}, \code{subtest},
-  \code{c2}, \code{c}, \code{rho}, \code{A}), the subtest \code{refit},
+  \code{c2}, \code{c}, \code{rho}, \code{A}, \code{n},
+  \code{n_excluded}), the subtest \code{refit},
   and the design constants \code{S} and \code{K}.
 }
 \description{
@@ -34,6 +35,13 @@ and \eqn{A = S/(S + c^2)} is the proportion of common (non-unique,
 non-error) variance. Both the person separation index and coefficient
 alpha versions are reported (Andrich and Marais 2019, ch. 24). Both the
 original and subtest calibrations must converge.
+}
+\details{
+Both reliability calculations use rows with responses to every item.
+PSI further requires a finite person estimate and standard error in both
+fits. The calibrations are retained; only the reliability sample changes.
+With missing responses, the result describes this complete-response sample,
+not necessarily the full population. The table reports rows used and excluded.
 }
 \examples{
 set.seed(1); N <- 500

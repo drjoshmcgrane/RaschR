@@ -16,8 +16,12 @@ highlighted.}
 Called for its plotting side effect; invisibly \code{NULL}.
 }
 \description{
-Caterpillar plot of object locations with 95 per cent error bars. Objects
-beyond the specified fit-residual band are marked.
+Caterpillar plot of object locations with 95 per cent error bars. The
+intervals use the reference degrees of freedom carried by the fitted
+covariance: a t reference for judge-based uncertainty and the limiting
+normal reference otherwise. An interval is omitted when its covariance
+does not support inference. Objects beyond the specified fit-residual band
+are marked.
 }
 \examples{
 set.seed(1)

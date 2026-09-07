@@ -20,7 +20,9 @@ plot_kidmap(
 \code{fit$person$id}.}
 
 \item{level}{Confidence level of the band around the person location used
-to mark unexpected responses.}
+to mark unexpected responses. The selected person must have a positive,
+finite standard error; without it the band and the unexpected-response
+classification are unavailable.}
 
 \item{bins}{Number of vertical bins used to stack the threshold labels.}
 

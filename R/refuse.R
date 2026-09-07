@@ -23,19 +23,70 @@
     list(message = paste0(...), call = NULL)))
 }
 
+# NULL is a recorded request for automatic intervals, not missing metadata.
+# Older fits record only the realised count, which may be below the public
+# minimum because tied locations are never split across intervals.
+.refit_n_groups <- function(fit) {
+  if ("n_groups" %in% names(fit$refit_spec)) return(fit$refit_spec$n_groups)
+  ng <- fit$n_groups
+  if (length(ng) == 1L && is.finite(ng) && ng >= 2L) ng else NULL
+}
+
+# Restrictions in the fitted estimator remain authoritative when older
+# objects lack the optional settings used to replay a calibration.
+.has_calibration_anchors <- function(fit) {
+  NROW(fit$refit_spec$anchors) > 0L || NROW(fit$est$anchors) > 0L ||
+    any(fit$est$thr$anchored %in% TRUE)
+}
+
+.has_pc_thresholds <- function(fit) {
+  !is.null(fit$refit_spec$pc_components) ||
+    !is.null(fit$est$n_components)
+}
+
+# Fully fixed scoring fits have no item-estimation stage to repeat. In
+# particular, older tailored results have n_parameters = 0 but no refit_spec;
+# absence of that metadata must not be interpreted as an unanchored model.
+.require_refittable_calibration <- function(fit) {
+  if (inherits(fit, "rasch") &&
+      (isTRUE(fit$refit_spec$fixed_calibration) ||
+       isTRUE(fit$est$n_parameters == 0L)))
+    .refuse("this fully anchored calibration is a scoring fit; downstream ",
+            "recalibration and bootstrap procedures are not supported. ",
+            "Use the original calibration for a new analysis")
+  if (inherits(fit, "rasch")) {
+    if (.has_calibration_anchors(fit) &&
+        NROW(fit$refit_spec$anchors) == 0L)
+      .refuse("the fitted calibration has anchors but its saved anchor ",
+              "settings are unavailable; refit from the source data with ",
+              "the original anchors before recalibration or bootstrapping")
+    if (.has_pc_thresholds(fit) &&
+        is.null(fit$refit_spec$pc_components))
+      .refuse("the fitted calibration has principal-component threshold ",
+              "constraints but its saved component settings are unavailable; ",
+              "refit from the source data with the original pc_components ",
+              "before recalibration or bootstrapping")
+  }
+  invisible(TRUE)
+}
+
 # Dichotomous ETS classification on the log-odds scale. `p` and `p_beyond`
 # are the probabilities used for decisions; callers that report a family of
 # comparisons pass their familywise-adjusted values here.
 ETS_DELTA_PER_LOGIT <- 2.35
 
-.ets_p_beyond <- function(difference, se) {
+.ets_p_beyond <- function(difference, se, df = Inf) {
   a_cut <- 1.0 / ETS_DELTA_PER_LOGIT      # 0.43 as published
   d <- abs(difference)
   # C additionally requires the magnitude to be significantly beyond the A
-  # ceiling. Shervish's interval-null p-value retains both normal tails.
-  out <- stats::pnorm((-a_cut - d) / se) +
-    stats::pnorm((a_cut - d) / se)
-  out[!is.finite(difference) | !is.finite(se) | se <= 0] <- NA_real_
+  # ceiling. Shervish's interval-null p-value retains both tails. A finite
+  # cluster reference must be used here as well as for the ordinary Wald
+  # probability; otherwise the ETS verdict can be more liberal than the test
+  # on which it is reported.
+  out <- stats::pt((-a_cut - d) / se, df = df) +
+    stats::pt((a_cut - d) / se, df = df)
+  out[!is.finite(difference) | !is.finite(se) | se <= 0 |
+        is.na(df) | df <= 0] <- NA_real_
   out
 }
 

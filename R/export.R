@@ -2,7 +2,8 @@
 # ===========================================================================
 # save_outputs() writes the complete analysis to disk: every table as CSV,
 # every plot as PNG (and optionally PDF), and a plain-text summary. The
-# Shiny app zips the resulting folder for its "download everything" button.
+# The Shiny app zips the resulting fitted-model folder for its model-results
+# archive.
 # ===========================================================================
 
 # A file stem drops the characters a file system cannot carry, which can map
@@ -161,7 +162,8 @@
 #' @param file Output path ending in \code{.pdf} (one page per item) or
 #'   \code{.zip} (one PNG per item).
 #' @param items Item names or indices; all items by default.
-#' @param n_groups Class intervals for observed overlays.
+#' @param n_groups Class intervals for observed overlays; \code{NULL} retains
+#'   the fit's allocation for each item.
 #' @param grid Logit grid for the curves.
 #' @param observed Overlay observed proportions on the category and
 #'   threshold probability curves.
@@ -176,7 +178,7 @@
 #' save_item_plots(f, "icc", file.path(tempdir(), "icc_all.pdf"))
 #' @export
 save_item_plots <- function(fit, what = c("icc", "ccc", "tpc", "cfreq"),
-                            file, items = NULL, n_groups = fit$n_groups,
+                            file, items = NULL, n_groups = NULL,
                             grid = NULL, observed = TRUE,
                             width = 8, height = 5.5, dpi = 300) {
   .check_export_fit(fit, btl = FALSE)
@@ -404,12 +406,26 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
     list(note = conditionMessage(e), multidimensional = NA))
 }
 
+# A deliberate design refusal belongs in the report. Unexpected calculation
+# errors still stop the export rather than being disguised as missing results.
+.distractors_or_note <- function(fit) {
+  if (is.null(fit$mc)) return(NULL)
+  tryCatch(list(table = distractor_analysis(fit), note = NULL),
+    rasch_refusal = function(e)
+      list(table = NULL, note = conditionMessage(e)))
+}
+
 #' Save the outputs of a Rasch analysis
 #'
 #' Writes the summary, estimates, diagnostic tables, person measures, and
 #' model-specific results as CSV. Plots are written as PNG and, optionally,
 #' PDF, together with a plain-text analysis summary. For MFRM and EFRM fits,
 #' item estimates and response-cell diagnostics are saved separately.
+#' Computed tailored item shifts and externally weighted secondary person
+#' measures can be retained with the fitted-model output; the latter include
+#' their resolved weights.
+#' For keyed fits with repeated person IDs, the export records why distractor
+#' analysis is unavailable and retains the other model outputs.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param dir Output directory; created if absent.
@@ -433,6 +449,11 @@ save_person_plots <- function(fit, file, persons = NULL, level = 0.95,
 #'   calibration used in the analysis.
 #' @param invariance Optional computed \code{\link{frame_invariance}} result
 #'   from an EFRM fit.
+#' @param tailored Optional computed \code{\link{tailored_analysis}} result
+#'   from this ordinary dichotomous fit.
+#' @param person_weights Optional table returned by
+#'   \code{\link{weighted_person_estimates}}. An explicit table takes
+#'   precedence over a compatible result retained by the application.
 #' @param item_plots Also write the per-item plot set (one ICC, category curve,
 #'   threshold curve, and frequency chart per item).
 #' @return Invisibly, the vector of files written.
@@ -448,8 +469,10 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                          height = 6, dpi = 300, item_plots = TRUE,
                          dif = NULL, bootstrap = NULL,
                          dif_bootstrap = NULL, dimensionality = NULL,
-                         invariance = NULL, subtest = NULL) {
+                         invariance = NULL, subtest = NULL,
+                         tailored = NULL, person_weights = NULL) {
   .check_export_fit(fit)
+  person_weight_result <- .resolve_report_person_weights(fit, person_weights)
   formats <- match.arg(formats, c("png", "pdf"), several.ok = TRUE)
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
@@ -465,6 +488,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     .validate_dimensionality_test(subtest, fit)
   }
   .validate_frame_invariance(invariance, fit)
+  .validate_tailored_result(tailored, fit)
   # everything is checked before a directory is made or a table written: a
   # bad plot size otherwise leaves a populated folder that reads as a
   # complete export but carries no plots
@@ -477,6 +501,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                              bootstrap = bootstrap, dif = dif,
                              dif_bootstrap = dif_bootstrap,
                              dimensionality = dimensionality))
+  distractors <- .distractors_or_note(fit)
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   tdir <- file.path(dir, "tables"); pdir <- file.path(dir, "plots")
   structural <- inherits(fit, c("rasch_mfrm", "rasch_efrm"))
@@ -506,7 +531,13 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
       multidimensional = dt$multidimensional,
       binomial_multidimensional = dt$binomial_multidimensional,
       verdict_method = dt$verdict_method,
-      p_boot = dt$p_boot %||% NA_real_, stringsAsFactors = FALSE),
+      p_boot = dt$p_boot %||% NA_real_,
+      bootstrap_resolution = dt$bootstrap_resolution %||% NA_real_,
+      B_requested = dt$bootstrap$B %||% NA_integer_,
+      B_used = dt$bootstrap$B_used %||% NA_integer_,
+      B_nonconverged = dt$bootstrap$B_nonconverged %||% NA_integer_,
+      B_errors = dt$bootstrap$B_errors %||% NA_integer_,
+      stringsAsFactors = FALSE),
       "unidimensionality_t_test")
     if (!is.null(dt$bootstrap))
       wtab(data.frame(replicate = seq_along(dt$bootstrap$null),
@@ -536,6 +567,11 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
       wtab(fit$explanatory$relaxations, "explanatory_fixed_departures")
   }
   wtab(fit$person, "person_estimates")
+  if (!is.null(person_weight_result)) {
+    wtab(person_weight_result$table, "person_estimates_externally_weighted")
+    wtab(attr(person_weight_result$table, "weighting", exact = TRUE),
+         "person_estimate_external_weights")
+  }
   if (!is.null(fit$score_table)) wtab(score_table(fit), "score_to_measure")
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
   if (!is.null(ctt)) wtab(ctt$table, "traditional_statistics")
@@ -588,7 +624,9 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
     wtab(data.frame(id = rownames(gt$matrix), gt$matrix, check.names = FALSE),
          "guttman_ordered_responses")
   }
-  if (!is.null(fit$mc)) wtab(distractor_analysis(fit), "distractor_analysis")
+  if (!is.null(distractors))
+    wtab(if (is.null(distractors$note)) distractors$table else
+      data.frame(note = distractors$note), "distractor_analysis")
   if (inherits(fit, "rasch_mfrm")) {
     wtab(fit$item_effects, "item_effects")
     wtab(fit$item_thresholds, "item_structural_thresholds")
@@ -672,6 +710,29 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
                 dif_bootstrap$B_errors, dif_bootstrap$family_n)),
       "dif_conditional_bootstrap_accounting")
   }
+  if (!is.null(tailored)) {
+    wtab(tailored$table, "tailored_item_shifts")
+    wtab(data.frame(
+      algorithm = tailored$algorithm,
+      chance = tailored$chance,
+      responses_removed = tailored$n_removed,
+      anchor_items = paste(tailored$anchor_items, collapse = ";"),
+      anchor_selection = if (is.null(tailored$anchor_items_requested))
+        "automatic" else "supplied",
+      anchor_items_requested = if (is.null(tailored$anchor_items_requested))
+        NA_character_ else paste(tailored$anchor_items_requested,
+                                 collapse = ";"),
+      se_method = tailored$se_method,
+      seed = tailored$seed %||% NA_integer_,
+      requested = tailored$boot_reps,
+      usable = tailored$boot_reps_used,
+      nonconverged = tailored$boot_reps_nonconverged,
+      other_failures = tailored$boot_reps_errors,
+      minimum_usable = tailored$boot_minimum_usable,
+      fit_fingerprint = tailored$fit_signature$fingerprint,
+      result_signature = tailored$result_signature,
+      stringsAsFactors = FALSE), "tailored_analysis")
+  }
   if (any(fit$person$extreme)) {
     pe <- tryCatch(person_extrapolated(fit), error = function(e) NULL)
     if (!is.null(pe)) wtab(pe, "person_estimates_extrapolated")
@@ -683,9 +744,13 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   sink(con); on.exit({ sink(); close(con) }, add = TRUE)
   summary(fit)
   if (is.null(dt$note)) {
+    resolution_limited <- grepl(
+      "resolution insufficient", dt$verdict_method %||% "", fixed = TRUE)
     verdict <- if (isTRUE(dt$multidimensional)) "evidence against unidimensionality" else
       if (identical(dt$multidimensional, FALSE)) "consistent with one dimension" else
-        "inferential verdict withheld for the data-driven split"
+        if (resolution_limited)
+          "inferential verdict withheld because bootstrap resolution is insufficient" else
+          "inferential verdict withheld for the data-driven split"
     cat(sprintf("\nUnidimensionality t-test: %.1f%% significant (Clopper-Pearson 95%% CI %.1f%% to %.1f%%), %s\n",
                 100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2],
                 verdict))
@@ -693,14 +758,33 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
       cat(sprintf("Parametric-bootstrap p = %s (%d of %d replicates used)\n",
                   .fmt_p(dt$p_boot), dt$bootstrap$B_used, dt$bootstrap$B))
     if (!is.null(dt$caution)) cat("Caution:", dt$caution, "\n")
-    if (is.na(dt$multidimensional))
-      cat("Note: the item split was chosen from the residuals; use a content split or a bootstrap calibration for an inferential verdict\n")
+    if (is.na(dt$multidimensional)) {
+      if (resolution_limited)
+        cat(sprintf(paste0(
+          "Note: the smallest attainable bootstrap p is %.3f; increase B ",
+          "for an inferential verdict at alpha %.3f\n"),
+          dt$bootstrap_resolution, dt$alpha))
+      else
+        cat("Note: the item split was chosen from the residuals; use a content split or a bootstrap calibration for an inferential verdict\n")
+    }
   } else cat("\nUnidimensionality t-test:", dt$note, "\n")
   cat(sprintf("Average residual correlation: %.3f; binary Q3 flags withheld (no universal critical value)\n",
               rc$average))
   if (!is.null(ctt))
     cat(sprintf("Traditional statistics (complete cases n = %d): raw mean %.2f, SD %.2f, alpha %.3f, SEM %.2f\n",
                 ctt$n, ctt$mean, ctt$sd, ctt$alpha, ctt$sem))
+  if (!is.null(distractors$note))
+    cat("Distractor analysis unavailable:", distractors$note, "\n")
+  if (!is.null(tailored)) {
+    cat(sprintf(paste0("Tailored analysis: %d responses below chance %.2f ",
+                       "set to missing; origin anchored by %s"),
+                tailored$n_removed, tailored$chance,
+                paste(tailored$anchor_items, collapse = ", ")))
+    if (identical(tailored$se_method, "bootstrap"))
+      cat(sprintf("; %d of %d person-bootstrap replicates usable\n",
+                  tailored$boot_reps_used, tailored$boot_reps))
+    else cat("; item shifts are descriptive\n")
+  }
   sink(); close(con); on.exit()
   files <- c(files, spath)
 
@@ -753,7 +837,7 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
   }
 
   # --- per-item plots ------------------------------------------------------------
-  if (item_plots && !is.null(fit$mc)) {
+  if (item_plots && !is.null(distractors$table)) {
     mcit <- colnames(fit$mc$raw)
     mcsafe <- .rr_safe_stem(mcit)
     for (j in seq_along(mcit)) local({
@@ -868,7 +952,11 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #' Write a self-contained HTML report of a Rasch analysis
 #'
 #' Writes one HTML file containing the summary statistics, diagnostic tables,
-#' and test-level plots. Images and styles are embedded in the file.
+#' and test-level plots. Images and styles are embedded in the file. Computed
+#' tailored item shifts and externally weighted secondary person measures can
+#' be included with the fitted-model results.
+#' For keyed fits with repeated person IDs, the report explains why distractor
+#' analysis is unavailable; the other model outputs remain available.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}.
 #' @param file Path of the HTML file to write.
@@ -887,6 +975,11 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 #'   used in the analysis.
 #' @param invariance Optional computed \code{\link{frame_invariance}} result
 #'   from an EFRM fit.
+#' @param tailored Optional computed \code{\link{tailored_analysis}} result
+#'   from this ordinary dichotomous fit.
+#' @param person_weights Optional table returned by
+#'   \code{\link{weighted_person_estimates}}. An explicit table takes
+#'   precedence over a compatible result retained by the application.
 #' @return Invisibly, \code{file}.
 #' @examples
 #' set.seed(1)
@@ -899,11 +992,13 @@ save_outputs <- function(fit, dir, formats = c("png", "pdf"), width = 9,
 report_html <- function(fit, file, title = "Rasch measurement analysis",
                         dpi = 150, dif = NULL, bootstrap = NULL,
                         dif_bootstrap = NULL, dimensionality = NULL,
-                        invariance = NULL, subtest = NULL) {
+                        invariance = NULL, subtest = NULL,
+                        tailored = NULL, person_weights = NULL) {
   # a vector title would be pasted into as many documents as it has entries,
   # and a non-positive dpi can take the graphics device down with the
   # session rather than raising a catchable error
   .check_export_fit(fit, btl = FALSE)
+  person_weight_result <- .resolve_report_person_weights(fit, person_weights)
   .check_out_path(file, "file")
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
@@ -913,10 +1008,12 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   .validate_scree_result(dimensionality, fit)
   .validate_dimensionality_test(subtest, fit)
   .validate_frame_invariance(invariance, fit)
+  .validate_tailored_result(tailored, fit)
   if (length(title) != 1L || !is.character(title) || !is.null(dim(title)) ||
       !is.null(oldClass(title)) || is.na(title))
     stop("`title` must be one non-missing title")
   .check_pos_num(dpi, "dpi")
+  distractors <- .distractors_or_note(fit)
   tmp <- tempfile("rmtplots"); dir.create(tmp)
   on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
   shot <- function(f, name, w = 9, h = 5.4) {
@@ -994,10 +1091,14 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   rc <- residual_correlations(fit)
   dt <- if (!is.null(subtest)) subtest else .dimensionality_or_note(fit)
   dim_html <- if (is.null(dt$note)) {
+    resolution_limited <- grepl(
+      "resolution insufficient", dt$verdict_method %||% "", fixed = TRUE)
     verdict <- if (isTRUE(dt$multidimensional))
       "<span class='flag'>evidence against unidimensionality</span>" else
       if (identical(dt$multidimensional, FALSE)) "consistent with one dimension" else
-        "inferential verdict withheld for the data-driven split"
+        if (resolution_limited)
+          "inferential verdict withheld because bootstrap resolution is insufficient" else
+          "inferential verdict withheld for the data-driven split"
     paste0(sprintf("<p>%.1f%% of person subset t-tests significant (95%% CI %.1f-%.1f%%): %s.</p>",
             100 * dt$prop_significant, 100 * dt$ci[1], 100 * dt$ci[2], verdict),
            if (!is.null(dt$p_boot)) sprintf(
@@ -1005,6 +1106,11 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
              .fmt_p(dt$p_boot), dt$bootstrap$B_used, dt$bootstrap$B) else "",
            if (!is.null(dt$caution))
              sprintf("<p class='note'>%s</p>", esc(dt$caution)) else "",
+           if (is.na(dt$multidimensional) && resolution_limited)
+             sprintf(paste0(
+               "<p class='note'>The smallest attainable bootstrap p is %.3f. ",
+               "Increase B for an inferential verdict at alpha %.3f.</p>"),
+               dt$bootstrap_resolution, dt$alpha) else
            if (is.na(dt$multidimensional))
              "<p class='note'>The item split was chosen from the residuals. Use a content split or a bootstrap calibration for an inferential verdict.</p>" else "")
   }
@@ -1012,7 +1118,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
   ctt <- tryCatch(ctt_table(fit), error = function(e) NULL)
   item_tab <- if (inherits(fit, "rasch_mfrm")) fit$item_effects else
     if (inherits(fit, "rasch_efrm")) fit$item_arbitrary else fit$items
-  if (.has_repeated_person_ids(fit$person$id))
+  if (.has_repeated_residual_units(fit))
     for (nm in intersect(c("p", "p_adj", "p_bonf", "p_anova",
                            "p_anova_adj", "p_anova_bonf"), names(item_tab)))
       item_tab[[nm]][] <- NA_real_
@@ -1069,7 +1175,7 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
     "<h2>", if (structural) "Common-scale item estimates" else
       "Item statistics", "</h2>",
     if ("p_adj" %in% item_cols)
-      if (.has_repeated_person_ids(fit$person$id))
+      if (.has_repeated_residual_units(fit))
         "<p class='note'>Item-fit probabilities are withheld because person IDs repeat and the available references assume independent response rows. The fit statistics remain descriptive.</p>"
       else
         "<p class='note'>The p_adj column is an approximate asymptotic Holm probability. It treats estimated person locations as known; use the bootstrap fit statistics for calibrated inference.</p>"
@@ -1139,6 +1245,21 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
         .html_table(bootstrap$persons[, intersect(c("id", "raw", "theta",
           "fit_resid", "fit_resid_p_boot_adj", "n_boot_fit_resid"),
           names(bootstrap$persons)), drop = FALSE]) else "") else "",
+    if (!is.null(tailored)) s(
+      "<h2>Tailored analysis for guessing</h2>",
+      sprintf(paste0("<p class='note'>%d responses with fitted probability ",
+                     "below chance %.2f were set to missing. The common ",
+                     "origin uses: %s.</p>"), tailored$n_removed,
+              tailored$chance, esc(paste(tailored$anchor_items,
+                                         collapse = ", "))),
+      if (identical(tailored$se_method, "bootstrap"))
+        sprintf(paste0("<p class='note'>Person bootstrap: %d of %d ",
+                       "replicates usable; probabilities are Holm-adjusted ",
+                       "over items.</p>"), tailored$boot_reps_used,
+                tailored$boot_reps)
+      else
+        "<p class='note'>Item shifts are descriptive; no bootstrap uncertainty was requested.</p>",
+      .html_table(tailored$table)) else "",
     if (!is.null(fit$factors)) {
       da <- if (!is.null(dif)) dif
             else tryCatch(dif_anova(fit), error = function(e) NULL)
@@ -1152,7 +1273,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
           "<h3>DIF magnitude</h3>",
           .html_table(da$sizes[, intersect(
             c("item", "term", "level_a", "level_b", "difference", "se",
-              "df", "p_adj", "practical"), names(da$sizes)), drop = FALSE]))
+              "t", "z", "df", "p_adj", "practical"), names(da$sizes)),
+            drop = FALSE]))
         else "") else ""
     } else "",
     if (!is.null(dif_bootstrap)) s(
@@ -1172,9 +1294,11 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
         c("item", "term", "p_uniform_boot_adj", "uniform_DIF_boot",
           "p_nonuniform_boot_adj", "nonuniform_DIF_boot"),
         names(dif_bootstrap$summary)), drop = FALSE])) else "",
-    if (!is.null(fit$mc)) s("<h2>Distractor analysis</h2>",
-      "<p class='note'>Locations use the rest measure; a distractor whose takers are abler than the keyed option's flags a possible miskey.</p>",
-      .html_table(tryCatch(distractor_analysis(fit), error = function(e) NULL))) else "",
+    if (!is.null(distractors)) s("<h2>Distractor analysis</h2>",
+      if (!is.null(distractors$note)) s("<p class='note'>Not available: ",
+        esc(distractors$note), "</p>") else s(
+        "<p class='note'>Locations use the rest measure; a distractor whose takers are abler than the keyed option's flags a possible miskey.</p>",
+        .html_table(distractors$table))) else "",
     if (inherits(fit, "rasch_mfrm")) s("<h2>Facet severities</h2>",
       paste(vapply(fit$facet_spec, function(f) s("<h3>", esc(f), "</h3>",
         .html_table(fit$facet_effects[[f]][, intersect(c("level", "severity",
@@ -1186,7 +1310,8 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
         "<p class='note'>The omnibus test assesses the complete interaction. Cell comparisons are Holm-adjusted follow-ups.</p>",
         .html_table(fit$interaction_test),
         .html_table(fit$interaction_effects[, intersect(
-          c("item", "level", "gamma", "se", "z", "p_adj", "significant"),
+          c("item", "level", "gamma", "se", "t", "df", "z", "p_adj",
+            "significant"),
           names(fit$interaction_effects)), drop = FALSE])) else "") else "",
     if (inherits(fit, "rasch_efrm")) {
       x <- fit$efrm_vs_rasch
@@ -1217,6 +1342,12 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
                                          "max_raw", "theta", "se", "extreme",
                                          "fit_resid"),
                                        names(fit$person))]),
+    if (!is.null(person_weight_result)) s(
+      "<h2>Externally weighted secondary person measures</h2>",
+      "<p class='note'>These measures use the supplied relative item or item-set weights. They do not replace the ordinary person estimates used elsewhere in the analysis.</p>",
+      .html_table(person_weight_result$table),
+      "<h3>Resolved external weights</h3>",
+      .html_table(attr(person_weight_result$table, "weighting", exact = TRUE))) else "",
     "</div></body></html>")
   writeLines(html, file, useBytes = TRUE)
   invisible(file)
@@ -1228,7 +1359,11 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #' document, an editable Word document, or a PDF. The report contains the
 #' principal estimates, model-specific tables, diagnostic figures, and
 #' software provenance. Complete machine-readable results remain available
-#' from \code{\link{save_outputs}}.
+#' from \code{\link{save_outputs}}. Reports downloaded from the application
+#' retain compatible tailored item shifts and externally weighted secondary
+#' person measures.
+#' For keyed fits with repeated person IDs, the report explains why distractor
+#' analysis is unavailable and retains the other model outputs.
 #'
 #' @param fit A fitted object from \code{\link{rasch}}, \code{\link{rasch_mfrm}},
 #'   \code{\link{rasch_efrm}}, \code{\link{btl}}, or \code{\link{btl_efrm}}.
@@ -1245,6 +1380,11 @@ report_html <- function(fit, file, title = "Rasch measurement analysis",
 #'   from this fit.
 #' @param invariance Optional computed \code{\link{frame_invariance}} result
 #'   from an EFRM fit.
+#' @param tailored Optional computed \code{\link{tailored_analysis}} result
+#'   from this ordinary dichotomous fit.
+#' @param person_weights Optional table returned by
+#'   \code{\link{weighted_person_estimates}}. An explicit table takes
+#'   precedence over a compatible result retained by the application.
 #' @param title Report title.
 #' @return Invisibly, the output path.
 #' @details Word and HTML output require Pandoc, supplied with RStudio and
@@ -1261,8 +1401,10 @@ report_document <- function(fit, file,
                             title = "Rasch measurement analysis",
                             dif = NULL, bootstrap = NULL,
                             dif_bootstrap = NULL, dimensionality = NULL,
-                            invariance = NULL, subtest = NULL) {
+                            invariance = NULL, subtest = NULL,
+                            tailored = NULL, person_weights = NULL) {
   .check_export_fit(fit)
+  person_weight_result <- .resolve_report_person_weights(fit, person_weights)
   .validate_boot_dif_result(dif, fit)
   .validate_fit_bootstrap(bootstrap, fit)
   if (!is.null(dif_bootstrap) && is.null(dif))
@@ -1277,6 +1419,7 @@ report_document <- function(fit, file,
     .validate_dimensionality_test(subtest, fit)
   }
   .validate_frame_invariance(invariance, fit)
+  .validate_tailored_result(tailored, fit)
   # computed results travel as attributes on the serialised fit, so the
   # template renders the analysis as run rather than a default recomputation
   if (!is.null(dif)) attr(fit, "report_dif") <- dif
@@ -1287,6 +1430,9 @@ report_document <- function(fit, file,
     attr(fit, "report_dimensionality") <- dimensionality
   if (!is.null(subtest)) attr(fit, "report_subtest") <- subtest
   if (!is.null(invariance)) attr(fit, "report_invariance") <- invariance
+  if (!is.null(tailored)) attr(fit, "report_tailored") <- tailored
+  if (!is.null(person_weights))
+    attr(fit, "report_person_weights") <- person_weight_result
   .check_out_path(file, "file")
   if (length(title) != 1L || !is.character(title) || !is.null(dim(title)) ||
       !is.null(oldClass(title)) || is.na(title))

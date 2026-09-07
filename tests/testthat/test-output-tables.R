@@ -381,7 +381,7 @@ test_that("exports accept DIF only from the fitted model being reported", {
   # path is tested independently of whether this random fixture flags DIF.
   da$sizes <- data.frame(
     item = "I1", term = "group", level_a = "A", level_b = "B",
-    difference = .5, se = .2, df = 100, p_adj = .02, practical = TRUE)
+    difference = .5, se = .2, z = 2.5, p_adj = .02, practical = TRUE)
   # This fixture extends a valid result solely to exercise the report block.
   # Re-seal it as an internal constructor would; an unsigned edited result is
   # deliberately rejected by the public export path.
@@ -394,10 +394,16 @@ test_that("exports accept DIF only from the fitted model being reported", {
   magnitude_text <- paste(readLines(magnitude_html, warn = FALSE),
                           collapse = "\n")
   expect_match(magnitude_text, "DIF magnitude", fixed = TRUE)
+  expect_match(magnitude_text, "<th>z</th>", fixed = TRUE)
   template <- testthat::test_path("..", "..", "inst", "rmarkdown",
                                  "rasch-report.Rmd")
-  expect_match(paste(readLines(template, warn = FALSE), collapse = "\n"),
+  template_text <- paste(readLines(template, warn = FALSE), collapse = "\n")
+  expect_match(template_text,
                'cat("\\n## DIF magnitude\\n\\n")', fixed = TRUE)
+  expect_match(template_text, '"t", "z", "df"', fixed = TRUE)
+  expect_match(template_text,
+               'c("item", "level", "gamma", "se", "t", "df", "z", "p_adj"',
+               fixed = TRUE)
 
   # Person identity is part of the statistical design: the same response
   # rows and factors are a repeated-person analysis under one identifier and
@@ -436,6 +442,29 @@ test_that("report_document writes a self-contained HTML report", {
   expect_error(report_document(fit, sub("html$", "pdf", out),
                                format = "html"),
                "extension")
+})
+
+test_that("report_document escapes fitted names used as headings", {
+  skip_if_not_installed("rmarkdown")
+  skip_if_not(rmarkdown::pandoc_available())
+  d <- simulate_mfrm(25, 4, 3, seed = 311)
+  facet <- "<em>Injected facet</em>\r\n---\r\nForged block"
+  names(d)[names(d) == "rater"] <- facet
+  fit <- rasch_mfrm(d, "person", "item", "score", facets = facet)
+  out <- tempfile(fileext = ".html")
+  on.exit(unlink(out), add = TRUE)
+
+  report_document(fit, out, title = "T <script>alert(1)</script>")
+  html <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_false(grepl("<h2><em>Injected facet</em></h2>", html,
+                     fixed = TRUE))
+  expect_match(html, "&lt;em&gt;Injected facet&lt;/em&gt;", fixed = TRUE)
+  expect_false(grepl("<hr[^>]*>\\s*<p>Forged block", html, perl = TRUE))
+  expect_match(html,
+               "<h2>&lt;em&gt;Injected facet&lt;/em&gt;[^<]*Forged block</h2>",
+               perl = TRUE)
+  expect_false(grepl("<script>alert(1)</script>", html, fixed = TRUE))
+  expect_match(html, "&lt;script&gt;alert", fixed = TRUE)
 })
 
 test_that("the fit and targeting summaries are complete tidy tables", {
@@ -534,6 +563,8 @@ test_that("structural summaries name response cells and withhold alpha", {
                   facets = "rater")
   fs <- fit_summary_table(f)
   ts <- targeting_table(f)
+  expect_identical(fs$value[fs$statistic == "Estimation"],
+                   "pairwise conditional ML over response cells")
   expect_true(any(fs$statistic ==
                     "Approximate asymptotic total response-cell-trait chi-square"))
   expect_true(any(fs$statistic ==
@@ -556,6 +587,9 @@ test_that("structural summaries name response cells and withhold alpha", {
   tr <- attr(e, "truth")
   ef <- rasch_efrm(e, item_sets = tr$item_sets, groups = "group", id = "id",
                    boot_reps = 0)
+  efs <- fit_summary_table(ef)
+  expect_identical(efs$value[efs$statistic == "Estimation"],
+                   "pairwise conditional ML over response cells")
   expect_true(is.na(ef$alpha$alpha))
   expect_false(ef$alpha$design_applicable)
   expect_null(score_table(ef))

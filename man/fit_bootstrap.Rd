@@ -15,7 +15,9 @@ fit_bootstrap(
 \arguments{
 \item{fit}{A fitted object from \code{\link{rasch}} or \code{\link{btl}}.
 Extended-frame, many-facet and explanatory person-by-item fits are not
-supported. Explanatory paired-comparison fits are supported.}
+supported. Explanatory paired-comparison fits are supported.
+Fully anchored scoring fits are not supported by this refitting procedure.
+An older anchored fit must retain its original anchor settings.}
 
 \item{B}{Positive whole number of bootstrap replicates.}
 
@@ -50,9 +52,12 @@ Refers fit statistics to replicated datasets fitted in the same way as the
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate. The generator assumes
-independent response rows. A fit with repeated person IDs is therefore
-refused because this bootstrap does not reproduce within-person dependence.
+person locations are re-estimated in every replicate.
+The original class-interval rule is repeated, including automatic per-item
+allocation with missing responses. Tied locations remain in one interval.
+The generator assumes independent response rows. A fit with repeated person
+IDs is therefore refused because this bootstrap does not reproduce
+within-person dependence.
 }
 \details{
 Item chi-squares use the upper tail. Fit residuals, infit and outfit use

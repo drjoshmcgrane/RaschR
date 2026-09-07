@@ -95,8 +95,10 @@ one_replicate <- function(seed, scenario) {
     pb[got, ] <- as.vector(bs$p)
   }
   if (got < NBOOT) return(NULL)
-  fo <- as.vector(obs$F); po <- as.vector(obs$p)
-  p_boot_raw <- (1 + colSums(sweep(fb, 2L, fo, ">="))) / (NBOOT + 1)
+  po <- as.vector(obs$p)
+  # Refits can change a term's degrees of freedom. Its upper-tail reference
+  # probability, unlike the raw F statistic, remains on a common scale.
+  p_boot_raw <- (1 + colSums(sweep(pb, 2L, po, "<="))) / (NBOOT + 1)
   min_p <- apply(pb, 1L, min)
   p_boot_family <- (1 + vapply(po, function(p) sum(min_p <= p), 0L)) /
     (NBOOT + 1)

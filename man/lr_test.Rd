@@ -17,7 +17,8 @@ parameterisation requires them).}
 A list of class \code{"rasch_lr"}: raw \code{chisq}, \code{df},
   \code{p} (the conventional display); adjusted \code{chisq_adj}, \code{p_adj},
   and the eigenvalues \code{lambda}; the two log-likelihoods; and the
-  rating-scale refit (\code{fit_rsm}).
+  rating-scale refit (\code{fit_rsm}), retaining keyed scoring, DIF-split
+  records and superitem definitions for subsequent analyses.
 }
 \description{
 Compares a fitted partial credit model with the rating scale

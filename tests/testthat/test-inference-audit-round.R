@@ -30,6 +30,14 @@ test_that("fixed-origin equating uses marginal variances without a bank covarian
   expect_identical(sum(is.finite(sparse_link$table$p)), 1L)
   expect_equal(sparse_link$table$p_adj[1],
                p.adjust(sparse_link$table$p[1], "holm", n = L))
+
+  one <- bank[1L, , drop = FALSE]
+  one_link <- equate_tests(fit, one, shift = "none")
+  expect_true(one_link$inferential)
+  expect_identical(one_link$n_common, 1L)
+  expect_true(is.finite(one_link$table$p_adj))
+  expect_error(equate_tests(fit, one, shift = "mean"),
+               "at least two common items")
 })
 
 test_that("estimated-shift equating does not invent joint fit covariance", {
@@ -126,6 +134,9 @@ test_that("DIF minimum support counts distinct persons rather than rows", {
   expect_identical(
     rasch:::.dif_cell_n(group, observed, id),
     c(A = 3L, B = 3L))
+  expect_identical(
+    rasch:::.dif_cell_n(group, group == "A", id),
+    c(A = 3L, B = 0L))
 
   set.seed(4605)
   N <- 40L; L <- 6L
@@ -185,4 +196,11 @@ test_that("BTL fixed-origin equating does not re-estimate an anchored shift", {
                (fit$objects$location - bank$location) / expected_se)
   expect_equal(fixed$table$p_adj,
                p.adjust(fixed$table$p, method = "holm", n = 3L))
+
+  one <- bank[1L, , drop = FALSE]
+  one_link <- btl_equate(fit, one, shift = "none")
+  expect_true(one_link$inferential)
+  expect_identical(one_link$n_common, 1L)
+  expect_true(is.finite(one_link$table$p_adj))
+  expect_error(btl_equate(fit, one), "at least two common objects")
 })

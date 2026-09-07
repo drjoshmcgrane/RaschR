@@ -47,16 +47,15 @@
 #' These quantities are descriptive under the conditional method; it does not
 #' report discrimination probabilities.
 #'
-#' With \code{se_method = "bootstrap"}, whole persons are resampled,
-#' retaining all response rows and item-set response patterns for each sampled
-#' person, and the EFRM and separate frame calibrations are refitted. Persons
-#' observed in one group are resampled within group; when a person appears in
-#' more than one group, persons are resampled globally so their observations
-#' stay together. Location tests
-#' then use the empirical covariance of the centred differences. The
-#' discrimination test uses the bootstrap standard error of the log slope
-#' ratio. This includes uncertainty in the fitted frame units but is more
-#' computationally demanding.
+#' With \code{se_method = "bootstrap"}, whole persons are resampled within
+#' their observed group, retaining each sampled person's item-set response
+#' pattern, and the EFRM and separate frame calibrations are refitted.
+#' A replicate is usable only when it retains the observed set of item
+#' comparisons, so every centred difference has the same frame origin.
+#' Location tests then use the empirical covariance of the centred
+#' differences. The discrimination test uses the bootstrap standard error of
+#' the log slope ratio. This includes uncertainty in the fitted frame units
+#' but is more computationally demanding.
 #'
 #' Raw and Holm-adjusted probabilities are reported. With conditional
 #' uncertainty, Holm adjustment covers the location comparisons. With
@@ -73,9 +72,12 @@
 #' for items that were not themselves shifted. The table identifies the
 #' pattern of relative departures; item content or external anchors are needed
 #' to determine which items provide the defensible reference.
-#' A compared set-by-frame cell must contain at least 50 persons with two or
-#' more responses. Items with weakly determined standard errors in either
-#' separate calibration are listed in \code{excluded} rather than tested.
+#' A compared set-by-frame cell must contain at least 50 distinct persons
+#' contributing an informative item pair. A pair is informative unless both
+#' responses are zero or both are at their item maxima, using the retained
+#' items and recoded categories of that frame's separate calibration.
+#' Items with weakly determined standard errors in either separate calibration
+#' are listed in \code{excluded} rather than tested.
 #'
 #' A flagged item may be resolved with \code{\link{resolve_frames}} when it
 #' remains useful within frames, or removed with \code{\link{drop_items}}
@@ -89,10 +91,9 @@
 #'   adjusted probabilities are returned.
 #' @param se_method \code{"conditional"} treats the estimated frame units as
 #'   fixed; \code{"bootstrap"} refits the complete analysis to whole-person
-#'   resamples, preserving each person's response rows and item-set patterns.
-#'   Conditional inference is unavailable when a person appears in more than
-#'   one frame because the separate calibrations' cross-covariance is then
-#'   unknown; use the bootstrap method in that design.
+#'   resamples within group, preserving each person's item-set response
+#'   pattern. As in \code{\link{rasch_efrm}}, one response row is required per
+#'   person.
 #' @param boot_reps Number of bootstrap replicates. At least 30 are required.
 #'   At least 90 per cent, and no fewer than 30, must yield the complete set
 #'   of comparisons.
@@ -106,8 +107,9 @@
 #'   category structures differed between calibrations, or whose
 #'   separate-frame estimate was weakly determined.
 #'   The remaining components record the multiplicity and uncertainty settings,
-#'   including the declared comparison-family size \code{family_n}, and the
-#'   requested, usable, non-converged and other-failure bootstrap counts.
+#'   including the algorithm identifier, declared comparison-family size
+#'   \code{family_n}, and the requested, usable, non-converged and
+#'   other-failure bootstrap counts.
 #'   \code{bootstrap_stratified} records whether persons were resampled within
 #'   group rather than globally.
 #' @references
@@ -125,7 +127,7 @@
 #' frame_invariance(fit)
 NULL
 
-.frame_invariance_conditional <- function(fit, strict = TRUE) {
+.frame_invariance_conditional <- function(fit, strict = TRUE, min_persons = 0L) {
   if (!isTRUE(fit$est$converged)) return(NULL)
   grp <- .frame_group_values(fit)
   glev <- levels(factor(grp))
@@ -173,6 +175,20 @@ NULL
       if (!isTRUE(f$est$converged)) {
         if (compared_set) failed(s, g, "calibration did not converge")
         next
+      }
+      # The separate calibration can drop constant items or recode categories.
+      # Its actual score structure, not the pooled EFRM maxima, determines
+      # whether a person contributes a non-constant conditional likelihood.
+      # Apply the minimum to the observed analysis only: bootstrap replicates
+      # must not be selected by whether resampling crosses the support boundary.
+      if (compared_set && min_persons > 0L &&
+          .frame_person_support(.frame_informative_rows(f$X, f$m),
+                                f$person$id) < min_persons) {
+        if (!isTRUE(strict)) return(NULL)
+        stop("frame-invariance inference needs at least ", min_persons,
+             " persons contributing informative item pairs in every compared ",
+             "set-by-frame cell; sparse cell(s): ", s, "/", g,
+             call. = FALSE)
       }
       # rasch() may legitimately drop a constant item or merge a category
       # that carries no conditional information in this one frame. That item
@@ -378,6 +394,18 @@ NULL
   }, logical(1)))
 }
 
+# At least one conditional pair has multiple feasible score allocations if
+# two scored items are observed and the row is neither all-zero nor all-max.
+# Assess this within the current set and frame, not over the person's other
+# responses. A one-item response, even in a middle category, supplies no pair.
+.frame_informative_rows <- function(X, m) {
+  X <- X[, m > 0L, drop = FALSE]
+  m <- m[m > 0L]
+  rowSums(!is.na(X)) >= 2L &
+    rowSums(X, na.rm = TRUE) > 0 &
+    rowSums(sweep(X, 2L, m, FUN = "-"), na.rm = TRUE) < 0
+}
+
 .frame_person_support <- function(informative, id) {
   if (length(informative) != length(id))
     stop("internal frame support mask has the wrong length", call. = FALSE)
@@ -395,6 +423,25 @@ NULL
   usable <- is.finite(statistic)
   probability[usable] <- 2 * stats::pnorm(-abs(statistic[usable]))
   list(statistic = statistic, p = probability)
+}
+
+# A bootstrap contrast must use the same set of items that established the
+# observed frame origin. Merely matching the observed rows is not enough: a
+# category absent from the observed calibration can reappear in a resample,
+# adding an item to the bootstrap centring set and changing the estimand.
+.frame_invariance_boot_vector <- function(table, key, value,
+                                          transform = identity) {
+  if (!is.data.frame(table) || !all(c(
+    "set", "frame_1", "frame_2", "item", value) %in% names(table)))
+    return(NULL)
+  got <- .factor_keys(
+    table[, c("set", "frame_1", "frame_2", "item"), drop = FALSE])
+  if (length(got) != length(key) || anyDuplicated(got) ||
+      !setequal(got, key)) return(NULL)
+  out <- transform(table[[value]][match(key, got)])
+  if (!is.numeric(out) || length(out) != length(key) ||
+      any(!is.finite(out))) return(NULL)
+  unname(out)
 }
 
 .frame_invariance_probabilities <- function(cmp, dsc, excluded, se_method,
@@ -450,7 +497,9 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
   # A separate-frame calibration supplies the covariance used by every item
   # comparison. Small frames produced valid-looking but unstable normal tests
   # in simulation, so require 50 informative persons in every observed
-  # set-by-frame cell before reporting invariance probabilities.
+  # set-by-frame cell before reporting invariance probabilities. This pooled
+  # screen is preliminary; the separate calibrations below check support
+  # again after any item removal or category recoding.
   vm <- fit$virtual_map
   fr <- unique(vm[, c("set", "group")])
   n_frames_by_set <- table(fr$set)
@@ -459,16 +508,17 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
     cc <- which(vm$set == fr$set[i] & vm$group == fr$group[i] &
                   vm$vkey %in% colnames(fit$X))
     if (length(cc) < 2L) return(FALSE)
-    informative <- rowSums(!is.na(
-      fit$X[, vm$vkey[cc], drop = FALSE])) >= 2L
+    jj <- match(vm$vkey[cc], colnames(fit$X))
+    informative <- .frame_informative_rows(
+      fit$X[, jj, drop = FALSE], fit$m[jj])
     .frame_person_support(informative, fit$person$id) < 50L
   }, logical(1))
   if (any(sparse)) stop(
-    "frame-invariance inference needs at least 50 persons with two or more ",
-    "responses in every compared set-by-frame cell; sparse cell(s): ",
+    "frame-invariance inference needs at least 50 persons contributing ",
+    "informative item pairs in every compared set-by-frame cell; sparse cell(s): ",
     paste(paste(fr$set[sparse], fr$group[sparse], sep = "/"), collapse = ", "))
 
-  ans <- .frame_invariance_conditional(fit)
+  ans <- .frame_invariance_conditional(fit, min_persons = 50L)
   if (is.null(ans))
     stop("no item set is taken by two person groups, so no item appears in ",
          "two frames to be compared")
@@ -515,10 +565,13 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
       }
       ib <- .frame_invariance_conditional(fb, strict = FALSE)
       if (is.null(ib)) next
-      xk <- key4(ib$locations)
-      yk <- key4(ib$discrimination)
-      bd[b, ] <- ib$locations$difference[match(lk, xk)]
-      ba[b, ] <- log(ib$discrimination$disc_ratio[match(dk, yk)])
+      loc_b <- .frame_invariance_boot_vector(
+        ib$locations, lk, "difference")
+      disc_b <- .frame_invariance_boot_vector(
+        ib$discrimination, dk, "disc_ratio", log)
+      if (is.null(loc_b) || is.null(disc_b)) next
+      bd[b, ] <- loc_b
+      ba[b, ] <- disc_b
       status[b] <- "used"
     }
     good <- rowSums(is.finite(bd)) == ncol(bd) &
@@ -588,6 +641,7 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
   rownames(smry) <- NULL
   out <- .tag_tables(list(locations = cmp, discrimination = dsc,
                           summary = smry, excluded = ans$excluded,
+                          algorithm = "frame-invariance-complete-family-1",
                           alpha = alpha, adjust = adjust,
                           se_method = se_method,
                           family_n = inference$family_n,
@@ -615,6 +669,8 @@ frame_invariance <- function(fit, alpha = 0.05, adjust = c("holm", "none"),
   unsigned <- unclass(invariance)
   unsigned$result_signature <- NULL
   if (!inherits(invariance, "rasch_frame_invariance") ||
+      !identical(invariance$algorithm,
+                 "frame-invariance-complete-family-1") ||
       !is.data.frame(invariance$summary) ||
       !is.data.frame(invariance$locations) ||
       !is.data.frame(invariance$discrimination) ||

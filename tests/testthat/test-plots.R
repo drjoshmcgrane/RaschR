@@ -32,6 +32,7 @@ test_that("targeting plots render for dichotomous and polytomous fits", {
   # the observed class-interval points
   expect_no_error(plot_icc(fp, c("P01", "P03", "P05"), observed = TRUE))
   expect_no_error(plot_icc(fp, c(1, 2), observed = FALSE))
+  expect_error(plot_icc(fp, c("P01", "P01")), "same item more than once")
 })
 
 test_that("default model-curve grids follow the calibration origin", {
@@ -190,6 +191,10 @@ test_that("residual dependence displays generalise to MFRM and EFRM fits", {
   expect_match(unique(mi$design), "rater=A.*rater=B")
   expect_no_error(plot_tif(mf, grid = c(-1, 0, 1)))
   expect_no_error(plot_tcc(mf, grid = c(-1, 0, 1)))
+  # A factor is still an ordinary categorical item selector; do not route it
+  # to the virtual-cell lookup merely because it is not a character vector.
+  expect_no_error(plot_icc(
+    mf, factor(unique(as.character(mf$virtual_map$item))[1L])))
 
   # EFRM: one item set, two groups differing in discrimination so the sets link
   set.seed(12); per_g <- 300; glev <- c("G1", "G2")
@@ -365,4 +370,119 @@ test_that("a crossed-frame EFRM map keeps only the selected group designs", {
   expect_no_error(plot_pimap(
     fe, information = TRUE, group = "grp: g2",
     items = as.character(fe$virtual_map$item[1L])))
+})
+
+test_that("category-frequency plots validate the fitted model first", {
+  expect_error(
+    plot_catfreq(1, "I1"),
+    "fitted response-data Rasch model"
+  )
+
+  set.seed(117)
+  X <- matrix(
+    rbinom(300 * 5, 1, 0.5), 300, 5,
+    dimnames = list(NULL, paste0("I", 1:5))
+  )
+  failed <- rasch(X)
+  failed$est$converged <- FALSE
+  expect_error(plot_catfreq(failed, "I1"), "did not converge")
+})
+
+test_that("ICC overlays retain fitted intervals and honour observed = FALSE", {
+  set.seed(118)
+  X <- matrix(
+    rbinom(360 * 6, 1, 0.5), 360, 6,
+    dimnames = list(NULL, paste0("I", 1:6))
+  )
+  # Different missingness makes the fitted allocation item-specific.
+  X[seq(1, 360, by = 3), "I1"] <- NA
+  X[seq(2, 360, by = 4), "I2"] <- NA
+  fit <- rasch(X)
+  used <- integer(0)
+  original <- rasch:::.fit_class_intervals
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  testthat::with_mocked_bindings(
+    plot_icc(fit, c("I1", "I2"), observed = TRUE),
+    .fit_class_intervals = function(fit, i, ...) {
+      used <<- c(used, i)
+      original(fit, i, ...)
+    },
+    .package = "rasch"
+  )
+  expect_identical(used, c(1L, 2L))
+
+  n_points <- 0L
+  testthat::with_mocked_bindings(
+    plot_icc(fit, "I1", group = rep(c("A", "B"), each = 180),
+             observed = FALSE),
+    points = function(...) n_points <<- n_points + 1L,
+    .package = "rasch"
+  )
+  expect_identical(n_points, 0L)
+
+  legend_cols <- NULL
+  many_groups <- rep(paste0("g", 1:9), each = nrow(fit$X) / 9)
+  testthat::with_mocked_bindings(
+    plot_icc(fit, "I1", group = many_groups, observed = TRUE,
+             n_groups = 2),
+    .rr_legend = function(pos, ...) legend_cols <<- list(...)$col,
+    .package = "rasch"
+  )
+  expect_length(legend_cols, 9L)
+  expect_false(anyNA(legend_cols))
+  expect_identical(legend_cols[9L], legend_cols[1L])
+})
+
+test_that("threshold and PCA plot selectors do not truncate their displays", {
+  fit <- structure(list(
+    est = list(converged = TRUE), model = "PCM",
+    tau_list = list(seq(-4.5, 4.5, length.out = 9)),
+    items = data.frame(item = "P1", location = 0),
+    n_groups = 5L
+  ), class = "rasch")
+  legend_col <- NULL
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  testthat::with_mocked_bindings(
+    plot_threshold_prob(fit, "P1"),
+    .rr_legend = function(pos, ...) legend_col <<- list(...)$col,
+    .package = "rasch"
+  )
+  expect_length(legend_col, 9L)
+  expect_false(anyNA(legend_col))
+  expect_identical(legend_col[9L], legend_col[1L])
+
+  requested <- NULL
+  pc <- list(
+    loadings_matrix = data.frame(
+      item = paste0("I", 1:12), PC12 = seq(-0.5, 0.5, length.out = 12)),
+    eigen_table = data.frame(eigenvalue = rep(1, 12),
+                             proportion = rep(1 / 12, 12))
+  )
+  pfit <- structure(list(items = data.frame(
+    item = paste0("I", 1:12), location = seq(-1, 1, length.out = 12))),
+    class = "rasch")
+  testthat::with_mocked_bindings(
+    plot_pca(pfit, component = 12),
+    residual_pca = function(fit, n_components) {
+      requested <<- n_components
+      pc
+    },
+    .package = "rasch"
+  )
+  expect_identical(requested, 12L)
+})
+
+test_that("kidmap does not turn missing uncertainty into a zero-width band", {
+  fit <- rasch(simulate_rasch(250, 8, seed = 119), id = "id")
+  n <- which(is.finite(fit$person$theta))[1L]
+  fit$person$se[n] <- NA_real_
+  expect_error(plot_kidmap(fit, n), "standard error.*unavailable")
+})
+
+test_that("person-item map item selections cannot overstate their size", {
+  fit <- rasch(simulate_rasch(250, 8, seed = 120), id = "id")
+  expect_error(.pimap_items(fit, c("I01", "I01")), "same item")
+  expect_error(.pimap_items(fit, " "), "must name")
 })

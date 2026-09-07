@@ -122,12 +122,18 @@ graph must be strongly connected for all free locations to be finite
 (Ford 1957). Boundary objects are removed when this leaves an identified
 model; otherwise fitting stops.
 
-Standard errors use the Godambe sandwich covariance. When \code{judge} is
-supplied, the covariance is clustered by judge. Clustered inference is
-withheld when there are fewer than ten judges, fewer than eight effective
-judges, or no residual cluster degrees of freedom. A caution is attached
+Standard errors use the Godambe sandwich covariance. Inference is withheld
+if the empirical sampling-unit score covariance does not identify every
+fitted direction. When \code{judge} is supplied, the covariance is
+clustered by judge and inference is also withheld when there are fewer
+than ten judges, fewer than eight effective judges, or no residual cluster
+degrees of freedom. A caution is attached
 when the effective count is below 9.5 or one judge supplies more than 20
 per cent of the comparisons.
+The pairwise chi-square remains descriptive when judges are identified
+because its row-based chi-square reference does not model within-judge
+dependence. \code{\link{fit_bootstrap}} supplies a parametric calibration
+under the fitted response model.
 
 Dichotomous data may be supplied as a winner, with ties dropped or divided
 equally between the two outcomes. Ordered data may instead be supplied

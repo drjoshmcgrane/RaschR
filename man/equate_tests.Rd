@@ -20,7 +20,10 @@ ordered like the bank rows (or named by item); marginal SEs alone do not
 carry the centring covariance. They are sufficient with
 \code{shift = "none"}.
 A bank treated as fixed may instead have zero SEs. A polytomous bank must
-also include \code{max}, the maximum item score.}
+also include \code{max}, the maximum item score. A bank covariance
+estimated from a finite number of independent sampling units may carry
+its positive residual degrees of freedom in
+\code{attr(reference, "df_location")}.}
 
 \item{shift}{\code{"mean"} (default) allows a scale shift between the two
 analyses; \code{"none"} compares raw locations, appropriate when both
@@ -35,7 +38,8 @@ returned but inferential drift columns are withheld.}
 }
 \value{
 A list with the comparison \code{table} (locations, standard
-  errors, difference, t, raw and Holm-adjusted p, drift flag), the
+  errors, difference, its standard error, t statistic, reference degrees
+  of freedom, raw and Holm-adjusted p, drift flag), the
   estimated \code{shift} and its \code{shift_method},
   the location \code{correlation}, the root mean square difference after
   shifting (\code{rmsd}), the number of common items \code{n_common}, the
@@ -62,13 +66,25 @@ accounts for the estimated shift through the items' joint covariance.
 If fewer than two common items have usable variances but at least two have
 finite locations, the function returns their unweighted mean difference as
 a descriptive fallback and records \code{shift_method = "unweighted"}.
+An exact common anchor determines the shift even when it is the only
+common item with usable uncertainty; unavailable SEs do not override it.
 When the shift is estimated, drift inference requires independent
 calibrations and at least three common items with usable,
 positive-semidefinite joint covariance information. With
 \code{shift = "none"}, the origin is fixed before the comparison and each
 item's variance is the sum of its two marginal variances; joint covariance
-information and a three-item link are then unnecessary. Otherwise the
-function returns a descriptive link.
+information and a three-item link are then unnecessary. One common item is
+sufficient for that fixed-origin comparison; estimating a shift still
+requires at least two. Otherwise the function returns a descriptive link.
+A fitted calibration's empirical covariance must also pass the
+informative-person count, effective-support and projected-rank checks used
+by \code{\link{rasch}}. Supported independent rows use the limiting normal
+reference.
+When either covariance comes from repeated person clusters, drift
+probabilities use contrast-specific Welch--Satterthwaite degrees of
+freedom. The corresponding residual degrees of freedom are the number of
+independent person clusters minus one. A fixed anchor contributes zero
+variance and does not consume cluster degrees of freedom.
 Fitted calibrations must have converged.
 }
 \examples{

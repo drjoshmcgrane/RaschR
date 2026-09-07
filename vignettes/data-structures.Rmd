@@ -61,17 +61,20 @@ fit, which already contains one.
 
 ```{r person-weights, eval=FALSE}
 item_weights <- c(I1 = 2, I2 = 1, I3 = 0.5)
-weighted_person_estimates(fit, item_weights)
+weighted <- weighted_person_estimates(fit, item_weights)
 
 set_of <- c(I1 = "core", I2 = "core", I3 = "extension")
 set_weights <- c(core = 2, extension = 1)
 weighted_person_estimates(fit, set_weights, by = "set", sets = set_of)
+
+save_outputs(fit, "analysis", person_weights = weighted)
 ```
 
 Only relative weights matter. The weighted estimates are supplementary; they
 do not replace the Rasch estimates used for fit, reliability, targeting or
 DIF. In the application, use a CSV with `item,weight`, or
-`item,set,weight` for set weights.
+`item,set,weight` for set weights. The computed table can also be passed to
+`save_outputs()`, `report_html()` or `report_document()`.
 
 ## Explanatory item and threshold models
 
@@ -236,7 +239,8 @@ Long data are usually easier to inspect when a facet varies within items.
 
 EFRM response data use one row per person and one column per item, together
 with a person-group column. A separate named map assigns each item to exactly
-one item set.
+one item set. Supplied person identifiers must not repeat; missing or blank
+identifiers are treated as different unknown persons.
 
 ```{r efrm-structure}
 frame_data <- data.frame(
