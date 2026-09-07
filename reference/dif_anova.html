@@ -115,7 +115,9 @@ with each other. Immaterial with a single factor.</p></dd>
 
 <dt id="arg-sizes">sizes<a class="anchor" aria-label="anchor" href="#arg-sizes"></a></dt>
 <dd><p>If <code>TRUE</code>, refit each flagged item-term and calculate
-adjusted marginal contrasts in logits using <code><a href="dif_posthoc.html">dif_posthoc</a></code>.</p></dd>
+marginal contrasts in logits using <code><a href="dif_posthoc.html">dif_posthoc</a></code>. Their
+probabilities are adjusted together over the complete family opened by
+all flagged, non-superseded uniform terms.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
@@ -157,7 +159,12 @@ alter EFRM fits. Ignored for ordinary fits.</p></dd>
   <dt><code>posthoc</code></dt>
 <dd><p>When <code>sizes = TRUE</code>, marginal pairwise
   differences for main effects and difference-in-differences magnitudes
-  for interactions, calculated by <code><a href="dif_posthoc.html">dif_posthoc</a></code>.</p></dd>
+  for interactions, calculated by <code><a href="dif_posthoc.html">dif_posthoc</a></code> and adjusted
+  together over the opened follow-up family.</p></dd>
+
+  <dt><code>posthoc_family_n</code></dt>
+<dd><p>When <code>sizes = TRUE</code>, the number of
+  planned questions in that family, including unavailable comparisons.</p></dd>
 
   <dt><code>between_covariance</code></dt>
 <dd><p>The covariance reference used for
@@ -178,13 +185,18 @@ factor-by-factor interactions. Type II sums of squares are used. The
 multiplicity adjustment covers all item-by-DIF-term tests, including both
 uniform and non-uniform DIF; the class-interval main effect is a nuisance
 term and is not included. A reported term remains in this family when its
-probability is unavailable.</p>
+probability is unavailable.
+Effects that cannot be estimated from the retained design are reported
+as <code>NA</code>, including within-person effects whose adjusted mean is
+confounded with between-person terms in an incomplete factorial design.</p>
 <p>When identifiers repeat, the person is the unit of analysis. Between-person
 terms use person means and the between-person error stratum. Within-person
 terms use orthonormal contrasts of person-by-cell means. A
 Greenhouse–Geisser correction is applied to within-person factors with
 more than two levels. Persons missing a required cell are excluded from the
-corresponding within-person test. In incomplete mixed designs, within-cell
+corresponding within-person test. Required cells include every combination
+of the within-person factor levels, even when a combination or level has
+no observations for an item. In incomplete mixed designs, within-cell
 effects are removed before the between-person analysis. Uniform
 between-person factor terms use HC3 covariance so unequal group sizes,
 leverage, and differing precision of person means do not impose a common

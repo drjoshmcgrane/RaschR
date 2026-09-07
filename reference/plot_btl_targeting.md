@@ -5,10 +5,14 @@ object is a dot at its location (x) and its design information (y, the
 pooled Fisher information of the comparisons it took part in), the dot
 sized by how many comparisons that is. For an equal-unit fit, a
 reference curve on the right axis traces the information a single *new*
-comparison would carry against an opponent at each location. It peaks at
-gap zero and explains why adaptive designs favour near neighbours. A
+comparison would carry against an opponent at each location. For a
+dichotomous fit without a position effect, it peaks at gap zero. Ordered
+response thresholds and position effects can change where it peaks. A
 frame fit has no single reference curve because the information also
-depends on the fitted panel and set units.
+depends on the fitted panel and set units. The reference curve is also
+omitted for history-dependent fits. With a position effect only, it
+represents the median-location object presented first against each
+opponent location.
 
 ## Usage
 

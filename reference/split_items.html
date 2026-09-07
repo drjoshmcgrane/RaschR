@@ -8,16 +8,18 @@
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Split items by a person factor to resolve DIF — split_items"><meta name="description" content="Replaces each nominated item with one item per estimable level of a person
 factor, each carrying that level's responses only (other levels missing).
 A level must contain every score from zero to the fitted item maximum;
-levels that cannot retain the fitted scoring structure are omitted and
-recorded in the notes. Every retained
+levels missing a score are omitted and recorded in the notes. The split
+is refused if calibration subsequently merges a category lacking conditional
+information within a retained group. Every retained
 group then receives its own item location, which resolves the invariance
 violation flagged by dif_anova; the distance between the
 split locations estimates the DIF size. The model is refitted with the
 same settings."><meta property="og:description" content="Replaces each nominated item with one item per estimable level of a person
 factor, each carrying that level's responses only (other levels missing).
 A level must contain every score from zero to the fitted item maximum;
-levels that cannot retain the fitted scoring structure are omitted and
-recorded in the notes. Every retained
+levels missing a score are omitted and recorded in the notes. The split
+is refused if calibration subsequently merges a category lacking conditional
+information within a retained group. Every retained
 group then receives its own item location, which resolves the invariance
 violation flagged by dif_anova; the distance between the
 split locations estimates the DIF size. The model is refitted with the
@@ -65,8 +67,9 @@ same settings."><meta property="og:image" content="https://drjoshmcgrane.github.
     <p>Replaces each nominated item with one item per estimable level of a person
 factor, each carrying that level's responses only (other levels missing).
 A level must contain every score from zero to the fitted item maximum;
-levels that cannot retain the fitted scoring structure are omitted and
-recorded in the notes. Every retained
+levels missing a score are omitted and recorded in the notes. The split
+is refused if calibration subsequently merges a category lacking conditional
+information within a retained group. Every retained
 group then receives its own item location, which resolves the invariance
 violation flagged by <code><a href="dif_anova.html">dif_anova</a></code>; the distance between the
 split locations estimates the DIF size. The model is refitted with the

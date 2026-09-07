@@ -14,7 +14,9 @@ its consensus location predicts. Approximate two-sided normal probabilities
 are adjusted by Holm across the objects meeting min_n. A surprise
 is an eligible object treated against its standing (residual opposite in
 sign to the location) whose adjusted probability passes the level
-represented by flag_z. The fitted model must have converged."><meta property="og:description" content="The paired-comparison counterpart of the kidmap. A judge has no ability to
+represented by flag_z. The fitted model must have converged.
+An adequately sampled object with unavailable residual inference remains
+in the adjustment family."><meta property="og:description" content="The paired-comparison counterpart of the kidmap. A judge has no ability to
 condition on, so the reference is the consensus object scale (the pooled
 locations). For the nominated judge, each object it met is given a
 standardised residual oriented to the object – how much more (z &amp;gt; 0,
@@ -23,7 +25,9 @@ its consensus location predicts. Approximate two-sided normal probabilities
 are adjusted by Holm across the objects meeting min_n. A surprise
 is an eligible object treated against its standing (residual opposite in
 sign to the location) whose adjusted probability passes the level
-represented by flag_z. The fitted model must have converged."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+represented by flag_z. The fitted model must have converged.
+An adequately sampled object with unavailable residual inference remains
+in the adjustment family."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -73,7 +77,9 @@ its consensus location predicts. Approximate two-sided normal probabilities
 are adjusted by Holm across the objects meeting <code>min_n</code>. A surprise
 is an eligible object treated against its standing (residual opposite in
 sign to the location) whose adjusted probability passes the level
-represented by <code>flag_z</code>. The fitted model must have converged.</p>
+represented by <code>flag_z</code>. The fitted model must have converged.
+An adequately sampled object with unavailable residual inference remains
+in the adjustment family.</p>
     </div>
 
     <div class="section level2">
@@ -108,7 +114,10 @@ of approximately 0.05.</p></dd>
     <p>A list of class <code>"rasch_btl_judge"</code>: <code>objects</code> (per object
   met: location, times met <code>n</code>, residual <code>z</code>, approximate
   <code>p</code>, Holm-adjusted <code>p_adj</code>, <code>surprise</code> flag and its
-  <code>type</code>); <code>all_locations</code> (every object, for orientation);
+  <code>type</code>). Strong and weak refer to standing above or below the mean
+  calibrated-object location, so the classification is unchanged by the
+  arbitrary scale origin. <code>all_locations</code> contains every object for
+  orientation;
   the <code>judge</code> and settings.</p>
     </div>
 

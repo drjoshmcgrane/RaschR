@@ -212,8 +212,8 @@ dif_size(fit, "I03", by = "group")
 #>  level location    se weak   n
 #>      A   -0.518 0.129    0 160
 #>      B    0.227 0.128    0 160
-#>  level_a level_b difference    se      z       p   p_adj  lower  upper
-#>        A       B     -0.745 0.203 -3.673 < 0.001 < 0.001 -1.143 -0.348
+#>  level_a level_b difference    se      t  df       p   p_adj  lower  upper
+#>        A       B     -0.745 0.203 -3.667 316 < 0.001 < 0.001 -1.145 -0.345
 #>  significant practical p_beyond_A p_beyond_A_adj ets signed_area
 #>            *   >= 0.50      0.058          0.058  B-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits

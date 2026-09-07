@@ -1,10 +1,11 @@
 # Relax a nominated explanatory restriction
 
-Adds either one fixed item-location departure or a fixed block
-describing an item's threshold structure, then repeats the complete
-conditional calibration and downstream Rasch analysis. The departure is
-fixed rather than random; raw-score sufficiency and the common
-discrimination remain.
+Adds either one fixed item-location departure or the part of an item's
+threshold-structure block not already represented by the predictor
+design, then repeats the complete conditional calibration and downstream
+Rasch analysis. The departure is fixed rather than random; raw-score
+sufficiency and the common discrimination remain. Earlier DIF splits and
+superitem definitions are retained.
 
 ## Usage
 

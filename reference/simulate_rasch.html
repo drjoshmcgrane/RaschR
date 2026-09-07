@@ -111,8 +111,8 @@ spacings and span are drawn afresh, as the partial credit model allows.</p></dd>
 
 
 <dt id="arg-theta-mean-theta-sd">theta_mean, theta_sd<a class="anchor" aria-label="anchor" href="#arg-theta-mean-theta-sd"></a></dt>
-<dd><p>Mean and standard deviation of the person
-distribution.</p></dd>
+<dd><p>Realised sample mean and standard deviation of
+the person distribution.</p></dd>
 
 
 <dt id="arg-theta-dist">theta_dist<a class="anchor" aria-label="anchor" href="#arg-theta-dist"></a></dt>
@@ -132,20 +132,27 @@ item location (polytomous).</p></dd>
 
 <dt id="arg-discrimination">discrimination<a class="anchor" aria-label="anchor" href="#arg-discrimination"></a></dt>
 <dd><p>The item slope, supplied as one value or one per item.
-Values above 1 produce steeper responses and negative fit residuals.
-Values below 1 produce flatter responses and positive fit residuals.</p></dd>
+One common value changes the logit unit without departing from a Rasch
+model. Differences between items are a deliberate slope departure: values
+above the common pattern produce steeper responses and values below it
+produce flatter responses, and require <code>theta_sd &gt; 0</code>.</p></dd>
 
 
 <dt id="arg-guessing">guessing<a class="anchor" aria-label="anchor" href="#arg-guessing"></a></dt>
 <dd><p>Scalar or length-<code>n_items</code> lower asymptote
-(dichotomous): low-location persons answer correctly by chance.</p></dd>
+(dichotomous): low-location persons answer correctly by chance. A positive
+asymptote requires <code>theta_sd &gt; 0</code>.</p></dd>
 
 
 <dt id="arg-second-dim">second_dim<a class="anchor" aria-label="anchor" href="#arg-second-dim"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(items=, rho=)</code>: the named items
 load on a second trait whose realised sample correlation with the first
-is <code>rho</code>. At least three persons are needed unless <code>rho</code> is
--1 or 1. Each item is named once.</p></dd>
+is <code>rho</code>. It lies in [-1, 1); a correlation of 1 would reproduce the
+primary trait rather than plant another dimension. At least three persons
+are needed unless <code>rho</code> is -1. Each item is named once, and at least
+one item must remain on
+the primary trait; moving every item to the second trait is still a
+one-dimensional scale.</p></dd>
 
 
 <dt id="arg-dependence">dependence<a class="anchor" aria-label="anchor" href="#arg-dependence"></a></dt>
@@ -158,12 +165,17 @@ residual-dependence diagnostics. Each directed pair is listed once.</p></dd>
 <dd><p><code>NULL</code>, or <code>list(items=, uniform=, nonuniform=)</code>: the
 named items function differently for the last person group: a location
 shift (<code>uniform</code>) and/or a slope change (<code>nonuniform</code>). Needs
-<code>n_groups &gt;= 2</code>; each item is named once.</p></dd>
+<code>n_groups &gt;= 2</code>; each item is named once and at least one item must
+remain invariant. A common shift or slope change on every item changes
+the group origin or unit rather than defining item DIF. A non-uniform
+effect also requires <code>theta_sd &gt; 0</code>.</p></dd>
 
 
 <dt id="arg-careless">careless<a class="anchor" aria-label="anchor" href="#arg-careless"></a></dt>
-<dd><p>Proportion of persons who answer at random. Careless and
-response-style assignments are disjoint; their requested counts must fit.</p></dd>
+<dd><p>Proportion of persons who answer at random. At least one
+person in each generated group must retain model-based responses.
+Careless and response-style assignments are disjoint; their requested
+counts must fit.</p></dd>
 
 
 <dt id="arg-response-style">response_style<a class="anchor" aria-label="anchor" href="#arg-response-style"></a></dt>
@@ -171,13 +183,17 @@ response-style assignments are disjoint; their requested counts must fit.</p></d
 with <code>type</code> <code>"extreme"</code> or <code>"middle"</code>: a proportion
 <code>prop</code> of persons favour the end (or middle) categories regardless
 of the trait, with distortion <code>strength</code> (default 1.6) on the
-log-probability scale (polytomous).</p></dd>
+log-probability scale (polytomous). At least one person must remain
+without the style; applying one category weighting to everyone merely
+changes the fitted thresholds.</p></dd>
 
 
 <dt id="arg-speeded">speeded<a class="anchor" aria-label="anchor" href="#arg-speeded"></a></dt>
 <dd><p>Proportion not reached at the last item: a growing tail of
 missing responses over the final items. These cells are kept distinct
-from any completely-at-random missing cells.</p></dd>
+from any completely-at-random missing cells. Persons are selected
+independently of their ability and responses; this does not simulate
+non-ignorable missingness or change the response model.</p></dd>
 
 
 <dt id="arg-disordered">disordered<a class="anchor" aria-label="anchor" href="#arg-disordered"></a></dt>

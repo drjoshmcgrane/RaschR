@@ -56,7 +56,8 @@ plot_pimap(
   selection is named in the legend, so a restricted map cannot be read
   as the whole instrument. The information curve follows the same item
   selection; for an extended-frame fit it also follows the response
-  cells occupied by the selected person group.
+  cells occupied by the selected person group. For EFRM and MFRM, only
+  response patterns present in that person group are shown.
 
 ## Value
 

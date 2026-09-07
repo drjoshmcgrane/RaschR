@@ -87,18 +87,24 @@ departures can coexist.</p>
 <dd><p>Rating categories.</p></dd>
 
 
-<dt id="arg-theta-sd-item-sd">theta_sd, item_sd<a class="anchor" aria-label="anchor" href="#arg-theta-sd-item-sd"></a></dt>
-<dd><p>Spread of person ability and item difficulty.</p></dd>
+<dt id="arg-theta-sd">theta_sd<a class="anchor" aria-label="anchor" href="#arg-theta-sd"></a></dt>
+<dd><p>Realised sample standard deviation of person ability.</p></dd>
+
+
+<dt id="arg-item-sd">item_sd<a class="anchor" aria-label="anchor" href="#arg-item-sd"></a></dt>
+<dd><p>Realised sample standard deviation of the deterministic item
+difficulties; zero gives equal item difficulties.</p></dd>
 
 
 <dt id="arg-rater-severity-sd">rater_severity_sd<a class="anchor" aria-label="anchor" href="#arg-rater-severity-sd"></a></dt>
-<dd><p>Spread of rater severities (the core facet;
-recovered in <code>facet_effects</code>).</p></dd>
+<dd><p>Realised sample standard deviation of rater
+severities (the core facet; recovered in <code>facet_effects</code>).</p></dd>
 
 
 <dt id="arg-erratic-raters">erratic_raters<a class="anchor" aria-label="anchor" href="#arg-erratic-raters"></a></dt>
 <dd><p>Proportion of raters who rate at random (feeds the
-rater fit residual). Erratic and halo raters are disjoint.</p></dd>
+rater fit residual). Erratic and halo raters are disjoint, and together
+must leave at least one ordinary rater.</p></dd>
 
 
 <dt id="arg-interaction">interaction<a class="anchor" aria-label="anchor" href="#arg-interaction"></a></dt>
@@ -111,7 +117,8 @@ Feeds the item-by-rater interaction (fit with <code>interaction = </code>).</p><
 <dd><p>Proportion of raters showing a halo effect: they rate by the
 person's overall level and barely differentiate items (feeds the rater
 fit residual and the item-by-rater interaction). Its requested count
-must fit among the non-erratic raters.</p></dd>
+must fit among the non-erratic raters and leave an ordinary rater.
+A positive halo proportion requires <code>item_sd &gt; 0</code>.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -131,7 +138,7 @@ must fit among the non-erratic raters.</p></dd>
 <span class="r-in"><span><span class="va">mf</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch_mfrm.html">rasch_mfrm</a></span><span class="op">(</span><span class="va">d</span>, person <span class="op">=</span> <span class="st">"person"</span>, item <span class="op">=</span> <span class="st">"item"</span>, score <span class="op">=</span> <span class="st">"score"</span>,</span></span>
 <span class="r-in"><span>                 facets <span class="op">=</span> <span class="st">"rater"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">mf</span><span class="op">$</span><span class="va">facet_effects</span><span class="op">$</span><span class="va">rater</span><span class="op">$</span><span class="va">severity</span>, <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">$</span><span class="va">severity</span><span class="op">)</span>  <span class="co"># recovered</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9944333</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.9911336</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

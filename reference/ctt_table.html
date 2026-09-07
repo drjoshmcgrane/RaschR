@@ -6,7 +6,8 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Traditional (classical test theory) statistics — ctt_table"><meta name="description" content="The classical companion table conventionally reported alongside a Rasch
-analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
+analysis (Andrich and Marais 2019, chs. 3-5), on complete cases by default:
+per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
 upper third of total scores minus the lower third). Equal total scores
@@ -15,8 +16,15 @@ when three distinct score groups cannot be formed. The table also gives
 alpha if the item is deleted; the summary gives coefficient alpha, the
 raw-score mean, SD, and the
 classical standard error of measurement \(s\sqrt{1 - \alpha}\), which
-unlike the Rasch SE is one value for all persons."><meta property="og:description" content="The classical companion table conventionally reported alongside a Rasch
-analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
+unlike the Rasch SE is one value for all persons. The SEM is withheld when
+alpha is negative, since a negative coefficient is not a usable reliability
+estimate. With missing responses, available-case mode also withholds SEM:
+its pairwise alpha and complete-case score SD describe different samples.
+Use complete-case mode to estimate SEM on a consistent sample.
+Alpha if deleted is checked separately for each retained item set; it can
+be available even when the full-scale covariance matrix is incomplete."><meta property="og:description" content="The classical companion table conventionally reported alongside a Rasch
+analysis (Andrich and Marais 2019, chs. 3-5), on complete cases by default:
+per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
 upper third of total scores minus the lower third). Equal total scores
@@ -25,7 +33,13 @@ when three distinct score groups cannot be formed. The table also gives
 alpha if the item is deleted; the summary gives coefficient alpha, the
 raw-score mean, SD, and the
 classical standard error of measurement \(s\sqrt{1 - \alpha}\), which
-unlike the Rasch SE is one value for all persons."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+unlike the Rasch SE is one value for all persons. The SEM is withheld when
+alpha is negative, since a negative coefficient is not a usable reliability
+estimate. With missing responses, available-case mode also withholds SEM:
+its pairwise alpha and complete-case score SD describe different samples.
+Use complete-case mode to estimate SEM on a consistent sample.
+Alpha if deleted is checked separately for each retained item set; it can
+be available even when the full-scale covariance matrix is incomplete."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -67,7 +81,8 @@ unlike the Rasch SE is one value for all persons."><meta property="og:image" con
 
     <div class="ref-description section level2">
     <p>The classical companion table conventionally reported alongside a Rasch
-analysis (Andrich and Marais 2019, chs. 3-5), on complete cases only: per item the facility (mean score over
+analysis (Andrich and Marais 2019, chs. 3-5), on complete cases by default:
+per item the facility (mean score over
 maximum), the item-total and corrected item-rest correlations, the
 discrimination index DI = PRU - PRL (mean proportion-of-maximum in the
 upper third of total scores minus the lower third). Equal total scores
@@ -76,7 +91,13 @@ when three distinct score groups cannot be formed. The table also gives
 alpha if the item is deleted; the summary gives coefficient alpha, the
 raw-score mean, SD, and the
 classical standard error of measurement \(s\sqrt{1 - \alpha}\), which
-unlike the Rasch SE is one value for all persons.</p>
+unlike the Rasch SE is one value for all persons. The SEM is withheld when
+alpha is negative, since a negative coefficient is not a usable reliability
+estimate. With missing responses, available-case mode also withholds SEM:
+its pairwise alpha and complete-case score SD describe different samples.
+Use complete-case mode to estimate SEM on a consistent sample.
+Alpha if deleted is checked separately for each retained item set; it can
+be available even when the full-scale covariance matrix is incomplete.</p>
     </div>
 
     <div class="section level2">

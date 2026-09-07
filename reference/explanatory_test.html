@@ -8,7 +8,9 @@
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Compare an explanatory model with its free calibration — explanatory_test"><meta name="description" content="Tests explanatory item, threshold or object restrictions against the
 corresponding free calibration of the same responses. The inferential
 result uses the first-order Kent calibration for the fitted likelihood and
-sandwich covariance. The calibration coefficient of determination is
+sandwich covariance. This multivariate comparison is asymptotic; unlike
+the individual coefficient tests, it has no finite-person-cluster \(t\)
+correction. The calibration coefficient of determination is
 $$R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
 \hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
 \bar\eta^{free})^2},$$
@@ -29,7 +31,9 @@ descriptive optimism adjustment. Read either beside the test rather than
 in place of it."><meta property="og:description" content="Tests explanatory item, threshold or object restrictions against the
 corresponding free calibration of the same responses. The inferential
 result uses the first-order Kent calibration for the fitted likelihood and
-sandwich covariance. The calibration coefficient of determination is
+sandwich covariance. This multivariate comparison is asymptotic; unlike
+the individual coefficient tests, it has no finite-person-cluster \(t\)
+correction. The calibration coefficient of determination is
 $$R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
 \hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
 \bar\eta^{free})^2},$$
@@ -91,7 +95,9 @@ in place of it."><meta property="og:image" content="https://drjoshmcgrane.github
     <p>Tests explanatory item, threshold or object restrictions against the
 corresponding free calibration of the same responses. The inferential
 result uses the first-order Kent calibration for the fitted likelihood and
-sandwich covariance. The calibration coefficient of determination is
+sandwich covariance. This multivariate comparison is asymptotic; unlike
+the individual coefficient tests, it has no finite-person-cluster \(t\)
+correction. The calibration coefficient of determination is
 $$R^2_{cal}=1-\frac{\sum_j(\hat\eta^{free}_j-
 \hat\eta^{expl}_j-\bar d)^2}{\sum_j(\hat\eta^{free}_j-
 \bar\eta^{free})^2},$$

@@ -61,7 +61,9 @@ btl_efrm(
 
   A named list mapping set names to character vectors of object names.
   Set names must be unique, and every compared object must occur exactly
-  once in exactly one set.
+  once in exactly one set. The alphabetically first set is the
+  reference, with \\\alpha=1\\ and \\\kappa=0\\. Changing this reference
+  can change the cross-set unit restriction, not just the labels.
 
 - response:
 
@@ -129,10 +131,14 @@ btl_efrm(
 An object of class `"rasch_btl_efrm"`. It contains the object estimates,
 group- and set-unit tables, origin shifts, omnibus unit tests,
 unit-specific judge support, frame definitions, convergence information,
-and analysis notes. `boot_reps_requested`, `boot_reps_used` and
-`boot_reps_failed` report the bootstrap accounting. A non-converged fit
-retains its final estimates and residual patterns for diagnosis but
-withholds standard errors and inferential probabilities.
+and analysis notes. `n_cross` records each set-pair count and whether it
+met `min_link` and entered the fit. `boot_reps_requested`,
+`boot_reps_used` and `boot_reps_failed` report the bootstrap accounting.
+`total_chisq` and `total_df` describe the pooled pair residuals;
+`total_p` is `NA` because the corresponding row-independent chi-square
+reference is not valid for repeated comparisons by judges. A
+non-converged fit retains its final estimates and residual patterns for
+diagnosis but withholds standard errors and inferential probabilities.
 
 ## Details
 
@@ -161,25 +167,33 @@ distributions. `se_method = "conditional"` uses analytic stage-one
 errors and conditions the linking errors on stage one; it is intended
 for preliminary inspection. Its unit probabilities and omnibus tests are
 withheld because it does not propagate stage-one uncertainty. Bootstrap
-failures and boundary estimates are reported in `notes`.
+failures and boundary estimates are reported in `notes`. The total
+pairwise chi-square and its nominal degrees of freedom are retained as
+descriptive summaries. Its row-based chi-square probability is withheld
+because judges are the sampling units and contribute repeated
+comparisons.
 
 With one set, the model contains panel units only. With one set and one
 panel, it reduces to
 [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md). Omnibus
 Wald probabilities are Holm-adjusted across the panel-unit, set-unit and
-set-origin families. Individual contrasts form a separate Holm-adjusted
-follow-up family across all three parameter types. An unavailable unit
-remains in its predeclared family; an omnibus is withheld rather than
-reduced when one of its requested coordinates is unavailable.
-Judge-bootstrap probabilities require at least six judges and 5.5
-effective judges in every contributing panel, and eight of each on a set
-link. The support is returned in `unit_support`; estimates remain
-descriptive when a probability is withheld. Fits with fewer than eight
-effective judges per panel or 9.5 per set link retain probabilities but
-report a caution. Set-unit estimates can also be attenuated when each
-object pair has little comparison information. In simulation, log-unit
-bias declined from about -0.11 with 10 repetitions per pair to less than
--0.01 with 100 repetitions.
+set-origin families. Individual estimated units form a separate
+Holm-adjusted follow-up family across all three parameter types.
+Structurally fixed reference coordinates are not hypotheses. An
+unavailable estimated unit remains in its predeclared family; an omnibus
+is withheld rather than reduced when one of its requested coordinates is
+unavailable. Judge-bootstrap probabilities require at least six judges
+and 5.5 effective judges in every contributing panel. Each non-reference
+set also requires eight judges and eight effective judges along a
+supported path to the reference set. With redundant links, the path with
+the strongest bottleneck is used. The support is returned in
+`unit_support`; estimates remain descriptive when a probability is
+withheld. Fits with fewer than eight effective judges per panel or 9.5
+along a set's reference path retain probabilities but report a caution.
+Set-unit estimates can also be attenuated when each object pair has
+little comparison information. In simulation, log-unit bias declined
+from about -0.11 with 10 repetitions per pair to less than -0.01 with
+100 repetitions.
 
 ## References
 

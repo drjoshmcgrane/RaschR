@@ -110,7 +110,12 @@ must be unique. PCM only.</p></dd>
   responses in any category, or a threshold adjacent to a category with
   fewer than three responses. Standard errors for weak thresholds are
   reported as <code>NA</code>. If estimation does not converge, the function
-  warns and all standard errors and covariance entries are <code>NA</code>.</p>
+  warns and all standard errors and covariance entries are <code>NA</code>.
+  Sandwich uncertainty is also withheld when fewer than 10 independent
+  persons, fewer than 8 effective persons, no more effective persons than
+  fitted parameters, or a rank-deficient person-score covariance cannot
+  support inference. Effective support is based on informative conditional
+  item-pair contributions; point estimates and exact anchors remain.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

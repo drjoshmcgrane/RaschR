@@ -48,7 +48,7 @@ truth <- attr(d, "truth")
 d$site <- rep(c("A", "B"), length.out = nrow(d))
 d
 #> Simulated efrm data: 300 persons, 2 sets x 2 groups, 16 items (2 categories)
-#> Planted departures:
+#> Generating values and departures:
 #>   - set-unit ratio 1.30 across 2 sets
 #>   - group-unit ratio 1.10 across 2 groups
 ```
@@ -137,7 +137,7 @@ fit$linking         # set-linking design
 #> 
 #> $alpha_edges
 #>  set_a set_b   n log_slope converged edge_mass    loglik
-#>   set1  set2 300     0.348         1     0.000 -3522.116
+#>   set1  set2 294     0.348         1     0.000 -3522.116
 #> 
 #> $boot_reps_requested
 #> [1] 50
@@ -265,10 +265,17 @@ probabilities are adjusted together by Holm’s method. Individual unit
 contrasts form a separate Holm-adjusted follow-up family. The raw
 composite-likelihood difference is descriptive and compares the
 group-unit stage only. Set units are identified in the linking stage and
-are assessed by their Wald test. Probabilities require at least 50
-persons or effective persons in every group and at least 50 common
-persons on every set-link edge. Sparse designs retain the unit estimates
-without an inferential probability.
+are assessed by their Wald test.
+[`compare_fits()`](https://drjoshmcgrane.github.io/rasch/reference/compare_fits.md)
+withholds generic likelihood differences involving EFRM: its calibration
+likelihood uses within-set pairs, whereas ordinary PCM also uses
+cross-set pairs. The matched group-unit comparison is retained in
+`fit$efrm_vs_rasch`. Probabilities require at least 50 persons or
+effective persons in every group and at least 50 informative common
+persons on every set-link edge. A person at the same extreme tail in
+both sets remains in the likelihood but does not count as link support.
+Sparse designs retain the unit estimates without an inferential
+probability.
 
 Simulation under normal, bimodal and deliberately different group
 distributions gave set-unit bias within 0.004 log-units,
@@ -293,9 +300,11 @@ The fitted EFRM gives an item one location across its frames, scaled by
 the frame unit.
 [`frame_invariance()`](https://drjoshmcgrane.github.io/rasch/reference/frame_invariance.md)
 examines that restriction by calibrating each frame separately. Each
-compared frame needs at least 50 persons with two or more responses.
-Items with weak separate-frame standard errors are excluded from the
-comparison.
+compared set and frame needs at least 50 distinct persons contributing
+an informative item pair: not both zero or both at their item maxima
+after any item removal or category recoding in that frame’s separate
+calibration. Items with weak separate-frame standard errors are excluded
+from the comparison.
 
 For frame \\f\\, the common-scale item location is
 \\\hat\delta\_{if}^{\*}=\hat\delta\_{if}/\hat\rho_f\\. The separate
@@ -316,7 +325,9 @@ inv$discrimination
 ```
 
 A whole-person bootstrap within person group retains each sampled row’s
-item-set response pattern and includes uncertainty in the fitted units:
+item-set response pattern and includes uncertainty in the fitted units.
+A replicate is used only if it retains the same item-comparison family,
+and therefore the same centred frame origin, as the observed analysis:
 
 ``` r
 

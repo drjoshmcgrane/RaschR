@@ -27,8 +27,11 @@ the superitems recorded by
 The binomial bound applies only when every component was dichotomous; a
 composite containing a polytomous item is shown but its bound and
 verdict are withheld. When person identifiers repeat, the spread refit's
-sandwich covariance clusters the score contributions by person. The
-input calibration and the principal-components refit must both converge.
+sandwich covariance clusters the score contributions by person and
+probabilities use a t reference with the number of independent person
+clusters minus one degree of freedom. Independent rows retain the
+asymptotic normal reference. The input calibration and the
+principal-components refit must both converge.
 
 ## Usage
 
@@ -65,9 +68,10 @@ spread_test(fit, maxit = 60, tol = 1e-08, alpha = 0.05, p_adjust = "holm")
 A data frame with one row per recorded superitem: `item`, `m`, whether
 the binomial bound is `eligible`, the `spread` estimate and its `se`,
 the bound `lub` (available for dichotomous-component subtests with
-maximum scores 2 to 8), `z` = (spread - lub)/se, the one-sided `p` and
-adjusted `p_adj`, `below_bound` for the point-estimate comparison, and
-`dependent` for adjusted evidence at `alpha`. Items not formed by
+maximum scores 2 to 8), `t` = (spread - lub)/se, reference `df`, the
+one-sided `p` and adjusted `p_adj`, `below_bound` for the point-estimate
+comparison, and `dependent` for adjusted evidence at `alpha`. Items not
+formed by
 [`combine_items()`](https://drjoshmcgrane.github.io/rasch/reference/combine_items.md)
 are omitted. The result retains `alpha` and `p_adjust` as attributes.
 
@@ -92,9 +96,9 @@ colnames(X) <- paste0("I", 1:8)
 fit2 <- combine_items(rasch(X), list(c("I4", "I5", "I6"), c("I1", "I2", "I3")))
 spread_test(fit2)
 #> Spread-parameter screen (Andrich 1985): one-sided evidence below the binomial bound (holm adjustment; alpha 0.050)
-#>      item m eligible spread    se bound       z       p   p_adj below_bound
-#>  I4+I5+I6 3        * -0.118 0.051 0.550 -13.110 < 0.001 < 0.001           *
-#>  I1+I2+I3 3        *  0.501 0.081 0.550  -0.610   0.271   0.271           *
+#>      item m eligible spread    se bound       t  df       p   p_adj below_bound
+#>  I4+I5+I6 3        * -0.118 0.051 0.550 -13.110 Inf < 0.001 < 0.001           *
+#>  I1+I2+I3 3        *  0.501 0.081 0.550  -0.610 Inf   0.271   0.271           *
 #>  dependent
 #>          *
 #>           

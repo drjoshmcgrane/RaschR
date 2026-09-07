@@ -45,7 +45,10 @@ A list with the threshold table `thr` (columns `id`, `item`, `k`, `tau`,
 threshold covariance matrix `cov_tau`, the pairwise conditional
 log-likelihood, the iteration count, a convergence flag, and the
 max-score vector `m`. If estimation does not converge, the function
-warns and all standard errors and covariance entries are `NA`.
+warns and all standard errors and covariance entries are `NA`. The
+independent-person and effective-support conditions described for
+[`pcml`](https://drjoshmcgrane.github.io/rasch/reference/pcml.md) also
+apply.
 
 ## References
 

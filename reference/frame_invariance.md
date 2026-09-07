@@ -35,11 +35,11 @@ frame_invariance(
 - se_method:
 
   `"conditional"` treats the estimated frame units as fixed;
-  `"bootstrap"` refits the complete analysis to whole-person resamples,
-  preserving each person's response rows and item-set patterns.
-  Conditional inference is unavailable when a person appears in more
-  than one frame because the separate calibrations' cross-covariance is
-  then unknown; use the bootstrap method in that design.
+  `"bootstrap"` refits the complete analysis to whole-person resamples
+  within group, preserving each person's item-set response pattern. As
+  in
+  [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md),
+  one response row is required per person.
 
 - boot_reps:
 
@@ -60,11 +60,11 @@ method, discrimination `p`, `p_adj`, and `flagged` are `NA`. `excluded`
 lists items dropped or rescored by a separate calibration, whose
 observed category structures differed between calibrations, or whose
 separate-frame estimate was weakly determined. The remaining components
-record the multiplicity and uncertainty settings, including the declared
-comparison-family size `family_n`, and the requested, usable,
-non-converged and other-failure bootstrap counts. `bootstrap_stratified`
-records whether persons were resampled within group rather than
-globally.
+record the multiplicity and uncertainty settings, including the
+algorithm identifier, declared comparison-family size `family_n`, and
+the requested, usable, non-converged and other-failure bootstrap counts.
+`bootstrap_stratified` records whether persons were resampled within
+group rather than globally.
 
 ## Details
 
@@ -87,16 +87,15 @@ divided by \\\sqrt{2}\\, together with fitted slopes and their ratio.
 These quantities are descriptive under the conditional method; it does
 not report discrimination probabilities.
 
-With `se_method = "bootstrap"`, whole persons are resampled, retaining
-all response rows and item-set response patterns for each sampled
-person, and the EFRM and separate frame calibrations are refitted.
-Persons observed in one group are resampled within group; when a person
-appears in more than one group, persons are resampled globally so their
-observations stay together. Location tests then use the empirical
-covariance of the centred differences. The discrimination test uses the
-bootstrap standard error of the log slope ratio. This includes
-uncertainty in the fitted frame units but is more computationally
-demanding.
+With `se_method = "bootstrap"`, whole persons are resampled within their
+observed group, retaining each sampled person's item-set response
+pattern, and the EFRM and separate frame calibrations are refitted. A
+replicate is usable only when it retains the observed set of item
+comparisons, so every centred difference has the same frame origin.
+Location tests then use the empirical covariance of the centred
+differences. The discrimination test uses the bootstrap standard error
+of the log slope ratio. This includes uncertainty in the fitted frame
+units but is more computationally demanding.
 
 Raw and Holm-adjusted probabilities are reported. With conditional
 uncertainty, Holm adjustment covers the location comparisons. With
@@ -113,9 +112,12 @@ items. Concentrated DIF can therefore produce non-zero centred contrasts
 for items that were not themselves shifted. The table identifies the
 pattern of relative departures; item content or external anchors are
 needed to determine which items provide the defensible reference. A
-compared set-by-frame cell must contain at least 50 persons with two or
-more responses. Items with weakly determined standard errors in either
-separate calibration are listed in `excluded` rather than tested.
+compared set-by-frame cell must contain at least 50 distinct persons
+contributing an informative item pair. A pair is informative unless both
+responses are zero or both are at their item maxima, using the retained
+items and recoded categories of that frame's separate calibration. Items
+with weakly determined standard errors in either separate calibration
+are listed in `excluded` rather than tested.
 
 A flagged item may be resolved with
 [`resolve_frames`](https://drjoshmcgrane.github.io/rasch/reference/resolve_frames.md)

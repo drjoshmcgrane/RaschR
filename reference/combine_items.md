@@ -6,7 +6,9 @@ commonly used to examine item groups identified by
 [`residual_correlations`](https://drjoshmcgrane.github.io/rasch/reference/residual_correlations.md).
 Every total from zero to the sum of the component maxima must be
 observed; otherwise the refit is refused rather than renumbering the
-superitem score.
+superitem score. The refit is also refused if calibration merges an
+observed category that lacks conditional information, or changes a
+retained item's scoring.
 
 ## Usage
 
@@ -29,7 +31,10 @@ combine_items(fit, groups, model = "PCM")
 - model:
 
   Model for the re-analysis; defaults to `"PCM"`, which is almost always
-  required because subtests change the maximum scores.
+  required because subtests change the maximum scores. Explanatory fits
+  retain their predictor restrictions on unchanged items and freely
+  estimate the new superitems. They require `"PCM"`; an RSM restriction
+  cannot be added through this argument.
 
 ## Value
 

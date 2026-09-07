@@ -124,7 +124,8 @@ imprecise but identified units are retained with a warning.</p></dd>
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
 <dd><p>Person identifier, either a column name or one value per row.
 EFRM data require one response row per person, so identifiers must be
-unique.</p></dd>
+unique when supplied. Missing or blank identifiers are treated as
+different unknown persons.</p></dd>
 
 
 <dt id="arg-factors-items-n-groups-na-codes">factors, items, n_groups, na_codes<a class="anchor" aria-label="anchor" href="#arg-factors-items-n-groups-na-codes"></a></dt>
@@ -149,10 +150,11 @@ bootstrap of all stages).</p></dd>
 
 <dt id="arg-boot-reps">boot_reps<a class="anchor" aria-label="anchor" href="#arg-boot-reps"></a></dt>
 <dd><p>Bootstrap replicates; defaults to 300 for the linking
-bootstrap and 200 for the full bootstrap. Use zero to omit unit
-uncertainty; otherwise at least 30 are required. A bootstrap covariance
-is reported only when more than half of the requested replicates are
-usable.
+bootstrap and 200 for the full bootstrap. Use zero to omit set-link
+uncertainty; in a multi-set fit, common-unit item and threshold standard
+errors are then unavailable. Otherwise at least 30 replicates are
+required. A bootstrap covariance is reported only when more than half of
+the requested replicates are usable.
 Inference is returned only when at least 30 replicates succeed, a
 majority of those requested, and the requested count exceeds the number
 of independent directions in the largest covariance block used by the
@@ -191,9 +193,19 @@ restored when estimation finishes.</p></dd>
     <p>An object of classes <code>"rasch_efrm"</code> and <code>"rasch"</code>.
   Model-specific components include <code>frames</code>, <code>phi_table</code>,
   <code>alpha_table</code>, <code>set_table</code>, common-unit item and threshold
-  tables, group-specific <code>score_curves</code>, <code>efrm_vs_rasch</code>, and
-  <code>linking</code>, and the person support used for unit inference in
-  <code>unit_support</code>. The requested, usable and failed uncertainty
+  tables, group-specific <code>score_curves</code> (expected weighted sufficient
+  score and conditional standard error by person location and exact
+  observed-item pattern), <code>efrm_vs_rasch</code>, and
+  <code>linking</code>, the person support used for unit inference in
+  <code>unit_support</code>, and the active covariance blocks in
+  <code>unit_cov</code>. For a full-bootstrap fit, all blocks in
+  <code>unit_cov</code> are calculated from the same usable person resamples;
+  otherwise they are the analytic within-frame and, when requested, hybrid
+  linking covariances used by the reported tests. With several item sets
+  and <code>boot_reps = 0</code>, <code>cov_delta</code> and the corresponding
+  common-unit standard errors are unavailable because set-link uncertainty
+  has not been estimated. The requested, usable and failed
+  uncertainty
   replicates used by the returned uncertainty method are reported as
   <code>boot_reps_requested</code>, <code>boot_reps_used</code> and
   <code>boot_reps_failed</code>; the hybrid set-link counts are repeated inside
@@ -202,11 +214,12 @@ restored when estimation finishes.</p></dd>
   corresponding <code>full_boot_reps_*</code> components, including when the fit
   falls back to hybrid standard errors. See the extended frame of reference
   vignette for their interpretation. If the within-frame calibration does
-  not converge, its standard errors and all later inferential probabilities
-  are withheld. Failure of only a set link does not invalidate the already
+  not converge, its covariance blocks, standard errors and all later
+  inferential probabilities are withheld. Failure of only a set link does
+  not invalidate the already
   converged within-frame calibration or group-unit estimates, but
   common-unit item, frame and person uncertainty is withheld because it
-  depends on that link.</p>
+  depends on that link, including the standard errors in <code>score_curves</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -235,10 +248,11 @@ A link whose scale or offset reaches the numerical search boundary is
 refused rather than reported as a finite estimate. So is a link whose
 grid truncates the person distribution: persons with a finite location
 in at least one set may place no more than two per cent of their
-posterior mass on the ends of the grid. Persons at the minimum or maximum
-score in both sets remain in the likelihood but do not count towards this
-check; their likelihood rises towards one end of any finite grid and
-carries no information about the link.
+posterior mass on the ends of the grid. Persons at the same extreme tail
+in both sets remain in the likelihood but do not count towards this check
+or the link's inferential support; their likelihood rises towards one end
+of any finite grid and carries no information about the link. Opposing
+extremes retain a finite compromise location and do contribute.
 The conditional thresholds and group units are held fixed in this step;
 only \(r\), \(c\), and the nuisance masses are estimated. The linked
 parameters are then
@@ -250,6 +264,13 @@ item sets are not permitted. The public
 convergence flag covers the conditional calibration, the set-link
 transformation and its nonparametric nuisance masses;
 <code>stage1_converged</code> records the conditional stage separately.</p>
+<p>The empirical Godambe covariance from the conditional stage requires at
+least ten informative persons, at least eight effective persons, more
+effective persons than fitted stage-one directions, and full rank in the
+projected score covariance. If these conditions fail, point estimates can
+be returned with <code>boot_reps = 0</code>, but unit uncertainty is withheld.
+A hybrid or full-bootstrap fit is refused because its linking and unit
+covariance would otherwise inherit an unsupported stage-one covariance.</p>
 <p>The hybrid covariance combines the pairwise Godambe covariance with a
 person bootstrap for set linking. Each replicate jointly redraws the
 within-frame thresholds and group units, then rebuilds the link. The joint
@@ -265,8 +286,15 @@ probabilities are Holm-adjusted as one omnibus family; the individual
 unit contrasts form a second Holm-adjusted follow-up family. An unavailable
 probability remains in its declared family. Unit estimates
 are retained for sparse designs, but probabilities require at least 50
-persons or effective persons in every group and at least 50 common persons
-on every set-link edge.</p>
+persons or effective persons in every group. Set-unit inference requires
+at least 50 informative common persons on the strongest bottleneck path
+from every set to the first set, which is used only as the support graph's
+bookkeeping root. Thus a weak upstream link limits a terminal set, while a
+weak redundant edge does not suppress a stronger route.
+Group-unit and dependent set-unit probabilities are withheld when any
+group unit has a reported standard error above 5 log units. The estimates
+and covariance remain descriptive. This check uses the returned uncertainty
+method, including the full bootstrap when available.</p>
 <p>The model assumes that an item retains its location and discrimination
 across the frames in which it appears, apart from the frame unit.
 <code><a href="frame_invariance.html">frame_invariance</a></code> examines this assumption by separate frame

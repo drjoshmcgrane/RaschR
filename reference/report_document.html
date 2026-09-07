@@ -9,11 +9,19 @@
 document, an editable Word document, or a PDF. The report contains the
 principal estimates, model-specific tables, diagnostic figures, and
 software provenance. Complete machine-readable results remain available
-from save_outputs."><meta property="og:description" content="Renders the active Rasch or paired-comparison fit as a self-contained HTML
+from save_outputs. Reports downloaded from the application
+retain compatible tailored item shifts and externally weighted secondary
+person measures.
+For keyed fits with repeated person IDs, the report explains why distractor
+analysis is unavailable and retains the other model outputs."><meta property="og:description" content="Renders the active Rasch or paired-comparison fit as a self-contained HTML
 document, an editable Word document, or a PDF. The report contains the
 principal estimates, model-specific tables, diagnostic figures, and
 software provenance. Complete machine-readable results remain available
-from save_outputs."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+from save_outputs. Reports downloaded from the application
+retain compatible tailored item shifts and externally weighted secondary
+person measures.
+For keyed fits with repeated person IDs, the report explains why distractor
+analysis is unavailable and retains the other model outputs."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -58,7 +66,11 @@ from save_outputs."><meta property="og:image" content="https://drjoshmcgrane.git
 document, an editable Word document, or a PDF. The report contains the
 principal estimates, model-specific tables, diagnostic figures, and
 software provenance. Complete machine-readable results remain available
-from <code><a href="save_outputs.html">save_outputs</a></code>.</p>
+from <code><a href="save_outputs.html">save_outputs</a></code>. Reports downloaded from the application
+retain compatible tailored item shifts and externally weighted secondary
+person measures.
+For keyed fits with repeated person IDs, the report explains why distractor
+analysis is unavailable and retains the other model outputs.</p>
     </div>
 
     <div class="section level2">
@@ -73,7 +85,9 @@ from <code><a href="save_outputs.html">save_outputs</a></code>.</p>
 <span>  dif_bootstrap <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dimensionality <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  invariance <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  subtest <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  subtest <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  tailored <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  person_weights <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -122,6 +136,17 @@ from an EFRM fit.</p></dd>
 <dt id="arg-subtest">subtest<a class="anchor" aria-label="anchor" href="#arg-subtest"></a></dt>
 <dd><p>Optional computed <code><a href="dimensionality_test.html">dimensionality_test</a></code> result
 from this fit.</p></dd>
+
+
+<dt id="arg-tailored">tailored<a class="anchor" aria-label="anchor" href="#arg-tailored"></a></dt>
+<dd><p>Optional computed <code><a href="tailored_analysis.html">tailored_analysis</a></code> result
+from this ordinary dichotomous fit.</p></dd>
+
+
+<dt id="arg-person-weights">person_weights<a class="anchor" aria-label="anchor" href="#arg-person-weights"></a></dt>
+<dd><p>Optional table returned by
+<code><a href="weighted_person_estimates.html">weighted_person_estimates</a></code>. An explicit table takes
+precedence over a compatible result retained by the application.</p></dd>
 
 </dl></div>
     <div class="section level2">

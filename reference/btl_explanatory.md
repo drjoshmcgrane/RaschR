@@ -42,7 +42,8 @@ btl_explanatory(
 - formula:
 
   One-sided explanatory formula, including selected interactions if
-  required.
+  required. Formula offsets
+  ([`offset()`](https://rdrr.io/r/stats/offset.html)) are not supported.
 
 - object_a, object_b:
 
@@ -122,8 +123,11 @@ z_i^{T}\boldsymbol\gamma.\$\$ The scale origin is fixed at mean object
 location zero. Numeric predictors are continuous, unordered factors are
 categorical, and ordered factors use successive contrasts between
 adjacent levels. Character predictors are converted to unordered
-factors. Selected interactions may be included in `formula`. A free
-calibration is retained for
+factors. Selected interactions may be included in `formula`. Design
+columns are centred and rescaled internally for numerical stability;
+reported coefficients and standard errors use the supplied predictor
+units. Coincident coefficient labels receive numeric suffixes; this does
+not change the predictor design. A free calibration is retained for
 [`explanatory_test()`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md).
 Standard errors use the same sandwich covariance as
 [`btl()`](https://drjoshmcgrane.github.io/rasch/reference/btl.md); when

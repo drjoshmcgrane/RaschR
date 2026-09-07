@@ -6,6 +6,10 @@ the principal estimates, model-specific tables, diagnostic figures, and
 software provenance. Complete machine-readable results remain available
 from
 [`save_outputs`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md).
+Reports downloaded from the application retain compatible tailored item
+shifts and externally weighted secondary person measures. For keyed fits
+with repeated person IDs, the report explains why distractor analysis is
+unavailable and retains the other model outputs.
 
 ## Usage
 
@@ -20,7 +24,9 @@ report_document(
   dif_bootstrap = NULL,
   dimensionality = NULL,
   invariance = NULL,
-  subtest = NULL
+  subtest = NULL,
+  tailored = NULL,
+  person_weights = NULL
 )
 ```
 
@@ -81,6 +87,19 @@ report_document(
   Optional computed
   [`dimensionality_test`](https://drjoshmcgrane.github.io/rasch/reference/dimensionality_test.md)
   result from this fit.
+
+- tailored:
+
+  Optional computed
+  [`tailored_analysis`](https://drjoshmcgrane.github.io/rasch/reference/tailored_analysis.md)
+  result from this ordinary dichotomous fit.
+
+- person_weights:
+
+  Optional table returned by
+  [`weighted_person_estimates`](https://drjoshmcgrane.github.io/rasch/reference/weighted_person_estimates.md).
+  An explicit table takes precedence over a compatible result retained
+  by the application.
 
 ## Value
 

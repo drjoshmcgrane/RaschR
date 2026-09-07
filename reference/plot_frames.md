@@ -3,7 +3,8 @@
 Caterpillar plot of the frame units `rho_sg = alpha_s phi_g` on the log
 scale, grouped by item set and coloured by person group, with 95 per
 cent error bars; frames with pooled fit residuals beyond the band are
-highlighted.
+highlighted. Error bars are omitted when either fitted unit family does
+not meet its inferential support conditions.
 
 ## Usage
 

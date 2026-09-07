@@ -33,19 +33,25 @@ simulate_mfrm(
 
   Rating categories.
 
-- theta_sd, item_sd:
+- theta_sd:
 
-  Spread of person ability and item difficulty.
+  Realised sample standard deviation of person ability.
+
+- item_sd:
+
+  Realised sample standard deviation of the deterministic item
+  difficulties; zero gives equal item difficulties.
 
 - rater_severity_sd:
 
-  Spread of rater severities (the core facet; recovered in
-  `facet_effects`).
+  Realised sample standard deviation of rater severities (the core
+  facet; recovered in `facet_effects`).
 
 - erratic_raters:
 
   Proportion of raters who rate at random (feeds the rater fit
-  residual). Erratic and halo raters are disjoint.
+  residual). Erratic and halo raters are disjoint, and together must
+  leave at least one ordinary rater.
 
 - interaction:
 
@@ -58,7 +64,8 @@ simulate_mfrm(
   Proportion of raters showing a halo effect: they rate by the person's
   overall level and barely differentiate items (feeds the rater fit
   residual and the item-by-rater interaction). Its requested count must
-  fit among the non-erratic raters.
+  fit among the non-erratic raters and leave an ordinary rater. A
+  positive halo proportion requires `item_sd > 0`.
 
 - seed:
 
@@ -78,5 +85,5 @@ d <- simulate_mfrm(60, 5, 6, rater_severity_sd = 0.8, seed = 1)
 mf <- rasch_mfrm(d, person = "person", item = "item", score = "score",
                  facets = "rater")
 cor(mf$facet_effects$rater$severity, attr(d, "truth")$severity)  # recovered
-#> [1] 0.9944333
+#> [1] 0.9911336
 ```

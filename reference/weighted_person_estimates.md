@@ -39,10 +39,11 @@ weighted_person_estimates(fit, weights, by = c("item", "set"), sets = NULL)
 
 ## Value
 
-A data frame with the person identifiers and factors, observed item
-count, raw and externally weighted scores, maximum scores, weighted
-location, sandwich standard error and extreme-score flag. The resolved
-item weights are retained in the `"weighting"` attribute.
+A data frame with the person identifiers and factors, observed
+response-cell count (item count for an ordinary fit), raw and externally
+weighted scores, maximum scores, weighted location, sandwich standard
+error and extreme-score flag. The resolved item weights are retained in
+the `"weighting"` attribute.
 
 ## Details
 
@@ -60,7 +61,8 @@ replications of an item. With equal weights the equation and standard
 error reduce to the person estimates in `fit$person`. Weights are
 normalised to mean one over the fitted response cells, so only their
 relative values matter. A zero weight omits that item or set from the
-secondary measure.
+secondary measure. Positive weights must be numerically representable
+relative to the largest supplied weight.
 
 For an MFRM fit, an item weight applies to all response cells belonging
 to that item. For an EFRM fit, `by = "set"` uses the fitted item-set map

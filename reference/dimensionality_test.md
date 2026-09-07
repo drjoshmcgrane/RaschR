@@ -40,7 +40,8 @@ dimensionality_test(
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
   with one response row per person. Repeated identifiers are refused
   because the person-level comparisons and their binomial count would
-  not be independent.
+  not be independent. Fully anchored scoring fits require `B = 0`;
+  bootstrap refitting is not supported for these fits.
 
 - alpha:
 
@@ -99,7 +100,8 @@ same persons). With `B > 0` the list also carries `p_boot`, the
 bootstrap probability of a proportion at least as large as the observed
 one under the fitted unidimensional model; `prop_null`, the mean
 replicate proportion (the rate the split produces when nothing is
-there); and `bootstrap`, the replicate proportions with the counts
+there); `bootstrap_resolution`, the smallest attainable bootstrap
+probability; and `bootstrap`, the replicate proportions with the counts
 requested, used, non-converged and failed. When the comparison itself is
 unavailable (undefined split, degenerate subsets, too few persons) the
 list carries a `note` explaining why and `multidimensional = NA`.
@@ -124,7 +126,11 @@ repeats the residual-component split on its own residuals and recomputes
 the proportion, so the bootstrap probability `p_boot` carries the same
 selection the observed proportion carries. With `B > 0` the verdict is
 `p_boot <= alpha`; the binomial interval is still reported, as a
-description of the observed proportion rather than a test of it.
+description of the observed proportion rather than a test of it. A
+one-sided bootstrap probability cannot be smaller than `1/(B_used + 1)`.
+If that floor exceeds `alpha`, a data-driven split has no rejection
+region and its verdict is withheld. A split fixed in advance retains its
+binomial verdict in that case.
 
 ## References
 

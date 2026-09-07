@@ -35,7 +35,9 @@ plot_kidmap(
 - level:
 
   Confidence level of the band around the person location used to mark
-  unexpected responses.
+  unexpected responses. The selected person must have a positive, finite
+  standard error; without it the band and the unexpected-response
+  classification are unavailable.
 
 - bins:
 

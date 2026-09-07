@@ -9,11 +9,15 @@
 the sum of its members, then refits the model. The function is commonly used
 to examine item groups identified by residual_correlations.
 Every total from zero to the sum of the component maxima must be observed;
-otherwise the refit is refused rather than renumbering the superitem score."><meta property="og:description" content="Replaces each nominated item group by a polytomous super-item whose score is
+otherwise the refit is refused rather than renumbering the superitem score.
+The refit is also refused if calibration merges an observed category that
+lacks conditional information, or changes a retained item's scoring."><meta property="og:description" content="Replaces each nominated item group by a polytomous super-item whose score is
 the sum of its members, then refits the model. The function is commonly used
 to examine item groups identified by residual_correlations.
 Every total from zero to the sum of the component maxima must be observed;
-otherwise the refit is refused rather than renumbering the superitem score."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+otherwise the refit is refused rather than renumbering the superitem score.
+The refit is also refused if calibration merges an observed category that
+lacks conditional information, or changes a retained item's scoring."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -58,7 +62,9 @@ otherwise the refit is refused rather than renumbering the superitem score."><me
 the sum of its members, then refits the model. The function is commonly used
 to examine item groups identified by <code><a href="residual_correlations.html">residual_correlations</a></code>.
 Every total from zero to the sum of the component maxima must be observed;
-otherwise the refit is refused rather than renumbering the superitem score.</p>
+otherwise the refit is refused rather than renumbering the superitem score.
+The refit is also refused if calibration merges an observed category that
+lacks conditional information, or changes a retained item's scoring.</p>
     </div>
 
     <div class="section level2">
@@ -81,7 +87,10 @@ combine; a single vector is also accepted.</p></dd>
 
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
 <dd><p>Model for the re-analysis; defaults to <code>"PCM"</code>, which is
-almost always required because subtests change the maximum scores.</p></dd>
+almost always required because subtests change the maximum scores.
+Explanatory fits retain their predictor restrictions on unchanged items
+and freely estimate the new superitems. They require <code>"PCM"</code>; an
+RSM restriction cannot be added through this argument.</p></dd>
 
 </dl></div>
     <div class="section level2">

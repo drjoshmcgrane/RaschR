@@ -63,11 +63,14 @@ dif_size(
 
 A list of class `"rasch_dif_size"`. `levels` contains the resolved
 location, standard error and sample size for each level. `pairs`
-contains logit differences, Wald statistics, confidence intervals, raw
-and adjusted probabilities, and practical flags. For dichotomous items
-it also contains `ets`, together with the raw and adjusted probabilities
-for exceeding the ETS A boundary; for polytomous items it contains the
-descriptive `signed_area`. Sampling-uncertainty fields are `NA` when the
+contains logit differences, Wald `t` statistics, confidence intervals,
+raw and adjusted probabilities, and practical flags. For dichotomous
+items it also contains `ets`, together with the raw and adjusted
+probabilities for exceeding the ETS A boundary; for polytomous items it
+contains the descriptive `signed_area`. `df` gives the reference degrees
+of freedom: infinite for independent response rows and the independent
+person-cluster count minus one for a supported repeated-person
+calibration. Sampling-uncertainty fields are `NA` when the
 resolved-location covariance cannot support Wald inference.
 
 ## Details
@@ -83,9 +86,12 @@ adjusted over the pairwise family. A comparison with withheld inference
 remains in that declared family.
 
 When person identifiers repeat, the resolved-location covariance uses
-the person-clustered calibration sandwich. This permits Wald inference
-for the logit difference while allowing response rows from the same
-person to be dependent. For a planned within-person question,
+the person-clustered calibration sandwich and a t reference with the
+number of independent person clusters minus one degree of freedom. The
+same reference is used for confidence intervals and the ETS
+interval-null probability. This permits inference for the logit
+difference while allowing response rows from the same person to be
+dependent. For a planned within-person question,
 [`dif_contrasts`](https://drjoshmcgrane.github.io/rasch/reference/dif_contrasts.md)
 remains preferable because it tests the nominated contrast directly from
 person-level residual contrasts. Inference is withheld if the resolved-
@@ -156,8 +162,8 @@ dif_size(fit, "I3", by = "grp")
 #>  level location    se weak   n
 #>      a   -0.890 0.133    0 300
 #>      b    0.018 0.126    0 300
-#>  level_a level_b difference    se      z       p   p_adj  lower  upper
-#>        a       b     -0.907 0.204 -4.441 < 0.001 < 0.001 -1.308 -0.507
+#>  level_a level_b difference    se      t  df       p   p_adj  lower  upper
+#>        a       b     -0.907 0.204 -4.441 Inf < 0.001 < 0.001 -1.308 -0.507
 #>  significant practical p_beyond_A p_beyond_A_adj ets signed_area
 #>            *   >= 0.50      0.009          0.009  C-            
 #> p adjusted by holm over 1 pairwise comparison(s); practical criterion 0.50 logits

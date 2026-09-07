@@ -171,5 +171,5 @@ btl_dif(f, grp, objects = "C")
 #>               9.340              9.326 0.249 -4.508 16.665 < 0.001           *
 #>  practical
 #>          *
-#> Notes: 2 object-term test(s) have 8.0--9.4 effective judges in their smallest cell; see min_effective_judges and interpret these results cautiously; C [group]: level(s) g1, g2 have 8.0--9.4 effective judges; interpret pairwise inference cautiously 
+#> Notes: 2 object-term test(s) have 8.0--9.4 effective judges in their smallest cell; see min_effective_judges and interpret these results cautiously; C [group]: the pairwise chi-square probability is withheld because its row-based reference does not model within-judge dependence; the statistic remains descriptive, and fit_bootstrap() provides calibration under the fitted response model; C [group]: level(s) g1, g2 have 8.0--9.4 effective judges; interpret pairwise inference cautiously 
 ```

@@ -1,8 +1,9 @@
 # Plot a test-equating comparison
 
 Scatter of the two calibrations' common-item locations with the shifted
-identity line and per-item 95 per cent bands; drifting items
-(Holm-adjusted) are highlighted and labelled.
+identity line, per-item 95 per cent contrast intervals, and a dotted
+guide band at their average half-width; drifting items (Holm-adjusted)
+are highlighted and labelled.
 
 ## Usage
 

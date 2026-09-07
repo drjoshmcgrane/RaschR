@@ -62,7 +62,8 @@ rasch_efrm(
 
   Person identifier, either a column name or one value per row. EFRM
   data require one response row per person, so identifiers must be
-  unique.
+  unique when supplied. Missing or blank identifiers are treated as
+  different unknown persons.
 
 - factors, items, n_groups, na_codes:
 
@@ -87,15 +88,17 @@ rasch_efrm(
 - boot_reps:
 
   Bootstrap replicates; defaults to 300 for the linking bootstrap and
-  200 for the full bootstrap. Use zero to omit unit uncertainty;
-  otherwise at least 30 are required. A bootstrap covariance is reported
-  only when more than half of the requested replicates are usable.
-  Inference is returned only when at least 30 replicates succeed, a
-  majority of those requested, and the requested count exceeds the
-  number of independent directions in the largest covariance block used
-  by the fit. The fit stops if the linking covariance cannot meet that
-  rule; an unsuccessful full bootstrap falls back to hybrid standard
-  errors with a warning and retains its replicate accounting.
+  200 for the full bootstrap. Use zero to omit set-link uncertainty; in
+  a multi-set fit, common-unit item and threshold standard errors are
+  then unavailable. Otherwise at least 30 replicates are required. A
+  bootstrap covariance is reported only when more than half of the
+  requested replicates are usable. Inference is returned only when at
+  least 30 replicates succeed, a majority of those requested, and the
+  requested count exceeds the number of independent directions in the
+  largest covariance block used by the fit. The fit stops if the linking
+  covariance cannot meet that rule; an unsuccessful full bootstrap falls
+  back to hybrid standard errors with a warning and retains its
+  replicate accounting.
 
 - progress:
 
@@ -126,22 +129,30 @@ rasch_efrm(
 
 An object of classes `"rasch_efrm"` and `"rasch"`. Model-specific
 components include `frames`, `phi_table`, `alpha_table`, `set_table`,
-common-unit item and threshold tables, group-specific `score_curves`,
-`efrm_vs_rasch`, and `linking`, and the person support used for unit
-inference in `unit_support`. The requested, usable and failed
-uncertainty replicates used by the returned uncertainty method are
-reported as `boot_reps_requested`, `boot_reps_used` and
-`boot_reps_failed`; the hybrid set-link counts are repeated inside
-`linking`. When a full bootstrap was requested, its requested,
-attempted, usable and failed counts are retained separately in the
-corresponding `full_boot_reps_*` components, including when the fit
-falls back to hybrid standard errors. See the extended frame of
-reference vignette for their interpretation. If the within-frame
-calibration does not converge, its standard errors and all later
-inferential probabilities are withheld. Failure of only a set link does
-not invalidate the already converged within-frame calibration or
-group-unit estimates, but common-unit item, frame and person uncertainty
-is withheld because it depends on that link.
+common-unit item and threshold tables, group-specific `score_curves`
+(expected weighted sufficient score and conditional standard error by
+person location and exact observed-item pattern), `efrm_vs_rasch`, and
+`linking`, the person support used for unit inference in `unit_support`,
+and the active covariance blocks in `unit_cov`. For a full-bootstrap
+fit, all blocks in `unit_cov` are calculated from the same usable person
+resamples; otherwise they are the analytic within-frame and, when
+requested, hybrid linking covariances used by the reported tests. With
+several item sets and `boot_reps = 0`, `cov_delta` and the corresponding
+common-unit standard errors are unavailable because set-link uncertainty
+has not been estimated. The requested, usable and failed uncertainty
+replicates used by the returned uncertainty method are reported as
+`boot_reps_requested`, `boot_reps_used` and `boot_reps_failed`; the
+hybrid set-link counts are repeated inside `linking`. When a full
+bootstrap was requested, its requested, attempted, usable and failed
+counts are retained separately in the corresponding `full_boot_reps_*`
+components, including when the fit falls back to hybrid standard errors.
+See the extended frame of reference vignette for their interpretation.
+If the within-frame calibration does not converge, its covariance
+blocks, standard errors and all later inferential probabilities are
+withheld. Failure of only a set link does not invalidate the already
+converged within-frame calibration or group-unit estimates, but
+common-unit item, frame and person uncertainty is withheld because it
+depends on that link, including the standard errors in `score_curves`.
 
 ## Details
 
@@ -170,12 +181,14 @@ whose scale or offset reaches the numerical search boundary is refused
 rather than reported as a finite estimate. So is a link whose grid
 truncates the person distribution: persons with a finite location in at
 least one set may place no more than two per cent of their posterior
-mass on the ends of the grid. Persons at the minimum or maximum score in
-both sets remain in the likelihood but do not count towards this check;
-their likelihood rises towards one end of any finite grid and carries no
-information about the link. The conditional thresholds and group units
-are held fixed in this step; only \\r\\, \\c\\, and the nuisance masses
-are estimated. The linked parameters are then
+mass on the ends of the grid. Persons at the same extreme tail in both
+sets remain in the likelihood but do not count towards this check or the
+link's inferential support; their likelihood rises towards one end of
+any finite grid and carries no information about the link. Opposing
+extremes retain a finite compromise location and do contribute. The
+conditional thresholds and group units are held fixed in this step; only
+\\r\\, \\c\\, and the nuisance masses are estimated. The linked
+parameters are then
 \$\$\delta\_{ik}=\widetilde\delta\_{ik}/\alpha_s+\mu_s, \qquad
 \rho\_{sg}=\alpha_s\phi_g.\$\$ Score moments supply starting values and
 screen weak links. Response patterns must span a score range of at least
@@ -183,6 +196,14 @@ four within a set. Overlapping item sets are not permitted. The public
 convergence flag covers the conditional calibration, the set-link
 transformation and its nonparametric nuisance masses; `stage1_converged`
 records the conditional stage separately.
+
+The empirical Godambe covariance from the conditional stage requires at
+least ten informative persons, at least eight effective persons, more
+effective persons than fitted stage-one directions, and full rank in the
+projected score covariance. If these conditions fail, point estimates
+can be returned with `boot_reps = 0`, but unit uncertainty is withheld.
+A hybrid or full-bootstrap fit is refused because its linking and unit
+covariance would otherwise inherit an unsupported stage-one covariance.
 
 The hybrid covariance combines the pairwise Godambe covariance with a
 person bootstrap for set linking. Each replicate jointly redraws the
@@ -200,8 +221,16 @@ Their probabilities are Holm-adjusted as one omnibus family; the
 individual unit contrasts form a second Holm-adjusted follow-up family.
 An unavailable probability remains in its declared family. Unit
 estimates are retained for sparse designs, but probabilities require at
-least 50 persons or effective persons in every group and at least 50
-common persons on every set-link edge.
+least 50 persons or effective persons in every group. Set-unit inference
+requires at least 50 informative common persons on the strongest
+bottleneck path from every set to the first set, which is used only as
+the support graph's bookkeeping root. Thus a weak upstream link limits a
+terminal set, while a weak redundant edge does not suppress a stronger
+route. Group-unit and dependent set-unit probabilities are withheld when
+any group unit has a reported standard error above 5 log units. The
+estimates and covariance remain descriptive. This check uses the
+returned uncertainty method, including the full bootstrap when
+available.
 
 The model assumes that an item retains its location and discrimination
 across the frames in which it appears, apart from the frame unit.

@@ -18,6 +18,10 @@ location zero, as in
 [`rasch()`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md);
 the formula intercept is therefore absorbed by the origin constraint.
 
+Design columns are centred and rescaled internally for numerical
+stability. Coefficients and standard errors are reported in the supplied
+predictor units, for both Rasch and comparative judgement models.
+
 ## Item predictors
 
 Item-level metadata contain one row per item. This example explains
@@ -49,10 +53,22 @@ fit <- rasch_explanatory(
   factors = data.frame(group = group)
 )
 fit$est$coefficients
-#>             term estimate    se       z       p   p_adj
-#>  operationrecall   -0.851 0.069 -12.294 < 0.001 < 0.001
-#>   formatselected   -0.327 0.071  -4.606 < 0.001 < 0.001
+#>             term estimate    se       t  df       p   p_adj
+#>  operationrecall   -0.851 0.069 -12.294 Inf < 0.001 < 0.001
+#>   formatselected   -0.327 0.071  -4.606 Inf < 0.001 < 0.001
 ```
+
+If the same person contributes more than one response row, the
+coefficient covariance is clustered by person. Supported repeated-person
+fits use a linearised delete-one-person covariance correction and a
+\\t\\ reference with degrees of freedom equal to the number of person
+clusters contributing conditional information minus one. Coefficient
+inference is withheld when the calibration lacks enough independent
+information; supported fits without repeated identifiers use the
+limiting normal reference. Holm adjustment covers the coefficient
+family. With few persons and unequal numbers of response rows, these
+approximate tests can still be mildly liberal. The correction does not
+guarantee nominal small-sample coverage.
 
 Predictors may be continuous, categorical or ordinal. Numeric vectors
 are continuous and unordered factors are categorical. An ordered factor
@@ -75,7 +91,9 @@ This coding uses the order without assuming equal spacing and does not
 fit polynomial contrasts. Use an unordered factor for comparisons with a
 single reference category, or a numeric predictor when the spacing has a
 substantive scale. Selected interactions can be added, for example
-`~ demand + format + complexity + format:complexity`.
+`~ demand + format + complexity + format:complexity`. Formula offsets
+([`offset()`](https://rdrr.io/r/stats/offset.html)) are not supported in
+explanatory Rasch or CJ models.
 
 ## Threshold predictors
 
@@ -109,7 +127,9 @@ result is the first-order Kent-adjusted chi-square rather than an
 ordinary likelihood-ratio test. The same table reports calibration
 \\R^2\\, the proportion of variation in the free threshold calibration
 reproduced by the explanatory thresholds. Comparative judgement uses the
-corresponding free object calibration.
+corresponding free object calibration. The Kent comparison is asymptotic
+and does not use the finite-person-cluster correction applied to
+individual coefficients.
 
 ``` r
 

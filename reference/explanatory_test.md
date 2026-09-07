@@ -3,7 +3,9 @@
 Tests explanatory item, threshold or object restrictions against the
 corresponding free calibration of the same responses. The inferential
 result uses the first-order Kent calibration for the fitted likelihood
-and sandwich covariance. The calibration coefficient of determination is
+and sandwich covariance. This multivariate comparison is asymptotic;
+unlike the individual coefficient tests, it has no finite-person-cluster
+\\t\\ correction. The calibration coefficient of determination is
 \$\$R^2\_{cal}=1-\frac{\sum_j(\hat\eta^{free}\_j-
 \hat\eta^{expl}\_j-\bar d)^2}{\sum_j(\hat\eta^{free}\_j-
 \bar\eta^{free})^2},\$\$ where \\\bar d\\ removes the arbitrary scale

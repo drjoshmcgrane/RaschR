@@ -66,8 +66,10 @@ rasch_mfrm(
 
 - na_codes:
 
-  Score values to read as missing (default `-1`); any negative score is
-  also treated as missing.
+  Numeric or character score values to read as missing. They are matched
+  before scores are converted to numbers, including numerically
+  equivalent labels (for example, `"09"` matches a score of 9). The
+  default is `-1`; any negative score is also treated as missing.
 
 - interaction:
 
@@ -78,7 +80,9 @@ rasch_mfrm(
 
   Optional person factors for DIF analysis: a character vector naming
   columns constant within person, or a data frame with one row per data
-  row or unique person. Facets belong in `facets`, not here.
+  row or unique person. Within each person, observed factor values must
+  agree; missing entries do not override an observed value. Facets
+  belong in `facets`, not here.
 
 - maxit, tol:
 
@@ -89,12 +93,13 @@ rasch_mfrm(
 An object of classes `"rasch_mfrm"` and `"rasch"`. Model-specific
 components describe the facets, items, thresholds, and facet
 specification. Interactive fits also contain an omnibus test and the
-corresponding item-by-facet effects. The component `fit_resid` averages
-virtual-item residuals within a margin. Its response-weighted
-counterpart is `fit_resid_pooled`; its degrees of freedom are in
-`df_fit`. A non-converged fit retains estimates and residual patterns
-for diagnosis but withholds standard errors and inferential
-probabilities.
+corresponding item-by-facet effects, whose `t`, `df`, `p`, and
+Holm-adjusted `p_adj` columns use the finite-person reference described
+in Details. The component `fit_resid` averages virtual-item residuals
+within a margin. Its response-weighted counterpart is
+`fit_resid_pooled`; its degrees of freedom are in `df_fit`. A
+non-converged fit retains estimates and residual patterns for diagnosis
+but withholds standard errors and inferential probabilities.
 
 ## Details
 
@@ -122,7 +127,9 @@ graph before fitting the model.
 An item-by-facet interaction retains equal discrimination but allows
 facet differences to vary by item. The omnibus Wald test in
 `interaction_test` is the primary test; cell tests are Holm-adjusted
-follow-ups. Interaction probabilities require at least
+follow-ups. Each cell table reports a Wald `t` statistic and its
+denominator degrees of freedom, using the least effective item-by-level
+person support minus one. Interaction probabilities require at least
 \\\max\\30,q+2\\\\ persons and effective persons in every observed
 item-by-level cell, where \\q\\ is the omnibus degrees of freedom. The
 interaction covariance must also identify the omnibus contrast and leave

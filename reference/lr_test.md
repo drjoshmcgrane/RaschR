@@ -27,7 +27,9 @@ lr_test(fit, maxit = 60, tol = 1e-08)
 
 A list of class `"rasch_lr"`: raw `chisq`, `df`, `p` (the conventional
 display); adjusted `chisq_adj`, `p_adj`, and the eigenvalues `lambda`;
-the two log-likelihoods; and the rating-scale refit (`fit_rsm`).
+the two log-likelihoods; and the rating-scale refit (`fit_rsm`),
+retaining keyed scoring, DIF-split records and superitem definitions for
+subsequent analyses.
 
 ## Details
 

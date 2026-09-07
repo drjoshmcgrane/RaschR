@@ -3,8 +3,10 @@
 Fits each available item-location, polytomous threshold-structure or
 comparative-judgement object departure separately from the active model.
 Probabilities use Kent calibration and Holm adjustment over the complete
-candidate family. A candidate with a withheld probability remains in
-that family.
+candidate family. The Kent departure tests are first-order asymptotic
+comparisons and do not use the finite-person-cluster correction applied
+to individual coefficients. A candidate with a withheld probability
+remains in that family.
 
 ## Usage
 

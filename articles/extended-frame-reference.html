@@ -128,7 +128,7 @@ frame-dependent unit.</p>
 <span><span class="va">d</span><span class="op">$</span><span class="va">site</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, length.out <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">d</span></span>
 <span><span class="co">#&gt; Simulated efrm data: 300 persons, 2 sets x 2 groups, 16 items (2 categories)</span></span>
-<span><span class="co">#&gt; Planted departures:</span></span>
+<span><span class="co">#&gt; Generating values and departures:</span></span>
 <span><span class="co">#&gt;   - set-unit ratio 1.30 across 2 sets</span></span>
 <span><span class="co">#&gt;   - group-unit ratio 1.10 across 2 groups</span></span></code></pre></div>
 <p>The simulated data carry the units the fit below has to recover: a
@@ -209,7 +209,7 @@ set-unit ratio of 1.30 and a group-unit ratio of 1.10.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $alpha_edges</span></span>
 <span><span class="co">#&gt;  set_a set_b   n log_slope converged edge_mass    loglik</span></span>
-<span><span class="co">#&gt;   set1  set2 300     0.348         1     0.000 -3522.116</span></span>
+<span><span class="co">#&gt;   set1  set2 294     0.348         1     0.000 -3522.116</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $boot_reps_requested</span></span>
 <span><span class="co">#&gt; [1] 50</span></span>
@@ -321,10 +321,16 @@ probabilities are adjusted together by Holm’s method. Individual unit
 contrasts form a separate Holm-adjusted follow-up family. The raw
 composite-likelihood difference is descriptive and compares the
 group-unit stage only. Set units are identified in the linking stage and
-are assessed by their Wald test. Probabilities require at least 50
-persons or effective persons in every group and at least 50 common
-persons on every set-link edge. Sparse designs retain the unit estimates
-without an inferential probability.</p>
+are assessed by their Wald test. <code><a href="../reference/compare_fits.html">compare_fits()</a></code> withholds
+generic likelihood differences involving EFRM: its calibration
+likelihood uses within-set pairs, whereas ordinary PCM also uses
+cross-set pairs. The matched group-unit comparison is retained in
+<code>fit$efrm_vs_rasch</code>. Probabilities require at least 50
+persons or effective persons in every group and at least 50 informative
+common persons on every set-link edge. A person at the same extreme tail
+in both sets remains in the likelihood but does not count as link
+support. Sparse designs retain the unit estimates without an inferential
+probability.</p>
 <p>Simulation under normal, bimodal and deliberately different group
 distributions gave set-unit bias within 0.004 log-units,
 empirical-to-reported SE ratios from 0.97 to 1.05, and null rejection
@@ -347,9 +353,12 @@ identifiable.</p>
 </h2>
 <p>The fitted EFRM gives an item one location across its frames, scaled
 by the frame unit. <code><a href="../reference/frame_invariance.html">frame_invariance()</a></code> examines that
-restriction by calibrating each frame separately. Each compared frame
-needs at least 50 persons with two or more responses. Items with weak
-separate-frame standard errors are excluded from the comparison.</p>
+restriction by calibrating each frame separately. Each compared set and
+frame needs at least 50 distinct persons contributing an informative
+item pair: not both zero or both at their item maxima after any item
+removal or category recoding in that frame’s separate calibration. Items
+with weak separate-frame standard errors are excluded from the
+comparison.</p>
 <p>For frame <span class="math inline">\(f\)</span>, the common-scale
 item location is <span class="math inline">\(\hat\delta_{if}^{*}=\hat\delta_{if}/\hat\rho_f\)</span>.
 The separate calibrations have independent origins, so differences are
@@ -367,7 +376,9 @@ C\{V_1/\hat\rho_1^2+V_2/\hat\rho_2^2\}C^{\mathsf T},
 <span><span class="va">inv</span><span class="op">$</span><span class="va">discrimination</span></span></code></pre></div>
 <p>A whole-person bootstrap within person group retains each sampled
 row’s item-set response pattern and includes uncertainty in the fitted
-units:</p>
+units. A replicate is used only if it retains the same item-comparison
+family, and therefore the same centred frame origin, as the observed
+analysis:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">inv_boot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/frame_invariance.html">frame_invariance</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>

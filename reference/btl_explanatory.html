@@ -96,7 +96,7 @@ unique.</p></dd>
 
 <dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
 <dd><p>One-sided explanatory formula, including selected
-interactions if required.</p></dd>
+interactions if required. Formula offsets (<code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code>) are not supported.</p></dd>
 
 
 <dt id="arg-object-a-object-b">object_a, object_b<a class="anchor" aria-label="anchor" href="#arg-object-a-object-b"></a></dt>
@@ -180,8 +180,12 @@ The scale origin is fixed at mean object location zero. Numeric predictors
 are continuous, unordered factors are categorical, and ordered factors use
 successive contrasts between adjacent levels. Character predictors are
 converted to unordered factors. Selected
-interactions may be included in <code>formula</code>. A free calibration is
-retained for <code><a href="explanatory_test.html">explanatory_test()</a></code>. Standard errors use the same
+interactions may be included in <code>formula</code>.
+Design columns are centred and rescaled internally for numerical stability; reported
+coefficients and standard errors use the supplied predictor units.
+Coincident coefficient labels receive numeric suffixes; this does not
+change the predictor design.
+A free calibration is retained for <code><a href="explanatory_test.html">explanatory_test()</a></code>. Standard errors use the same
 sandwich covariance as <code><a href="btl.html">btl()</a></code>; when judges are identified, coefficient
 tests use the judge-clustered covariance and a \(t\) reference with
 judge-cluster degrees of freedom. Holm adjustment covers the coefficient

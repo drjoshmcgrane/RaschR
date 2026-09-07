@@ -31,7 +31,10 @@ equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
   named by item); marginal SEs alone do not carry the centring
   covariance. They are sufficient with `shift = "none"`. A bank treated
   as fixed may instead have zero SEs. A polytomous bank must also
-  include `max`, the maximum item score.
+  include `max`, the maximum item score. A bank covariance estimated
+  from a finite number of independent sampling units may carry its
+  positive residual degrees of freedom in
+  `attr(reference, "df_location")`.
 
 - shift:
 
@@ -51,15 +54,16 @@ equate_tests(fit, reference, shift = c("mean", "none"), independent = NULL)
 ## Value
 
 A list with the comparison `table` (locations, standard errors,
-difference, t, raw and Holm-adjusted p, drift flag), the estimated
-`shift` and its `shift_method`, the location `correlation`, the root
-mean square difference after shifting (`rmsd`), the number of common
-items `n_common`, the number with usable standard errors `n`, and
-whether drift inference was available (`inferential`). The `note`
-component records exclusions and the reason inference was withheld,
-where applicable. An individual drift probability is also withheld when
-its contrast has zero estimated uncertainty. Common items with
-unavailable drift probabilities remain in the multiplicity family.
+difference, its standard error, t statistic, reference degrees of
+freedom, raw and Holm-adjusted p, drift flag), the estimated `shift` and
+its `shift_method`, the location `correlation`, the root mean square
+difference after shifting (`rmsd`), the number of common items
+`n_common`, the number with usable standard errors `n`, and whether
+drift inference was available (`inferential`). The `note` component
+records exclusions and the reason inference was withheld, where
+applicable. An individual drift probability is also withheld when its
+contrast has zero estimated uncertainty. Common items with unavailable
+drift probabilities remain in the multiplicity family.
 
 ## Details
 
@@ -71,14 +75,27 @@ that accounts for the estimated shift through the items' joint
 covariance. If fewer than two common items have usable variances but at
 least two have finite locations, the function returns their unweighted
 mean difference as a descriptive fallback and records
-`shift_method = "unweighted"`. When the shift is estimated, drift
+`shift_method = "unweighted"`. An exact common anchor determines the
+shift even when it is the only common item with usable uncertainty;
+unavailable SEs do not override it. When the shift is estimated, drift
 inference requires independent calibrations and at least three common
 items with usable, positive-semidefinite joint covariance information.
 With `shift = "none"`, the origin is fixed before the comparison and
 each item's variance is the sum of its two marginal variances; joint
-covariance information and a three-item link are then unnecessary.
-Otherwise the function returns a descriptive link. Fitted calibrations
-must have converged.
+covariance information and a three-item link are then unnecessary. One
+common item is sufficient for that fixed-origin comparison; estimating a
+shift still requires at least two. Otherwise the function returns a
+descriptive link. A fitted calibration's empirical covariance must also
+pass the informative-person count, effective-support and projected-rank
+checks used by
+[`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
+Supported independent rows use the limiting normal reference. When
+either covariance comes from repeated person clusters, drift
+probabilities use contrast-specific Welch–Satterthwaite degrees of
+freedom. The corresponding residual degrees of freedom are the number of
+independent person clusters minus one. A fixed anchor contributes zero
+variance and does not consume cluster degrees of freedom. Fitted
+calibrations must have converged.
 
 ## Examples
 
@@ -99,13 +116,13 @@ eq$table
 #> 6   I6  0.5366178 0.1097245  0.7088231 0.1124051 -0.17220529    -0.18146881
 #> 7   I7  1.1874751 0.1180524  1.1279739 0.1189861  0.05950128     0.05023776
 #> 8   I8  1.4290269 0.1263670  1.5814546 0.1284329 -0.15242768    -0.16169120
-#>            t          p     p_adj drift
-#> 1 -0.5817100 0.56076205 1.0000000 FALSE
-#> 2 -0.2951436 0.76788421 1.0000000 FALSE
-#> 3  1.8293214 0.06735147 0.5388118 FALSE
-#> 4 -0.1977476 0.84324253 1.0000000 FALSE
-#> 5  0.8312417 0.40583712 1.0000000 FALSE
-#> 6 -1.1696652 0.24213573 1.0000000 FALSE
-#> 7  0.2969011 0.76654200 1.0000000 FALSE
-#> 8 -0.8735713 0.38235177 1.0000000 FALSE
+#>     se_diff          t  df          p     p_adj drift
+#> 1 0.1844083 -0.5817100 Inf 0.56076205 1.0000000 FALSE
+#> 2 0.1640769 -0.2951436 Inf 0.76788421 1.0000000 FALSE
+#> 3 0.1541893  1.8293214 Inf 0.06735147 0.5388118 FALSE
+#> 4 0.1489597 -0.1977476 Inf 0.84324253 1.0000000 FALSE
+#> 5 0.1466567  0.8312417 Inf 0.40583712 1.0000000 FALSE
+#> 6 0.1551459 -1.1696652 Inf 0.24213573 1.0000000 FALSE
+#> 7 0.1692070  0.2969011 Inf 0.76654200 1.0000000 FALSE
+#> 8 0.1850922 -0.8735713 Inf 0.38235177 1.0000000 FALSE
 ```

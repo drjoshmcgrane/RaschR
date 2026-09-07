@@ -126,16 +126,20 @@ numeric vector. Set weights additionally need an item-to-set map, except
 for an EFRM fit, which already contains one.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">item_weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>I1 <span class="op">=</span> <span class="fl">2</span>, I2 <span class="op">=</span> <span class="fl">1</span>, I3 <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/weighted_person_estimates.html">weighted_person_estimates</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">item_weights</span><span class="op">)</span></span>
+<span><span class="va">weighted</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/weighted_person_estimates.html">weighted_person_estimates</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">item_weights</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">set_of</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>I1 <span class="op">=</span> <span class="st">"core"</span>, I2 <span class="op">=</span> <span class="st">"core"</span>, I3 <span class="op">=</span> <span class="st">"extension"</span><span class="op">)</span></span>
 <span><span class="va">set_weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>core <span class="op">=</span> <span class="fl">2</span>, extension <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/weighted_person_estimates.html">weighted_person_estimates</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">set_weights</span>, by <span class="op">=</span> <span class="st">"set"</span>, sets <span class="op">=</span> <span class="va">set_of</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/weighted_person_estimates.html">weighted_person_estimates</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">set_weights</span>, by <span class="op">=</span> <span class="st">"set"</span>, sets <span class="op">=</span> <span class="va">set_of</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/save_outputs.html">save_outputs</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"analysis"</span>, person_weights <span class="op">=</span> <span class="va">weighted</span><span class="op">)</span></span></code></pre></div>
 <p>Only relative weights matter. The weighted estimates are
 supplementary; they do not replace the Rasch estimates used for fit,
 reliability, targeting or DIF. In the application, use a CSV with
 <code>item,weight</code>, or <code>item,set,weight</code> for set
-weights.</p>
+weights. The computed table can also be passed to
+<code><a href="../reference/save_outputs.html">save_outputs()</a></code>, <code><a href="../reference/report_html.html">report_html()</a></code> or
+<code><a href="../reference/report_document.html">report_document()</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="explanatory-item-and-threshold-models">Explanatory item and threshold models<a class="anchor" aria-label="anchor" href="#explanatory-item-and-threshold-models"></a>
@@ -319,7 +323,9 @@ items.</p>
 </h2>
 <p>EFRM response data use one row per person and one column per item,
 together with a person-group column. A separate named map assigns each
-item to exactly one item set.</p>
+item to exactly one item set. Supplied person identifiers must not
+repeat; missing or blank identifiers are treated as different unknown
+persons.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">frame_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  person <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"P"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">)</span>,</span>
@@ -477,10 +483,10 @@ and explanatory metadata.</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_efrm.html">simulate_efrm</a></span><span class="op">(</span>n_per_group <span class="op">=</span> <span class="fl">100</span>, items_per_set <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  [1] "layout"        "description"   "person_id"     "theta"        </span></span>
-<span><span class="co">#&gt;  [5] "difficulty"    "thresholds"    "alpha"         "phi"          </span></span>
-<span><span class="co">#&gt;  [9] "item_sets"     "groups"        "item_drift"    "careless_idx" </span></span>
-<span><span class="co">#&gt; [13] "missing_cells" "planted"</span></span></code></pre></div>
+<span><span class="co">#&gt;  [1] "layout"          "description"     "person_id"       "theta"          </span></span>
+<span><span class="co">#&gt;  [5] "difficulty"      "thresholds"      "departure_types" "alpha"          </span></span>
+<span><span class="co">#&gt;  [9] "phi"             "item_sets"       "groups"          "item_drift"     </span></span>
+<span><span class="co">#&gt; [13] "careless_idx"    "missing_cells"   "planted"</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

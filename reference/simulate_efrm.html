@@ -99,8 +99,9 @@ proportion selects at least one person or response cell.</p>
 
 
 <dt id="arg-set-unit-ratio-group-unit-ratio">set_unit_ratio, group_unit_ratio<a class="anchor" aria-label="anchor" href="#arg-set-unit-ratio-group-unit-ratio"></a></dt>
-<dd><p>Geometric span of the set and group
-units across their levels (1 = equal units, i.e. an ordinary Rasch fit).</p></dd>
+<dd><p>Ratio of the last generated set or
+group unit to the first. Intermediate units are geometrically spaced;
+1 gives equal units and hence an ordinary Rasch fit.</p></dd>
 
 
 <dt id="arg-n-categories">n_categories<a class="anchor" aria-label="anchor" href="#arg-n-categories"></a></dt>
@@ -111,7 +112,9 @@ frame unit scaling the whole exponent as in the dichotomous case.</p></dd>
 
 
 <dt id="arg-theta-sd">theta_sd<a class="anchor" aria-label="anchor" href="#arg-theta-sd"></a></dt>
-<dd><p>Spread of person ability.</p></dd>
+<dd><p>Realised sample standard deviation of person ability. This
+must be positive when more than one item set is generated because relative
+set units are identified from person variation shared across sets.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -121,12 +124,16 @@ frame unit scaling the whole exponent as in the dichotomous case.</p></dd>
 <dt id="arg-item-drift">item_drift<a class="anchor" aria-label="anchor" href="#arg-item-drift"></a></dt>
 <dd><p>Optional <code>list(items=, group=, shift=)</code>. The named
 item or items move by <code>shift</code> logits in one generated person group,
-violating item invariance across frames.</p></dd>
+violating item invariance across frames. At least one item in every
+affected set must remain invariant: shifting a set's items together is a
+frame-origin difference, not item drift within that set. A non-zero drift
+requires at least two person groups.</p></dd>
 
 
 <dt id="arg-careless">careless<a class="anchor" aria-label="anchor" href="#arg-careless"></a></dt>
 <dd><p>Proportion of persons whose complete response vectors are
-replaced by random category choices.</p></dd>
+replaced by random category choices. At least one person in every group
+must retain model-based responses.</p></dd>
 
 
 <dt id="arg-missing">missing<a class="anchor" aria-label="anchor" href="#arg-missing"></a></dt>
@@ -147,7 +154,7 @@ observed response.</p></dd>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">simulate_efrm</span><span class="op">(</span><span class="fl">200</span>, <span class="fl">6</span>, set_unit_ratio <span class="op">=</span> <span class="fl">1.3</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">ef</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch_efrm.html">rasch_efrm</a></span><span class="op">(</span><span class="va">d</span>, item_sets <span class="op">=</span> <span class="va">tr</span><span class="op">$</span><span class="va">item_sets</span>, groups <span class="op">=</span> <span class="st">"group"</span>,</span></span>
-<span class="r-in"><span>                 boot_reps <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>    <span class="co"># point estimates only</span></span></span>
+<span class="r-in"><span>                 id <span class="op">=</span> <span class="st">"id"</span>, boot_reps <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>    <span class="co"># point estimates only</span></span></span>
 <span class="r-in"><span><span class="va">ef</span><span class="op">$</span><span class="va">alpha_table</span>   <span class="co"># planted ratio 1.3, recovered within small-sample noise</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   set alpha se_log_alpha</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  set1 0.850             </span>

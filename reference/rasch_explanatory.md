@@ -43,7 +43,8 @@ rasch_explanatory(
 
   One-sided explanatory formula. For example,
   `~ format + operation + format:operation`. The reserved `threshold`
-  factor permits threshold-specific effects.
+  factor permits threshold-specific effects. Formula offsets
+  ([`offset()`](https://rdrr.io/r/stats/offset.html)) are not supported.
 
 - level:
 
@@ -56,6 +57,9 @@ An object of class `"rasch_explanatory"` inheriting from `"rasch"`.
 Standard item, person, fit and diagnostic components use the explanatory
 thresholds. The `explanatory` component contains the formula, metadata
 and design matrices; `reference_fit` is the free PCM calibration.
+`est$coefficients` reports the estimates, standard errors, \\t\\
+statistics, reference degrees of freedom, raw probabilities and
+Holm-adjusted probabilities.
 
 ## Details
 
@@ -69,13 +73,28 @@ estimated. Numeric predictors are continuous, unordered factors are
 categorical, and ordered factors use successive contrasts between
 adjacent levels. Character predictors are converted to unordered
 factors. The reserved factor `threshold` identifies the within-item
-threshold number; `threshold_number` supplies its integer value.
+threshold number; `threshold_number` supplies its integer value. Design
+columns are centred and rescaled internally for numerical stability;
+reported coefficients and standard errors use the supplied predictor
+units. Coincident coefficient labels receive numeric suffixes; this does
+not change the predictor design.
 
 A free PCM reference is fitted to the same prepared responses and
 retained on the object.
 [`explanatory_test`](https://drjoshmcgrane.github.io/rasch/reference/explanatory_test.md)
 applies the first-order Kent calibration required for the pairwise
-composite likelihood.
+composite likelihood. When an identifier occurs on more than one
+response row, coefficient covariance is clustered by person. A
+linearised delete-one-person correction accounts for finite-cluster
+leverage without refitting the model once per person. Supported
+repeated-person fits use a \\t\\ reference with degrees of freedom equal
+to the number of person clusters contributing conditional information
+minus one; inference is withheld when the calibration lacks enough
+independent information. Supported fits without repeated identifiers use
+the limiting normal reference. Holm adjustment covers the coefficient
+family. With few persons and unequal numbers of response rows, these
+approximate tests can still be mildly liberal; the correction does not
+guarantee nominal coverage in small samples.
 
 ## References
 
@@ -107,9 +126,9 @@ colnames(X) <- q$item
 fit <- rasch_explanatory(X, predictors = q,
                          formula = ~ operation + format)
 fit$est$coefficients
-#>       term estimate    se     z       p   p_adj
-#>  operation    0.697 0.070 9.996 < 0.001 < 0.001
-#>    formatB    0.423 0.071 5.925 < 0.001 < 0.001
+#>       term estimate    se     t  df       p   p_adj
+#>  operation    0.697 0.070 9.996 Inf < 0.001 < 0.001
+#>    formatB    0.423 0.071 5.925 Inf < 0.001 < 0.001
 explanatory_test(fit)
 #>  model parameters free_parameters r_squared r_squared_adj              r2_basis
 #>   LLTM          2               7     0.945         0.923 threshold calibration

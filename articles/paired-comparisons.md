@@ -33,7 +33,7 @@ d <- simulate_btl(
   reps_per_pair = 84,
   erratic_judges = 2 / 48,
   dependence = list(exposure = 0.7, carry_over = 0),
-  seed = 1
+  seed = 2
 )
 truth <- attr(d, "truth")
 judge_number <- as.integer(sub("^J", "", d$judge))
@@ -47,29 +47,30 @@ fit <- btl(d, object_a = "object_a", object_b = "object_b",
 fit
 #> Bradley-Terry-Luce analysis: 8 objects, 2352 comparisons, 48 judges
 #> Conditional ML: converged in 6 iterations; sandwich SEs clustered by judge
-#> Object separation index 0.990; pairwise chi-square 27.25 on 19 df, p = 0.099
-#> Within-judge exposure: 0.730 logits (SE 0.177, t = 4.12, Holm p = < 0.001)
-#> Within-judge carry-over: 0.042 logits (SE 0.065, t = 0.65, Holm p = 0.519)
+#> Object separation index 0.985; pairwise chi-square 19.83 on 19 df, probability unavailable
+#> Within-judge exposure: 0.669 logits (SE 0.208, t = 3.21, Holm p = 0.005)
+#> Within-judge carry-over: 0.010 logits (SE 0.084, t = 0.12, Holm p = 0.906)
 #>  object location    se comparisons wins fit_resid extreme
-#>      O1   -1.290 0.119         588  154    -0.092        
-#>      O2   -1.012 0.107         588  160     2.478        
-#>      O3   -0.573 0.083         588  209    -0.933        
-#>      O4   -0.180 0.088         588  262     0.521        
-#>      O5    0.081 0.066         588  300    -0.939        
-#>      O6    0.454 0.092         588  354    -2.406        
-#>      O7    1.088 0.113         588  437     0.988        
-#>      O8    1.432 0.101         588  476     1.256        
-#> Judges beyond |fit residual| 2.5: 2 (J10, J19)
+#>      O1   -1.329 0.155         588  120    -0.310        
+#>      O2   -0.961 0.113         588  163     0.201        
+#>      O3   -0.543 0.094         588  218     0.462        
+#>      O4   -0.099 0.098         588  277     0.992        
+#>      O5    0.167 0.081         588  317    -0.769        
+#>      O6    0.608 0.101         588  378    -1.035        
+#>      O7    0.941 0.110         588  423    -0.257        
+#>      O8    1.216 0.125         588  456     1.117        
+#> Judges beyond |fit residual| 2.5: 2 (J20, J5)
+#> Notes: the pairwise chi-square probability is withheld because its row-based reference does not model within-judge dependence; the statistic remains descriptive, and fit_bootstrap() provides calibration under the fitted response model
 fit$objects
 #>  object location    se comparisons wins infit_ms outfit_ms fit_resid  df_fit
-#>      O1   -1.290 0.119         588  154    0.976     0.993    -0.092 585.750
-#>      O2   -1.012 0.107         588  160    1.097     1.195     2.478 585.750
-#>      O3   -0.573 0.083         588  209    0.975     0.951    -0.933 585.750
-#>      O4   -0.180 0.088         588  262    1.021     1.023     0.521 585.750
-#>      O5    0.081 0.066         588  300    0.970     0.963    -0.939 585.750
-#>      O6    0.454 0.092         588  354    0.911     0.896    -2.406 585.750
-#>      O7    1.088 0.113         588  437    1.022     1.072     0.988 585.750
-#>      O8    1.432 0.101         588  476    1.041     1.118     1.256 585.750
+#>      O1   -1.329 0.155         588  120    0.964     0.974    -0.310 585.750
+#>      O2   -0.961 0.113         588  163    1.029     1.014     0.201 585.750
+#>      O3   -0.543 0.094         588  218    1.007     1.023     0.462 585.750
+#>      O4   -0.099 0.098         588  277    1.041     1.041     0.992 585.750
+#>      O5    0.167 0.081         588  317    0.980     0.968    -0.769 585.750
+#>      O6    0.608 0.101         588  378    0.974     0.947    -1.035 585.750
+#>      O7    0.941 0.110         588  423    1.002     0.983    -0.257 585.750
+#>      O8    1.216 0.125         588  456    1.038     1.094     1.117 585.750
 #>  extreme
 #>         
 #>         
@@ -98,31 +99,37 @@ be considered together.
 judge_order <- order(abs(fit$judges$fit_resid), decreasing = TRUE)
 head(fit$judges[judge_order, ], 6)
 #>  judge  n infit_ms outfit_ms fit_resid df_fit
-#>    J19 49    1.675     1.907     3.157 48.812
-#>    J10 49    1.581     1.880     2.799 48.812
-#>    J13 49    1.143     1.405     1.734 48.812
-#>     J6 49    0.782     0.706    -1.728 48.812
-#>    J34 49    0.790     0.703    -1.640 48.812
-#>    J27 49    0.807     0.710    -1.610 48.812
+#>    J20 49    2.234     2.868     4.318 48.812
+#>     J5 49    0.654     0.588    -2.744 48.812
+#>     J1 49    1.472     1.595     2.124 48.812
+#>    J23 49    1.293     1.577     1.859 48.812
+#>    J15 49    0.722     0.687    -1.702 48.812
+#>    J26 49    1.126     1.525     1.619 48.812
 erratic_fit <- fit$judges[match(truth$erratic, fit$judges$judge), ]
 erratic_judge <- erratic_fit$judge[
   which.max(abs(erratic_fit$fit_resid))
 ]
 judge_surprise(fit, erratic_judge)
-#> Judge J19: 49 comparisons over 8 objects
-#> No object judged against its consensus standing.
+#> Judge J20: 49 comparisons over 8 objects
+#> Unexpected judgements:
+#>   O1     (loc -1.33): z = +5.02, Holm p = < 0.001  [weak object over-rated]
+#>   O6     (loc +0.61): z = -3.38, Holm p = 0.005  [strong object under-rated]
+#>   O8     (loc +1.22): z = -3.31, Holm p = 0.006  [strong object under-rated]
+#>   O7     (loc +0.94): z = -2.93, Holm p = 0.017  [strong object under-rated]
+#>   O4     (loc -0.10): z = +2.63, Holm p = 0.034  [weak object over-rated]
+#>   O3     (loc -0.54): z = +2.62, Holm p = 0.034  [weak object over-rated]
 btl_information(fit)
-#> Paired-comparison design information: 8 objects, total 418.83
+#> Paired-comparison design information: 8 objects, total 428.71
 #> One-comparison Fisher information about the location gap (dichotomous: P(1 - P))
 #>  object location    se n_comparisons information se_naive
-#>      O1   -1.290 0.119           588      90.370    0.105
-#>      O2   -1.012 0.107           588     101.309    0.099
-#>      O3   -0.573 0.083           588     114.005    0.094
-#>      O4   -0.180 0.088           588     119.331    0.092
-#>      O5    0.081 0.066           588     119.382    0.092
-#>      O6    0.454 0.092           588     114.766    0.093
-#>      O7    1.088 0.113           588      96.233    0.102
-#>      O8    1.432 0.101           588      82.270    0.110
+#>      O1   -1.329 0.155           588      87.425    0.107
+#>      O2   -0.961 0.113           588     102.075    0.099
+#>      O3   -0.543 0.094           588     115.101    0.093
+#>      O4   -0.099 0.098           588     120.992    0.091
+#>      O5    0.167 0.081           588     120.975    0.091
+#>      O6    0.608 0.101           588     114.048    0.094
+#>      O7    0.941 0.110           588     103.824    0.098
+#>      O8    1.216 0.125           588      92.988    0.104
 #> Note: se is the judge-clustered Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it
 ```
 
@@ -183,7 +190,7 @@ tr
 #> Paired-comparison transitivity: 8 objects, 56 complete triples
 #> Circular triads: 0 (0.0% of triples; random-tournament benchmark 25%) -> consistency 1.00
 #> Kendall coefficient of consistency (complete design): 1.000
-#> Per-judge consistency reported for 48 judge(s); least consistent -0.87
+#> Per-judge consistency reported for 48 judge(s); least consistent 0.05
 #> Note: the 0.25 chance rate is a random-tournament benchmark, not the fitted BTL expected circular rate; transitivity is descriptive
 
 dim_data <- simulate_btl(
@@ -195,7 +202,7 @@ dim_fit <- btl(dim_data, object_a = "object_a", object_b = "object_b",
 dimensions <- btl_dimensionality(dim_fit, reps = 20, seed = 2026)
 dimensions
 #> Paired-comparison residual dimensionality: 4 bimension(s)
-#> Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.385; p = 0.476) -> within the conditional reference
+#> Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.385; adjusted p = 0.476) -> within the conditional reference
 ```
 
 ``` r
@@ -245,19 +252,19 @@ head(bd$summary[bd_order, c(
   "min_judges", "min_effective_judges"
 )], 6)
 #>  object       term F_uniform p_uniform_adj eta2_uniform min_judges
-#>      O1 experience     5.230         0.863        0.110         24
-#>      O1      panel     0.626         1.000        0.015         24
-#>      O2      panel     0.260         1.000        0.006         24
-#>      O2 experience     1.982         1.000        0.045         24
-#>      O3      panel     0.008         1.000        0.000         24
-#>      O3 experience     0.254         1.000        0.006         24
+#>      O1      panel     1.198         1.000        0.028         24
+#>      O1 experience     0.118         1.000        0.003         24
+#>      O2      panel     0.000         1.000        0.000         24
+#>      O2 experience     0.932         1.000        0.022         24
+#>      O3      panel     0.306         1.000        0.007         24
+#>      O3 experience     1.552         1.000        0.035         24
 #>  min_effective_judges
-#>                22.506
-#>                22.439
-#>                22.592
-#>                22.693
-#>                21.707
-#>                22.237
+#>                22.421
+#>                22.333
+#>                22.179
+#>                22.030
+#>                22.403
+#>                22.260
 ```
 
 An optional fitted-outcome bootstrap repeats the comparison fit and the
@@ -281,7 +288,8 @@ independent judges and comparisons are stated explicitly. The shift is
 precision-weighted when at least two common objects have usable
 variances. If they do not, the function uses the unweighted mean
 location difference, labels it in `shift_method`, and keeps the link
-descriptive.
+descriptive. An exact common anchor fixes the shift even when other
+common objects have unavailable SEs.
 
 ``` r
 
@@ -289,6 +297,12 @@ eq <- btl_equate(current_panel, reference_panel, independent = TRUE)
 eq$table
 eq$equated                 # reference panel on the current panel's origin
 ```
+
+The SEs in `eq$equated` include uncertainty in the shift and its
+covariance with the reference locations. They are withheld when that
+joint uncertainty is unavailable. The table retains its covariance and
+finite-sample degrees of freedom as attributes; it is not independent of
+either input calibration.
 
 A bank table may be used in place of `reference_panel`. Marginal object
 standard errors are not enough for drift tests because they omit the
@@ -359,11 +373,13 @@ Holm-adjusted across the three unit families. Individual panel-unit,
 set-unit and set-origin contrasts form one separate Holm-adjusted
 follow-up family. Judge-bootstrap tests require at least six judges and
 5.5 effective judges in every panel, and eight of each on a set link.
-Judge resamples are distributed over four workers by default, or fewer
-where the system imposes a lower limit. Set `seed` to reproduce the
-resamples. The parametric bootstrap remains serial because its refits
-are inexpensive. In the application, frame estimation runs in the
-background and may be cancelled.
+The pooled pairwise chi-square is retained as a descriptive fit summary,
+but its row-based probability is not reported because judges contribute
+repeated comparisons. Judge resamples are distributed over four workers
+by default, or fewer where the system imposes a lower limit. Set `seed`
+to reproduce the resamples. The parametric bootstrap remains serial
+because its refits are inexpensive. In the application, frame estimation
+runs in the background and may be cancelled.
 
 With six judges per panel and 20 repetitions per pair, a 1,000-fit null
 study gave raw marginal rejection of 3.3 per cent for panel units, 6.7

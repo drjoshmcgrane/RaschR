@@ -65,7 +65,7 @@ chosen by the extension of <code>file</code>.</p>
 <span>  what <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"icc"</span>, <span class="st">"ccc"</span>, <span class="st">"tpc"</span>, <span class="st">"cfreq"</span><span class="op">)</span>,</span>
 <span>  <span class="va">file</span>,</span>
 <span>  items <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  n_groups <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">n_groups</span>,</span>
+<span>  n_groups <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  grid <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  observed <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  width <span class="op">=</span> <span class="fl">8</span>,</span>
@@ -97,7 +97,8 @@ chosen by the extension of <code>file</code>.</p>
 
 
 <dt id="arg-n-groups">n_groups<a class="anchor" aria-label="anchor" href="#arg-n-groups"></a></dt>
-<dd><p>Class intervals for observed overlays.</p></dd>
+<dd><p>Class intervals for observed overlays; <code>NULL</code> retains
+the fit's allocation for each item.</p></dd>
 
 
 <dt id="arg-grid">grid<a class="anchor" aria-label="anchor" href="#arg-grid"></a></dt>

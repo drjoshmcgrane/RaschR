@@ -100,18 +100,22 @@ margin in <code>n_categories</code> categories; an earlier development-era value
 
 
 <dt id="arg-object-sd">object_sd<a class="anchor" aria-label="anchor" href="#arg-object-sd"></a></dt>
-<dd><p>Spread of the object locations (evenly spaced, sum-zero).</p></dd>
+<dd><p>Realised sample standard deviation of the object locations
+(evenly spaced and sum-zero).</p></dd>
 
 
 <dt id="arg-second-attribute">second_attribute<a class="anchor" aria-label="anchor" href="#arg-second-attribute"></a></dt>
 <dd><p><code>NULL</code>, or <code>list(rho=)</code>: half the judges
 rank by a second object attribute whose realised correlation with the
-first is <code>rho</code>.
+first is <code>rho</code>. It lies in [-1, 1); at 1 the attributes are identical
+and no second attribute is planted.
 This introduces residual dimensionality and possible intransitivity.</p></dd>
 
 
 <dt id="arg-erratic-judges">erratic_judges<a class="anchor" aria-label="anchor" href="#arg-erratic-judges"></a></dt>
-<dd><p>Proportion of judges who choose at random.</p></dd>
+<dd><p>Proportion of judges who choose at random. At least
+one judge must retain model-based comparisons, in each camp when a
+second attribute is generated.</p></dd>
 
 
 <dt id="arg-dependence">dependence<a class="anchor" aria-label="anchor" href="#arg-dependence"></a></dt>

@@ -9,15 +9,21 @@
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate. The generator assumes
-independent response rows. A fit with repeated person IDs is therefore
-refused because this bootstrap does not reproduce within-person dependence."><meta property="og:description" content="Refers fit statistics to replicated datasets fitted in the same way as the
+person locations are re-estimated in every replicate.
+The original class-interval rule is repeated, including automatic per-item
+allocation with missing responses. Tied locations remain in one interval.
+The generator assumes independent response rows. A fit with repeated person
+IDs is therefore refused because this bootstrap does not reproduce
+within-person dependence."><meta property="og:description" content="Refers fit statistics to replicated datasets fitted in the same way as the
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate. The generator assumes
-independent response rows. A fit with repeated person IDs is therefore
-refused because this bootstrap does not reproduce within-person dependence."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+person locations are re-estimated in every replicate.
+The original class-interval rule is repeated, including automatic per-item
+allocation with missing responses. Tied locations remain in one interval.
+The generator assumes independent response rows. A fit with repeated person
+IDs is therefore refused because this bootstrap does not reproduce
+within-person dependence."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -62,9 +68,12 @@ refused because this bootstrap does not reproduce within-person dependence."><me
 observed data. For a person-by-item Rasch model, the default generator
 conditions on each person's observed raw score and missingness pattern.
 The person parameter then cancels by sufficiency. Item parameters and
-person locations are re-estimated in every replicate. The generator assumes
-independent response rows. A fit with repeated person IDs is therefore
-refused because this bootstrap does not reproduce within-person dependence.</p>
+person locations are re-estimated in every replicate.
+The original class-interval rule is repeated, including automatic per-item
+allocation with missing responses. Tied locations remain in one interval.
+The generator assumes independent response rows. A fit with repeated person
+IDs is therefore refused because this bootstrap does not reproduce
+within-person dependence.</p>
     </div>
 
     <div class="section level2">
@@ -85,7 +94,9 @@ refused because this bootstrap does not reproduce within-person dependence.</p>
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
 <dd><p>A fitted object from <code><a href="rasch.html">rasch</a></code> or <code><a href="btl.html">btl</a></code>.
 Extended-frame, many-facet and explanatory person-by-item fits are not
-supported. Explanatory paired-comparison fits are supported.</p></dd>
+supported. Explanatory paired-comparison fits are supported.
+Fully anchored scoring fits are not supported by this refitting procedure.
+An older anchored fit must retain its original anchor settings.</p></dd>
 
 
 <dt id="arg-b">B<a class="anchor" aria-label="anchor" href="#arg-b"></a></dt>

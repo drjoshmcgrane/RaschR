@@ -3,12 +3,14 @@
 Fisher information over a grid of person locations, with the
 corresponding standard error of measurement. Ordinary Rasch fits return
 one whole-test curve. EFRM fits return one curve per person group and
-per item-set administration pattern actually observed within that group
-(in a linking design, persons who took only the core set get a core-only
+per item administration pattern actually observed within that group (in
+a linking design, persons who took only the core set get a core-only
 curve, and the linking subsample gets the pooled one). MFRM fits return
-one curve per set of facet conditions observed together for a person, so
-ratings that jointly inform the same person measure are added and
-mutually exclusive designs remain separate.
+one curve per observed item-by-facet pattern for a person, so ratings
+that jointly inform the same person measure are added and mutually
+exclusive designs remain separate. Partly answered sets or facet
+conditions contribute only their observed items; a missing response is
+not treated as an administered item when defining these patterns.
 
 ## Usage
 

@@ -2,14 +2,15 @@
 
 The proportion choosing each response option across class intervals of
 the rest measure (the person estimate from the other items), with the
-keyed option drawn solid and bold. The keyed option should rise with the
-trait and every distractor should fall; a rising distractor is the
-graphical signature of a miskey or an ambiguous option.
+keyed option drawn solid and bold. The curves are descriptive. Under
+ordered option scoring, higher-scored options should tend to occur at
+higher rest measures; an intermediate-credit option may peak in the
+middle.
 
 ## Usage
 
 ``` r
-plot_distractors(fit, item, n_groups = fit$n_groups)
+plot_distractors(fit, item, n_groups = NULL)
 ```
 
 ## Arguments
@@ -26,7 +27,9 @@ plot_distractors(fit, item, n_groups = fit$n_groups)
 
 - n_groups:
 
-  Number of class intervals.
+  Number of class intervals. By default, use the fit's count, with at
+  least two requested intervals. Tied locations may produce fewer
+  intervals.
 
 ## Value
 

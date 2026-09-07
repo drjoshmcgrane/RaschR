@@ -16,7 +16,11 @@ resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \\\hat d\\ is
 calculated from their full sandwich covariance. If that covariance is
 unavailable or not positive semidefinite, the point estimate is retained
-as a descriptive magnitude and Wald inference is withheld.
+as a descriptive magnitude and Wald inference is withheld. When repeated
+person identifiers contribute to the refit, probabilities use a t
+reference with the number of independent person clusters minus one
+degree of freedom. Independent response rows retain the asymptotic
+normal reference, represented by infinite degrees of freedom.
 
 ## Usage
 
@@ -39,10 +43,10 @@ dependence_magnitude(fit, dependent, independent)
 
 ## Value
 
-A list of class `"rasch_dependence"`: the estimate `d`, its `se`, `z`
-and `p` for the hypothesis \\d = 0\\, the per-threshold table
-`thresholds` (columns `k`, `delta_lo`, `delta_hi`, `d_k`, `se_k`), and
-the resolved `refit`.
+A list of class `"rasch_dependence"`: the estimate `d`, its `se`, `t`,
+reference `df` and `p` for the hypothesis \\d = 0\\, the per-threshold
+table `thresholds` (columns `k`, `delta_lo`, `delta_hi`, `d_k`, `se_k`),
+and the resolved `refit`.
 
 ## Details
 
@@ -56,7 +60,9 @@ virtual items are resolved through this unconstrained PCM. EFRM virtual
 frames are mutually exclusive and must first be reduced to an observable
 frame or linked design block. For an explanatory fit, the remaining
 items retain their explanatory restrictions and the resolved copies
-receive free fixed departures.
+receive free fixed departures. Resolution is refused if any retained
+item or resolved copy loses its original score categories during
+calibration.
 
 ## References
 

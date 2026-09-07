@@ -9,7 +9,9 @@ its consensus location predicts. Approximate two-sided normal
 probabilities are adjusted by Holm across the objects meeting `min_n`. A
 surprise is an eligible object treated against its standing (residual
 opposite in sign to the location) whose adjusted probability passes the
-level represented by `flag_z`. The fitted model must have converged.
+level represented by `flag_z`. The fitted model must have converged. An
+adequately sampled object with unavailable residual inference remains in
+the adjustment family.
 
 ## Usage
 
@@ -43,8 +45,11 @@ judge_surprise(fit, judge, min_n = 2L, flag_z = 1.96)
 
 A list of class `"rasch_btl_judge"`: `objects` (per object met:
 location, times met `n`, residual `z`, approximate `p`, Holm-adjusted
-`p_adj`, `surprise` flag and its `type`); `all_locations` (every object,
-for orientation); the `judge` and settings.
+`p_adj`, `surprise` flag and its `type`). Strong and weak refer to
+standing above or below the mean calibrated-object location, so the
+classification is unchanged by the arbitrary scale origin.
+`all_locations` contains every object for orientation; the `judge` and
+settings.
 
 ## Examples
 

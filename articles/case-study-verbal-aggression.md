@@ -143,20 +143,20 @@ modifies the corresponding main effect.
 
 effects <- fit_explanatory$est$coefficients
 effects[effects$p_adj < .05,
-        c("term", "estimate", "se", "z", "p", "p_adj")]
-#>                        term estimate    se      z       p   p_adj
-#>                 situationS3    0.952 0.121  7.878 < 0.001 < 0.001
-#>              behaviourScold    0.619 0.109  5.651 < 0.001 < 0.001
-#>              behaviourShout    1.631 0.130 12.549 < 0.001 < 0.001
-#>                  threshold2    0.815 0.184  4.423 < 0.001 < 0.001
-#>        situationS2:modewant   -0.416 0.081 -5.119 < 0.001 < 0.001
-#>        situationS3:modewant   -0.507 0.104 -4.892 < 0.001 < 0.001
-#>  situationS3:behaviourScold    0.425 0.106  4.015 < 0.001 < 0.001
-#>  situationS4:behaviourScold    0.329 0.098  3.375 < 0.001   0.010
-#>  situationS3:behaviourShout    0.618 0.134  4.628 < 0.001 < 0.001
-#>  situationS4:behaviourShout    0.425 0.122  3.487 < 0.001   0.007
-#>     modewant:behaviourShout   -0.574 0.114 -5.038 < 0.001 < 0.001
-#>   behaviourShout:threshold2   -0.531 0.175 -3.026   0.002   0.032
+        c("term", "estimate", "se", "t", "df", "p", "p_adj")]
+#>                        term estimate    se      t  df       p   p_adj
+#>                 situationS3    0.952 0.121  7.878 Inf < 0.001 < 0.001
+#>              behaviourScold    0.619 0.109  5.651 Inf < 0.001 < 0.001
+#>              behaviourShout    1.631 0.130 12.549 Inf < 0.001 < 0.001
+#>                  threshold2    0.815 0.184  4.423 Inf < 0.001 < 0.001
+#>        situationS2:modewant   -0.416 0.081 -5.119 Inf < 0.001 < 0.001
+#>        situationS3:modewant   -0.507 0.104 -4.892 Inf < 0.001 < 0.001
+#>  situationS3:behaviourScold    0.425 0.106  4.015 Inf < 0.001 < 0.001
+#>  situationS4:behaviourScold    0.329 0.098  3.375 Inf < 0.001   0.010
+#>  situationS3:behaviourShout    0.618 0.134  4.628 Inf < 0.001 < 0.001
+#>  situationS4:behaviourShout    0.425 0.122  3.487 Inf < 0.001   0.007
+#>     modewant:behaviourShout   -0.574 0.114 -5.038 Inf < 0.001 < 0.001
+#>   behaviourShout:threshold2   -0.531 0.175 -3.026 Inf   0.002   0.032
 ```
 
 For example, the positive coefficients for `behaviourScold` and
@@ -186,8 +186,8 @@ head(departures, 10)
 #>    S2DoCurse Threshold structure                1     0.224             33.596
 #>  S1WantCurse Threshold structure                1     0.218             30.708
 #>  S4WantCurse Threshold structure                1     0.196             26.631
-#>    S4DoScold       Item location                1    -0.246             19.167
 #>  S4WantScold       Item location                1     0.246             19.167
+#>    S4DoScold       Item location                1    -0.246             19.167
 #>  S3WantCurse Threshold structure                1     0.160             16.779
 #>  df     p weak converged p_adj
 #>   1 0.030              * 1.000

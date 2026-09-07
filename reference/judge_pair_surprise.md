@@ -8,7 +8,9 @@ stronger object won less than its lead predicts – the judge backed the
 underdog. Approximate two-sided normal probabilities are adjusted by
 Holm across matchups meeting `min_n`. A surprise is an eligible matchup
 with a negative residual whose adjusted probability passes the level
-represented by `flag_z`. The fitted model must have converged.
+represented by `flag_z`. The fitted model must have converged. An
+adequately sampled matchup with unavailable residual inference remains
+in the adjustment family.
 
 ## Usage
 

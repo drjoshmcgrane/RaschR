@@ -4,12 +4,13 @@ Splits items with uniform DIF one at a time, beginning with the largest
 estimated effect, and refits after each split. This order addresses the
 artificial DIF that a large departure can induce in otherwise invariant
 items (Andrich and Hagquist 2012, 2015). Each split gives the item a
-separate location and threshold structure in every factor cell. A
-location split does not model a group-specific discrimination, so items
-with non-uniform DIF are left for review rather than being made
-untestable by a split. The procedure stops when no resolvable uniform
-DIF remains or the remaining unsplit reference set reaches
-`min_anchors`. Items fixed by external anchors are not split.
+separate location in every factor cell. A PCM also estimates the split
+copies' thresholds separately; an RSM retains its common rating-scale
+threshold structure. A location split does not model a group-specific
+discrimination, so items with non-uniform DIF are left for review rather
+than being made untestable by a split. The procedure stops when no
+resolvable uniform DIF remains or the remaining unsplit reference set
+reaches `min_anchors`. Items fixed by external anchors are not split.
 
 ## Usage
 
@@ -21,7 +22,8 @@ resolve_dif(
   p_adjust = "holm",
   min_n = 20L,
   min_anchors = NULL,
-  max_splits = NULL
+  max_splits = NULL,
+  effects = c("main", "factorial")
 )
 ```
 
@@ -30,8 +32,7 @@ resolve_dif(
 - fit:
 
   A fitted object from
-  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md)
-  carrying person factors.
+  [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md).
 
 - factors:
 
@@ -45,7 +46,7 @@ resolve_dif(
 
 - p_adjust:
 
-  Multiplicity adjustment across items each round.
+  Multiplicity adjustment for the DIF tests in each round.
 
 - min_n:
 
@@ -65,13 +66,19 @@ resolve_dif(
 
   Hard cap on the number of splits. Default: the number of items.
 
+- effects:
+
+  `"main"` fits the factors additively; `"factorial"` also tests their
+  interactions. The same model is used at every round and in the final
+  DIF assessment.
+
 ## Value
 
 A list of class `"rasch_resolve_dif"`: the final resolved `fit`, the
 `splits` performed (order, item, factor, partial eta-squared, source
 item, DIF magnitude in logits), the `stopped` reason, the residual `dif`
 table, and the number of distinct source items that still show DIF in
-the final fit.
+the final fit. `effects` records the factor model used.
 
 ## References
 

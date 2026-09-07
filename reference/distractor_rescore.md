@@ -5,11 +5,12 @@ carrying information about the trait receives partial credit (Andrich
 and Styles 2011). This function proposes such a scoring from the
 rest-measure distractor analysis: within each keyed item, a distractor
 qualifies for credit when it attracts at least `min_n` takers, its
-takers' mean rest location exceeds that of the uncredited distractors by
-more than `z` standard errors of the difference, and it remains below
-the keyed option. Qualifying distractors are ranked by mean location and
-scored 1, 2, ... below the keyed option's top score. The result is a
-proposal for substantive review, not an automatic decision: inspect
+takers' mean rest location exceeds that of the pooled remaining
+distractors by more than `z` standard errors of the difference, and it
+remains below the keyed option. Qualifying distractors are ranked by
+mean location and scored 1, 2, ... below the keyed option's top score.
+The result is a proposal for substantive review, not an automatic
+decision: inspect
 [`plot_distractors`](https://drjoshmcgrane.github.io/rasch/reference/plot_distractors.md)
 and the item content, edit as needed, then refit with
 `rasch(raw_data, key = proposal$option_scores)`.
@@ -39,7 +40,7 @@ distractor_rescore(fit, items = NULL, min_n = 20, z = 1.96)
 - z:
 
   Required separation, in standard errors, between a credited distractor
-  and the uncredited ones.
+  and the pooled remaining distractors.
 
 ## Value
 

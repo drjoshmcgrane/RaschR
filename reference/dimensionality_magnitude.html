@@ -111,8 +111,17 @@ items). The published magnitude formula requires equal subscale sizes.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_dim_magnitude"</code>: the comparison
   <code>table</code> (rows PSI and alpha; columns <code>run1</code>, <code>subtest</code>,
-  <code>c2</code>, <code>c</code>, <code>rho</code>, <code>A</code>), the subtest <code>refit</code>,
+  <code>c2</code>, <code>c</code>, <code>rho</code>, <code>A</code>, <code>n</code>,
+  <code>n_excluded</code>), the subtest <code>refit</code>,
   and the design constants <code>S</code> and <code>K</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Both reliability calculations use rows with responses to every item.
+PSI further requires a finite person estimate and standard error in both
+fits. The calibrations are retained; only the reliability sample changes.
+With missing responses, the result describes this complete-response sample,
+not necessarily the full population. The table reports rows used and excluded.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -132,9 +141,9 @@ items). The published magnitude formula requires equal subscale sizes.</p></dd>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="rasch.html">rasch</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">dimensionality_magnitude</span><span class="op">(</span><span class="va">fit</span>,</span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"I"</span>, <span class="fl">6</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">table</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  index  run1 subtest    c2     c   rho     A</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    PSI 0.577   0.369 1.268 1.126 0.441 0.612</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  alpha 0.662   0.497 0.747 0.864 0.572 0.728</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  index  run1 subtest    c2     c   rho     A   n n_excluded</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    PSI 0.577   0.369 1.268 1.126 0.441 0.612 500          0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  alpha 0.662   0.497 0.747 0.864 0.572 0.728 500          0</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

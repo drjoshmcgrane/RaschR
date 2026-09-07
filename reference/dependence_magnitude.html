@@ -21,7 +21,11 @@ The resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \(\hat d\) is
 calculated from their full sandwich covariance. If that covariance is
 unavailable or not positive semidefinite, the point estimate is retained
-as a descriptive magnitude and Wald inference is withheld."><meta property="og:description" content="Quantifies how strongly a dependent item's response follows an
+as a descriptive magnitude and Wald inference is withheld.
+When repeated person identifiers contribute to the refit, probabilities use
+a t reference with the number of independent person clusters minus one
+degree of freedom. Independent response rows retain the asymptotic normal
+reference, represented by infinite degrees of freedom."><meta property="og:description" content="Quantifies how strongly a dependent item's response follows an
 independent item's response, in logits, by the resolution method of
 Andrich and Kreiner (2010; polytomous generalisation Andrich, Humphry
 and Marais 2012), by resolution of the dependent item. The
@@ -37,7 +41,11 @@ The resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \(\hat d\) is
 calculated from their full sandwich covariance. If that covariance is
 unavailable or not positive semidefinite, the point estimate is retained
-as a descriptive magnitude and Wald inference is withheld."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
+as a descriptive magnitude and Wald inference is withheld.
+When repeated person identifiers contribute to the refit, probabilities use
+a t reference with the number of independent person clusters minus one
+degree of freedom. Independent response rows retain the asymptotic normal
+reference, represented by infinite degrees of freedom."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -94,7 +102,11 @@ The resolved threshold estimates share the calibration of the remaining
 items and are therefore correlated. The standard error of \(\hat d\) is
 calculated from their full sandwich covariance. If that covariance is
 unavailable or not positive semidefinite, the point estimate is retained
-as a descriptive magnitude and Wald inference is withheld.</p>
+as a descriptive magnitude and Wald inference is withheld.
+When repeated person identifiers contribute to the refit, probabilities use
+a t reference with the number of independent person clusters minus one
+degree of freedom. Independent response rows retain the asymptotic normal
+reference, represented by infinite degrees of freedom.</p>
     </div>
 
     <div class="section level2">
@@ -119,7 +131,8 @@ score (the formalisation requires it).</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>"rasch_dependence"</code>: the estimate <code>d</code>,
-  its <code>se</code>, <code>z</code> and <code>p</code> for the hypothesis \(d = 0\),
+  its <code>se</code>, <code>t</code>, reference <code>df</code> and <code>p</code> for the
+  hypothesis \(d = 0\),
   the per-threshold table <code>thresholds</code> (columns <code>k</code>,
   <code>delta_lo</code>, <code>delta_hi</code>, <code>d_k</code>, <code>se_k</code>), and the
   resolved <code>refit</code>.</p>
@@ -136,7 +149,9 @@ virtual items are resolved through this unconstrained PCM. EFRM virtual
 frames are mutually exclusive and must first be reduced to an observable
 frame or linked design block. For an explanatory fit, the remaining items
 retain their explanatory restrictions and the resolved copies receive free
-fixed departures.</p>
+fixed departures.
+Resolution is refused if any retained item or resolved copy loses its
+original score categories during calibration.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

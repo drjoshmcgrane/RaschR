@@ -69,7 +69,8 @@ simulate_btl_efrm(
 
 - object_sd:
 
-  Spread of the within-set calibration locations.
+  Realised sample standard deviation of the within-set calibration
+  locations.
 
 - seed:
 
@@ -77,7 +78,8 @@ simulate_btl_efrm(
 
 - erratic_judges:
 
-  Proportion of judges who choose between the two objects at random.
+  Proportion of judges who choose between the two objects at random. At
+  least one judge in every panel must retain model-based comparisons.
 
 ## Value
 

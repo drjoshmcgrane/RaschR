@@ -44,7 +44,9 @@ rasch(
   values cluster the item-parameter sandwich covariance and define the
   person unit in repeated-measures DIF. The ordinary item-fit reference
   distributions are row-based, so their probabilities are withheld when
-  an ID occurs on more than one response row.
+  an ID occurs on more than one response row. The support conditions
+  described above then apply to person clusters rather than response
+  rows.
 
 - factors:
 
@@ -77,9 +79,14 @@ rasch(
 
 - na_codes:
 
-  Values to read as missing. Defaults to `-1`, the conventional
-  missing-response code; any negative score is also treated as missing,
-  since valid category scores start at zero.
+  Numeric or character values to read as missing. They are matched
+  before scores are converted to numbers, including numerically
+  equivalent labels (for example, `"09"` matches a score of 9). Defaults
+  to `-1`, the conventional missing-response code; any negative score is
+  also treated as missing, since valid category scores start at zero.
+  For keyed items, codes apply to raw answer options, not to the scores
+  assigned by the key. Structural refits use the prepared scores and do
+  not apply the original raw codes again.
 
 - key:
 
@@ -109,9 +116,12 @@ reliability, targeting, item-trait statistics, threshold diagnostics,
 and estimation details. The component `summary_stats` contains the
 distribution summaries, fit-location correlations, and the cell
 degrees-of-freedom factor. The item summary carries a `disc` column
-described below. If estimation does not converge, locations and residual
-patterns are retained for diagnosis, but standard errors, separation
-indices and inferential probabilities are `NA`.
+described below. `repeated_ids` records whether a person contributes
+more than one informative calibration row; `repeated_residual_ids`
+records repetition among rows contributing fitted residuals, which
+governs the row-based fit references. If estimation does not converge,
+locations and residual patterns are retained for diagnosis, but standard
+errors, separation indices and inferential probabilities are `NA`.
 
 ## Details
 
@@ -128,6 +138,15 @@ measures are estimated within each observed item pattern. The observed
 item-pair graph must identify a common scale. This covers planned linked
 designs and ignorable missingness; informative missingness can still
 bias the estimates.
+
+Item-parameter uncertainty uses the empirical Godambe sandwich over
+independent persons, or over person clusters when IDs repeat. It is
+withheld unless at least 10 contributing units, at least 8 effective
+units, more effective units than fitted parameters, and a full-rank
+score covariance support the fitted directions. Effective support
+reflects the number of informative conditional item pairs contributed by
+each unit; rows without one do not count. Point estimates and exact
+anchors remain available when uncertainty is withheld.
 
 The fit residual is the log-of-mean-square statistic described by
 Andrich and Marais (2019, ch. 23). Positive values indicate

@@ -1,7 +1,9 @@
 # Plot the test characteristic curve
 
 Expected total score against person location. Structural fits draw one
-curve for each administrable frame or facet design.
+curve for each observed item pattern within the frame or facet design,
+as defined by
+[`test_information`](https://drjoshmcgrane.github.io/rasch/reference/test_information.md).
 
 ## Usage
 

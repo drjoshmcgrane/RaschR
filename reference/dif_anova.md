@@ -65,9 +65,11 @@ dif_anova(
 
 - sizes:
 
-  If `TRUE`, refit each flagged item-term and calculate adjusted
-  marginal contrasts in logits using
+  If `TRUE`, refit each flagged item-term and calculate marginal
+  contrasts in logits using
   [`dif_posthoc`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md).
+  Their probabilities are adjusted together over the complete family
+  opened by all flagged, non-superseded uniform terms.
 
 - id:
 
@@ -115,7 +117,13 @@ A list with:
   When `sizes = TRUE`, marginal pairwise differences for main effects
   and difference-in-differences magnitudes for interactions, calculated
   by
-  [`dif_posthoc`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md).
+  [`dif_posthoc`](https://drjoshmcgrane.github.io/rasch/reference/dif_posthoc.md)
+  and adjusted together over the opened follow-up family.
+
+- `posthoc_family_n`:
+
+  When `sizes = TRUE`, the number of planned questions in that family,
+  including unavailable comparisons.
 
 - `between_covariance`:
 
@@ -135,15 +143,20 @@ factor-by-factor interactions. Type II sums of squares are used. The
 multiplicity adjustment covers all item-by-DIF-term tests, including
 both uniform and non-uniform DIF; the class-interval main effect is a
 nuisance term and is not included. A reported term remains in this
-family when its probability is unavailable.
+family when its probability is unavailable. Effects that cannot be
+estimated from the retained design are reported as `NA`, including
+within-person effects whose adjusted mean is confounded with
+between-person terms in an incomplete factorial design.
 
 When identifiers repeat, the person is the unit of analysis.
 Between-person terms use person means and the between-person error
 stratum. Within-person terms use orthonormal contrasts of person-by-cell
 means. A Greenhouse–Geisser correction is applied to within-person
 factors with more than two levels. Persons missing a required cell are
-excluded from the corresponding within-person test. In incomplete mixed
-designs, within-cell effects are removed before the between-person
+excluded from the corresponding within-person test. Required cells
+include every combination of the within-person factor levels, even when
+a combination or level has no observations for an item. In incomplete
+mixed designs, within-cell effects are removed before the between-person
 analysis. Uniform between-person factor terms use HC3 covariance so
 unequal group sizes, leverage, and differing precision of person means
 do not impose a common residual variance. Class-interval interactions

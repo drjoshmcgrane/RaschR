@@ -5,7 +5,9 @@ design. For location difference \\d=\beta_a-\beta_b\\, one dichotomous
 comparison contributes \$\$I(d)=P(a\succ b)\\1-P(a\succ b)\\.\$\$ For an
 ordered comparison, the contribution is the variance of the response
 score. Information is summed over the comparisons involving each object,
-including replication counts.
+including replication counts. Observed-design information retains the
+fitted position and dependence effects; it is conditional on the
+recorded comparison history.
 
 ## Usage
 

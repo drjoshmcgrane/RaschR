@@ -120,8 +120,10 @@ non-extreme persons per interval, at most 10 intervals, at least 2).</p></dd>
 
 
 <dt id="arg-na-codes">na_codes<a class="anchor" aria-label="anchor" href="#arg-na-codes"></a></dt>
-<dd><p>Score values to read as missing (default <code>-1</code>); any
-negative score is also treated as missing.</p></dd>
+<dd><p>Numeric or character score values to read as missing. They
+are matched before scores are converted to numbers, including numerically
+equivalent labels (for example, <code>"09"</code> matches a score of 9).
+The default is <code>-1</code>; any negative score is also treated as missing.</p></dd>
 
 
 <dt id="arg-interaction">interaction<a class="anchor" aria-label="anchor" href="#arg-interaction"></a></dt>
@@ -132,8 +134,9 @@ negative score is also treated as missing.</p></dd>
 <dt id="arg-factors">factors<a class="anchor" aria-label="anchor" href="#arg-factors"></a></dt>
 <dd><p>Optional person factors for DIF analysis: a character
 vector naming columns constant within person, or a data frame with one
-row per data row or unique person. Facets belong in <code>facets</code>, not
-here.</p></dd>
+row per data row or unique person. Within each person, observed factor
+values must agree; missing entries do not override an observed value.
+Facets belong in <code>facets</code>, not here.</p></dd>
 
 
 <dt id="arg-maxit-tol">maxit, tol<a class="anchor" aria-label="anchor" href="#arg-maxit-tol"></a></dt>
@@ -145,7 +148,9 @@ here.</p></dd>
     <p>An object of classes <code>"rasch_mfrm"</code> and <code>"rasch"</code>.
   Model-specific components describe the facets, items, thresholds, and
   facet specification. Interactive fits also contain an omnibus test and
-  the corresponding item-by-facet effects. The component <code>fit_resid</code>
+  the corresponding item-by-facet effects, whose <code>t</code>, <code>df</code>,
+  <code>p</code>, and Holm-adjusted <code>p_adj</code> columns use the finite-person
+  reference described in Details. The component <code>fit_resid</code>
   averages virtual-item residuals within a margin. Its response-weighted
   counterpart is <code>fit_resid_pooled</code>; its degrees of freedom are in
   <code>df_fit</code>. A non-converged fit retains estimates and residual patterns
@@ -174,7 +179,9 @@ before fitting the model.</p>
 <p>An item-by-facet interaction retains equal discrimination but allows facet
 differences to vary by item. The omnibus Wald test in
 <code>interaction_test</code> is the primary test; cell tests are Holm-adjusted
-follow-ups. Interaction probabilities require at least
+follow-ups. Each cell table reports a Wald <code>t</code> statistic and its
+denominator degrees of freedom, using the least effective item-by-level
+person support minus one. Interaction probabilities require at least
 \(\max\{30,q+2\}\) persons and effective persons in every observed
 item-by-level cell, where \(q\) is the omnibus degrees of freedom.
 The interaction covariance must also identify the omnibus contrast and

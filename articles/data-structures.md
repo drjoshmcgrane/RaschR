@@ -58,17 +58,24 @@ for an EFRM fit, which already contains one.
 ``` r
 
 item_weights <- c(I1 = 2, I2 = 1, I3 = 0.5)
-weighted_person_estimates(fit, item_weights)
+weighted <- weighted_person_estimates(fit, item_weights)
 
 set_of <- c(I1 = "core", I2 = "core", I3 = "extension")
 set_weights <- c(core = 2, extension = 1)
 weighted_person_estimates(fit, set_weights, by = "set", sets = set_of)
+
+save_outputs(fit, "analysis", person_weights = weighted)
 ```
 
 Only relative weights matter. The weighted estimates are supplementary;
 they do not replace the Rasch estimates used for fit, reliability,
 targeting or DIF. In the application, use a CSV with `item,weight`, or
-`item,set,weight` for set weights.
+`item,set,weight` for set weights. The computed table can also be passed
+to
+[`save_outputs()`](https://drjoshmcgrane.github.io/rasch/reference/save_outputs.md),
+[`report_html()`](https://drjoshmcgrane.github.io/rasch/reference/report_html.md)
+or
+[`report_document()`](https://drjoshmcgrane.github.io/rasch/reference/report_document.md).
 
 ## Explanatory item and threshold models
 
@@ -274,7 +281,9 @@ items.
 
 EFRM response data use one row per person and one column per item,
 together with a person-group column. A separate named map assigns each
-item to exactly one item set.
+item to exactly one item set. Supplied person identifiers must not
+repeat; missing or blank identifiers are treated as different unknown
+persons.
 
 ``` r
 
@@ -460,8 +469,8 @@ explanatory metadata.
 
 d <- simulate_efrm(n_per_group = 100, items_per_set = 5, seed = 4)
 names(attr(d, "truth"))
-#>  [1] "layout"        "description"   "person_id"     "theta"        
-#>  [5] "difficulty"    "thresholds"    "alpha"         "phi"          
-#>  [9] "item_sets"     "groups"        "item_drift"    "careless_idx" 
-#> [13] "missing_cells" "planted"
+#>  [1] "layout"          "description"     "person_id"       "theta"          
+#>  [5] "difficulty"      "thresholds"      "departure_types" "alpha"          
+#>  [9] "phi"             "item_sets"       "groups"          "item_drift"     
+#> [13] "careless_idx"    "missing_cells"   "planted"
 ```

@@ -60,7 +60,7 @@ separates the observed means within each frame for a DIF display.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_icc_frames</span><span class="op">(</span><span class="va">fit</span>, <span class="va">item</span>, n_groups <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">n_groups</span>, grid <span class="op">=</span> <span class="cn">NULL</span>, group <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_icc_frames</span><span class="op">(</span><span class="va">fit</span>, <span class="va">item</span>, n_groups <span class="op">=</span> <span class="cn">NULL</span>, grid <span class="op">=</span> <span class="cn">NULL</span>, group <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -76,7 +76,9 @@ separates the observed means within each frame for a DIF display.</p>
 
 
 <dt id="arg-n-groups">n_groups<a class="anchor" aria-label="anchor" href="#arg-n-groups"></a></dt>
-<dd><p>Number of class intervals for the observed means.</p></dd>
+<dd><p>Number of class intervals for the observed means. By
+default, use the fit's count, with at least two requested intervals.
+Tied locations may produce fewer intervals.</p></dd>
 
 
 <dt id="arg-grid">grid<a class="anchor" aria-label="anchor" href="#arg-grid"></a></dt>

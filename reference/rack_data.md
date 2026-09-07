@@ -27,7 +27,8 @@ stack_data(data, person, time, items)
 
 - person, time:
 
-  Names of distinct person and time-point columns.
+  Character strings naming distinct person and time-point columns, not
+  numeric column positions.
 
 - items:
 

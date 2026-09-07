@@ -6,12 +6,11 @@ Builds a comparison table for two or more fits from
 [`rasch_efrm`](https://drjoshmcgrane.github.io/rasch/reference/rasch_efrm.md),
 or (all together)
 [`btl`](https://drjoshmcgrane.github.io/rasch/reference/btl.md). For
-fits of the same response data (identical item columns, maximum scores,
-and number of persons) the pairwise conditional log-likelihoods share
-their conditional information, and twice the difference from the
-reference fit is reported with the difference in parameter counts; this
-is descriptive (composite likelihood), and most meaningful for nested
-structures such as RSM inside PCM.
+fits of the same response data using the same likelihood contributions,
+twice the difference from the reference fit is reported with the
+difference in parameter counts; this is descriptive (composite
+likelihood), and most meaningful for nested structures such as RSM
+inside PCM.
 
 ## Usage
 
@@ -25,12 +24,12 @@ compare_fits(..., reference = 1)
 
   Two or more fitted objects, preferably given unique names. Supply
   either all Rasch-family fits or all `btl` fits. For `btl`, fits of the
-  same comparison data (same objects, comparisons, and judges) support
-  the likelihood columns – e.g. free versus principal-component
-  thresholds, with and without a position effect or within-judge
-  dependence. Row order, arbitrary person or judge labels, and expansion
-  versus count compression do not change data identity; allocation to
-  independent persons or judges does.
+  same comparison data (same objects, response scale, comparisons, and
+  judges) support the likelihood columns – e.g. free versus
+  principal-component thresholds, with and without a position effect or
+  within-judge dependence. Row order, arbitrary person or judge labels,
+  and expansion versus count compression do not change data identity;
+  allocation to independent persons or judges does.
 
 - reference:
 
@@ -41,9 +40,10 @@ compare_fits(..., reference = 1)
 
 A data frame with one row per fit: label, model, persons, items (judges,
 objects, comparisons for `btl`), parameters, log-likelihood,
-`eff_params`, `cl_aic`, `cl_bic`, comparability with the reference,
-`two_delta_ll` and `delta_parameters` (same-data fits only), chi-square
-per df, fit residual SDs, PSI, and alpha (OSI for `btl`).
+`eff_params`, `cl_aic`, `cl_bic`, response-data identity with the
+reference (`same_data`), `two_delta_ll` and `delta_parameters` (eligible
+same-data comparisons only), chi-square per df, fit residual SDs, PSI,
+and alpha (OSI for `btl`).
 
 ## Details
 
@@ -55,13 +55,24 @@ pairwise log-likelihood over-counts the data; the effective parameter
 count \\tr(H^{-1}J)\\ from the Godambe matrices – the same quantity
 whose eigenvalues calibrate
 [`lr_test`](https://drjoshmcgrane.github.io/rasch/reference/lr_test.md)
-– absorbs exactly that over-counting, where the nominal parameter count
-would not. \\n\\ counts independent units: persons contributing at least
-one informative pair, or judges for paired-comparison fits
-(count-weighted comparisons when unclustered). Smaller is better; the
-criteria are valid across models of the same data whether or not they
-nest, and are `NA` (with the reason in the printed note) for MFRM and
-EFRM fits, which do not carry their Godambe matrices.
+– accounts for composite score variability and curvature, which the
+nominal parameter count would not. \\n\\ counts independent units:
+persons contributing at least one informative pair, or judges for
+paired-comparison fits (count-weighted comparisons when unclustered).
+Smaller is better; the criteria are valid across models of the same data
+whether or not they nest, and are `NA` (with the reason in the printed
+note) for EFRM fits, which do not carry Godambe matrices for the
+complete linked model. Rasch EFRM log-likelihoods cover only within-set
+calibration pairs, so generic likelihood differences involving these
+fits are also withheld. Use `fit$efrm_vs_rasch` for the descriptive
+group-unit comparison on matched pairs; it does not assess set units.
+MFRM fits carry the sensitivity and sandwich covariance for their
+structural pairwise calibration and therefore receive the same criteria
+as ordinary and explanatory Rasch fits. BTL–EFRM fits also use a
+two-stage estimator rather than maximising the combined objective
+jointly, so their generic information criteria and likelihood
+differences are withheld; use the fit's `equal_unit` component for its
+labelled descriptive comparison.
 
 Across different data preparations (subtests, splits, facet or frame
 structures), or different allocations of response rows to persons, the
@@ -99,5 +110,5 @@ compare_fits(PCM = rasch(X, model = "PCM"),
 #>         0.884       0.600         0.837 0.743 0.784
 #> (further columns on the object: loglik, parameters, same_data)
 #> 
-#> cl_aic and cl_bic are composite-likelihood information criteria (Varin & Vidoni 2005; Gao & Song 2010): -2 cl penalised by the effective parameter count tr(H^-1 J), which absorbs the pairwise over-counting that the nominal count would not; smaller is better, valid across models of the same data. Information criteria and two_delta_ll are withheld when the response data or independent-unit allocation differ from the reference. two_delta_ll is the raw composite difference against the reference, descriptive only. Across different data preparations, chisq_per_df, the fit residual SDs and separation/reliability columns provide descriptive context rather than a formal selection criterion.
+#> cl_aic and cl_bic are composite-likelihood information criteria (Varin & Vidoni 2005; Gao & Song 2010): -2 cl penalised by the effective parameter count tr(H^-1 J), which accounts for composite score variability and curvature; smaller is better, valid across models of the same data. Information criteria and two_delta_ll are withheld when the response data, response scale or independent-unit allocation differ from the reference. two_delta_ll is the raw composite difference against the reference, descriptive only. Across different data preparations, chisq_per_df, the fit residual SDs and separation/reliability columns provide descriptive context rather than a formal selection criterion.
 ```

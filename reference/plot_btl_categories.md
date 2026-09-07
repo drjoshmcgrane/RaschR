@@ -4,7 +4,10 @@ For a polytomous paired-comparison fit, the probability of each response
 category as a function of the location difference `beta_a - beta_b`,
 with the symmetric threshold structure marked. The display is the
 paired-comparison counterpart of the category probability curves of a
-polytomous item.
+polytomous item. A fitted position effect is included for object a
+presented first. For a history-dependent fit, the horizontal axis is the
+full linear predictor, including position and history terms, rather than
+the object difference alone.
 
 ## Usage
 
@@ -22,7 +25,8 @@ plot_btl_categories(fit, grid = seq(-4, 4, 0.05))
 
 - grid:
 
-  Difference grid, in logits.
+  Difference grid, in logits; the full linear-predictor grid for
+  history-dependent fits.
 
 ## Value
 

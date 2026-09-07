@@ -102,7 +102,10 @@ Standard errors use the full covariance of the resolved locations.
 This is the follow-up to a significant DIF term with more than two
 levels. It reports effects in Rasch logits, adjusts the chosen family of
 comparisons, and uses person-level scores with the same equal-cell
-marginal weights in repeated-measures designs.
+marginal weights in repeated-measures designs. A planned comparison that
+cannot be estimated because its levels have no common nuisance-factor
+cell remains in the multiplicity count, although it is omitted from the
+result table.
 
 ## References
 

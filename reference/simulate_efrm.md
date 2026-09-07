@@ -43,8 +43,9 @@ simulate_efrm(
 
 - set_unit_ratio, group_unit_ratio:
 
-  Geometric span of the set and group units across their levels (1 =
-  equal units, i.e. an ordinary Rasch fit).
+  Ratio of the last generated set or group unit to the first.
+  Intermediate units are geometrically spaced; 1 gives equal units and
+  hence an ordinary Rasch fit.
 
 - n_categories:
 
@@ -55,7 +56,9 @@ simulate_efrm(
 
 - theta_sd:
 
-  Spread of person ability.
+  Realised sample standard deviation of person ability. This must be
+  positive when more than one item set is generated because relative set
+  units are identified from person variation shared across sets.
 
 - seed:
 
@@ -65,12 +68,16 @@ simulate_efrm(
 
   Optional `list(items=, group=, shift=)`. The named item or items move
   by `shift` logits in one generated person group, violating item
-  invariance across frames.
+  invariance across frames. At least one item in every affected set must
+  remain invariant: shifting a set's items together is a frame-origin
+  difference, not item drift within that set. A non-zero drift requires
+  at least two person groups.
 
 - careless:
 
   Proportion of persons whose complete response vectors are replaced by
-  random category choices.
+  random category choices. At least one person in every group must
+  retain model-based responses.
 
 - missing:
 
@@ -91,7 +98,7 @@ required by
 d <- simulate_efrm(200, 6, set_unit_ratio = 1.3, seed = 1)
 tr <- attr(d, "truth")
 ef <- rasch_efrm(d, item_sets = tr$item_sets, groups = "group",
-                 boot_reps = 0)    # point estimates only
+                 id = "id", boot_reps = 0)    # point estimates only
 ef$alpha_table   # planted ratio 1.3, recovered within small-sample noise
 #>   set alpha se_log_alpha
 #>  set1 0.850             

@@ -54,7 +54,8 @@ simulate_rasch(
 
 - theta_mean, theta_sd:
 
-  Mean and standard deviation of the person distribution.
+  Realised sample mean and standard deviation of the person
+  distribution.
 
 - theta_dist:
 
@@ -73,21 +74,27 @@ simulate_rasch(
 
 - discrimination:
 
-  The item slope, supplied as one value or one per item. Values above 1
-  produce steeper responses and negative fit residuals. Values below 1
-  produce flatter responses and positive fit residuals.
+  The item slope, supplied as one value or one per item. One common
+  value changes the logit unit without departing from a Rasch model.
+  Differences between items are a deliberate slope departure: values
+  above the common pattern produce steeper responses and values below it
+  produce flatter responses, and require `theta_sd > 0`.
 
 - guessing:
 
   Scalar or length-`n_items` lower asymptote (dichotomous): low-location
-  persons answer correctly by chance.
+  persons answer correctly by chance. A positive asymptote requires
+  `theta_sd > 0`.
 
 - second_dim:
 
   `NULL`, or `list(items=, rho=)`: the named items load on a second
-  trait whose realised sample correlation with the first is `rho`. At
-  least three persons are needed unless `rho` is -1 or 1. Each item is
-  named once.
+  trait whose realised sample correlation with the first is `rho`. It
+  lies in \[-1, 1); a correlation of 1 would reproduce the primary trait
+  rather than plant another dimension. At least three persons are needed
+  unless `rho` is -1. Each item is named once, and at least one item
+  must remain on the primary trait; moving every item to the second
+  trait is still a one-dimensional scale.
 
 - dependence:
 
@@ -100,11 +107,15 @@ simulate_rasch(
   `NULL`, or `list(items=, uniform=, nonuniform=)`: the named items
   function differently for the last person group: a location shift
   (`uniform`) and/or a slope change (`nonuniform`). Needs
-  `n_groups >= 2`; each item is named once.
+  `n_groups >= 2`; each item is named once and at least one item must
+  remain invariant. A common shift or slope change on every item changes
+  the group origin or unit rather than defining item DIF. A non-uniform
+  effect also requires `theta_sd > 0`.
 
 - careless:
 
-  Proportion of persons who answer at random. Careless and
+  Proportion of persons who answer at random. At least one person in
+  each generated group must retain model-based responses. Careless and
   response-style assignments are disjoint; their requested counts must
   fit.
 
@@ -113,13 +124,17 @@ simulate_rasch(
   `NULL`, or `list(type=, prop=, strength=)` with `type` `"extreme"` or
   `"middle"`: a proportion `prop` of persons favour the end (or middle)
   categories regardless of the trait, with distortion `strength`
-  (default 1.6) on the log-probability scale (polytomous).
+  (default 1.6) on the log-probability scale (polytomous). At least one
+  person must remain without the style; applying one category weighting
+  to everyone merely changes the fitted thresholds.
 
 - speeded:
 
   Proportion not reached at the last item: a growing tail of missing
   responses over the final items. These cells are kept distinct from any
-  completely-at-random missing cells.
+  completely-at-random missing cells. Persons are selected independently
+  of their ability and responses; this does not simulate non-ignorable
+  missingness or change the response model.
 
 - disordered:
 

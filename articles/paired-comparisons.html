@@ -112,7 +112,7 @@ extension</p>
 <span>  reps_per_pair <span class="op">=</span> <span class="fl">84</span>,</span>
 <span>  erratic_judges <span class="op">=</span> <span class="fl">2</span> <span class="op">/</span> <span class="fl">48</span>,</span>
 <span>  dependence <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>exposure <span class="op">=</span> <span class="fl">0.7</span>, carry_over <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">1</span></span>
+<span>  seed <span class="op">=</span> <span class="fl">2</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"truth"</span><span class="op">)</span></span>
 <span><span class="va">judge_number</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">"^J"</span>, <span class="st">""</span>, <span class="va">d</span><span class="op">$</span><span class="va">judge</span><span class="op">)</span><span class="op">)</span></span>
@@ -126,29 +126,30 @@ extension</p>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; Bradley-Terry-Luce analysis: 8 objects, 2352 comparisons, 48 judges</span></span>
 <span><span class="co">#&gt; Conditional ML: converged in 6 iterations; sandwich SEs clustered by judge</span></span>
-<span><span class="co">#&gt; Object separation index 0.990; pairwise chi-square 27.25 on 19 df, p = 0.099</span></span>
-<span><span class="co">#&gt; Within-judge exposure: 0.730 logits (SE 0.177, t = 4.12, Holm p = &lt; 0.001)</span></span>
-<span><span class="co">#&gt; Within-judge carry-over: 0.042 logits (SE 0.065, t = 0.65, Holm p = 0.519)</span></span>
+<span><span class="co">#&gt; Object separation index 0.985; pairwise chi-square 19.83 on 19 df, probability unavailable</span></span>
+<span><span class="co">#&gt; Within-judge exposure: 0.669 logits (SE 0.208, t = 3.21, Holm p = 0.005)</span></span>
+<span><span class="co">#&gt; Within-judge carry-over: 0.010 logits (SE 0.084, t = 0.12, Holm p = 0.906)</span></span>
 <span><span class="co">#&gt;  object location    se comparisons wins fit_resid extreme</span></span>
-<span><span class="co">#&gt;      O1   -1.290 0.119         588  154    -0.092        </span></span>
-<span><span class="co">#&gt;      O2   -1.012 0.107         588  160     2.478        </span></span>
-<span><span class="co">#&gt;      O3   -0.573 0.083         588  209    -0.933        </span></span>
-<span><span class="co">#&gt;      O4   -0.180 0.088         588  262     0.521        </span></span>
-<span><span class="co">#&gt;      O5    0.081 0.066         588  300    -0.939        </span></span>
-<span><span class="co">#&gt;      O6    0.454 0.092         588  354    -2.406        </span></span>
-<span><span class="co">#&gt;      O7    1.088 0.113         588  437     0.988        </span></span>
-<span><span class="co">#&gt;      O8    1.432 0.101         588  476     1.256        </span></span>
-<span><span class="co">#&gt; Judges beyond |fit residual| 2.5: 2 (J10, J19)</span></span>
+<span><span class="co">#&gt;      O1   -1.329 0.155         588  120    -0.310        </span></span>
+<span><span class="co">#&gt;      O2   -0.961 0.113         588  163     0.201        </span></span>
+<span><span class="co">#&gt;      O3   -0.543 0.094         588  218     0.462        </span></span>
+<span><span class="co">#&gt;      O4   -0.099 0.098         588  277     0.992        </span></span>
+<span><span class="co">#&gt;      O5    0.167 0.081         588  317    -0.769        </span></span>
+<span><span class="co">#&gt;      O6    0.608 0.101         588  378    -1.035        </span></span>
+<span><span class="co">#&gt;      O7    0.941 0.110         588  423    -0.257        </span></span>
+<span><span class="co">#&gt;      O8    1.216 0.125         588  456     1.117        </span></span>
+<span><span class="co">#&gt; Judges beyond |fit residual| 2.5: 2 (J20, J5)</span></span>
+<span><span class="co">#&gt; Notes: the pairwise chi-square probability is withheld because its row-based reference does not model within-judge dependence; the statistic remains descriptive, and fit_bootstrap() provides calibration under the fitted response model</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">objects</span></span>
 <span><span class="co">#&gt;  object location    se comparisons wins infit_ms outfit_ms fit_resid  df_fit</span></span>
-<span><span class="co">#&gt;      O1   -1.290 0.119         588  154    0.976     0.993    -0.092 585.750</span></span>
-<span><span class="co">#&gt;      O2   -1.012 0.107         588  160    1.097     1.195     2.478 585.750</span></span>
-<span><span class="co">#&gt;      O3   -0.573 0.083         588  209    0.975     0.951    -0.933 585.750</span></span>
-<span><span class="co">#&gt;      O4   -0.180 0.088         588  262    1.021     1.023     0.521 585.750</span></span>
-<span><span class="co">#&gt;      O5    0.081 0.066         588  300    0.970     0.963    -0.939 585.750</span></span>
-<span><span class="co">#&gt;      O6    0.454 0.092         588  354    0.911     0.896    -2.406 585.750</span></span>
-<span><span class="co">#&gt;      O7    1.088 0.113         588  437    1.022     1.072     0.988 585.750</span></span>
-<span><span class="co">#&gt;      O8    1.432 0.101         588  476    1.041     1.118     1.256 585.750</span></span>
+<span><span class="co">#&gt;      O1   -1.329 0.155         588  120    0.964     0.974    -0.310 585.750</span></span>
+<span><span class="co">#&gt;      O2   -0.961 0.113         588  163    1.029     1.014     0.201 585.750</span></span>
+<span><span class="co">#&gt;      O3   -0.543 0.094         588  218    1.007     1.023     0.462 585.750</span></span>
+<span><span class="co">#&gt;      O4   -0.099 0.098         588  277    1.041     1.041     0.992 585.750</span></span>
+<span><span class="co">#&gt;      O5    0.167 0.081         588  317    0.980     0.968    -0.769 585.750</span></span>
+<span><span class="co">#&gt;      O6    0.608 0.101         588  378    0.974     0.947    -1.035 585.750</span></span>
+<span><span class="co">#&gt;      O7    0.941 0.110         588  423    1.002     0.983    -0.257 585.750</span></span>
+<span><span class="co">#&gt;      O8    1.216 0.125         588  456    1.038     1.094     1.117 585.750</span></span>
 <span><span class="co">#&gt;  extreme</span></span>
 <span><span class="co">#&gt;         </span></span>
 <span><span class="co">#&gt;         </span></span>
@@ -172,31 +173,37 @@ be considered together.</p>
 <code class="sourceCode R"><span><span class="va">judge_order</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">judges</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span><span class="va">judge_order</span>, <span class="op">]</span>, <span class="fl">6</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  judge  n infit_ms outfit_ms fit_resid df_fit</span></span>
-<span><span class="co">#&gt;    J19 49    1.675     1.907     3.157 48.812</span></span>
-<span><span class="co">#&gt;    J10 49    1.581     1.880     2.799 48.812</span></span>
-<span><span class="co">#&gt;    J13 49    1.143     1.405     1.734 48.812</span></span>
-<span><span class="co">#&gt;     J6 49    0.782     0.706    -1.728 48.812</span></span>
-<span><span class="co">#&gt;    J34 49    0.790     0.703    -1.640 48.812</span></span>
-<span><span class="co">#&gt;    J27 49    0.807     0.710    -1.610 48.812</span></span>
+<span><span class="co">#&gt;    J20 49    2.234     2.868     4.318 48.812</span></span>
+<span><span class="co">#&gt;     J5 49    0.654     0.588    -2.744 48.812</span></span>
+<span><span class="co">#&gt;     J1 49    1.472     1.595     2.124 48.812</span></span>
+<span><span class="co">#&gt;    J23 49    1.293     1.577     1.859 48.812</span></span>
+<span><span class="co">#&gt;    J15 49    0.722     0.687    -1.702 48.812</span></span>
+<span><span class="co">#&gt;    J26 49    1.126     1.525     1.619 48.812</span></span>
 <span><span class="va">erratic_fit</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">judges</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">truth</span><span class="op">$</span><span class="va">erratic</span>, <span class="va">fit</span><span class="op">$</span><span class="va">judges</span><span class="op">$</span><span class="va">judge</span><span class="op">)</span>, <span class="op">]</span></span>
 <span><span class="va">erratic_judge</span> <span class="op">&lt;-</span> <span class="va">erratic_fit</span><span class="op">$</span><span class="va">judge</span><span class="op">[</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/which.min.html" class="external-link">which.max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">erratic_fit</span><span class="op">$</span><span class="va">fit_resid</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">]</span></span>
 <span><span class="fu"><a href="../reference/judge_surprise.html">judge_surprise</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">erratic_judge</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Judge J19: 49 comparisons over 8 objects</span></span>
-<span><span class="co">#&gt; No object judged against its consensus standing.</span></span>
+<span><span class="co">#&gt; Judge J20: 49 comparisons over 8 objects</span></span>
+<span><span class="co">#&gt; Unexpected judgements:</span></span>
+<span><span class="co">#&gt;   O1     (loc -1.33): z = +5.02, Holm p = &lt; 0.001  [weak object over-rated]</span></span>
+<span><span class="co">#&gt;   O6     (loc +0.61): z = -3.38, Holm p = 0.005  [strong object under-rated]</span></span>
+<span><span class="co">#&gt;   O8     (loc +1.22): z = -3.31, Holm p = 0.006  [strong object under-rated]</span></span>
+<span><span class="co">#&gt;   O7     (loc +0.94): z = -2.93, Holm p = 0.017  [strong object under-rated]</span></span>
+<span><span class="co">#&gt;   O4     (loc -0.10): z = +2.63, Holm p = 0.034  [weak object over-rated]</span></span>
+<span><span class="co">#&gt;   O3     (loc -0.54): z = +2.62, Holm p = 0.034  [weak object over-rated]</span></span>
 <span><span class="fu"><a href="../reference/btl_information.html">btl_information</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Paired-comparison design information: 8 objects, total 418.83</span></span>
+<span><span class="co">#&gt; Paired-comparison design information: 8 objects, total 428.71</span></span>
 <span><span class="co">#&gt; One-comparison Fisher information about the location gap (dichotomous: P(1 - P))</span></span>
 <span><span class="co">#&gt;  object location    se n_comparisons information se_naive</span></span>
-<span><span class="co">#&gt;      O1   -1.290 0.119           588      90.370    0.105</span></span>
-<span><span class="co">#&gt;      O2   -1.012 0.107           588     101.309    0.099</span></span>
-<span><span class="co">#&gt;      O3   -0.573 0.083           588     114.005    0.094</span></span>
-<span><span class="co">#&gt;      O4   -0.180 0.088           588     119.331    0.092</span></span>
-<span><span class="co">#&gt;      O5    0.081 0.066           588     119.382    0.092</span></span>
-<span><span class="co">#&gt;      O6    0.454 0.092           588     114.766    0.093</span></span>
-<span><span class="co">#&gt;      O7    1.088 0.113           588      96.233    0.102</span></span>
-<span><span class="co">#&gt;      O8    1.432 0.101           588      82.270    0.110</span></span>
+<span><span class="co">#&gt;      O1   -1.329 0.155           588      87.425    0.107</span></span>
+<span><span class="co">#&gt;      O2   -0.961 0.113           588     102.075    0.099</span></span>
+<span><span class="co">#&gt;      O3   -0.543 0.094           588     115.101    0.093</span></span>
+<span><span class="co">#&gt;      O4   -0.099 0.098           588     120.992    0.091</span></span>
+<span><span class="co">#&gt;      O5    0.167 0.081           588     120.975    0.091</span></span>
+<span><span class="co">#&gt;      O6    0.608 0.101           588     114.048    0.094</span></span>
+<span><span class="co">#&gt;      O7    0.941 0.110           588     103.824    0.098</span></span>
+<span><span class="co">#&gt;      O8    1.216 0.125           588      92.988    0.104</span></span>
 <span><span class="co">#&gt; Note: se is the judge-clustered Godambe sandwich standard error; se_naive = 1/sqrt(information) is a design-only yardstick (the object's comparisons treated in isolation), not a bound -- the fitted se can sit below or above it</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -250,7 +257,7 @@ is retained as the raw probability.</p>
 <span><span class="co">#&gt; Paired-comparison transitivity: 8 objects, 56 complete triples</span></span>
 <span><span class="co">#&gt; Circular triads: 0 (0.0% of triples; random-tournament benchmark 25%) -&gt; consistency 1.00</span></span>
 <span><span class="co">#&gt; Kendall coefficient of consistency (complete design): 1.000</span></span>
-<span><span class="co">#&gt; Per-judge consistency reported for 48 judge(s); least consistent -0.87</span></span>
+<span><span class="co">#&gt; Per-judge consistency reported for 48 judge(s); least consistent 0.05</span></span>
 <span><span class="co">#&gt; Note: the 0.25 chance rate is a random-tournament benchmark, not the fitted BTL expected circular rate; transitivity is descriptive</span></span>
 <span></span>
 <span><span class="va">dim_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_btl.html">simulate_btl</a></span><span class="op">(</span></span>
@@ -262,7 +269,7 @@ is retained as the raw probability.</p>
 <span><span class="va">dimensions</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_dimensionality.html">btl_dimensionality</a></span><span class="op">(</span><span class="va">dim_fit</span>, reps <span class="op">=</span> <span class="fl">20</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">dimensions</span></span>
 <span><span class="co">#&gt; Paired-comparison residual dimensionality: 4 bimension(s)</span></span>
-<span><span class="co">#&gt; Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.385; p = 0.476) -&gt; within the conditional reference</span></span></code></pre></div>
+<span><span class="co">#&gt; Leading bimension strength 1.060 (68% of residual; reference 5% upper limit: 1.385; adjusted p = 0.476) -&gt; within the conditional reference</span></span></code></pre></div>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_btl_transitivity.html">plot_btl_transitivity</a></span><span class="op">(</span><span class="va">tr</span><span class="op">)</span></span></code></pre></div>
 <p><img src="paired-comparisons_files/figure-html/plot-transitivity-1.png" class="r-plt" alt="Per-judge consistency of the paired comparisons." width="672"></p>
@@ -298,19 +305,19 @@ false positive rather than a planted result.</p>
 <span>  <span class="st">"min_judges"</span>, <span class="st">"min_effective_judges"</span></span>
 <span><span class="op">)</span><span class="op">]</span>, <span class="fl">6</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  object       term F_uniform p_uniform_adj eta2_uniform min_judges</span></span>
-<span><span class="co">#&gt;      O1 experience     5.230         0.863        0.110         24</span></span>
-<span><span class="co">#&gt;      O1      panel     0.626         1.000        0.015         24</span></span>
-<span><span class="co">#&gt;      O2      panel     0.260         1.000        0.006         24</span></span>
-<span><span class="co">#&gt;      O2 experience     1.982         1.000        0.045         24</span></span>
-<span><span class="co">#&gt;      O3      panel     0.008         1.000        0.000         24</span></span>
-<span><span class="co">#&gt;      O3 experience     0.254         1.000        0.006         24</span></span>
+<span><span class="co">#&gt;      O1      panel     1.198         1.000        0.028         24</span></span>
+<span><span class="co">#&gt;      O1 experience     0.118         1.000        0.003         24</span></span>
+<span><span class="co">#&gt;      O2      panel     0.000         1.000        0.000         24</span></span>
+<span><span class="co">#&gt;      O2 experience     0.932         1.000        0.022         24</span></span>
+<span><span class="co">#&gt;      O3      panel     0.306         1.000        0.007         24</span></span>
+<span><span class="co">#&gt;      O3 experience     1.552         1.000        0.035         24</span></span>
 <span><span class="co">#&gt;  min_effective_judges</span></span>
-<span><span class="co">#&gt;                22.506</span></span>
-<span><span class="co">#&gt;                22.439</span></span>
-<span><span class="co">#&gt;                22.592</span></span>
-<span><span class="co">#&gt;                22.693</span></span>
-<span><span class="co">#&gt;                21.707</span></span>
-<span><span class="co">#&gt;                22.237</span></span></code></pre></div>
+<span><span class="co">#&gt;                22.421</span></span>
+<span><span class="co">#&gt;                22.333</span></span>
+<span><span class="co">#&gt;                22.179</span></span>
+<span><span class="co">#&gt;                22.030</span></span>
+<span><span class="co">#&gt;                22.403</span></span>
+<span><span class="co">#&gt;                22.260</span></span></code></pre></div>
 <p>An optional fitted-outcome bootstrap repeats the comparison fit and
 the complete object-by-term family. It is a sensitivity analysis beside
 the primary HC3 residual analysis. Its familywise probabilities refer to
@@ -330,11 +337,17 @@ withheld until independent judges and comparisons are stated explicitly.
 The shift is precision-weighted when at least two common objects have
 usable variances. If they do not, the function uses the unweighted mean
 location difference, labels it in <code>shift_method</code>, and keeps
-the link descriptive.</p>
+the link descriptive. An exact common anchor fixes the shift even when
+other common objects have unavailable SEs.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eq</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/btl_equate.html">btl_equate</a></span><span class="op">(</span><span class="va">current_panel</span>, <span class="va">reference_panel</span>, independent <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">table</span></span>
 <span><span class="va">eq</span><span class="op">$</span><span class="va">equated</span>                 <span class="co"># reference panel on the current panel's origin</span></span></code></pre></div>
+<p>The SEs in <code>eq$equated</code> include uncertainty in the shift
+and its covariance with the reference locations. They are withheld when
+that joint uncertainty is unavailable. The table retains its covariance
+and finite-sample degrees of freedom as attributes; it is not
+independent of either input calibration.</p>
 <p>A bank table may be used in place of <code>reference_panel</code>.
 Marginal object standard errors are not enough for drift tests because
 they omit the covariance created by the bank’s fitted origin. Attach the
@@ -402,11 +415,14 @@ bootstrap, omnibus probabilities are Holm-adjusted across the three unit
 families. Individual panel-unit, set-unit and set-origin contrasts form
 one separate Holm-adjusted follow-up family. Judge-bootstrap tests
 require at least six judges and 5.5 effective judges in every panel, and
-eight of each on a set link. Judge resamples are distributed over four
-workers by default, or fewer where the system imposes a lower limit. Set
-<code>seed</code> to reproduce the resamples. The parametric bootstrap
-remains serial because its refits are inexpensive. In the application,
-frame estimation runs in the background and may be cancelled.</p>
+eight of each on a set link. The pooled pairwise chi-square is retained
+as a descriptive fit summary, but its row-based probability is not
+reported because judges contribute repeated comparisons. Judge resamples
+are distributed over four workers by default, or fewer where the system
+imposes a lower limit. Set <code>seed</code> to reproduce the resamples.
+The parametric bootstrap remains serial because its refits are
+inexpensive. In the application, frame estimation runs in the background
+and may be cancelled.</p>
 <p>With six judges per panel and 20 repetitions per pair, a 1,000-fit
 null study gave raw marginal rejection of 3.3 per cent for panel units,
 6.7 per cent for set units and 6.0 per cent for set origins. Holm

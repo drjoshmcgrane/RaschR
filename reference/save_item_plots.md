@@ -13,7 +13,7 @@ save_item_plots(
   what = c("icc", "ccc", "tpc", "cfreq"),
   file,
   items = NULL,
-  n_groups = fit$n_groups,
+  n_groups = NULL,
   grid = NULL,
   observed = TRUE,
   width = 8,
@@ -44,7 +44,8 @@ save_item_plots(
 
 - n_groups:
 
-  Class intervals for observed overlays.
+  Class intervals for observed overlays; `NULL` retains the fit's
+  allocation for each item.
 
 - grid:
 

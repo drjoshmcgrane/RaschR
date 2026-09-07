@@ -8,17 +8,15 @@
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_3-0.4.10/font.css" rel="stylesheet"><link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Compare fitted Rasch models — compare_fits"><meta name="description" content="Builds a comparison table for two or more fits from rasch,
 rasch_mfrm, rasch_efrm, or (all together)
 btl. For fits of the
-same response data (identical item columns, maximum scores, and number of
-persons) the pairwise conditional log-likelihoods share their conditional
-information, and twice the difference from the reference fit is reported
+same response data using the same likelihood contributions,
+twice the difference from the reference fit is reported
 with the difference in parameter counts; this is descriptive (composite
 likelihood), and most meaningful for nested structures such as RSM inside
 PCM."><meta property="og:description" content="Builds a comparison table for two or more fits from rasch,
 rasch_mfrm, rasch_efrm, or (all together)
 btl. For fits of the
-same response data (identical item columns, maximum scores, and number of
-persons) the pairwise conditional log-likelihoods share their conditional
-information, and twice the difference from the reference fit is reported
+same response data using the same likelihood contributions,
+twice the difference from the reference fit is reported
 with the difference in parameter counts; this is descriptive (composite
 likelihood), and most meaningful for nested structures such as RSM inside
 PCM."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/logo.svg"></head><body>
@@ -65,9 +63,8 @@ PCM."><meta property="og:image" content="https://drjoshmcgrane.github.io/rasch/l
     <p>Builds a comparison table for two or more fits from <code><a href="rasch.html">rasch</a></code>,
 <code><a href="rasch_mfrm.html">rasch_mfrm</a></code>, <code><a href="rasch_efrm.html">rasch_efrm</a></code>, or (all together)
 <code><a href="btl.html">btl</a></code>. For fits of the
-same response data (identical item columns, maximum scores, and number of
-persons) the pairwise conditional log-likelihoods share their conditional
-information, and twice the difference from the reference fit is reported
+same response data using the same likelihood contributions,
+twice the difference from the reference fit is reported
 with the difference in parameter counts; this is descriptive (composite
 likelihood), and most meaningful for nested structures such as RSM inside
 PCM.</p>
@@ -85,7 +82,7 @@ PCM.</p>
 <dl><dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Two or more fitted objects, preferably given unique names. Supply either all
 Rasch-family fits or all <code>btl</code> fits. For <code>btl</code>, fits of the same
-comparison data (same objects, comparisons, and judges) support the
+comparison data (same objects, response scale, comparisons, and judges) support the
 likelihood columns – e.g. free versus principal-component thresholds,
 with and without a position effect or within-judge dependence.
 Row order, arbitrary person or judge labels, and expansion versus count
@@ -103,8 +100,8 @@ log-likelihood difference; defaults to the first.</p></dd>
     <p>A data frame with one row per fit: label, model, persons, items
   (judges, objects, comparisons for <code>btl</code>),
   parameters, log-likelihood, <code>eff_params</code>, <code>cl_aic</code>,
-  <code>cl_bic</code>, comparability with the reference,
-  <code>two_delta_ll</code> and <code>delta_parameters</code> (same-data fits only),
+  <code>cl_bic</code>, response-data identity with the reference (<code>same_data</code>),
+  <code>two_delta_ll</code> and <code>delta_parameters</code> (eligible same-data comparisons only),
   chi-square per df, fit residual SDs, PSI, and alpha (OSI for
   <code>btl</code>).</p>
     </div>
@@ -117,14 +114,25 @@ with \(c = 2\) or \(\log n\). Because every response enters every
 pair its item forms, the pairwise log-likelihood over-counts the data;
 the effective parameter count \(tr(H^{-1}J)\) from the Godambe
 matrices – the same quantity whose eigenvalues calibrate
-<code><a href="lr_test.html">lr_test</a></code> – absorbs exactly that over-counting, where the
-nominal parameter count would not. \(n\) counts independent units:
+<code><a href="lr_test.html">lr_test</a></code> – accounts for composite score variability and
+curvature, which the nominal parameter count would not. \(n\) counts
+independent units:
 persons contributing at least one informative pair, or judges for
 paired-comparison fits (count-weighted comparisons when unclustered).
 Smaller is better; the criteria are valid across models of the same data
 whether or not they nest, and are <code>NA</code> (with the reason in the
-printed note) for MFRM and EFRM fits, which do not carry their Godambe
-matrices.</p>
+printed note) for EFRM fits, which do not carry Godambe matrices for the
+complete linked model. Rasch EFRM log-likelihoods cover only within-set
+calibration pairs, so generic likelihood differences involving these fits
+are also withheld. Use <code>fit$efrm_vs_rasch</code> for the descriptive
+group-unit comparison on matched pairs; it does not assess set units.
+MFRM fits carry the sensitivity and sandwich
+covariance for their structural pairwise calibration and therefore receive
+the same criteria as ordinary and explanatory Rasch fits. BTL–EFRM fits
+also use a two-stage estimator rather than
+maximising the combined objective jointly, so their generic information
+criteria and likelihood differences are withheld; use the fit's
+<code>equal_unit</code> component for its labelled descriptive comparison.</p>
 <p>Across different data preparations (subtests, splits, facet or frame
 structures), or different allocations of response rows to persons, the
 likelihood-based criteria are not comparable and are withheld. The table retains
@@ -160,7 +168,7 @@ not provide a formal selection test across different response data.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         0.884       0.600         0.837 0.743 0.784</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> (further columns on the object: loglik, parameters, same_data)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cl_aic and cl_bic are composite-likelihood information criteria (Varin &amp; Vidoni 2005; Gao &amp; Song 2010): -2 cl penalised by the effective parameter count tr(H^-1 J), which absorbs the pairwise over-counting that the nominal count would not; smaller is better, valid across models of the same data. Information criteria and two_delta_ll are withheld when the response data or independent-unit allocation differ from the reference. two_delta_ll is the raw composite difference against the reference, descriptive only. Across different data preparations, chisq_per_df, the fit residual SDs and separation/reliability columns provide descriptive context rather than a formal selection criterion.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cl_aic and cl_bic are composite-likelihood information criteria (Varin &amp; Vidoni 2005; Gao &amp; Song 2010): -2 cl penalised by the effective parameter count tr(H^-1 J), which accounts for composite score variability and curvature; smaller is better, valid across models of the same data. Information criteria and two_delta_ll are withheld when the response data, response scale or independent-unit allocation differ from the reference. two_delta_ll is the raw composite difference against the reference, descriptive only. Across different data preparations, chisq_per_df, the fit residual SDs and separation/reliability columns provide descriptive context rather than a formal selection criterion.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -59,7 +59,12 @@ all thresholds of an item with fewer than eight responses in any
 category, or a threshold adjacent to a category with fewer than three
 responses. Standard errors for weak thresholds are reported as `NA`. If
 estimation does not converge, the function warns and all standard errors
-and covariance entries are `NA`.
+and covariance entries are `NA`. Sandwich uncertainty is also withheld
+when fewer than 10 independent persons, fewer than 8 effective persons,
+no more effective persons than fitted parameters, or a rank-deficient
+person-score covariance cannot support inference. Effective support is
+based on informative conditional item-pair contributions; point
+estimates and exact anchors remain.
 
 ## Details
 

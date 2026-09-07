@@ -19,7 +19,8 @@ dif_bootstrap(fit, dif = NULL, B = 999, workers = 4L, seed = NULL)
 - fit:
 
   A fitted Rasch, Multiple Ratings, Extended Frames, explanatory Rasch
-  or ordinary Comparative Judgement model.
+  or ordinary Comparative Judgement model. Fully anchored scoring fits
+  are not supported by this refitting procedure.
 
 - dif:
 
@@ -73,18 +74,19 @@ null.
 
 A replicate contributes only when its calibration converges and every
 member of the declared item- or object-by-DIF-term family is estimable.
-Marginal probabilities compare each observed F statistic with its
-replicated null. Familywise probabilities use the single-step
+Marginal probabilities compare each observed term's F-reference
+probability with the corresponding replicated probabilities. This puts
+refits whose numerator or denominator degrees of freedom differ on the
+same tail scale. Familywise probabilities use the single-step
 distribution of the smallest term-wise F-reference probability in each
 replicate. The same transformation is applied to the observed and
-replicated statistics, while the corresponding marginal empirical
-probability provides a conservative floor. These adjustments describe
-the fitted global invariant null. They do not guarantee familywise error
-control among otherwise invariant items or objects when another member
-has DIF, because that departure can affect the fitted calibration and
-matching scores. For `B >= 30`, at least 90 per cent of the requested
-replicates and no fewer than 30 must be usable; a smaller exploratory
-run must retain a majority.
+replicated statistics. These adjustments describe the fitted global
+invariant null. They do not guarantee familywise error control among
+otherwise invariant items or objects when another member has DIF,
+because that departure can affect the fitted calibration and matching
+scores. For `B >= 30`, at least 90 per cent of the requested replicates
+and no fewer than 30 must be usable; a smaller exploratory run must
+retain a majority.
 
 BTL-EFRM and explanatory Comparative Judgement fits are refused because
 [`btl_dif`](https://drjoshmcgrane.github.io/rasch/reference/btl_dif.md)

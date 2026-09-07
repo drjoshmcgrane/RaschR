@@ -98,7 +98,8 @@ threshold. Column names must be unique.</p></dd>
 <dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
 <dd><p>One-sided explanatory formula. For example,
 <code>~ format + operation + format:operation</code>. The reserved
-<code>threshold</code> factor permits threshold-specific effects.</p></dd>
+<code>threshold</code> factor permits threshold-specific effects.
+Formula offsets (<code><a href="https://rdrr.io/r/stats/offset.html" class="external-link">offset()</a></code>) are not supported.</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
@@ -112,7 +113,9 @@ or per <code>"threshold"</code>. Item rows are expanded over their thresholds.</
   <code>"rasch"</code>. Standard item, person, fit and diagnostic components use
   the explanatory thresholds. The <code>explanatory</code> component contains the
   formula, metadata and design matrices; <code>reference_fit</code> is the free
-  PCM calibration.</p>
+  PCM calibration. <code>est$coefficients</code> reports the estimates, standard
+  errors, \(t\) statistics, reference degrees of freedom, raw
+  probabilities and Holm-adjusted probabilities.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -127,10 +130,26 @@ factors are categorical, and ordered factors use successive contrasts
 between adjacent levels. Character predictors are converted to unordered
 factors. The reserved factor
 <code>threshold</code> identifies the within-item threshold number;
-<code>threshold_number</code> supplies its integer value.</p>
+<code>threshold_number</code> supplies its integer value.
+Design columns are centred and rescaled internally for numerical stability; reported
+coefficients and standard errors use the supplied predictor units.
+Coincident coefficient labels receive numeric suffixes; this does not
+change the predictor design.</p>
 <p>A free PCM reference is fitted to the same prepared responses and retained
 on the object. <code><a href="explanatory_test.html">explanatory_test</a></code> applies the first-order Kent
-calibration required for the pairwise composite likelihood.</p>
+calibration required for the pairwise composite likelihood. When an
+identifier occurs on more than one response row, coefficient covariance is
+clustered by person. A linearised delete-one-person correction accounts for
+finite-cluster leverage without refitting the model once per person.
+Supported repeated-person fits use a \(t\) reference
+with degrees of freedom equal to the number of person clusters contributing
+conditional information minus one; inference
+is withheld when the calibration lacks enough independent information.
+Supported fits without repeated identifiers use the limiting normal
+reference. Holm adjustment covers the coefficient family.
+With few persons and unequal numbers of response rows, these approximate
+tests can still be mildly liberal; the correction does not guarantee nominal
+coverage in small samples.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -160,9 +179,9 @@ model with an application to the measurement of change. Psychometrika, 59,
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">rasch_explanatory</span><span class="op">(</span><span class="va">X</span>, predictors <span class="op">=</span> <span class="va">q</span>,</span></span>
 <span class="r-in"><span>                         formula <span class="op">=</span> <span class="op">~</span> <span class="va">operation</span> <span class="op">+</span> <span class="va">format</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">est</span><span class="op">$</span><span class="va">coefficients</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       term estimate    se     z       p   p_adj</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  operation    0.697 0.070 9.996 &lt; 0.001 &lt; 0.001</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    formatB    0.423 0.071 5.925 &lt; 0.001 &lt; 0.001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       term estimate    se     t  df       p   p_adj</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  operation    0.697 0.070 9.996 Inf &lt; 0.001 &lt; 0.001</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    formatB    0.423 0.071 5.925 Inf &lt; 0.001 &lt; 0.001</span>
 <span class="r-in"><span><span class="fu"><a href="explanatory_test.html">explanatory_test</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  model parameters free_parameters r_squared r_squared_adj              r2_basis</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   LLTM          2               7     0.945         0.923 threshold calibration</span>

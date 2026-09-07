@@ -39,7 +39,8 @@ plot_scree(
   [`rasch`](https://drjoshmcgrane.github.io/rasch/reference/rasch.md). A
   simulated reference requires one response row per person; with
   repeated identifiers, use `parallel = FALSE` to display the observed
-  eigenvalues alone.
+  eigenvalues alone. Fully anchored scoring fits also require
+  `parallel = FALSE`.
 
 - n_components:
 

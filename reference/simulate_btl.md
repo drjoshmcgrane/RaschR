@@ -47,17 +47,22 @@ simulate_btl(
 
 - object_sd:
 
-  Spread of the object locations (evenly spaced, sum-zero).
+  Realised sample standard deviation of the object locations (evenly
+  spaced and sum-zero).
 
 - second_attribute:
 
   `NULL`, or `list(rho=)`: half the judges rank by a second object
-  attribute whose realised correlation with the first is `rho`. This
-  introduces residual dimensionality and possible intransitivity.
+  attribute whose realised correlation with the first is `rho`. It lies
+  in \[-1, 1); at 1 the attributes are identical and no second attribute
+  is planted. This introduces residual dimensionality and possible
+  intransitivity.
 
 - erratic_judges:
 
-  Proportion of judges who choose at random.
+  Proportion of judges who choose at random. At least one judge must
+  retain model-based comparisons, in each camp when a second attribute
+  is generated.
 
 - dependence:
 

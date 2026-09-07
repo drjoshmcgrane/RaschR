@@ -1,7 +1,10 @@
 # Plot the frame units of a paired-comparison EFRM fit
 
 Caterpillar plot of panel units `phi_g` and set units `alpha_s` on the
-log scale, with 95 per cent intervals and unit one marked.
+log scale, with 95 per cent intervals and unit one marked. Intervals use
+each unit's reported reference degrees of freedom; they are omitted
+where inference is unavailable. Fits from an earlier release without a
+`df` column use the limiting normal reference.
 
 ## Usage
 

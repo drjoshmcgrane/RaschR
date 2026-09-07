@@ -3,8 +3,10 @@
 Ranks candidate object pairs by the information expected from one
 additional comparison at the current estimates (Pollitt 2012). By
 default, priority is the one-step reduction in total location variance
-from a rank-one covariance update. This favours close pairs and objects
-measured with less precision.
+from a rank-one covariance update. This favours informative comparisons
+and objects measured with less precision. For dichotomous comparisons
+without a position effect, information is greatest between objects with
+similar locations.
 
 ## Usage
 
@@ -46,7 +48,11 @@ The procedure is a greedy, one-step ranking rather than a jointly
 optimal design. Applied to a sandwich covariance, the update ranks pairs
 but does not give an exact variance reduction. Adaptive selection can
 also inflate a separation reliability calculated from the same
-comparisons (Bramley 2015). The fitted model must have converged.
+comparisons (Bramley 2015). The fitted model must have converged. A
+fitted position effect is included with the stronger object presented
+first, as returned in `object_a`. History-dependent fits require a
+specified judge and comparison history for a new comparison;
+recommendations are therefore unavailable for those fits.
 
 ## References
 

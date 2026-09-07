@@ -37,8 +37,18 @@ dimensionality_magnitude(fit, subtests)
 ## Value
 
 A list of class `"rasch_dim_magnitude"`: the comparison `table` (rows
-PSI and alpha; columns `run1`, `subtest`, `c2`, `c`, `rho`, `A`), the
-subtest `refit`, and the design constants `S` and `K`.
+PSI and alpha; columns `run1`, `subtest`, `c2`, `c`, `rho`, `A`, `n`,
+`n_excluded`), the subtest `refit`, and the design constants `S` and
+`K`.
+
+## Details
+
+Both reliability calculations use rows with responses to every item. PSI
+further requires a finite person estimate and standard error in both
+fits. The calibrations are retained; only the reliability sample
+changes. With missing responses, the result describes this
+complete-response sample, not necessarily the full population. The table
+reports rows used and excluded.
 
 ## References
 
@@ -58,7 +68,7 @@ colnames(X) <- paste0("I", 1:10)
 fit <- rasch(X)
 dimensionality_magnitude(fit,
   list(paste0("I", 1:5), paste0("I", 6:10)))$table
-#>  index  run1 subtest    c2     c   rho     A
-#>    PSI 0.577   0.369 1.268 1.126 0.441 0.612
-#>  alpha 0.662   0.497 0.747 0.864 0.572 0.728
+#>  index  run1 subtest    c2     c   rho     A   n n_excluded
+#>    PSI 0.577   0.369 1.268 1.126 0.441 0.612 500          0
+#>  alpha 0.662   0.497 0.747 0.864 0.572 0.728 500          0
 ```

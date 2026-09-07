@@ -37,18 +37,18 @@ fit <- rasch_mfrm(d, person = "person", item = "item", score = "score",
 fit
 #> rasch multiple ratings analysis: 4 items x 5 rater level(s) = 20 response cells, 60 persons
 #> Pairwise conditional ML: converged in 7 iterations
-#> PSI 0.923, separation quality: excellent
+#> PSI 0.922, separation quality: excellent
 #> 
 #> Facet 'rater' severities (logits):
 #>  level severity    se   n fit_resid
-#>     R1    0.756 0.076 240     0.080
-#>     R2    0.585 0.076 240    -0.154
-#>     R3   -0.981 0.102 240     0.195
-#>     R4   -0.438 0.086 240     0.011
-#>     R5    0.077 0.080 240    -0.598
+#>     R1    0.800 0.084 240    -0.013
+#>     R2    0.567 0.082 240     0.005
+#>     R3   -0.992 0.110 240     0.232
+#>     R4   -0.503 0.082 240    -0.282
+#>     R5    0.128 0.090 240    -0.523
 #> (pooled fit residuals and their df on fit$facet_effects)
 #> 
-#> Notes: item I1:R3: only 0 response(s) in category 0; threshold(s) 1 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I1:R3: category 0/1 has only 0/4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I1:R4: only 2 response(s) in category 0; threshold(s) 1 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I1:R4: category 0 has only 2 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I1:R5: category 0 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I2:R1: category 3 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I2:R2: category 3 has only 7 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I2:R3: category 0 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I3:R1: category 3 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I3:R2: category 3 has only 6 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I3:R3: category 0 has only 5 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I4:R1: only 0 response(s) in category 3; threshold(s) 3 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I4:R1: category 3 has only 0 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I4:R2: only 2 response(s) in category 3; threshold(s) 3 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I4:R2: category 2/3 has only 6/2 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I4:R5: category 3 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; a universal raw-score conversion is not defined across the expanded facet response cells; use the design-specific information curves
+#> Notes: item I1:R2: category 0 has only 7 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I1:R3: only 0 response(s) in category 0; threshold(s) 1 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I1:R3: category 0/1 has only 0/3 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I1:R4: only 0 response(s) in category 0; threshold(s) 1 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I1:R4: category 0/1 has only 0/5 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I1:R5: category 0 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I2:R1: category 3 has only 4 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I2:R3: category 0/1 has only 4/7 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I3:R1: only 2 response(s) in category 3; threshold(s) 3 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I3:R1: category 3 has only 2 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I3:R2: category 2/3 has only 7/6 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I3:R3: category 0 has only 5 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I4:R1: only 0 response(s) in category 3; threshold(s) 3 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I4:R1: category 3 has only 0 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I4:R2: only 2 response(s) in category 3; threshold(s) 3 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I4:R2: category 2/3 has only 5/2 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; item I4:R5: only 2 response(s) in category 3; threshold(s) 3 and the item location are weakly determined (SE reported as NA) -- consider pc_components or collapsing categories; item I4:R5: category 3 has only 2 response(s); all of the item's jointly estimated thresholds are unreliable at this sparsity (SEs reported as NA) -- consider pc_components or collapsing categories; a universal raw-score conversion is not defined across the expanded facet response cells; use the design-specific information curves
 ```
 
 ## Read the structural parameters
@@ -63,25 +63,25 @@ calibration.
 
 fit$item_effects
 #>  item location    se   n infit_ms outfit_ms fit_resid fit_resid_pooled  df_fit
-#>    I1   -0.988 0.074 300    1.045     1.059     0.164            0.657 281.250
-#>    I2   -0.327 0.061 300    1.054     1.021     0.111            0.352 281.250
-#>    I3    0.386 0.066 300    0.990     0.989    -0.095            0.000 281.250
-#>    I4    0.930 0.090 300    0.923     0.878    -0.553           -1.142 281.250
+#>    I1   -1.184 0.092 300    1.038     1.074     0.128            0.777 281.250
+#>    I2   -0.411 0.063 300    1.064     1.006     0.031            0.179 281.250
+#>    I3    0.464 0.066 300    1.008     1.003    -0.003            0.148 281.250
+#>    I4    1.132 0.107 300    0.910     0.859    -0.620           -1.278 281.250
 fit$facet_effects$rater
 #>  level severity    se   n infit_ms outfit_ms fit_resid fit_resid_pooled df_fit
-#>     R1    0.756 0.076 240    1.075     1.013     0.080            0.243    225
-#>     R2    0.585 0.076 240    0.997     0.956    -0.154           -0.299    225
-#>     R3   -0.981 0.102 240    0.945     1.075     0.195            0.736    225
-#>     R4   -0.438 0.086 240    1.099     1.010     0.011            0.210    225
-#>     R5    0.077 0.080 240    0.905     0.877    -0.598           -1.172    225
+#>     R1    0.800 0.084 240    1.070     0.993    -0.013            0.064    225
+#>     R2    0.567 0.082 240    1.027     0.989     0.005            0.013    225
+#>     R3   -0.992 0.110 240    0.959     1.113     0.232            1.007    225
+#>     R4   -0.503 0.082 240    1.042     0.942    -0.282           -0.437    225
+#>     R5    0.128 0.090 240    0.937     0.889    -0.523           -1.008    225
 head(fit$item_thresholds)
 #>  item k    tau    se
-#>    I1 1 -2.038 0.259
-#>    I1 2 -0.993 0.175
-#>    I1 3  0.068 0.145
-#>    I2 1 -1.448 0.222
-#>    I2 2 -0.463 0.171
-#>    I2 3  0.928 0.172
+#>    I1 1 -2.168 0.289
+#>    I1 2 -1.348 0.183
+#>    I1 3 -0.036 0.156
+#>    I2 1 -1.638 0.220
+#>    I2 2 -0.456 0.178
+#>    I2 3  0.860 0.168
 ```
 
 ``` r
@@ -112,16 +112,16 @@ fit_interaction <- rasch_mfrm(
   facets = "rater", interaction = "rater"
 )
 head(fit_interaction$interaction_effects)
-#>  item level  gamma    se      z     p p_adj significant
-#>    I1    R1 -0.157 0.179 -0.878 0.383 1.000            
-#>    I2    R1  0.041 0.132  0.311 0.757 1.000            
-#>    I3    R1  0.059 0.156  0.379 0.706 1.000            
-#>    I4    R1  0.057 0.144  0.394 0.695 1.000            
-#>    I1    R2 -0.071 0.145 -0.490 0.626 1.000            
-#>    I2    R2 -0.086 0.154 -0.555 0.581 1.000
+#>  item level  gamma    se      t df     p p_adj significant
+#>    I1    R1 -0.119 0.170 -0.698 59 0.488 1.000            
+#>    I2    R1  0.013 0.128  0.100 59 0.921 1.000            
+#>    I3    R1  0.031 0.156  0.201 59 0.841 1.000            
+#>    I4    R1  0.075 0.142  0.526 59 0.601 1.000            
+#>    I1    R2 -0.015 0.145 -0.103 59 0.918 1.000            
+#>    I2    R2 -0.083 0.154 -0.539 59 0.592 1.000
 fit_interaction$interaction_test
 #>  facet df  wald     f df2     p min_effective_persons minimum_required
-#>  rater 12 5.993 0.406  48 0.954                    60               30
+#>  rater 12 7.684 0.521  48 0.891                    60               30
 #>  inference_available
 #>                    *
 ```
